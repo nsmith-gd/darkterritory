@@ -457,9 +457,13 @@ public sealed class Climber(int id) : Enemy(id)
         int car = Attached;
         var shape = train.Frames[car].Shape;
         double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
-        // Over the middle of a car with a room in it, unlit or with nobody inside (App. A.4 ENTER): in it goes.
+        // Over the middle of a car with a room in it, unlit or with nobody inside (App. A.4 ENTER): in it goes. Shut up and
+        // dark, it forces its way in through the roof (the hatch torn off): the car's breached (decided 1 Oct).
         if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)))
         {
+            var v = train.Vehicles[car];
+            if (v.DoorsOpen == 0 && (!v.LampLit || t.BreachLitCars) && Breaches.Roof(shape) is { } roof)
+                v.Breach(roof);
             Local = room.Centre with { Y = room.Min.Y };
             Extra = -1; // inside: the interior threat
             // GDD §23 "lights fail" (note 183): in the dark is how it likes it; the lamp goes out as it comes in.

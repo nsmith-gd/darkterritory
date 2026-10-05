@@ -1,0 +1,20 @@
+// Hold-to-interact progress: The held action done. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 1,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 0,
+ "flat": true,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "ui-prompts/complete",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

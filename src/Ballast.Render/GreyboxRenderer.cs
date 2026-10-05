@@ -37,6 +37,9 @@ unsafe struct FrameData
     /// <summary>xyz the wind (m/s, world axes), w how gusty.</summary>
     public Vector4 Wind;
     public fixed float SwayOf[256];
+    /// <summary>The right eye's, when one pass draws both (<see cref="GreyboxRenderer.Views"/> 2; Shaders/view.glsl).</summary>
+    public Matrix4x4 ViewProj1;
+    public Matrix4x4 InvViewProj1;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -73,8 +76,12 @@ struct PostConstants
 /// </list>
 /// Without <see cref="Load"/>ed assets it draws the untextured greybox, as it always has.
 /// </summary>
-/// <summary>What the last frame drew: the scene pass (with the sky), and each shadow pass (zero while its light is off).</summary>
-public readonly record struct FrameStats(int Triangles, int Draws, int Lights, int LampTriangles, int LampDraws, int MoonTriangles, int MoonDraws);
+/// <summary>
+/// What the last frame drew: the scene pass (with the sky), and each shadow pass (zero while its light is off). With
+/// <see cref="Views"/> 2 the scene pass's draws are recorded once and drawn into both eyes (multiview), so the GPU sets up
+/// <see cref="Triangles"/> twice.
+/// </summary>
+public readonly record struct FrameStats(int Triangles, int Draws, int Lights, int LampTriangles, int LampDraws, int MoonTriangles, int MoonDraws, int Views = 1);
 
 public sealed unsafe class GreyboxRenderer : IDisposable
 {
@@ -150,6 +157,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     VkDeviceMemory _overlayMemory;
     ulong _overlayCapacity;
     int _overlayCount;
+    // Drawing both eyes at once: where the right eye's overlay starts in the buffer (overlay.vert).
+    int _overlaySplit;
+    readonly List<OverlayVertex> _overlayBoth = new();
 
     sealed class GpuMesh(VkBuffer buffer, VkDeviceMemory memory, int count)
     {
@@ -170,18 +180,32 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     Matrix4x4* _bonesMapped;
     int _bonesCapacity;
 
-    readonly record struct Target(VkImage Image, VkDeviceMemory Memory, VkImageView View, int Width, int Height);
+    // Layers: 1, or a multiview renderer's per-eye targets, one layer an eye (an array view over them all).
+    readonly record struct Target(VkImage Image, VkDeviceMemory Memory, VkImageView View, int Width, int Height, int Layers = 1);
 
     // GPU timing: a timestamp at each pass boundary of the last recorded frame (none where the queue can't time).
     static readonly string[] PassNames = ["lampShadow", "moonShadow", "scene", "occlusion", "bloom", "composite", "final"];
     readonly VkQueryPool _timestamps;
     bool _timed;
+    // A slot a mark, and a spare one for each view past the first: lavapipe (Mesa 25) writes a timestamp taken after a
+    // multiview pass into a query per view, as if still inside it, and the last mark's second write ran off the pool's
+    // end (a crash). Each mark's spare is overwritten by the next mark, so every read is still the right one. (Note 213.)
+    uint TimestampSlots => (uint)(PassNames.Length + Views);
 
     /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
     /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
     /// <param name="moonShadowSize">The moon's shadow map's size, texels square.</param>
-    public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm, int moonShadowSize = 2048)
+    /// <param name="views">2: a headset's both eyes in one pass (multiview, ARCHITECTURE §8 note 221): every per-eye target
+    /// is a two-layer array, every scene and post pass draws both layers at once, and the shaders pick each eye's view by
+    /// gl_ViewIndex. The shadow maps are the body's, not an eye's, so they're drawn once either way. Needs
+    /// <see cref="GpuContext.Multiview"/>.</param>
+    public GreyboxRenderer(GpuContext gpu, int width, int height, VkFormat colorFormat = VkFormat.R8G8B8A8Unorm, int moonShadowSize = 2048, int views = 1)
     {
+        if (views is < 1 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(views), views, "one view, or a headset's two");
+        if (views > 1 && !gpu.Multiview)
+            throw new NotSupportedException($"{gpu.DeviceName} has no multiview: draw each eye with its own renderer");
+        Views = views;
         MoonShadowSize = moonShadowSize;
         _colorFormat = colorFormat;
         _gpu = gpu;
@@ -189,16 +213,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Height = height;
         int hw = Math.Max(1, width / 2), hh = Math.Max(1, height / 2);
 
-        _color = CreateTarget(_colorFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc, VkImageAspectFlags.Color);
-        _scene = CreateTarget(SceneFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _depth = CreateTarget(DepthFormat, width, height, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
-        _ao = CreateTarget(LdrFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _bloomA = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _bloomB = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
+        _color = CreateTarget(_colorFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc, VkImageAspectFlags.Color, views);
+        _scene = CreateTarget(SceneFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
+        _depth = CreateTarget(DepthFormat, width, height, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth, views);
+        _ao = CreateTarget(LdrFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
+        _bloomA = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
+        _bloomB = CreateTarget(SceneFormat, hw, hh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
         int qw = Math.Max(1, width / 4), qh = Math.Max(1, height / 4);
-        _bloomC = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _bloomD = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
-        _ldr = CreateTarget(LdrFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color);
+        _bloomC = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
+        _bloomD = CreateTarget(SceneFormat, qw, qh, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
+        _ldr = CreateTarget(LdrFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
         _shadow = CreateTarget(DepthFormat, ShadowSize, ShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
         _moonShadow = CreateTarget(DepthFormat, MoonShadowSize, MoonShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
         {
@@ -217,7 +241,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Check(Api.vkCreateSampler(&info, null, &sampler), "vkCreateSampler");
             _shadowSampler = sampler;
         }
-        (_readback, _readbackMemory) = CreateBuffer((ulong)(width * height * 4), VkBufferUsageFlags.TransferDst,
+        (_readback, _readbackMemory) = CreateBuffer((ulong)(width * height * 4 * views), VkBufferUsageFlags.TransferDst,
             VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
         (_frame, _frameMemory) = CreateBuffer((ulong)sizeof(FrameData), VkBufferUsageFlags.UniformBuffer, VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent);
         void* mapped;
@@ -225,7 +249,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _frameMapped = (FrameData*)mapped;
         if (gpu.TimestampPeriod > 0)
         {
-            var info = new VkQueryPoolCreateInfo { queryType = VkQueryType.Timestamp, queryCount = (uint)PassNames.Length + 1 };
+            var info = new VkQueryPoolCreateInfo { queryType = VkQueryType.Timestamp, queryCount = TimestampSlots };
             VkQueryPool queries;
             Check(Api.vkCreateQueryPool(&info, null, &queries), "vkCreateQueryPool");
             _timestamps = queries;
@@ -269,7 +293,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _sceneLayout = PipelineLayout(_sceneSetLayout, (uint)sizeof(DrawConstants), VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment);
         _postLayout = PipelineLayout(_postSetLayout, (uint)sizeof(PostConstants), VkShaderStageFlags.Fragment);
         _compositeLayout = PipelineLayout(_compositeSetLayout, (uint)sizeof(PostConstants), VkShaderStageFlags.Fragment);
-        _overlayLayout = PipelineLayout(null, (uint)sizeof(Vector2), VkShaderStageFlags.Vertex);
+        _overlayLayout = PipelineLayout(null, (uint)sizeof(Vector4), VkShaderStageFlags.Vertex);
 
         _skyPipeline = Pipeline(_sceneLayout, "fullscreen.vert", "sky.frag", SceneFormat, PipelineKind.Fullscreen, depth: true);
         _scenePipeline = Pipeline(_sceneLayout, "scene.vert", "scene.frag", SceneFormat, PipelineKind.Scene, depth: true);
@@ -320,7 +344,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public int Width { get; }
     public int Height { get; }
 
-    /// <summary>The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout.</summary>
+    /// <summary>How many views a frame draws: 1, or 2 for both of a headset's eyes in one pass (multiview).</summary>
+    public int Views { get; }
+
+    /// <summary>
+    /// The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout. With <see cref="Views"/> 2 it's
+    /// an array image, the left eye in layer 0 and the right in layer 1.
+    /// </summary>
     public VkImage ColorImage => _color.Image;
 
     /// <summary>The post stack's settings: from the loaded assets, or the defaults. Set outside command recording.</summary>
@@ -480,29 +510,74 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <param name="overlay">2D drawing over the frame (the HUD), or null.</param>
     public byte[] Render(MeshBuilder mesh, in Camera camera, in FrameLighting lighting, Vector3 clearColor, Overlay? overlay = null)
     {
-        Prepare(mesh, overlay);
-        var cam = camera;
+        if (Views != 1)
+            throw new InvalidOperationException("a multiview renderer draws both eyes: RenderEyes");
+        return RenderViews(mesh, [camera], lighting, clearColor, [overlay])[0];
+    }
+
+    /// <summary>
+    /// Both eyes in one pass (<see cref="Views"/> 2) and each read back as RGBA8, top row first: the left eye's, then the
+    /// right's. Each eye's overlay is its own (the HUD's panel projected for it, its vignette).
+    /// </summary>
+    public byte[][] RenderEyes(MeshBuilder mesh, Camera left, Camera right, in FrameLighting lighting, Vector3 clearColor, Overlay? leftOverlay = null, Overlay? rightOverlay = null)
+    {
+        if (Views != 2)
+            throw new InvalidOperationException("a single-view renderer draws one eye: Render");
+        return RenderViews(mesh, [left, right], lighting, clearColor, [leftOverlay, rightOverlay]);
+    }
+
+    byte[][] RenderViews(MeshBuilder mesh, Camera[] cameras, in FrameLighting lighting, Vector3 clearColor, Overlay?[] overlays)
+    {
+        if (overlays.Length > 1)
+            Prepare(mesh, overlays[0], overlays[1]);
+        else
+            Prepare(mesh, overlays[0]);
         var light = lighting;
         _gpu.Submit(cmd =>
         {
-            Record(cmd, cam, light, clearColor);
+            Record(cmd, cameras, light, clearColor);
             var region = new VkBufferImageCopy
             {
-                imageSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+                imageSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, (uint)Views),
                 imageExtent = new VkExtent3D(Width, Height, 1),
             };
             Api.vkCmdCopyImageToBuffer(cmd, _color.Image, VkImageLayout.TransferSrcOptimal, _readback, 1, &region);
         });
 
-        var pixels = new byte[Width * Height * 4];
+        int size = Width * Height * 4;
+        var pixels = new byte[Views][];
         void* mapped;
-        Check(Api.vkMapMemory(_readbackMemory, 0, (ulong)pixels.Length, 0, &mapped), "vkMapMemory");
-        new ReadOnlySpan<byte>(mapped, pixels.Length).CopyTo(pixels);
+        Check(Api.vkMapMemory(_readbackMemory, 0, (ulong)(size * Views), 0, &mapped), "vkMapMemory");
+        for (int v = 0; v < Views; v++)
+            pixels[v] = new ReadOnlySpan<byte>((byte*)mapped + v * size, size).ToArray();
         Api.vkUnmapMemory(_readbackMemory);
         return pixels;
     }
 
-    /// <summary>Uploads geometry, kit instances and lights (and the overlay, if any) for the next <see cref="Record"/>. Call outside command recording.</summary>
+    /// <summary>
+    /// <see cref="Prepare(MeshBuilder, Overlay?)"/> for both eyes at once (<see cref="Views"/> 2), each with its own overlay.
+    /// </summary>
+    public void Prepare(MeshBuilder mesh, Overlay? left, Overlay? right)
+    {
+        if (Views != 2)
+            throw new InvalidOperationException("one overlay per view: this renderer draws one");
+        Prepare(mesh, (Overlay?)null);
+        // One buffer, the left eye's first: overlay.vert keeps each eye to its own.
+        _overlayBoth.Clear();
+        if (left is not null)
+            _overlayBoth.AddRange(left.Vertices);
+        _overlaySplit = _overlayBoth.Count;
+        if (right is not null)
+            _overlayBoth.AddRange(right.Vertices);
+        _overlayCount = _overlayBoth.Count;
+        if (_overlayCount > 0)
+            Upload(CollectionsMarshal.AsSpan(_overlayBoth), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
+    }
+
+    /// <summary>
+    /// Uploads geometry, kit instances and lights (and the overlay, if any) for the next <see cref="Record"/>. Call outside
+    /// command recording. A multiview renderer given one overlay shows it to both eyes.
+    /// </summary>
     public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
         Upload(mesh.Vertices, (uint)Vertex.Stride, ref _vertices, ref _vertexMemory, ref _vertexCapacity);
@@ -593,6 +668,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             _rooms.RemoveRange(FrameData.MaxRooms, _rooms.Count - FrameData.MaxRooms);
         }
         _overlayCount = overlay?.Count ?? 0;
+        _overlaySplit = -1;
         if (overlay is { Count: > 0 })
             Upload(CollectionsMarshal.AsSpan(overlay.Vertices), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
     }
@@ -665,14 +741,22 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkUnmapMemory(memory);
     }
 
-    void WriteFrame(in Camera camera, in FrameLighting lighting, Vector3 horizon)
+    /// <param name="cameras">Each view's camera (one, or both eyes): they share a position (the scene's origin) and differ
+    /// by their eye offsets and orientations. The first's places the shadows, as the left eye's does drawing each eye alone.</param>
+    void WriteFrame(ReadOnlySpan<Camera> cameras, in FrameLighting lighting)
     {
-        var viewProj = camera.ViewProjection((float)Width / Height);
-        Matrix4x4.Invert(viewProj, out var inverse);
-        float fogBase = double.IsNaN(lighting.FogBase) ? -1.7f : (float)(lighting.FogBase - camera.Position.Y);
+        ref readonly var camera = ref cameras[0];
         var f = _frameMapped;
-        f->ViewProj = viewProj;
-        f->InvViewProj = inverse;
+        for (int v = 0; v < cameras.Length; v++)
+        {
+            _viewProj[v] = cameras[v].ViewProjection((float)Width / Height);
+            Matrix4x4.Invert(_viewProj[v], out var inverse);
+            if (v == 0)
+                (f->ViewProj, f->InvViewProj) = (_viewProj[v], inverse);
+            else
+                (f->ViewProj1, f->InvViewProj1) = (_viewProj[v], inverse);
+        }
+        float fogBase = double.IsNaN(lighting.FogBase) ? -1.7f : (float)(lighting.FogBase - camera.Position.Y);
         f->LampViewProj = LampViewProjection(camera, lighting);
         _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
         f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
@@ -721,8 +805,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         for (int i = 0; i < 256; i++)
             f->SwayOf[i] = i < _sway.Length && _sway[i] ? 1 : 0;
-        _ = horizon;
     }
+
+    // Each view's view-projection this frame (the culling's, and the frame constants').
+    readonly Matrix4x4[] _viewProj = new Matrix4x4[2];
 
     /// <summary>
     /// The headlamp's view for its shadow map: from the lamp (camera-relative) along its beam, a little wider than its
@@ -770,13 +856,27 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <param name="clearColor">The horizon's colour (the sky fades from it to the zenith).</param>
     public void Record(VkCommandBuffer cmd, in Camera camera, in FrameLighting lighting, Vector3 clearColor)
     {
+        if (Views != 1)
+            throw new InvalidOperationException("a multiview renderer records both eyes at once");
+        Record(cmd, new ReadOnlySpan<Camera>(in camera), lighting, clearColor);
+    }
+
+    /// <summary>
+    /// Records the frame for every view at once (<see cref="Views"/> cameras: a headset's left eye then its right) into
+    /// <see cref="ColorImage"/>'s layers, leaving it ready to copy or blit.
+    /// </summary>
+    public void Record(VkCommandBuffer cmd, ReadOnlySpan<Camera> cameras, in FrameLighting lighting, Vector3 clearColor)
+    {
+        if (cameras.Length != Views)
+            throw new ArgumentException($"{Views} view(s) to draw, {cameras.Length} camera(s) given", nameof(cameras));
+        ref readonly var camera = ref cameras[0];
         var light = lighting;
         light.FogColor = clearColor;
-        WriteFrame(camera, light, clearColor);
+        WriteFrame(cameras, light);
         _lampOn = lighting.LampRange > 1;
         (int Triangles, int Draws) lampDrawn = default, moonDrawn = default;
         if (_timestamps.IsNotNull)
-            Api.vkCmdResetQueryPool(cmd, _timestamps, 0, (uint)PassNames.Length + 1);
+            Api.vkCmdResetQueryPool(cmd, _timestamps, 0, TimestampSlots);
         _timed = _timestamps.IsNotNull;
         Mark(cmd, 0);
 
@@ -805,7 +905,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _shadowPipeline);
-                    lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline, _frameMapped->LampViewProj);
+                    lampDrawn = DrawGeometry(cmd, _shadowSkinPipeline, [_frameMapped->LampViewProj]);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -834,7 +934,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _moonShadowPipeline);
-                    moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline, _frameMapped->MoonViewProj);
+                    moonDrawn = DrawGeometry(cmd, _moonShadowSkinPipeline, [_frameMapped->MoonViewProj]);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -859,7 +959,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &identity);
         Api.vkCmdDraw(cmd, 3, 1, 0, 0);
         Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _scenePipeline);
-        var sceneDrawn = DrawGeometry(cmd, _sceneSkinPipeline, _frameMapped->ViewProj);
+        // Culled against every eye's view: what either sees is drawn (to both, with multiview).
+        var sceneDrawn = DrawGeometry(cmd, _sceneSkinPipeline, _viewProj.AsSpan(0, Views));
         if (_fxAlphaCount + _fxAddCount > 0)
         {
             var fb = _fxVertices;
@@ -884,15 +985,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Transition(cmd, _scene.Image, VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
         Transition(cmd, _depth.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
         Mark(cmd, 3);
-        Stats = new FrameStats(sceneDrawn.Triangles, sceneDrawn.Draws + 1, _lights.Count, lampDrawn.Triangles, lampDrawn.Draws, moonDrawn.Triangles, moonDrawn.Draws);
+        Stats = new FrameStats(sceneDrawn.Triangles, sceneDrawn.Draws + 1, _lights.Count, lampDrawn.Triangles, lampDrawn.Draws, moonDrawn.Triangles, moonDrawn.Draws, Views);
 
-        // 2b: the occlusion from the depth, at half resolution.
+        // 2b: the occlusion from the depth, at half resolution (each eye by its own projection: c.yz the right's).
         _projection = camera.Projection((float)Width / Height);
+        var right = Views > 1 ? cameras[1].Projection((float)Width / Height) : _projection;
         PostPass(cmd, _ao, _aoPipeline, _postLayout, _aoSet, new PostConstants
         {
             A = new Vector4(_projection.M33, _projection.M43, _projection.M11, _projection.M22),
             B = new Vector4(Post.OcclusionRadius, Post.OcclusionIntensity, 1f / Width, 1f / Height),
-            C = new Vector4(Post.OcclusionFar, 0, 0, 0),
+            C = new Vector4(Post.OcclusionFar, right.M11, right.M22, 0),
         });
         Mark(cmd, 4);
 
@@ -938,8 +1040,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         if (_overlayCount > 0)
         {
             Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _overlayPipeline);
-            var size = OverlaySize ?? new Vector2(Width, Height);
-            Api.vkCmdPushConstants(cmd, _overlayLayout, VkShaderStageFlags.Vertex, 0, (uint)sizeof(Vector2), &size);
+            var size = new Vector4(OverlaySize ?? new Vector2(Width, Height), _overlaySplit, 0);
+            Api.vkCmdPushConstants(cmd, _overlayLayout, VkShaderStageFlags.Vertex, 0, (uint)sizeof(Vector4), &size);
             var ob = _overlayVertices;
             ulong zero = 0;
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &ob, &zero);
@@ -954,11 +1056,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// The frame's soup and every kit instance, with whatever pipeline is bound; then the skinned ones with
     /// <paramref name="skinned"/>, the same pass's skinning twin (it stays bound after). Returns what it drew.
     /// </summary>
-    /// <param name="viewProj">The pass's view: instances wholly outside it aren't drawn.</param>
-    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, in Matrix4x4 viewProj)
+    /// <param name="views">The pass's views (one, or both eyes'): instances wholly outside all of them aren't drawn.</param>
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views)
     {
-        Span<Vector4> planes = stackalloc Vector4[6];
-        FrustumPlanes(viewProj, planes);
+        Span<Vector4> planes = stackalloc Vector4[6 * views.Length];
+        for (int v = 0; v < views.Length; v++)
+            FrustumPlanes(views[v], planes.Slice(v * 6, 6));
         int triangles = _vertexCount / 3, draws = _vertexCount > 0 ? 1 : 0;
         var identity = new DrawConstants { Model = Matrix4x4.Identity, Tint = Vector4.One };
         if (_vertexCount > 0)
@@ -971,7 +1074,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
         foreach (var (mesh, draw, sphere) in _draws)
         {
-            if (!Visible(planes, sphere))
+            bool seen = false;
+            for (int v = 0; v < views.Length && !seen; v++)
+                seen = Visible(planes.Slice(v * 6, 6), sphere);
+            if (!seen)
                 continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
@@ -1064,6 +1170,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             renderArea = new VkRect2D(0, 0, (uint)target.Width, (uint)target.Height),
             layerCount = 1,
+            // Multiview: each view (eye) into its own layer, from the one set of draws.
+            viewMask = ViewMask(target.Layers),
             colorAttachmentCount = 1,
             pColorAttachments = &colorAttachment,
             pDepthAttachment = withDepth ? &depthAttachment : null,
@@ -1074,6 +1182,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var scissor = new VkRect2D(0, 0, (uint)target.Width, (uint)target.Height);
         Api.vkCmdSetScissor(cmd, 0, 1, &scissor);
     }
+
+    static uint ViewMask(int layers) => layers > 1 ? (1u << layers) - 1 : 0;
 
     internal void Transition(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect, VkImageLayout from, VkImageLayout to)
     {
@@ -1088,15 +1198,17 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             image = image,
-            subresourceRange = new VkImageSubresourceRange(aspect, 0, 1, 0, 1),
+            // Every layer: a multiview target's eyes move together.
+            subresourceRange = new VkImageSubresourceRange(aspect, 0, 1, 0, VK_REMAINING_ARRAY_LAYERS),
         };
         var dep = new VkDependencyInfo { imageMemoryBarrierCount = 1, pImageMemoryBarriers = &barrier };
         Api.vkCmdPipelineBarrier2(cmd, &dep);
     }
 
     const uint VK_QUEUE_FAMILY_IGNORED = ~0u;
+    const uint VK_REMAINING_ARRAY_LAYERS = ~0u;
 
-    Target CreateTarget(VkFormat format, int width, int height, VkImageUsageFlags usage, VkImageAspectFlags aspect)
+    Target CreateTarget(VkFormat format, int width, int height, VkImageUsageFlags usage, VkImageAspectFlags aspect, int layers = 1)
     {
         var info = new VkImageCreateInfo
         {
@@ -1104,7 +1216,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             format = format,
             extent = new VkExtent3D(width, height, 1),
             mipLevels = 1,
-            arrayLayers = 1,
+            arrayLayers = (uint)layers,
             samples = VkSampleCountFlags.Count1,
             tiling = VkImageTiling.Optimal,
             usage = usage,
@@ -1119,13 +1231,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var viewInfo = new VkImageViewCreateInfo
         {
             image = image,
-            viewType = VkImageViewType.Image2D,
+            viewType = layers > 1 ? VkImageViewType.Image2DArray : VkImageViewType.Image2D,
             format = format,
-            subresourceRange = new VkImageSubresourceRange(aspect, 0, 1, 0, 1),
+            subresourceRange = new VkImageSubresourceRange(aspect, 0, 1, 0, (uint)layers),
         };
         VkImageView view;
         Check(Api.vkCreateImageView(&viewInfo, null, &view), "vkCreateImageView");
-        return new Target(image, memory, view, width, height);
+        return new Target(image, memory, view, width, height, layers);
     }
 
     (VkBuffer, VkDeviceMemory) CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags)
@@ -1240,8 +1352,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// bones and weights as a second vertex stream (skin.glsl).</param>
     VkPipeline Pipeline(VkPipelineLayout layout, string vertName, string fragName, VkFormat colorFormat, PipelineKind kind, bool depth, bool skinned = false)
     {
-        var vert = CreateShader(vertName, ShaderKind.VertexShader, skinned ? "SKINNED" : null);
-        var frag = CreateShader(fragName, ShaderKind.FragmentShader);
+        // Everything but the shadow maps (the body's, drawn once) draws each eye's view, both at once with multiview.
+        bool multiview = Views > 1 && kind != PipelineKind.Shadow;
+        string? mv = multiview ? "MULTIVIEW" : null;
+        var vert = CreateShader(vertName, ShaderKind.VertexShader, skinned ? "SKINNED" : null, mv);
+        var frag = CreateShader(fragName, ShaderKind.FragmentShader, view: mv);
         var entry = "main\0"u8;
         fixed (byte* pEntry = entry)
         {
@@ -1350,6 +1465,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var dynamic = new VkPipelineDynamicStateCreateInfo { dynamicStateCount = 2, pDynamicStates = dynamicStates };
             var renderingInfo = new VkPipelineRenderingCreateInfo
             {
+                viewMask = multiview ? ViewMask(Views) : 0,
                 colorAttachmentCount = kind == PipelineKind.Shadow ? 0u : 1u,
                 pColorAttachmentFormats = kind == PipelineKind.Shadow ? null : &colorFormat,
                 depthAttachmentFormat = depth ? DepthFormat : VkFormat.Undefined,
@@ -1388,23 +1504,23 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     // Compiled once a process: a headset's two eyes and the mirror each make every pipeline, and the skinned twins share
     // their fragment shaders.
-    static readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string?), byte[]> Compiled = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string?, string?), byte[]> Compiled = new();
 
     /// <param name="define">A macro defined before the rest of the source (after its #version).</param>
-    VkShaderModule CreateShader(string name, ShaderKind kind, string? define = null)
+    /// <param name="view">MULTIVIEW, for a pipeline that draws both eyes at once: defined, with GL_EXT_multiview enabled
+    /// (Shaders/view.glsl).</param>
+    VkShaderModule CreateShader(string name, ShaderKind kind, string? define = null, string? view = null)
     {
-        var bytecode = Compiled.GetOrAdd((name, define), key =>
+        var bytecode = Compiled.GetOrAdd((name, define, view), key =>
         {
             var source = ShaderSource(name);
-            if (define is not null)
-            {
-                int line = source.IndexOf('\n');
-                source = source[..(line + 1)] + $"#define {define}\n" + source[(line + 1)..];
-            }
+            int line = source.IndexOf('\n');
+            string head = (define is null ? "" : $"#define {define}\n") + (view is null ? "" : $"#define {view}\n#extension GL_EXT_multiview : require\n");
+            source = source[..(line + 1)] + head + source[(line + 1)..];
             using var compiler = new Compiler();
             var result = compiler.Compile(source, name, new CompilerOptions { ShaderStage = kind, TargetEnv = TargetEnvironmentVersion.Vulkan_1_3 });
             if (result.Status != CompilationStatus.Success)
-                throw new InvalidOperationException($"{name}{(define is null ? "" : $" ({define})")}: {result.ErrorMessage}");
+                throw new InvalidOperationException($"{name}{(define is null ? "" : $" ({define})")}{(view is null ? "" : $" ({view})")}: {result.ErrorMessage}");
             return result.Bytecode.ToArray();
         });
         fixed (byte* code = bytecode)

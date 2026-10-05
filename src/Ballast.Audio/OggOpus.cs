@@ -1,97 +1,161 @@
+using System.Buffers.Binary;
 using Concentus;
+using Concentus.Structs;
 
 namespace Ballast.Audio;
 
 /// <summary>
-/// Reads Ogg Opus (RFC 7845) into a mono clip at 48 kHz, for recorded music (GDD v1.4 App. E.6; ARCHITECTURE §8 note 194).
-/// Real recordings of 30-45 s are about 2 MB each as WAV and a sixth of that as Opus, and the repo already carries a
-/// managed Opus (Concentus, the voice codec), so this is just the Ogg framing around it: pages, packets, the OpusHead's
-/// pre-skip and output gain, and the last page's granule position for where the audio really ends. Channel mapping
-/// family 0 only (mono or stereo, which is all a music file needs); channels are averaged to mono.
+/// Reads Ogg Opus files (RFC 7845) as <c>ffmpeg -c:a libopus</c> writes them, for <see cref="SourceKind.Sample"/> takes:
+/// the file's first logical stream, mono or stereo (mapping family 0), decoded to mono at 48 kHz by Concentus. The
+/// header's pre-skip is decoded and dropped from the front, and the last page's granule position trims the encoder's
+/// padding off the end, so a take is exactly as long as what was encoded (a loop's seam lands where it was cut).
+/// Page CRCs aren't checked: the takes are built by our own tools and shipped, not streamed over anything lossy. The
+/// recorded music (GDD v1.4 App. E.6; note 194) is read the same way, as a whole clip (<see cref="Read"/>).
 /// </summary>
 public static class OggOpus
 {
-    /// <summary>Opus always decodes at 48 kHz, whatever rate the file was made from.</summary>
-    public const int SampleRate = 48000;
-    /// <summary>The longest Opus packet: 120 ms.</summary>
+    /// <summary>The longest an Opus packet can be: 120 ms at 48 kHz.</summary>
     const int MaxFrame = 5760;
 
+    /// <summary>Opus always decodes at 48 kHz, whatever rate the file was made from.</summary>
+    public const int SampleRate = 48000;
+
+    /// <summary>Whether a file is Ogg (its first page's capture pattern): what <see cref="AudioClip.Load"/> reads as Opus.</summary>
     public static bool IsOggOpus(ReadOnlySpan<byte> file) => file.Length >= 4 && file[..4].SequenceEqual("OggS"u8);
 
+    /// <summary>
+    /// A whole file as a mono clip at 48 kHz, the header's output gain applied: the recorded music (note 194), decoded as
+    /// the takes are (<see cref="Decode"/>).
+    /// </summary>
+    /// <exception cref="InvalidDataException">Not an Ogg Opus file this reads, or a packet that won't decode.</exception>
     public static AudioClip Read(ReadOnlySpan<byte> file)
     {
-        var packets = Packets(file, out long lastGranule);
-        if (packets.Count < 2 || packets[0].Length < 19 || !packets[0].AsSpan(0, 8).SequenceEqual("OpusHead"u8))
-            throw new InvalidDataException("not an Ogg Opus stream (no OpusHead)");
-        var head = packets[0];
-        int channels = head[9];
-        int preSkip = BitConverter.ToUInt16(head, 10);
-        short gainQ8 = BitConverter.ToInt16(head, 16);
-        int family = head[18];
-        if (family != 0 || channels is < 1 or > 2)
-            throw new InvalidDataException($"unsupported Opus channel mapping: family {family}, {channels} channels");
-        var decoder = OpusCodecFactory.CreateDecoder(SampleRate, channels);
-        var frame = new float[MaxFrame * channels];
-        var mono = new List<float>(packets.Count * 960);
-        // Packet 1 is OpusTags; the audio starts at packet 2.
-        for (int p = 2; p < packets.Count; p++)
-        {
-            int n = decoder.Decode(packets[p], frame, MaxFrame, false);
-            for (int i = 0; i < n; i++)
-                mono.Add(channels == 1 ? frame[i] : 0.5f * (frame[i * 2] + frame[i * 2 + 1]));
-        }
-        // The first pre-skip samples are the encoder's warm-up; the last page's granule (minus pre-skip) is the true length.
-        long end = lastGranule > 0 ? Math.Min(mono.Count, lastGranule) : mono.Count;
-        int start = Math.Min(preSkip, (int)end);
-        var samples = new float[end - start];
-        float gain = MathF.Pow(10, gainQ8 / 256f / 20f);
-        for (int i = 0; i < samples.Length; i++)
-            samples[i] = mono[start + i] * gain;
+        var pcm = Decode(file, out float gain);
+        var samples = new float[pcm.Length];
+        float scale = gain / 32768f;
+        for (int i = 0; i < pcm.Length; i++)
+            samples[i] = pcm[i] * scale;
         return new AudioClip(samples, SampleRate);
     }
 
-    /// <summary>The logical stream's packets in order (the first stream only), and the granule position of its last page.</summary>
-    static List<byte[]> Packets(ReadOnlySpan<byte> file, out long lastGranule)
+    /// <summary>
+    /// Decodes a whole file to 16-bit mono PCM at <see cref="Audio.SampleRate"/> (Opus always decodes at 48 kHz, whatever
+    /// rate the header says the source was). <paramref name="gain"/> is the header's output gain, as a linear factor.
+    /// </summary>
+    /// <exception cref="InvalidDataException">Not an Ogg Opus file this reads, or a packet that won't decode.</exception>
+    public static short[] Decode(ReadOnlySpan<byte> file, out float gain)
     {
+        var packets = Packets(file, out long granule);
+        if (packets.Count == 0 || packets[0].Length < 19 || !packets[0].AsSpan().StartsWith("OpusHead"u8))
+            throw new InvalidDataException("not an Ogg Opus file (no OpusHead)");
+        var head = packets[0].AsSpan();
+        if (head[8] >> 4 != 0)
+            throw new InvalidDataException($"OpusHead version {head[8]} isn't one this reads");
+        int channels = head[9], preSkip = BinaryPrimitives.ReadUInt16LittleEndian(head[10..]), family = head[18];
+        if (family != 0 || channels is < 1 or > 2)
+            throw new InvalidDataException($"{channels} channels in mapping family {family}: export takes mono");
+        // Q7.8 dB.
+        gain = (float)Math.Pow(10, BinaryPrimitives.ReadInt16LittleEndian(head[16..]) / 256.0 / 20);
+        int first = packets.Count > 1 && packets[1].AsSpan().StartsWith("OpusTags"u8) ? 2 : 1;
+
+        try
+        {
+            // Sized up front from the packets' own frame counts, then trimmed to the true end the granule position gives.
+            long decodable = 0;
+            for (int i = first; i < packets.Count; i++)
+            {
+                int n = OpusPacketInfo.GetNumSamples(packets[i], Audio.SampleRate);
+                if (n <= 0)
+                    throw new InvalidDataException($"packet {i} isn't Opus");
+                decodable += n;
+            }
+            long length = decodable - preSkip;
+            if (granule >= 0)
+                length = Math.Min(length, granule - preSkip);
+            var pcm = new short[Math.Max(0, length)];
+
+            // Mono out whatever went in: Opus mixes a stereo stream down itself.
+            var decoder = OpusCodecFactory.CreateDecoder(Audio.SampleRate, 1);
+            var frame = new short[MaxFrame];
+            long produced = 0; // counting the pre-skip
+            for (int i = first; i < packets.Count; i++)
+            {
+                int n = decoder.Decode(packets[i], frame, MaxFrame, false);
+                if (n < 0)
+                    throw new InvalidDataException($"packet {i} won't decode ({n})");
+                long from = Math.Max(produced, preSkip), to = Math.Min(produced + n, preSkip + pcm.Length);
+                if (to > from)
+                    frame.AsSpan((int)(from - produced), (int)(to - from)).CopyTo(pcm.AsSpan((int)(from - preSkip)));
+                produced += n;
+            }
+            return pcm;
+        }
+        catch (Exception e) when (e is OpusException or ArgumentException or IndexOutOfRangeException)
+        {
+            throw new InvalidDataException($"Opus: {e.Message}", e);
+        }
+    }
+
+    /// <summary>
+    /// The packets of the file's first logical stream, reassembled across lacing and continued pages, and the last
+    /// granule position that stream's pages give (−1 if none does). Another stream in the file (chained or multiplexed)
+    /// is skipped. A packet cut off by a missing page is dropped rather than glued to the next.
+    /// </summary>
+    public static List<byte[]> Packets(ReadOnlySpan<byte> file, out long granule)
+    {
+        const int Header = 27;
         var packets = new List<byte[]>();
         var partial = new List<byte>();
-        lastGranule = -1;
-        int? serial = null;
-        for (int at = 0; at + 27 <= file.Length;)
+        uint? serial = null;
+        bool skipping = false;
+        granule = -1;
+        int at = 0;
+        while (file.Length - at >= Header)
         {
-            if (!file.Slice(at, 4).SequenceEqual("OggS"u8))
-                throw new InvalidDataException($"Ogg page expected at byte {at}");
-            long granule = BitConverter.ToInt64(file.Slice(at + 6, 8));
-            int pageSerial = BitConverter.ToInt32(file.Slice(at + 14, 4));
-            int segments = file[at + 26];
-            int body = at + 27 + segments;
-            if (body > file.Length)
-                throw new InvalidDataException("truncated Ogg page");
+            var page = file[at..];
+            if (!page.StartsWith("OggS"u8) || page[4] != 0)
+                throw new InvalidDataException($"no Ogg page at byte {at}");
+            bool continued = (page[5] & 1) != 0;
+            long position = BinaryPrimitives.ReadInt64LittleEndian(page[6..]);
+            uint stream = BinaryPrimitives.ReadUInt32LittleEndian(page[14..]);
+            int segments = page[26];
+            if (Header + segments > page.Length)
+                throw new InvalidDataException($"truncated Ogg page at byte {at}");
+            var lacing = page.Slice(Header, segments);
             int size = 0;
-            for (int s = 0; s < segments; s++)
-                size += file[at + 27 + s];
-            if (body + size > file.Length)
-                throw new InvalidDataException("truncated Ogg page");
-            serial ??= pageSerial;
-            if (pageSerial == serial)
+            foreach (byte l in lacing)
+                size += l;
+            if (Header + segments + size > page.Length)
+                throw new InvalidDataException($"truncated Ogg page at byte {at}");
+            var body = page.Slice(Header + segments, size);
+            at += Header + segments + size;
+
+            serial ??= stream;
+            if (stream != serial)
+                continue;
+            // A fresh page means whatever packet was unfinished lost its end; a continued one we have no start for, its start.
+            if (!continued)
+                partial.Clear();
+            else if (partial.Count == 0)
+                skipping = true;
+            int offset = 0;
+            foreach (byte l in lacing)
             {
-                int offset = body;
-                for (int s = 0; s < segments; s++)
+                if (!skipping)
+                    partial.AddRange(body.Slice(offset, l));
+                offset += l;
+                // A lacing value under 255 ends a packet; 255 means it goes on (onto the next page, if this was the last).
+                if (l < 255)
                 {
-                    int lace = file[at + 27 + s];
-                    partial.AddRange(file.Slice(offset, lace));
-                    offset += lace;
-                    // A lacing value under 255 ends the packet; 255 carries on into the next segment (or page).
-                    if (lace < 255)
-                    {
+                    if (!skipping && partial.Count > 0)
                         packets.Add([.. partial]);
-                        partial.Clear();
-                    }
+                    partial.Clear();
+                    skipping = false;
                 }
-                if (granule >= 0)
-                    lastGranule = granule;
             }
-            at = body + size;
+            // −1: no packet ends on this page.
+            if (position != -1)
+                granule = position;
         }
         return packets;
     }

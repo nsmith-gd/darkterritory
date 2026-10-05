@@ -102,6 +102,9 @@ public sealed class ClientSession
     /// <summary>This dead player's creature vote (D.11), as the host offered it: the ballot and what they cast; null till offered.</summary>
     public (IReadOnlyList<Enemies.EnemyKind> Options, Enemies.EnemyKind? Cast)? Ballot { get; private set; }
 
+    /// <summary>The host's tick (the newest snapshot's) when <see cref="Ballot"/> was first offered: a dead bot votes a while after (note 202).</summary>
+    public uint BallotOfferedTick { get; private set; }
+
     /// <summary>D.11's cues to the dead, as they came: a creature they voted for is coming, and who called it. The game takes them.</summary>
     public List<(Enemies.EnemyKind Kind, List<int> Voters)> VoteCues { get; } = [];
 
@@ -110,6 +113,10 @@ public sealed class ClientSession
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
+    /// <summary>The link to the host went after this client was welcomed: the night's over for it.</summary>
+    public bool Dropped { get; private set; }
+    /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
+    byte? _was;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
     public TrainControls Controls;
@@ -156,7 +163,7 @@ public sealed class ClientSession
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
         WorldRecords.Quantise(World, ref Controls, _quantise);
-        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand };
+        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand, Head = Predicted.Head };
     }
 
     readonly List<PlayerSnapshot> _quantise = new();
@@ -186,6 +193,9 @@ public sealed class ClientSession
         {
             if (e.Kind == TransportEventKind.Disconnected)
             {
+                // Once aboard, a drop is the night lost to this client, said as much (the 4 Oct rehearsal: a joiner whose
+                // link timed out sat on "connecting…" and drew itself as a crewmate round its own eyes).
+                Dropped |= PlayerId is not null || _was is not null;
                 PlayerId = null;
                 _haveState = false;
                 continue;
@@ -208,6 +218,7 @@ public sealed class ClientSession
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
+                    _was = PlayerId;
                     if (Name.Length > 0)
                     {
                         Messages.WriteHello(_writer, Name);
@@ -221,6 +232,8 @@ public sealed class ClientSession
                     Messages.ReadLooks(ref r, World.Looks);
                     break;
                 case MessageType.Ballot:
+                    if (Ballot is null)
+                        BallotOfferedTick = _newestSnapshotTick;
                     Ballot = Messages.ReadBallot(ref r);
                     break;
                 case MessageType.VoteCue:
@@ -380,12 +393,14 @@ public sealed class ClientSession
                 state.Hand = Double3.Lerp(a.Hand, b.Hand, t);
             if (a.OtherHand != default && b.OtherHand != default)
                 state.OtherHand = Double3.Lerp(a.OtherHand, b.OtherHand, t);
+            if (a.Head > 0 && b.Head > 0)
+                state.Head = a.Head + (b.Head - a.Head) * t;
         }
         return true;
     }
 
     public IEnumerable<byte> RemoteIds =>
-        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != PlayerId);
+        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != (PlayerId ?? _was));
 
     static bool Find(PlayerSnapshot[] players, byte id, out PlayerState state)
     {

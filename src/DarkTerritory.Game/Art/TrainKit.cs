@@ -141,6 +141,9 @@ public static class TrainKit
         k.Rod(new Vector3(0.35f, height - 0.05f, z + dir * 0.05f), new Vector3(0.38f, height - 0.45f, z + dir * 0.25f), 0.025f, 6);
     }
 
+    /// <summary>How far apart a ladder's rungs are (also a climber's hand-over-hand: GameAudio's rung cues).</summary>
+    public const float RungPitch = 0.3f;
+
     /// <summary>
     /// Where a vehicle's two couplers stand (its frame, 0.9 m up): the front's and the rear's along it, and the way each
     /// points (±1, the modelled one pointing −Z, turned for the rear). The engine's front one stands a little proud of the
@@ -153,7 +156,7 @@ public static class TrainKit
         return (Matrix4x4.CreateTranslation(0, 0, front), Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, l));
     }
 
-    /// <summary>An iron ladder up a face: two stiles and rungs every 0.3 m, standing off it by a hand's depth.</summary>
+    /// <summary>An iron ladder up a face: two stiles and rungs every <see cref="RungPitch"/>, standing off it by a hand's depth.</summary>
     public static void RungLadder(Kit k, Vector3 foot, float top, Vector3 inward, float from = 0.2f)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, inward));
@@ -161,7 +164,7 @@ public static class TrainKit
         float half = 0.2f;
         foreach (int s in new[] { -1, 1 })
             k.Box(foot + across * (s * half) - new Vector3(0.022f, -from, 0.022f), foot + across * (s * half) + new Vector3(0.022f, top, 0.022f));
-        for (float y = from + 0.25f; y < top - 0.05f; y += 0.3f)
+        for (float y = from + 0.25f; y < top - 0.05f; y += RungPitch)
             k.Rod(foot + across * -half + new Vector3(0, y, 0), foot + across * half + new Vector3(0, y, 0), 0.016f);
         // Brackets back to the face.
         foreach (float y in new[] { from + 0.3f, top - 0.1f })
@@ -498,14 +501,16 @@ public static class TrainKit
         float face = cabFront + BackheadDepth;
         float fy = FireDoor(shape).Y;
         // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
-        // glow by the scene, and a Stoker if one's in there).
-        k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.3f);
+        // glow by the scene, and a Stoker if one's in there): riveted boiler plate, sooted, its seams and rivet rows on it
+        // (the crazed smokebox iron read as cobbles at this size, the checklist's "the firebox texture").
+        k.Use("iron_plate", Palette.SootBlack * 1.6f, 0.8f, 0.35f, tile: 0.9f);
         float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
         k.Box(new Vector3(-bw, deck, cabFront), new Vector3(-ox, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(ox, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, deck, cabFront), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, fy + oy, cabFront), new Vector3(ox, top, face), Kit.Faces.PosZ);
-        // The firehole's sides, back to the fire.
+        // The firehole's sides, back to the fire: the firebox's lining of firebrick, black with soot, lit by the fire.
+        k.Use("brick_soot", Palette.SootBlack * 2.2f, 0.9f, 0.1f, tile: 2.2f);
         k.Box(new Vector3(-ox - 0.02f, fy - oy, cabFront - 0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
         k.Box(new Vector3(ox, fy - oy, cabFront - 0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
         k.Box(new Vector3(-ox, fy - oy - 0.02f, cabFront - 0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);

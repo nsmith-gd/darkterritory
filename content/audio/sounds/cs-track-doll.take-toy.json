@@ -1,0 +1,20 @@
+// Track Doll: tampering, vanishing, cornered: A toy taken. Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 2,
+ "maxDistance": 80,
+ "rolloff": 1.0,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "cs-track-doll/take-toy",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

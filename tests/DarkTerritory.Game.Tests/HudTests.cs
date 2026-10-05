@@ -2,7 +2,9 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -38,6 +40,26 @@ public class HudTests
         o.Clear();
         o.Text(0, 0, "I", Vector4.One);
         Assert.Equal(2 * 7 * 6, o.Count);
+    }
+
+    [Fact]
+    public void AFouledGunAndABreachedCarSayHowToPutThemRight()
+    {
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var train = s.Train;
+        // GDD §23: at a fouled gun, clear it by hand.
+        var mount = train.Frames[0].Shape.Gun!.Value;
+        s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
+        Assert.Equal("[E] SIT AT THE GUN   [E] + WALK: PUSH IT ALONG THE RAIL", Hud.Prompt(s));
+        train.Vehicles[0].Gun.Jammed = true;
+        Assert.Equal("GUN FOULED: [E] HOLD: CLEAR IT (0%)", Hud.Prompt(s));
+        // Decided 1 Oct: in a breached car, board up the hole; at it, hold Use.
+        var room = train.Frames[2].Shape.Interior!.Value;
+        train.Vehicles[2].Breach(Breaches.EndWall(train.Frames[2].Shape)!.Value);
+        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1) };
+        Assert.Equal("THE CAR'S BREACHED: BOARD UP THE HOLE", Hud.Prompt(s));
+        s.Player = s.Player with { Position = Breaches.StandAt(train, 2) };
+        Assert.Equal("[E] HOLD: BOARD UP THE BREACH (0%)", Hud.Prompt(s));
     }
 
     [Fact]
@@ -146,6 +168,131 @@ public class HudTests
     }
 
     [Fact]
+    public void TheHudSaysHowDeepTheColdIs()
+    {
+        // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Null(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
+        Assert.Equal("BITTER COLD: OUTSIDE, IT COMES ON 1.5X FASTER", Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        var deeper = new PrototypeSession(Content, "test-loop", 4);
+        DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
+        Assert.StartsWith("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train, deeper.PlayerTuning));
+        Assert.True(BitmapFont.Default.Measure(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning)!) < 480 - 12);
+    }
+
+    [Fact]
+    public void TheKitInHandOffersToMendABrokenRadio()
+    {
+        // GDD §23 "radio breaks" (note 201): the repair kit mends it, held; how far it's got from the body record.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
+        var bodies = s.World.Bodies;
+        var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
+        var kit = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit);
+        (radio.Carrier, radio.Broken, kit.Carrier, kit.Locker) = (1, true, 1, -1);
+        Assert.Equal($"[E] HOLD: MEND YOUR RADIO WITH THE KIT ({s.TrainTuning.Kit.RadioMendSeconds:0}S)   [E] PUT DOWN", Hud.Prompt(s));
+        radio.MendTicks = (int)(s.TrainTuning.Kit.RadioMendSeconds * DarkTerritory.Sim.SimConstants.TickRate / 2);
+        Assert.Equal("[E] HOLD: MENDING YOUR RADIO WITH THE KIT (50%)", Hud.Prompt(s));
+        radio.Broken = false;
+        Assert.StartsWith("THE REPAIR KIT:", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void TheBallotIsPickedThenCastAndOnlyCastOnce()
+    {
+        // GDD v1.4 App. D.11 "locked on submit" (note 202): a number picks, the same again (or Enter) casts; a headset's
+        // stick steps and its click casts. What's sent is the option's number, till the host's ballot says it's locked.
+        EnemyKind[] options = [EnemyKind.Whistler, EnemyKind.FireFlies, EnemyKind.TrackDoll];
+        var picker = new BallotPicker();
+        Assert.Equal(0, picker.Select((options, null)));
+        picker.Cast(); // nothing picked: nothing cast
+        picker.Key(4, 3); // not on the ballot
+        Assert.Equal((-1, false), (picker.Pick, picker.Sent));
+        picker.Key(2, 3);
+        picker.Key(3, 3); // a change of mind is a pick, not a cast
+        Assert.Equal((2, false), (picker.Pick, picker.Sent));
+        Assert.Equal(0, picker.Select((options, null)));
+        picker.Key(3, 3);
+        Assert.True(picker.Sent);
+        Assert.Equal(3, picker.Select((options, null)));
+        Assert.Equal(3, picker.Select((options, null))); // every tick till it's locked
+        picker.Key(1, 3); // sent: no taking it back
+        Assert.Equal(2, picker.Pick);
+        Assert.Equal(0, picker.Select((options, EnemyKind.TrackDoll)));
+        Assert.Equal((2, false), (picker.Pick, picker.Sent));
+        // In a headset: down from nothing is the top, up wraps to the foot, the click casts.
+        var vr = new BallotPicker();
+        vr.Headset(VrMenuPress.Click, 3);
+        Assert.False(vr.Sent);
+        vr.Headset(VrMenuPress.Down, 3);
+        Assert.Equal(0, vr.Pick);
+        vr.Headset(VrMenuPress.Up, 3);
+        Assert.Equal(2, vr.Pick);
+        vr.Headset(VrMenuPress.Down, 3);
+        vr.Headset(VrMenuPress.Click, 3);
+        Assert.Equal(1, vr.Select((options, null)));
+        // The stick's click is a press of its own, once, and the menus don't use it.
+        var keys = new VrMenuInput();
+        Assert.Equal(VrMenuPress.Click, keys.Read(new Ballast.Xr.XrControllerState { Run = true }));
+        Assert.Equal(VrMenuPress.None, keys.Read(new Ballast.Xr.XrControllerState { Run = true }));
+    }
+
+    [Fact]
+    public void TheDeadSeeTheirBallotPickItAndSeeItLocked()
+    {
+        // D.11 as the dead player's screen (note 202), over a real host: the creatures with their keys and wants, the pick
+        // lit, casting, then cast and locked by the host; nothing for the living.
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: true), port: 0);
+        using var a = NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+        void Step(int ticks)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                host.Step(default);
+                a.Step(default);
+                Thread.Sleep(1);
+            }
+        }
+        Step(DarkTerritory.Sim.SimConstants.TickRate);
+        Assert.Null(Hud.BallotRows(a));
+        host.Host!.SetPlayerState((byte)a.PlayerId, a.Player with { Health = 0, Death = DeathCause.Mauled });
+        Step(DarkTerritory.Sim.SimConstants.TickRate);
+        Assert.True(a.Voting);
+        Assert.Null(Hud.BallotRows(host));
+        var ballot = a.Ballot!.Value.Options;
+        int n = ballot.Count;
+        var rows = Hud.BallotRows(a)!;
+        Assert.Equal(n + 1, rows.Count);
+        Assert.Equal($"[1] {DarkTerritory.Sim.Run.IncidentLog.Spoken(ballot[0].ToString()).ToUpperInvariant()}", rows[0].Text);
+        Assert.Equal(DarkTerritory.Sim.Enemies.Director.WantOf(ballot[0]).ToString().ToUpperInvariant(), rows[0].Note);
+        Assert.DoesNotContain(rows, r => r.Picked);
+        Assert.Equal($"[1]-[{n}] PICK ONE", rows[^1].Text);
+        Hud.Headset = true;
+        try { Assert.Equal("[STICK UP/DOWN] PICK ONE", Hud.BallotRows(a)![^1].Text); }
+        finally { Hud.Headset = false; }
+
+        a.Picker.Key(n, n);
+        rows = Hud.BallotRows(a)!;
+        Assert.True(rows[n - 1].Picked);
+        Assert.Equal($"[{n}] AGAIN OR [ENTER] CAST IT", rows[n].Text);
+        Assert.Equal("IT'S LOCKED ONCE CAST", rows[^1].Text);
+        Assert.All(rows, r => Assert.True(BitmapFont.Default.Measure(r.Text.Replace("[", "").Replace("]", "")) < 240, r.Text));
+        a.Picker.Key(n, n);
+        Assert.Equal("CASTING ...", Hud.BallotRows(a)![^1].Text);
+        Step(DarkTerritory.Sim.SimConstants.TickRate / 2);
+        Assert.Equal(ballot[n - 1], host.Host.World.Director!.VoteOf(a.PlayerId));
+        Assert.False(a.Voting);
+        rows = Hud.BallotRows(a)!;
+        Assert.Equal("CAST, AND LOCKED", rows[^1].Text);
+        Assert.True(rows[n - 1].Picked);
+        // The HUD draws it (the plate, its rows) without falling over.
+        var o = new Overlay();
+        Hud.Build(o, 480, 270, a);
+        Assert.True(o.Count > 0);
+    }
+
+    [Fact]
     public void EveryDeathSaysWhatKilledYou()
     {
         // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.
@@ -156,4 +303,5 @@ public class HudTests
             Assert.True(BitmapFont.Default.Measure(line) > 0);
         }
     }
+
 }

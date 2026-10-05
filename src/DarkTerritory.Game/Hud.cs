@@ -61,12 +61,13 @@ public static class Hud
             Skip(o, width, height, s);
         // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
         if (s.RadioReading is { } reading)
-            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new());
+            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new(), s.RadioTimes);
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
             Link(o, width, link, line);
         Radio(o, width, s, line);
+        Cold(o, width, s, line);
         Alerts(o, width, height, s, line);
         if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
@@ -171,9 +172,11 @@ public static class Hud
             lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
-        else if (link.PingMs is null)
+        else if (link.PingMs is null && !link.Lost)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
-        lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
+        // The host starts the night; a joiner waits for it (the 4 Oct rehearsal: a joiner was told to drive out).
+        bool hosting = link.PingMs is null && !link.Lost;
+        lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
         UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
@@ -277,11 +280,13 @@ public static class Hud
         if (link.PingMs is { } ping)
         {
             var colour = ping < 80 ? Green : ping < 150 ? Amber : Red;
-            o.TextRight(right, 5, $"PING {ping:0} MS", colour, scale: 2);
+            // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
+            o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
         }
         else
         {
-            o.TextRight(right, 5, "HOST", Ink, scale: 2);
+            // No ping: this is the host, or a joiner whose link has gone (it says so below).
+            o.TextRight(right, 5, link.Lost ? "NO LINK" : "HOST", link.Lost ? Red : Ink, scale: 2);
         }
         o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
@@ -293,6 +298,10 @@ public static class Hud
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
+    /// <summary>Which way a switch goes when it's thrown: back to the main line, or over for its branch.</summary>
+    static string SwitchTo(TrainOnLine train, int branch) =>
+        train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
+
     static string RepairKitWhere(Sim.World world, int playerId)
     {
         // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
@@ -385,7 +394,31 @@ public static class Hud
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         // GDD §23 "radio breaks" (note 183): carried, but smashed.
         bool broken = bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
-        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN: THE REPAIR KIT MENDS IT" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+    }
+
+    /// <summary>
+    /// GDD §22 deep cold on the HUD (note 201): under the radio, while the line where you are is in a cold step, how deep and
+    /// what it does: the cold comes on that much faster outside. Amber out in it, dim in the warm.
+    /// </summary>
+    static void Cold(Overlay o, int width, IPlaySession s, int line)
+    {
+        if (!s.Player.Alive || ColdLine(s.Player, s.Train, s.PlayerTuning) is not { } cold)
+            return;
+        o.TextRight(width - 6, 5 + 6 * line, cold, PlayerMotor.NearHeat(s.Player, s.Train) ? Dim : Amber);
+    }
+
+    /// <summary>
+    /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
+    /// conditions from its seed, so a client knows it as the host does.
+    /// </summary>
+    public static string? ColdLine(in PlayerState p, TrainOnLine train, PlayerTuning tuning)
+    {
+        int step = PlayerMotor.ColdStep(p, train);
+        if (step <= 0)
+            return null;
+        string name = step switch { 1 => "DEEP COLD", 2 => "BITTER COLD", _ => "KILLING COLD" };
+        return $"{name}: OUTSIDE, IT COMES ON {1 + tuning.Cold.PerColdStep * step:0.##}X FASTER";
     }
 
     /// <summary>
@@ -455,7 +488,7 @@ public static class Hud
         if (s.StrandedOutro)
         {
             if (s.OutroSeconds > world.WreckTuning.Stranded.RackSeconds)
-                Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
+                Small(Sim.Run.Radio.Stranded(world.Run?.Report?.DistanceKm ?? 0).ToUpperInvariant(), Dim);
             return;
         }
         // GDD §9: the clerk tallies first; the end screen after.
@@ -488,7 +521,9 @@ public static class Hud
                 _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
             if (s.CommendPick is { } pick)
             {
-                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
+                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}"
+                    : Headset ? $"COMMEND [STICK LEFT/RIGHT] {pick.To}   [STICK UP/DOWN] {pick.What}   [CLICK STICK] GIVE"
+                    : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
                 UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
             }
             bool awards = _commendations is { Count: > 0 };
@@ -498,7 +533,10 @@ public static class Hud
             return;
         }
         if (!p.Alive)
+        {
             DeadCard(o, width, height, s, line);
+            BallotPlate(o, width, s, line);
+        }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
@@ -588,11 +626,9 @@ public static class Hud
                 rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
                 rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
             }
-            // D.11: the creature vote, the dead's alone, once a run.
-            if (s.Ballot is { } ballot && ballot.Options.Count > 0)
-                rows.Add(ballot.Cast is { } cast
-                    ? ($"YOU VOTED FOR THE {IncidentLog.Spoken(cast.ToString()).ToUpperInvariant()}", Dim)
-                    : ("VOTE: " + string.Join("   ", ballot.Options.Select((k, i) => $"[{i + 1}] {IncidentLog.Spoken(k.ToString()).ToUpperInvariant()}")), Amber));
+            // D.11: the creature vote has a plate of its own (BallotPlate, note 202); once cast, the card keeps a line of it.
+            if (s.Ballot is { Cast: { } cast })
+                rows.Add(($"YOU CALLED THE {Creature(cast)}. THE LIVING WON'T KNOW TILL THE END", Dim));
             if (s.VoteCue is { } cue)
                 rows.Add((cue, Red));
             // D.6: the dead and lobbied see the whole queue, and where they are in it (the living see nothing).
@@ -613,6 +649,79 @@ public static class Hud
             y += rowH;
         }
     }
+
+    /// <summary>A creature as the dead's ballot and cue name it: "CAR HUGGER".</summary>
+    static string Creature(Sim.Enemies.EnemyKind kind) => IncidentLog.Spoken(kind.ToString()).ToUpperInvariant();
+
+    /// <summary>
+    /// The dead's creature vote as a screen (GDD v1.4 App. D.11; note 202), top to bottom: each creature on the ballot with
+    /// its key, and the want it serves as its <c>Note</c> (the vote only moves weight within a want); then what to do next:
+    /// pick, cast (locked once cast), casting, cast. A row's <c>Picked</c> is the one lit. Keys as the player has them; a
+    /// headset's stick and its click in one (<see cref="Headset"/>). Null with no ballot to show (alive, none offered, the
+    /// run over).
+    /// </summary>
+    public static List<(string Text, Vector4 Colour, bool Picked, string? Note)>? BallotRows(IPlaySession s)
+    {
+        if (s.Player.Alive || s.Ballot is not { Options.Count: > 0 } ballot || s.World.Run is { Over: true })
+            return null;
+        var picker = s.Picker;
+        int pick = ballot.Cast is { } cast ? ballot.Options.ToList().IndexOf(cast) : picker?.Pick ?? -1;
+        var rows = new List<(string, Vector4, bool, string?)>();
+        for (int i = 0; i < ballot.Options.Count; i++)
+        {
+            var k = ballot.Options[i];
+            bool lit = i == pick;
+            var colour = ballot.Cast is null ? lit ? Amber : Ink : lit ? Green : Dim;
+            rows.Add(($"[{i + 1}] {Creature(k)}", colour, lit, Sim.Enemies.Director.WantOf(k).ToString().ToUpperInvariant()));
+        }
+        int n = ballot.Options.Count;
+        if (ballot.Cast is not null)
+            rows.Add(("CAST, AND LOCKED", Green, false, null));
+        else if (picker is { Sent: true })
+            rows.Add(("CASTING ...", Amber, false, null));
+        else if (pick < 0)
+            rows.Add((Headset ? "[STICK UP/DOWN] PICK ONE" : $"[1]-[{n}] PICK ONE", Ink, false, null));
+        else
+        {
+            rows.Add((Headset ? "[CLICK STICK] CAST IT" : $"[{pick + 1}] AGAIN OR [ENTER] CAST IT", Amber, false, null));
+            rows.Add(("IT'S LOCKED ONCE CAST", Dim, false, null));
+        }
+        return rows;
+    }
+
+    /// <summary>The ballot plate's title (D.11: once per run per player).</summary>
+    public const string BallotTitle = "THE DEAD'S VOTE: ONCE A RUN";
+
+    /// <summary>
+    /// The ballot's plate (D.11; note 202): high on the right, clear of the dead card below, of what they're watching in the
+    /// middle and of the yard's lobby list on the left; <see cref="BallotTitle"/> over <see cref="BallotRows"/>, the picked
+    /// creature on a lit bar with its want at the right, and the trim lit while there's a vote to cast.
+    /// </summary>
+    static void BallotPlate(Overlay o, int width, IPlaySession s, int line)
+    {
+        if (BallotRows(s) is not { } rows)
+            return;
+        float rowH = line + 4;
+        float notes = rows.Max(r => r.Note is null ? 0 : o.Font.Measure(r.Note) + 12);
+        float w = Math.Max(o.Font.Measure(BallotTitle), rows.Max(r => UiStyle.MeasureKeyed(o, r.Text) + (r.Note is null ? 0 : notes))) + 16;
+        float h = line + 10 + rows.Count * rowH + 2;
+        float x = MathF.Round(width - w - 6), y = 44;
+        UiStyle.Plate(o, x, y, w, h, s.Ballot is { Cast: null } ? Amber with { W = 0.7f } : null);
+        o.Text(x + 8, y + 5, BallotTitle, Amber);
+        y += line + 10;
+        foreach (var (text, colour, picked, note) in rows)
+        {
+            if (picked)
+                o.Rect(x + 4, y - 3, w - 8, rowH, colour with { W = 0.18f });
+            UiStyle.Keyed(o, x + 8, y, text, colour);
+            if (note is not null)
+                o.Text(x + w - 8 - o.Font.Measure(note), y, note, picked ? colour : Dim);
+            y += rowH;
+        }
+    }
+
+    /// <summary>Whether this is a headset's panel (T36): the ballot and the commendations say the stick, not the keys (note 202).</summary>
+    public static bool Headset { get; set; }
 
     /// <summary>
     /// The respawn queue as the dead see it (GDD v1.4 App. D.6; note 179): "QUEUE: 1 PRIYA  2 YOU  3 SAM (JOINING)", null when
@@ -836,9 +945,10 @@ public static class Hud
     /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest or the clerk's tally, a line at a time, typed
     /// out as it's read, flat, the last few on the card.
     /// </summary>
-    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t,
+        IReadOnlyList<double>? times = null)
     {
-        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t);
+        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t, times);
         if (shown == 0)
             return;
         int scale = Math.Max(1, height / 360);
@@ -985,6 +1095,16 @@ public static class Hud
         // A crew locker in front of you (note 173): its door, and its shelves.
         if (LockerPrompt(world, p, s.PlayerId) is { } locker)
             return locker;
+        // Note 200: the kit in hand at a broken radio (your own, or one lying in reach): held, it's mended; a tap still puts the
+        // kit down.
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit } && world.Bodies.MendableRadio(p, train, world.Hand, s.PlayerId) is { } radio)
+        {
+            double mend = train.Dynamics.Tuning.Kit.RadioMendSeconds;
+            string whose = radio.Carrier == s.PlayerId ? "YOUR RADIO" : "THE RADIO";
+            return radio.MendTicks > 0
+                ? $"[E] HOLD: MENDING {whose} WITH THE KIT ({radio.MendTicks * Sim.SimConstants.TickSeconds / mend * 100:0}%)"
+                : $"[E] HOLD: MEND {whose} WITH THE KIT ({mend:0}S)   [E] PUT DOWN";
+        }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
@@ -1004,7 +1124,9 @@ public static class Hud
             var gun = train.Vehicles[manned].Gun;
             bool seated = p.Has(PlayerFlags.Seated);
             string up = seated ? "   [SPACE] GET UP" : "";
-            return gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
+            // GDD §23 (note 183): a shot's fouled it, and it's cleared by hand before anything else.
+            return gun.Jammed ? $"GUN FOULED: [E] HOLD: CLEAR IT ({Math.Min(1, gun.ReloadProgress / combat.Guns.ClearSeconds) * 100:0}%){up}"
+                : gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
                 : gun.Ammo <= 0 ? $"NO SHOT LEFT{up}"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? $"NO STEAM TO TURN THE GUN{up}"
                 : seated ? $"[LMB] FIRE   AIM WITH THE MOUSE{up}"
@@ -1012,6 +1134,12 @@ public static class Hud
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
+        // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
+        if (Breaches.Within(p, train, hand) is not null)
+            return $"[E] HOLD: BOARD UP THE BREACH ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
+            return train.Dynamics.Tuning.Breach.NeedsKit && !p.Has(PlayerFlags.RepairKit) ? "THE CAR'S BREACHED: BRING THE REPAIR KIT TO BOARD IT UP"
+                : "THE CAR'S BREACHED: BOARD UP THE HOLE";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
         if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))
@@ -1050,6 +1178,17 @@ public static class Hud
                 return train.Traction < 1 || train.Sand > 0 ? $"[E] HOLD: SAND THE RAIL ({train.Traction * 100:0}% GRIP)" : "[E] HOLD: SAND";
             case InteractableKind.Door:
                 return "[E] DOOR";
+            // Spec F.3's powered switch thrower (note 196): the next points ahead, from the cab, slowed for them.
+            case InteractableKind.Points when world.Switches is { } stands && SwitchStands.CabLever(p, train, hand) is { } lever:
+                {
+                    var thrower = train.Dynamics.Tuning.Composition.Thrower;
+                    if (lever.Branch is not { } ahead)
+                        return $"POWERED POINTS: NONE WITHIN {thrower.Reach:0} M AHEAD";
+                    double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
+                    return !lever.Slow ? $"POWERED POINTS {off:0} M AHEAD: SLOW TO {thrower.MaxSpeed * 3.6:0} KM/H TO THROW THEM"
+                        : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POWERED POINTS: HELD, A WHEEL IS ON THEM"
+                        : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
+                }
         }
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
@@ -1091,10 +1230,9 @@ public static class Hud
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
-            string to = train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
             return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength)
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
-                : $"[E] HOLD: THROW THE SWITCH TO {to}";
+                : $"[E] HOLD: THROW THE SWITCH TO {SwitchTo(train, branch)}";
         }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)

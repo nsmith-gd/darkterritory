@@ -16,7 +16,8 @@ engine's -Z). Its origin is the gap's (the sim's GapLocal, 0.6 m over the rail):
 Clips (GDD §31: still, then too fast): fold (coiled under the plate, the front laid on top of the coil looking out,
 breathing; once a ripple down the legs), whistle (reared up out of the gap, the forelegs yanking the cord twice, the
 siphon swelling, its stops opening), watch (the front lifted at the gap's mouth, swaying and stopping in jerks), run
-(straightened out and gone, the body snaking, the legs in waves), hit (struck, once).
+(straightened out and gone, the body snaking, the legs in waves), carry (the same run with its front reared up, someone held
+in its forelegs under it), hit (struck, once). Sockets hook_r and hook_l: the forelegs' tips.
 
     tools/models/build.sh whistler        # this, its high copy and the bake -> content/art/models/whistler.glb
 """
@@ -56,6 +57,9 @@ for s, sx in (("r", 1), ("l", -1)):
         bones.append(Bone(f"femur_{k + 1:02d}{s}", seg, hip, knee))
         bones.append(Bone(f"tibia_{k + 1:02d}{s}", f"femur_{k + 1:02d}{s}", knee, hook))
         LEGS.append((k + 1, s))
+    # The forelegs' hook tips, as sockets (not weighted): where what it carries is held (CreatureArt.WhistlerClutch).
+    hook = (sx * 0.22, TAIL + (N - 1 + 0.55) * SEG + 0.62, Z0 + 0.05)
+    bones.append(Bone(f"hook_{s}", f"tibia_{N:02d}{s}", hook, (hook[0], hook[1] + 0.05, hook[2]), deform=False))
 sk = Skeleton("SK_Whistler", bones)
 sk.build()
 kit = rig.Kit(sk, "whistler")
@@ -326,6 +330,42 @@ for f in range(0, 18, 3):
     run.key(f, grounded(centred(snake | lp | clutch)), "LINEAR")
 run.close(18)
 
+# Carry (0.6 s, loop; GRAB, App. A.4 "carried off at a run to its nest"): someone held in its forelegs under its front.
+# The back half runs flat and snaking as in the run (the front kept heading straight on: seg_05 takes back the snake's
+# turn); the front half reared up two metres in a column, the head curled forward over the one it holds and the siphon
+# out over their head; the forelegs wrapped round from behind, the hooks under their arms, lifted off their feet
+# (crew_clips.py held_carried: the armpits at CARRY_UNDERARM, 1.42 m over their feet). The legs up the column hang curled
+# and stirring.
+CARRY_UNDERARM = 1.42
+
+
+def carried(ph):
+    sn = [12 * math.sin(ph - k * 0.9) for k in range(4)]
+    body_ = {SEGS[k]: (0, 0, sn[k]) for k in range(4)} | {
+        "seg_05": (20, 0, -sum(sn)), "seg_06": (45, 0, 0), "seg_07": (25, 0, 0), "seg_08": (0, 0, 0), "seg_09": (-15, 0, 0),
+        "seg_10": (-30, 0, 0), "head": (-35, 0, 0), "siphon_01": (-10, 0, 0), "siphon_02": (-8, 0, 0)}
+    lp = {}
+    for k in range(1, 6):
+        u = ph - k * 1.1
+        lp[f"femur_{k:02d}r"] = (0, -30 * max(0.0, math.sin(u)), 30 * math.cos(u))
+        lp[f"tibia_{k:02d}r"] = (0, 10 * max(0.0, math.sin(u)), 0)
+        lp[f"femur_{k:02d}l"] = (0, 30 * max(0.0, math.sin(u + math.pi)), -30 * math.cos(u + math.pi))
+        lp[f"tibia_{k:02d}l"] = (0, -10 * max(0.0, math.sin(u + math.pi)), 0)
+    hang = {n: v for n, v in uplegs(ph * 2).items() if int(n[6:8]) >= 6}
+    p = grounded(centred(body_ | lp | hang))
+    # The hooks under their arms: in front of the column, one each side of its line.
+    pts = rig.pose_points(sk, p, [(n, "head") for n in SEGS])
+    x, y = pts[N - 2].x, max(q.y for q in pts[5:]) + 0.4
+    for s_, k in (("r", 1), ("l", -1)):
+        p = rig.reach(sk, p, f"femur_{N:02d}{s_}", f"tibia_{N:02d}{s_}", (x + 0.19 * k, y, CARRY_UNDERARM), elbow_axis=1, bend=-k)
+    return p
+
+
+carry = Clip("carry")
+for f in range(0, 18, 3):
+    carry.key(f, carried(2 * math.pi * f / 18), "LINEAR")
+carry.close(18)
+
 # Hit (0.4 s, once): struck, it whips into an S round the blow, the legs all flung out, and snaps back.
 hit = Clip("hit", loop=False)
 hit.key(0, WATCH, "CONSTANT")
@@ -334,8 +374,8 @@ hit.key(7, grounded(centred(over(WATCH_BODY, seg_07=(0, 0, 10)) | legs_pose(tuck
 hit.key(12, WATCH, "CONSTANT")
 
 kit.build()
-rig.bake(sk, [fold, whistle, watch, run, hit])
-for name, p in (("fold", FOLD), ("watch", WATCH), ("whistle", grounded(centred(reach_up(REAR | UPLEGS, 0.0))))):
+rig.bake(sk, [fold, whistle, watch, run, carry, hit])
+for name, p in (("fold", FOLD), ("watch", WATCH), ("whistle", grounded(centred(reach_up(REAR | UPLEGS, 0.0)))), ("carry", carried(0.0))):
     pts = rig.pose_points(sk, p, [(b.name, "tail") for b in sk.bones] + [(b.name, "head") for b in sk.bones])
     print(f"[dt] whistler {name} top {max(q.z for q in pts):.2f} low {min(q.z for q in pts):.2f}")
 print("[dt] whistler", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))

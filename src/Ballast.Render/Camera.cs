@@ -67,6 +67,13 @@ public struct Camera
 }
 
 /// <summary>
+/// How a headset's two eyes are drawn (ARCHITECTURE §8 note 221): <see cref="Multiview"/> both in one pass, into a
+/// two-layer target, where the device has the feature (<see cref="GpuContext.Multiview"/>); <see cref="PerEye"/> each
+/// with its own renderer, the second sampling the first's shadow maps (the fallback, and how it was before).
+/// </summary>
+public enum StereoPath : byte { Multiview, PerEye }
+
+/// <summary>
 /// An asymmetric frustum as OpenXR gives it: the angles (radians) of each edge from straight ahead,
 /// left and down negative. A headset eye's view is off-centre towards the nose.
 /// </summary>

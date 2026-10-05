@@ -139,6 +139,18 @@
     "handbrakeSeconds": 1.0
   },
 
+  // A breach (decided 1 Oct; spec B.9): a car's shell given way to the outside, the Car Hugger through its end wall
+  // (enemies.json carHugger.breachEaten) or Climbers in through its roof (climbers.breachLitCars). Until it's boarded up it
+  // shuts nobody in, whatever its doors: the cold, the night's sound and the Choir come in as through an open door. Boarded
+  // up from inside by holding Use within boardReach m (across the floor) of the hole for boardSeconds; let go and that
+  // board's started again. needsKit: only by someone carrying the repair kit (note 150: it's an item); false, anyone's hands
+  // and what's lying about the car.
+  "breach": {
+    "boardSeconds": 8,
+    "boardReach": 1.5,
+    "needsKit": false
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,
@@ -173,9 +185,17 @@
     "insulation": 1,
     // Roof handrails (F.3 "Dragger resistance"): fitted, a Dragger's grab range is draggerGrab of what it was (0.6 m off the
     // edge at a crawl, not 1), it hangs on draggerHang times as long before it has you (12 s, not 8: friends' time), and
-    // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5).
+    // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5), and the
+    // wind's push on the roofs (GDD §22, player.json wind; note 201) is wind times what it was: a hand on the rail.
     "handrails": false,
-    "rails": { "draggerGrab": 0.6, "draggerHang": 1.5, "throwOver": 1.5 }
+    "rails": { "draggerGrab": 0.6, "draggerHang": 1.5, "throwOver": 1.5, "wind": 0.4 },
+    // The powered switch thrower (F.3 "removes the ground excursion at junctions", ARCHITECTURE §8 note 196): fitted, a lever
+    // in the cab, on the driver's side behind the reverser. Held there for route.json junctions.throwSeconds, it throws the
+    // nearest points within thrower.reach m ahead of the engine's front, with the train no faster than maxSpeed (m/s, 18
+    // km/h: slowed for the junction as the crew would for a ground throw, but nobody steps down). The points still won't
+    // move with a wheel on them.
+    "switchThrower": false,
+    "thrower": { "reach": 200, "maxSpeed": 5 }
   },
   // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
   // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by
@@ -186,6 +206,17 @@
   "fragile": { "safeContactSpeed": 0.3, "shockShare": 3, "brakeShockDecel": 1.2, "brakeShockPerSecond": 0.02 },
   "kit": {
     "radios": 2,
+    // Spec A.5: the radio "dies in tunnels and mine spurs". It still carries this far in, from a tunnel's mouth or a mine
+    // spur's points (m): none, until the campaign's radio range adds to it (campaign.json, F.3; note 196).
+    "radioReach": 0,
+    // GDD §23 "radio breaks" (note 183): a radio on your belt smashes with this chance per point of damage you take, plus
+    // radioBreakOnGrab when something grabs you. Broken, it's still worn but off the air. Note 200: the repair kit mends
+    // it (GDD §12's engineer, whoever has the kit): the kit in hand, Use held radioMendSeconds, standing, with the broken
+    // radio on your own belt or lying in reach (a crewmate takes theirs off to hand it over). A tap still puts the kit
+    // down. Not in the GDD's numbers: a third of the boiler's 25 s, long enough to be a decision under attack.
+    "radioBreakPerDamage": 0.006,
+    "radioBreakOnGrab": 0.25,
+    "radioMendSeconds": 8,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
     // GDD v1.4 App. C item 4: "some toys are noisy": four now, and three of them make a noise while carried (a squeaker, a
     // music box, a wind-up drummer), in the carrier's name on the loudness meter (combat.json choir.toys; note 175).

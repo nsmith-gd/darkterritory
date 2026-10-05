@@ -65,15 +65,18 @@ public sealed partial class WorldArt
         public RailLine EdgeLine(string edge) => edge == "main" ? Line : Line.Branches[Plan.Edge(edge).Branch].Local;
 
         /// <summary>The biome at a main-line distance (§13.1).</summary>
-        public string BiomeAt(double s)
-        {
-            foreach (var b in Plan.Biomes)
-                if (b.Edge == "main" && s >= b.S0 && s < b.S1)
-                    return b.Biome;
-            return Plan.Biomes.Count > 0 ? Plan.Biomes[^1].Biome : "farmland";
-        }
+        public string BiomeAt(double s) => BiomeOf(Plan, s);
 
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
+    }
+
+    /// <summary>A plan's biome at a main-line distance (§13.1).</summary>
+    static string BiomeOf(LinePlan plan, double s)
+    {
+        foreach (var b in plan.Biomes)
+            if (b.Edge == "main" && s >= b.S0 && s < b.S1)
+                return b.Biome;
+        return plan.Biomes.Count > 0 ? plan.Biomes[^1].Biome : "farmland";
     }
 
     static readonly ConditionalWeakTable<Route, PlanScene> Scenes = new();
@@ -82,6 +85,26 @@ public sealed partial class WorldArt
 
     /// <summary>A generated line's biome at a main-line distance (linegen plan §13.1), or null for a hand-laid one.</summary>
     public static string? BiomeAt(Route? route, double s) => Scene(route)?.BiomeAt(s);
+
+    /// <summary>
+    /// Whether <paramref name="eye"/> is within <paramref name="reach"/> metres of a brass field on a generated line (its
+    /// crystals, <see cref="Brass"/>): where the air carries its dust (Effects.Corruption's <c>Air.Brass</c>).
+    /// </summary>
+    public static bool NearBrass(Route? route, Double3 eye, double reach = 35)
+    {
+        if (Scene(route) is not { } p)
+            return false;
+        foreach (var st in p.Plan.Structures)
+        {
+            if (st.Type != StructureType.BrassField)
+                continue;
+            var line = p.EdgeLine(st.Edge);
+            for (double s = st.S0 - reach; s <= st.S1 + reach; s += 10)
+                if ((line.Sample(Math.Clamp(s, 0, line.Length)).Position - eye).Length < reach)
+                    return true;
+        }
+        return false;
+    }
 
     static float SmoothStep(float a, float b, float x)
     {
@@ -117,22 +140,25 @@ public sealed partial class WorldArt
     /// </summary>
     (int Ground, int Rock) BiomeGround(PlanScene p, double s)
     {
-        // biomes.json names the textures (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's names
-        // are the splat families they stood for.
-        string Texture(string? name) => name switch
-        {
-            null => "ground_grass",
-            "deadGrass" => "ground_grass",
-            "soil" => "ground_forest",
-            "mud" => "ground_mud",
-            "rock" => "rock_cliff",
-            "cinder" => "slag",
-            _ => name,
-        };
         var def = p.Biome(s);
-        int ground = _look.Layer(Texture(def?.Ground)), second = _look.Layer(Texture(def?.Materials.FirstOrDefault() ?? "rock"));
+        int ground = _look.Layer(BiomeTexture(def?.Ground)), second = _look.Layer(BiomeTexture(def?.Materials.FirstOrDefault() ?? "rock"));
         return (ground >= 0 ? ground : _look.Layer("ground_grass"), second >= 0 ? second : _look.Layer("rock_cliff"));
     }
+
+    /// <summary>
+    /// A biome's texture by its biomes.json name (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's
+    /// names are the splat families they stood for.
+    /// </summary>
+    static string BiomeTexture(string? name) => name switch
+    {
+        null => "ground_grass",
+        "deadGrass" => "ground_grass",
+        "soil" => "ground_forest",
+        "mud" => "ground_mud",
+        "rock" => "rock_cliff",
+        "cinder" => "slag",
+        _ => name,
+    };
 
     /// <summary>
     /// How far the land gives way to its biome's second ground at a world point: on the steep (the slope), and in
@@ -221,12 +247,15 @@ public sealed partial class WorldArt
             return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
-        MeshAsset Tree(string kind, int v) => kind switch
+        // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
+        // the crossed cards.
+        MeshAsset Tree(string kind, int v, bool near) => kind switch
         {
             "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
             "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
+            _ when near => Piece($"spruce3d-{v}", () => WorldKit.Spruce(_look, v, 12)),
             _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
         };
 
@@ -276,7 +305,7 @@ public sealed partial class WorldArt
                     continue; // nothing grows on the crag
                 MeshAsset piece = dead
                     ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Tree(kind, variant);
+                    : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
                 if (dead)
                     (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
                 if (kind == "birch" && !dead)
@@ -908,6 +937,8 @@ public sealed partial class WorldArt
 
     static Vector3 F(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 
+    // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
+    const double NearSpruce = 40;
     // The causeway's bank, along: a stretch at a time.
     const double BankStep = 5;
     // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)

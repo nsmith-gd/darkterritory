@@ -170,4 +170,31 @@ public class MusicManifestTests
             Assert.Null(Opera.Cue(t, Wreck.SequenceSeconds, Wreck));
         }
     }
+
+    [Fact]
+    public void WithAFilmTheHitLandsOnTheFinalPlayersApex()
+    {
+        // E.6 "Alignment" (note 245): the planner puts the hit within ±0.1 s of the final player's apex (E.5's last shot,
+        // the biggest flight). A hit further into the track than the apex is starts mid-track; one nearer its in-point waits,
+        // and the track comes in late, in time for it.
+        var (_, film) = FilmPlaybackTests.Shot();
+        double apex = Wreck.FirstPersonSeconds + Wreck.ReplaySeconds + film.FinalApexAt!.Value;
+        double end = Wreck.FirstPersonSeconds + Wreck.ReplaySeconds + film.CauseAt;
+        foreach (var t in Manifest.Tracks)
+        {
+            var hit = Opera.Cue(t, apex, Wreck, end, apex);
+            Assert.NotNull(hit);
+            Assert.InRange(hit!.Value.ClipSeconds, t.Hit - 0.1, t.Hit + 0.1);
+            double comesIn = apex - (t.Hit - t.InPoint);
+            if (comesIn > Wreck.FirstPersonSeconds + 0.05)
+                Assert.Null(Opera.Cue(t, comesIn - 0.05, Wreck, end, apex));
+            else
+                Assert.NotNull(Opera.Cue(t, Wreck.FirstPersonSeconds, Wreck, end, apex));
+        }
+        // The last player's shot shows their peak at the apex.
+        var last = film.Cut.Last(s => s.Kind == ShotKind.Player);
+        double into = film.FinalApexAt.Value - film.Cut.TakeWhile(s => s != last).Sum(s => s.Real);
+        Assert.InRange(into, 0, last.Real);
+        Assert.Equal(film.Peaks[last.Subject].At, last.At(into), 3);
+    }
 }

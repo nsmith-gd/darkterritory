@@ -18,5 +18,5 @@ void main() {
     vUv = inUv;
     vColour = inColour;
     vLayer = inLayer;
-    gl_Position = frame.viewProj * vec4(inPos, 1.0);
+    gl_Position = eyeViewProj() * vec4(inPos, 1.0);
 }

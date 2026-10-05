@@ -89,6 +89,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
+    // The settings' MICROPHONE: what there is to choose from.
+    MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -152,8 +154,10 @@ VrView? StartVr()
 {
     try
     {
-        var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface);
-        Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye");
+        // Both eyes in one pass where the GPU can (tuning/vr.json "stereo", ARCHITECTURE §8 note 221).
+        var stereo = DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Stereo;
+        var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface, stereo);
+        Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye, {view.Stereo}");
         return view;
     }
     catch (XrUnavailableException e)
@@ -206,6 +210,8 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
+frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 var audioBlock = new float[Audio.Block * 2];
 var micSamples = new float[4800];
@@ -224,6 +230,7 @@ void FeedSpeaker()
 {
     while (speaker is not null && speaker.QueuedSeconds < 0.06)
     {
+        sound.Mixer.Volumes = frontEnd.Settings.Volumes;
         sound.Mixer.Render(audioBlock);
         if (frontEnd.Settings.Mute)
             Array.Clear(audioBlock);
@@ -306,6 +313,8 @@ Launch? Menu()
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
     var vrKeys = new VrMenuInput();
     frontEnd.Headset = vr is not null;
+    // The title's sound under the front end, until a night starts (the main loop stops it).
+    sound.UiLoop(UiCue.Title, on: true);
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
@@ -463,6 +472,7 @@ Launch? Menu()
 while (!window.CloseRequested && !QuitNow())
 {
     launch ??= Menu();
+    sound.UiLoop(UiCue.Title, on: false);
     if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
         break;
     // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
@@ -479,6 +489,8 @@ while (!window.CloseRequested && !QuitNow())
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
+    // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
+    sound.EndNight();
     // B.6 (note 182): a night this host ran had a child's call in it; from now on every call is the dice's.
     if (session is NetPlaySession { Host.World.ChildCalled: true })
         profile.MarkChildCalled();
@@ -552,6 +564,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
+    if (net is not null && sound.Clerk.Speaks)
+        net.RadioPace = sound.Clerk.Seconds;
     // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
     if (look is not null)
     {
@@ -562,8 +577,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
     var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
+    // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
+    sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
-        : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
+        : AudioIn.Open(Audio.SampleRate, out var micError, settings.MicDevice) is { } m ? m : NoMic(micError);
+    if (voice is not null)
+        voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
@@ -586,6 +605,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
+        Swings = session.World.Swings,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
@@ -619,6 +639,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
+    // In a headset the ballot and the commendations are the stick's (note 202), and say so.
+    Hud.Headset = vr is not null;
+    var nightKeys = new VrMenuInput();
     NetPlaySession.PlayerName = settings.PlayerName;
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
@@ -627,6 +650,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var derailSequence = new DerailSequence();
     // GDD v1.4 App. D.12: the night's bookmark stills, taken here as the host's bookmarks arrive.
     var stills = new BookmarkStills();
+    // D.12, D.13 (note 203): and kept past the run-end screen, in the user's app data, a folder for the night.
+    var album = new BookmarkAlbum(BookmarkAlbum.DefaultDirectory, DateTime.Now, session.Route?.Name ?? "night");
+    bool albumSaid = false;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -654,10 +680,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 profile.Record(session.World.Commendations, net.PlayerId);
             break;
         }
-        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives it.
+        // In a headset (note 202): the left stick's pushes and its click, once each, for the ballot and the commendations.
+        var vrPress = vr is null ? VrMenuPress.None : nightKeys.Read(vr.Session.Controllers);
+        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives
+        // it; in a headset the stick picks and its click gives.
         if (session.World.Run?.Over == true && net is not null)
-            net.Commend((input.Pressed(Key.Right) ? 1 : 0) - (input.Pressed(Key.Left) ? 1 : 0),
-                (input.Pressed(Key.Down) ? 1 : 0) - (input.Pressed(Key.Up) ? 1 : 0), input.Pressed(Key.Space));
+            net.Commend((input.Pressed(Key.Right) || vrPress.HasFlag(VrMenuPress.Right) ? 1 : 0) - (input.Pressed(Key.Left) || vrPress.HasFlag(VrMenuPress.Left) ? 1 : 0),
+                (input.Pressed(Key.Down) || vrPress.HasFlag(VrMenuPress.Down) ? 1 : 0) - (input.Pressed(Key.Up) || vrPress.HasFlag(VrMenuPress.Up) ? 1 : 0),
+                input.Pressed(Key.Space) || vrPress.HasFlag(VrMenuPress.Click));
+        // D.11 (note 202): dead with a ballot to cast, a number key picks a creature and the same again (or Enter) casts it;
+        // in a headset the stick's up and down pick (its left and right still change whom you watch) and its click casts.
+        if (net is { Voting: true, Ballot: { } ballot })
+        {
+            int options = ballot.Options.Count;
+            for (var k = Key.D1; k < Key.D1 + options; k++)
+                if (input.Pressed(k))
+                    net.Picker.Key(k - Key.D1 + 1, options);
+            if (input.Pressed(Key.Enter))
+                net.Picker.Cast();
+            net.Picker.Headset(vrPress, options);
+        }
         // D.11: the dead's chime as a creature they voted for comes.
         if (net?.TakeNewCue() == true)
             sound.Play("vote-cue");
@@ -679,9 +721,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
             pendingSeat = true;
-        // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
+        // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
-            if (input.Pressed(k))
+            if (input.Pressed(k) && net is not { Voting: true })
                 pendingSelect = (byte)(k - Key.D1 + 1);
         pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
@@ -770,6 +812,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 intent.LookPitch = headset.LookPitch;
                 intent.Buttons |= headset.Buttons;
                 (intent.HandX, intent.HandY, intent.HandZ) = (headset.HandX, headset.HandY, headset.HandZ);
+                // The other hand (T43) and the head's height (T82) go with it: the host's two-handed grips and the body the
+                // crew see under the head need them.
+                (intent.Other, intent.OtherX, intent.OtherY, intent.OtherZ, intent.Head) = (headset.Other, headset.OtherX, headset.OtherY, headset.OtherZ, headset.Head);
                 // The cab's levers by hand (T29): the same notches, brake and reverser a keyboard sends.
                 levers!.Apply(ref intent, session.Player, session.Train, session.Controls, session.PlayerTuning.Hand);
             }
@@ -787,8 +832,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
             bool exposed = !PlayerMotor.Indoors(ears, session.Train);
+            // Who's aboard to be heard (their feet, their hands, who was bitten), and your own intent (your swing, your
+            // trigger: not replicated).
+            sound.CrewStates = GameAudio.CrewOf(session);
+            sound.OwnId = session.PlayerId;
+            sound.OwnIntent = intent;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
+            // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
+            sound.Interface(session.World, session.Player, session.PlayerId);
+            sound.Choices(session);
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
@@ -828,10 +881,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
         // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
         // faded under the film's cause card.
+        // Its hit on the final player's apex in the film (E.5-E.6; note 245), or the replay's derail moment with no film.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
-            film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
-        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
-        sound.Radio(session.RadioReading is not null);
+            film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt,
+            film?.FinalApexAt is { } apex ? wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + apex : -1);
+        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio, said a line at a time
+        // as each comes on (note 240).
+        var reading = session.RadioReading;
+        sound.Radio(reading, reading is null ? 0
+            : DarkTerritory.Sim.Run.Radio.Reading(reading, session.RadioSeconds, session.World.Run?.Tuning.Radio ?? new(), session.RadioTimes).Lines);
+        // E.9: the Stranded outro's cooling boiler and its lamps going out, in time with the picture.
+        sound.Stranded(session.Train, wreckTuning.Stranded, outro ? session.OutroSeconds : -1);
+        // E.5, E.9: the clerk's one line, said as it comes up (note 242): the film's cause card, the Stranded report over the
+        // pull-back. It runs on past the card into the end screen if it's longer.
+        string? clerkLine = null;
+        if (beat == DerailBeat.Film && film?.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) is { } cut
+            && cut.Shot.Kind == DarkTerritory.Sim.Train.ShotKind.Cause)
+            clerkLine = cut.Shot.Card;
+        else if (outro && session.OutroSeconds > wreckTuning.Stranded.RackSeconds)
+            clerkLine = DarkTerritory.Sim.Run.Radio.Stranded(session.World.Run?.Report?.DistanceKm ?? 0);
+        sound.ClerkLine(clerkLine);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
@@ -847,7 +916,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
-            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames)
+            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames, session.Train.StandingCar)
             : filmShot is { } filming ? DerailSequence.FilmCamera(filming.Shot, filming.Into)
             : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
@@ -899,6 +968,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (look?.Tuning.Atmosphere.Wind is { } wind)
                 (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
+        // The Choir's cold, coming before it (App. A.7): the frame chills as it gathers (Look.Chill, over the weather's frost).
+        if (look is not null)
+            lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
@@ -909,6 +981,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
+        scene.SinceShovel = session.Train.Boiler.SinceShovel;
+        scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;
@@ -929,15 +1003,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
         {
             var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            var (shownBodies, shownCut, shownLights, shownWreck, shownDerailed) = (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed);
             (scene.Own, scene.HeldHere) = (null, null);
-            foreach (var (mark, from) in due)
+            foreach (var (mark, from, peak) in due)
             {
-                scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
-                scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, from.Position);
-                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height);
+                // E.5: a derailment's still is that crew member's peak in the film, drawn as the film draws it.
+                var at = peak is not null ? DerailSequence.Stage(scene, peak, frames) : frames;
+                if (peak is null)
+                    scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
+                scene.Build(mesh, session.Train.Line, at, session.Train.Dynamics.Distance, from.Position);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null);
+                (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed) = (shownBodies, shownCut, shownLights, shownWreck, shownDerailed);
             }
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        }
+        // D.12, D.13 (note 203): once the report's in, the stills on it are kept on disk, so a player has them after the screen.
+        if (session.World.Run?.Report is { } kept && album.Save(kept, stills.Stills, session.World).Count > 0 && !albumSaid)
+        {
+            albumSaid = true;
+            Console.WriteLine($"bookmarks: the night's stills are kept in {album.Night}");
         }
         if (showHud)
         {
@@ -953,7 +1038,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }
             if (session.World.Run?.Over == true)
+            {
                 overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+                if (album.Kept > 0)
+                    overlay.TextCentred(UiWidth / 2f, UiHeight - 12, $"{album.Kept} STILLS KEPT IN YOUR BOOKMARKS FOLDER", new Vector4(0.6f, 0.6f, 0.6f, 1));
+            }
         }
         if (vr is null)
         {
@@ -981,9 +1070,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         if (vr is not null)
             Mirror();
-        // The night's over: A goes back, as Enter does.
+        // The night's over: A goes back, as Enter does, keeping what you were commended for (D.12) as Enter does.
         if (vr is not null && session.World.Run?.Over == true && vr.Session.Controllers.Primary)
+        {
+            if (net is not null && session.World.Commendations.Count > 0)
+                profile.Record(session.World.Commendations, net.PlayerId);
             break;
+        }
 
         if (now >= titleAt)
         {

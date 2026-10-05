@@ -45,13 +45,21 @@ public sealed class Opera
     /// </summary>
     /// <param name="end">Where the music's over, in sequence seconds: by default the sequence's end; with the film, the cause
     /// card's start (E.5: the fade under the cause card, the clerk on the static alone).</param>
-    public static (double ClipSeconds, float Gain)? Cue(MusicTrack track, double sequenceSeconds, WreckTuning t, double end = -1)
+    /// <param name="hitAt">Where in the sequence the hit lands (E.6 "within ±0.1 s of the final player's apex", the film's
+    /// <see cref="WreckFilm.FinalApexAt"/>; note 245); without a film, the replay's moment of derailment.</param>
+    public static (double ClipSeconds, float Gain)? Cue(MusicTrack track, double sequenceSeconds, WreckTuning t, double end = -1, double hitAt = -1)
     {
         if (end < 0)
             end = t.SequenceSeconds;
         if (sequenceSeconds < t.FirstPersonSeconds || sequenceSeconds >= end)
             return null;
-        double clip = track.StartFor(t.ReplayLeadSeconds) + (sequenceSeconds - t.FirstPersonSeconds);
+        // From the replay's first frame, the place in the track that puts the hit there. With a film, a hit further into the
+        // track than that is far starts mid-track, and one nearer its in-point waits: the track comes in late, in time for
+        // its hit (E.6 "Alignment").
+        double elapsed = sequenceSeconds - t.FirstPersonSeconds;
+        double clip = (hitAt > t.FirstPersonSeconds ? track.Hit - (hitAt - t.FirstPersonSeconds) : track.StartFor(t.ReplayLeadSeconds)) + elapsed;
+        if (clip < track.InPoint)
+            return null;
         if (clip >= track.OutPoint)
             return null;
         double fade = Math.Max(1e-3, t.Music.FadeOutSeconds);
@@ -63,10 +71,10 @@ public sealed class Opera
     /// Every frame: the host's draw (<paramref name="key"/>, 0 for none) at <paramref name="sequenceSeconds"/> into the
     /// derailment (negative when there isn't one). Starts the track once, keeps its gain, stops it when it's over.
     /// </summary>
-    public void Update(Mixer mixer, uint key, double sequenceSeconds, WreckTuning t, double end = -1)
+    public void Update(Mixer mixer, uint key, double sequenceSeconds, WreckTuning t, double end = -1, double hitAt = -1)
     {
         var track = Manifest.ByKey(key);
-        var cue = track is null ? null : Cue(track, sequenceSeconds, t, end);
+        var cue = track is null ? null : Cue(track, sequenceSeconds, t, end, hitAt);
         if (cue is not { } c || !_clips.TryGetValue(track!.Id, out var clip))
         {
             Stop();

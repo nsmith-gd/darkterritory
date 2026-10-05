@@ -61,6 +61,11 @@ public sealed record HarnessOptions
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
+    /// <summary>
+    /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's (or with none, the gunner's: note 222), to the Gaunt, Ribbits or a Dragger
+    /// insisted on. Null: the crew keep to their posts.
+    /// </summary>
+    public LookTuning? Look { get; init; }
     /// <summary>What the night's line takes away (GDD §22; note 186), laid over the line for host and clients alike.</summary>
     public HazardSet? Hazards { get; init; }
     /// <summary>
@@ -131,6 +136,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Engaged { get; init; } = new Dictionary<string, int>();
     /// <summary>GRABs a crewmate broke (the grab ended in a break-off, not a punish), by kind.</summary>
     public IReadOnlyDictionary<string, int> Rescues { get; init; } = new Dictionary<string, int>();
+    /// <summary>The dead's votes cast (GDD v1.4 App. D.11; the bots' too, note 202), by creature.</summary>
+    public IReadOnlyDictionary<string, int> Votes { get; init; } = new Dictionary<string, int>();
 }
 
 /// <summary>
@@ -211,6 +218,16 @@ public static class Harness
             if (o.Sight is { } csight && o.Route is { } lroute)
                 session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
+        }
+        // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it. With no walker
+        // (a crew of two: the driver and the gunner), the gunner does, off its gun while the gun can spare it (note 222).
+        if (o.Insist is { } looked && o.Look is { } look)
+        {
+            var bots = clients.Select(c => c.Bot).ToList();
+            if (bots.OfType<RoofWalkerBot>().LastOrDefault() is { } lookout)
+                lookout.Errand = new LookErrand(looked, look);
+            else if (bots.OfType<GunnerBot>().LastOrDefault() is { } gunner)
+                gunner.Errand = new LookErrand(looked, look);
         }
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
@@ -330,6 +347,7 @@ public static class Harness
                 Grabs = Count(events.Where(e => e.To == SpinePhase.Grab)),
                 Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
+                Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
             };
         }
         if (o.Udp || o.Network is not null)
@@ -397,8 +415,10 @@ public static class Harness
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot { TendStep: { } t } => $"tend:{t}",
+            RoofWalkerBot { Errand.Doing: { } l } => l,
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot { KitStep: { } k } => $"kit:{k}",
+            GunnerBot { Errand.Doing: { } l } => l,
             GunnerBot g => g.Saving ? "saving the gun" : g.TendStep is { } t ? $"tend:{t}" : g.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : g.Job?.Doing ?? "",
             _ => "",
         };

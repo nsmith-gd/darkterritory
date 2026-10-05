@@ -1,23 +1,36 @@
 // Mix buses and ducking (spec A.3). Tiers: 1 enemy telegraphs, 2 proximity voice, 3 critical train
-// state, 4 player actions, 5 train bed, 6 ambient world. "Higher tiers duck everything below."
+// state, 4 player actions, 5 train bed, 6 ambient world; and 7 music, under the ambient world (decided
+// 1 Oct, not in the spec's table). "Higher tiers duck everything below."
 {
   "ducking": [
-    // Tier 1 is inviolable: while any telegraph is audible, everything else drops 9 dB.
-    { "tier": 1, "ducks": [2, 3, 4, 5, 6], "db": -9 },
+    // Tier 1 is inviolable: while any telegraph is audible, everything else drops 9 dB, bar voice (decided 2 Oct,
+    // spec A.3): nothing ducks the crew, whose call-out of a tell has to be heard over the tell itself.
+    { "tier": 1, "ducks": [3, 4, 5, 6], "db": -9 },
     // Proximity voice ducks the bed 6 dB while someone's talking.
     { "tier": 2, "ducks": [5], "db": -6 },
     // Not in the spec's table, which only gives tiers 1 and 2 a number: the rest duck what's below
     // them gently, so an alarm reads over the bed without the bed pumping.
     { "tier": 3, "ducks": [4, 5, 6], "db": -3 },
-    { "tier": 4, "ducks": [5, 6], "db": -1.5 }
+    { "tier": 4, "ducks": [5, 6], "db": -1.5 },
+    // Music gives way to everything: furthest under a tell or a voice, a little under the bed and the
+    // world, which are nearly always there. Music itself ducks nothing (no rule for tier 7), voice least of all.
+    { "tier": 1, "ducks": [7], "db": -12 },
+    { "tier": 2, "ducks": [7], "db": -9 },
+    { "tier": 3, "ducks": [7], "db": -6 },
+    { "tier": 4, "ducks": [7], "db": -3 },
+    { "tier": 5, "ducks": [7], "db": -2 },
+    { "tier": 6, "ducks": [7], "db": -2 }
   ],
   // Spec A.4's own band table has the Choir (300 Hz-4 kHz) over the hounds (500 Hz-3 kHz) and the
   // Sleepers (400 Hz-2 kHz). A full swarm is continuous and global, a howl or a writhe is brief and
   // local, so the Choir steps back while one of those is sounding (ARCHITECTURE §8). Loops (a drill,
   // the Hollow) don't duck it, or it would never come back.
   "soundDucking": [
-    { "when": ["hound-howl", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
+    { "when": ["hound-howl", "tell-hounds.howl-near", "sleepers-writhe"], "ducks": ["choir-voice"], "db": -8 }
   ],
+  // Each tier's fader in dB, tier 1 first. The music's takes are levelled to -30 LUFS
+  // (tools/audio/recipes/music.py); its fader keeps it low under the night whatever a new take is levelled to.
+  "tierDb": [0, 0, 0, 0, 0, 0, -6],
   "duckAttack": 0.03,
   "duckRelease": 0.45,
   // Spec A.7: budget 64 concurrent voices.
@@ -27,11 +40,19 @@
   "occlusionLowpass": 900,
   "tellOcclusionFloorDb": -6,
   "masterDb": 9,
+  // Spec A.4: a tell is "directional to within ~30°: car four, left side", and VR needs better than a pan. A spherical
+  // head on every positioned voice (Ballast.Audio.HeadDef; note 246): the far ear late by Woodworth's delay (an 8.75 cm
+  // head, 0.66 ms at the side) and 10 dB duller above 1.8 kHz, the pinna's 6 dB shelf above 3.5 kHz from straight
+  // behind, a 4 dB peak at 8 kHz overhead (a notch underfoot), and the level pan under it at 0.6 of a speaker's. A tell
+  // is never cut more than 3 dB by any of it (spec A.3, as the occlusion floor below): it still points, it isn't masked.
+  "head": { "radius": 0.0875, "shadowHz": 1800, "shadowDb": -10, "rearHz": 3500, "rearDb": -6, "heightHz": 8000, "heightDb": 4, "panWidth": 0.6, "tellFloorDb": -3 },
   // GDD v1.4 App. E.6, the derailment's opera, on a bus of its own outside the tiers (tier 0: it ducks nothing and no
   // tier ducks it). Tracks arrive at -16 LUFS (each one's manifest gain); levelDb against masterDb's +9 puts the opera
   // out 3 dB over that, on top of the wreck's grind (it's the punchline: E.1 "the first bar is the punchline"). It ducks 6 dB under any voice on the dead channel (50 ms attack, 400 ms release),
   // so the laughing stays audible (E.6 "Mix", E.10 "Music duck"). While it plays, the rest of the game goes through a
-  // 1.2 kHz low-pass (E.6 "Game audio"), faded in over lowpassSeconds. Voices (tier 2) aren't game audio: they stay clear.
+  // 1.2 kHz low-pass (E.6 "Game audio"), faded in over lowpassSeconds, and plays at gameRate of its speed (E.6 "half
+  // speed"): pitch, envelopes and takes all slowed, as a tape, gliding down with the fade. Voices (tier 2) aren't game
+  // audio: they stay clear and at speed.
   "music": {
     "levelDb": -6,
     "duckDb": -6,
@@ -40,6 +61,7 @@
     "duckRelease": 0.4,
     "lowpassHz": 1200,
     "lowpassTiers": [1, 3, 4, 5, 6],
-    "lowpassSeconds": 0.25
+    "lowpassSeconds": 0.25,
+    "gameRate": 0.5
   }
 }

@@ -100,7 +100,7 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades: bought once, then owned and greyed out; the ones the night doesn't model say so.
+        // Upgrades: bought once, then owned and greyed out.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");
@@ -111,8 +111,9 @@ public sealed class FrontEndTests : IDisposable
         var owned = m.Items.Single(i => i.Label.StartsWith(first.Name.ToUpperInvariant(), StringComparison.Ordinal));
         Assert.EndsWith("OWNED", owned.Label);
         Assert.False(owned.Enabled);
-        var unmodelled = C.Upgrades.First(u => u.Effect.Count == 0);
-        Assert.Contains("not modelled", m.Items.Single(i => i.Label.StartsWith(unmodelled.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail);
+        // Every upgrade the fortress sells does something tonight (note 196): none says it isn't modelled.
+        Assert.All(C.Upgrades, u => Assert.DoesNotContain("not modelled",
+            m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
     }
@@ -334,6 +335,45 @@ public sealed class FrontEndTests : IDisposable
         // A garbled file is the defaults, not a crash.
         File.WriteAllText(SettingsPath, "{ not json");
         Assert.Equal(new Settings(), Settings.Load(SettingsPath));
+    }
+
+    [Fact]
+    public void TheSoundSettingsAreSavedAndAreTheMixersVolumes()
+    {
+        // The audio checklist's mix-settings: master, effects, music and voice volumes, the microphone and its level.
+        var m = new FrontEnd(C, R, Saves, SettingsPath, () => 42) { MicDevices = ["Desk Mic", "Headset"] };
+        Choose(m, "SETTINGS");
+        Pick(m, "EFFECTS VOLUME");
+        m.Left();
+        m.Left();
+        m.Left();
+        Pick(m, "VOICE VOLUME");
+        m.Right();
+        Pick(m, "MUSIC VOLUME");
+        for (int i = 0; i < 12; i++)
+            m.Left();
+        Pick(m, "MICROPHONE");
+        m.Right();
+        m.Right();
+        Pick(m, "MIC LEVEL");
+        m.Right();
+        m.Right();
+        Assert.Equal(0.7, m.Settings.EffectsVolume, 6);
+        Assert.Equal(1, m.Settings.VoiceVolume, 6);
+        Assert.Equal(0, m.Settings.MusicVolume, 6);
+        Assert.Equal("Headset", m.Settings.MicDevice);
+        Assert.Equal(1.2, m.Settings.MicLevel, 6);
+        Assert.Equal(m.Settings, Settings.Load(SettingsPath));
+        // What the mixer's given: effects on the tells and the train, music silent, the crew at full.
+        var v = m.Settings.Volumes;
+        Assert.Equal(0.7f, v.Of(1), 4);
+        Assert.Equal(0.7f, v.Of(5), 4);
+        Assert.Equal(1f, v.Of(2), 4);
+        Assert.Equal(0f, v.Of(7), 4);
+        // Round past the last microphone to the default.
+        Pick(m, "MICROPHONE");
+        m.Right();
+        Assert.Equal("", m.Settings.MicDevice);
     }
 
     [Fact]

@@ -13,8 +13,9 @@
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
-  // lineSeconds over the radio.
-  "radio": { "lineSeconds": 1.6 },
+  // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
+  // bored pace), never less than lineSeconds.
+  "radio": { "lineSeconds": 1.6, "pauseSeconds": 0.5 },
 
   // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
   "stranded": {

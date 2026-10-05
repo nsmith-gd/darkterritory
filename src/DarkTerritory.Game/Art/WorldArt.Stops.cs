@@ -332,7 +332,7 @@ public sealed partial class WorldArt
         Vector3 At(Pt p, double lift) => Sim.Run.Run.StopWorld(line, f, p, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) + lift).RelativeTo(eye);
         foreach (var road in stop.Roads)
         {
-            float half = road.Kind switch { RoadKind.Through => 3f, RoadKind.Street => 2.8f, RoadKind.Lane => 1.9f, _ => 1.6f };
+            float half = RoadHalfWidth(road.Kind);
             bool street = road.Kind == RoadKind.Street;
             int a = street && cobbles >= 0 ? cobbles : mud, b = street ? mud : grass;
             var pts = Dense(road.Points, 4);
@@ -374,11 +374,17 @@ public sealed partial class WorldArt
             k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.3f);
             k.With(Basis(t.Tangent, t.Position, eye, 0), () =>
             {
-                for (float z = -2.6f; z < 2.6f; z += 0.4f)
-                    k.Box(new Vector3(-2.6f, 0.02f, z), new Vector3(2.6f, 0.13f, z + 0.36f), Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ);
+                for (float z = -CrossingHalf; z < CrossingHalf; z += 0.4f)
+                    k.Box(new Vector3(-CrossingHalf, 0.02f, z), new Vector3(CrossingHalf, 0.13f, z + 0.36f), Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ);
             });
         }
     }
+
+    /// <summary>Half a road's width by its kind, its verges aside (P10's through road down to a stub).</summary>
+    static float RoadHalfWidth(RoadKind kind) => kind switch { RoadKind.Through => 3f, RoadKind.Street => 2.8f, RoadKind.Lane => 1.9f, _ => 1.6f };
+
+    /// <summary>A stop's level crossing's boards: this far either way along the line and across it.</summary>
+    const float CrossingHalf = 2.6f;
 
     /// <summary>A polyline resampled so no piece is longer than <paramref name="step"/> (the ground under it isn't flat).</summary>
     static List<Pt> Dense(IReadOnlyList<Pt> points, double step)

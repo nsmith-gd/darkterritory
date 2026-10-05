@@ -82,6 +82,8 @@ public sealed record CarHuggerTuning
     public double LowSpeed { get; init; } = 8;
     public double LowSpeedWeight { get; init; } = 2;
     public int MinCars { get; init; } = 2;
+    /// <summary>Every this much of the shell eaten, it's through the end wall again: the car breached (decided 1 Oct).</summary>
+    public double BreachEaten { get; init; } = 0.1;
 }
 
 /// <summary>The Whistler (v1.1 App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -312,6 +314,8 @@ public sealed record ClimberTuning
     public int[] PackSize { get; init; } = [2, 3];
     public double CountRadius { get; init; } = 8;
     public double TakeSeconds { get; init; } = 10;
+    /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>
+    public bool BreachLitCars { get; init; }
 }
 
 /// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -464,5 +468,6 @@ public sealed record DirectorTuning(
 /// <summary>
 /// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
 /// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
-public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3);
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);

@@ -1,12 +1,19 @@
-// Tell (tier 1), Ribbits lining up to strike: "throats swelling" (GDD v1.1 App. A.6), 100 Hz-1 kHz (the band the Hollow
-// held). A low bubbling croak, pulsing, from a pack out in the yard: the second before their tongues come.
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (tell-ribbits/swell), in place of its synth definition
+// (tools/audio/synth-defs/ribbit-swell.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 45, "gainDb": 6,
-  "layers": [
-    { "source": "saw", "frequency": 110, "gain": 0.7, "filters": [{ "type": "lowPass", "frequency": 700 }, { "type": "peak", "frequency": 240, "q": 2, "gainDb": 6 }],
-      "vibrato": { "rate": 3, "depth": 0.12 },
-      "tremolo": { "rate": 4.5, "depth": 0.9, "duty": 0.5, "jitter": 0.3 } },
-    { "source": "noise", "gain": 0.4, "filters": [{ "type": "bandPass", "frequency": 800, "q": 3 }],
-      "tremolo": { "rate": 4.5, "depth": 1, "duty": 0.2, "jitter": 0.3 } }
-  ]
+ "tier": 1,
+ "loop": true,
+ "maxInstances": 2,
+ "minDistance": 2,
+ "maxDistance": 45,
+ "gainDb": 6,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-ribbits/swell",
+   "gain": 1
+  }
+ ]
 }

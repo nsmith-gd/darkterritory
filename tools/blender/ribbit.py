@@ -12,7 +12,8 @@ ears (two bones each, they droop and swing), front legs (upperarm, lowerarm, han
 Sat (its rest pose), facing +Y (the engine's -Z). The tongue's long shot is drawn by the engine (CreatureArt), from the
 mouth to whoever it's got. Clips (GDD §31: still, then too fast): sit (dead still but for the throat; the ears twitch),
 hop (a leap and a sit, 1 s: the sim's half-second bursts), swell (the telegraph: up tall, the sac swelling and
-pulsing), tongue (mouth gaping, braced, reeling in), hit.
+pulsing), tongue (mouth gaping, braced, reeling in), creep (the leader in low on its frozen catch, the tongue still out),
+devour (reared up against them, forelegs on them, the head wrenching, the jaw snapping), hit.
 
     tools/models/build.sh ribbit        # this, its high copy and the bake -> content/art/models/ribbit.glb
 """
@@ -280,6 +281,36 @@ for f, k in ((0, 0.0), (5, 1.0), (10, 0.3), (18, 1.0), (24, 0.0)):
                    "throat@scale": (1.2 + 0.4 * k, 1.2, 1.3 + 0.5 * k)}, "BEZIER" if f % 2 == 0 else "CONSTANT")
 tongue.close(30)
 
+# Creep (1.6 s, loop): the leader's slow way in on its frozen catch (the sim's quarter-speed hop, App. A.6 "the pack hops
+# in to eat"): down low on its belly, the mouth still gaping and the tongue out to them, the little hands placed one and
+# then the other, the haunches pushing it on after them; the sac pumping, the ears laid back.
+LOW = {"root@loc": (0, 0, -0.07), "pelvis": (-4, 0, 0), "spine_01": (-6, 0, 0), "chest": (-8, 0, 0), "neck": (4, 0, 0), "head": (2, 0, 0),
+       "ear_r_01": (-12, 0, 0), "ear_l_01": (-12, 0, 0), "tongue_01": (8, 0, 0)}
+creep = Clip("creep")
+for f, k in ((0, 1), (12, -1), (24, 1), (36, -1)):
+    creep.key(f, {**LOW, "jaw": (-30 - 4 * (k > 0), 0, 0), "root@loc": (0, 0.03 * k, -0.07),
+                  "upperarm_r": (-34 if k > 0 else 8, 0, 0), "lowerarm_r": (20 if k > 0 else 4, 0, 0),
+                  "upperarm_l": (8 if k > 0 else -34, 0, 0), "lowerarm_l": (4 if k > 0 else 20, 0, 0),
+                  "thigh_r": (-6 if k > 0 else 6, 0, 0), "thigh_l": (6 if k > 0 else -6, 0, 0),
+                  "throat@scale": (1.2 + 0.15 * (k > 0), 1.2, 1.3 + 0.2 * (k > 0))}, "BEZIER")
+creep.close(48)
+
+# Devour (1.2 s, loop): on them (App. A.6, ~8 s of it): reared up on its haunches against its frozen catch, the front
+# half lifted and leant in over them, the little hands up on them gripping, the head bent down into them, driving in and
+# wrenching side to side, the jaw snapping shut and tearing back, the sac heaving. (The sim's hop stops 0.8 m short, so it
+# leans the rest of the way.)
+OVER = {"root@loc": (0, 0.22, 0.06), "pelvis": (28, 0, 0), "spine_01": (14, 0, 0), "chest": (8, 0, 0), "neck": (-18, 0, 0),
+        "thigh_r": (-28, 0, 0), "thigh_l": (-28, 0, 0),
+        "upperarm_r": (-20, 0, 0), "upperarm_l": (-20, 0, 0), "lowerarm_r": (10, 0, 0), "lowerarm_l": (10, 0, 0),
+        "ear_r_01": (-16, 0, 0), "ear_l_01": (-16, 0, 0)}
+devour = Clip("devour")
+for f, jaw, shake, drive in ((0, -46, 0, 0), (4, -6, 16, 1), (8, -20, -14, 0.5), (12, -4, 18, 1), (17, -44, 0, 0), (22, -8, -18, 1),
+                             (26, -24, 10, 0.4), (31, -5, -16, 1), (36, -46, 0, 0)):
+    devour.key(f, {**OVER, "jaw": (jaw, 0, 0), "head": (-30 - 12 * drive, 0, shake), "neck": (-18 - 6 * drive, 0, shake * 0.4),
+                   "root@loc": (0, 0.22 + 0.06 * drive, 0.06), "throat@scale": (1.15 + 0.2 * drive, 1.1, 1.2 + 0.25 * drive)},
+               "CONSTANT" if jaw > -10 else "LINEAR")
+devour.close(36)
+
 hit = Clip("hit", loop=False)
 hit.key(0, {}, "CONSTANT")
 hit.key(2, {"pelvis": (-10, 0, 14), "chest": (-6, 0, 10), "head": (-10, 0, 20), "root@loc": (0, -0.06, 0.04)}, "CONSTANT")
@@ -287,6 +318,6 @@ hit.key(8, {"pelvis": (4, 0, -4)}, "LINEAR")
 hit.key(12, {}, "CONSTANT")
 
 kit.build()
-rig.bake(sk, [sit, hop, swell, tongue, hit])
+rig.bake(sk, [sit, hop, swell, tongue, creep, devour, hit])
 print("[dt] ribbit", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "ribbit.glb", kit)

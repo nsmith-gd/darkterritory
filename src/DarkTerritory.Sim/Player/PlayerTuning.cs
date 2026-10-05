@@ -21,6 +21,9 @@ public sealed record PlayerTuning(
     /// </summary>
     public double SoloBodyClimb { get; init; } = 0.4;
 
+    /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
+    public WindTuning Wind { get; init; } = new();
+
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
     /// <summary>
@@ -34,6 +37,11 @@ public sealed record PlayerTuning(
 /// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
 public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
     double PerColdStep = 0.25);
+/// <summary>
+/// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
+/// either side. Field docs live in player.json <c>wind</c>.
+/// </summary>
+public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);
