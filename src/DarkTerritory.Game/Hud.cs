@@ -488,7 +488,7 @@ public static class Hud
         if (s.StrandedOutro)
         {
             if (s.OutroSeconds > world.WreckTuning.Stranded.RackSeconds)
-                Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
+                Small(Sim.Run.Radio.Stranded(world.Run?.Report?.DistanceKm ?? 0).ToUpperInvariant(), Dim);
             return;
         }
         // GDD §9: the clerk tallies first; the end screen after.

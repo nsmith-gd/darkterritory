@@ -115,4 +115,76 @@ public class ClerkVoiceTests
         audio.Mixer.Render(new float[Audio.Block * 2]);
         Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("radio-clerk", StringComparison.Ordinal) && !v.Finished);
     }
+
+    [Fact]
+    public void EveryCauseCardAndTheStrandedLineAreSaidWithNothingBreakingUp()
+    {
+        // Note 217: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
+        // causes are the sim's templates (Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the
+        // Stoker's runaway); the places are the line generator's own words. A new word in any of them fails here until the
+        // bank (tools/audio/clerk.py) has it.
+        var clerk = Clerk();
+        string[] causes =
+        [
+            "took the 45 km/h bend at 68 km/h, 23 km/h too fast",
+            "ran onto the washout",
+            "Carrow Trestle gave way under car 4",
+            "ran onto the Sleepers at 52 km/h, 12 km/h over the 40 km/h they'll take",
+            "the Switchman threw the points under it at 35 km/h (over 25 km/h they throw a train off)",
+            "the Stoker ran away with it: took the 45 km/h bend at 68 km/h, 23 km/h too fast",
+        ];
+        string[] blames =
+        [
+            "Throttle: {actor}.", "Nobody on the throttle.", "Forward cannon crewed by {actor}.", "Forward cannon not crewed.",
+            "No forward cannon on the consist.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
+        ];
+        foreach (string cause in causes)
+            foreach (string blame in blames)
+            {
+                var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+                var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), line, 12_600, Boilers));
+                world.Names[2] = Players.BotName(2);
+                world.Derail(cause, 2, blame);
+                string card = IncidentLog.CauseCard(world);
+                Assert.DoesNotContain(clerk.Pieces(card), p => p.Kind == ClerkVoice.PieceKind.Breakup);
+            }
+        Assert.DoesNotContain(clerk.Pieces(Radio.Stranded(14)), p => p.Kind == ClerkVoice.PieceKind.Breakup);
+        // Units as they're said.
+        Assert.Contains(clerk.Pieces("Consist derailed at km 14, 68 km/h."), p => p is { Kind: ClerkVoice.PieceKind.Word, Text: "kilometres an hour" });
+        Assert.Contains(clerk.Pieces("Consist derailed at km 14, 68 km/h."), p => p is { Kind: ClerkVoice.PieceKind.Word, Text: "kilometre" });
+        // Every word a station's, a bridge's or a facility's name can hold.
+        var names = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(Content, "linegen", "names.json")),
+            documentOptions: new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip })!;
+        var types = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(Content, "linegen", "facilities.json")),
+            documentOptions: new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip })!["types"]!;
+        var words = new[] { "surnames", "features", "owners", "haltSuffixes", "bridgeKinds", "tunnelWords" }
+            .SelectMany(k => names[k]!.AsArray().Select(n => n!.GetValue<string>()))
+            .Concat(types.AsObject().SelectMany(t => t.Value!["type"]!.GetValue<string>().Split(' ')))
+            .Concat(["Mile", "Fort", "Junction", "Wreck"]);
+        Assert.All(words, w => Assert.True(clerk.Knows(w.ToLowerInvariant()), $"the bank can't say '{w}'"));
+    }
+
+    [Fact]
+    public void TheClerksOneLineIsSaidOnceOverTheStatic()
+    {
+        var audio = new GameAudio(Content);
+        string line = Radio.Stranded(14);
+        for (int i = 0; i < 4; i++)
+        {
+            audio.Radio(null, 0);
+            audio.ClerkLine(line);
+            audio.Mixer.Render(new float[Audio.Block * 2]);
+        }
+        var said = Assert.Single(audio.Mixer.Voices, v => v.Name == "radio-clerk-voice");
+        Assert.InRange(said.Clip!.Seconds, 3, 9);
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == "radio-clerk" && !v.Finished);
+        // Said through: the static goes with it, and the same line isn't said again.
+        for (int b = 0; b < (said.Clip.Seconds + 0.5) * Audio.SampleRate / Audio.Block; b++)
+        {
+            audio.Radio(null, 0);
+            audio.ClerkLine(b % 2 == 0 ? line : null);
+            audio.Mixer.Render(new float[Audio.Block * 2]);
+        }
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("radio-clerk", StringComparison.Ordinal) && !v.Finished);
+    }
 }

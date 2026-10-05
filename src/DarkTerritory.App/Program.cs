@@ -877,6 +877,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : DarkTerritory.Sim.Run.Radio.Reading(reading, session.RadioSeconds, session.World.Run?.Tuning.Radio ?? new(), session.RadioTimes).Lines);
         // E.9: the Stranded outro's cooling boiler and its lamps going out, in time with the picture.
         sound.Stranded(session.Train, wreckTuning.Stranded, outro ? session.OutroSeconds : -1);
+        // E.5, E.9: the clerk's one line, said as it comes up (note 217): the film's cause card, the Stranded report over the
+        // pull-back. It runs on past the card into the end screen if it's longer.
+        string? clerkLine = null;
+        if (beat == DerailBeat.Film && film?.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) is { } cut
+            && cut.Shot.Kind == DarkTerritory.Sim.Train.ShotKind.Cause)
+            clerkLine = cut.Shot.Card;
+        else if (outro && session.OutroSeconds > wreckTuning.Stranded.RackSeconds)
+            clerkLine = DarkTerritory.Sim.Run.Radio.Stranded(session.World.Run?.Report?.DistanceKm ?? 0);
+        sound.ClerkLine(clerkLine);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;

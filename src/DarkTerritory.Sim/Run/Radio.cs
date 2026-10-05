@@ -63,6 +63,12 @@ public static class Radio
     }
 
     /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: the clerk over the pull-back, as flat as the coal. On the screen and said
+    /// (note 217).
+    /// </summary>
+    public static string Stranded(double km) => $"Consist reported stranded at km {km:0}. Recovery at first light. Recovery is chargeable.";
+
+    /// <summary>
     /// How many of <paramref name="lines"/> are on the air <paramref name="seconds"/> in, and the newest's share typed. With
     /// <paramref name="times"/> (each line's turn, from <see cref="Times"/>), at the voice's pace, typed as it's said;
     /// without, a line every <see cref="RadioTuning.LineSeconds"/>.

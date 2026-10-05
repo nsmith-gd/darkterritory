@@ -53,8 +53,40 @@ WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "m
          "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "minus"]
 
 
+# The derail cause card (GDD v1.4 App. E.5; IncidentLog.CauseCard and the causes World.Derail and Overspeed are given:
+# Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the Stoker's runaway, C.9's blame lines)
+# and the Stranded line (E.9; Radio.Stranded). ClerkVoice says "68 km/h" as "68 kilometres an hour", "at km 12" as
+# "at kilometre 12", "40 s" as "40 seconds" and "12 m" as "12 metres".
+CAUSE_PHRASES = ["consist derailed", "took the", "too fast", "ran onto the washout", "gave way under car",
+                 "the switchman threw the points under it", "they throw a train off", "ran onto the sleepers", "they'll take",
+                 "the stoker ran away with it", "nobody on the throttle", "forward cannon crewed by", "forward cannon not crewed",
+                 "no forward cannon on the consist", "firebox last tended", "nobody had tended the firebox",
+                 "recovery not scheduled", "cause not established", "consist reported stranded", "recovery at first light",
+                 "recovery is chargeable", "kilometres an hour", "from the train"]
+CAUSE_WORDS = ["at", "the", "over", "bend", "throttle", "unattended", "kilometre", "seconds", "metres", "car",
+               # The places a derailment is put at (IncidentLog.At): the line generator's own words for them.
+               "mile", "fort", "junction", "tunnel", "wreck"]
+
+
+def jsonc(*path):
+    with open(os.path.join(ROOT, *path)) as f:
+        return json.loads(re.sub(r"(?m)^\s*//.*$", "", f.read()))
+
+
+def places():
+    """Every word a station's, a bridge's or a facility's name can hold (content/linegen names.json, facilities.json)."""
+    n = jsonc("content", "linegen", "names.json")
+    words = []
+    for key in ("surnames", "features", "owners", "haltSuffixes", "bridgeKinds", "tunnelWords"):
+        words += n.get(key, [])
+    for f in jsonc("content", "linegen", "facilities.json")["types"].values():
+        words += f["type"].split()
+    return [w.lower() for w in words]
+
+
 # How a word's said where the phonemizer guesses wrong ("Achebe" came out "Aitch-b").
-SAY = {"achebe": "Ah-chay-bay", "okafor": "Oh-kah-for", "reyes": "Ray-ez", "moreau": "Mor-oh"}
+SAY = {"achebe": "Ah-chay-bay", "okafor": "Oh-kah-for", "reyes": "Ray-ez", "moreau": "Mor-oh", "combe": "Coom",
+       "drury": "Droo-ree"}
 
 
 def bots():
@@ -66,7 +98,7 @@ def bots():
 
 def vocabulary():
     seen, out = set(), []
-    for w in PHRASES + WORDS + bots():
+    for w in PHRASES + CAUSE_PHRASES + WORDS + CAUSE_WORDS + bots() + places():
         if w not in seen:
             seen.add(w)
             out.append(w)
@@ -96,15 +128,28 @@ def say(text, speaker, rate=0.92):
     return dsp.fade(x, 0.004, 0.025)
 
 
-def build(speaker):
+def build(speaker, fresh=False):
     words = vocabulary()
     os.makedirs(BANK, exist_ok=True)
+    # The reading isn't the same twice (the model samples its noise), so a take already in the bank, said the same way
+    # by the same speaker, is kept: a rebuild only reads what's new or respelled, and doesn't churn the repo.
+    old = {}
+    if not fresh and os.path.exists(os.path.join(BANK, "bank.json")):
+        with open(os.path.join(BANK, "bank.json")) as f:
+            was = json.loads(re.sub(r"(?m)^//.*$", "", f.read()))
+        if was.get("speaker") == speaker:
+            old = was["entries"]
     entries, digest = {}, hashlib.sha256()
     for w in words:
-        x = dsp.level(say(SAY.get(w, w), speaker), lufs=-20, ceiling=-1)
+        said = SAY.get(w, w)
         path = os.path.join(BANK, slug(w) + ".opus")
-        encode(x, path)
-        entries[w] = {"file": slug(w), "seconds": round(len(x) / dsp.SR, 3)}
+        if w in old and old[w].get("said", said) == said and os.path.exists(path):
+            entries[w] = old[w] | {"said": said}
+        else:
+            x = dsp.level(say(said, speaker), lufs=-20, ceiling=-1)
+            encode(x, path)
+            entries[w] = {"file": slug(w), "seconds": round(len(x) / dsp.SR, 3), "said": said}
+            print(f"  read {w!r}" + (f" as {said!r}" if said != w else ""))
         with open(path, "rb") as f:
             digest.update(f.read())
     for stale in os.listdir(BANK):
@@ -156,8 +201,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--speaker", type=int, default=CANDIDATES[0][0])
     ap.add_argument("--previews", metavar="DIR")
+    ap.add_argument("--fresh", action="store_true", help="read every take again, not only what's new")
     a = ap.parse_args()
     if a.previews:
         previews(a.previews)
     else:
-        build(a.speaker)
+        build(a.speaker, a.fresh)

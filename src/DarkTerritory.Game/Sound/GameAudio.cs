@@ -123,9 +123,10 @@ public sealed partial class GameAudio
         }
     }
 
-    SoundInstance? _whistle, _radioVoice, _radioSays;
+    SoundInstance? _whistle, _radioVoice, _radioSays, _clerkSays;
     IReadOnlyList<string>? _radioLines;
     int _radioSaid;
+    string? _clerkSaid;
     // The fraction of the working band's bottom under which the whistle only wheezes.
     const double WheezeBelow = 0.5;
 
@@ -138,10 +139,15 @@ public sealed partial class GameAudio
     {
         if (reading is null)
         {
-            _radioVoice?.Stop();
             _radioSays?.Stop();
-            _radioVoice = _radioSays = null;
+            _radioSays = null;
             _radioLines = null;
+            // The static stays under a clerk's line still being said (ClerkLine).
+            if (_clerkSays is null or { Finished: true })
+            {
+                _radioVoice?.Stop();
+                _radioVoice = null;
+            }
             return;
         }
         _radioVoice ??= Mixer.Play("radio-clerk");
@@ -160,6 +166,37 @@ public sealed partial class GameAudio
             if (_radioSays is not null)
                 _radioSays.Clip = said;
         }
+    }
+
+    /// <summary>
+    /// The clerk's one line over a moment (notes 215, 217): the derail film's cause card (GDD v1.4 App. E.5) and the Stranded
+    /// pull-back's report (E.9), said once in the yard's voice through the set as it comes on, with the channel's static
+    /// under it till it's done. Null, or the same line again, says nothing new.
+    /// </summary>
+    public void ClerkLine(string? line)
+    {
+        if (line is null || line == _clerkSaid)
+        {
+            // Said: the static goes with it, unless a reading has the air.
+            if (_clerkSays is { Finished: true })
+            {
+                _clerkSays = null;
+                if (_radioLines is null)
+                {
+                    _radioVoice?.Stop();
+                    _radioVoice = null;
+                }
+            }
+            return;
+        }
+        _clerkSaid = line;
+        if (Clerk.Render(line) is not { } said)
+            return;
+        _clerkSays?.Stop();
+        _clerkSays = Mixer.Play("radio-clerk-voice");
+        if (_clerkSays is not null)
+            _clerkSays.Clip = said;
+        _radioVoice ??= Mixer.Play("radio-clerk");
     }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
@@ -591,8 +628,9 @@ public sealed partial class GameAudio
     public void EndNight()
     {
         Mixer.StopAll();
-        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = _radioVoice = _radioSays = null;
+        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = _radioVoice = _radioSays = _clerkSays = null;
         _radioLines = null;
+        _clerkSaid = null;
         _enemies.Clear();
         _packs.Clear();
         _packHowls.Clear();

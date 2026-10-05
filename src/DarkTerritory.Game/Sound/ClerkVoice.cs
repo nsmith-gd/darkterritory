@@ -17,7 +17,7 @@ public sealed partial class ClerkVoice
     /// <summary>Where the bank is under the samples: its takes and <c>bank.json</c>.</summary>
     public const string Folder = "voice-clerk/bank";
 
-    public sealed record Entry(string File, double Seconds);
+    public sealed record Entry(string File, double Seconds, string? Said = null);
     public sealed record BankFile(int Speaker, string Voice, Dictionary<string, Entry> Entries);
 
     public enum PieceKind { Word, Pause, Breakup }
@@ -48,16 +48,30 @@ public sealed partial class ClerkVoice
     /// <summary>Whether the bank can say this phrase or word (lower case).</summary>
     public bool Knows(string phrase) => _entries.ContainsKey(phrase);
 
-    // Any letters, so a name in any alphabet is a word the set breaks up over, not nothing.
-    [GeneratedRegex(@"-?\d+|\p{L}[\p{L}'\-]*|[.,:;]")]
+    // Any letters, so a name in any alphabet is a word the set breaks up over, not nothing. Brackets are a comma's beat.
+    [GeneratedRegex(@"-?\d+|\p{L}[\p{L}'\-]*|[.,:;()]")]
     private static partial Regex Tokens();
+
+    // The cause card's units (IncidentLog), said as words: "68 km/h", "at km 12", "unattended 40 s", "12 m from the train".
+    [GeneratedRegex(@"\bkm/h\b")]
+    private static partial Regex Kmh();
+    [GeneratedRegex(@"\bkm (?=-?\d)")]
+    private static partial Regex Km();
+    [GeneratedRegex(@"(?<=\d) s\b")]
+    private static partial Regex Secs();
+    [GeneratedRegex(@"(?<=\d) m\b")]
+    private static partial Regex Metres();
+
+    /// <summary>A line with its units spelled out as they're said.</summary>
+    static string Spelled(string line) =>
+        Metres().Replace(Secs().Replace(Km().Replace(Kmh().Replace(line, "kilometres an hour"), "kilometre "), " seconds"), " metres");
 
     /// <summary>A line as it's said: the bank's phrases and words, the pauses, and the set breaking up over the rest.</summary>
     public List<Piece> Pieces(string line)
     {
         // Words (numbers as theirs), and the marks between them.
         var tokens = new List<string>();
-        foreach (Match m in Tokens().Matches(line))
+        foreach (Match m in Tokens().Matches(Spelled(line)))
         {
             string t = m.Value;
             if (char.IsDigit(t[^1]))
@@ -78,7 +92,7 @@ public sealed partial class ClerkVoice
         for (int i = 0; i < tokens.Count;)
         {
             string t = tokens[i];
-            if (t is "." or "," or ":" or ";")
+            if (t is "." or "," or ":" or ";" or "(" or ")")
             {
                 Flush();
                 pieces.Add(new Piece(PieceKind.Pause, t, t switch { "." => StopPause, ":" => ColonPause, ";" => StopPause, _ => CommaPause }));
@@ -90,7 +104,7 @@ public sealed partial class ClerkVoice
             for (int n = Math.Min(_longest, tokens.Count - i); n >= 1 && took == 0; n--)
             {
                 var run = tokens.GetRange(i, n);
-                if (run.Any(x => x is "." or "," or ":" or ";"))
+                if (run.Any(x => x is "." or "," or ":" or ";" or "(" or ")"))
                     continue;
                 string phrase = string.Join(' ', run);
                 if (_entries.TryGetValue(phrase, out var e))
