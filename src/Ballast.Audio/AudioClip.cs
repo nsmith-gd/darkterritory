@@ -27,4 +27,11 @@ public sealed class AudioClip(float[] samples, int sampleRate)
 
     /// <summary>A WAV file: PCM at 8, 16, 24 or 32 bits, or 32-bit float, any channel count (summed to mono).</summary>
     public static AudioClip LoadWav(string path) => Wav.Read(File.ReadAllBytes(path));
+
+    /// <summary>A recording, by what the file holds: Ogg Opus (decoded to 48 kHz, <see cref="OggOpus"/>) or WAV.</summary>
+    public static AudioClip Load(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        return OggOpus.IsOggOpus(bytes) ? OggOpus.Read(bytes) : Wav.Read(bytes);
+    }
 }

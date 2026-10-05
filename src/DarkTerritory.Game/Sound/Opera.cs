@@ -9,7 +9,8 @@ namespace DarkTerritory.Game.Sound;
 /// at startup. When the derailment sequence (note 170) reaches the replay, the host's draw (<see cref="Sim.World.DerailMusic"/>)
 /// starts on the music bus from the point that puts its hit on the replay's moment of derailment, plays through the orbit,
 /// and fades out by the sequence's end. Presentation only: it runs off the client's own count of the wreck's seconds,
-/// like the sequence's beats.
+/// like the sequence's beats. Whatever moment the derailment lines up (the replay's, or E.5's final apex), it lines up the
+/// manifest's <see cref="MusicTrack.Hit"/>: for a CC0 recording (note 194), the piece's climax as `dt audio music` settled it.
 /// </summary>
 public sealed class Opera
 {
@@ -26,7 +27,7 @@ public sealed class Opera
         {
             var path = Path.Combine(content, "audio", "music", t.File);
             if (File.Exists(path))
-                _clips[t.Id] = AudioClip.LoadWav(path);
+                _clips[t.Id] = AudioClip.Load(path); // WAV (the fallback) or Ogg Opus (recordings, note 194)
         }
     }
 

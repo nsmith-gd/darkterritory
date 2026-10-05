@@ -9,12 +9,34 @@ namespace Ballast.Audio;
 /// the file's first logical stream, mono or stereo (mapping family 0), decoded to mono at 48 kHz by Concentus. The
 /// header's pre-skip is decoded and dropped from the front, and the last page's granule position trims the encoder's
 /// padding off the end, so a take is exactly as long as what was encoded (a loop's seam lands where it was cut).
-/// Page CRCs aren't checked: the takes are built by our own tools and shipped, not streamed over anything lossy.
+/// Page CRCs aren't checked: the takes are built by our own tools and shipped, not streamed over anything lossy. The
+/// recorded music (GDD v1.4 App. E.6; note 194) is read the same way, as a whole clip (<see cref="Read"/>).
 /// </summary>
 public static class OggOpus
 {
     /// <summary>The longest an Opus packet can be: 120 ms at 48 kHz.</summary>
     const int MaxFrame = 5760;
+
+    /// <summary>Opus always decodes at 48 kHz, whatever rate the file was made from.</summary>
+    public const int SampleRate = 48000;
+
+    /// <summary>Whether a file is Ogg (its first page's capture pattern): what <see cref="AudioClip.Load"/> reads as Opus.</summary>
+    public static bool IsOggOpus(ReadOnlySpan<byte> file) => file.Length >= 4 && file[..4].SequenceEqual("OggS"u8);
+
+    /// <summary>
+    /// A whole file as a mono clip at 48 kHz, the header's output gain applied: the recorded music (note 194), decoded as
+    /// the takes are (<see cref="Decode"/>).
+    /// </summary>
+    /// <exception cref="InvalidDataException">Not an Ogg Opus file this reads, or a packet that won't decode.</exception>
+    public static AudioClip Read(ReadOnlySpan<byte> file)
+    {
+        var pcm = Decode(file, out float gain);
+        var samples = new float[pcm.Length];
+        float scale = gain / 32768f;
+        for (int i = 0; i < pcm.Length; i++)
+            samples[i] = pcm[i] * scale;
+        return new AudioClip(samples, SampleRate);
+    }
 
     /// <summary>
     /// Decodes a whole file to 16-bit mono PCM at <see cref="Audio.SampleRate"/> (Opus always decodes at 48 kHz, whatever

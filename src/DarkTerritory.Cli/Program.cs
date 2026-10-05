@@ -86,6 +86,7 @@ return args switch
     ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["audio", "opera", ..] => Print(OperaCommands.Run(content, args)),
+    ["audio", "music", ..] => MusicCommands.Run(content, args),
     ["audio", "clerk", ..] => Print(RenderClerk(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
@@ -1744,6 +1745,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     }
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
     menu.DefaultPlayerName = "Nick";
+    menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
@@ -2238,7 +2240,7 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
