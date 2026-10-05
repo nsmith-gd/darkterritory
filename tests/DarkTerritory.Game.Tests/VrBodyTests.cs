@@ -7,7 +7,7 @@ using DarkTerritory.Game.Art;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// A headset crewmate's body (T82, <see cref="VrBody"/>; ARCHITECTURE §8 note 207): the spine leans and crouches under the
+/// A headset crewmate's body (T82, <see cref="VrBody"/>; ARCHITECTURE §8 note 208): the spine leans and crouches under the
 /// head and twists to it, the hips follow the head's yaw past a deadzone, and the feet plant and step. Pure functions:
 /// the same inputs give the same body.
 /// </summary>

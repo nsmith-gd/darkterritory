@@ -3115,7 +3115,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - each tongue's root rises over a ragged, noise-broken band (tools/art/texgen/mat_fx.py);
       - the tongues' feet are where the load burns: some at the floor, some up on the crates and in the gaps between, in and out from the face.
     - `--view fire --threats`: before and after. The furnace and the guns use the same flipbook. Their roots only soften.
-207. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
+207. **The effects' last "not yet"s: the furnace flare, brass dust, a fire you can see spreading (the checklist's demo VFX rows).**
+    - **The flare when coal goes on** (§31 "furnace flare"; the boiler's `SinceShovel`, already sent to clients):
+      - for `Effects.FlareSeconds` after a shovelful, the bed roars up (every tongue, taller);
+      - a gout of flame licks out of the hole and a shower of sparks is thrown into the cab;
+      - its light jumps.
+      - `GreyboxScene.SinceShovel`, set by the app and the playthrough. `dt screenshot --view fireman --flare 0.2`.
+    - **Brass dust over a brass field** (§30):
+      - `Effects.Air.Brass`: fine gold motes, hanging and turning slowly, each glinting now and then;
+      - wherever the eye is within 35 m of a plan's brass field (`WorldArt.NearBrass`), over the biome's own air.
+      - `dt screenshot --route deadlines:4 --at 5100 --view trackside`.
+    - **A car fire visibly on its way to the next car** (App. A.5 "grows, jumps couplings"):
+      - the sim's blaze (`Extra2`, already sent to clients) over enemies.json carFire.spreadSeconds is the spread;
+      - `Effects.CarFire` sends flames creeping along the aisle floor toward both ends of the car as it builds, and rolls the smoke a little further.
+      - `dt screenshot --threats --spread 0.9 --view fire` (`Staging.Spread`).
+    - **Verified:** `EffectsTests.AShovelfulFlaresTheFireThenItSettles`, `OverABrassFieldTheAirCarriesItsDust` and `AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds`, and each looked at.
+208. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
     - **What's replicated.** The head's yaw and pitch already were (the sim's look follows the headset, note 30), and the hands (note 51). Its height wasn't: the tracking space hangs from the eye point, so a real crouch moved nothing in the sim. Now `PlayerIntent.Head` (the headset's height over the feet, `Eyes.Height` plus where the head is in the LOCAL space) rides with the hands, in the spare bits of the "other hand" byte plus an I16 of centimetres, and `PlayerState.Head` goes out on the player record (one more field, zero for a keyboard or a bot, so delta encoding makes it free). `TakeHand` takes it with the hands, held between kneeling (0.5 m) and `hand.overhead`; nothing in the sim acts on it. Remote players' heads are interpolated with their hands. Protocol 24.
       - **Reading: with the hands, not on its own.** Every free bit of the intent's three flag bytes is taken; the hand block's byte had seven. So a headset whose controllers have both dropped out stands its body straight until they're back.
       - The app now copies the other hand into the intent too: `VrLocomotion.Intent` built it (T43), but the app took only the reaching hand from it, so on the real path the host never had two hands for a heavy crate. `HandTests` drove `PlayerIntent.Reach` directly and never saw it.

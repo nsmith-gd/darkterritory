@@ -30,7 +30,7 @@ public static class Protocol
     // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
     // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
     // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
-    // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 207).
+    // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 208).
     public const int Version = 24;
 }
 

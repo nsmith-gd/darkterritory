@@ -719,6 +719,18 @@ public static class Staging
         return threats;
     }
 
+    /// <summary>
+    /// The staged car fire on its way to jumping the coupling (App. A.5; <c>dt screenshot --threats --spread f</c>): alight,
+    /// its blaze <paramref name="fraction"/> of the way to enemies.json carFire.spreadSeconds.
+    /// </summary>
+    public static List<Enemy> Spread(List<Enemy> threats, double fraction, double spreadSeconds)
+    {
+        foreach (var e in threats)
+            if (e is CarFire fire)
+                fire.Restore(fire.Phase, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, fire.Extra, fraction * spreadSeconds);
+        return threats;
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;
