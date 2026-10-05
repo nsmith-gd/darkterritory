@@ -55,7 +55,7 @@ public class CreatureArtTests
         // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
         ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
         // A character (App. A.5), SK_Human stretched: over two metres on its points, so it stoops indoors and ducks through doors.
-        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
+        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit", "recoil"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
         ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run", "carry"], ["hit"]),
         // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
@@ -374,6 +374,35 @@ public class CreatureArtTests
         var local = rear.ToLocal(feet);
         Assert.InRange(local.X, -0.9, 0.1);
         Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    [Fact]
+    public void TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles()
+    {
+        // App. A.5 "any friend hits or pulls it -> it flees": the sim hides it again at once (Dormant). Where it was, it's
+        // seen jerked back off them and held a beat (its recoil), not moving; then it scuttles off, and then it's gone.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        Vector3? Tippy(double ago)
+        {
+            var threats = Staging.Tippy(Staging.Threats(train), train, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"recoil:{ago}"));
+            var at = threats.OfType<TippyToesie>().First().WorldPosition(train);
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats };
+            var mesh = new MeshBuilder();
+            var eye = at + new Double3(2, 1.5, 3);
+            scene.Build(mesh, train, eye);
+            var drawn = mesh.Instances.Where(i => i.Asset.Name.Contains("tippy_toesie", StringComparison.OrdinalIgnoreCase)).ToList();
+            return drawn.Count == 0 ? null : drawn[0].Model.Translation;
+        }
+        var start = Tippy(0.02);
+        Assert.NotNull(start);
+        // Held where it was through its recoil...
+        Assert.True(Vector3.Distance(start!.Value, Tippy(0.3)!.Value) < 0.01f, "still, recoiling");
+        // ...then off, still seen past the old half second of scuttle...
+        Assert.True(Tippy(0.6) is { } going && Vector3.Distance(start.Value, going) > 0.2f, "scuttling off");
+        // ...and gone.
+        Assert.Null(Tippy(1.5));
     }
 
     [Fact]

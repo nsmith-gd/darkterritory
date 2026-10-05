@@ -248,6 +248,9 @@ public sealed class CreatureArt
     // their mouth: a crewmate's, 1.8 m tall (tools/blender/crew.py), at this height, this far in front of their middle.
     const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
 
+    /// <summary>How long a Tippy Toesie pulled off or seen is held in its recoil before it scuttles (s): its clip's length.</summary>
+    double TippyRecoil => _models.TryGetValue("tippy_toesie", out var tippy) && tippy.Model.Clips.TryGetValue("recoil", out var c) ? c.Duration : 0;
+
     static float SmoothStep(float a, float b, float x)
     {
         float t = Math.Clamp((x - a) / (b - a), 0, 1);
@@ -1587,7 +1590,14 @@ public sealed class CreatureArt
                     switch (phase)
                     {
                         case SpinePhase.Dormant or SpinePhase.BreakOff:
-                            return Draw(mesh, "tippy_toesie", "flee", t, true, Matrix4x4.CreateTranslation(0, 0, TippyFleeSpeed * (float)t) * model);
+                            {
+                                // Pulled off its victim, or seen, it recoils first, jerked up and back and held a beat
+                                // where it was, then scuttles (the checklist's "recoil when pulled off").
+                                double recoil = TippyRecoil;
+                                if (t < recoil)
+                                    return Draw(mesh, "tippy_toesie", "recoil", t, false, model);
+                                return Draw(mesh, "tippy_toesie", "flee", t - recoil, true, Matrix4x4.CreateTranslation(0, 0, TippyFleeSpeed * (float)(t - recoil)) * model);
+                            }
                         case SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 Action<Entry>? smother = null;
@@ -2046,9 +2056,9 @@ public sealed class CreatureArt
                 }
             case EnemyKind.TippyToesie when _models.ContainsKey("tippy_toesie"):
                 {
-                    // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen scuttling off from
-                    // where it was (never placed yet: never seen).
-                    if (e.Phase == SpinePhase.Dormant && (e.Local == default || e.PhaseSeconds >= TippyFleeShow))
+                    // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen recoiling and
+                    // scuttling off from where it was (never placed yet: never seen).
+                    if (e.Phase == SpinePhase.Dormant && (e.Local == default || e.PhaseSeconds >= TippyRecoil + TippyFleeShow))
                         return true;
                     _room = room ?? Room.Open;
                     var (r, _, b) = Basis(model);

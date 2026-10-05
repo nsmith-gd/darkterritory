@@ -3303,3 +3303,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Presentation only:** the sim isn't changed, and nothing goes back to it.
     - **Staging:** `dt screenshot --threats --cut 3 --hugger ride --view cutoff`. `cutoff` is a new view, on the ground behind and off the last car of a cut train.
     - **Tests:** `CreatureArtTests.TheCarHuggerCutLooseRidesItsCarOffNotBlinkingOut`.
+225. **The Tippy Toesie recoils when it's pulled off (the checklist's tippy-anim "recoil beat").** A.5: "any friend hits or pulls it → it flees". Pulled off, or seen, the sim hides it again at once (`TippyToesie.Flee`: BreakOff then Dormant in one tick), and the art went straight into its scuttle.
+    - **Now there's a new `recoil` clip** (tools/blender/tippy_toesie.py), 0.4 s, once. It's jerked up and back off them all at once onto its points, the head snapped back, the long arms flung up and out with the fingers splayed. It holds there a beat, dead still, then drops into the flee's crouch.
+    - **Order:** `CreatureArt` plays the recoil where it was (`TippyRecoil`, the clip's length), and only then the flee, moving off. It's seen for the recoil plus the old half second of scuttle.
+    - **Staging:** `dt screenshot --threats --crew --tippy recoil[:s] --view crew` (s seconds since it was pulled off, 0.15 by default).
+    - **Tests:** `CreatureArtTests.TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles`; the Tippy's clip budget lists `recoil`.
