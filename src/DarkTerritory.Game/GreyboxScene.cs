@@ -446,6 +446,7 @@ public sealed class GreyboxScene
                         : null;
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e), HitAge(e));
                 }
+        Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
         if (Bodies is not null)
         {
@@ -589,6 +590,78 @@ public sealed class GreyboxScene
             return (Vector3.Zero, Quaternion.Identity);
         flat = Vector3.Normalize(flat);
         return (flat * (FlinchPush * k), Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(Vector3.UnitY, flat)), FlinchTip * k));
+    }
+
+    // What was drawn last frame, by id, and the ones killed since (with the tick of the blow): a kill takes the creature
+    // out of the sim at once (it's Gone, then removed), and its hit lasts a second on the wire, so the death is the scene's
+    // own memory of it (presentation only; nothing here goes back to the sim).
+    readonly Dictionary<int, Enemy> _seen = new();
+    readonly Dictionary<int, (Enemy Body, uint Tick, Vector3 From)> _dying = new();
+
+    /// <summary>
+    /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
+    /// It keels over away from the blow about its feet, held in its hit pose, lies a moment, then crumbles into ash and soot
+    /// and is gone (<see cref="Art.Effects.DeathSeconds"/>): every creature that stands on something; what floats, swarms,
+    /// burns or is the train's own (the Choir, the Fire Flies, a car fire, the Stoker in its box, the Car Hugger) has its own.
+    /// </summary>
+    void Deaths(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        if (Tick < 0)
+            return;
+        if (Hits is not null)
+            foreach (var h in Hits)
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                    _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
+        _seen.Clear();
+        foreach (var e in Enemies ?? [])
+            if (!e.Gone)
+                _seen[e.Id] = e;
+        if (_dying.Count == 0)
+            return;
+        var fx = Look?.Art.Effects;
+        foreach (var (id, (body, tick, blow)) in _dying.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.Effects.DeathSeconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _dying.Remove(id);
+                continue;
+            }
+            var (push, roll) = Fallen(blow, (float)age);
+            DrawEnemy(mesh, line, frames, body, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
+            if (fx is not null && BodyAt(body, line, frames) is var at && (at - eye).Length < DrawDistance)
+                fx.Crumble(mesh, V(at, eye), (float)age, id);
+        }
+    }
+
+    /// <summary>
+    /// Staged (<c>dt screenshot --killed kind:s</c>): <paramref name="e"/> killed at <paramref name="tick"/> by a blow going
+    /// <paramref name="blow"/> (it's not in <see cref="Enemies"/> any more: the sim's taken it out).
+    /// </summary>
+    public void Killed(Enemy e, uint tick, Vector3 blow) => _dying[e.Id] = (e, tick, blow);
+
+    /// <summary>Where a creature stands, as DrawEnemy places it: in its car, loose in the world, or at its place on the line.</summary>
+    static Double3 BodyAt(Enemy e, RailLine line, IReadOnlyList<CarFrame> frames)
+    {
+        if (e.Attached >= 0 || e.Attached == Enemy.Loose)
+            return EnemyWorld(e, frames);
+        var t = line.Sample(Math.Clamp(e.LineDistance, 0, line.Length));
+        return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * e.Height;
+    }
+
+    static bool Falls(EnemyKind k) => k is not (EnemyKind.Choir or EnemyKind.FireFlies or EnemyKind.CarFire or EnemyKind.Stoker or EnemyKind.CarHugger
+        or EnemyKind.Sleepers or EnemyKind.Drift);
+
+    /// <summary>How far over a killed creature has gone, <paramref name="age"/> seconds after the blow: pushed along it and
+    /// rolled over onto its side (eased in, as dead weight goes; DrawEnemy rolls it about its own length), then sinking as it
+    /// crumbles.</summary>
+    static (Vector3 Push, float Roll) Fallen(Vector3 blow, float age)
+    {
+        var flat = blow.LengthSquared() > 1e-6f ? Vector3.Normalize(blow) : Vector3.UnitX;
+        float over = Math.Clamp(age / 0.5f, 0, 1);
+        over = over * over * (3 - 2 * over);
+        float sink = Math.Clamp((age - (float)Art.Effects.DeathSeconds * 0.55f) / ((float)Art.Effects.DeathSeconds * 0.4f), 0, 1);
+        return (flat * (0.25f * over) - Vector3.UnitY * (0.45f * sink), 1.35f * over + 1e-4f);
     }
 
     /// <summary>Seconds since a blow or a ball last landed on <paramref name="e"/>, or −1 when none has in the last second.</summary>
@@ -913,7 +986,7 @@ public sealed class GreyboxScene
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
-        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1)
+        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -964,6 +1037,13 @@ public sealed class GreyboxScene
         }
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
+        // Killed (Deaths): rolled over onto its side about its own length, away from the blow (a biped falls sideways, a
+        // crawler goes over on its back's edge), and pushed along it.
+        if (dying && roll != 0)
+        {
+            float away = Vector3.Dot(new Vector3(flinch.Push.X, 0, flinch.Push.Z), r) >= 0 ? -1 : 1;
+            flinch = (flinch.Push, Quaternion.CreateFromAxisAngle(Vector3.Normalize(b), roll * away));
+        }
         // Flinching from a blow (T121): knocked back and tipped away from it, about its feet.
         if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
         {
@@ -971,7 +1051,10 @@ public sealed class GreyboxScene
             (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
         }
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge, dying))
+            return;
+        // The dead are the art pass's (Deaths): the greybox's boxes don't fall over.
+        if (dying)
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>

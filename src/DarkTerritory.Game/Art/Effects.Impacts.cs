@@ -241,6 +241,43 @@ public sealed partial class Effects
         }
     }
 
+    /// <summary>How long a killed creature takes to go (GreyboxScene.Deaths): over, still, then crumbled to nothing (s).</summary>
+    public const double DeathSeconds = 2.0;
+
+    /// <summary>
+    /// A killed creature crumbling (GreyboxScene.Deaths), <paramref name="age"/> seconds after the blow, at
+    /// <paramref name="at"/> (camera-relative): from halfway it falls in on itself in grey ash (light enough to show over dark
+    /// ground; the effects pass is unlit), a few embers going out in it, the dust settling low over where it lay.
+    /// </summary>
+    public void Crumble(MeshBuilder mesh, Vector3 at, float age, int seed)
+    {
+        float start = (float)DeathSeconds * 0.5f;
+        if (age < start || age > DeathSeconds + 1.2f)
+            return;
+        float a = age - start, s0 = seed % 53 + 0.5f;
+        for (int k = 0; k < 14; k++)
+        {
+            float h = Hash(s0 * 1.7f + k * 2.3f), h2 = Hash(s0 + k * 4.1f);
+            float t = a - 0.05f * k * h;
+            if (t < 0)
+                continue;
+            float life = 1.1f + 0.8f * h2, s = Math.Clamp(t / life, 0, 1);
+            if (s >= 1)
+                continue;
+            var p = at + new Vector3((h - 0.5f) * 0.9f, 0.15f + 0.5f * h2 + 0.35f * s, (h2 - 0.5f) * 0.9f);
+            mesh.Billboard(p, 0.35f + 0.9f * s, h * 6.28f + s, new Vector4(new Vector3(0.34f, 0.32f, 0.3f) * (0.75f + 0.5f * h2), 0.8f * MathF.Sin(MathF.PI * s)), _smoke, FxBlend.Alpha,
+                (int)(s * 15.99f), 4);
+        }
+        for (int k = 0; k < 8; k++)
+        {
+            float h = Hash(s0 * 3.1f + k * 1.9f), life = 0.6f + 0.6f * h;
+            if (a > life)
+                continue;
+            var p = at + new Vector3((h - 0.5f) * 0.6f, 0.2f + 0.6f * (a / life) * h, (Hash(k + s0) - 0.5f) * 0.6f);
+            mesh.Billboard(p, 0.04f, 0, new Vector4(1.0f, 0.45f, 0.15f, 1 - a / life), _spark, FxBlend.Additive, 0, 2);
+        }
+    }
+
     /// <summary>A flat soft disc on the ground (a scorch): two alpha triangles of the soft blob, turned by <paramref name="turn"/>.</summary>
     static void Decal(MeshBuilder mesh, Vector3 centre, float radius, float turn, Vector4 colour)
     {

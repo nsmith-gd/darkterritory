@@ -399,6 +399,11 @@ public sealed class CreatureArt
         // Struck: its own hit clip over whatever it was doing, while that runs (Enemy's hitAge).
         if (_hit >= 0 && clip != "hit" && m.Model.Clips.TryGetValue("hit", out var hit) && _hit < hit.Duration)
             (clip, c, time, loop) = ("hit", hit, _hit, false);
+        // Dead: held at the end of its flinch, or still where it was.
+        if (_dying)
+            (clip, c, time, loop) = m.Model.Clips.TryGetValue("hit", out var last)
+                ? ("hit", last, Math.Min(Math.Max(_hit, 0), last.Duration - 1e-3), false)
+                : (clip, c, 0, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         Emit(mesh, m, clip, at, variant, glow, seed, adjust);
@@ -1753,10 +1758,12 @@ public sealed class CreatureArt
     /// for none lately): its rig's own <c>hit</c> clip plays over whatever it was doing for as long as that clip runs (the
     /// checklist's hit reacts), except while it has hold of someone.
     /// </summary>
+    /// <param name="dying">Killed (GreyboxScene.Deaths): held in its hit pose at the end of it (or, with no hit clip, still).</param>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
-        double hitAge = -1)
+        double hitAge = -1, bool dying = false)
     {
-        _hit = e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        _hit = !dying && e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        _dying = dying;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -1764,8 +1771,12 @@ public sealed class CreatureArt
         finally
         {
             _hit = -1;
+            _dying = false;
         }
     }
+
+    // Drawing the dead: no clip runs on (Draw holds the hit clip's last frame, or the clip's first).
+    bool _dying;
 
     // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
     double _hit = -1;

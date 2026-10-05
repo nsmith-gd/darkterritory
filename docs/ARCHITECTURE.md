@@ -3130,3 +3130,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `Effects.CarFire` sends flames creeping along the aisle floor toward both ends of the car as it builds, and rolls the smoke a little further.
       - `dt screenshot --threats --spread 0.9 --view fire` (`Staging.Spread`).
     - **Verified:** `EffectsTests.AShovelfulFlaresTheFireThenItSettles`, `OverABrassFieldTheAirCarriesItsDust` and `AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds`, and each looked at.
+208. **The killed go over and crumble (T121's hit confirm; the checklist's Switchman "shot or clubbed", Soot Children "killed").** A kill took a creature out of the sim at once (Gone, then removed that tick), and its hit lasts a second on the wire, so a killed creature blinked out behind its hit flash.
+    - **`GreyboxScene.Deaths`, presentation only:**
+      - The scene remembers what it drew last frame.
+      - When a killed hit arrives for one of those, it draws it for `Effects.DeathSeconds` (2 s) longer: rolled over onto its side about its own length, away from the blow (`Fallen`: eased in, pushed along it), held at the end of its hit clip or, with none, still (`CreatureArt.Enemy(..., dying)`).
+      - From halfway it crumbles (`Effects.Crumble`: ash and soot billowing up, a few embers going out), sinking into the ground or floor, and is gone.
+    - **Scope:**
+      - Every creature that stands on something.
+      - What floats, swarms, burns or is the train's own keeps its own end: the Choir, the Fire Flies, a car fire, the Stoker in its box, the Car Hugger, the Sleepers, the Drift.
+      - The first cut tipped them about the blow's axis, which stood a low crawler upright on its tail. They roll about their own length instead (a biped falls sideways, a crawler goes over).
+    - **Staging and tests:**
+      - `dt screenshot --threats --killed kind:s` stages one, `GreyboxScene.Killed`.
+      - `CreatureArtTests.AKilledCreatureGoesOverThenIsGone` (drawn going over and crumbling, not after) and `EffectsTests.AKilledCreatureCrumblesToAshThenIsGone`.
+    - **Not yet:** the scene's memory is per scene, so `dt playthrough`'s fresh scene a shot doesn't carry it.
