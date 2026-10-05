@@ -29,7 +29,8 @@ public static class Protocol
     // 20: the report's C.9 lines that aren't deaths (incident kinds Struck, Fire, Nest, Aboard, Runaway, Points, Punished; note 190).
     // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
     // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
-    public const int Version = 22;
+    // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
+    public const int Version = 23;
 }
 
 public enum MessageType : byte
