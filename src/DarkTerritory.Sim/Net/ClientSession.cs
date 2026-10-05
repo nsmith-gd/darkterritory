@@ -163,7 +163,7 @@ public sealed class ClientSession
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
         WorldRecords.Quantise(World, ref Controls, _quantise);
-        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand };
+        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand, Head = Predicted.Head };
     }
 
     readonly List<PlayerSnapshot> _quantise = new();
@@ -393,6 +393,8 @@ public sealed class ClientSession
                 state.Hand = Double3.Lerp(a.Hand, b.Hand, t);
             if (a.OtherHand != default && b.OtherHand != default)
                 state.OtherHand = Double3.Lerp(a.OtherHand, b.OtherHand, t);
+            if (a.Head > 0 && b.Head > 0)
+                state.Head = a.Head + (b.Head - a.Head) * t;
         }
         return true;
     }

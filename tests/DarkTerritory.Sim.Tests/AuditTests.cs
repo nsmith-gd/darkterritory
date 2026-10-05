@@ -215,6 +215,40 @@ public class AuditTests
     }
 
     [Fact]
+    public void TheLookOutGoesAndLooksAtWhatLiesInWait()
+    {
+        // Note 209: without the look-out, the Gaunt asleep out on the ballast and a Dragger under a roof's lip lay there all
+        // night (note 186's "dormant"); with it, both come on, by their own rules, at a crewmate's feet.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
+        var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 4,
+            Cars = 6,
+            Seconds = 30,
+            Seed = 1,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = stage.StartM,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Run = Tuning.Run,
+            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            YardLength = route.GateOr(Tuning.Route.YardLength),
+            Insist = kinds,
+            Look = look,
+        }, Tuning.Boiler);
+        var without = Night(null).Threats!;
+        Assert.Equal(["Dragger", "Gaunt"], without.Spawned.Keys.Order());
+        Assert.Empty(without.Engaged);
+        var with = Night(Balance.Combinations.Look).Threats!;
+        Assert.Equal(["Dragger", "Gaunt"], with.Engaged.Keys.Order());
+    }
+
+    [Fact]
     public void TheCarHuggerIsStagedShortOfItsMarsh()
     {
         var route = LineGen.Routes.Generate(Content, "frontier:7", 6);

@@ -61,6 +61,11 @@ public sealed record HarnessOptions
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
+    /// <summary>
+    /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's, to the Gaunt, Ribbits or a Dragger
+    /// insisted on. Null: the crew keep to their posts.
+    /// </summary>
+    public LookTuning? Look { get; init; }
     /// <summary>What the night's line takes away (GDD §22; note 186), laid over the line for host and clients alike.</summary>
     public HazardSet? Hazards { get; init; }
     /// <summary>
@@ -214,6 +219,9 @@ public static class Harness
                 session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
         }
+        // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it.
+        if (o.Insist is { } looked && o.Look is { } look && clients.Select(c => c.Bot).OfType<RoofWalkerBot>().LastOrDefault() is { } lookout)
+            lookout.Errand = new LookErrand(looked, look);
 
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
         var posted = new Dictionary<byte, double>();
@@ -400,6 +408,7 @@ public static class Harness
             ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot { TendStep: { } t } => $"tend:{t}",
+            RoofWalkerBot { Errand.Doing: { } l } => l,
             RoofWalkerBot r => r.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : r.Job?.Doing ?? "",
             GunnerBot { KitStep: { } k } => $"kit:{k}",
             GunnerBot g => g.Saving ? "saving the gun" : g.TendStep is { } t ? $"tend:{t}" : g.WarmUpStep is { } w and not "Off" ? $"warm:{w}" : g.Job?.Doing ?? "",

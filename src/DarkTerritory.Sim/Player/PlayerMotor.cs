@@ -108,16 +108,24 @@ public struct PlayerIntent
     /// </summary>
     public float OtherX, OtherY, OtherZ;
     public bool Other;
+    /// <summary>
+    /// With a reaching hand: the headset's height over the feet (m), on the centimetre grid; 0 when it isn't reported (a
+    /// keyboard, a bot). Nothing in the sim acts on it: it goes out with the hands so the rest of the crew see the body
+    /// under the head lean and crouch (T82, roadmap M4 "VR body IK").
+    /// </summary>
+    public float Head;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
 
     /// <summary>
     /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
-    /// uses the hand the host will. The other hand too, when it's tracked.
+    /// uses the hand the host will. The other hand too, when it's tracked; and the head's height over the feet (T82), when
+    /// there's a headset to say (0: none).
     /// </summary>
-    public void Reach(Double3 hand, Double3? other = null)
+    public void Reach(Double3 hand, Double3? other = null, double head = 0)
     {
+        Head = head > 0 ? Centimetres(head) : 0;
         HandX = Centimetres(hand.X);
         HandY = Centimetres(hand.Y);
         HandZ = Centimetres(hand.Z);
@@ -235,6 +243,11 @@ public struct PlayerState
     /// <summary>The VR player's other hand, the same way (T43); zero when it isn't reported.</summary>
     public Double3 OtherHand;
     /// <summary>
+    /// The VR player's head height over their feet (T82, <see cref="PlayerIntent.Head"/>), taken with the hands; zero when
+    /// it isn't reported. Presentation only: what the crew see their body do under it.
+    /// </summary>
+    public double Head;
+    /// <summary>
     /// Counts the host's authoritative moves (respawns, revivals, a harness shift change). A client that sees it change
     /// adopts the new state as a placement, not as a misprediction to correct.
     /// </summary>
@@ -351,12 +364,19 @@ public static class PlayerMotor
     public static void TakeHand(ref PlayerState s, in PlayerIntent intent, HandTuning? hand)
     {
         s.Hand = s.OtherHand = default;
+        s.Head = 0;
         if (hand is null || !s.Alive || !intent.Has(PlayerButtons.Hand))
             return;
         s.Hand = Held(intent.HandX, intent.HandY, intent.HandZ, hand);
         if (s.Hand != default && intent.Other)
             s.OtherHand = Held(intent.OtherX, intent.OtherY, intent.OtherZ, hand);
+        // The head (T82): somewhere between a deep crouch and on tiptoe, as far as the hands can go overhead.
+        if (s.Hand != default && float.IsFinite(intent.Head) && intent.Head > 0)
+            s.Head = Math.Round(Math.Clamp(intent.Head, MinHead, hand.Overhead) * 100) / 100;
     }
+
+    /// <summary>The lowest a reported head is taken to be over the feet (m): kneeling, near enough.</summary>
+    public const double MinHead = 0.5;
 
     static Double3 Held(float hx, float hy, float hz, HandTuning hand)
     {

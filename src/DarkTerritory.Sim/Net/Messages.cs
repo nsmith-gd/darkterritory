@@ -30,7 +30,8 @@ public static class Protocol
     // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
     // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
     // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
-    public const int Version = 23;
+    // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 210).
+    public const int Version = 24;
 }
 
 public enum MessageType : byte
@@ -126,14 +127,17 @@ public static class Messages
             w.I16(Centimetres(i.HandX));
             w.I16(Centimetres(i.HandY));
             w.I16(Centimetres(i.HandZ));
-            // And the other hand, when it's tracked (T43).
-            w.U8(i.Other ? (byte)1 : (byte)0);
+            // And the other hand, when it's tracked (T43); the second bit says the head's height follows (T82).
+            bool head = i.Head > 0 && float.IsFinite(i.Head);
+            w.U8((byte)((i.Other ? 1 : 0) | (head ? 2 : 0)));
             if (i.Other)
             {
                 w.I16(Centimetres(i.OtherX));
                 w.I16(Centimetres(i.OtherY));
                 w.I16(Centimetres(i.OtherZ));
             }
+            if (head)
+                w.I16(Centimetres(i.Head));
         }
     }
 
@@ -168,13 +172,16 @@ public static class Messages
             i.HandX = r.I16() / 100f;
             i.HandY = r.I16() / 100f;
             i.HandZ = r.I16() / 100f;
-            i.Other = r.U8() != 0;
+            byte more = r.U8();
+            i.Other = (more & 1) != 0;
             if (i.Other)
             {
                 i.OtherX = r.I16() / 100f;
                 i.OtherY = r.I16() / 100f;
                 i.OtherZ = r.I16() / 100f;
             }
+            if ((more & 2) != 0)
+                i.Head = r.I16() / 100f;
         }
         return i;
     }
