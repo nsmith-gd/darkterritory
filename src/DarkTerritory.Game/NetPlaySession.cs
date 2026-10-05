@@ -189,11 +189,15 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 public sealed class NetPlaySession : IPlaySession, IDisposable
 {
     public const int DefaultPort = 27450;
-    /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
-    public const int MaxCrew = 12;
     public const string Game = "darkterritory";
-    /// <summary>A hosted game's values in its platform lobby, for the browser (the engine's own are on <see cref="Lobby"/>).</summary>
-    public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard";
+    /// <summary>
+    /// A hosted game's values in its platform lobby, for the browser (the engine's own are on <see cref="Lobby"/>). Aboard
+    /// is the places taken against the crew cap (note 254), max the cap, full "1" while there's no room.
+    /// </summary>
+    public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard", MaxKey = "max", FullKey = "full";
+
+    /// <summary>The crew cap the content sets (player.json crew.cap, GDD §1 "2–8"; a mod can raise it: note 254).</summary>
+    public static int CrewCap(string content) => DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Crew.Places;
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
     ITransport _clientTransport;
@@ -400,6 +404,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+        // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
+        int cap = playerTuning.Crew.Places;
+        bots = Math.Clamp(bots, 0, cap - 1);
         setup = setup with
         {
             Content = SessionSetup.HashContent(content),
@@ -424,8 +431,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
         string name = lobbyName is { Length: > 0 } n ? n : $"{(Messages.CleanName(PlayerName) is { Length: > 0 } set ? set : online?.NameOf(online.Me) ?? LocalName(null))}'s run";
-        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
-            new Dictionary<string, string> { [NameKey] = name, [TierKey] = tier, [RunKey] = Describe(setup, inYard: true), [AboardKey] = "1" });
+        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, cap, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
+            new Dictionary<string, string>
+            {
+                [NameKey] = name,
+                [TierKey] = tier,
+                [RunKey] = Describe(setup, inYard: true),
+                [AboardKey] = Invariant(1 + bots),
+                [MaxKey] = Invariant(cap),
+                [FullKey] = 1 + bots >= cap ? "1" : "0",
+            });
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         hostWorld.EnableBodies();
         hostWorld.Stock();
@@ -495,7 +510,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>What the browser calls this game.</summary>
     public string LobbyName { get; private init; } = "";
     string Tier { get; init; } = "";
-    int _advertisedAboard = 1;
+
+    static string Invariant(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Note 254: the crew as the platform lobby says it, the places taken (<see cref="AboardKey"/>) of the cap
+    /// (<see cref="MaxKey"/>), and at the cap closed: <see cref="FullKey"/> set, not joinable (so it drops out of the
+    /// platform's search, and an invite or "Join Game" can't get in), its member limit the cap. A place freeing (a held one
+    /// running out, a player leaving) opens it again. Each value is only written when it changes.
+    /// </summary>
+    public static void Advertise(Lobby lobby, int occupied, int cap)
+    {
+        bool full = occupied >= cap;
+        lobby.SetData(AboardKey, Invariant(occupied));
+        lobby.SetData(MaxKey, Invariant(cap));
+        lobby.SetData(FullKey, full ? "1" : "0");
+        lobby.SetMemberLimit(cap);
+        lobby.SetJoinable(!full);
+    }
 
     /// <summary>The bot crewmates this host is running, if any (T89).</summary>
     public BotCrew? BotCrew { get; private init; }
@@ -572,7 +604,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Thread.Sleep(5);
         }
         if (lobby.Status != Lobby.State.Open)
+        {
+            // Note 254: a full crew's lobby is shut; where the platform still shows us its values, say why as the host would.
+            if (online.LobbyData(id, FullKey) == "1" && int.TryParse(online.LobbyData(id, AboardKey), System.Globalization.CultureInfo.InvariantCulture, out int aboard)
+                && int.TryParse(online.LobbyData(id, MaxKey), System.Globalization.CultureInfo.InvariantCulture, out int max))
+                throw new IOException(new Refusal(RefusalReason.CrewFull, aboard, max).ToString());
             throw new IOException($"couldn't join: {lobby.Error}");
+        }
         try
         {
             return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
@@ -609,6 +647,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 {
                     transport.Dispose();
                     throw new IOException($"no answer from {describe}");
+                }
+                // Note 254: turned away (a full crew). Said on the join screen, "CREW FULL (8/8)", rather than waiting on.
+                if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } no } && no[0] == (byte)MessageType.Refused)
+                {
+                    var r = new NetReader(no);
+                    r.U8();
+                    var refusal = Messages.ReadRefused(ref r);
+                    transport.Dispose();
+                    throw new IOException(refusal.ToString());
                 }
                 if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } p } && p[0] == (byte)MessageType.Welcome)
                 {
@@ -689,6 +736,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Attempt = 0;
                 return;
             }
+            // Note 254: turned away (the place ran out and the crew's full again). No use trying again at once: it's said,
+            // and F5 tries when the player likes.
+            if (Client.Refused is not null)
+            {
+                _dialing = false;
+                Attempt = Attempts;
+                return;
+            }
             // That try's link failed (nobody answered, or it went again): the next one in a while.
             if (Client.Dropped)
             {
@@ -722,25 +777,23 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
-        int humans = Aboard - (BotCrew?.Bots.Count ?? 0);
         // Hosting a public game: it says where it is on the local network (T116), so the join screen lists it, and answers
         // the browsers' pings. A private one stays quiet (the user's playtest: "If it's a private lobby its not listed").
-        if (Host is not null && Listed && _udp is { LocalLoopbackOnly: false } udp)
+        // What it says of the crew is the places taken against the cap (note 254), bots and held places too: what decides
+        // whether the next joiner gets in. (Not the HUD's head count, which counts a Passenger: that would give it away.)
+        if (Host is { } hosting && Listed && _udp is { LocalLoopbackOnly: false } udp)
         {
             _beacon ??= new LanBeacon();
-            _beacon.Tick(_clock.Elapsed.TotalSeconds, new LanAdvert(Game, Protocol.Version, udp.Port, HostName, Describe(Setup, World.Run is { Phase: Sim.Run.RunPhase.Yard }), humans)
+            _beacon.Tick(_clock.Elapsed.TotalSeconds, new LanAdvert(Game, Protocol.Version, udp.Port, HostName, Describe(Setup, World.Run is { Phase: Sim.Run.RunPhase.Yard }), hosting.Occupied)
             {
                 Name = LobbyName,
-                Max = MaxCrew,
+                Max = hosting.Cap,
                 Tier = Tier,
                 Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
             });
         }
-        if (Host is not null && humans != _advertisedAboard)
-        {
-            _advertisedAboard = humans;
-            Lobby?.SetData(AboardKey, humans.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
+        if (Host is { } served && Lobby is { } meeting)
+            Advertise(meeting, served.Occupied, served.Cap);
         BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
         // took there (GDD §17), so the save is the train going on.
@@ -876,14 +929,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     string Role()
     {
         string udp = Port > 0 ? $":{Port}" : "";
+        // Hosting, the places taken of the crew cap (note 254).
+        string crew = Host is { } h ? $", crew {h.Occupied}/{h.Cap}{(h.Full ? " FULL" : "")}" : "";
         if (Lobby is not { } lobby)
-            return Host is not null ? $"hosting {udp}" : "joined";
+            return Host is not null ? $"hosting {udp}{crew}" : "joined";
         string platform = lobby.Online.Platform;
         return lobby.Status switch
         {
             Lobby.State.Creating => $"hosting {udp} · {platform} lobby…",
             Lobby.State.Failed => $"hosting {udp} · no {platform} lobby ({lobby.Error})",
-            _ when Host is not null => $"hosting {udp} · {platform} lobby {lobby.Members.Count}/{MaxCrew}, F2 invites",
+            _ when Host is not null => $"hosting {udp} · {platform} lobby{crew}{(Host.Full ? "" : ", F2 invites")}",
             _ when lobby.HostLeft => $"{platform}: the host left",
             _ => $"joined {lobby.Online.NameOf(lobby.Owner)} on {platform}",
         };
@@ -923,7 +978,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
         Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
-    { Attempt = Reconnecting ? Math.Max(1, Attempt) : 0, Attempts = Attempts, CanReconnect = CanReconnect };
+    {
+        Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
+        Attempts = Attempts,
+        CanReconnect = CanReconnect,
+        Cap = Host?.Cap ?? Client.PlayerTuning.Crew.Places,
+        Places = Host?.Occupied ?? 0,
+        Refused = Lost ? Client.Refused?.ToString() : null,
+    };
 
     /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
     string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
@@ -976,6 +1038,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         _beacon?.Dispose();
         BotCrew?.Dispose();
+        // A joiner quitting on purpose gives its place up (note 254), so a full crew has room for someone else at once.
+        if (Host is null && !Lost)
+            Client.Leave();
         _clientTransport.Dispose();
         _hostTransport?.Dispose();
         Lobby?.Dispose();

@@ -141,7 +141,7 @@ public class NetPlayTests
         Assert.Single(joiner.Crew(joiner.InterpolatedFrames(1), 1));
         Assert.Contains("joined alice on Fake", joiner.Status());
         Assert.Contains("ping", joiner.Status());
-        Assert.Contains("Fake lobby 2/12", host.Status());
+        Assert.Contains("Fake lobby, crew 2/8, F2 invites", host.Status());
     }
 
     [Fact]
@@ -208,6 +208,51 @@ public class NetPlayTests
         Step(SimConstants.TickRate / 2);
         Assert.Single(host.Crew(host.InterpolatedFrames(1), 1));
         Assert.Contains("ping", joiner.Status());
+    }
+
+    [Fact]
+    public void BackTooLateToAFullCrewTheJoinerIsToldCrewFull()
+    {
+        // Note 254 over real UDP: the joiner's place is held a second (a tuning made short), runs out, and a newcomer takes
+        // it. The joiner dials back, is turned away, and its HUD says why instead of trying on: CREW FULL (2/2), F5 to try again.
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        host.Host!.PlayerTuning = host.Host.PlayerTuning with
+        {
+            Crew = host.Host.PlayerTuning.Crew with { Cap = 2 },
+            Rejoin = host.Host.PlayerTuning.Rejoin with { ReserveSeconds = 1 },
+        };
+        var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+        using var joiner = NetPlaySession.Join(Content, at, () => host.Step(default));
+        for (int t = 0; t < SimConstants.TickRate; t++)
+        {
+            host.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        Assert.True(joiner.Client.Connected);
+        Assert.True(host.Host.Full);
+        Assert.Contains("crew 2/2", host.Status());
+
+        host.Host.Drop((byte)joiner.PlayerId);
+        for (int t = 0; t < SimConstants.TickRate * 3 / 2; t++)
+            host.Step(default);
+        Assert.False(host.Host.Full);
+        using var newcomer = NetPlaySession.Join(Content, at, () => host.Step(default));
+
+        for (int t = 0; t < SimConstants.TickRate * 2 && joiner.Link?.Refused is null; t++)
+        {
+            host.Step(default);
+            newcomer.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        var link = joiner.Link!.Value;
+        Assert.True(link.Lost);
+        Assert.Equal("CREW FULL (2/2)", link.Refused);
+        Assert.True(link.CanReconnect);
+        Assert.False(joiner.Reconnecting);
+        Assert.Equal(0, link.Attempt);
+        Assert.True(newcomer.Client.Connected);
     }
 
     [Fact]

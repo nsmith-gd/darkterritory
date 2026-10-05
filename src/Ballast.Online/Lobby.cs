@@ -43,7 +43,7 @@ public sealed class Lobby : IDisposable
     public static Lobby Host(IOnlineBackend online, string game, int protocol, int maxMembers, LobbyVisibility visibility = LobbyVisibility.FriendsOnly,
         IReadOnlyDictionary<string, string>? data = null)
     {
-        var lobby = new Lobby(online, game, protocol, host: true, target: null, visibility, data);
+        var lobby = new Lobby(online, game, protocol, host: true, target: null, visibility, data) { MemberLimit = maxMembers };
         online.CreateLobby(maxMembers, visibility);
         return lobby;
     }
@@ -156,12 +156,31 @@ public sealed class Lobby : IDisposable
         Status = State.Failed;
     }
 
-    /// <summary>Closes the doors (a run that has left the yard, a full crew) or opens them again.</summary>
+    /// <summary>Closes the doors (a full crew) or opens them again. Only said to the platform when it changes.</summary>
     public void SetJoinable(bool joinable)
     {
-        if (IsHost && Status == State.Open)
+        if (IsHost && Status == State.Open && Joinable != joinable)
+        {
             _online.SetJoinable(Id, joinable);
+            Joinable = joinable;
+        }
     }
+
+    /// <summary>Whether the doors are open, as this host last set them (a new lobby's are).</summary>
+    public bool Joinable { get; private set; } = true;
+
+    /// <summary>How many the platform lets in (the crew cap); only said to the platform when it changes.</summary>
+    public void SetMemberLimit(int max)
+    {
+        if (IsHost && Status == State.Open && MemberLimit != max)
+        {
+            _online.SetMemberLimit(Id, max);
+            MemberLimit = max;
+        }
+    }
+
+    /// <summary>The member limit as this host created it or last set it (0 for a lobby joined).</summary>
+    public int MemberLimit { get; private set; }
 
     public void ShowInviteDialog()
     {

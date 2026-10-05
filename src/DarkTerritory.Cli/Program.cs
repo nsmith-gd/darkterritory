@@ -1755,7 +1755,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
-        menu.Games = DemoLobbies(menu.Protocol);
+        menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     menu.Show(screen);
@@ -1764,34 +1764,37 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     return (menu, screen);
 }
 
-/// <summary>A join screen's worth of public games: three on the network, three off a (fake) Steam search, one private that isn't listed.</summary>
-static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol)
+/// <summary>
+/// A join screen's worth of public games: three on the network (one at the crew cap, shown FULL), and off a (fake) Steam
+/// search two open lobbies; a third at the cap is shut, so the search doesn't find it (note 254), and a private one isn't listed.
+/// </summary>
+static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, int cap)
 {
-    static Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol) =>
+    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol) =>
         new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
             DarkTerritory.Game.NetPlaySession.Game)
-        { Name = name, Max = DarkTerritory.Game.NetPlaySession.MaxCrew, Tier = tier, PingMs = ping };
+        { Name = name, Max = cap, Tier = tier, PingMs = ping };
     var cloud = new Ballast.Online.FakeOnline();
     var me = cloud.SignIn("me");
     var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew)[]
     {
         ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3),
-        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, 12),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap),
         ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5),
         ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2),
     };
     var lobbies = new List<Ballast.Online.Lobby>();
     foreach (var h in hosts)
     {
-        var lobby = Ballast.Online.Lobby.Host(cloud.SignIn(h.Name, h.Where), DarkTerritory.Game.NetPlaySession.Game, protocol, DarkTerritory.Game.NetPlaySession.MaxCrew, h.Visibility,
+        var lobby = Ballast.Online.Lobby.Host(cloud.SignIn(h.Name, h.Where), DarkTerritory.Game.NetPlaySession.Game, protocol, cap, h.Visibility,
             new Dictionary<string, string>
             {
                 [DarkTerritory.Game.NetPlaySession.NameKey] = h.Run,
                 [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
-                [DarkTerritory.Game.NetPlaySession.AboardKey] = h.Crew.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
             });
         lobby.Poll();
+        DarkTerritory.Game.NetPlaySession.Advertise(lobby, h.Crew, cap);
         lobbies.Add(lobby);
     }
     using var browser = new DarkTerritory.Game.LobbyBrowser(lan: null, me, protocol);
@@ -1800,7 +1803,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol)
     me.Poll(events);
     browser.Poll(0, events, search: false);
     Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol),
-        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", 4, "DeadLines", 2.4, protocol)];
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol)];
     var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
     foreach (var l in lobbies)
         l.Dispose();
@@ -1818,8 +1821,10 @@ static object HudShot(string content, string[] args)
     // host's eyes in the cab, whom they watch, with their HUD.
     // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot (--ballot implies it).
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
+    // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
     using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"))
-        : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars) : null;
+        : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
+        : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars) : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -2054,10 +2059,18 @@ static object FilmStill(string content, string[] args)
 
 // A hosted night over loopback with one joiner, who dies once aboard and watches the host (App. D.10).
 // A joiner whose link the host has just lost (note 253): the host stops answering for a moment, so it's still trying.
-static SpectatedNight LostLink(string content, string route, int cars)
+static SpectatedNight LostLink(string content, string route, int cars, bool refused = false)
 {
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
-    var joiner = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    // --refused (note 254): a crew cap of two and a place held a second, so the joiner's back too late and turned away.
+    if (refused)
+        host.Host!.PlayerTuning = host.Host.PlayerTuning with
+        {
+            Crew = host.Host.PlayerTuning.Crew with { Cap = 2 },
+            Rejoin = host.Host.PlayerTuning.Rejoin with { ReserveSeconds = 1 },
+        };
+    var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+    var joiner = NetPlaySession.Join(content, at, () => host.Step(default));
     for (int t = 0; t < SimConstants.TickRate; t++)
     {
         host.Step(default);
@@ -2065,12 +2078,46 @@ static SpectatedNight LostLink(string content, string route, int cars)
         Thread.Sleep(1);
     }
     host.Host!.Drop((byte)joiner.PlayerId);
+    if (refused)
+    {
+        // The place runs out, a newcomer has it, and the joiner dials back to a full crew.
+        for (int t = 0; t < SimConstants.TickRate * 3 / 2; t++)
+            host.Step(default);
+        using var newcomer = NetPlaySession.Join(content, at, () => host.Step(default));
+        for (int t = 0; t < SimConstants.TickRate * 2 && joiner.Link?.Refused is null; t++)
+        {
+            host.Step(default);
+            newcomer.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        return new SpectatedNight(host, joiner);
+    }
     for (int t = 0; t < 10; t++)
     {
         joiner.Step(default);
         Thread.Sleep(1);
     }
     return new SpectatedNight(host, joiner);
+}
+
+/// <summary>
+/// <c>--hud --crew-full</c> (note 254): a hosted night in the yard at a crew cap of two, the host and a joiner aboard, seen
+/// as the host sees it: the lobby panel's CREW FULL and the link's crew 2/2.
+/// </summary>
+static SpectatedNight CrewFull(string content, string route, int cars)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    host.Host!.PlayerTuning = host.Host.PlayerTuning with { Crew = host.Host.PlayerTuning.Crew with { Cap = 2 } };
+    var joiner = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    for (int t = 0; t < SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        joiner.Step(default);
+        Thread.Sleep(1);
+    }
+    // Shown as the host: the "watcher" is the host's own session.
+    return new SpectatedNight(joiner, host);
 }
 
 static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false)

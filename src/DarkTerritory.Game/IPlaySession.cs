@@ -137,6 +137,14 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public int Attempts { get; init; }
     /// <summary>Lost, the tries run out: RECONNECT (F5) tries again.</summary>
     public bool CanReconnect { get; init; }
+    /// <summary>The crew cap (player.json crew.cap, note 254); 0 when there's none to speak of.</summary>
+    public int Cap { get; init; }
+    /// <summary>Hosting: the places taken against <see cref="Cap"/> (the crew, the waiting, the held); 0 for a joiner.</summary>
+    public int Places { get; init; }
+    /// <summary>Hosting, with no room: the lobby's shut and joiners are turned away.</summary>
+    public bool Full => Cap > 0 && Places >= Cap;
+    /// <summary>Lost, and turned away on the way back (note 254): what the host said, "CREW FULL (8/8)".</summary>
+    public string? Refused { get; init; }
 }
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>

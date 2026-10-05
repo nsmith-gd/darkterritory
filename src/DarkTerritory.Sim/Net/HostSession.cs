@@ -107,6 +107,7 @@ public sealed class HostSession
         Receive();
         Greet();
         Expire();
+        HangUp();
         BoardWaiting();
 
         foreach (var c in _crew)
@@ -227,9 +228,12 @@ public sealed class HostSession
         Gone(peer);
     }
 
-    void Gone(PeerId peer)
+    /// <param name="hold">A dropped link: the place is held for a rejoin (note 253). False, the player said Leave (they quit
+    /// on purpose): the place frees now, its token no good, and a full crew has room again (note 254).</param>
+    void Gone(PeerId peer, bool hold = true)
     {
         _greeting.RemoveAll(g => g.Peer == peer);
+        _refused.RemoveAll(r => r.Peer == peer);
         // Spec E: "Character remains as an inert body until recovered or the run ends." No bot takes over: the
         // crewmate goes limp where they stood, and their place is held for them (note 253).
         foreach (var gone in _crew.Where(c => c.Peer == peer).ToList())
@@ -237,11 +241,64 @@ public sealed class HostSession
             if (gone.State.Alive)
                 World.Bodies.DropOut(Train, gone.Id, gone.State);
             _crew.Remove(gone);
-            Reserve(gone.Id, gone.State, aboard: true, gone.LastApplied, gone.MissedInputs);
+            if (hold)
+                Reserve(gone.Id, peer, gone.State, aboard: true, gone.LastApplied, gone.MissedInputs);
+            else
+                Free(gone.Id);
         }
         foreach (var (id, _) in _waiting.Where(w => w.Peer == peer).ToList())
-            Reserve(id, default, aboard: false, 0, 0);
+        {
+            if (hold)
+                Reserve(id, peer, default, aboard: false, 0, 0);
+            else
+                Free(id);
+        }
         _waiting.RemoveAll(w => w.Peer == peer);
+    }
+
+    /// <summary>A place given up for good (a Leave): its token's no good, so nobody gets it back (note 254).</summary>
+    void Free(byte id)
+    {
+        _tokens.Remove(id);
+        Leaves++;
+    }
+
+    /// <summary>
+    /// The crew cap (player.json crew.cap; note 254). Every place that's someone's counts: the crew in the world, living and
+    /// dead (the dead are still the crew's: the dead channel, the vote, the queue), those welcomed and waiting to board at a
+    /// stop, and the places held for the dropped. Bots are crew like anyone. A joiner past it is turned away, but never
+    /// one coming back with a held place's token.
+    /// </summary>
+    public int Cap => PlayerTuning.Crew.Places;
+    /// <summary>The places taken against <see cref="Cap"/>: aboard (living or dead), waiting at a stop, and held.</summary>
+    public int Occupied => _crew.Count + _waiting.Count + _reserved.Count;
+    /// <summary>No room for a new joiner: a lobby's listed FULL and its platform lobby shut while this holds.</summary>
+    public bool Full => Occupied >= Cap;
+    /// <summary>Joiners turned away for a full crew; players who left on purpose and gave their place up.</summary>
+    public int Refusals { get; private set; }
+    public int Leaves { get; private set; }
+
+    /// <summary>Links turned away (note 254), kept open till their Refused has had time to get there, then hung up on.</summary>
+    readonly List<(PeerId Peer, uint Until)> _refused = [];
+    /// <summary>Links turned away and not yet hung up on.</summary>
+    public int TurnedAway => _refused.Count;
+
+    void Refuse(PeerId peer)
+    {
+        Refusals++;
+        Messages.WriteRefused(_writer, new Refusal(RefusalReason.CrewFull, Occupied, Cap));
+        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        _refused.Add((peer, Tick + (uint)TicksOf(PlayerTuning.Crew.RefuseLingerSeconds)));
+    }
+
+    /// <summary>Hangs up on the refused whose refusal has had its time (the client usually hangs up first).</summary>
+    void HangUp()
+    {
+        foreach (var (peer, _) in _refused.Where(r => Tick >= r.Until).ToList())
+        {
+            _refused.RemoveAll(r => r.Peer == peer);
+            _transport.Disconnect(peer);
+        }
     }
 
     /// <summary>
@@ -299,7 +356,7 @@ public sealed class HostSession
     /// A dropped player's place (spec E drop-out, note 253): who they were, the token that gets it back, and their state when
     /// the link went (the dead stay dead). Held till <see cref="Until"/>, the host's tick.
     /// </summary>
-    sealed record Seat(byte Id, ulong Token, PlayerState State, bool Aboard, uint LastApplied, int MissedInputs, uint Until);
+    sealed record Seat(byte Id, PeerId Peer, ulong Token, PlayerState State, bool Aboard, uint LastApplied, int MissedInputs, uint Until);
 
     readonly List<Seat> _reserved = [];
     /// <summary>Every slot's token while it's someone's: in the crew, waiting to board, or held for them.</summary>
@@ -326,12 +383,12 @@ public sealed class HostSession
 
     int TicksOf(double seconds) => (int)Math.Ceiling(seconds * SimConstants.TickRate);
 
-    void Reserve(byte id, PlayerState state, bool aboard, uint lastApplied, int missed)
+    void Reserve(byte id, PeerId peer, PlayerState state, bool aboard, uint lastApplied, int missed)
     {
         if (!_tokens.TryGetValue(id, out ulong token))
             return;
         _reserved.RemoveAll(r => r.Id == id);
-        _reserved.Add(new Seat(id, token, state, aboard, lastApplied, missed, Tick + (uint)TicksOf(PlayerTuning.Rejoin.ReserveSeconds)));
+        _reserved.Add(new Seat(id, peer, token, state, aboard, lastApplied, missed, Tick + (uint)TicksOf(PlayerTuning.Rejoin.ReserveSeconds)));
     }
 
     /// <summary>Places held past reserveSeconds are let go: the slot's free, its token no good, the body stays (D.2).</summary>
@@ -367,7 +424,16 @@ public sealed class HostSession
                 continue;
             }
             _greeting.RemoveAt(i);
-            byte id = g.Token != 0 && Return(g.Peer, g.Token) is { } back ? back : Join(g.Peer);
+            // A held place's token always gets back in: its place is already counted (note 254). A new joiner (or a token
+            // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
+            // never counted, so it can't fill the crew or shut the lobby.
+            byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
+            if (back is null && Full)
+            {
+                Refuse(g.Peer);
+                continue;
+            }
+            byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
         }
     }
@@ -630,6 +696,19 @@ public sealed class HostSession
             var session = _crew.Select(x => (int)x.Id).Concat(_waiting.Select(w => (int)w.Id)).ToList();
             if (from >= 0 && Run.Commendations.Give(World, from, payload[1], payload[2], session))
                 _commendationsChanged = true;
+            return;
+        }
+        // Note 254: they quit on purpose. Their crewmate goes limp as for a drop (spec E), but the place isn't held.
+        if (payload.Length == 1 && payload[0] == (byte)MessageType.Leave)
+        {
+            Gone(peer, hold: false);
+            // The hang-up can come in ahead of the word (a link whose close is heard at once): the place already held, let go.
+            foreach (var seat in _reserved.Where(r => r.Peer == peer).ToList())
+            {
+                _reserved.Remove(seat);
+                Free(seat.Id);
+            }
+            _transport.Disconnect(peer);
             return;
         }
         if (payload.Length > 0 && payload[0] == (byte)MessageType.Hello)

@@ -91,5 +91,16 @@
     "greetSeconds": 1,
     "retries": 5,
     "retrySeconds": 3
+  },
+  // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
+  // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
+  // `cap`: told CREW FULL (n/cap), the lobby listed FULL and its platform lobby shut, open again when a place frees. Bots
+  // hold crewmates, so they count. A player coming back with a held place's token always gets in. A mod raises it with a
+  // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
+  // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
+  // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
+  "crew": {
+    "cap": 8,
+    "refuseLingerSeconds": 3
   }
 }
