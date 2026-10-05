@@ -75,9 +75,17 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             rw.Me = session.PlayerId ?? -1;
         else if (bot is GunnerBot gb)
             gb.Me = session.PlayerId ?? -1;
-        // Who else is aboard, and where (T96: the driver stops for a crewmate left behind).
+        // Note 258: it says it's a bot, so the driver can tell the crew playing from the bots.
+        if (session.PlayerId is { } bid)
+            calls?.Bot(bid);
+        // Who else is aboard, and where (T96: the driver stops for a crewmate left behind); and which of them are people playing
+        // (note 259: one in the cab minds it while the driver's out breaching a Holdout).
         if (bot is ConductorBot cb)
+        {
             cb.Crewmates = [.. session.RemoteIds.Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
+            cb.Players = calls is null ? null : [.. session.RemoteIds.Where(id => !calls.IsBot(id))
+                .Select(id => session.TryGetRemote(id, 1, out var s) ? s : default).Where(s => s.Health > 0 || s.Death != DeathCause.None)];
+        }
         // And for the walkers and the gunner, who's where by id: who goes for the repair kit (KitCarry).
         if (bot is RoofWalkerBot or GunnerBot)
         {

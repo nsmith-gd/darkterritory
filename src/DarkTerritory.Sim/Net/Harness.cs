@@ -33,7 +33,10 @@ public sealed record HarnessOptions
     /// with the gunner lending a hand), the bots stop at the winch facilities and load (T32).
     /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
-    /// <summary>With it (and a run), the dead come back through the route's Holdouts (GDD App. D); bots don't breach them yet.</summary>
+    /// <summary>
+    /// With it (and a run), the dead come back through the route's Holdouts (GDD App. D): a walker or the gunner breaches
+    /// one lit with the train standing (T96), or the driver with neither of them left (note 259).
+    /// </summary>
     public Run.HoldoutTuning? Holdouts { get; init; }
     /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
     public Route.SightTuning? Sight { get; init; }
@@ -144,7 +147,18 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     /// the guard gun, a walker up on the train; −1 for never. Keyed "bot#id".
     /// </summary>
     public IReadOnlyDictionary<string, double>? Posts { get; init; }
+    /// <summary>With <see cref="HarnessOptions.Holdouts"/>: the night's Holdouts, lit and freed, and by whom (note 259).</summary>
+    public HoldoutReport? Holdouts { get; init; }
 }
+
+/// <summary>
+/// The Holdouts on a harness night (GDD App. D.5; note 259). <paramref name="Lit"/>: times one lit for someone waiting in it;
+/// <paramref name="Assigned"/>: the dead put in one (D.5 assign, the host's events); <paramref name="Breached"/>: lit ones a
+/// crewmate began breaching; <paramref name="Freed"/>, and <paramref name="Released"/> (the train left them behind).
+/// <paramref name="SecondsToFree"/>: from lighting to out, each one freed. <paramref name="FreedBy"/>: who broke them out, by bot.
+/// </summary>
+public sealed record HoldoutReport(int Lit, int Assigned, int Breached, int Freed, int Released, IReadOnlyList<double> SecondsToFree,
+    IReadOnlyDictionary<string, int> FreedBy);
 
 /// <summary>
 /// How often something happened (after the playtest: "a reward or a problem every 30 s at most, ideally 20"): the moments
@@ -300,6 +314,12 @@ public static class Harness
         string? longestEnded = null;
         var longQuiets = new List<string>();
         string? heldAt20 = null;
+        // Note 258: each Holdout's lighting, when, and whether a breach was begun on it.
+        var litSince = new Dictionary<int, uint>();
+        var breachBegun = new HashSet<int>();
+        int litCount = 0, breached = 0, holdoutEventsSeen = 0;
+        var toFree = new List<double>();
+        var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         for (uint t = 0; t < ticks; t++)
         {
             if (host.World.Run is { Over: true } || o.Until?.Invoke(host.World) == true)
@@ -312,6 +332,34 @@ public static class Harness
             o.Script?.Invoke(t, host.World);
             host.Step();
             events.AddRange(host.World.EnemyEvents);
+            if (host.World.Holdouts is { } hs)
+            {
+                foreach (var h in hs.All)
+                {
+                    if (h.Lit && !litSince.ContainsKey(h.Index))
+                    {
+                        litSince[h.Index] = t;
+                        litCount++;
+                    }
+                    if (h.State == Sim.Run.HoldoutState.Breaching && litSince.ContainsKey(h.Index) && breachBegun.Add(h.Index))
+                        breached++;
+                }
+                for (; holdoutEventsSeen < host.HoldoutEvents.Count; holdoutEventsSeen++)
+                {
+                    var e = host.HoldoutEvents[holdoutEventsSeen];
+                    if (e.Kind is not (Sim.Run.HoldoutEventKind.Freed or Sim.Run.HoldoutEventKind.Released))
+                        continue;
+                    if (e.Kind == Sim.Run.HoldoutEventKind.Freed)
+                    {
+                        if (litSince.TryGetValue(e.Holdout, out var from))
+                            toFree.Add(Math.Round((t - from) * SimConstants.TickSeconds, 1));
+                        string by = clients.FirstOrDefault(c => c.Session.PlayerId == e.By).Bot?.Name ?? $"player {e.By}";
+                        freedBy[by] = freedBy.GetValueOrDefault(by) + 1;
+                    }
+                    litSince.Remove(e.Holdout);
+                    breachBegun.Remove(e.Holdout);
+                }
+            }
             rounds += host.World.Shots.Count;
             beats += host.World.Beats.Count;
             foreach (var b in host.World.Beats)
@@ -452,6 +500,10 @@ public static class Harness
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
             Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
                 c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
+            Holdouts = host.World.Holdouts is null ? null : new HoldoutReport(litCount,
+                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
+                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
+                host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy),
         };
     }
 
@@ -510,7 +562,7 @@ public static class Harness
         string doing = bot switch
         {
             ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
-            ConductorBot c => c.Sanding ? "sanding" : c.Stops?.Doing.ToString() ?? "",
+            ConductorBot c => c.Sanding ? "sanding" : c.BreachingAlone ? "breaching" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot { TendStep: { } t } => $"tend:{t}",
             RoofWalkerBot { Errand.Doing: { } l } => l,

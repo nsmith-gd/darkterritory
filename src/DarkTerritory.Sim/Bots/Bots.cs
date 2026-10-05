@@ -955,6 +955,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// <summary>Everyone else aboard (or not) as this bot's client sees them, set each tick (T96).</summary>
     public IReadOnlyList<PlayerState>? Crewmates { get; set; }
 
+    /// <summary>Of <see cref="Crewmates"/>, the people playing (not bots), set each tick (note 259). Null: not known, taken as none.</summary>
+    public IReadOnlyList<PlayerState>? Players { get; set; }
+
     double _waitedForBreach, _waitedForBoarder;
     bool _backedUp;
 
@@ -1030,7 +1033,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         bool breaching = calls?.Breaching == true;
         var lit = world.Holdouts?.All.Where(h => h.Lit).Select(h => h.LineHint + 20 - d.Distance).Where(a => a > -150 && a < 600)
             .OrderBy(Math.Abs).Select(a => (double?)a).FirstOrDefault();
-        if (lit is not { } ahead && !breaching || _waitedForBreach > 180)
+        if (lit is not { } ahead && !breaching || _waitedForBreach > HoldoutGiveUp)
         {
             if (lit is null && !breaching)
                 _waitedForBreach = 0;
@@ -1045,6 +1048,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _waitedForBreach += SimConstants.TickSeconds;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
+    /// <summary>How long the driver stands for a lit Holdout (s) before it gives up on them and goes on: nobody's breaching it.</summary>
+    const double HoldoutGiveUp = 180;
     /// <summary>Where the driver stands for a lit Holdout: this far short of it (m), and how far short a stand still counts.</summary>
     const double HoldoutStandAt = 5, HoldoutShortBy = 10;
 
@@ -1055,6 +1060,112 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// </summary>
     public static bool AlongsideTheHoldout(double ahead, double speed) =>
         ahead <= HoldoutStandAt || speed < 0.05 && ahead <= HoldoutStandAt + HoldoutShortBy;
+
+    bool _outToBreach, _firedToLeave;
+    double _standingForHoldout;
+    /// <summary>
+    /// Standing at a lit Holdout, how long the driver leaves it to a walker or the gunner who could go before it goes itself
+    /// (s): one warming in a car can't get down to it (T115), and comes out once warm. And how long it waits for someone
+    /// playing who's aboard to come to the cab and mind it (note 259).
+    /// </summary>
+    const double LeaveItToTheCrew = 45, ForAPlayerToTheCab = 20;
+    /// <summary>
+    /// What the driver vents the gauge down to before it leaves the train standing on its brake: the pressure it fires to
+    /// hold at a stand, so steam pulls no harder against the brake than it does there, and there's steam to go on with.
+    /// </summary>
+    const double LeavingPressure = StandingPressure;
+    /// <summary>The firebox this full (of boiler.json fireboxCapacity) before the driver leaves it to breach (note 259).</summary>
+    const double LeavingFire = 0.8;
+
+    /// <summary>Out of the cab to breach a Holdout itself, or on the way back up (for the harness's trace; note 259).</summary>
+    public bool BreachingAlone => _outToBreach;
+
+    /// <summary>
+    /// Note 258 (T115's leftover): a crewmate in a lit Holdout (GDD App. D.5: "a living crew member begins the breach") and
+    /// nobody else to begin it. Heed.Holdouts sends a walker or the gunner; with none of them alive (a crew of one bot and
+    /// someone playing who's died, or the driver the last bot standing) the driver's held the train there for
+    /// <c>ForAHoldout</c>'s wait and gone on without them. So the driver goes, as it does to set a switch back alone or to
+    /// club the Switchman: the train standing on its brake, the gauge vented down to what it holds at a stand and the firebox
+    /// door shut; down out of the cab on the Holdout's side, along to its door, Use held there till they're out; and back up
+    /// into the cab, where <c>ForAHoldout</c> finds nothing lit and it drives on. Someone playing in the cab minds it instead
+    /// (the brake's theirs), and one aboard gets a while to come to it. Null when it isn't going (or is back).
+    /// </summary>
+    PlayerIntent? BreachAlone(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || calls is null || world.Holdouts is not { } hs)
+        {
+            _outToBreach = _firedToLeave = false;
+            _standingForHoldout = 0;
+            return null;
+        }
+        var at = PlayerMotor.WorldPosition(self, train);
+        var lit = hs.All.Where(h => h.Lit).Select(h => (h, d: ((h.Door - at) with { Y = 0 }).Length)).Where(x => x.d <= Heed.HoldoutRange)
+            .OrderBy(x => x.d).Select(x => x.h).FirstOrDefault();
+        bool givenUp = _waitedForBreach > HoldoutGiveUp;
+        if (_outToBreach)
+        {
+            _aloneHand ??= new StopHand(StopJob.None, calls, member);
+            _waitedForBreach += SimConstants.TickSeconds;
+            if (lit is not null && !givenUp && _aloneHand.Breach(self, world, lit) is { } breaking)
+                return breaking with { Buttons = breaking.Buttons | PlayerButtons.Brake };
+            // They're out (or it's given up on them): back up into the cab, and on from there.
+            if (_aloneHand.SetBackAlone(self, world, null) is { } back)
+                return back with { Buttons = back.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+            _outToBreach = _firedToLeave = false;
+            _standingForHoldout = 0;
+            return null;
+        }
+        // Only at a stand alongside it, with nobody on their way to it or at it already (someone playing, at its door).
+        if (lit is null || givenUp || train.Dynamics.Speed > 0.05 || calls.Breaching || lit.State == Run.HoldoutState.Breaching
+            || !PlayerMotor.InCab(self, train))
+        {
+            if (lit is null)
+            {
+                _standingForHoldout = 0;
+                _firedToLeave = false;
+            }
+            return null;
+        }
+        _standingForHoldout += SimConstants.TickSeconds;
+        if (calls.AnyBreacher && _standingForHoldout < LeaveItToTheCrew)
+            return null;
+        // Someone playing in the cab has the controls: out it goes. One aboard elsewhere gets a while to come to them.
+        bool playerInCab = Players?.Any(p => p.Alive && PlayerMotor.InCab(p, train)) == true;
+        if (!playerInCab && Players?.Any(p => p.Alive && p.Parent != PlayerState.World) == true && _standingForHoldout < ForAPlayerToTheCab)
+            return null;
+        var hold = new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+        bool minded = playerInCab || calls.FiremanMinding;
+        // Nobody to fire it while it's out, and the cars' heating draws the gauge down all the while: the firebox filled first.
+        // Out with the fire as it was, frontier:7's lone driver came back from a 70 s breach to a fire at 0.08 and the gauge at
+        // 29, under the Stoker's low fire and low pressure (App. A.5).
+        // Once: shovelling opens the door, and waiting for it to swing shut the fire burnt back under the mark, and round again
+        // (frontier:7 stood 145 s at a Holdout so).
+        if (train.BoilerTuning is { } fired && train.Boiler.FireFraction(fired) >= LeavingFire)
+            _firedToLeave = true;
+        if (!minded && !_firedToLeave && train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && train.Boiler.FireFraction(bt) < LeavingFire)
+        {
+            var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+            var (step, there) = WarmUp.Steer(self, new Double3(FiringSide, 0, firebox.Z + FiringBack), 0);
+            var firing = there && CrewActions.Nearest(self, train) == InteractableKind.Firebox ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+            return firing with { Buttons = firing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+        }
+        // Not out of the cab with the firebox door open (the Stoker comes in at an open door at a stand, App. A.5). With no
+        // enemies there's no Stoker, and nothing swings the door shut (World.Step), so it isn't waited on.
+        if (train.Boiler.FireDoorOpen && world.Enemies is not null)
+            return hold;
+        // Nobody minding the controls: the train left standing on its brake (CabControls.Clears), with the steam vented down
+        // so it pulls no harder against it than a standing engine's fire keeps it.
+        if (!minded && train.BoilerTuning is { SteamDrive: true } && train.Boiler.Pressure > LeavingPressure)
+        {
+            var (step, there) = WarmUp.Steer(self, VentWay(train)[0], 0);
+            var venting = there && CrewActions.Nearest(self, train) == InteractableKind.Vent ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+            return venting with { Buttons = venting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+        }
+        _outToBreach = true;
+        _aloneHand ??= new StopHand(StopJob.None, calls, member);
+        return _aloneHand.Breach(self, world, lit) is { } going ? going with { Buttons = going.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 } : hold;
+    }
     bool _driving, _sawDriver;
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
@@ -1179,13 +1290,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
                 return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
             _clubbed = false;
         }
+        // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
+        if (_outToBreach && BreachAlone(self, world) is { } outBreaching)
+            return outBreaching with { Lamp = lamp };
         // T96: a crewmate left behind, or back in a lit Holdout: stop for them.
         if (self.Alive && PlayerMotor.InCab(self, train))
         {
             if (ForTheLeftBehind(world) is { } setBack)
                 return Work(self, train, setBack) with { Lamp = lamp };
             if (ForAHoldout(world, ref cruise) is { } standing)
-                return Work(self, train, standing) with { Lamp = lamp };
+                return (BreachAlone(self, world) ?? Work(self, train, standing)) with { Lamp = lamp };
         }
         if (world.TrackPlan is { } plan)
             cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
@@ -2211,14 +2325,16 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 public static class Heed
 {
     /// <summary>How far from a lit Holdout a crewmate will go to breach it, with the train standing (T96).</summary>
-    const double HoldoutRange = 180;
+    public const double HoldoutRange = 180;
 
     /// <summary>
     /// A crewmate waiting in a lit Holdout (GDD App. D.5, T96): with the train standing, the nearest walker gets down and
     /// breaches its door, and the driver waits (<see cref="CrewCalls.Breaching"/>). Then back aboard as from any stop.
+    /// With no walker or gunner left alive, the driver goes itself (note 259: <see cref="CrewCalls.AnyBreacher"/>).
     /// </summary>
     public static PlayerIntent Holdouts(PlayerIntent intent, in PlayerState self, World world, int selfId, CrewCalls? calls, StopHand? hand)
     {
+        calls?.CanBreach(selfId, self.Alive && hand is not null);
         if (calls is null || hand is null)
             return intent;
         if (!self.Alive || world.Holdouts is not { } hs || world.Train.Dynamics.Speed > 0.1 || self.Has(PlayerFlags.Held))
@@ -2246,7 +2362,13 @@ public static class Heed
                 calls.DropBreach(selfId);
             return intent;
         }
-        return hand.Breach(self, world, lit.h) ?? intent;
+        if (hand.Breach(self, world, lit.h) is not { } breaching)
+            return intent;
+        // The gunner in the gun's seat gets up out of it first (T112: Jump, seated, is getting up). Note 258: a crew of two's
+        // gunner took the breach from the guard gun and sat there "getting down" till the driver gave up on it.
+        if (self.Has(PlayerFlags.Seated))
+            breaching.Buttons |= PlayerButtons.Jump;
+        return breaching;
     }
 
     /// <summary>A bot's voice while it's working (a crew talks: its level in the intent), and how loud it gets near the Gaunt.</summary>
