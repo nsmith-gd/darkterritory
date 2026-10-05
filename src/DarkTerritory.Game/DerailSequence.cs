@@ -420,7 +420,7 @@ public sealed class DerailSequence
     /// <param name="standing">A switchyard's standing cars (TrainOnLine.StandingCar), which the shot leaves out.</param>
     /// <param name="off">The frame shown is from the moment it came off or after (<see cref="ReplayAt"/>'s Off); before it,
     /// the camera rides with the train. (It used to be held from the replay's first frame, so the train ran in from behind
-    /// it and the whole run-in was lost in the fog: note 232.)</param>
+    /// it and the whole run-in was lost in the fog: note 245.)</param>
     public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing, bool off = true)
     {
         now = Views.Train(now, standing);

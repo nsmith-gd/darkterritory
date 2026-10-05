@@ -1,0 +1,33 @@
+// Hold-to-interact progress: A held action ticking on (a reload step, a breach, a repair). Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 0,
+ "flat": true,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "ui-prompts/hold",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0,
+   "rate": {
+    "param": "progress",
+    "points": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      1.4
+     ]
+    ]
+   }
+  }
+ ]
+}

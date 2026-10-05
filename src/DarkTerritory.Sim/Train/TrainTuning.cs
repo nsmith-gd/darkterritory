@@ -15,6 +15,8 @@ public sealed record TrainTuning
     public required CouplingTuning Couplings { get; init; }
     /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
     public KitTuning Kit { get; init; } = new();
+    /// <summary>A car's shell given way, and boarding it up (train.json <c>breach</c>, spec B.9).</summary>
+    public BreachTuning Breach { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
     /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
@@ -23,6 +25,15 @@ public sealed record TrainTuning
     public FragileTuning? Fragile { get; init; }
 
     public const string File = "tuning/train.json";
+}
+
+/// <summary>Boarding up a breached car (decided 1 Oct; spec B.9). Field docs live in train.json <c>breach</c>.</summary>
+public sealed record BreachTuning
+{
+    public double BoardSeconds { get; init; } = 8;
+    public double BoardReach { get; init; } = 1.5;
+    /// <summary>Boarding up wants the repair kit in hand (note 150: it's an item someone carries).</summary>
+    public bool NeedsKit { get; init; }
 }
 
 /// <summary>

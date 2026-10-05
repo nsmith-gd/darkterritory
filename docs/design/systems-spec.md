@@ -39,16 +39,17 @@ The bed is fully parameterised and drives from sim state:
 
 ## A.3 Mix hierarchy
 
-Strict ducking priority. Higher tiers duck everything below.
+Strict ducking priority. Higher tiers duck everything below, except voice: nothing ducks tier 2 (*decided 2 Oct*).
 
 | Tier | Content | Behaviour |
 |---|---|---|
-| **1** | Enemy telegraphs | Ducks all else −9dB. Never masked. Never occluded beyond −6dB. |
+| **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
 | **2** | Proximity voice | Ducks bed −6dB while active |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
 | **6** | Ambient world | Wind, distant, weather |
+| **7** | Music | *Added 1 Oct.* A low drone under the night. Every other tier ducks it; it ducks nothing, never voice |
 
 **Tier 1 is inviolable.** A telegraph that can be drowned out is a bug, and the agent harness should test it by generating maximum-chaos states and verifying tell audibility.
 
@@ -280,8 +281,12 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
+| **Foul** | **1 shot in 25 fouls the bore (4%), ×2.5 on wet rail.** The shot goes; the gun's out until it's cleared, and a pull on it is a dead click (GDD §23 "Cannon fouls") |
+| Clearing a foul | 4s of Use held at the gun, standing still, by hand; let go and it starts over |
 
 **The dead zone is what makes the flank uncoverable regardless of train length.** Guns face outward from the engine and guard car; the consist's own body is definitionally out of arc. This is a geometry fact, not a balance number, which means it can't be accidentally tuned away.
+
+**A foul is a cascade, not a chore.** At 4% a shot, a gun that fires all 24 of its night's shot fouls at least once about three nights in five (1 − 0.96²⁴ = 62%), and a night's usual dozen shots or so foul one time in three; in the wet, far more often. It lands mid-fight, because the gun's only fired when something is there to shoot. Clearing it (4 s) is about a reload's time (3 × 1.5 s), under fire, and far less than mending the boiler (25 s). Which shot fouls is a hash of the tick and the gun, the same on every machine (combat.json, ARCHITECTURE §8 note 183).
 
 ## B.8 Run length
 
@@ -295,6 +300,18 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+
+## B.9 Breaches
+
+A breach is a car's shell giving way to the outside (decided 1 Oct): a door forced, a hatch torn off, the Car Hugger chewing through the end wall, Climbers getting into an unlit car. Until it is boarded up, the car shuts nobody in, whatever its doors. The cold, the night's sound, voices and the Choir come in as through an open door, so it is no longer "behind a closed door" for the Choir. The change in the train's sound is the alarm: there is no klaxon.
+
+| Parameter | Value |
+|---|---|
+| Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
+| Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
+| Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
+| Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 
 ---
 

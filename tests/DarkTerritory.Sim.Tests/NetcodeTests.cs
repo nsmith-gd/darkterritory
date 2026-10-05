@@ -3,6 +3,8 @@ using Ballast.Net;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -194,6 +196,35 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientBoardingUpABreachIsPredictedExactly()
+    {
+        // Decided 1 Oct: a breached car is boarded up from inside, Use held at the hole; the boarder's client predicts it.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        const int car = 3;
+        var room = host.Train.Frames[car].Shape.Interior!.Value;
+        host.Train.Vehicles[car].Breach(Breaches.EndWall(host.Train.Frames[car].Shape)!.Value);
+        HostTeleport(host, clients[1].PlayerId!.Value, new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, room.Max.Z - 0.7),
+            Yaw = Math.PI,
+            Health = 100,
+        });
+        Run(net, host, clients, 5, _ => default);
+        Assert.All(clients, c => Assert.True(c.Train.Vehicles[car].Breached));
+        foreach (var c in clients)
+            c.ResetStats();
+
+        Run(net, host, clients, (int)(T.Breach.BoardSeconds * SimConstants.TickRate) + 5, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.False(host.Train.Vehicles[car].Breached);
+        Assert.All(clients, c => Assert.False(c.Train.Vehicles[car].Breached));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
     public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
     {
         // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train
@@ -372,6 +403,7 @@ public class BodyNetcodeTests
         Assert.Equal(victim, body.Owner);
         Assert.Equal(2, body.Parent);
     }
+
 }
 
 /// <summary>M2's remainder: interest management, inert bodies, drop-in at stops (spec E).</summary>

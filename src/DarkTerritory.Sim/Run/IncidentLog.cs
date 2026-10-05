@@ -12,6 +12,8 @@ public sealed record ReportLine(IncidentKind Kind, string Who, string Text, doub
     public double Seconds { get; init; } = -1;
     /// <summary>Whom it's about, or −1.</summary>
     public int Victim { get; init; } = -1;
+    /// <summary>What a death was (<see cref="IncidentKind.Death"/>), or none: the run-end sounds mark the ones the crew did to themselves.</summary>
+    public DeathCause Cause { get; init; }
     /// <summary>The bookmarks shown beside it (GDD v1.4 App. D.12), by <see cref="Bookmark.Id"/>.</summary>
     public IReadOnlyList<int> Marks { get; init; } = [];
 }
@@ -309,7 +311,7 @@ public static class IncidentLog
             {
                 bool recovered = i.Body >= 0 && home(i.Body);
                 string settle = fee > 0 ? recovered ? $" Fee {fee:0}. Body recovered. Refund {refund:0}." : $" Fee {fee:0}. Body not recovered." : "";
-                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0) { Seconds = i.Seconds, Victim = i.Victim });
+                lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}{settle}".Trim(), fee, recovered ? refund : 0) { Seconds = i.Seconds, Victim = i.Victim, Cause = i.Cause });
             }
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });

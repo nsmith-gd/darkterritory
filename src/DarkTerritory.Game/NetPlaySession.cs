@@ -326,16 +326,27 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     List<string>? _manifest, _tally;
+    List<double>? _manifestTimes, _tallyTimes;
     double _manifestSeconds = -1, _tallySeconds = -1;
+
+    /// <summary>
+    /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 240), so the reading goes at its pace: the card
+    /// typed as it's said, the end screen waiting for the last word. Null (no voice), a line every lineSeconds.
+    /// </summary>
+    public Func<string, double>? RadioPace { get; set; }
 
     public IReadOnlyList<string>? RadioReading =>
         _tally is not null && _tallySeconds >= 0 ? _tally
-        : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning) ? _manifest
+        : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning, _manifestTimes) ? _manifest
         : null;
 
     public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
 
-    public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning);
+    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : _manifestTimes;
+
+    public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning, _tallyTimes);
+
+    List<double>? RadioTimesOf(List<string> lines) => RadioPace is { } pace ? Sim.Run.Radio.Times(lines, RadioTuning, pace) : null;
 
     Sim.Run.RadioTuning RadioTuning => World.Run?.Tuning.Radio ?? new();
 
@@ -351,6 +362,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             var crew = Client.RemoteIds.Select(id => (int)id).Append(PlayerId).Distinct().Order();
             _manifest = Sim.Run.Radio.Manifest(World, crew);
+            _manifestTimes = RadioTimesOf(_manifest);
             _manifestSeconds = 0;
         }
         else if (_manifestSeconds >= 0)
@@ -358,6 +370,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report);
+            _tallyTimes = RadioTimesOf(_tally);
             _tallySeconds = 0;
         }
         else if (_tallySeconds >= 0)
@@ -742,6 +755,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerState Viewpoint => Watching >= 0 && Client.TryGetRemote((byte)Watching, 1, out var s) ? s : Player;
 
     readonly List<PlayerState> _states = [];
+    readonly List<(int, PlayerState)> _crewStates = [];
+
+    public IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha)
+    {
+        _crewStates.Clear();
+        _crewStates.Add((PlayerId, Player));
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, alpha, out var s))
+                _crewStates.Add((id, s));
+        return _crewStates;
+    }
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {

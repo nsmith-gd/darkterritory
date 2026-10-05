@@ -80,6 +80,8 @@ public interface IPlaySession
     /// </summary>
     IReadOnlyList<string>? RadioReading => null;
     double RadioSeconds => 0;
+    /// <summary>Each of <see cref="RadioReading"/>'s lines' turn when it's spoken (note 240); null, a line every lineSeconds.</summary>
+    IReadOnlyList<double>? RadioTimes => null;
     /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
     bool ClerkTally => false;
     /// <summary>This dead player's creature vote (GDD v1.4 App. D.11; note 180): the ballot offered and what they cast; null if none.</summary>
@@ -117,6 +119,11 @@ public interface IPlaySession
     int Watching => -1;
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
+    /// <summary>
+    /// Everyone aboard as their states (your own as predicted, the rest as drawn, <paramref name="alpha"/> into the tick),
+    /// for what's heard of them: footsteps, hands at work (GameAudio.CrewStates).
+    /// </summary>
+    IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(PlayerId, Player)];
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>

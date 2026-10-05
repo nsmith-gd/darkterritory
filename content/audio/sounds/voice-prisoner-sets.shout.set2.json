@@ -1,0 +1,20 @@
+// Prisoner voice sets: A wordless shout or cry from the same voice (set2). Written by tools/audio/install.py from the audio checklist (set); edit the cue, not this.
+{
+ "tier": 2,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 2,
+ "maxDistance": 60,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "voice-prisoner-sets/shout/set2",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

@@ -15,13 +15,25 @@ public class MusicBusTests
 
     static readonly SoundDef Music = new(Mixer.MusicTier, [new LayerDef(SourceKind.Sample, 1)], Flat: true, MaxInstances: 1);
 
-    static Mixer Make(params (string Name, SoundDef Def)[] sounds)
+    static Mixer Make(params (string Name, SoundDef Def)[] sounds) => Make(Mix, sounds);
+
+    static Mixer Make(MixDef mix, params (string Name, SoundDef Def)[] sounds)
     {
         var bank = new SoundBank();
         bank.Add("music", Music);
         foreach (var (name, def) in sounds)
             bank.Add(name, def);
-        return new Mixer(bank, Mix) { Listener = Listener.At(Double3.Zero, 0) };
+        return new Mixer(bank, mix) { Listener = Listener.At(Double3.Zero, 0) };
+    }
+
+    /// <summary>A stereo stem's pitch over a window (seconds), from its left channel's upward zero crossings.</summary>
+    static double Hz(float[] stem, double from, double seconds)
+    {
+        int first = (int)(from * Audio.SampleRate), frames = (int)(seconds * Audio.SampleRate), crossings = 0;
+        for (int i = first + 1; i < first + frames; i++)
+            if (stem[(i - 1) * 2] < 0 && stem[i * 2] >= 0)
+                crossings++;
+        return crossings / seconds;
     }
 
     static float[] Render(Mixer m, double seconds)
@@ -137,42 +149,39 @@ public class MusicBusTests
     }
 
     [Fact]
-    public void UnderTheMusicTheGamePlaysAtHalfSpeed()
+    public void WhileMusicPlaysTheGameRunsAtHalfSpeedAndComesBackButVoicesKeepTheirs()
     {
-        // E.6: "everything else plays at half speed". A 0.5 s, 200 Hz tone on a game tier lasts a second an octave down
-        // once the music's eased in; alone it plays as made.
-        var slowed = Mix with { Music = Bus with { GameSpeed = 0.5 } };
-        var tone = new SoundDef(3, [new LayerDef(SourceKind.Sine, 0.5, 200.0)], Duration: 0.5, Flat: true);
-        Mixer Fresh()
-        {
-            var bank = new SoundBank();
-            bank.Add("music", Music);
-            bank.Add("tone", tone);
-            return new Mixer(bank, slowed) { Listener = Listener.At(Double3.Zero, 0) };
-        }
-        static int Crossings(float[] stereo)
-        {
-            int n = 0;
-            for (int i = 1; i < stereo.Length / 2; i++)
-                if (stereo[(i - 1) * 2] < 0 && stereo[i * 2] >= 0)
-                    n++;
-            return n;
-        }
-
-        var alone = Fresh();
-        var plain = alone.Play("tone")!;
-        Assert.InRange(Crossings(Render(alone, 0.4)), 76, 84);
-        Render(alone, 0.2);
-        Assert.True(plain.Finished);
-
-        var scored = Fresh();
-        var music = scored.Play("music")!;
-        music.Clip = Sine(440, 10, amplitude: 0.1f);
-        Render(scored, 0.3);
-        var slow = scored.Play("tone")!;
-        Render(scored, 0.8);
-        Assert.False(slow.Finished, "a half-speed half second is still going at 0.8 s");
-        Render(scored, 0.3);
-        Assert.True(slow.Finished);
+        // E.6 "half speed": a 440 Hz bed (under the 1.2 kHz corner, so the low-pass leaves it) drops an octave while the
+        // opera plays, and a one-shot in it takes twice as long; the crew's voices stay where they were; and when the
+        // music's done the game is back at speed.
+        var mix = Mix with { Music = Bus with { GameRate = 0.5 } };
+        var bed = new SoundDef(5, [new LayerDef(SourceKind.Sine, 0.2, 440)], Loop: true, Flat: true);
+        var talk = new SoundDef(2, [new LayerDef(SourceKind.Sine, 0.2, 440)], Loop: true, Flat: true);
+        var knock = new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.2, 440)], Duration: 0.2, Flat: true);
+        var m = Make(mix, ("bed", bed), ("talk", talk), ("knock", knock));
+        var tap = new MeterTap(Audio.SampleRate * 3);
+        m.Tap = tap;
+        // The pitch over the last quarter second rendered.
+        double Now(string stem) => Hz(tap.Stems[stem], tap.Written / 2.0 / Audio.SampleRate - 0.25, 0.25);
+        m.Play("bed");
+        m.Play("talk");
+        Render(m, 0.5);
+        Assert.InRange(Now("bed"), 432, 448);
+        Assert.Equal(1, m.GameRate, 3);
+        var music = m.Play("music")!;
+        music.Clip = Sine(1000, 10, amplitude: 0.05f);
+        Render(m, 0.5);
+        Assert.Equal(0.5, m.GameRate, 2);
+        Assert.InRange(Now("bed"), 212, 228);
+        Assert.InRange(Now("talk"), 432, 448);
+        var one = m.Play("knock")!;
+        Render(m, 0.3);
+        Assert.False(one.Finished);
+        Render(m, 0.2);
+        Assert.True(one.Finished);
+        music.Stop();
+        Render(m, 1.2);
+        Assert.Equal(1, m.GameRate, 3);
+        Assert.InRange(Now("bed"), 432, 448);
     }
 }

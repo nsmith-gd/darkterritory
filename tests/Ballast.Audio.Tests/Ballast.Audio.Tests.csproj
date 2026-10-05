@@ -7,6 +7,10 @@
     <PackageReference Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Tiny Ogg Opus takes for SampleTests (how they were made is in its header). -->
+    <None Update="Samples/**/*.opus" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="../../src/Ballast.Audio/Ballast.Audio.csproj" />
   </ItemGroup>

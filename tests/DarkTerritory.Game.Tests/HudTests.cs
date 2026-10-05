@@ -4,6 +4,7 @@ using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -39,6 +40,26 @@ public class HudTests
         o.Clear();
         o.Text(0, 0, "I", Vector4.One);
         Assert.Equal(2 * 7 * 6, o.Count);
+    }
+
+    [Fact]
+    public void AFouledGunAndABreachedCarSayHowToPutThemRight()
+    {
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var train = s.Train;
+        // GDD §23: at a fouled gun, clear it by hand.
+        var mount = train.Frames[0].Shape.Gun!.Value;
+        s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
+        Assert.Equal("[E] SIT AT THE GUN   [E] + WALK: PUSH IT ALONG THE RAIL", Hud.Prompt(s));
+        train.Vehicles[0].Gun.Jammed = true;
+        Assert.Equal("GUN FOULED: [E] HOLD: CLEAR IT (0%)", Hud.Prompt(s));
+        // Decided 1 Oct: in a breached car, board up the hole; at it, hold Use.
+        var room = train.Frames[2].Shape.Interior!.Value;
+        train.Vehicles[2].Breach(Breaches.EndWall(train.Frames[2].Shape)!.Value);
+        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1) };
+        Assert.Equal("THE CAR'S BREACHED: BOARD UP THE HOLE", Hud.Prompt(s));
+        s.Player = s.Player with { Position = Breaches.StandAt(train, 2) };
+        Assert.Equal("[E] HOLD: BOARD UP THE BREACH (0%)", Hud.Prompt(s));
     }
 
     [Fact]
@@ -282,4 +303,5 @@ public class HudTests
             Assert.True(BitmapFont.Default.Measure(line) > 0);
         }
     }
+
 }

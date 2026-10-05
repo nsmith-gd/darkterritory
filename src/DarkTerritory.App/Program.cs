@@ -206,6 +206,8 @@ void ApplyDisplay()
 Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
+// The menus' sounds (ui-menus): flat, through the same mixer the speaker's fed from in the menus too.
+frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 var audioBlock = new float[Audio.Block * 2];
 var micSamples = new float[4800];
@@ -306,6 +308,8 @@ Launch? Menu()
     var vrMenu = vr is null ? null : new VrPanel(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Menu);
     var vrKeys = new VrMenuInput();
     frontEnd.Headset = vr is not null;
+    // The title's sound under the front end, until a night starts (the main loop stops it).
+    sound.UiLoop(UiCue.Title, on: true);
     // Whatever's held coming in (the A that ended the night) isn't a press here.
     if (vr is not null)
         vrKeys.Read(vr.Session.Controllers);
@@ -463,6 +467,7 @@ Launch? Menu()
 while (!window.CloseRequested && !QuitNow())
 {
     launch ??= Menu();
+    sound.UiLoop(UiCue.Title, on: false);
     if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
         break;
     // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
@@ -479,6 +484,8 @@ while (!window.CloseRequested && !QuitNow())
     var leaving = launch;
     launch = null;
     campaign = Play(session, campaign);
+    // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
+    sound.EndNight();
     // B.6 (note 182): a night this host ran had a child's call in it; from now on every call is the dice's.
     if (session is NetPlaySession { Host.World.ChildCalled: true })
         profile.MarkChildCalled();
@@ -552,6 +559,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
+    if (net is not null && sound.Clerk.Speaks)
+        net.RadioPace = sound.Clerk.Seconds;
     // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
     if (look is not null)
     {
@@ -562,6 +572,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
     var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
+    // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
+    sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
         : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
     var clock = new FixedStepClock(SimConstants.TickRate);
@@ -813,8 +825,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
             bool exposed = !PlayerMotor.Indoors(ears, session.Train);
+            // Who's aboard to be heard (their feet, their hands, who was bitten), and your own intent (your swing, your
+            // trigger: not replicated).
+            sound.CrewStates = GameAudio.CrewOf(session);
+            sound.OwnId = session.PlayerId;
+            sound.OwnIntent = intent;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
+            // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
+            sound.Interface(session.World, session.Player, session.PlayerId);
+            sound.Choices(session);
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
@@ -855,14 +875,29 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // faded under the film's cause card.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
-        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
-        sound.Radio(session.RadioReading is not null);
+        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio, said a line at a time
+        // as each comes on (note 240).
+        var reading = session.RadioReading;
+        sound.Radio(reading, reading is null ? 0
+            : DarkTerritory.Sim.Run.Radio.Reading(reading, session.RadioSeconds, session.World.Run?.Tuning.Radio ?? new(), session.RadioTimes).Lines);
+        // E.9: the Stranded outro's cooling boiler and its lamps going out, in time with the picture.
+        sound.Stranded(session.Train, wreckTuning.Stranded, outro ? session.OutroSeconds : -1);
+        // E.5, E.9: the clerk's one line, said as it comes up (note 242): the film's cause card, the Stranded report over the
+        // pull-back. It runs on past the card into the end screen if it's longer.
+        string? clerkLine = null;
+        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
+        if (beat == DerailBeat.Film && film?.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) is { } cut
+            && cut.Shot.Kind == DarkTerritory.Sim.Train.ShotKind.Cause)
+            clerkLine = cut.Shot.Card;
+        else if (outro && session.OutroSeconds > wreckTuning.Stranded.RackSeconds)
+            clerkLine = DarkTerritory.Sim.Run.Radio.Stranded(session.World.Run?.Report?.DistanceKm ?? 0);
+        sound.ClerkLine(clerkLine);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
-        // The beat, the cars as drawn (the replay's, the film's) and its camera: the same pick `dt film` renders (note 232).
+        // The beat, the cars as drawn (the replay's, the film's) and its camera: the same pick `dt film` renders (note 245).
         var derailShot = derailSequence.Show(session, frames, ownEyes: vr is null);
         frames = derailShot.Frames;
-        // The film's own wreck heard, not the live one (note 232).
+        // The film's own wreck heard, not the live one (note 245).
         sound.Film(derailShot.Film, derailShot.Filming);
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;

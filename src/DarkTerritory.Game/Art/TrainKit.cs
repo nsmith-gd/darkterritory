@@ -141,6 +141,9 @@ public static class TrainKit
         k.Rod(new Vector3(0.35f, height - 0.05f, z + dir * 0.05f), new Vector3(0.38f, height - 0.45f, z + dir * 0.25f), 0.025f, 6);
     }
 
+    /// <summary>How far apart a ladder's rungs are (also a climber's hand-over-hand: GameAudio's rung cues).</summary>
+    public const float RungPitch = 0.3f;
+
     /// <summary>
     /// Where a vehicle's two couplers stand (its frame, 0.9 m up): the front's and the rear's along it, and the way each
     /// points (±1, the modelled one pointing −Z, turned for the rear). The engine's front one stands a little proud of the
@@ -153,7 +156,7 @@ public static class TrainKit
         return (Matrix4x4.CreateTranslation(0, 0, front), Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, l));
     }
 
-    /// <summary>An iron ladder up a face: two stiles and rungs every 0.3 m, standing off it by a hand's depth.</summary>
+    /// <summary>An iron ladder up a face: two stiles and rungs every <see cref="RungPitch"/>, standing off it by a hand's depth.</summary>
     public static void RungLadder(Kit k, Vector3 foot, float top, Vector3 inward, float from = 0.2f)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, inward));
@@ -161,7 +164,7 @@ public static class TrainKit
         float half = 0.2f;
         foreach (int s in new[] { -1, 1 })
             k.Box(foot + across * (s * half) - new Vector3(0.022f, -from, 0.022f), foot + across * (s * half) + new Vector3(0.022f, top, 0.022f));
-        for (float y = from + 0.25f; y < top - 0.05f; y += 0.3f)
+        for (float y = from + 0.25f; y < top - 0.05f; y += RungPitch)
             k.Rod(foot + across * -half + new Vector3(0, y, 0), foot + across * half + new Vector3(0, y, 0), 0.016f);
         // Brackets back to the face.
         foreach (float y in new[] { from + 0.3f, top - 0.1f })

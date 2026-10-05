@@ -48,18 +48,34 @@ public sealed class MeterTap(int frames)
 
 /// <summary>
 /// The software mixer (ARCHITECTURE §6.4). Voices are synthesised, spatialised (distance rolloff,
-/// equal-power pan, occlusion) and summed onto six tier buses. Tier ducking follows spec A.3 exactly, from
-/// <c>content/audio/mix.json</c>: while a tier is audible, the tiers it ducks drop. The same code renders to
-/// the audio device and offline to a buffer, so audibility is something tests can measure.
+/// equal-power pan, occlusion) and summed onto seven tier buses: spec A.3's six, and music's own under them (decided
+/// 1 Oct). Tier ducking follows spec A.3 exactly, from <c>content/audio/mix.json</c>: while a tier is audible, the tiers
+/// it ducks drop. The listener's <see cref="Space"/> (spec A.6) adds its reverb, fed from every positioned voice by its
+/// tier's send, shuts out what it shuts out, and compresses voice where it says. The same code renders to the audio
+/// device and offline to a buffer, so audibility is something tests can measure.
 /// </summary>
 public sealed class Mixer
 {
-    public const int Tiers = 6;
     /// <summary>
-    /// The music bus (GDD v1.4 App. E.6): a sound with this tier is music, outside the tell tiers. It ducks nothing and the
-    /// tiers' rules never duck it; <see cref="MusicBusDef"/> says what it does.
+    /// The tiers (spec A.3), tier 1 on top. Tier 7 is the work's music, under everything (decided 1 Oct: low, ambient,
+    /// almost a drone, and every other tier ducks it).
+    /// </summary>
+    public const int Tiers = 7;
+    /// <summary>
+    /// The music bus (GDD v1.4 App. E.6): a sound with this tier is the derailment's opera, outside the tell tiers. It ducks
+    /// nothing and the tiers' rules never duck it; <see cref="MusicBusDef"/> says what it does. The work's drone is tier 7,
+    /// not this: the opera plays when the run's over, the drone while there's still a tell to hear.
     /// </summary>
     public const int MusicTier = 0;
+    /// <summary>The <see cref="MeterTap"/> stem the reverb's return is metered as (all but the tells' own, while metering).</summary>
+    public const string ReverbStem = "(reverb)";
+    /// <summary>
+    /// While a <see cref="MeterTap"/> is on: the tells' (tier 1's) own share of the reverb, convolved apart so an audit can
+    /// count a tell's room as the tell's and not as the bed masking it. Offline only: it doubles the reverb's cost.
+    /// </summary>
+    public const string TellReverbStem = "(reverb) tells";
+    /// <summary>How long what a space shuts out takes to go (a linear ramp to nothing), or to come back.</summary>
+    public const double MuteSeconds = 0.3;
     readonly SoundBank _bank;
     readonly List<SoundInstance> _voices = new();
     readonly float[][] _buffers;
@@ -71,6 +87,15 @@ public sealed class Mixer
     readonly Dictionary<string, double> _soundTarget = new();
     int _nextId = 1;
     uint _seed = 1;
+    // The space as of the last block, its reverb, and the reverbs of spaces just left, ringing out.
+    SpaceDef? _space;
+    Convolver? _reverb;
+    readonly List<Convolver> _tails = new();
+    readonly Dictionary<ReverbDef, ImpulseResponse> _responses = new();
+    readonly float[] _send = new float[Audio.Block], _wetLeft = new float[Audio.Block], _wetRight = new float[Audio.Block], _silence = new float[Audio.Block];
+    // Metering only: the tells' send, convolved apart.
+    Convolver? _tellReverb;
+    readonly float[] _tellSend = new float[Audio.Block], _tellLeft = new float[Audio.Block], _tellRight = new float[Audio.Block];
     Smoothed _musicGain = new(1), _gameLowpass = new(0);
 
     public Mixer(SoundBank bank, MixDef mix)
@@ -86,6 +111,22 @@ public sealed class Mixer
 
     public MixDef Mix { get; set; }
     public Listener Listener;
+    /// <summary>
+    /// The space the listener's in (<c>content/audio/spaces.json</c>, chosen by the game): its reverb, what it shuts out,
+    /// how voice carries in it. Null is dry and open. A change takes effect from the next block: the new reverb starts
+    /// empty, the old one rings out what it had.
+    /// </summary>
+    public SpaceDef? Space { get; set; }
+    /// <summary>The space's reverb (or the last one's tail) is sounding.</summary>
+    public bool Reverberating => _reverb?.Ringing == true || _tails.Count > 0;
+
+    /// <summary>Synthesises (once) and keeps a space's response, so entering the space later doesn't build it on the mixing thread.</summary>
+    public ImpulseResponse Prepare(ReverbDef def)
+    {
+        if (!_responses.TryGetValue(def, out var ir))
+            _responses[def] = ir = ImpulseResponse.Synthesize(def);
+        return ir;
+    }
     public IReadOnlyList<SoundInstance> Voices => _voices;
     public MeterTap? Tap { get; set; }
     /// <summary>Voices rendered in the last block (the rest were virtualised).</summary>
@@ -95,6 +136,8 @@ public sealed class Mixer
     public float MusicDuck => _musicGain.Value;
     /// <summary>How far the rest of the game is into the music's low-pass (0 = dry, 1 = fully muffled).</summary>
     public float GameLowpass => _gameLowpass.Value;
+    /// <summary>How fast the low-passed game plays now (1 = as made; the music bus's GameRate under a full fade).</summary>
+    public double GameRate => Mix.Music is { } bus ? 1 - (1 - bus.GameRate) * _gameLowpass.Value : 1;
     /// <summary>Music is sounding on the music bus.</summary>
     public bool MusicActive { get; private set; }
 
@@ -110,7 +153,7 @@ public sealed class Mixer
         var same = _voices.Where(v => v.Name == name && !v.Finished).ToList();
         for (int i = 0; i <= same.Count - Math.Max(1, def.MaxInstances); i++)
             same[i].Stop();
-        var voice = new SoundInstance(_nextId++, name, def, _seed++) { Position = position, Volume = volume };
+        var voice = new SoundInstance(_nextId++, name, def, _seed++, _bank.Samples) { Position = position, Volume = volume };
         _voices.Add(voice);
         return voice;
     }
@@ -134,10 +177,29 @@ public sealed class Mixer
     {
         output.Clear();
         _voices.RemoveAll(v => v.Finished);
+        if (!ReferenceEquals(Space, _space))
+            EnterSpace();
+        Array.Clear(_send);
+        Array.Clear(_tellSend);
 
         // Priority: tier 1 first (it's inviolable), then the loudest. Past the voice budget, voices go virtual.
         foreach (var v in _voices)
+        {
+            // What the space shuts out fades to nothing over MuteSeconds as you go into a tunnel, not as a cut, and comes back
+            // as you come out.
+            if (!ReferenceEquals(v.MutedFor, _space))
+            {
+                v.Muted = _space?.Mutes(v.Name) == true;
+                v.MutedFor = _space;
+            }
+            v.SpaceGain = Math.Clamp(v.SpaceGain + (v.Muted ? -1 : 1) * (float)(Audio.Block / (MuteSeconds * Audio.SampleRate)), 0, 1);
             v.LastAudibleGain = Spatial(v, out _, out _);
+        }
+        // E.6 "half speed": while the opera plays, the game on the low-passed tiers slows with the low-pass's fade, a tape
+        // winding down (GameRate at full fade); everything else at its own speed.
+        double slowed = GameRate;
+        foreach (var v in _voices)
+            v.Rate = Mix.Music is { } bus && Array.IndexOf(bus.LowpassTiers, v.Def.Tier) >= 0 ? slowed : 1;
         _selected.Clear();
         _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f || v.Stream is not null)
             .OrderBy(v => v.Def.Tier is 1 or MusicTier ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));
@@ -148,10 +210,6 @@ public sealed class Mixer
                 v.Skip(Audio.Block);
         }
         RenderedVoices = _selected.Count;
-        // App. E.6: under the music the rest of the game slows (GameSpeed, eased in and out with its low-pass).
-        if (Mix.Music is { } slowed)
-            foreach (var v in _voices)
-                v.Speed = Array.IndexOf(slowed.LowpassTiers, v.Def.Tier) >= 0 ? 1 + (slowed.GameSpeed - 1) * _gameLowpass.Value : 1;
 
         Array.Clear(_tierActive);
         _soundActive.Clear();
@@ -179,6 +237,7 @@ public sealed class Mixer
                     _tierActive[Math.Clamp(v.Def.Tier, 1, Tiers)] = true;
                 _soundActive.Add(v.Name);
             }
+            Compress(v, level);
         }
 
         // The music bus (App. E.6): ducked under the dead channel, and while it plays, the rest of the game muffled.
@@ -229,7 +288,8 @@ public sealed class Mixer
         {
             var v = _selected[i];
             Spatial(v, out float left, out float right);
-            float bus = (v.Def.Tier == MusicTier ? MusicBus() : _tierGain[Math.Clamp(v.Def.Tier, 1, Tiers)].Value) * master
+            int tier = Math.Clamp(v.Def.Tier, 1, Tiers);
+            float bus = (v.Def.Tier == MusicTier ? MusicBus() : _tierGain[tier].Value * Audio.DbToGain(Mix.Fader(tier))) * master * v.CompressorGain
                 * (_soundGain.TryGetValue(v.Name, out var sg) ? sg.Value : 1);
             float l0 = v.LeftGain.Value, r0 = v.RightGain.Value;
             float l1 = v.LeftGain.Step(left * bus, 0.01), r1 = v.RightGain.Step(right * bus, 0.01);
@@ -248,7 +308,22 @@ public sealed class Mixer
                     stem[tap.Written + s * 2 + 1] += r;
                 }
             }
+            // Into the room, post-fader and whatever the pan (the room's all round you). Flat sounds aren't in the world.
+            float send = _reverb is null || v.Def.Flat ? 0 : (float)_space!.Send(tier);
+            if (send > 0)
+            {
+                float s0 = MathF.Sqrt(l0 * l0 + r0 * r0) * send, s1 = MathF.Sqrt(l1 * l1 + r1 * r1) * send;
+                bool tell = tap is not null && tier == 1;
+                for (int s = 0; s < Audio.Block; s++)
+                {
+                    float x = buffer[s] * (s0 + (s1 - s0) * (s + 1f) / Audio.Block);
+                    _send[s] += x;
+                    if (tell)
+                        _tellSend[s] += x;
+                }
+            }
         }
+        Reverberate(output, tap);
         if (tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length)
         {
             // Pre-clip, so stems sum exactly to the total.
@@ -260,6 +335,81 @@ public sealed class Mixer
         // Soft clip rather than wrap: a swarm plus a derailment shouldn't crackle.
         for (int s = 0; s < output.Length; s++)
             output[s] = MathF.Tanh(output[s]);
+    }
+
+    /// <summary>The listener's moved to another space: its reverb starts empty, the last one's rings out (two at most).</summary>
+    void EnterSpace()
+    {
+        var was = _space?.Reverb;
+        _space = Space;
+        if (Equals(was, _space?.Reverb))
+            return;
+        if (_reverb is { Ringing: true })
+            _tails.Add(_reverb);
+        if (_tails.Count > 2)
+            _tails.RemoveAt(0);
+        _reverb = _space?.Reverb is { } def ? new Convolver(Prepare(def)) : null;
+        _tellReverb = null;
+    }
+
+    /// <summary>The space's reverb on this block's sends, and the tails of the spaces just left, into the mix (and the meter).</summary>
+    void Reverberate(Span<float> output, MeterTap? tap)
+    {
+        if (_reverb is null && _tails.Count == 0)
+            return;
+        Array.Clear(_wetLeft);
+        Array.Clear(_wetRight);
+        _reverb?.Process(_send, _wetLeft, _wetRight);
+        foreach (var tail in _tails)
+            tail.Process(_silence, _wetLeft, _wetRight);
+        _tails.RemoveAll(t => !t.Ringing);
+        bool metering = tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length;
+        float[]? stem = metering ? tap!.Stem(ReverbStem) : null;
+        // The tells' share, the same response on their send alone (the reverb's linear, so the rest is the difference).
+        Array.Clear(_tellLeft);
+        Array.Clear(_tellRight);
+        float[]? tells = null;
+        if (metering && _reverb is not null)
+        {
+            _tellReverb ??= new Convolver(_reverb.Response);
+            _tellReverb.Process(_tellSend, _tellLeft, _tellRight);
+            tells = tap!.Stem(TellReverbStem);
+        }
+        for (int s = 0; s < Audio.Block; s++)
+        {
+            output[s * 2] += _wetLeft[s];
+            output[s * 2 + 1] += _wetRight[s];
+            if (stem is not null)
+            {
+                stem[tap!.Written + s * 2] += _wetLeft[s] - _tellLeft[s];
+                stem[tap.Written + s * 2 + 1] += _wetRight[s] - _tellRight[s];
+            }
+            if (tells is not null)
+            {
+                tells[tap!.Written + s * 2] += _tellLeft[s];
+                tells[tap.Written + s * 2 + 1] += _tellRight[s];
+            }
+        }
+    }
+
+    /// <summary>
+    /// GDD §22: in a tunnel, proximity voice is compressed and close. The space's compressor works on a positioned voice's
+    /// level at the ear (after distance), a block at a time: what's over the threshold comes down by the ratio, and the
+    /// makeup brings it all up, so a crewmate at 20 m sounds nearly as close as one beside you. Elsewhere it's left alone.
+    /// </summary>
+    void Compress(SoundInstance v, double level)
+    {
+        if (_space?.Voice is not { } c || v.Def.Tier != 2 || v.Def.Flat)
+        {
+            v.CompressorGain = 1;
+            v.CompressorEnvelopeDb = -120;
+            return;
+        }
+        double db = Audio.GainToDb(level), seconds = (double)Audio.Block / Audio.SampleRate;
+        double time = db > v.CompressorEnvelopeDb ? c.AttackSeconds : c.ReleaseSeconds;
+        v.CompressorEnvelopeDb += (float)((db - v.CompressorEnvelopeDb) * (1 - Math.Exp(-seconds / Math.Max(1e-4, time))));
+        double over = Math.Max(0, v.CompressorEnvelopeDb - c.ThresholdDb);
+        v.CompressorGain = Audio.DbToGain(c.MakeupDb - over * (1 - 1 / Math.Max(1, c.Ratio)));
     }
 
     float MusicBus() => Mix.Music is { } m ? Audio.DbToGain(m.LevelDb) * _musicGain.Value : 1;
@@ -290,7 +440,7 @@ public sealed class Mixer
     float Spatial(SoundInstance v, out float left, out float right)
     {
         var def = v.Def;
-        float gain = v.Volume * Audio.DbToGain(def.GainDb) * Audio.DbToGain(EffectiveOcclusion(v) * Mix.OcclusionDb);
+        float gain = v.Volume * v.SpaceGain * Audio.DbToGain(def.GainDb) * Audio.DbToGain(EffectiveOcclusion(v) * Mix.OcclusionDb);
         if (def.Flat)
         {
             left = right = gain * 0.7071f;

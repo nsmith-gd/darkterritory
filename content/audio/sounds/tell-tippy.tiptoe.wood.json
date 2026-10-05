@@ -1,0 +1,20 @@
+// Tippy Toesie: faint tiptoeing: One faint tiptoe (fired at its pace) (Wood car floor (cargo and guard car decks, platforms)). Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
+{
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 4,
+ "maxDistance": 250,
+ "rolloff": 0.8,
+ "gainDb": 8,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-tippy/tiptoe/wood",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (tell-tippy/tiptoe/wood), in place of its synth definition
+// (tools/audio/synth-defs/tippy-tiptoe.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
+{
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 2,
+ "minDistance": 1,
+ "maxDistance": 14,
+ "gainDb": 16,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-tippy/tiptoe/wood",
+   "gain": 1
+  }
+ ]
+}

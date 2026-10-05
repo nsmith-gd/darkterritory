@@ -1,0 +1,14 @@
+// A child calling for help out in the dark (GDD v1.1 App. A.6), near facilities and dead towns: tier 2, like a voice, 300 Hz
+// to 3 kHz. A high thin voice in short calls with breath between, the pitch rising at the end of each. Half the time it's a
+// real survivor and half a Soot Child, and they sound the same: the call is the lure, the eyes are the tell.
+{
+  "tier": 2, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 90, "gainDb": 4,
+  "layers": [
+    { "source": "saw", "frequency": 420, "gain": 0.35,
+      "filters": [{ "type": "bandPass", "frequency": 1100, "q": 1.4 }, { "type": "peak", "frequency": 2600, "q": 3, "gainDb": 5 }],
+      "vibrato": { "rate": 5.5, "depth": 0.03 },
+      "tremolo": { "rate": 0.45, "depth": 1, "duty": 0.35, "jitter": 0.4 } },
+    { "source": "noise", "gain": 0.08, "filters": [{ "type": "bandPass", "frequency": 1800, "q": 2 }],
+      "tremolo": { "rate": 0.45, "depth": 1, "duty": 0.35, "jitter": 0.4 } }
+  ]
+}

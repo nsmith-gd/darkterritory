@@ -71,7 +71,7 @@ return args switch
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
     // dt film: the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it, every frame
-    // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 232).
+    // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 245).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
@@ -86,9 +86,12 @@ return args switch
     ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["audio", "opera", ..] => Print(OperaCommands.Run(content, args)),
+    ["audio", "clerk", ..] => Print(RenderClerk(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
+        // --space tunnel: heard as if in that space (content/audio/spaces.json), compressor, reverb and all.
+        Str(args, "--space", "") is { Length: > 0 } space ? space : null,
         args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null)),
 
     _ => Usage(),
@@ -2086,20 +2089,86 @@ static int Edit(string content, string[] args)
 // Renders a staged moment through the real mixer to a WAV, and measures every tell against the bed.
 static object RenderAudio(string content, string[] args)
 {
+    if (Str(args, "--sound", "") is { Length: > 0 } sound)
+        return RenderSound(content, sound, args);
     string scenario = Str(args, "--scenario", "chaos");
     if (Str(args, "--listener", "") == "all")
-        return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6));
+        return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6),
+            Str(args, "--space", "") is { Length: > 0 } everywhere ? everywhere : null);
     string output = Str(args, "--out", $"out/audio/{scenario}.wav");
     var clock = Stopwatch.StartNew();
     // A wreck renders the whole derailment sequence by default (note 170), the opera and the dead channel's laughing with it (E.6).
     double seconds = scenario == "wreck" ? 1 + DataFile.Load<DarkTerritory.Sim.Train.WreckTuning>(Path.Combine(content, DarkTerritory.Sim.Train.WreckTuning.File)).SequenceSeconds : 6;
     var (report, mix) = DarkTerritory.Game.Sound.AudioBench.Render(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22),
-        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", seconds), Str(args, "--track", "") is { Length: > 0 } track ? track : null);
+        (int)Opt(args, "--listener", 5), Opt(args, "--seconds", seconds), Str(args, "--space", "") is { Length: > 0 } space ? space : null,
+        Str(args, "--track", "") is { Length: > 0 } track ? track : null);
     Ballast.Audio.Wav.Write(output, mix);
     // The picture of it: a spectrogram beside the WAV, for looking at bands without listening.
     string picture = Path.ChangeExtension(output, ".png");
     PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
     return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report, ms = clock.ElapsedMilliseconds };
+}
+
+// dt audio render --sound <name>: one sound alone (a one-shot to its end, a loop for 4 s), with --param name=value held.
+static object RenderSound(string content, string sound, string[] args)
+{
+    var parameters = new Dictionary<string, double>();
+    for (int i = 0; i + 1 < args.Length; i++)
+        if (args[i] == "--param" && args[i + 1].Split('=') is [var name, var value])
+            parameters[name] = double.Parse(value);
+    // --space tunnel: heard in that space (content/audio/spaces.json), its reverb and all.
+    var (report, mix) = DarkTerritory.Game.Sound.AudioBench.RenderSound(content, sound, args.Contains("--seconds") ? Opt(args, "--seconds", 0) : null, parameters,
+        Str(args, "--space", "") is { Length: > 0 } space ? space : null);
+    string output = Str(args, "--out", $"out/audio/sound-{sound}.wav");
+    Ballast.Audio.Wav.Write(output, mix);
+    string picture = Path.ChangeExtension(output, ".png");
+    PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
+    return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report };
+}
+
+// dt audio clerk [--line "Crew: Priya."]: the yard on the radio (note 240), a manifest and a tally said through the set at the
+// voice's own pace, to a WAV and its spectrogram, with each line's turn and what the set broke up over.
+static object RenderClerk(string content, string[] args)
+{
+    var audio = new DarkTerritory.Game.Sound.GameAudio(content) { Mixer = { Listener = Ballast.Audio.Listener.At(Double3.Zero, 0) } };
+    audio.Bank.Samples.InlineBytes = long.MaxValue;
+    var t = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Radio;
+    string[] lines = Str(args, "--line", "") is { Length: > 0 } one ? [one] :
+    [
+        "Yard to consist. Manifest follows.", "Crew: Okafor.", "Crew: Priya.", "Crew: Halloran.", "Coal: 412.", "Powder and shot: 40.",
+        "Cars: 6.", "Freight: grain, medicine.", "Gates open. Yard out.",
+        "Yard clerk. Consist received. Tally follows.", "Cars delivered: 5. Cargo: 2450.", "Cars lost: 1.",
+        "Reyes. Body recovered. Fee 350. Refund 263.", "Priya. Body not recovered. Fee 350.", "Mail: 90.",
+        "Coal: 40. Powder and shot: 12. Repairs: 30.", "Net: 1158. Next.",
+    ];
+    var times = DarkTerritory.Sim.Run.Radio.Times(lines, t, audio.Clerk.Seconds);
+    double length = DarkTerritory.Sim.Run.Radio.Length(lines, t, times), blockSeconds = (double)Ballast.Audio.Audio.Block / Ballast.Audio.Audio.SampleRate;
+    var mix = new List<float>();
+    var block = new float[Ballast.Audio.Audio.Block * 2];
+    for (double at = 0; at < length; at += blockSeconds)
+    {
+        audio.Radio(lines, DarkTerritory.Sim.Run.Radio.Reading(lines, at, t, times).Lines);
+        audio.Mixer.Render(block);
+        mix.AddRange(block);
+    }
+    string output = Str(args, "--out", "out/audio/clerk.wav");
+    var all = mix.ToArray();
+    Ballast.Audio.Wav.Write(output, all);
+    string picture = Path.ChangeExtension(output, ".png");
+    PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(all, 800, 300), 800, 300, 1);
+    return new
+    {
+        path = Path.GetFullPath(output),
+        spectrogram = Path.GetFullPath(picture),
+        seconds = Math.Round(length, 2),
+        lines = lines.Select((l, i) => new
+        {
+            line = l,
+            at = Math.Round(times.Take(i).Sum(), 2),
+            said = Math.Round(audio.Clerk.Seconds(l), 2),
+            brokeUp = audio.Clerk.Pieces(l).Where(p => p.Kind == DarkTerritory.Game.Sound.ClerkVoice.PieceKind.Breakup).Select(p => p.Text),
+        }),
+    };
 }
 
 static string Str(string[] args, string name, string fallback)
@@ -2219,9 +2288,12 @@ static int Usage()
           online check                             is Steam reachable from here (signed-in user, or what's missing)
           audio opera [--check]
                      the derailment's music (GDD v1.4 App. E.6): our own CC0 recordings into content/audio/music, the manifest, CREDITS.md
-          audio render [--scenario bed|tells|chaos|wreck|toys] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav] [--track id]
+          audio render [--scenario bed|tells|chaos|wreck|toys] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav] [--track id] [--space name]
                      renders through the mixer to a WAV and a spectrogram PNG, and reports each tell's margin over the bed (spec A.3);
-                     wreck: the whole derailment sequence with its opera (E.6: the hit, the duck under the dead channel, the fade)
+                     wreck: the whole derailment sequence with its opera (E.6: the hit, the duck under the dead channel, the fade);
+                     --space: heard as if in that space (content/audio/spaces.json)
+          audio render --sound <name> [--param name=value ...] [--seconds t] [--out file.wav]
+                     one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)

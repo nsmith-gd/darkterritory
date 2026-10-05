@@ -10,7 +10,9 @@ namespace DarkTerritory.Game.Sound;
 /// push-to-talk) → Opus in 20 ms frames → the host. Incoming: each speaker's frames are decoded once and fed to
 /// the path the host said they came by: a positional voice at the speaker (26 m log falloff, occluded through
 /// the cab walls), a flat band-limited radio, or the flat dead channel. All of it plays on tier 2 of the mixer,
-/// so talking ducks the bed exactly as spec A.3 says.
+/// so talking ducks the bed exactly as spec A.3 says. A dead player on their Holdout's Live Mic (GDD App. D.7) comes on
+/// the positional path too, from the Holdout's door. In a tunnel the mixer's space compresses positional voice and gives
+/// it the tunnel's reverb (GDD §22; GameAudio picks the space).
 /// <para>
 /// A Soot Child's call (T40) comes as its own stream, keyed by the thing and not the crewmate whose voice it's using:
 /// the frames are replayed, so they'd be stale to that crewmate's own decoder. It plays from where the thing is, at one
@@ -56,6 +58,11 @@ public sealed class VoiceChat
         public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
         public double RadioKeyed;
+        /// <summary>Their radio as of last update: keyed (the click and the static), and when it last broke up.</summary>
+        public bool Keyed;
+        public SoundInstance? Static;
+        public int RadioUnderruns;
+        public double BrokeUp = double.NegativeInfinity;
         public double LastHeard = double.NegativeInfinity;
         /// <summary>
         /// Cut off by their death (<see cref="HardCut"/>): their voice in the air and on the radio stays dropped until the
@@ -176,6 +183,7 @@ public sealed class VoiceChat
                         s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
+            RadioSet(s);
         }
         // Whoever's left the session goes quiet.
         foreach (var id in _speakers.Keys.Where(id => client.RemoteIds.All(r => r != id)).ToList())
@@ -184,8 +192,39 @@ public sealed class VoiceChat
             s.NearVoice?.Stop();
             s.RadioVoice?.Stop();
             s.DeadVoice?.Stop();
+            s.Static?.Stop();
             _speakers.Remove(id);
         }
+    }
+
+    /// <summary>
+    /// The set in your hand as a crewmate's transmission comes and goes (voice-radio-sfx): the click as they key it, static
+    /// under them that comes up while the signal breaks up (frames lost on the way: the stream running dry), and the click
+    /// and squelch tail as they let go.
+    /// </summary>
+    void RadioSet(Speaker s)
+    {
+        bool keyed = s.RadioKeyed > 0 || s.Radio.Playing;
+        if (s.Radio.Underruns != s.RadioUnderruns)
+        {
+            s.RadioUnderruns = s.Radio.Underruns;
+            s.BrokeUp = _clock;
+        }
+        if (keyed && !s.Keyed)
+        {
+            _mixer.Play("voice-radio-sfx.key-down");
+            s.Static ??= _mixer.Play("voice-radio-sfx.static");
+        }
+        else if (!keyed && s.Keyed)
+        {
+            _mixer.Play("voice-radio-sfx.key-up");
+            _mixer.Play("voice-radio-sfx.squelch");
+            s.Static?.Stop();
+            s.Static = null;
+        }
+        s.Keyed = keyed;
+        if (s.Static is not null)
+            s.Static.Volume = _clock - s.BrokeUp < 0.6 ? 1f : 0.2f;
     }
 
     /// <summary>The voice stops here: whatever of it is waiting, in the air and on the radio, is dropped.</summary>

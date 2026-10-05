@@ -13,21 +13,18 @@ namespace DarkTerritory.Game.Sound;
 /// state (spec A.4), actions from this tick's events. It reads state rather than host-only events, so a
 /// client hears exactly what the host does from the replicated world.
 /// </summary>
-public sealed class GameAudio
+public sealed partial class GameAudio
 {
     readonly HotData<MixDef> _mix;
     readonly Dictionary<int, EnemySound> _enemies = new();
     readonly Dictionary<int, double> _packs = new();
+    readonly Dictionary<int, SoundInstance> _packHowls = new();
     readonly Dictionary<int, SoundInstance> _wheels = new();
-    readonly List<(double At, Double3 Position, float Volume)> _slack = new();
     readonly List<SoundInstance> _choir = new();
     readonly Pcg32Ish _rng = new(20260929);
     SoundInstance? _roar, _chuff, _brake, _wind, _valve, _strain, _vent;
     bool _wasRuptured;
-    // The derailment (T117): the grind while it slides, and each car's last velocity and when it last crashed.
-    SoundInstance? _grind;
-    readonly Dictionary<int, (Double3 Velocity, double Crashed)> _wreckCars = [];
-    double _time, _lastAccel;
+    double _time;
     int _space = PlayerMotor.Outside;
 
     /// <summary>Through the walls unless the listener is outside, or the sound is in their own space.</summary>
@@ -38,10 +35,14 @@ public sealed class GameAudio
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         Mixer = new Mixer(Bank, _mix.Value);
+        PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
+        Clerk = new ClerkVoice(Bank.Samples);
     }
 
     public SoundBank Bank { get; }
+    /// <summary>The yard's voice on the radio (note 240): what it can say, and how long a line takes it.</summary>
+    public ClerkVoice Clerk { get; }
     public Mixer Mixer { get; }
     /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
     public Opera Opera { get; }
@@ -52,7 +53,7 @@ public sealed class GameAudio
     /// </summary>
     public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
 
-    // The film's own wreck heard (note 232): where its shot has got to in the recording, and when it last crashed.
+    // The film's own wreck heard (note 245): where its shot has got to in the recording, and when it last crashed.
     double _filmAt = double.NaN, _filmCrashed = double.NegativeInfinity;
     SoundInstance? _filmGrind;
 
@@ -133,79 +134,18 @@ public sealed class GameAudio
             Mixer.Mix = _mix.Value;
         Bank.Refresh();
         Mixer.Listener = listener;
+        MixAround(world, listener);
         var train = world.Train;
+        // Inside a breached car the wind blows in as on the roof (decided 1 Oct; GameAudio.Faults.cs).
+        exposed |= BreachedAround(world, listener.Position) is not null;
+        _exposed = exposed;
         Bed(train, controls, listener, exposed, dt);
         Enemies(world);
         Choir(world, train);
         Actions(world);
         Whistle(world, train);
+        Cues(world);
         Toys(world, train);
-        CallOuts(world);
-        SetPieces(world);
-    }
-
-    readonly Dictionary<(string Sound, int Site, int Index), SoundInstance> _setPieces = [];
-
-    /// <summary>
-    /// The facilities' set pieces heard (note 198; notes 185, 187 had them silent): the spout pouring, the herd stirred up,
-    /// the hose leaking, and a wreck-yard heap groaning before it shifts (its tell). Each a loop where it is, for as long as
-    /// the run's state says so; the run's set pieces and heaps are replicated, so every client hears the same.
-    /// </summary>
-    void SetPieces(World world)
-    {
-        var want = new HashSet<(string, int, int)>();
-        if (world.Run is { } run)
-            for (int i = 0; i < run.Sites.Count; i++)
-            {
-                if (run.Sites[i] is not { } site)
-                    continue;
-                if (site.Pouring)
-                    Keep(want, ("spout-pour", i, 0), site.Spout);
-                if (site.Stirred)
-                    Keep(want, ("herd", i, 0), site.Pen);
-                if (site.Leaking)
-                    Keep(want, ("hose-leak", i, 0), site.HoseStand);
-                for (int h = 0; h < site.Heaps.Count; h++)
-                    if (site.Heaps[h].Groan > 0)
-                        Keep(want, ("heap-groan", i, h), site.Heaps[h].Centre + Double3.Up);
-            }
-        foreach (var key in _setPieces.Keys.Where(k => !want.Contains(k)).ToList())
-        {
-            _setPieces[key].Stop();
-            _setPieces.Remove(key);
-        }
-    }
-
-    void Keep(HashSet<(string, int, int)> want, (string Sound, int Site, int Index) key, Double3 at)
-    {
-        want.Add(key);
-        if (!_setPieces.TryGetValue(key, out var loop) && Mixer.Play(key.Sound, at) is { } started)
-            _setPieces[key] = loop = started;
-        if (loop is not null)
-        {
-            loop.Position = at;
-            loop.Occlusion = Occlusion(PlayerMotor.Outside);
-        }
-    }
-
-    readonly Dictionary<int, int> _calls = [];
-
-    /// <summary>
-    /// GDD v1.4 App. D.7 Call Out (note 179): each Call Out the host counts plays once at its Holdout, a shout or a bout of
-    /// banging, through the walls unless you're outside by it. What had been called before this client first looked is old.
-    /// </summary>
-    void CallOuts(World world)
-    {
-        if (world.Holdouts is not { } holdouts)
-            return;
-        foreach (var h in holdouts.All)
-        {
-            bool seen = _calls.TryGetValue(h.Index, out int was);
-            _calls[h.Index] = h.Calls;
-            if (!seen || h.Calls <= was)
-                continue;
-            Mixer.Play((h.Index + h.Calls) % 2 == 0 ? "holdout-shout" : "holdout-bang", h.Inside)?.Also(v => v.Occlusion = 1);
-        }
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];
@@ -244,31 +184,102 @@ public sealed class GameAudio
         }
     }
 
-    SoundInstance? _whistle, _radioVoice;
+    SoundInstance? _whistle, _radioVoice, _radioSays, _clerkSays;
+    IReadOnlyList<string>? _radioLines;
+    int _radioSaid;
+    string? _clerkSaid;
+    // The fraction of the working band's bottom under which the whistle only wheezes.
+    const double WheezeBelow = 0.5;
 
-    /// <summary>The fortress reading over the radio (GDD §9; note 178): its voice and static for as long as it's on the air.</summary>
-    public void Radio(bool onAir)
+    /// <summary>
+    /// The fortress reading over the radio (GDD §9; notes 178, 240): the set's static for as long as it's on the air, and
+    /// each of <paramref name="reading"/>'s lines said as it comes on (<paramref name="onAir"/> of them so far, from
+    /// Sim.Run.Radio.Reading at the voice's own pace), in the clerk's voice through the set. Null, nobody's on the air.
+    /// </summary>
+    public void Radio(IReadOnlyList<string>? reading, int onAir)
     {
-        if (!onAir)
+        if (reading is null)
         {
-            _radioVoice?.Stop();
-            _radioVoice = null;
+            _radioSays?.Stop();
+            _radioSays = null;
+            _radioLines = null;
+            // The static stays under a clerk's line still being said (ClerkLine).
+            if (_clerkSays is null or { Finished: true })
+            {
+                _radioVoice?.Stop();
+                _radioVoice = null;
+            }
             return;
         }
+        _radioVoice ??= Mixer.Play("radio-clerk");
+        if (!ReferenceEquals(reading, _radioLines))
+        {
+            _radioLines = reading;
+            _radioSaid = 0;
+        }
+        for (; _radioSaid < Math.Min(onAir, reading.Count); _radioSaid++)
+        {
+            // Behind (a stalled frame, or joined mid-reading): only the newest line is said, not a pile of them at once.
+            if (_radioSaid < onAir - 1 || Clerk.Render(reading[_radioSaid]) is not { } said)
+                continue;
+            _radioSays?.Stop();
+            _radioSays = Mixer.Play("radio-clerk-voice");
+            if (_radioSays is not null)
+                _radioSays.Clip = said;
+        }
+    }
+
+    /// <summary>
+    /// The clerk's one line over a moment (notes 240, 242): the derail film's cause card (GDD v1.4 App. E.5) and the Stranded
+    /// pull-back's report (E.9), said once in the yard's voice through the set as it comes on, with the channel's static
+    /// under it till it's done. Null, or the same line again, says nothing new.
+    /// </summary>
+    public void ClerkLine(string? line)
+    {
+        if (line is null || line == _clerkSaid)
+        {
+            // Said: the static goes with it, unless a reading has the air.
+            if (_clerkSays is { Finished: true })
+            {
+                _clerkSays = null;
+                if (_radioLines is null)
+                {
+                    _radioVoice?.Stop();
+                    _radioVoice = null;
+                }
+            }
+            return;
+        }
+        _clerkSaid = line;
+        if (Clerk.Render(line) is not { } said)
+            return;
+        _clerkSays?.Stop();
+        _clerkSays = Mixer.Play("radio-clerk-voice");
+        if (_clerkSays is not null)
+            _clerkSays.Clip = said;
         _radioVoice ??= Mixer.Play("radio-clerk");
     }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
     {
-        if (world.WhistleSeconds <= 0)
+        // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
+        if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
-            _whistle?.Stop();
+            // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
+            if (Bank.Get("train-whistle") is { Loop: true })
+                _whistle?.Stop();
             _whistle = null;
             return;
         }
         var engine = train.Frames[0];
-        _whistle ??= Mixer.Play("train-whistle", engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
+        if (_whistle is { Finished: true })
+            _whistle = null;    // a recorded blast that's ended while the cord's still held: another
+        // On low steam the whistle can barely speak: a thin, flat wheeze (crew-mishaps). The cord's and the Whistler's alike,
+        // since it's the same whistle (spec A.4), and on tier 1 as the whistle is.
+        string whistle = train.BoilerTuning is { } bt && train.Boiler.Pressure < bt.WorkingBandMin * WheezeBelow
+            && HasCue("crew-mishaps.whistle-wheeze") ? "crew-mishaps.whistle-wheeze" : "train-whistle";
+        _whistle ??= Mixer.Play(whistle, engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)));
         if (_whistle is not null)
         {
             _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
@@ -283,7 +294,7 @@ public sealed class GameAudio
         double speed = d.Speed;
         var bt = train.BoilerTuning;
 
-        _roar ??= Mixer.Play("boiler-roar");
+        _roar ??= Synth("boiler-roar");
         if (_roar is not null)
         {
             _roar.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
@@ -291,7 +302,7 @@ public sealed class GameAudio
             _roar.Params.Set("pressure", train.Boiler.Ruptured ? 0 : train.Boiler.Pressure);
             _roar.Params.Set("fire", bt is null ? 0.7 : train.Boiler.FireFraction(bt));
         }
-        _chuff ??= Mixer.Play("chuff");
+        _chuff ??= Synth("chuff");
         if (_chuff is not null)
         {
             _chuff.Position = engine.ToWorld(new Double3(0, 3.5, -engine.Shape.HalfLength * 0.7));
@@ -310,9 +321,11 @@ public sealed class GameAudio
         foreach (int id in near)
         {
             if (!_wheels.TryGetValue(id, out var w) || w.Finished)
-                _wheels[id] = w = Mixer.Play("wheel-rail")!;
-            if (w is null)
-                continue;
+            {
+                if (Synth("wheel-rail") is not { } fresh)
+                    continue;
+                _wheels[id] = w = fresh;
+            }
             var frame = train.Frames[id];
             w.Position = frame.ToWorld(new Double3(0, 0.5, 0));
             w.Params.Set("speed", RakeOf(train, id)?.Speed ?? speed);
@@ -321,7 +334,7 @@ public sealed class GameAudio
         double braking = controls.Brake * speed;
         if (braking > 0.3)
         {
-            _brake ??= Mixer.Play("brake");
+            _brake ??= Synth("brake");
             if (_brake is not null)
             {
                 _brake.Position = train.Frames.MinBy(f => (f.Origin - listener.Position).Length)!.ToWorld(new Double3(0, 0.5, 0));
@@ -334,13 +347,13 @@ public sealed class GameAudio
             _brake = null;
         }
 
-        _wind ??= Mixer.Play("wind");
+        _wind ??= Synth("wind");
         _wind?.Params.Set("wind", exposed ? speed : 0);
 
         // The safety valve lifting.
         if (train.Boiler.SafetyValveLifting && !train.Boiler.Ruptured)
         {
-            _valve ??= Mixer.Play("safety-valve");
+            _valve ??= Synth("safety-valve");
             if (_valve is not null)
                 _valve.Position = engine.ToWorld(new Double3(0, 4.3, -engine.Shape.HalfLength * 0.1));
         }
@@ -357,7 +370,7 @@ public sealed class GameAudio
             : 0.6 * Math.Clamp((boiler.Pressure - bt.Redline) / Math.Max(1, bt.PressureMax - bt.Redline), 0, 1) + 0.4 * Math.Clamp(boiler.AtMaxSeconds / bt.RuptureHoldSeconds, 0, 1);
         if (strain > 0)
         {
-            _strain ??= Mixer.Play("boiler-strain");
+            _strain ??= Synth("boiler-strain");
             if (_strain is not null)
             {
                 _strain.Position = engine.ToWorld(new Double3(0, 3.2, -engine.Shape.HalfLength * 0.3));
@@ -371,7 +384,7 @@ public sealed class GameAudio
         }
         if (boiler.Vented && !boiler.Ruptured)
         {
-            _vent ??= Mixer.Play("vent-hiss");
+            _vent ??= Synth("vent-hiss");
             if (_vent is not null)
                 _vent.Position = engine.ToWorld(new Double3(0, 4.0, -engine.Shape.HalfLength * 0.6));
         }
@@ -380,78 +393,12 @@ public sealed class GameAudio
             _vent.Stop();
             _vent = null;
         }
-        if (boiler.Ruptured && !_wasRuptured && Mixer.Play("boiler-burst") is { } burst)
+        if (boiler.Ruptured && !_wasRuptured && Synth("boiler-burst") is { } burst)
             burst.Position = engine.ToWorld(new Double3(0, 2.6, -engine.Shape.HalfLength * 0.4));
         _wasRuptured = boiler.Ruptured;
 
-        // Slack action: a change in pull runs down the consist as one clunk per coupling (spec A.2, A.7).
-        double accel = d.Acceleration;
-        double jolt = Math.Abs(accel - _lastAccel);
-        _lastAccel = accel;
-        if (jolt > 0.12 && _slack.Count == 0)
-        {
-            float volume = (float)Math.Clamp(jolt / 0.8, 0.3, 1);
-            int k = 0;
-            foreach (var rake in train.Rakes)
-                for (int i = 0; i + 1 < rake.Consist.Vehicles.Count; i++, k++)
-                {
-                    var frame = train.Frames[rake.Consist.Vehicles[i].Id];
-                    _slack.Add((_time + k * 0.11, frame.ToWorld(new Double3(0, 1.0, frame.Shape.HalfLength)), volume));
-                }
-        }
-        for (int i = _slack.Count - 1; i >= 0; i--)
-            if (_slack[i].At <= _time)
-            {
-                Mixer.Play("slack-clunk", _slack[i].Position, _slack[i].Volume);
-                _slack.RemoveAt(i);
-            }
-        Wreck(double.IsNaN(_filmAt) ? train.Wreck : null);
-    }
-
-    /// <summary>
-    /// The derailment (T117): a crash wherever a car's velocity jumps (it hit the ground or another car), and the grind of
-    /// steel through earth at the fastest car still sliding. Read off the poses, so a client hears what the host simulates.
-    /// </summary>
-    void Wreck(Wreck? wreck)
-    {
-        if (wreck is null)
-        {
-            _wreckCars.Clear();
-            _grind?.Stop();
-            _grind = null;
-            return;
-        }
-        WreckBody? fastest = null;
-        foreach (var b in wreck.Bodies)
-        {
-            if (_wreckCars.TryGetValue(b.Vehicle, out var last))
-            {
-                double jump = (b.Velocity - last.Velocity).Length;
-                if (jump > 3.5 && _time - last.Crashed > 0.6)
-                {
-                    Mixer.Play("wreck-crash", b.Centre, (float)Math.Clamp(jump / 9, 0.35, 1));
-                    last.Crashed = _time;
-                }
-            }
-            _wreckCars[b.Vehicle] = (b.Velocity, last.Crashed);
-            if (fastest is null || b.Velocity.Length > fastest.Velocity.Length)
-                fastest = b;
-        }
-        double speed = fastest?.Velocity.Length ?? 0;
-        if (!wreck.Settled && speed > 0.6)
-        {
-            _grind ??= Mixer.Play("wreck-grind");
-            if (_grind is not null)
-            {
-                _grind.Position = fastest!.Centre;
-                _grind.Volume = (float)Math.Clamp(speed / 12, 0.15, 1);
-            }
-        }
-        else if (_grind is not null)
-        {
-            _grind.Stop();
-            _grind = null;
-        }
+        // Slack action: a change in pull runs down the consist as one clunk per coupling (spec A.2, A.7; GameAudio.Train).
+        Slack(train, d);
     }
 
     void Loop(EnemySound s, string sound, Double3 at, float occlusion)
@@ -462,6 +409,30 @@ public sealed class GameAudio
             s.Loop.Position = at;
             s.Loop.Occlusion = occlusion;
         }
+    }
+
+    /// <summary>
+    /// A tell held on like a loop whose sound can be single steps or bursts instead (its kept takes from the audio checklist,
+    /// tools/audio/install.py): a loop is held; a one-shot is fired again, once the last has ended, after an uneven gap, so
+    /// it never settles into a rhythm (spec A.4 rule 4).
+    /// </summary>
+    void Repeat(EnemySound s, string sound, Double3 at, float occlusion, double gap, double jitter)
+    {
+        if (Bank.Get(sound) is not { Loop: false })
+        {
+            Loop(s, sound, at, occlusion);
+            return;
+        }
+        if (s.Loop is { Finished: false } playing)
+        {
+            playing.Position = at;
+            playing.Occlusion = occlusion;
+            return;
+        }
+        if (_time < s.Next)
+            return;
+        s.Loop = Mixer.Play(sound, at)?.Also(v => v.Occlusion = occlusion);
+        s.Next = _time + gap + jitter * _rng.Next();
     }
 
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
@@ -494,11 +465,24 @@ public sealed class GameAudio
                     }
                     break;
                 case EnemyKind.CinderHound when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab:
-                    // The pack howls, not each hound: whoever leads it, every few seconds.
+                    // The pack howls, not each hound: whoever leads it, every few seconds (close behind, the near howl).
                     int pack = (int)e.Extra;
+                    // A recorded howl can run longer than the gap: the next waits for the last to end and a breath after
+                    // it, so they never pile up into a wall.
+                    if (_packHowls.TryGetValue(pack, out var howling))
+                    {
+                        if (!howling.Finished)
+                            break;
+                        _packHowls.Remove(pack);
+                        _packs[pack] = Math.Max(_packs.GetValueOrDefault(pack), _time + 1.5 + 2.5 * _rng.Next());
+                    }
                     if (!_packs.TryGetValue(pack, out double next) || _time >= next)
                     {
-                        Mixer.Play("hound-howl", at)?.Also(v => v.Occlusion = occlusion);
+                        if (Mixer.Play(HowlFor(train, e), at) is { } howl)
+                        {
+                            howl.Occlusion = occlusion;
+                            _packHowls[pack] = howl;
+                        }
                         _packs[pack] = _time + 3 + 2.5 * _rng.Next();
                     }
                     break;
@@ -519,8 +503,8 @@ public sealed class GameAudio
                     Loop(s, "hugger-grind", at, occlusion);
                     break;
                 case EnemyKind.Climber when e.Phase == SpinePhase.Telegraph:
-                    // Scrabbling at the gap it's mounting (App. A.4), out in the gap.
-                    Loop(s, "climber-scrabble", at, occlusion);
+                    // Scrabbling at the gap it's mounting (App. A.4), out in the gap: in uneven bursts.
+                    Repeat(s, "climber-scrabble", at, occlusion, 0.15, 0.7);
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
                     // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2). T118: now and then, a
@@ -535,8 +519,10 @@ public sealed class GameAudio
                         s.Next = _time + 7 + 9 * _rng.Next();
                     }
                     break;
-                case EnemyKind.TippyToesie when e.Phase == SpinePhase.Telegraph:
-                    Loop(s, "tippy-tiptoe", at, occlusion);
+                case EnemyKind.TippyToesie when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
+                    // Faint tiptoeing for as long as it creeps up (App. A.5): a step every half second or so at its creep
+                    // (0.6 m/s, enemies.json), on whatever it's crossing.
+                    Repeat(s, Surfaced("tippy-tiptoe", SurfaceOf(e, train)) ?? "tippy-tiptoe", at, occlusion, 0.45, 0.35);
                     break;
                 case EnemyKind.FireFlies when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
                     Loop(s, "fireflies-buzz", at, occlusion);
@@ -552,7 +538,8 @@ public sealed class GameAudio
                     break;
                 case EnemyKind.SootChildren when ((SootChildren)e).Extra > 0.5:
                     // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell.
-                    Loop(s, "child-call", at, occlusion);
+                    // Call after call, with a frightened wait for an answer between.
+                    Repeat(s, "child-call", at, occlusion, 1.6, 2.4);
                     break;
                 case EnemyKind.CarFire:
                     // Heard through the car's walls: the fire's crackle, more of it the further it's gone.
@@ -612,8 +599,8 @@ public sealed class GameAudio
 
     void Actions(World world)
     {
-        foreach (var shot in world.Shots)
-            Mixer.Play("gunshot", shot.Muzzle)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+        // The shots are heard from the guns' replicated state, everyone's (GameAudio.Crew.cs, CrewGuns): world.Shots is only
+        // ever this machine's own predicted one.
         Strikes(world);
     }
 
@@ -622,8 +609,9 @@ public sealed class GameAudio
 
     /// <summary>
     /// What landed (T121), from the replicated world, each once: a ball's boom where it came down (a splash in water, and the
-    /// porcelain going when it was the Track Doll), and the thud of a blow or a ball on a creature at the hit point. On the
-    /// first update, what's already there is old news: it's marked heard, not played.
+    /// porcelain going when it was the Track Doll), and a blow or a ball on a creature at the hit point. A blow is the tool
+    /// in the hitter's hand on flesh (crew-melee), or a bare slap; a ball, or a blow with no take of its own, the thud of
+    /// hit-confirm. On the first update, what's already there is old news: it's marked heard, not played.
     /// </summary>
     void Strikes(World world)
     {
@@ -631,20 +619,94 @@ public sealed class GameAudio
         {
             if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
                 continue;
-            Mixer.Play(i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+            // Nobody's shot (World.Blast: a powder keg or a powder car going up, notes 182 and 185) is its own, bigger blast.
+            string boom = i.Shooter < 0 && Bank.Get("powder-blast") is not null ? "powder-blast"
+                : i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact";
+            Mixer.Play(boom, i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
             if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
                 Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
         }
         foreach (var h in world.Hits)
-            if (_heardHits.Add(h.Id) && _strikesPrimed)
-                Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = Occlusion(world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { Attached: >= 0 } on
-                    ? on.Attached : PlayerMotor.Outside));
+        {
+            if (!_heardHits.Add(h.Id) || !_strikesPrimed)
+                continue;
+            float occlusion = Occlusion(world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { Attached: >= 0 } on ? on.Attached : PlayerMotor.Outside);
+            string? blow = null;
+            if (h.Source == HitSource.Melee)
+                foreach (var (id, s) in CrewStates)
+                    if (id == h.By)
+                        blow = Kit.Held(s) is var tool and not Tool.None ? $"crew-melee.{ToolName(tool)}-hit-flesh" : "crew-mishaps.bare-slap";
+            if (blow is not null && HasCue(blow))
+                Cue(blow, h.At, occlusion);
+            else
+                Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = occlusion);
+        }
         _strikesPrimed = true;
         // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
         if (_heardImpacts.Count > 64)
             _heardImpacts.IntersectWith(world.Impacts.Select(i => i.Id));
         if (_heardHits.Count > 64)
             _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
+    }
+
+    SoundInstance? _cooling;
+    int _lampsOut;
+
+    /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: "wind and the boiler ticking as it cools. No music." The dead boiler's iron
+    /// ticking at the firebox, slower as the outro goes on, and each car's lamp guttering out as the shot pulls back, the
+    /// last car first and the engine last (<see cref="Views.StrandedLampsOut"/>, the picture's own count). The app calls it
+    /// each frame with the outro's seconds, or −1 when there's none.
+    /// </summary>
+    public void Stranded(TrainOnLine train, StrandedOutroTuning t, double seconds)
+    {
+        if (seconds < 0)
+        {
+            _cooling?.Stop();
+            _cooling = null;
+            _lampsOut = 0;
+            return;
+        }
+        var engine = train.Frames[0];
+        var firebox = engine.ToWorld(new Double3(0, 1.6, engine.Shape.HalfLength * 0.5));
+        _cooling ??= Mixer.Play("boiler-tick", firebox);
+        if (_cooling is not null)
+        {
+            _cooling.Position = firebox;
+            _cooling.Params.Set("cool", Math.Clamp(seconds / Math.Max(1e-6, t.Seconds), 0, 1));
+        }
+        for (int gone = Views.StrandedLampsOut(train.Frames.Count, t, seconds); _lampsOut < Math.Min(gone, train.Frames.Count); _lampsOut++)
+        {
+            var car = train.Frames[train.Frames.Count - 1 - _lampsOut];
+            Mixer.Play("lamp-out", car.ToWorld(new Double3(0, car.Shape.RoofHeight * 0.8, 0)));
+        }
+    }
+
+    /// <summary>
+    /// A night is over (back to the menus): every sound it started stops, and what's remembered of it goes, so the menus are
+    /// quiet under their own sound and the next night starts its bed, loops and edges afresh.
+    /// </summary>
+    public void EndNight()
+    {
+        Mixer.StopAll();
+        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = _radioVoice = _radioSays = _clerkSays = null;
+        _radioLines = null;
+        _clerkSaid = null;
+        _enemies.Clear();
+        _packs.Clear();
+        _packHowls.Clear();
+        _wheels.Clear();
+        _choir.Clear();
+        _toys.Clear();
+        _heardHits.Clear();
+        _heardImpacts.Clear();
+        _strikesPrimed = false;
+        _cooling = null;
+        _lampsOut = 0;
+        _wasRuptured = false;
+        _space = PlayerMotor.Outside;
+        EndNightCues();
+        EndNightAreas();
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>
