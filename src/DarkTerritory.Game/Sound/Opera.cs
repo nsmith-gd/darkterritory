@@ -45,7 +45,7 @@ public sealed class Opera
     /// <param name="end">Where the music's over, in sequence seconds: by default the sequence's end; with the film, the cause
     /// card's start (E.5: the fade under the cause card, the clerk on the static alone).</param>
     /// <param name="hitAt">Where in the sequence the hit lands (E.6 "within ±0.1 s of the final player's apex", the film's
-    /// <see cref="WreckFilm.FinalApexAt"/>; note 243); without a film, the replay's moment of derailment.</param>
+    /// <see cref="WreckFilm.FinalApexAt"/>; note 245); without a film, the replay's moment of derailment.</param>
     public static (double ClipSeconds, float Gain)? Cue(MusicTrack track, double sequenceSeconds, WreckTuning t, double end = -1, double hitAt = -1)
     {
         if (end < 0)

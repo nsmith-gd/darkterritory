@@ -1,0 +1,12 @@
+// Occlusion by the train's own walls (spec A.5 "car walls -12 dB and lowpass at 900 Hz", A.7 "occlusion via raycast against
+// car geometry"; ARCHITECTURE §8 note 248). Every positioned sound but the train's bed is heard through the walls between
+// it and the ear: the line from one to the other is tested against each car's interior. A wall it crosses is a whole
+// wall (mix.json occlusionDb and occlusionLowpass), unless it crosses where a door, the roof hatch or a breach is open.
+{
+  // A wall of a car with something open in it lets this much of a wall through: the sound comes round by the door.
+  "openWall": 0.6,
+  // An opening's leaf, made this much bigger each way (m): what's at its edge comes round it.
+  "openingMargin": 0.15,
+  // A breach's hole (spec B.9, Vehicle.BreachAt): within this of it (m), a sound goes through it, not the wall.
+  "breachRadius": 0.9
+}

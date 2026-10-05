@@ -395,7 +395,7 @@ public static class AudioBench
     /// <summary>
     /// Band-limited level of a tell and its margin over a masker, counted only while the tell is sounding. Each ear's band
     /// energy, summed: what reaches the ears, not a mono downmix, which would comb-filter a voice heard through the head's
-    /// delay (note 244) and count a sound panned to one side 3 dB down on one in the middle.
+    /// delay (note 246) and count a sound panned to one side 3 dB down on one in the middle.
     /// </summary>
     static (double TellDb, double MarginDb, double SoundingSeconds) Contrast(ReadOnlySpan<float> tell, ReadOnlySpan<float> masker, (double Low, double High) band)
     {

@@ -130,8 +130,8 @@ This gets prototyped in M1 alongside the 4:1 speed-ratio feel test (spec G.1).
 - **Route:** `VoiceRouting` on the host decides proximity (with a 4 m forwarding margin past the 26 m cutoff), cab-wall occlusion, radio (not into or out of a tunnel), the dead channel, and a dead player's Live Mic from their Holdout (note 179).
 - **Play:** the receiver plays each path through the mixer as a stream voice on tier 2. Proximity uses spec A.5's log curve as a mixer rolloff mode. The radio is `voice-radio.json`: flat, 300 Hz–3 kHz, crushed, with static while keyed.
 - **Measured:** 4 m against 16.5 m is 8.3 dB, matching the curve. Past 26 m nothing is sent. The radio at 93 m keeps its band, with the low end 48 dB down. Talking ducks the bed by exactly −6 dB. On a 90 ms ±20 ms link with 5% loss, level stays within 1 dB of a perfect link.
-- **Since:** Soot Children mimicry, replayed from the host (T40) and formant-shifted (note 245); the listener's head (note 244).
-- **Not yet:** occlusion by car walls once interiors exist, and a radio as an item (for now everyone carries one).
+- **Since:** Soot Children mimicry, replayed from the host (T40) and formant-shifted (note 247); the listener's head (note 246); occlusion by the cars' own walls, an open door, the hatch or a breach letting it through (note 248).
+- **Not yet:** a radio as an item (for now everyone carries one).
 
 ### 6.4 Audio (spec A) — why not FMOD
 FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent cannot sensibly author or verify. The spec's needs are specific and small: six tiered buses with sidechain ducking, parameter-driven layered events, voice limiting, positional slack-action delay chains, and heavy procedural synthesis. We build this in C#:
@@ -147,14 +147,14 @@ FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent 
   - Every number can be a curve over a live parameter.
 - **Buses:** seven tier buses (spec A.3's six, and the work's drone under them), with the ducking rules and each tier's fader in `content/audio/mix.json`; and the opera's music bus apart from them (note 174).
 - **Spaces:** the listener's space (the cab, a car, a tunnel, a facility's yard, outside; `content/audio/spaces.json`) convolves everything positioned with a synthetic impulse response, shuts out what it shuts out, and compresses voice in a tunnel (note 192).
-- **Spatialisation:** distance rolloff and a spherical head (note 244: the far ear's delay and shadow, the pinna's front-and-back and height cues), plus occlusion. Tells are floored at −6 dB.
+- **Spatialisation:** distance rolloff and a spherical head (note 246: the far ear's delay and shadow, the pinna's front-and-back and height cues), plus occlusion by the cars' own walls (note 248). Tells are floored at −6 dB and keep their band through a wall.
 - **Voices:** per-sound instance limits with stealing, and a 64-voice budget. Past the budget, voices virtualise, but tells always render.
 - **Game hookup (`DarkTerritory.Game.Sound.GameAudio`)** drives it all from world state, so clients hear what the host does:
   - the bed follows speed, pressure, fire, throttle and brake;
   - slack action runs down the consist one coupling at a time;
   - the tells follow enemy phases;
   - the Choir adds voices and closes in as aggro climbs.
-- **Output:** device output is an SDL3 audio stream. miniaudio isn't needed yet. Measured HRTFs (Steam Audio) stay open for VR, behind the head's stage (note 244).
+- **Output:** device output is an SDL3 audio stream. miniaudio isn't needed yet. Measured HRTFs (Steam Audio) stay open for VR, behind the head's stage (note 246).
 
 ### 6.5 Rendering (art direction)
 Forward+ renderer, deliberately limited:
@@ -3467,7 +3467,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Killed is the host's word.** The audio had guessed a kill from a record gone with its last Health within one blow and someone in reach. T121's `HitConfirm` carries `Killed`, on the wire with the record it ends, so a creature with a hit on it is killed only if the host says so. A hound driven off, or a toad hopping out of reach after a glancing blow, no longer dies in the sound. The guess stays for a record gone with no hit on it at all.
     - **The crumble** (`creature-crumble`, tier 4, synthesised): note 208 has a killed creature that stands on something go over and, from halfway through `Effects.DeathSeconds`, crumble to ash and be gone. That moment is now heard where it lies: a dry, ashy collapse, its weight settling, ash sifting and a few embers going out. It's one sound for every kind (`GreyboxScene.Falls`'s set, the same the picture uses), so the crew learn it means dead whatever it was. A creature's own death cry, where it has one, still comes at the blow.
     - Tests: `CreatureSoundTests.AKilledCreatureCrumblesAsItsSeenToAndOneThatGoesOtherwiseDoesnt`. `dt audio render --sound creature-crumble`.
-243. **The checklist's last hooks: a crewmate's blow on the train, a powder keg handled as a keg, and the opera's hit on the final apex (the audio checklist's crew-melee, place-depot and music-opera lines).**
+245. **The checklist's last hooks: a crewmate's blow on the train, a powder keg handled as a keg, and the opera's hit on the final apex (the audio checklist's crew-melee, place-depot and music-opera lines).**
     - **A crewmate's blow on the train.** Note 235 put a crewmate's swing on the air from `World.Swings`, and their hit's confirm from the host's record; a blow that met the train's iron or wood with no enemy in reach was only ever your own. Now their swing also runs `OwnBlow` from their replicated look, as yours does: the same ray, the same iron-or-wood by what it meets. An enemy in reach still means the host's record decides (`GameAudio.Strikes`).
     - **A powder keg is a keg.** The kegs (note 185, `CargoKind.Ammunition` on a cargo or heavy body) were lifted and set down as crates. They are now `crew-carry.keg-lift` (the cask lifted, the powder shifting in it) and `crew-carry.keg-set` (a careful thunk). A keg thrown still lands as a crate does: a hard knock is the set piece's business (`SetPieces.Kegs`, `World.Blast`), and its blast has its own sound (note 232).
     - **The opera's hit lands on the final player's apex (E.6 "Alignment", E.5 "Order").** The hit used to land on the replay's moment of derailment. With a film it now lands where the film's last player shot shows that player's peak, the biggest flight of the night: `WreckFilm.FinalApexAt`. That is the shot's offset into the cut plus `FilmShot.RealAt(peak)`, where `RealAt` inverts the shot's eased playback by halving, so every client finds the same moment. `Opera.Cue` starts the track at `Hit − (apex − replay start)`:
@@ -3476,7 +3476,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Without a film (no player shot), the hit still lands on the replay's derail moment.
     - **Stays:** a crewmate taking hold of a switch stand's lever isn't heard; the unlatch is only ever your own. The hold is the host's and isn't on the wire. Everyone hears the lever thrown, its latch and the points as they go over (`CrewSwitchStands`), at the stand or at the cab's powered thrower (note 237).
     - **Tests:** `CrewAudioTests.ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook`, `CrewAudioTests.APowderKegIsHandledAsAKegNotACrate`, `MusicManifestTests.WithAFilmTheHitLandsOnTheFinalPlayersApex`.
-244. **A head on the listener: side, front and back, and height, by ear (spec A.4 "directional to within ~30°. Players must be able to say 'car four, left side'"; the audio checklist's mix-spatial).** The spatialiser was an equal-power pan with a 2 dB cut from behind. It said which ear, not where.
+246. **A head on the listener: side, front and back, and height, by ear (spec A.4 "directional to within ~30°. Players must be able to say 'car four, left side'"; the audio checklist's mix-spatial).** The spatialiser was an equal-power pan with a 2 dB cut from behind. It said which ear, not where.
     - **The head (`Ballast.Audio.HeadDef`, mix.json "head"):** every positioned voice goes through a spherical head.
       - The far ear is late by Woodworth's delay: an 8.75 cm head, 0.66 ms at the side. It's read from a short delay line, the delay gliding across each block.
       - The far ear is 10 dB duller above 1.8 kHz: the head's shadow, a high shelf scaled by how far to the side the sound is.
@@ -3499,10 +3499,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - overhead is unlike underfoot;
       - a tell loses no more than its floor;
       - with no head, it's the speaker pan.
-245. **The mimic's voice through a smaller throat (spec A.6 "formant-shifted crew voice: Soot Children"; the audio checklist's voice-mimic).** A Soot Child's call replayed the crewmate's own frames at one loudness however far (T40), so the falloff was the only tell. Spec A.6 asks for it formant-shifted as well.
+247. **The mimic's voice through a smaller throat (spec A.6 "formant-shifted crew voice: Soot Children"; the audio checklist's voice-mimic).** A Soot Child's call replayed the crewmate's own frames at one loudness however far (T40), so the falloff was the only tell. Spec A.6 asks for it formant-shifted as well.
     - **A formant shift on any sound (`SoundDef.Formant`, `Ballast.Audio.FormantShifter`):** a short-time spectrum, 2048 points (43 ms, so a low man's harmonics are resolved) at a quarter-window hop, Hann in and out.
       - Each frame's envelope comes from cepstral smoothing, the quefrencies under 2.9 ms kept. That resolves a formant to about 340 Hz and stops short of a grown voice's pitch period, so the harmonics don't get into the envelope.
       - Each bin is scaled by the envelope at f/shift over the envelope at f, at most 24 dB up. The harmonics, which carry the pitch, and the phases stay where they are.
       - It streams a block at a time, a window (43 ms) late, which a replayed voice can afford.
     - **The mimic (voice-mimic.json):** shift 1.18. Their words and their pitch, its resonances 18% up: nearly them, and not.
     - **Tests:** `FormantTests`: an "ah" (a 120 Hz buzz through 720 Hz and 1.2 kHz) shifted 1.2 has its first resonance at 800–920 Hz, the same pitch to 3 Hz and the same level to 4 dB; shifted 1.0 it's the input a window late, to −40 dB.
+248. **The walls between the ear and a sound, from the cars themselves; and a one-shot rides its car (spec A.5 "car walls −12 dB and lowpass at 900 Hz", A.7 "occlusion via raycast against car geometry"; the audio checklist's mix-occlusion).** Occlusion was by space alone. Anything not in the listener's space was behind a wall, and an outside listener heard nothing occluded at all: a fire in a shut car was as clear from its roof as from inside it. An open door didn't count.
+    - **Walls (`Sound.Walls`, content/audio/walls.json):** each frame, every positioned sound but the train's bed is tested against the walls between it and the ear.
+      - The line from one to the other is tested against the interior of each car that one of them is inside, in that car's own frame. The face it crosses is a wall: a whole one (mix.json's −12 dB and 900 Hz).
+      - Where it crosses an open door, the open roof hatch, or within `breachRadius` of a breach, it goes through. A car with anything open leaks round it: its walls cost `openWall` (0.6), not a whole wall.
+      - A car in the way out in the open isn't a wall: the sound goes round it.
+      - The mixer hears the greater of a sound's own occlusion and its walls (`SoundInstance.Walls`), so a caller's judgement is never undone. A caller's part value (a shout through a holdout's door, 0.35) is left as it is.
+      - The cab is open-sided and isn't a room here; the spaces have it. The bed (tier 5) is the car itself, which the space has.
+    - **A tell through a wall keeps its band.** Tier 1 is quieter through it, to the −6 dB floor, but the occlusion's low-pass doesn't touch it. A tell is known by its band (spec A.4 rule 1), and the car fire is "crackle and pop through the boards" at 6–9 kHz, which a 900 Hz wall would take away.
+    - **A one-shot rides its car.** Cues were played at a world point and left there. At 22 m/s the train ran on from under them: a one-second giggle in the cab ended up a car and a half back, in car 1, behind its walls. Now each new positioned one-shot that starts on a car is kept in the car's frame, and put back there every frame until it's done (`GameAudio.Ride`).
+      - Loops already followed their owners.
+      - One-shots off the train stay put, and so do the world's own (`world-*`, `place-*`, the heap's), whatever's passing: a tunnel's mouth the engine is going through.
+    - **Tests:**
+      - `WallsTests`: the same room is clear; a shut car's walls are a wall from outside and from inside; an open door in line is clear and the far side leaks; a breach is a hole; from one shut car into another is walls; the roof of the car you're in is a wall.
+      - `RidingTests`: a one-shot on a car at 22 m/s rides it, and a world one stays put.
+      - The tell audit holds with them.

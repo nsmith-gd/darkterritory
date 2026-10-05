@@ -65,6 +65,11 @@ public sealed class SoundInstance
     public Double3 Position { get; set; }
     /// <summary>0 = clear line to the listener, 1 = fully behind a car wall (spec A.5: −12 dB, 900 Hz lowpass).</summary>
     public float Occlusion { get; set; }
+    /// <summary>
+    /// What the game's geometry found between the ear and this voice (the walls in the way), 0..1, set each frame. The mixer
+    /// hears the greater of it and <see cref="Occlusion"/>, so a caller's own judgement is never undone.
+    /// </summary>
+    public float Walls { get; set; }
     /// <summary>Extra gain the game applies (e.g. a clinger's drill louder as it works through).</summary>
     public float Volume { get; set; } = 1;
     public double Age { get; private set; }

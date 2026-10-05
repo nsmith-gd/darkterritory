@@ -222,7 +222,9 @@ public sealed class Mixer
             var buffer = _buffers[i].AsSpan();
             v.Render(buffer);
             float occlusion = EffectiveOcclusion(v);
-            if (occlusion > 0.001f)
+            // A tell through a wall is quieter (the floor, spec A.3) and never duller: it's known by its band (spec A.4 rule
+            // 1, "car fire: crackle and pop through the boards"), and a 900 Hz wall would take the band away.
+            if (occlusion > 0.001f && v.Def.Tier != 1)
             {
                 v.OcclusionFilter.Set(FilterType.LowPass, Mix.OcclusionLowpass * Math.Pow(20000 / Mix.OcclusionLowpass, 1 - occlusion), 0.707);
                 v.OcclusionFilter.Process(buffer);
@@ -439,7 +441,7 @@ public sealed class Mixer
     /// <summary>Tier-1 tells are never occluded past the floor (spec A.3).</summary>
     float EffectiveOcclusion(SoundInstance v)
     {
-        float occ = Math.Clamp(v.Occlusion, 0, 1);
+        float occ = Math.Clamp(Math.Max(v.Occlusion, v.Walls), 0, 1);
         if (v.Def.Tier == 1 && Mix.OcclusionDb < 0)
             occ = Math.Min(occ, (float)(Mix.TellOcclusionFloorDb / Mix.OcclusionDb));
         return occ;

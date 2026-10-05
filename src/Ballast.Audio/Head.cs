@@ -10,7 +10,7 @@ namespace Ballast.Audio;
 /// <item>Behind, both ears hear it duller: the pinna's shadow, which tells front from back.</item>
 /// <item>Above, a little more air; below, a notch: the pinna's height cue, which tells the roof from the floor.</item>
 /// </list>
-/// A parametric head, not measured HRTFs (ARCHITECTURE §8 note 244): every cue is a number here, it costs a few filters
+/// A parametric head, not measured HRTFs (ARCHITECTURE §8 note 246): every cue is a number here, it costs a few filters
 /// a voice, and it renders the same offline as on the device.
 /// </summary>
 /// <param name="Radius">The head's radius in metres (the delay's): 8.75 cm, the textbook head.</param>
