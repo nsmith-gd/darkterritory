@@ -351,6 +351,9 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
     static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
 
+    /// <summary>The toy a toy body is drawn as (by its id, as <see cref="Body"/> draws it), or null.</summary>
+    public MeshAsset? Toy(int bodyId) => PropArt.Of(Look).Get(Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)]);
+
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
 

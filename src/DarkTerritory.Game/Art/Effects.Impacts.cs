@@ -278,6 +278,41 @@ public sealed partial class Effects
         }
     }
 
+    /// <summary>How long what the Track Doll leaves where it was is seen (s): the flicker, then its puff of porcelain dust.</summary>
+    public const double VanishSeconds = 1.4;
+
+    /// <summary>
+    /// Where the Track Doll was, <paramref name="age"/> seconds after it went (GreyboxScene's vanishing): a puff of pale
+    /// porcelain dust off the spot, rising a little and thinning, and a few white chips of glaze falling out of it.
+    /// </summary>
+    public void Vanish(MeshBuilder mesh, Vector3 at, float age, int seed)
+    {
+        if (age < 0.08f || age > VanishSeconds)
+            return;
+        float a = age - 0.08f, s0 = seed % 47 + 0.5f;
+        for (int k = 0; k < 9; k++)
+        {
+            float h = Hash(s0 * 2.3f + k * 1.7f), h2 = Hash(s0 + k * 3.9f);
+            float t = a - 0.03f * k * h, life = 0.8f + 0.45f * h2, s = Math.Clamp(t / life, 0, 1);
+            if (t < 0 || s >= 1)
+                continue;
+            var p = at + new Vector3((h - 0.5f) * 0.5f, 0.25f + 0.7f * h2 + 0.3f * s, (h2 - 0.5f) * 0.5f);
+            mesh.Billboard(p, 0.26f + 0.6f * s, h * 6.28f + s, new Vector4(new Vector3(1.1f, 1.07f, 1.0f) * (0.85f + 0.3f * h2), 0.8f * MathF.Sin(MathF.PI * s)), _smoke,
+                FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        for (int k = 0; k < 7; k++)
+        {
+            float h = Hash(s0 * 4.3f + k * 2.9f), life = 0.45f + 0.35f * h;
+            if (a > life)
+                continue;
+            float f = a / life;
+            var p = at + new Vector3((h - 0.5f) * 0.4f, 0.9f * h + 0.2f - 1.4f * f * f, (Hash(k * 1.3f + s0) - 0.5f) * 0.4f);
+            if (p.Y < at.Y)
+                continue;
+            mesh.Billboard(p, 0.022f, h * 6.28f, new Vector4(1.3f, 1.28f, 1.22f, 1 - f), _spark, FxBlend.Alpha, 0, 2);
+        }
+    }
+
     /// <summary>A flat soft disc on the ground (a scorch): two alpha triangles of the soft blob, turned by <paramref name="turn"/>.</summary>
     static void Decal(MeshBuilder mesh, Vector3 centre, float radius, float turn, Vector4 colour)
     {

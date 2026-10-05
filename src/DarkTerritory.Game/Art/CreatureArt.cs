@@ -110,6 +110,9 @@ public sealed class CreatureArt
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
 
+    /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
+    public MeshAsset? DollHolding { get; set; }
+
     /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
     public const double ChoirLeaveSeconds = 3.0;
 
@@ -1450,15 +1453,28 @@ public sealed class CreatureArt
                     float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
                     // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
                     var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
+                    // With the toy it was given, it's clutching it under its chin (its giggle's hands), and looking at you.
+                    if (DollHolding is not null)
+                        (clip, ct, watch) = ("giggle", 0.4, true);
                     Action<Entry>? look = null;
                     if (watch && Matrix4x4.Invert(at, out var toModel))
                     {
                         var eye = Vector3.Transform(Vector3.Zero, toModel);
                         look = e => WatchWithHead(e, eye);
                     }
-                    return Draw(mesh, "track_doll", clip, ct, true, at, look, seed: 3,
+                    bool drawn = Draw(mesh, "track_doll", clip, ct, true, at, look, seed: 3,
                         adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l)
                         || Draw(mesh, "track_doll", "stand", ct, true, at, look, seed: 3);
+                    // Going with the toy it was given (APPEASED: GreyboxScene's vanishing): held in both hands under its chin.
+                    if (drawn && DollHolding is { } toy)
+                    {
+                        var held = at;
+                        held.Translation = (BoneAt("track_doll", "hand_r", at) + BoneAt("track_doll", "hand_l", at)) / 2
+                            - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, at)) * 0.1f
+                            - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, at)) * 0.07f;
+                        mesh.Instances.Add(new MeshInstance(toy, held));
+                    }
+                    return drawn;
                 }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {

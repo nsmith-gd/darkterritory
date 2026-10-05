@@ -1303,6 +1303,24 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         boarding.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, Opt(args, "--board", 0.5), boarding.Health, boarding.Attached, boarding.Local, 0, 0, 0,
             boarding.Extra, boarding.Extra2);
     }
+    // --vanish s[:toy] (with --threats): the staged haunting Track Doll moved into car 2, over its cargo, and gone from there
+    // s seconds ago (come at, or with ":toy", given one and taking it: GreyboxScene.Vanishing); s < 0, still there. The
+    // inside view looks down that car's aisle at it.
+    if (Str(args, "--vanish", "") is { Length: > 0 } vanish && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> dolls
+        && dolls.FirstOrDefault(e => e is DarkTerritory.Sim.Enemies.TrackDoll { Attached: 0 }) is { } gone
+        && train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.Interior is { } room)
+    {
+        var parts = vanish.Split(':');
+        double ago = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
+        gone.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Punish, 3, gone.Health, Math.Min(2, train.Frames.Count - 1), room.Centre with { Y = room.Min.Y, Z = room.Centre.Z + 1.5 },
+            0, 0, 0, 0, 0);
+        if (ago >= 0)
+        {
+            dolls.Remove(gone);
+            scene.Vanished(gone, Staging.StrikeTick, parts.Length > 1 && parts[1] == "toy" ? 1 : -1);
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
+        }
+    }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
     {

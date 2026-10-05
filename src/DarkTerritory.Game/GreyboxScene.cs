@@ -603,6 +603,11 @@ public sealed class GreyboxScene
     readonly Dictionary<int, (Enemy Body, uint Tick, Vector3 From)> _dying = new();
     // The Choir's ghosts driven off since (with the tick they went): the sim dismisses the swarm at once.
     readonly Dictionary<int, (Enemy Body, uint Tick)> _leaving = new();
+    // The Track Dolls as they stood last frame (copies: the sim moves its own), the toys about then, and where a doll's
+    // vanished from since (with the tick, and the toy it took or −1).
+    readonly Dictionary<int, Enemy> _dollWas = new();
+    readonly HashSet<int> _toysWas = new();
+    readonly List<(Enemy Was, uint Tick, int Toy)> _vanished = new();
 
     /// <summary>
     /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
@@ -627,6 +632,7 @@ public sealed class GreyboxScene
             if (!e.Gone)
                 _seen[e.Id] = e;
         Leaving(mesh, line, frames, eye, from, to);
+        Vanishing(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -672,6 +678,65 @@ public sealed class GreyboxScene
             DrawEnemy(mesh, line, frames, ghost, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity));
         }
     }
+
+    /// <summary>
+    /// The Track Doll vanishing (GDD v1.2 App. A.2, the checklist's "vanish with no walk-off"; "takes a toy and goes"): the
+    /// sim moves it to another car when it's come at, or takes it out of the run (stopped short of, appeased), from one tick
+    /// to the next. It's never seen to walk. Where it was, it flickers out in its last pose, held stock still, and leaves a
+    /// puff of porcelain dust and a few chips of glaze (<see cref="Art.Effects.Vanish"/>); given a toy, the toy goes with it,
+    /// in its hand (the toy body gone the same tick).
+    /// </summary>
+    void Vanishing(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        var toys = (Bodies ?? []).Where(b => b.Kind == Sim.Physics.BodyKind.Toy).Select(b => b.Id).ToHashSet();
+        foreach (var (id, was) in _dollWas)
+        {
+            var now = Enemies?.FirstOrDefault(e => e.Id == id && !e.Gone);
+            if (_dying.ContainsKey(id) || now is not null && now.Attached == was.Attached && (now.Local - was.Local).Length < 1)
+                continue;
+            int toy = now is null ? _toysWas.Where(t => !toys.Contains(t)).DefaultIfEmpty(-1).Min() : -1;
+            _vanished.Add((was, (uint)Tick, toy));
+        }
+        _dollWas.Clear();
+        foreach (var e in Enemies ?? [])
+            if (e.Kind == EnemyKind.TrackDoll && !e.Gone)
+            {
+                var copy = new Sim.Enemies.TrackDoll(e.Id);
+                copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+                _dollWas[e.Id] = copy;
+            }
+        _toysWas.Clear();
+        _toysWas.UnionWith(toys);
+        var creatures = Look?.Art.Creatures;
+        for (int i = _vanished.Count - 1; i >= 0; i--)
+        {
+            var (was, tick, toy) = _vanished[i];
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.Effects.VanishSeconds || age < 0)
+            {
+                _vanished.RemoveAt(i);
+                continue;
+            }
+            // A few frames of it, on and off, then nothing: there, and not.
+            if (age < DollFlicker && (int)(age * 30) % 2 == 0)
+            {
+                if (creatures is not null)
+                    creatures.DollHolding = toy >= 0 ? Look?.Art.Toy(toy) : null;
+                DrawEnemy(mesh, line, frames, was, eye, from, to, creatures);
+                if (creatures is not null)
+                    creatures.DollHolding = null;
+            }
+            if (Look?.Art.Effects is { } fx && BodyAt(was, line, frames) is var at && (at - eye).Length < DrawDistance)
+                fx.Vanish(mesh, V(at, eye), (float)age, was.Id);
+        }
+    }
+
+    // How long the Track Doll is seen flickering out where it was (s).
+    const double DollFlicker = 0.3;
+
+    /// <summary>Staged (<c>dt screenshot --vanish s[:toy]</c>): the Track Doll <paramref name="e"/> gone at <paramref name="tick"/>
+    /// (out of <see cref="Enemies"/>), with the toy body <paramref name="toy"/> if it was given one.</summary>
+    public void Vanished(Enemy e, uint tick, int toy = -1) => _vanished.Add((e, tick, toy));
 
     // How far a dispersing ghost has gone at the end of its going: out from the train and up (m).
     const float LeaveOut = 10, LeaveUp = 14;

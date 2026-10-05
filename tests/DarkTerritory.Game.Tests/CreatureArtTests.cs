@@ -352,6 +352,37 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void TheTrackDollFlickersOutWhereItWasNotWalkingOff()
+    {
+        // GreyboxScene.Vanishing: come at, the sim moves it to another car from one tick to the next; the scene that saw it
+        // last frame draws it where it was for a flicker (and its dust), then only where it is.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var doll = threats.OfType<Sim.Enemies.TrackDoll>().First(d => d.Attached == 0);
+        threats.RemoveAll(e => e is Sim.Enemies.TrackDoll && e != doll);
+        var room = train.Frames[2].Shape.Interior!.Value;
+        doll.Restore(SpinePhase.Punish, 3, 1, 2, room.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        var eye = doll.WorldPosition(train) + new Double3(0.5, 1.4, -4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats };
+        int Dolls(double at)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(at * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("track_doll", StringComparison.OrdinalIgnoreCase));
+        }
+        int one = Dolls(0);
+        Assert.True(one > 0);
+        // Come at: it's in car 3 now.
+        doll.Restore(SpinePhase.Punish, 3, 1, 3, train.Frames[3].Shape.Interior!.Value.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        Assert.Equal(2 * one, Dolls(1.0 / Sim.SimConstants.TickRate));
+        Assert.Equal(one, Dolls(0.5));
+        Assert.Equal(one, Dolls(Effects.VanishSeconds + 0.2));
+    }
+
+    [Fact]
     public void TheDeadLieAsTheirRagdollLies()
     {
         // The staged body (Staging.Bodies: a crewmate dead on car 3's roof, settled for 90 ticks), as the scene draws it.
