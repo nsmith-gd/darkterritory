@@ -63,6 +63,17 @@ public sealed partial class SceneArt(Look look)
             // Running with something waking close by, hunched and hurried (GDD §31).
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
+        // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
+        // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
+        // the drop, until it's done, rather than snapping back to stood (App. C.5; the checklist's "a distinct hang-back").
+        if (pose == CrewPose.Extinguish && Spraying?.Contains(c.Id) == true)
+            pose = CrewPose.Spray;
+        var before = _crewActSince.TryGetValue(c.Id, out var wasDoing) ? wasDoing : default;
+        if (pose == CrewPose.TakeDown && before.Pose is CrewPose.Extinguish or CrewPose.Spray or CrewPose.HangUp)
+            pose = CrewPose.HangUp;
+        else if (before.Pose == CrewPose.HangUp && pose is CrewPose.Idle or CrewPose.Walk && time - before.Time < HangUpSeconds)
+            pose = CrewPose.HangUp;
         LastPose = pose;
         // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
@@ -83,7 +94,7 @@ public sealed partial class SceneArt(Look look)
             _crewActSince[c.Id] = since = (pose, time);
         double clipTime = pose switch
         {
-            CrewPose.GetUp or CrewPose.TakeDown => time - since.Time,
+            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             CrewPose.Swing => swung + SwingHitAt,
@@ -233,6 +244,12 @@ public sealed partial class SceneArt(Look look)
         _lampHands.TryGetValue(carrier, out var h) && time - h.Time < 0.5 ? h.At : null;
 
     readonly Dictionary<byte, (CrewPose Pose, double Time)> _crewActSince = new();
+
+    /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
+    public IReadOnlySet<int>? Spraying { get; set; }
+
+    // How long hanging the extinguisher back on its bracket takes (s): crew_clips.py's hang_up, 40 frames at 30.
+    const double HangUpSeconds = 40 / 30.0;
 
     /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
     public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>

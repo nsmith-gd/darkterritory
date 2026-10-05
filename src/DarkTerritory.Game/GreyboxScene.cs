@@ -880,10 +880,16 @@ public sealed class GreyboxScene
     // Each fire's intensity and when it last fell: an extinguisher's charge isn't replicated, but a fire going down with
     // an extinguisher held near it is being sprayed (presentation only, held a moment so it doesn't blink between ticks).
     readonly Dictionary<int, (double Extra, double Fell)> _fires = new();
+    readonly HashSet<int> _spraying = new();
 
     /// <summary>Extinguishers at work (App. C.5), from what's replicated: a fire going down, an extinguisher carried within reach of it.</summary>
     void Extinguishing(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
+        // Who's spraying, for their pose (SceneArt.Spraying: braced and kicking, not stood with it); the crew are drawn
+        // after this.
+        _spraying.Clear();
+        if (Look is not null)
+            Look.Art.Spraying = _spraying;
         if (Look?.Art.Effects is not { HasFlames: true } fx || Enemies is null)
             return;
         foreach (var e in Enemies)
@@ -906,7 +912,10 @@ public sealed class GreyboxScene
                     : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
                 var nozzle = held.RelativeTo(eye);
                 if ((nozzle - foot).Length() < 3.2f)
+                {
                     fx.Spray(mesh, nozzle, foot, Time);
+                    _spraying.Add(b.Carrier);
+                }
             }
         }
     }

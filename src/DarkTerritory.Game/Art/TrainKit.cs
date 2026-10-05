@@ -501,14 +501,16 @@ public static class TrainKit
         float face = cabFront + BackheadDepth;
         float fy = FireDoor(shape).Y;
         // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
-        // glow by the scene, and a Stoker if one's in there).
-        k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.3f);
+        // glow by the scene, and a Stoker if one's in there): riveted boiler plate, sooted, its seams and rivet rows on it
+        // (the crazed smokebox iron read as cobbles at this size, the checklist's "the firebox texture").
+        k.Use("iron_plate", Palette.SootBlack * 1.6f, 0.8f, 0.35f, tile: 0.9f);
         float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
         k.Box(new Vector3(-bw, deck, cabFront), new Vector3(-ox, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(ox, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, deck, cabFront), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, fy + oy, cabFront), new Vector3(ox, top, face), Kit.Faces.PosZ);
-        // The firehole's sides, back to the fire.
+        // The firehole's sides, back to the fire: the firebox's lining of firebrick, black with soot, lit by the fire.
+        k.Use("brick_soot", Palette.SootBlack * 2.2f, 0.9f, 0.1f, tile: 2.2f);
         k.Box(new Vector3(-ox - 0.02f, fy - oy, cabFront - 0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
         k.Box(new Vector3(ox, fy - oy, cabFront - 0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
         k.Box(new Vector3(-ox, fy - oy - 0.02f, cabFront - 0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);
