@@ -1712,8 +1712,21 @@ static object HudShot(string content, string[] args)
     {
         var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         solo.Controls.Throttle = Opt(args, "--throttle", 0.6);
+        // --hazards name: one of balance.json's hazard sets laid over the line (note 186), e.g. cold: the HUD's cold step (note 200).
+        if (Str(args, "--hazards", "") is { Length: > 0 } hz)
+            DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
+                DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
         for (int i = 0; i < Opt(args, "--seconds", 6) * SimConstants.TickRate; i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
+        // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 200), t seconds into mending it.
+        if (args.Contains("--mend"))
+        {
+            var bodies = solo.World.Bodies;
+            var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
+            (radio.Carrier, radio.Broken, radio.MendTicks) = (((IPlaySession)solo).PlayerId, true, (int)(Opt(args, "--mend", 0) * SimConstants.TickRate));
+            if (bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
+                (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
+        }
         session = solo;
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
@@ -2017,6 +2030,8 @@ static int Usage()
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir writes each still on its own
+                     --hazards clear|wet|cold|dark: a balance.json hazard set over the line; --mend t: the repair kit in hand,
+                     a broken radio worn, t s into mending it (note 200)
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges

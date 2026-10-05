@@ -80,6 +80,11 @@ public sealed class Body
     public CargoKind Cargo { get; set; }
     /// <summary>A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead.</summary>
     public bool Broken { get; set; }
+    /// <summary>
+    /// A broken radio being mended with the repair kit (note 200): how many ticks Use has been held at it, 0 when nobody is.
+    /// On the body record, so the mender's HUD shows how far it's got.
+    /// </summary>
+    public int MendTicks { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
     public ToyNoise Noise { get; set; }
     /// <summary>
@@ -122,6 +127,9 @@ public sealed class Bodies
     readonly Dictionary<int, bool> _useWas = new(), _throwWas = new();
     // How many ticks each player has held Use at a locker, from the press (a tap stows or takes; a hold works the door).
     readonly Dictionary<int, int> _lockerHeld = new();
+    // Who's holding Use with the repair kit at a broken radio (note 200): which radio, and for how many ticks from the press
+    // (a tap puts the kit down; a hold mends).
+    readonly Dictionary<int, (int Radio, int Ticks)> _mending = new();
     int _nextId = 1;
     const double Dt = SimConstants.TickSeconds;
     const double NearbyCar = 40;
@@ -418,6 +426,8 @@ public sealed class Bodies
             return false;
         }
         _lockerHeld.Remove(playerId);
+        if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
+            return false;
         if (carried is not null && (throwPressed || usePressed))
         {
             // Nobody throws a heavy crate: either of you lets go, and it's down.
@@ -449,6 +459,68 @@ public sealed class Bodies
         nearest.Claimed = true;
         nearest.Pbd.Wake();
         return true;
+    }
+
+    /// <summary>
+    /// GDD §23 "radio breaks", mended (note 200): the repair kit in hand (§12, the engineer is whoever has it), not at
+    /// anything Use works, and a broken radio on your belt or lying in reach. Use held there, standing, for train.json
+    /// <c>kit.radioMendSeconds</c> mends it; moving or letting go starts it over. Like a locker's tap and hold, the hands
+    /// wait for the release: a tap still puts the kit down. Returns whether it had the hands this tick.
+    /// </summary>
+    bool Mend(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
+        bool use, bool usePressed, bool throwPressed)
+    {
+        var radio = carried is { Kind: BodyKind.RepairKit } && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
+        bool had = _mending.TryGetValue(playerId, out var was);
+        if (had && (radio is null || radio.Id != was.Radio))
+        {
+            _mending.Remove(playerId);
+            if (_bodies.FirstOrDefault(b => b.Id == was.Radio) is { } left)
+                left.MendTicks = 0;
+            had = false;
+        }
+        if (radio is null)
+            return false;
+        if (usePressed)
+            _mending[playerId] = (radio.Id, 1);
+        else if (use && had)
+            _mending[playerId] = (radio.Id, was.Ticks + 1);
+        else if (!use && had)
+        {
+            _mending.Remove(playerId);
+            radio.MendTicks = 0;
+            // A tap: it was the hands', putting the kit down.
+            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(carried!, s, train, 0);
+            return true;
+        }
+        if (!use || !_mending.ContainsKey(playerId))
+            return true;
+        bool still = Math.Abs(intent.MoveX) <= 0.1 && Math.Abs(intent.MoveZ) <= 0.1;
+        radio.MendTicks = still ? radio.MendTicks + 1 : 0;
+        if (radio.MendTicks * Dt >= train.Dynamics.Tuning.Kit.RadioMendSeconds - Dt / 2)
+        {
+            radio.Broken = false;
+            radio.MendTicks = 0;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The broken radio a player with the repair kit would mend (note 200): their own, on their belt, or else the nearest one
+    /// lying loose in reach. Null if there's none, or they're at something Use works. Also the HUD's prompt.
+    /// </summary>
+    public Body? MendableRadio(in PlayerState s, TrainOnLine train, HandTuning? hand, int playerId)
+    {
+        if (!s.Alive || CrewActions.NearestInteractable(s, train, hand) is not null)
+            return null;
+        if (_bodies.FirstOrDefault(b => b.Kind == BodyKind.Radio && b.Carrier == playerId && b.Broken) is { } worn)
+            return worn;
+        var loose = _bodies.Where(b => b.Kind == BodyKind.Radio && b.Broken && b.Carrier < 0 && !b.Stowed && b.TakenBy < 0);
+        if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
+            return loose.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).ThenBy(x => x.b.Id).FirstOrDefault().b;
+        var hands = HandsAt(s, train);
+        return loose.Select(b => (b, d: (WorldCentre(b, train) - hands).Length)).Where(x => x.d <= Hands.Reach).OrderBy(x => x.d).ThenBy(x => x.b.Id).FirstOrDefault().b;
     }
 
     /// <summary>The loose body a player's hands would take with Use right now, if any (also the HUD's prompt).</summary>

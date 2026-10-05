@@ -146,6 +146,37 @@ public class HudTests
     }
 
     [Fact]
+    public void TheHudSaysHowDeepTheColdIs()
+    {
+        // GDD §22 deep cold (note 200): from the line's conditions, which every machine builds from the night's seed.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Null(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
+        Assert.Equal("BITTER COLD: OUTSIDE, IT COMES ON 1.5X FASTER", Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        var deeper = new PrototypeSession(Content, "test-loop", 4);
+        DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
+        Assert.StartsWith("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train, deeper.PlayerTuning));
+        Assert.True(BitmapFont.Default.Measure(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning)!) < 480 - 12);
+    }
+
+    [Fact]
+    public void TheKitInHandOffersToMendABrokenRadio()
+    {
+        // GDD §23 "radio breaks" (note 200): the repair kit mends it, held; how far it's got from the body record.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
+        var bodies = s.World.Bodies;
+        var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
+        var kit = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit);
+        (radio.Carrier, radio.Broken, kit.Carrier, kit.Locker) = (1, true, 1, -1);
+        Assert.Equal($"[E] HOLD: MEND YOUR RADIO WITH THE KIT ({s.TrainTuning.Kit.RadioMendSeconds:0}S)   [E] PUT DOWN", Hud.Prompt(s));
+        radio.MendTicks = (int)(s.TrainTuning.Kit.RadioMendSeconds * DarkTerritory.Sim.SimConstants.TickRate / 2);
+        Assert.Equal("[E] HOLD: MENDING YOUR RADIO WITH THE KIT (50%)", Hud.Prompt(s));
+        radio.Broken = false;
+        Assert.StartsWith("THE REPAIR KIT:", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void EveryDeathSaysWhatKilledYou()
     {
         // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.

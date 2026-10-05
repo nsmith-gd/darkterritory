@@ -142,6 +142,158 @@ public class HazardTests
         Assert.InRange(broken, expect * 0.6, expect * 1.4);
     }
 
+    // Note 200: wind on a roof's footing, the cold step's helper, and mending a broken radio with the repair kit.
+
+    [Fact]
+    public void TheWindPushesARoofStanderSideways()
+    {
+        var calm = Train(new Weather(0, wind: 0));
+        var windy = Train(new Weather(0, wind: 1));
+        var s0 = PlayerMotor.SpawnOnRoof(calm, 2, 0, P);
+        var s1 = PlayerMotor.SpawnOnRoof(windy, 2, 0, P);
+        double push = PlayerMotor.WindPush(s1, default, windy, P, Tuning.Train);
+        // Standing, the train stopped: the wind across a still train, the walking share of it, in tonight's gust here.
+        Assert.Equal(P.Wind.Drift * P.Wind.Still * P.Wind.Walking * PlayerMotor.Gust(s1.LineHint, P.Wind.GustMetres), push, 9);
+        Assert.NotEqual(0, push);
+        Assert.Equal(0, PlayerMotor.WindPush(s0, default, calm, P, Tuning.Train));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+        {
+            PlayerMotor.Step(ref s0, default, calm, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            PlayerMotor.Step(ref s1, default, windy, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.Equal(0, s0.Position.X, 6);
+        // A second's push, give or take the gust easing as it goes: modest, and never off the roof from the middle.
+        Assert.Equal(push, s1.Position.X, 2);
+        Assert.Equal(Surface.Roof, s1.Surface);
+    }
+
+    [Fact]
+    public void RunningCatchesMoreWindAndAHandrailOrAGunSeatLess()
+    {
+        var train = Train(new Weather(0, wind: 1.5));
+        var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        double stood = Math.Abs(PlayerMotor.WindPush(s, default, train, P, Tuning.Train));
+        double running = Math.Abs(PlayerMotor.WindPush(s, new PlayerIntent { Buttons = PlayerButtons.Run }, train, P, Tuning.Train));
+        Assert.Equal(stood / P.Wind.Walking, running, 9);
+        var railed = Tuning.Train with { Composition = Tuning.Train.Composition with { Handrails = true } };
+        Assert.Equal(stood * railed.Composition.Rails.Wind, Math.Abs(PlayerMotor.WindPush(s, default, train, P, railed)), 9);
+        Assert.Equal(0, PlayerMotor.WindPush(s with { Flags = PlayerFlags.Seated }, default, train, P, Tuning.Train));
+        // Inside, or on the ground, no wind on your footing.
+        Assert.Equal(0, PlayerMotor.WindPush(s with { Surface = Surface.Deck }, default, train, P, Tuning.Train));
+    }
+
+    [Fact]
+    public void TheGustsComeFromBothSidesSmoothlyAndTheSameEverywhere()
+    {
+        double m = P.Wind.GustMetres;
+        var gusts = Enumerable.Range(0, 2_000).Select(i => PlayerMotor.Gust(i * 5.0, m)).ToArray();
+        Assert.All(gusts, g => Assert.InRange(g, -1, 1));
+        Assert.Contains(gusts, g => g > 0.5);
+        Assert.Contains(gusts, g => g < -0.5);
+        // Eased, never a jump: 5 m of line moves it a little at most.
+        for (int i = 1; i < gusts.Length; i++)
+            Assert.True(Math.Abs(gusts[i] - gusts[i - 1]) < 0.2, $"a jump at {i * 5} m");
+        Assert.Equal(PlayerMotor.Gust(1234.5, m), PlayerMotor.Gust(1234.5, m));
+    }
+
+    [Fact]
+    public void InAWindAndColdNightPredictionStillMatchesTheHost()
+    {
+        // The wind's push changes the player's state, so a predicting client must compute it as the host does (its own copy
+        // of the line: the hazard set is laid over the line it's given).
+        var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
+        var cold = Net.HazardSet.Clear with { Name = "cold", ColdStep = 2, Wind = 1.5 };
+        var r = Net.Harness.Run(line, Tuning.Train, P, new Net.HarnessOptions { Bots = 8, Seconds = 45, Link = Ballast.Net.LinkConditions.Perfect, Hazards = cold });
+        Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.001, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
+    }
+
+    [Fact]
+    public void TheColdStepIsWhereYouAre()
+    {
+        var train = Train(new Weather(cold: 3));
+        Assert.Equal(3, PlayerMotor.ColdStep(PlayerMotor.SpawnOnRoof(train, 2, 0, P), train));
+        var plain = Train(null);
+        Assert.Equal(0, PlayerMotor.ColdStep(PlayerMotor.SpawnOnRoof(plain, 2, 0, P), plain));
+    }
+
+    static (World World, Body Radio, Body Kit, PlayerState Mender) Mending()
+    {
+        var (world, radio, s) = Wearing();
+        radio.Broken = true;
+        var kit = world.Bodies.All.First(b => b.Kind == BodyKind.RepairKit);
+        (kit.Carrier, kit.Locker) = (1, -1);
+        Assert.Same(radio, world.Bodies.MendableRadio(s, world.Train, null, 1));
+        return (world, radio, kit, s);
+    }
+
+    static void Act(World w, ref PlayerState s, PlayerIntent intent, double seconds)
+    {
+        for (int i = 0; i < Math.Round(seconds * SimConstants.TickRate); i++)
+        {
+            w.BeginTick();
+            w.CrewAct(ref s, intent, 1);
+        }
+    }
+
+    [Fact]
+    public void TheRepairKitHeldAtABrokenRadioMendsIt()
+    {
+        var (w, radio, kit, s) = Mending();
+        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
+        double mend = Tuning.Train.Kit.RadioMendSeconds;
+        Act(w, ref s, use, mend - 1);
+        Assert.True(radio.Broken);
+        Assert.True(radio.MendTicks > 0);
+        // Letting go starts it over, and a long hold's release keeps the kit in hand.
+        Act(w, ref s, default, 0.1);
+        Assert.Equal(0, radio.MendTicks);
+        Assert.Equal(1, kit.Carrier);
+        Act(w, ref s, use, mend - 1);
+        Assert.True(radio.Broken);
+        Act(w, ref s, use, 1.1);
+        Assert.False(radio.Broken);
+        Assert.True(w.Bodies.HasRadio(1));
+        Assert.Equal(1, kit.Carrier);
+        // On the body record as the host has it.
+        Act(w, ref s, default, 0.1);
+        Assert.Null(w.Bodies.MendableRadio(s, w.Train, null, 1));
+    }
+
+    [Fact]
+    public void ATapStillPutsTheKitDownAndMendsNothing()
+    {
+        var (w, radio, kit, s) = Mending();
+        Act(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Use }, 0.1);
+        Act(w, ref s, default, 0.1);
+        Assert.Equal(-1, kit.Carrier);
+        Assert.True(radio.Broken);
+    }
+
+    [Fact]
+    public void WalkingAboutDoesntMend()
+    {
+        var (w, radio, _, s) = Mending();
+        Act(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Use, MoveX = 1 }, Tuning.Train.Kit.RadioMendSeconds + 1);
+        Assert.True(radio.Broken);
+    }
+
+    [Fact]
+    public void ABrokenRadioLyingInReachIsMendedToo()
+    {
+        var (w, radio, _, s) = Mending();
+        // A crewmate took theirs off to hand it over: it's lying at your feet, and yours is whole.
+        radio.Carrier = 2;
+        var mine = w.Bodies.All.First(b => b.Kind == BodyKind.Radio && b != radio);
+        mine.Carrier = 1;
+        radio.Carrier = -1;
+        foreach (ref var p in radio.Pbd.Particles.AsSpan())
+            p.Position = s.Position + new Ballast.Double3(0, 1.15, -0.6);
+        radio.Parent = s.Parent;
+        Assert.Same(radio, w.Bodies.MendableRadio(s, w.Train, null, 1));
+        Act(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Use }, Tuning.Train.Kit.RadioMendSeconds + 0.1);
+        Assert.False(radio.Broken);
+    }
+
     [Fact]
     public void ADerailmentPutsEveryLampOut()
     {
