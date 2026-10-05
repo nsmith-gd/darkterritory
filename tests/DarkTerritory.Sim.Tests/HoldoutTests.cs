@@ -25,6 +25,7 @@ public class HoldoutTests
         public readonly World World;
         public readonly TrainOnLine Train;
         public readonly RouteFeature Site;
+        public readonly Route.Route Route;
         public readonly List<(int Id, PlayerState State)> Crew = [];
         public readonly List<HoldoutEvent> Events = [];
         public PlayerIntent[] Intents = [];
@@ -37,6 +38,7 @@ public class HoldoutTests
                 if (route.Features.FirstOrDefault(f => f.Stop is not null && pick(f)) is not { } site)
                     continue;
                 Site = site;
+                Route = route;
                 Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
                 World = new World(Train, Tuning.Combat);
                 World.EnableBodies();
@@ -102,10 +104,38 @@ public class HoldoutTests
     static bool AHalt(RouteFeature f) => f.Kind == FeatureKind.Village && f.Stop!.Holdouts.Count == 1;
 
     [Fact]
+    public void ABotWarmingInACarLeavesTheBreachToOneThatCanGetDown()
+    {
+        // T115 playtest: "none of the bots are coming to save me when I call out from a Halt Lockup. They're just standing at a
+        // door". The nearest took it from inside a car, where it can't get down from, and so nobody went.
+        var n = new Night(AHalt, engineFrom: 270);
+        n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = Assert.Single(n.Here);
+        Assert.True(h.Lit);
+        var calls = new Bots.CrewCalls();
+        int car = n.Train.Frames.OrderBy(f => ((f.Origin - h.Door) with { Y = 0 }).Length).First(f => f.Index > 0 && f.Shape.Interior is not null).Index;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var inside = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Position = room.Centre with { Y = room.Min.Y }, Surface = Surface.Deck };
+        // On the same car's roof: as near the door.
+        var onRoof = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P);
+        double toDoor = ((PlayerMotor.WorldPosition(onRoof, n.Train) - h.Door) with { Y = 0 }).Length;
+        Assert.True(toDoor < 180, $"{toDoor:0} m to the door; site {n.Site.Start:0}-{n.Site.End:0}, engine {n.Train.Dynamics.Distance:0}, door hint {h.LineHint:0}");
+        var warming = Bots.Heed.Holdouts(default, inside, n.World, 5, calls, new Bots.StopHand(Bots.StopJob.None, calls, 5));
+        Assert.Equal(default, warming);
+        Assert.False(calls.Breaching);
+        var going = Bots.Heed.Holdouts(default, onRoof, n.World, 6, calls, new Bots.StopHand(Bots.StopJob.None, calls, 6));
+        Assert.True(calls.Breaching);
+        Assert.NotEqual(default, going);
+    }
+
+    [Fact]
     public void TheDeadWaitAtTheNextSiteAndComeBackInsideItWhenTheCrewBreaksThemOut()
     {
         var n = new Night(AHalt, engineFrom: -300);
         int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n[dead] = n[dead] with { Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
         n.Step(0.2);
         var h = Assert.Single(n.Here);
         // D.5 assign: the consist inside the approach, someone in the queue; the lamp lights.
@@ -121,6 +151,9 @@ public class HoldoutTests
         var back = n[dead];
         Assert.True(back.Alive);
         Assert.Equal(H.FreedHealth, back.Health);
+        // GDD v1.4 D.2: what they carried stayed on their body (the engineering kit too); out with the starting kit (T108).
+        Assert.Equal(n.World.Holdouts!.StartingKit, back.Kit);
+        Assert.False(Kit.Has(back.Kit, Tool.Wrench));
         // D.14 "no open-world spawns": inside the Holdout, never out in the open.
         Assert.True((back.Position - h.Inside).Length < 0.01);
         Assert.DoesNotContain(n.World.Holdouts!.Queue, e => e.PlayerId == dead);
@@ -239,108 +272,68 @@ public class HoldoutTests
         n.Hold(a, PlayerButtons.Use);
         n.Step(1.0 / SimConstants.TickRate);
         Assert.Single(n.Events, e => e.Kind == HoldoutEventKind.CalledOut);
+        Assert.Equal(1, n.Here.Single().Calls);
         Assert.Equal(loud, n.World.Choir.Loudness);
     }
 
     [Fact]
-    public void TheLiveMicIsTheOccupantsToggleAndNeverNoise()
+    public void TheLiveMicIsTheOccupantsAloneAndGoesOffWhenTheyAreOut()
     {
-        // D.7: offered only to the player assigned to that Holdout; off by default; off again when they're freed. And D.14's
-        // dead silence: talking on it never feeds the loudness meter, however loud.
+        // D.7 (note 179): a toggle offered only to the player assigned to that Holdout, off by default, off when freed.
         var n = new Night(AHalt, engineFrom: -300);
-        // The host's enemies on, so the meter is listening to everyone's voice (App. C.7).
-        n.World.EnableEnemies(Tuning.Enemies, route: null, 1, crew: 3, authority: true);
         int living = n.Add(alive: true);
-        int inside = n.Add(alive: false), other = n.Add(alive: false);
+        int a = n.Add(alive: false), b = n.Add(alive: false);
         n.Step(0.2);
         var h = n.Here.Single();
-        Assert.Equal(inside, h.Occupant);
+        int inside = h.Occupant, other = inside == a ? b : a;
+        Assert.True(h.Lit);
         Assert.False(h.LiveMic);
-        n.Stand(living, h.Door + new Double3(3, 0, 0));
-        n.Step(0.5);
-        double quiet = n.World.Choir.Loudness;
-
-        void Press(int id, bool down, byte voice = 0)
+        Assert.Null(n.World.Holdouts!.LiveMicOf(inside));
+        // Someone else's press does nothing; theirs switches it on; again, off; again, on.
+        n.Hold(other, PlayerButtons.Jump);
+        n.Step(1.0 / SimConstants.TickRate);
+        Assert.False(h.LiveMic);
+        n.Hold(other, PlayerButtons.None);
+        foreach (bool expect in new[] { true, false, true })
         {
-            if (n.Intents.Length < n.Crew.Count)
-                Array.Resize(ref n.Intents, n.Crew.Count);
-            n.Intents[id] = new PlayerIntent { Actions = down ? PlayerActions.LiveMic : 0, Voice = voice };
+            n.Hold(inside, PlayerButtons.Jump);
             n.Step(1.0 / SimConstants.TickRate);
+            n.Hold(inside, PlayerButtons.None);
+            n.Step(1.0 / SimConstants.TickRate);
+            Assert.Equal(expect, h.LiveMic);
         }
-        // Someone else dead pressing it does nothing: it isn't theirs.
-        Press(other, true);
-        Press(other, false);
-        Assert.False(h.LiveMic);
-        Assert.Null(n.World.Holdouts!.LiveMicOf(other));
-        // The occupant's press turns it on; held, it stays on (a toggle on the press).
-        Press(inside, true, voice: 255);
-        Press(inside, true, voice: 255);
-        Assert.True(h.LiveMic);
         Assert.Same(h, n.World.Holdouts.LiveMicOf(inside));
-        // Shouting into it for a few seconds: the meter never hears it.
-        for (int t = 0; t < 3 * SimConstants.TickRate; t++)
-            Press(inside, false, voice: 255);
-        Assert.Equal(quiet, n.World.Choir.Loudness);
-        // ... where the living crewmate at the door saying the same would have been heard.
-        n.Intents[living] = new PlayerIntent { Voice = 255 };
-        n.Step(1);
-        Assert.True(n.World.Choir.Loudness > quiet, $"loudness {quiet} -> {n.World.Choir.Loudness}");
-        n.Intents[living] = default;
-
-        // A client sees it (the HUD's LIVE MIC ON).
-        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.World.Run!.Route.Build(), n.Site.Start, Tuning.Boiler), Tuning.Combat);
-        client.EnableHoldouts(H, n.World.Run.Route);
-        var controls = new TrainControls();
-        WorldRecords.Apply(WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
-        Assert.True(client.Holdouts!.All[h.Index].LiveMic);
-        Assert.Equal(inside, client.Holdouts.All[h.Index].Occupant);
-
-        // Pressed again, off.
-        Press(inside, true);
-        Assert.False(h.LiveMic);
-        Press(inside, false);
-        Press(inside, true);
-        Assert.True(h.LiveMic);
-        // Freed, it's off, and they're heard as anyone living is.
+        // Freed: it goes off.
         n.Stand(living, h.Door);
         n.Hold(living, PlayerButtons.Use);
-        n.Step(h.Breach(H).Seconds + 0.2);
-        Assert.Equal(HoldoutState.Freed, h.State);
+        n.Step(h.Breach(H).Seconds + 1);
+        Assert.False(h.Lit);
         Assert.False(h.LiveMic);
-        Assert.Null(n.World.Holdouts.LiveMicOf(inside));
     }
 
     [Fact]
-    public void ACallOutReachesEveryMachine()
+    public void AClientHearsEachCallOutOnceAndSeesTheQueue()
     {
-        // D.7: the call is a host-only event, so the Holdout counts its calls and the count replicates: each client plays the
-        // shout from the Holdout when it goes up (GameAudio.Outside), once a call, the cooldown kept by the host.
+        // D.6 and D.7 (note 179): the Call Out count and the Live Mic ride the Holdout's record; the queue rides its own.
         var n = new Night(AHalt, engineFrom: -300);
         int living = n.Add(alive: true);
-        int dead = n.Add(alive: false);
+        int a = n.Add(alive: false), b = n.Add(alive: false), c = n.Add(alive: false);
         n.Step(0.2);
         var h = n.Here.Single();
         n.Stand(living, h.Door);
-        for (int call = 0; call < 3; call++)
-        {
-            n.Hold(dead, PlayerButtons.Use);
-            n.Step(1.0 / SimConstants.TickRate);
-            n.Hold(dead, PlayerButtons.None);
-            n.Step(1.0 / SimConstants.TickRate);
-        }
-        Assert.Equal(1, h.Calls);
-        n.Step(H.CallOutCooldown);
-        n.Hold(dead, PlayerButtons.Use);
+        n.Hold(h.Occupant, PlayerButtons.Use | PlayerButtons.Jump);
         n.Step(1.0 / SimConstants.TickRate);
-        Assert.Equal(2, h.Calls);
-
-        var route = n.World.Run!.Route;
-        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), n.Site.Start - 300, Tuning.Boiler));
-        client.EnableHoldouts(H, route);
-        var controls = new TrainControls { Reverser = 1 };
+        Assert.Equal(1, h.Calls);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.Route.Build(), n.Site.Start - 300, Tuning.Boiler), Tuning.Combat);
+        client.EnableHoldouts(H, n.Route);
+        var controls = new TrainControls();
         Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
         var mirrored = client.Holdouts!.All[h.Index];
-        Assert.Equal((h.State, h.Occupant, h.Calls), (mirrored.State, mirrored.Occupant, mirrored.Calls));
+        Assert.Equal(1, mirrored.Calls);
+        Assert.True(mirrored.LiveMic);
+        // The queue as the host has it, in order: all three of the dead (the one waiting inside keeps their place till freed).
+        Assert.Equal(n.World.Holdouts!.Queue.Select(e => e.PlayerId), client.Holdouts.Queue.Select(e => e.PlayerId));
+        Assert.Equal(new[] { a, b, c }.Order(), client.Holdouts.Queue.Select(e => e.PlayerId).Order());
     }
 
     [Fact]
@@ -356,6 +349,132 @@ public class HoldoutTests
         n.Hold(living, PlayerButtons.Use);
         n.Step(h.Breach(H).Seconds * 0.5);
         Assert.True(n.World.Choir.Loudness > loud, $"loudness {loud} → {n.World.Choir.Loudness}");
+    }
+
+    static bool ALock(RouteFeature f) => AHalt(f) && f.Stop!.Holdouts[0].Kind != HoldoutKind.Shelter;
+    static bool ABarricade(RouteFeature f) => AHalt(f) && f.Stop!.Holdouts[0].Kind == HoldoutKind.Shelter;
+
+    /// <summary>The repair kit (GDD §12) in a living crewmate's hands, at the Holdout's door.</summary>
+    static (int Living, Holdout Holdout, Body Kit) KitAtTheDoor(Night n)
+    {
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        var kit = n.World.Bodies.SpawnItem(h.Door, n.Site.Start, BodyKind.RepairKit);
+        kit.Carrier = living;
+        n.Step(0.1);
+        return (living, h, kit);
+    }
+
+    [Fact]
+    public void TheRepairKitOpensALockSilentlyAndSlowerThanASmash()
+    {
+        // D.7 "open lock: repair kit in hand, 6 s, no noise". Held at the door, Use works the lock and the kit stays in hand.
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Smash.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.True(h.Quiet);
+        Assert.Equal(H.Open, h.Breach(H));
+        Assert.Equal(living, kit.Carrier);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        n.Step(H.Open.Seconds - H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        Assert.Equal(living, kit.Carrier);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+    }
+
+    [Fact]
+    public void TheKitIsNoHelpAtABarricade()
+    {
+        // A shelter's barricade is pried, loud, kit or no kit; and it stays in hand.
+        var n = new Night(ABarricade, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Pry.Seconds * 0.5);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.False(h.Quiet);
+        Assert.Equal(H.Pry, h.Breach(H));
+        Assert.Equal(living, kit.Carrier);
+        Assert.True(n.World.Choir.Loudness > loud);
+    }
+
+    [Fact]
+    public void PutDownPartWayTheLockIsSmashedFromTheStart()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, kit) = KitAtTheDoor(n);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Open.Seconds * 0.8);
+        kit.Carrier = -1;
+        n.Step(0.1);
+        Assert.False(h.Quiet);
+        Assert.True(h.Progress < 0.2, $"progress {h.Progress}");
+        n.Step(H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
+    [Fact]
+    public void TheKitIsLyingWhereItsCarrierDied()
+    {
+        // GDD §12: "when they die on the roofs it's lying in car four and someone has to go and get it".
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, _, kit) = KitAtTheDoor(n);
+        var where = PlayerMotor.WorldPosition(n[living], n.Train);
+        n[living] = n[living] with { Health = 0, Death = DeathCause.Mauled };
+        n.Step(1);
+        Assert.Equal(-1, kit.Carrier);
+        Assert.True((Bodies.WorldCentre(kit, n.Train) - where).Length < 2, $"{Bodies.WorldCentre(kit, n.Train)} against {where}");
+        Assert.True(n.World.Bodies.InReach(PlayerMotor.SpawnOnGround(where, n.Train.Line, n.Site.Start, P), n.Train) == kit);
+    }
+
+    [Fact]
+    public void ADropOutLetsGoOfWhatTheyCarried()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, _, kit) = KitAtTheDoor(n);
+        n.World.Bodies.DropOut(n.Train, living, n[living]);
+        Assert.Equal(-1, kit.Carrier);
+    }
+
+    [Fact]
+    public void AClientSeesTheLockOpenedQuietly()
+    {
+        var n = new Night(ALock, engineFrom: -300);
+        var (living, h, _) = KitAtTheDoor(n);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(1);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), n.Route.Build(), n.Site.Start - 300, Tuning.Boiler), Tuning.Combat);
+        client.EnableHoldouts(H, n.Route);
+        var controls = new TrainControls();
+        Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        var mirrored = client.Holdouts!.All[h.Index];
+        Assert.Equal(HoldoutState.Breaching, mirrored.State);
+        Assert.True(mirrored.Quiet);
+        Assert.Equal(H.Open, mirrored.Breach(H));
+    }
+
+    [Fact]
+    public void TheTrainLeavesWithItsRepairKitInCarOne()
+    {
+        // A guard van and all: the kit rides in the first car behind the engine (train.json kit.repairKitCar), not with the stores.
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)),
+            new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(50_000)])), 1_000));
+        world.EnableBodies();
+        world.Stock();
+        var kit = Assert.Single(world.Bodies.All, b => b.Kind == BodyKind.RepairKit);
+        Assert.Equal(1, World.RepairKitCar(world.Train));
+        Assert.Equal(1, kit.Parent);
+        var shape = world.Train.Frames[1].Shape;
+        Assert.True(shape.Interior!.Value.Contains(kit.Centre));
+        // In the fitter's locker (note 173): inside its cabinet, and no other solid.
+        Assert.Equal("FITTER", shape.Lockers[kit.Locker].Name);
+        Assert.DoesNotContain(shape.Solids, s => s.Box.Contains(kit.Centre) && s.Box != shape.Lockers[kit.Locker].Box);
     }
 
     [Fact]

@@ -221,13 +221,13 @@ At 20 cars, crossing the train takes a minute and a half in each direction. That
 
 | Consist | Accel | Brake | 22→0 stop |
 |---|---|---|---|
-| 3 cars | 0.90 m/s² | 3.20 m/s² | 7s / 76m |
-| 6 cars | 0.62 m/s² | 2.10 m/s² | 10.5s / 115m |
-| 10 cars | 0.42 m/s² | 1.44 m/s² | 15s / 168m |
-| 15 cars | 0.27 m/s² | 0.96 m/s² | 23s / 252m |
-| **20 cars** | **0.18 m/s²** | **0.70 m/s²** | **31s / 346m** |
+| 3 cars | 0.90 m/s² | 2.24 m/s² | 10s / 108m |
+| 6 cars | 0.62 m/s² | 1.47 m/s² | 15s / 164m |
+| 10 cars | 0.42 m/s² | 1.01 m/s² | 22s / 239m |
+| 15 cars | 0.27 m/s² | 0.67 m/s² | 33s / 361m |
+| **20 cars** | **0.18 m/s²** | **0.49 m/s²** | **45s / 494m** |
 
-**T97 (playtest): the brakes are twice the first pass's** ("braking needs to reduce speed significantly faster"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: two people, the brake in the cab and the vent out by the smokebox. At 20 cars you begin braking 350–450 m before a stop.
+**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: two people, the brake in the cab and the vent out by the smokebox. At 20 cars you begin braking 500–600 m before a stop.
 
 ### Grade
 
@@ -276,17 +276,17 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Parameter | Value |
 |---|---|
 | Fire rate | 3/s |
-| Effective range | 80m |
+| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; the stack masks the rail closer than ~60 m) |
 | Traverse | 200° |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
-| **Foul (misfire)** | **3% of trigger pulls on a loaded gun.** A dead click: nothing fires, the charge stays in, and the gun is out until cleared (GDD §23 "Cannon fouls") |
-| Clearing a foul | 6s of Use held at the gun, by hand; let go and it starts over. The next pull fires the charge that was in it |
+| **Foul** | **1 shot in 25 fouls the bore (4%), ×2.5 on wet rail.** The shot goes; the gun's out until it's cleared, and a pull on it is a dead click (GDD §23 "Cannon fouls") |
+| Clearing a foul | 4s of Use held at the gun, standing still, by hand; let go and it starts over |
 
 **The dead zone is what makes the flank uncoverable regardless of train length.** Guns face outward from the engine and guard car; the consist's own body is definitionally out of arc. This is a geometry fact, not a balance number, which means it can't be accidentally tuned away.
 
-**A foul is a cascade, not a chore.** At 3% a pull, a gun that fires all 24 of its night's shot fouls at least once about one night in two (1 − 0.97²⁴ = 52%), and a night's usual dozen shots or so foul one time in three. It always lands at the worst moment, because the trigger is only pulled when something is there to shoot. Clearing it (6 s) takes longer than a reload (3 × 1.5 s), under fire, and far less than mending the boiler (25 s). The roll is the night's: the same seed, gun and shot foul the same way on every machine.
+**A foul is a cascade, not a chore.** At 4% a shot, a gun that fires all 24 of its night's shot fouls at least once about three nights in five (1 − 0.96²⁴ = 62%), and a night's usual dozen shots or so foul one time in three; in the wet, far more often. It lands mid-fight, because the gun's only fired when something is there to shoot. Clearing it (4 s) is about a reload's time (3 × 1.5 s), under fire, and far less than mending the boiler (25 s). Which shot fouls is a hash of the tick and the gun, the same on every machine (combat.json, ARCHITECTURE §8 note 183).
 
 ## B.8 Run length
 
@@ -310,7 +310,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
 | Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
-| Needs the repair kit | No, for now: the train carries no repair kit yet |
+| Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
 | Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 
 ---

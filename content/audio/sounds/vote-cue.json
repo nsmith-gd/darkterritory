@@ -1,0 +1,16 @@
+// GDD v1.4 App. D.11's payoff for the dead (note 180): a creature a dead player voted for is coming, and every dead player
+// hears it on the dead channel (flat, theirs alone: the living's clients are never sent it). A cracked hand bell rung twice,
+// low and slow, under the dead's voices: tier 2 like them, so it never masks a tell.
+{
+  "tier": 2, "duration": 2.2, "flat": true, "maxInstances": 1, "gainDb": -2,
+  "layers": [
+    { "source": "impulse", "frequency": 1, "gain": 0.9,
+      "filters": [{ "type": "bandPass", "frequency": 523, "q": 40 }, { "type": "bandPass", "frequency": 523, "q": 12 }] },
+    { "source": "impulse", "frequency": 1, "gain": 0.5,
+      "filters": [{ "type": "bandPass", "frequency": 1307, "q": 30 }] },
+    { "source": "impulse", "frequency": 1, "gain": 0.8, "delay": 0.7,
+      "filters": [{ "type": "bandPass", "frequency": 466, "q": 40 }, { "type": "bandPass", "frequency": 466, "q": 12 }] },
+    { "source": "impulse", "frequency": 1, "gain": 0.45, "delay": 0.7,
+      "filters": [{ "type": "bandPass", "frequency": 1170, "q": 30 }] }
+  ]
+}

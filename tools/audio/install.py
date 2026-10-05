@@ -209,7 +209,11 @@ TELL_SOUNDS = {
     "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
     "tell-car-fire": ("car-fire", [("smoulder", {"gain": {"param": "progress", "points": [[0, 1], [0.5, 0.7], [1, 0]]}}),
                                    ("alight", {"gain": {"param": "progress", "points": [[0, 0], [0.4, 0.25], [1, 1]]}})]),
-    "tell-track-doll": ("doll-giggle", [("giggle", {})]),
+    # T118: the game plays the giggle now and then, each at its own "pitch" (0.92-1.10), so the take follows it.
+    # A presence lift on the porcelain's ring: the kept giggle has less in its 3-6 kHz tell band than T118's synth, and the
+    # cab's din buries it there (AudioTests); lifting the band, not the whole giggle, keeps it from being loud and crazy (T115).
+    "tell-track-doll": ("doll-giggle", [("giggle", {"rate": {"param": "pitch", "points": [[0, 0], [2, 2]]},
+                                                    "filters": [{"type": "peak", "frequency": 4200, "q": 0.9, "gainDb": 11}]})]),
     "tell-car-hugger": ("hugger-grind", [("grind", {})]),
     "tell-ribbits": ("ribbit-swell", [("swell", {})]),
     "tell-hounds": ("hound-howl", [("howl-far", {})]),

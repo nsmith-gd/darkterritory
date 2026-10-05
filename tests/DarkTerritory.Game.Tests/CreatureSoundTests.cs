@@ -229,17 +229,19 @@ public class CreatureSoundTests
     [Fact]
     public void ABlowFromEmptyHandsIsALimpSlap()
     {
+        // A blow landing is the host's hit record (T121, note 171), heard once: the tool in the hitter's hand on flesh, or a
+        // slap from empty hands, whoever else is near.
         using var scene = new Scene(2, "crew-mishaps.bare-slap", "crew-melee.crowbar-hit-flesh");
         var at = scene.Train.Frames[2].ToWorld(new Double3(-4, 0, 0));
         var near = PlayerMotor.SpawnOnGround(at + new Double3(0.6, 0, 0), scene.Train.Line, 1200, Player);
-        Ribbit Toad(double health) => Record(new Ribbit(61, 0), SpinePhase.Dormant, 0, health, Enemy.Loose, at, extra: 1);
-        // Only bare hands in reach of it as it's hurt: the slap.
-        scene.Audio.CrewStates = [(1, near with { Kit = 0 })];
-        scene.Tick(Toad(3));
-        Assert.Contains("crew-mishaps.bare-slap", scene.Tick(Toad(2.9)));
-        // A crowbar in reach: it's the crowbar's, however close the empty hands are.
+        var toad = Record(new Ribbit(61, 0), SpinePhase.Dormant, 0, 3, Enemy.Loose, at, extra: 1);
         scene.Audio.CrewStates = [(1, near with { Kit = 0 }), (2, near with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0, Position = near.Position + new Double3(0.3, 0, 0) })];
-        var heard = scene.Tick(Toad(1.9));
+        scene.Tick(toad);
+        HitConfirm Blow(int id, int by) => new(id, scene.World.Tick, 61, EnemyKind.Ribbit, by, HitSource.Melee, at + Double3.Up * 0.8, Double3.Up, false);
+        scene.World.Hits.Add(Blow(1, by: 1));
+        Assert.Contains("crew-mishaps.bare-slap", scene.Tick(toad));
+        scene.World.Hits.Add(Blow(2, by: 2));
+        var heard = scene.Tick(toad);
         Assert.Contains("crew-melee.crowbar-hit-flesh", heard);
         Assert.DoesNotContain("crew-mishaps.bare-slap", heard);
     }

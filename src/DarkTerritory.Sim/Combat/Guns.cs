@@ -10,7 +10,10 @@ public readonly record struct HitTarget(int Id, Double3 Position, double Radius)
 /// <summary>One round fired this tick.</summary>
 /// <param name="HitTargetId">The target struck, or −1.</param>
 /// <param name="BlockedByTrain">The round hit the train's own body first (the flank is out of arc by geometry).</param>
-public readonly record struct GunShot(int GunVehicle, int Shooter, Double3 Muzzle, Double3 Direction, double Distance, int HitTargetId, bool BlockedByTrain);
+/// <param name="Impact">Where the ball came down (world): on what it hit, or the ground where its range ran out (T121).</param>
+/// <param name="Surface">What it came down on there.</param>
+public readonly record struct GunShot(int GunVehicle, int Shooter, Double3 Muzzle, Double3 Direction, double Distance, int HitTargetId, bool BlockedByTrain,
+    Double3 Impact = default, ImpactSurface Surface = ImpactSurface.Ground);
 
 public enum AimResult : byte { Ok, OutOfTraverse, DeadZone, PitchLimit }
 
@@ -56,12 +59,13 @@ public static class Guns
     }
 
     /// <summary>
-    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload or
-    /// fouled (then Use works the reload, or clears it). The motor moves it with you (<see cref="Slide"/>).
+    /// Pushing the gun you're at along its rail (T93): Use held at it while you walk, and it isn't waiting on a reload (then
+    /// Use works the reload). The motor moves it with you (<see cref="Slide"/>).
     /// </summary>
     public static bool Pushing(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t) =>
         intent.Has(PlayerButtons.Use) && (Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5) && !s.Has(PlayerFlags.Held)
-        && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun is { ReloadNeeded: <= 0, Jammed: false };
+        && !s.Has(PlayerFlags.Seated)
+        && MannedGun(s, train, t) is { } g && train.Vehicles[g].Gun.ReloadNeeded <= 0;
 
     /// <summary>
     /// Moves a vehicle's gun along its roof rail by <paramref name="dz"/> (T93). Past the rail's end it goes over the
@@ -96,38 +100,99 @@ public static class Guns
         v.Gun.Z = Math.Clamp(z, rail.Front, rail.Back);
     }
 
+    /// <summary>The yaw (the player's convention, car frame) of a gun's facing: 0 forward along −Z, π back.</summary>
+    public static double FacingYaw(GunMount mount) => mount.Facing.Z < 0 ? 0 : Math.PI;
+
+    /// <summary>Which way the barrel points now, in its car's frame: its facing, turned by the traverse, lifted by the elevation.</summary>
+    public static Double3 BarrelAim(GunMount mount, in GunState g) => Aim(FacingYaw(mount) + g.Traverse, g.Elevation);
+
+    static Double3 Aim(double yaw, double pitch) =>
+        new(-DMath.Sin(yaw) * DMath.Cos(pitch), DMath.Sin(pitch), -DMath.Cos(yaw) * DMath.Cos(pitch));
+
+    /// <summary>Where the gunner sits (feet, car frame): behind the breech, on the carriage, so it turns with the gun.</summary>
+    public static Double3 SeatAt(GunMount mount, in GunState g, GunTuning t, double floor)
+    {
+        double yaw = FacingYaw(mount) + g.Traverse;
+        return new Double3(mount.Position.X + DMath.Sin(yaw) * t.SeatBehind, floor, mount.Position.Z + DMath.Cos(yaw) * t.SeatBehind);
+    }
+
+    /// <summary>
+    /// The gun's seat (T112 playtest: "a gun seat with its own controls"), each tick before the gun fires. The Seat press at
+    /// a gun sits you in it (only that: a host repeating a lost intent mustn't stand you back up); Jump gets you up (the
+    /// motor), and so does the gun going (pushed away, its car cut, you seized). Seated, your
+    /// view is held inside the gun's arc and the gun is laid after it, no faster than its carriage turns and its barrel
+    /// lifts, and your feet stay on the seat as the carriage turns. Worked alike on host and client, so a client predicts it.
+    /// </summary>
+    public static void Sit(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
+    {
+        bool seated = s.Has(PlayerFlags.Seated);
+        var gunVehicle = MannedGun(s, train, t);
+        bool canSit = gunVehicle is not null && s.Alive && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Heavy);
+        if (seated && !canSit)
+        {
+            s.Flags &= ~PlayerFlags.Seated;
+            return;
+        }
+        if (!seated && !(canSit && intent.Has(PlayerActions.Seat)))
+            return;
+        s.Flags |= PlayerFlags.Seated;
+        ref var gun = ref train.Vehicles[gunVehicle!.Value].Gun;
+        var mount = Mount(train, gunVehicle.Value)!.Value;
+        // The view stays inside what the gun can be laid on: its traverse either side of its facing, its pitch limits.
+        double half = t.TraverseDegrees / 2 * Math.PI / 180, face = FacingYaw(mount);
+        double off = Math.Clamp(Wrap(s.Yaw - face), -half, half);
+        s.Yaw = face + off;
+        s.Pitch = Math.Clamp(s.Pitch, t.MinPitchDegrees * Math.PI / 180, t.MaxPitchDegrees * Math.PI / 180);
+        // The gun after it, at its pace.
+        double turn = t.TraverseDegreesPerSecond * Math.PI / 180 * dt, lift = t.ElevateDegreesPerSecond * Math.PI / 180 * dt;
+        gun.Traverse += Math.Clamp(off - gun.Traverse, -turn, turn);
+        gun.Elevation += Math.Clamp(s.Pitch - gun.Elevation, -lift, lift);
+        var seat = SeatAt(mount, gun, t, s.Position.Y);
+        s.Position = seat;
+        s.Velocity = default;
+    }
+
+    /// <summary>Whether a gun's barrel is laid on <paramref name="aim"/> (car frame), within the tuning's tolerance (bots fire on it).</summary>
+    public static bool Laid(GunMount mount, in GunState g, Double3 aim, GunTuning t) =>
+        DMath.Acos(Math.Clamp(Double3.Dot(BarrelAim(mount, g), aim.Normalized), -1, 1)) * 180 / Math.PI <= t.LaidDegrees;
+
+    static double Wrap(double a)
+    {
+        a %= 2 * Math.PI;
+        return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a;
+    }
+
     /// <summary>The player's view direction in their car's frame.</summary>
     public static Double3 AimLocal(in PlayerState s) =>
-        new(-Math.Sin(s.Yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(s.Yaw) * Math.Cos(s.Pitch));
+        new(-DMath.Sin(s.Yaw) * DMath.Cos(s.Pitch), DMath.Sin(s.Pitch), -DMath.Cos(s.Yaw) * DMath.Cos(s.Pitch));
 
     /// <summary>Whether a gun can point this way (car frame).</summary>
     public static AimResult CheckAim(GunMount mount, Double3 aim, GunTuning t)
     {
-        double pitch = Math.Asin(Math.Clamp(aim.Y, -1, 1)) * 180 / Math.PI;
+        double pitch = DMath.Asin(Math.Clamp(aim.Y, -1, 1)) * 180 / Math.PI;
         if (pitch < t.MinPitchDegrees || pitch > t.MaxPitchDegrees)
             return AimResult.PitchLimit;
         var flat = new Double3(aim.X, 0, aim.Z);
         if (flat.Length < 1e-9)
             return AimResult.PitchLimit;
         flat = flat.Normalized;
-        double bearing = Math.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
+        double bearing = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing), -1, 1)) * 180 / Math.PI;
         if (bearing > t.TraverseDegrees / 2)
             return AimResult.OutOfTraverse;
         // The train's body runs away from the gun opposite its facing; nothing fires along it.
-        double alongBody = Math.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
+        double alongBody = DMath.Acos(Math.Clamp(Double3.Dot(flat, mount.Facing * -1), -1, 1)) * 180 / Math.PI;
         return alongBody < t.DeadZoneDegrees ? AimResult.DeadZone : AimResult.Ok;
     }
 
     /// <summary>
-    /// Fires the gun this player is manning, if they're holding Fire and it's ready. Hits the nearest target
-    /// along the aim within range, unless the train's own body is in the way first. Now and then the pull misfires instead
-    /// and fouls the gun (<see cref="Misfires"/>): nothing fired, and it won't until it's cleared.
+    /// Fires the gun this player is manning, if they're seated at it (T112), holding Fire, and it's ready: where the barrel
+    /// points, which the gunner's view leads. Hits the nearest target along it within range, unless the train's own body
+    /// is in the way first.
     /// </summary>
-    /// <param name="seed">The night's seed (<see cref="World.Seed"/>), for the misfire's roll.</param>
     public static GunShot? TryFire(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, ref ChoirState choir, ChoirTuning ct,
-        IReadOnlyList<HitTarget> targets, uint tick, int shooterId, ulong seed = 0)
+        IReadOnlyList<HitTarget> targets, uint tick, int shooterId)
     {
-        if (!intent.Has(PlayerButtons.Fire) || MannedGun(s, train, t) is not { } gunVehicle)
+        if (!intent.Has(PlayerButtons.Fire) || !s.Has(PlayerFlags.Seated) || MannedGun(s, train, t) is not { } gunVehicle)
             return null;
         var vehicle = train.Vehicles[gunVehicle];
         ref var gun = ref vehicle.Gun;
@@ -137,17 +202,9 @@ public static class Guns
             return null;
         var frame = train.Frames[gunVehicle];
         var mount = Mount(train, gunVehicle)!.Value;
-        var aimLocal = AimLocal(s);
+        var aimLocal = BarrelAim(mount, gun);
         if (CheckAim(mount, aimLocal, t) != AimResult.Ok)
             return null;
-        // GDD §23 "Cannon fouls": a dead click, the charge still in it, and nothing more from it until someone's cleared it.
-        if (Misfires(seed, gunVehicle, gun, t))
-        {
-            gun.Jammed = true;
-            gun.Fouls++;
-            gun.ReloadProgress = 0;
-            return null;
-        }
 
         gun.Ammo--;
         gun.Cooldown = t.TicksPerRound;
@@ -155,12 +212,23 @@ public static class Guns
         // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram.
         gun.ReloadNeeded = gun.Ammo > 0 ? t.ReloadSteps : 0;
         gun.ReloadProgress = 0;
-        choir.RoundFired(ct);
+        // GDD §22 wind (note 183): out where the wind takes it, a shot carries further, and feeds the meter more.
+        double wind = train.Line.Conditions?.Wind(train.Dynamics.Path, train.Dynamics.Distance) ?? 0;
+        choir.RoundFired(ct, 1 + t.WindLoudness * wind);
+        // GDD §23 (note 183): now and then a shot fouls the bore, more in the wet; the same on every machine (the tick and the
+        // gun decide it, not a shared die).
+        bool wet = (train.Line.Conditions?.Adhesion(train.Dynamics.Path, train.Dynamics.Distance) ?? 1) < 1;
+        if (Fouls(tick, gunVehicle, t.FoulChance * (wet ? t.FoulWetFactor : 1)))
+            gun.Jammed = true;
 
         var muzzle = frame.ToWorld(mount.Position);
         var dir = frame.DirToWorld(aimLocal).Normalized;
         double blocked = TrainRaycast(train, muzzle, dir, t.Range);
         double best = Math.Min(blocked, t.Range);
+        // The ground, water or a building's wall in the way first (T121): what it lands on short of the train or its range.
+        var land = Solid(train, muzzle, dir, best, t.ImpactStep);
+        if (land is { } l)
+            best = l.Distance;
         int hit = -1;
         foreach (var target in targets)
         {
@@ -170,38 +238,104 @@ public static class Guns
                 hit = target.Id;
             }
         }
-        return new GunShot(gunVehicle, shooterId, muzzle, dir, best, hit, hit < 0 && blocked <= t.Range);
+        var surface = hit >= 0 ? ImpactSurface.Creature : land?.Surface ?? (blocked <= t.Range ? ImpactSurface.Train : ImpactSurface.Ground);
+        var impact = muzzle + dir * best;
+        // Nothing in range: the spent ball comes down where its range runs out (on the water there, if there's water).
+        if (hit < 0 && land is null && blocked > t.Range)
+            (impact, surface) = Under(train, impact);
+        return new GunShot(gunVehicle, shooterId, muzzle, dir, best, hit, hit < 0 && surface == ImpactSurface.Train, impact, surface);
     }
 
     /// <summary>
-    /// Whether this pull of the trigger misfires and fouls the gun (GDD §23, <see cref="GunTuning.FoulChance"/>): a roll
-    /// that's a hash of the night's seed, the gun's car, the shot it has left and how often it's fouled, so it's the same
-    /// on the host and on a client predicting its own pull, and a gun just cleared rolls afresh.
+    /// The first ground, water or stop building's wall (<see cref="Run.StopWalls"/>) along a ray within <paramref name="max"/>:
+    /// marched in <paramref name="step"/>s, then narrowed down. Deterministic (the land and the walls are built alike
+    /// everywhere), so a client works out the same landing the host does.
     /// </summary>
-    public static bool Misfires(ulong seed, int vehicle, in GunState gun, GunTuning t)
+    public static (double Distance, ImpactSurface Surface)? Solid(TrainOnLine train, Double3 origin, Double3 dir, double max, double step)
     {
-        if (t.FoulChance <= 0)
-            return false;
-        ulong h = LineGen.Streams.SplitMix64(seed ^ LineGen.Streams.SplitMix64(FoulStream ^ (ulong)vehicle * 0x9E3779B97F4A7C15UL
-            ^ (ulong)gun.Ammo * 0xC2B2AE3D27D4EB4FUL ^ (ulong)gun.Fouls * 0x165667B19E3779F9UL));
-        return (h >> 11) * (1.0 / (1UL << 53)) < t.FoulChance;
+        if (step <= 0 || max <= 0)
+            return null;
+        double hint = train.Dynamics.Distance;
+        double before = 0;
+        for (double d = Math.Min(step, max); ; d = Math.Min(d + step, max))
+        {
+            if (Inside(train, origin + dir * d, ref hint) is not null)
+            {
+                // Narrowed to a few centimetres between the last clear point and this one.
+                double lo = before, hi = d;
+                for (int i = 0; i < 10; i++)
+                {
+                    double mid = (lo + hi) / 2;
+                    if (Inside(train, origin + dir * mid, ref hint) is not null)
+                        hi = mid;
+                    else
+                        lo = mid;
+                }
+                return (hi, Inside(train, origin + dir * hi, ref hint)!.Value);
+            }
+            if (d >= max)
+                return null;
+            before = d;
+        }
     }
 
-    /// <summary>The misfire roll's own stream, apart from anything else hashed off the night's seed.</summary>
-    const ulong FoulStream = 0x0F0B1E5_C4A2E0UL;
+    /// <summary>What solid a point is in: under the ground or water, or inside a stop building's wall; null in the open.</summary>
+    static ImpactSurface? Inside(TrainOnLine train, Double3 p, ref double hint)
+    {
+        double ground = PlayerMotor.GroundAt(p, train.Line, ref hint);
+        double? water = Water(train, p);
+        if (water is { } w && w > ground && p.Y <= w)
+            return ImpactSurface.Water;
+        if (p.Y <= ground)
+            return ImpactSurface.Ground;
+        if (train.Walls is { } walls)
+            foreach (var wall in walls.Near(p))
+            {
+                var local = wall.ToLocal(p);
+                if (Math.Abs(local.X) <= wall.HalfLength && Math.Abs(local.Z) <= wall.HalfWidth && local.Y >= wall.Bottom && local.Y <= wall.Top)
+                    return ImpactSurface.Structure;
+            }
+        return null;
+    }
+
+    static double? Water(TrainOnLine train, Double3 p) =>
+        (train.Line.Conditions is Net.HazardConditions h ? h.Inner : train.Line.Conditions) is LineGen.PlanConditions plan ? plan.Terrain.WaterAt(p.X, p.Z) : null;
+
+    /// <summary>Straight down from a point to what's under it: the ground, or water over it.</summary>
+    static (Double3 At, ImpactSurface Surface) Under(TrainOnLine train, Double3 p)
+    {
+        double hint = train.Dynamics.Distance;
+        double ground = PlayerMotor.GroundAt(p, train.Line, ref hint);
+        return Water(train, p) is { } w && w > ground ? (p with { Y = w }, ImpactSurface.Water) : (p with { Y = ground }, ImpactSurface.Ground);
+    }
 
     /// <summary>
     /// The reload (GDD v1.1 App. C.3 "powder, ball, ram, fire"): Use held at a gun that's been fired works it, a step at a
     /// time, each <see cref="GunTuning.ReloadStepSeconds"/>. Let go and the step starts again. Whoever's at the gun does it;
-    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone. A fouled gun is cleared
-    /// the same way first (GDD §23 "someone clears it by hand"): Use held at it for <see cref="GunTuning.FoulClearSeconds"/>.
+    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone.
     /// </summary>
     public static void Reload(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
     {
         if (MannedGun(s, train, t) is not { } gunVehicle)
             return;
         ref var gun = ref train.Vehicles[gunVehicle].Gun;
-        if (gun.ReloadNeeded <= 0 && !gun.Jammed)
+        // A fouled bore first (note 183): Use held at the gun, standing still, for ClearSeconds, under fire or not.
+        if (gun.Jammed)
+        {
+            if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
+            {
+                gun.ReloadProgress = 0;
+                return;
+            }
+            gun.ReloadProgress += dt;
+            if (gun.ReloadProgress >= t.ClearSeconds)
+            {
+                gun.ReloadProgress = 0;
+                gun.Jammed = false;
+            }
+            return;
+        }
+        if (gun.ReloadNeeded <= 0)
             return;
         // Walking with Use held is pushing the gun, not reloading it (T93); but a gun waiting on a reload won't be pushed.
         if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
@@ -210,20 +344,21 @@ public static class Guns
             return;
         }
         gun.ReloadProgress += dt;
-        if (gun.Jammed)
-        {
-            if (gun.ReloadProgress >= t.FoulClearSeconds)
-            {
-                gun.ReloadProgress = 0;
-                gun.Jammed = false;
-            }
-            return;
-        }
         if (gun.ReloadProgress >= t.ReloadStepSeconds)
         {
             gun.ReloadProgress = 0;
             gun.ReloadNeeded--;
         }
+    }
+
+    /// <summary>Whether the round fired at <paramref name="tick"/> from <paramref name="vehicle"/>'s gun fouls it: a hash, not a die.</summary>
+    public static bool Fouls(uint tick, int vehicle, double chance)
+    {
+        ulong h = (tick * 0x9E3779B97F4A7C15UL) ^ ((ulong)(vehicle + 1) * 0xC2B2AE3D27D4EB4FUL);
+        h ^= h >> 33;
+        h *= 0xFF51AFD7ED558CCDUL;
+        h ^= h >> 33;
+        return (h >> 11) * (1.0 / (1UL << 53)) < chance;
     }
 
     /// <summary>Counts down every gun's cooldown. Once per tick.</summary>

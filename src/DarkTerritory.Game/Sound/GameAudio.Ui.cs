@@ -179,9 +179,9 @@ public sealed partial class GameAudio
         var train = world.Train;
         if (world.Combat is { } combat && Guns.MannedGun(me, train, combat.Guns) is { } g)
         {
-            // A foul's cleared by the reload's hold, on the same count (Guns: FoulClearSeconds of it).
+            // A foul's cleared by the reload's hold, on the same count (Guns: ClearSeconds of it).
             if (train.Vehicles[g].Gun is { Jammed: true, ReloadProgress: > 0 } fouled)
-                return new(HoldKind.ClearFoul, g, fouled.ReloadProgress / combat.Guns.FoulClearSeconds);
+                return new(HoldKind.ClearFoul, g, fouled.ReloadProgress / combat.Guns.ClearSeconds);
             if (train.Vehicles[g].Gun is { ReloadNeeded: > 0, ReloadProgress: > 0 } gun)
                 return new(HoldKind.Reload, g, gun.ReloadProgress / combat.Guns.ReloadStepSeconds);
         }
@@ -247,7 +247,8 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// The night's end (replicated: the run's phase, and the report the host sends when it's written): the report comes up,
-    /// then each line under its headline tallies in, then each death it lists is stamped in.
+    /// then its lines go in one at a time as the clerk reads them down (GDD v1.4 App. D.12): each death stamped, every other
+    /// line and the money tallied.
     /// </summary>
     void NightOver(World world)
     {
@@ -257,30 +258,31 @@ public sealed partial class GameAudio
             Ui(UiCue.Report);
             _tallied = false;
         }
-        // The report can come a snapshot or two after the phase (a crowded snapshot goes over a few): its lines tally in from
-        // when it's here.
+        // The report can come a moment after the phase (it's sent in chunks): its lines go in from when it's here.
         if (over && !_tallied && world.Run!.Report is { } r)
         {
             _tallied = true;
-            // The lines as the HUD shows them (Hud.ReportLines, Hud.DeathLines).
             double due = _uiTime + TallyFirst;
-            for (int i = 0; i < Hud.ReportLines(r).Count - 1; i++, due += TallyEvery)
-                _tallies.Enqueue((due, UiCue.Tally));
-            // Each death on it stamped in after, a line at a time; one the crew did to themselves gets its cause typed out beside
-            // the stamp (crew-mishaps, the director's call 3 Oct). A long list's last line, the rest of them, is a stamp too.
-            var shown = Hud.DeathsShown(r);
-            foreach (var death in shown)
+            // In the report's order (Hud.IncidentReport). A death the crew did to themselves gets its cause typed out beside
+            // the stamp (crew-mishaps, the director's call 3 Oct).
+            foreach (var line in r.Lines)
             {
+                if (line.Kind != IncidentKind.Death)
+                {
+                    _tallies.Enqueue((due, UiCue.Tally));
+                    due += TallyEvery;
+                    continue;
+                }
                 _tallies.Enqueue((due, UiCue.DeathStamp));
                 due += StampEvery;
-                if (OwnGoal(death.Cause))
+                if (OwnGoal(line.Cause))
                 {
                     _tallies.Enqueue((due - StampEvery + OwnGoalAfterStamp, UiCue.OwnGoal));
                     due += OwnGoalTakes;
                 }
             }
-            if (Hud.DeathLines(r).Count > shown.Count)
-                _tallies.Enqueue((due, UiCue.DeathStamp));
+            // The money under it all.
+            _tallies.Enqueue((due, UiCue.Tally));
         }
         if (!over)
             _tallies.Clear();

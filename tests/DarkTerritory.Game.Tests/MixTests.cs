@@ -244,13 +244,13 @@ public class MixTests
         // In the yard, before the night's begun: nothing.
         Assert.Equal(RunPhase.Yard, world.Run!.Phase);
         audio.Update(world, new TrainControls(), ear, exposed: true, SimConstants.TickSeconds);
-        Assert.Null(audio.Music);
+        Assert.Null(audio.Drone);
         // Under way: on, and it stays the one voice tick after tick.
         world.Run.Resume(0, -1, world.Train.Boiler.Tender, 0);
         audio.Update(world, new TrainControls(), ear, exposed: true, SimConstants.TickSeconds);
-        var music = Assert.IsType<SoundInstance>(audio.Music);
+        var music = Assert.IsType<SoundInstance>(audio.Drone);
         audio.Update(world, new TrainControls(), ear, exposed: true, SimConstants.TickSeconds);
-        Assert.Same(music, audio.Music);
+        Assert.Same(music, audio.Drone);
         Assert.Equal((7, true, true), (music.Def.Tier, music.Def.Flat, music.Def.Loop));
         var block = new float[Audio.Block * 2];
         for (int b = 0; b < 40; b++)

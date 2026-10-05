@@ -158,9 +158,9 @@ public class BreachTests
     }
 
     [Fact]
-    public void WithTheKitFlagOnlyTheKitInHandBoardsItUp()
+    public void WithTheKitFlagOnlyTheRepairKitCarriedBoardsItUp()
     {
-        // ARCHITECTURE §8: no repair kit on the train yet, so needsKit means the engineering kit's wrench (T109).
+        // needsKit: only someone carrying the repair kit (note 150: an item) boards it up; a wrench in hand isn't it.
         var kit = T with { Breach = T.Breach with { NeedsKit = true } };
         var r = new Rig(speed: 0, train: kit);
         const int car = 2;
@@ -170,6 +170,10 @@ public class BreachTests
         r.Run(kit.Breach.BoardSeconds + 1, _ => Use);
         Assert.True(r.Train.Vehicles[car].Breached);
         r.Crew[1] = r.Crew[1] with { Kit = Kit.Of([Tool.Wrench]), HeldSlot = 0 };
+        r.Run(kit.Breach.BoardSeconds + 1, _ => Use);
+        Assert.True(r.Train.Vehicles[car].Breached);
+        // The kit in their hands (the host sets PlayerFlags.RepairKit from what's carried).
+        r.World.Bodies.SpawnCrate(r.Train, car, new Double3(0.4, room.Min.Y + 0.1, room.Centre.Z), Physics.BodyKind.RepairKit).Carrier = 1;
         r.Run(kit.Breach.BoardSeconds + 0.2, _ => Use);
         Assert.False(r.Train.Vehicles[car].Breached);
     }

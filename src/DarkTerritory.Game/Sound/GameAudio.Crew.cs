@@ -135,12 +135,10 @@ public sealed partial class GameAudio
         _crewCars.Clear();
         _crewGuns.Clear();
         _crewBodies.Clear();
-        _crewEnemyHealth.Clear();
         _crewRakes.Clear();
         _crewSwitches = null;
         _crewCouplings = null;
         _crewEngine = null;
-        _crewLastShot = double.NegativeInfinity;
         _crewLater.Clear();
     }
 
@@ -148,12 +146,10 @@ public sealed partial class GameAudio
     readonly Dictionary<int, CrewCar> _crewCars = new();
     readonly Dictionary<int, CrewGun> _crewGuns = new();
     readonly Dictionary<int, CrewBody> _crewBodies = new();
-    readonly Dictionary<int, double> _crewEnemyHealth = new();
     readonly Dictionary<int, (int Count, bool On)> _crewRakes = new();
     HashSet<(int, int)>? _crewCouplings;
     bool[]? _crewSwitches;
     CrewEngine? _crewEngine;
-    double _crewLastShot = double.NegativeInfinity;
     bool _crewFireWas;
     readonly List<(double At, string Name, Double3 Where, float Occlusion)> _crewLater = new();
 
@@ -172,7 +168,6 @@ public sealed partial class GameAudio
         CrewCouplings(world);
         CrewSwitchStands(world);
         CrewCarried(world, firePressed);
-        CrewStruck(world);
     }
 
     /// <summary>Plays what was put off till now (a latch after a slam, a pin after the knuckles).</summary>
@@ -571,7 +566,7 @@ public sealed partial class GameAudio
     /// <summary>
     /// Your own blow landing on the train (hooks-map: the sim's swing only tests enemies): a ray from the eye along the look,
     /// as far as the tool reaches, onto the first solid; iron or wood by what it is. With something to hit in reach, it's
-    /// that (its Health drop is <see cref="CrewStruck"/>'s), not the train.
+    /// that (the host's hit record, GameAudio.Strikes), not the train.
     /// </summary>
     void OwnBlow(World world, in PlayerState s, Tool held, float occlusion)
     {
@@ -642,51 +637,6 @@ public sealed partial class GameAudio
                 return null;
         }
         return near;
-    }
-
-    /// <summary>
-    /// A blow landing on something (App. C.2): its Health dropped with no cannon fired just now, and a crewmate with a tool
-    /// in hand is in reach of it (the host's who-hit-what isn't sent: the nearest is taken for it).
-    /// </summary>
-    void CrewStruck(World world)
-    {
-        var train = world.Train;
-        var melee = world.Enemies?.Melee ?? new MeleeTuning();
-        var live = new HashSet<int>();
-        foreach (var e in world.ActiveEnemies)
-        {
-            if (e.Gone)
-                continue;
-            live.Add(e.Id);
-            double was = _crewEnemyHealth.GetValueOrDefault(e.Id, e.Health);
-            _crewEnemyHealth[e.Id] = e.Health;
-            if (e.Health >= was - 1e-6 || e.MeleeRadius <= 0 || _time - _crewLastShot < 0.3)
-                continue;
-            var at = e.WorldPosition(train) + Double3.Up * 0.8;
-            (Tool Tool, double D)? best = null;
-            double bare = double.PositiveInfinity;
-            foreach (var (_, s) in CrewStates)
-            {
-                var tool = Kit.Held(s);
-                if (!s.Alive || s.Parent != PlayerState.World && s.Parent >= train.Frames.Count)
-                    continue;
-                // Generous, as the host is with a remote crewmate's reach.
-                double d = (PlayerMotor.WorldPosition(s, train) + Double3.Up * ChestUp - at).Length;
-                if (d > melee.Reach + e.MeleeRadius + 0.5)
-                    continue;
-                if (tool == Tool.None)
-                    bare = Math.Min(bare, d);
-                else if (best is null || d < best.Value.D)
-                    best = (tool, d);
-            }
-            var struckOcclusion = Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside);
-            if (best is { } by)
-                Cue($"crew-melee.{ToolName(by.Tool)}-hit-flesh", at, struckOcclusion);
-            else if (bare < double.PositiveInfinity)
-                Cue("crew-mishaps.bare-slap", at, struckOcclusion);   // only empty hands in reach: a fraction of a blow (T108)
-        }
-        foreach (var gone in _crewEnemyHealth.Keys.Where(k => !live.Contains(k)).ToList())
-            _crewEnemyHealth.Remove(gone);
     }
 
     // ------------------------------------------------------------------------------------------------ doors and lamps
@@ -782,9 +732,19 @@ public sealed partial class GameAudio
         {
             _crewEngine = new CrewEngine
             {
-                FireDoor = boiler.FireDoorOpen, Vented = boiler.Vented, Lamp = world.LampLit, WrenchOut = boiler.WrenchOut, Ruptured = boiler.Ruptured,
-                Tender = boiler.Tender, SinceShovel = sinceShovel, Throttle = controls.Throttle, Brake = controls.Brake, Reverser = controls.Reverser,
-                Sand = train.Sand, Whistle = world.WhistleSeconds, LampOut = world.LampOutSeconds,
+                FireDoor = boiler.FireDoorOpen,
+                Vented = boiler.Vented,
+                Lamp = world.LampLit,
+                WrenchOut = boiler.WrenchOut,
+                Ruptured = boiler.Ruptured,
+                Tender = boiler.Tender,
+                SinceShovel = sinceShovel,
+                Throttle = controls.Throttle,
+                Brake = controls.Brake,
+                Reverser = controls.Reverser,
+                Sand = train.Sand,
+                Whistle = world.WhistleSeconds,
+                LampOut = world.LampOutSeconds,
             };
             return;
         }
@@ -1032,7 +992,6 @@ public sealed partial class GameAudio
     {
         var train = world.Train;
         int steps = world.Combat?.Guns.ReloadSteps ?? 3;
-        bool shotHeard = false;
         foreach (var v in train.Vehicles)
         {
             if (v.Id >= train.Frames.Count)
@@ -1050,7 +1009,6 @@ public sealed partial class GameAudio
                 float outside = Occlusion(PlayerMotor.Outside);
                 if (m.Mounted && g.Ammo < m.Ammo && g.LastShotTick > 0)
                 {
-                    shotHeard = true;
                     bool far = (muzzle - Mixer.Listener.Position).Length > ShotFar;
                     if (Cue(far ? "crew-cannon-fire.shot-far" : "crew-cannon-fire.shot-close", muzzle, outside) is null
                         && Cue(far ? "crew-cannon-fire.shot-close" : "crew-cannon-fire.shot-far", muzzle, outside) is null)
@@ -1104,8 +1062,6 @@ public sealed partial class GameAudio
             m.Needed = g.ReloadNeeded;
             m.Progress = g.ReloadProgress;
         }
-        if (shotHeard)
-            _crewLastShot = _time;
     }
 
     // ------------------------------------------------------------------------------------------------ what's carried
@@ -1130,8 +1086,16 @@ public sealed partial class GameAudio
             bool lifted = b.Kind == BodyKind.Heavy ? b.Lifted : b.Carrier >= 0;
             if (!_crewBodies.TryGetValue(b.Id, out var m))
             {
-                _crewBodies[b.Id] = new CrewBody { Carrier = b.Carrier, Parent = b.Parent, Lifted = lifted, Charge = b.Charge, Local = b.Centre,
-                    OnMount = OnMount(train, b), Hint = train.Dynamics.Distance };
+                _crewBodies[b.Id] = new CrewBody
+                {
+                    Carrier = b.Carrier,
+                    Parent = b.Parent,
+                    Lifted = lifted,
+                    Charge = b.Charge,
+                    Local = b.Centre,
+                    OnMount = OnMount(train, b),
+                    Hint = train.Dynamics.Distance
+                };
                 continue;
             }
             if (lifted && !m.Lifted)

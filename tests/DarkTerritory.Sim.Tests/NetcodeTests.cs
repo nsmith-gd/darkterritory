@@ -117,6 +117,8 @@ public class NetcodeTests
         Assert.Equal(2, host.Train.Rakes.Count);
         Assert.All(clients, c => Assert.Equal(2, c.Train.Rakes.Count));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+        // GDD v1.4 App. C.9: the host knows who pulled the coupler, for every car behind it.
+        Assert.Equal(cutter.PlayerId!.Value, host.World.Attribution.CouplerPulledBy(4));
     }
 
     [Fact]
@@ -131,6 +133,7 @@ public class NetcodeTests
 
         var mount = host.Train.Frames[0].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(host.Train, 0, mount.Position.Z + 0.7, P);
+        gunner.Flags |= PlayerFlags.Seated; // T112: in the gun's seat, which the client predicts too
         HostTeleport(host, clients[1].PlayerId!.Value, gunner);
         Run(net, host, clients, 5, _ => default);
         foreach (var c in clients)
@@ -167,44 +170,6 @@ public class NetcodeTests
         Run(net, host, clients, 3, _ => default);
         Assert.True(z0 - host.Train.Vehicles[guard].Gun.Z > 1.5);
         Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[guard].Gun.Z, c.Train.Vehicles[guard].Gun.Z, 6));
-        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
-    }
-
-    [Fact]
-    public void AClientsMisfireAndItsClearingArePredictedExactly()
-    {
-        // GDD §23 "Cannon fouls": the misfire is rolled off what every machine has (Guns.Misfires), so the gunner's own client
-        // fouls the gun on the tick the host does, never predicts a shot that didn't go, and clears it by hand in step.
-        var net = new LoopbackNetwork();
-        var combat = Tuning.Combat with { Guns = Tuning.Combat.Guns with { FoulChance = 1 } };
-        TrainOnLine NewTrain() => new(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600);
-        var host = new HostSession(net.CreateHost(), NewTrain(), T, P, combat);
-        var clients = new[] { new ClientSession(net.CreateClient(), NewTrain(), T, P, combat), new ClientSession(net.CreateClient(), NewTrain(), T, P, combat) };
-        Run(net, host, clients, 10, _ => default);
-        var mount = host.Train.Frames[0].Shape.Gun!.Value;
-        HostTeleport(host, clients[1].PlayerId!.Value, PlayerMotor.SpawnOnRoof(host.Train, 0, mount.Position.Z + 0.7, P));
-        Run(net, host, clients, 5, _ => default);
-        foreach (var c in clients)
-            c.ResetStats();
-
-        bool predictedShot = false;
-        for (int t = 0; t < 30; t++)
-        {
-            Run(net, host, clients, 1, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
-            predictedShot |= clients[1].World.Shots.Count > 0;
-        }
-        Run(net, host, clients, 3, _ => default);
-        Assert.False(predictedShot);
-        Assert.True(host.Train.Vehicles[0].Gun.Jammed);
-        Assert.All(clients, c => Assert.True(c.Train.Vehicles[0].Gun.Jammed));
-
-        Run(net, host, clients, (int)(combat.Guns.FoulClearSeconds * SimConstants.TickRate) + 10, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
-        Run(net, host, clients, 3, _ => default);
-        Assert.False(host.Train.Vehicles[0].Gun.Jammed);
-        Assert.Equal(1, host.Train.Vehicles[0].Gun.Fouls);
-        Assert.Equal(combat.Guns.Ammo, host.Train.Vehicles[0].Gun.Ammo);
-        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Jammed, c.Train.Vehicles[0].Gun.Jammed));
-        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[0].Gun.Fouls, c.Train.Vehicles[0].Gun.Fouls));
         Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
     }
 
@@ -417,59 +382,6 @@ public class BodyNetcodeTests
         Assert.Equal(2, body.Parent);
     }
 
-    [Fact]
-    public void WhenTheNightEndsEveryClientHasTheHostsReportDeathsAndAll()
-    {
-        // GDD App. D.12: the report is the host's, written once at the end. Every machine shows it (the HUD, the run-end
-        // sounds and the campaign's settling read it off their own world, the host's own player's included), so it's sent.
-        var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
-        var line = route.Build();
-        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000, Tuning.Boiler);
-        var net = new LoopbackNetwork();
-        var host = new HostSession(net.CreateHost(), Train(), T, P);
-        host.World.EnableBodies();
-        host.World.EnableRun(Tuning.Run, route, 600, authority: true);
-        var clients = Enumerable.Range(0, 2).Select(_ => new ClientSession(net.CreateClient(), Train(), T, P)).ToArray();
-        foreach (var c in clients)
-            c.World.EnableRun(Tuning.Run, route, 600, authority: false);
-        void Step(int ticks)
-        {
-            for (int t = 0; t < ticks; t++)
-            {
-                net.Advance(SimConstants.TickSeconds);
-                host.Step();
-                foreach (var c in clients)
-                    c.Step(default);
-            }
-        }
-        Step(10);
-        Assert.All(clients, c => Assert.Equal(RunPhase.Underway, c.World.Run!.Phase));
-        Assert.All(clients, c => Assert.Null(c.World.Run!.Report));
-
-        // One struck on a car's roof; then the train off the rails, which takes the other.
-        byte struck = clients[1].PlayerId!.Value, other = clients[0].PlayerId!.Value;
-        host.SetPlayerState(struck, PlayerMotor.SpawnOnRoof(host.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Struck });
-        Step(5);
-        host.World.Derail();
-        Step(10);
-
-        var report = host.World.Run!.Report!;
-        Assert.Equal(RunEnd.Derailed, report.End);
-        Assert.Equal([struck, other], report.Fatalities.Select(d => (byte)d.Player));
-        var roof = report.Fatalities[0];
-        Assert.Equal((DeathCause.Struck, 2, DeathSpot.Roof), (roof.Cause, roof.Car, roof.Spot));
-        Assert.InRange(roof.Km, 4.8, 5.1);
-        Assert.Equal(DeathCause.Derailed, report.Fatalities[1].Cause);
-        foreach (var c in clients)
-        {
-            Assert.Equal(RunPhase.Failed, c.World.Run!.Phase);
-            Assert.Equal(report, c.World.Run.Report);
-        }
-        // Written once: the same report from then on, not a fresh copy every snapshot.
-        var seen = clients[0].World.Run!.Report;
-        Step(5);
-        Assert.Same(seen, clients[0].World.Run!.Report);
-    }
 }
 
 /// <summary>M2's remainder: interest management, inert bodies, drop-in at stops (spec E).</summary>

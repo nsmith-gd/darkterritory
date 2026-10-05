@@ -26,6 +26,9 @@ public static class PlanStops
 {
     public const string PadPrefix = "stop:";
 
+    /// <summary>A village takes a stretch this nearly straight (radius 100 km and up: under 12 cm of bow over 300 m).</summary>
+    const double VillageCurvature = 1e-5;
+
     /// <summary>How many layouts a facility's stop is drawn from before the facility goes without one.</summary>
     const int Redraws = 4;
 
@@ -98,7 +101,10 @@ public static class PlanStops
         foreach (var town in plan.Landmarks.Where(l => l.Type is "halt" or "town" && l.Edge == "main").OrderBy(l => l.S0))
         {
             double start = town.S0, end = town.S1;
-            if (yards.Any(y => y.Start < end + 100 && start < y.End + 100) || !StraightAndLevel(main, start, end))
+            // Straight to a village's eye (T114 playtest: "a stop with nothing there"): the generator's straights carry a
+            // residual bow of a few hundred km radius, a few cm over a halt, and the yard's exact test turned a halt in
+            // ten away from its village, leaving its boards and platform with nothing at them.
+            if (yards.Any(y => y.Start < end + 100 && start < y.End + 100) || !StraightAndLevel(main, start, end, maxCurvature: VillageCurvature))
                 continue;
             var platform = platforms.FirstOrDefault(p => p.S0 < end && start < p.S1);
             ulong stopSeed = StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Halt), (ulong)Math.Round(start));
@@ -124,7 +130,7 @@ public static class PlanStops
         ulong.TryParse(s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var v) ? v : 0;
 
     /// <summary>The main line has no curve and no change of grade over a stretch: a stop's rail frame is the line there.</summary>
-    static bool StraightAndLevel(RailLine main, double from, double to, bool level = true)
+    static bool StraightAndLevel(RailLine main, double from, double to, bool level = true, double maxCurvature = 1e-6)
     {
         if (from < 0 || to > main.Length)
             return false;
@@ -132,7 +138,7 @@ public static class PlanStops
         for (double s = from; s <= to; s += 10)
         {
             var t = main.Sample(s);
-            if (Math.Abs(t.Curvature) > 1e-6 || level && Math.Abs(t.Position.Y - y0) > 0.05)
+            if (Math.Abs(t.Curvature) > maxCurvature || level && Math.Abs(t.Position.Y - y0) > 0.05)
                 return false;
         }
         return true;
@@ -162,6 +168,6 @@ public static class PlanStops
         var across = Double3.Cross(mid.Tangent, Double3.Up).Normalized * ((right - left) / 2);
         var at = mid.Position + across;
         return new PlanPad($"{PadPrefix}{Math.Round(start)}", Math.Round(at.X, 3), Math.Round(at.Z, 3), Math.Round(mid.Position.Y, 3),
-            Math.Round((right + left) / 2, 1), stop.ZoneLength / 2, Math.Round(Math.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3), Box: true);
+            Math.Round((right + left) / 2, 1), stop.ZoneLength / 2, Math.Round(DMath.Atan2(-mid.Tangent.X, -mid.Tangent.Z) * 180 / Math.PI, 3), Box: true);
     }
 }

@@ -15,9 +15,9 @@ public readonly record struct HPrim(double Length, double K0, double K1)
 public readonly record struct Pose(double X, double Z, double Heading)
 {
     public Double3 Position => new(X, 0, Z);
-    public Double3 Forward => new(-Math.Sin(Heading), 0, -Math.Cos(Heading));
+    public Double3 Forward => new(-DMath.Sin(Heading), 0, -DMath.Cos(Heading));
     /// <summary>Unit vector to the right of travel.</summary>
-    public Double3 Right => new(Math.Cos(Heading), 0, -Math.Sin(Heading));
+    public Double3 Right => new(DMath.Cos(Heading), 0, -DMath.Sin(Heading));
 }
 
 /// <summary>Plane geometry for laying track: turns with transitions, integration, and closing a gap between two poses.</summary>
@@ -79,8 +79,8 @@ public static class Geometry
             double u0 = i * ds, u1 = u0 + ds, um = u0 + ds / 2;
             double k0 = K(prim, u0), k1 = K(prim, u1), km = K(prim, um);
             double mid = h + (k0 + km) / 2 * ds / 2;
-            x += -Math.Sin(mid) * ds;
-            z += -Math.Cos(mid) * ds;
+            x += -DMath.Sin(mid) * ds;
+            z += -DMath.Cos(mid) * ds;
             h += (k0 + k1) / 2 * ds;
         }
         return new Pose(x, z, h);
@@ -114,7 +114,7 @@ public static class Geometry
     {
         double dh = Wrap(to.Heading - from.Heading);
         // Seeds: the tangent along the chord between the two, in either turning sense.
-        double chord = Math.Atan2(-(to.X - from.X), -(to.Z - from.Z));
+        double chord = DMath.Atan2(-(to.X - from.X), -(to.Z - from.Z));
         double distance = Math.Sqrt((to.X - from.X) * (to.X - from.X) + (to.Z - from.Z) * (to.Z - from.Z));
         // Every seed that converges, and the shortest of them that doesn't loop round (no more than a half turn).
         List<HPrim>? best = null;

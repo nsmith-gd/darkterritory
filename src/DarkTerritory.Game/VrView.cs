@@ -58,6 +58,12 @@ public sealed class VrView : IDisposable
         }
     }
 
+    /// <summary>
+    /// The player's own hands, drawn into the mesh round the eye point for the eyes (CreatureArt.HeadsetHands: the crew's
+    /// gloves on IK'd arms); false, or unset, and the box fists (VrHands) are drawn instead.
+    /// </summary>
+    public Func<MeshBuilder, Camera, XrControllerState, bool>? Hands { get; set; }
+
     /// <summary>Draws a frame to the headset, at its pace (this blocks until it wants one).</summary>
     /// <param name="mesh">The scene, built round <paramref name="body"/>'s eye point. The hands are added to it for the
     /// eyes and taken off again, so it comes back as it went in.</param>
@@ -79,7 +85,8 @@ public sealed class VrView : IDisposable
             _lastBody = b;
             _lastControllers = controllers;
             int scene = mesh.Count;
-            VrHands.Build(mesh, b, controllers);
+            if (Hands?.Invoke(mesh, b, controllers) != true)
+                VrHands.Build(mesh, b, controllers);
             // The eyes are this frame's by now, so the panel sits still in the world while the head moves.
             double now = _clock.Elapsed.TotalSeconds;
             panel?.Panel.Follow(Session.HeadPosition, Session.Head, Math.Clamp(now - _lastPanel, 0, 0.1));
@@ -153,7 +160,8 @@ public sealed class VrView : IDisposable
     {
         int w = Session.EyeWidth, h = Session.EyeHeight;
         int scene = mesh.Count;
-        VrHands.Build(mesh, _lastBody, _lastControllers);
+        if (Hands?.Invoke(mesh, _lastBody, _lastControllers) != true)
+            VrHands.Build(mesh, _lastBody, _lastControllers);
         var left = _eyes[0].Render(mesh, _last[0], lighting, clear, _lastOverlay[0]);
         var right = _eyes[1].Render(mesh, _last[1], lighting, clear, _lastOverlay[1]);
         mesh.Truncate(scene);

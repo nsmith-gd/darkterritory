@@ -377,7 +377,10 @@ public class CrewAudioTests
         var roof = PlayerMotor.SpawnOnRoof(b.Train, 1, 0, P);
         var inside = new PlayerState
         {
-            Parent = 1, Position = new Double3(T.Geometry.Interior!.DoorX, room.Min.Y, 0), Surface = Surface.Deck, Health = P.Health,
+            Parent = 1,
+            Position = new Double3(T.Geometry.Interior!.DoorX, room.Min.Y, 0),
+            Surface = Surface.Deck,
+            Health = P.Health,
             LineHint = b.Train.Cars[1].FrontDistance,
         };
         var child = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 1), Sim.Physics.BodyKind.Child);

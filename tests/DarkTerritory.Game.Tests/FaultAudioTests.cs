@@ -105,36 +105,37 @@ public class FaultAudioTests
     }
 
     [Fact]
-    public void AFoulClicksAtTheGunIsWorkedClearAndSaysSo()
+    public void AFouledGunFizzlesClicksIsWorkedClearAndSaysSo()
     {
-        // Every pull misfires here: what's heard when one does, not how often.
+        // Every shot fouls here (note 183: the shot goes, and fouls the bore): what's heard when one does, not how often.
         var b = new Bench(C with { Guns = C.Guns with { FoulChance = 1 } });
         var mount = b.Train.Frames[0].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(b.Train, 0, mount.Position.Z - mount.Facing.Z * 0.7, P);
-        b.Crew[1] = gunner with { Yaw = mount.Facing.Z < 0 ? 0 : Math.PI };
+        b.Crew[1] = gunner with { Yaw = mount.Facing.Z < 0 ? 0 : Math.PI, Flags = gunner.Flags | PlayerFlags.Seated };
         b.Step();
-        // The pull that fouls it: a dead click, once, at the touch hole; the trigger held on is no new pull.
-        b.Run(0.5, Fire);
+        // The shot that fouls it: the damp charge's pfft out of the touch hole a beat after it, once.
+        b.Run(1.5, Fire);
         Assert.True(b.Train.Vehicles[0].Gun.Jammed);
-        Assert.Equal(1, b.Count(Misfire));
-        var touchHole = b.Train.Frames[0].ToWorld(Guns.Mount(b.Train, 0)!.Value.Position);
-        Assert.True((b.Heard.Single(h => h.Name == Misfire).At - touchHole).Length < 1);
-        // And as it fouls, the damp charge's pfft a beat after the click (crew-mishaps): once, not at every pull.
         Assert.Equal(1, b.Count(Fizzle));
-        Assert.True(b.Heard.Single(h => h.Name == Fizzle).Tick > b.Heard.First(h => h.Name == Misfire).Tick);
-        // Let go and pull again at the fouled gun: it clicks again.
+        var touchHole = b.Train.Frames[0].ToWorld(Guns.Mount(b.Train, 0)!.Value.Position);
+        Assert.True((b.Heard.Single(h => h.Name == Fizzle).At - touchHole).Length < 1);
+        // The trigger held on isn't a pull; let go and pull at the fouled gun: a dead click, each pull.
+        Assert.Equal(0, b.Count(Misfire));
+        b.Run(0.2);
+        b.Step(Fire);
+        Assert.Equal(1, b.Count(Misfire));
         b.Run(0.2);
         b.Step(Fire);
         Assert.Equal(2, b.Count(Misfire));
-        b.Run(0.3);
         Assert.Equal(1, b.Count(Fizzle));
-        // Worked clear by hand: the bore heard while the hold goes on; let go and it stops.
-        b.Run(2, Use);
+        // Up out of the seat and worked clear by hand: the bore heard while the hold goes on; let go and it stops.
+        b.Crew[1] = b.Crew[1] with { Flags = b.Crew[1].Flags & ~PlayerFlags.Seated };
+        b.Run(C.Guns.ClearSeconds / 2, Use);
         Assert.True(b.Playing(Clear));
         b.Run(0.5);
         Assert.False(b.Playing(Clear));
         Assert.Equal(0, b.Count(Cleared));
-        b.Run(C.Guns.FoulClearSeconds + 0.2, Use);
+        b.Run(C.Guns.ClearSeconds + 0.2, Use);
         Assert.False(b.Train.Vehicles[0].Gun.Jammed);
         Assert.Equal(1, b.Count(Cleared));
         b.Run(0.5, Use);

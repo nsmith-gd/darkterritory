@@ -20,6 +20,7 @@ public sealed class Director
     readonly DirectorTuning _t;
     readonly Route.Route? _route;
     Pcg32 _rng;
+    readonly ulong _seed;
     double _cooldown;
 
     double _spent;
@@ -29,6 +30,7 @@ public sealed class Director
         _t = tuning;
         _route = route;
         _rng = new Pcg32(seed, 0xD1EC7);
+        _seed = seed;
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
         double baseBudget = tuning.BaseBudget.GetValueOrDefault(key, 70);
@@ -40,7 +42,19 @@ public sealed class Director
 
     public double Budget { get; }
     public double Spent => _spent;
-    public int Crew { get; }
+    /// <summary>
+    /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
+    /// actually in the night (T115 playtest: a solo host was planned for four, and Tippy Toesie, which needs a friend to
+    /// pull it off, came for them alone in the cab).
+    /// </summary>
+    public int Crew { get; private set; }
+
+    /// <summary>The players in the night this tick (host); none seen leaves it as it was.</summary>
+    public void Present(int crew)
+    {
+        if (crew > 0)
+            Crew = crew;
+    }
     public List<DirectorSpawn> Log { get; } = new();
     /// <summary>The conflict-table pairs this run has put together (App. B.1 "contradiction seeding"), as "a+b".</summary>
     public List<string> Pairs { get; } = new();
@@ -219,6 +233,11 @@ public sealed class Director
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
                 options[i] = (options[i].Kind, w);
             }
+        // GDD §18: what already lives at the facility the train's stopped at comes on more there (note 185).
+        if (world.Run?.FacilityFeature?.Facility is { } here
+            && _t.Residents.GetValueOrDefault(char.ToLowerInvariant(here.ToString()[0]) + here.ToString()[1..]) is { } residents)
+            for (int i = 0; i < options.Count; i++)
+                options[i] = (options[i].Kind, options[i].Weight * residents.GetValueOrDefault(Key(options[i].Kind), 1));
         options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
         // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its
@@ -269,7 +288,8 @@ public sealed class Director
         }
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
-        options = [.. options.Select(o => (o.Kind, o.Weight / Math.Pow(2, recent.Count(k => k == o.Kind))))];
+        options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
+        options = WeighVotes(options);
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;
@@ -316,7 +336,7 @@ public sealed class Director
     /// <summary>A kind's zone and sense (App. B.1's caps are by them), and want: from a stand-in (they're fixed per kind).</summary>
     static (PressureZone Zone, Sense Sense) Profile(EnemyKind kind) => Profiles.TryGetValue(kind, out var p) ? (p.Zone, p.Sense) : (PressureZone.Interior, Sense.Heat);
 
-    static Want WantOf(EnemyKind kind) => Profiles.TryGetValue(kind, out var p) ? p.Want : Want.Kill;
+    public static Want WantOf(EnemyKind kind) => Profiles.TryGetValue(kind, out var p) ? p.Want : Want.Kill;
 
     static readonly Dictionary<EnemyKind, (PressureZone Zone, Sense Sense, Want Want)> Profiles = Build();
 
@@ -358,6 +378,9 @@ public sealed class Director
     /// <summary>Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5).</summary>
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false)
     {
+        // D.11's payoff for the dead: a creature they voted for is coming; the host tells the dead (and only them) who called it.
+        if (VotersFor(kind) is { Count: > 0 } voters)
+            _cues.Add((kind, voters));
         _spent += Cost(kind);
         string want = WantOf(kind).ToString().ToLowerInvariant();
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
@@ -366,6 +389,98 @@ public sealed class Director
         var zone = Profile(kind).Zone;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
+    }
+
+    // GDD v1.4 App. D.11, the creature vote (note 180): host-side, by player id in order, so every choice is deterministic.
+    readonly SortedDictionary<int, (EnemyKind[] Options, EnemyKind? Cast)> _ballots = [];
+    readonly List<(EnemyKind Kind, IReadOnlyList<int> Voters)> _cues = [];
+
+    /// <summary>
+    /// A dead player's ballot (D.11): drawn once, the first time they're offered it, by weighted roll from the creatures the
+    /// director could send now (allowed, with room, its spawn rule wanting it; the Stoker and the Choir aren't in the table
+    /// at all). Kept for the run: an unused vote carries over to a later death.
+    /// </summary>
+    public IReadOnlyList<EnemyKind> Ballot(World world, int player)
+    {
+        if (_ballots.TryGetValue(player, out var ballot))
+            return ballot.Options;
+        var eligible = new List<(EnemyKind Kind, double Weight)>();
+        if (world.Enemies is { } et)
+        {
+            var ctx = new SpawnContext(world, et, this);
+            foreach (var rule in Spawns.Rules)
+                if (Allows(rule.Kind) && rule.Weight(ctx) is > 0 and var w)
+                    eligible.Add((rule.Kind, w));
+        }
+        var rng = new Pcg32(_seed ^ (ulong)(player + 1) * 0x9E3779B97F4A7C15UL, 0xB0A7);
+        var options = new List<EnemyKind>();
+        while (options.Count < _t.Vote.Options && eligible.Count > 0)
+        {
+            double pick = rng.NextDouble() * eligible.Sum(e => e.Weight);
+            int i = 0;
+            for (; i < eligible.Count - 1 && pick >= eligible[i].Weight; i++)
+                pick -= eligible[i].Weight;
+            options.Add(eligible[i].Kind);
+            eligible.RemoveAt(i);
+        }
+        _ballots[player] = ([.. options], null);
+        return options;
+    }
+
+    /// <summary>Whether <paramref name="player"/> still has their vote (offered or not yet: once per run, locked on submit).</summary>
+    public bool CanVote(int player) => !_ballots.TryGetValue(player, out var b) || b.Cast is null;
+
+    /// <summary>What <paramref name="player"/> voted for, if they have.</summary>
+    public EnemyKind? VoteOf(int player) => _ballots.TryGetValue(player, out var b) ? b.Cast : null;
+
+    /// <summary>Casts <paramref name="player"/>'s vote for one of their ballot's creatures; false if it isn't on it or they've voted.</summary>
+    public bool Vote(int player, EnemyKind kind)
+    {
+        if (!_ballots.TryGetValue(player, out var b) || b.Cast is not null || !b.Options.Contains(kind))
+            return false;
+        _ballots[player] = (b.Options, kind);
+        return true;
+    }
+
+    /// <summary>Who voted for <paramref name="kind"/>, in id order.</summary>
+    public IReadOnlyList<int> VotersFor(EnemyKind kind) => [.. _ballots.Where(b => b.Value.Cast == kind).Select(b => b.Key)];
+
+    /// <summary>Every vote cast, by voter.</summary>
+    public IEnumerable<(int Voter, EnemyKind Kind)> Votes => _ballots.Where(b => b.Value.Cast is not null).Select(b => (b.Key, b.Value.Cast!.Value));
+
+    /// <summary>The votes' weight on a creature (D.11): ×perVote each, to at most ×cap.</summary>
+    public double VoteWeight(EnemyKind kind) => Math.Min(_t.Vote.Cap, DMath.Pow(_t.Vote.PerVote, VotersFor(kind).Count));
+
+    /// <summary>The voted creatures that have spawned since last asked (for the dead's cue), oldest first.</summary>
+    public List<(EnemyKind Kind, IReadOnlyList<int> Voters)> TakeVoteCues()
+    {
+        var cues = _cues.ToList();
+        _cues.Clear();
+        return cues;
+    }
+
+    /// <summary>
+    /// D.11 "the multiplier applies within the creature's want tag, so the target shares still hold": each want's options are
+    /// weighted by their votes, then scaled back to the want's own total, so the vote moves weight between creatures of a want
+    /// and never between wants.
+    /// </summary>
+    public List<(EnemyKind Kind, double Weight)> WeighVotes(List<(EnemyKind Kind, double Weight)> options)
+    {
+        if (_ballots.Count == 0)
+            return options;
+        var result = options.ToList();
+        foreach (var want in options.Select(o => WantOf(o.Kind)).Distinct().ToList())
+        {
+            var idx = Enumerable.Range(0, result.Count).Where(i => WantOf(result[i].Kind) == want).ToList();
+            double before = idx.Sum(i => result[i].Weight);
+            foreach (int i in idx)
+                result[i] = (result[i].Kind, result[i].Weight * VoteWeight(result[i].Kind));
+            double after = idx.Sum(i => result[i].Weight);
+            if (after > 0)
+                foreach (int i in idx)
+                    result[i] = (result[i].Kind, result[i].Weight * before / after);
+        }
+        return result;
     }
 
     /// <summary>This edition has the kind (<see cref="DirectorTuning.Roster"/>, empty for every kind).</summary>

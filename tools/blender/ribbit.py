@@ -197,7 +197,7 @@ head.tube([H("tongue_01"), H("tongue_02"), T("tongue_02")], [(0.04, 0.012), (0.0
 for s, sx in (("r", 1), ("l", -1)):
     e0, e1, e2 = H(f"ear_{s}_01"), H(f"ear_{s}_02"), T(f"ear_{s}_02")
     pts = [e0, e0.lerp(e1, 0.5), e1, e1.lerp(e2, 0.5), e2]
-    head.tube(pts, [(0.035, 0.009), (0.06, 0.01), (0.068, 0.01), (0.058, 0.009), (0.018, 0.006)], 8, EAR,
+    head.tube(pts, [(0.035, 0.014), (0.06, 0.016), (0.068, 0.016), (0.058, 0.014), (0.018, 0.008)], 8, EAR,
               lambda p, s=s, e1=e1: {f"ear_{s}_01": 1.0} if p.y > e1.y + 0.02 else {f"ear_{s}_02": 1.0},
               ref=(sx, 0, 0.3), cap1="point")
 
@@ -207,9 +207,9 @@ for s, sx in (("r", 1), ("l", -1)):
 legs = kit.part("legs")
 for s, sx in (("r", 1), ("l", -1)):
     sh, el, wr, tip = H(f"upperarm_{s}"), H(f"lowerarm_{s}"), H(f"hand_{s}"), T(f"hand_{s}")
-    legs.tube([sh, sh.lerp(el, 0.5), el, el.lerp(wr, 0.5), wr], [0.045, 0.032, 0.028, 0.022, 0.02], 8, SKIN,
+    legs.tube([sh, sh.lerp(el, 0.5), el, el.lerp(wr, 0.5), wr], [0.062, 0.05, 0.04, 0.034, 0.026], 10, SKIN,
               lambda p, el=el, s=s: {f"upperarm_{s}": 1.0} if p.z > el.z + 0.02 else {f"lowerarm_{s}": 1.0}, ref=(1, 0, 0))
-    legs.blob(wr.lerp(tip, 0.3), (0.03, 0.04, 0.012), 8, 4, BELLY, f"hand_{s}")
+    legs.blob(wr.lerp(tip, 0.3), (0.034, 0.046, 0.014), 8, 4, BELLY, f"hand_{s}")
     for f in range(4):
         a = math.radians((f - 1.5) * 16)
         base = wr.lerp(tip, 0.55) + Vector((math.sin(a) * 0.02, 0, -0.006))
@@ -218,7 +218,9 @@ for s, sx in (("r", 1), ("l", -1)):
         legs.tube([base, base + d * n * 0.55, base + d * n - Vector((0, 0, 0.01))], [0.007, 0.006, 0.004], 5, BELLY, f"hand_{s}",
                   ref=(0, 0, 1), cap1="point")
     hp, kn, an, bl, toe = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"toe_{s}"), T(f"toe_{s}")
-    legs.tube([kn, kn.lerp(an, 0.5), an], [0.05, 0.04, 0.03], 8, SKIN, f"calf_{s}", ref=(1, 0, 0))
+    # The haunch: a rabbit's thigh folded along its flank, heavy, the hop's spring in it.
+    legs.tube([hp + Vector((0, -0.04, 0.03)), hp.lerp(kn, 0.45), kn], [(0.1, 0.12), (0.09, 0.1), 0.055], 12, SKIN, f"thigh_{s}", ref=(1, 0, 0))
+    legs.tube([kn, kn.lerp(an, 0.5), an], [0.055, 0.044, 0.032], 8, SKIN, f"calf_{s}", ref=(1, 0, 0))
     legs.tube([an, an.lerp(bl, 0.5), bl, toe], [(0.035, 0.022), (0.035, 0.016), (0.03, 0.012), (0.02, 0.008)], 8, BELLY,
               lambda p, bl=bl, s=s: {f"foot_{s}": 1.0} if p.y < bl.y - 0.02 else {f"toe_{s}": 1.0}, ref=(0, 0, 1), cap1="point")
 

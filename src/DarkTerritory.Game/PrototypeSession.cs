@@ -267,7 +267,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
         (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
         (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving with something: run it down before it's off the train",
         // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
         (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
         (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
@@ -327,7 +327,7 @@ public sealed class PrototypeSession : IPlaySession
     string Gunnery()
     {
         var c = _combatTuning.Value;
-        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.Jammed ? " FOULED (hold Use)" : Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
+        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
         return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Loudness:0.0} |";
     }
 
@@ -367,19 +367,30 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
                 : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
         }
+        // GDD §18's set pieces (note 185).
+        if (site.Has(ModuleKind.Spout))
+            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)"
+                : $"one spout: walk each car under it, someone on its lever ({site.Bin:0.0} loads)");
+        if (site.Has(ModuleKind.Ramp))
+            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left), LOUD"
+                : $"{site.Head} head in the pen: two to drive them up the ramp");
+        if (site.Has(ModuleKind.Hose))
+            parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
+                : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+        // GDD §18's switchyard and wreck yard (note 187).
+        if (site.Has(ModuleKind.Rakes))
+            parts.Add("cars standing on the sidings: throw each switch, couple up and bring them out (they come away ahead of the engine)");
+        if (site.Heaps.Count > 0)
+        {
+            int dark = site.Heaps.Count(h => !h.Found && h.Salvage > 0);
+            parts.Add(site.Heaps.Any(h => h.Groan > 0) ? "THE WRECK'S GOING: get clear of it"
+                : dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen (no lamps here: take one to them)" : "wreck: carry the salvage to the cars, gently");
+        }
+        if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
+            parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);
-    }
-
-    /// <summary>A grain elevator's spout (GDD §18 "one spout, one car at a time"), where it has one.</summary>
-    static string SpoutStatus(Run run)
-    {
-        if (!run.HasSpout(run.Facility))
-            return "";
-        double left = run.ChuteLeft(run.Facility);
-        return run.ChuteOpen ? $", spout POURING ({left:0.00} loads left)"
-            : left > 0 ? $", the spout: a car under it, then the lever on the ground, hold E ({left:0.00} loads)" : ", the spout's bin is empty";
     }
 
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
@@ -397,7 +408,7 @@ public sealed class PrototypeSession : IPlaySession
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
                 ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty"
-                : SiteStatus(run.CurrentSite) + SpoutStatus(run))
+                : SiteStatus(run.CurrentSite))
             : "";
         double s = train.Dynamics.Distance;
         // Pulled up by a facility that's down a spur (GDD §17): say how much of the train it takes.

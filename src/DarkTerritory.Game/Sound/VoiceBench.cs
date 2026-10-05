@@ -14,8 +14,10 @@ namespace DarkTerritory.Game.Sound;
 /// <param name="Space">The space the listener heard it in (content/audio/spaces.json).</param>
 /// <param name="ReverbDb">The space's reverb return, in the voice band, over the whole run.</param>
 /// <param name="TailDb">The reverb return in the last quarter second, after the voice has stopped: the space ringing on.</param>
+/// <param name="AfterCutDb">With a death mid-sentence (<c>dieAt</c>): how loud the speaker's voice still was, near and on the radio,
+/// from a tick after the death on (a tick for the host's cut to arrive): the hard-cut's −180, silence (GDD v1.4 App. D.2).</param>
 public sealed record VoiceBenchReport(double DistanceM, bool Radio, bool SpeakerInCab, int FramesSent, int FramesHeard, int Underruns, double NearDb, double RadioDb,
-    double RadioLowDb, double RadioBandDb, double BedDuckDb, string Space = "outside", double ReverbDb = -180, double TailDb = -180);
+    double RadioLowDb, double RadioBandDb, double BedDuckDb, string Space = "outside", double ReverbDb = -180, double TailDb = -180, double AfterCutDb = 0);
 
 /// <summary>
 /// One speaker, one listener, a host between them, over the simulated network: the whole voice path from
@@ -25,8 +27,9 @@ public static class VoiceBench
 {
     /// <param name="speakerCar">Car the speaker stands on (0 = in the cab); the listener is on car 3's roof.</param>
     /// <param name="space">Hear it as if in this space (a tunnel: GDD §22's compressed, close voice); null, where the listener is.</param>
+    /// <param name="dieAt">Seconds into the speech the speaker dies, mid-word (the hard-cut's check).</param>
     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
-        string? space = null)
+        string? space = null, double? dieAt = null)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
@@ -72,6 +75,11 @@ public static class VoiceBench
         float duck = 1;
         for (int tick = 0; tick < ticks; tick++)
         {
+            if (dieAt is { } at && tick == (int)(at * SimConstants.TickRate))
+            {
+                var dying = host.Players.First(p => p.Id == speaker.PlayerId).State;
+                host.SetPlayerState(speaker.PlayerId!.Value, dying with { Health = 0, Death = DeathCause.Eaten });
+            }
             if (spoken < speech.Length)
             {
                 int n = Math.Min(perTick, speech.Length - spoken);
@@ -101,8 +109,15 @@ public static class VoiceBench
         int underruns = ears.Speakers.Sum(ears.Underruns);
         int last = Math.Min(tap.Total.Length, Audio.SampleRate / 4 * 2);
         double tail = tap.Stems.TryGetValue(Mixer.ReverbStem, out var wet) ? Math.Round(Meter.Db(wet.AsSpan(wet.Length - last)), 1) : -180;
+        double afterCut = 0;
+        if (dieAt is { } died)
+        {
+            int from = ((int)(died * SimConstants.TickRate) + 1) * perTick * 2;
+            double Tail(string name) => tap.Stems.TryGetValue(name, out var st) && from < st.Length ? Meter.BandDb(st.AsSpan(from), 300, 3000) : -180;
+            afterCut = Math.Round(Math.Max(Tail("voice"), Tail("voice-radio")), 1);
+        }
         return new VoiceBenchReport(Math.Round(distance, 1), radio, speakerCar == 0, mouth.FramesSent, heard, underruns, Stem("voice"), Stem("voice-radio"),
-            Stem("voice-radio", 40, 150), Stem("voice-radio", 500, 2500), Math.Round(Audio.GainToDb(duck), 1), audio.Space, Stem(Mixer.ReverbStem), tail);
+            Stem("voice-radio", 40, 150), Stem("voice-radio", 500, 2500), Math.Round(Audio.GainToDb(duck), 1), audio.Space, Stem(Mixer.ReverbStem), tail, afterCut);
 
         static Crewmate Make(byte id, PlayerState s, IReadOnlyList<CarFrame> frames)
         {

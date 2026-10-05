@@ -59,7 +59,9 @@ public sealed class PlanRouteWay
     /// <summary>Where a rake's front is, as an edge and a distance on it, from its path on the rail model.</summary>
     public (string Edge, double S) Locate(int path, double distance)
     {
-        string EdgeOf(int branch) => Plan.Alignment.First(a => a.Branch == branch).Edge;
+        // A yard's other tracks (level-design P5) aren't edges of the plan: a track of their own, walked at its own limits
+        // (none). The engine goes down them for a switchyard's standing cars (note 187).
+        string EdgeOf(int branch) => Plan.Alignment.FirstOrDefault(a => a.Branch == branch)?.Edge ?? $"yard{branch}";
         if (path == RailLine.MainPath)
             return ("main", distance);
         if (RailLine.ViaOf(path) is var via and >= 0)
@@ -128,7 +130,7 @@ public sealed class SpeedProfile
         for (int i = n - 2; i >= 0; i--)
         {
             double f = fadeAt?.Invoke(i * Step) ?? 1;
-            double g = grade[i] < 0 ? 9.81 * Math.Sin(Math.Atan(-grade[i] / 100)) : 0;
+            double g = grade[i] < 0 ? 9.81 * DMath.Sin(DMath.Atan(-grade[i] / 100)) : 0;
             double b = Math.Max(0.02, brake * adhesion * f * margin - g);
             _target[i] = Math.Min(_target[i], Math.Sqrt(_target[i + 1] * _target[i + 1] + 2 * b * Step));
         }

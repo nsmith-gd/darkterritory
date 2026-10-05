@@ -90,13 +90,14 @@
   // The sim turns these into tractive/brake force at loaded mass, so lighter trains
   // accelerate harder. Lengths between rows are interpolated linearly.
   "performance": [
-    // T97 playtest: brakes twice the spec's first pass ("braking needs to reduce speed significantly faster"). With steam
-    // driving the engine pulls against them, so venting as well is the quickest stop.
-    { "cars": 3,  "accel": 0.90, "brake": 3.20 },
-    { "cars": 6,  "accel": 0.62, "brake": 2.10 },
-    { "cars": 10, "accel": 0.42, "brake": 1.44 },
-    { "cars": 15, "accel": 0.27, "brake": 0.96 },
-    { "cars": 20, "accel": 0.18, "brake": 0.70 }
+    // T97 playtest: brakes twice the spec's first pass ("braking needs to reduce speed significantly faster"); T121 playtest
+    // ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"): 0.7 of that. With steam driving the engine
+    // pulls against them, so venting as well is the quickest stop.
+    { "cars": 3,  "accel": 0.90, "brake": 2.24 },
+    { "cars": 6,  "accel": 0.62, "brake": 1.47 },
+    { "cars": 10, "accel": 0.42, "brake": 1.01 },
+    { "cars": 15, "accel": 0.27, "brake": 0.67 },
+    { "cars": 20, "accel": 0.18, "brake": 0.49 }
   ],
 
   "brakeFade": {
@@ -142,9 +143,8 @@
   // (enemies.json carHugger.breachEaten) or Climbers in through its roof (climbers.breachLitCars). Until it's boarded up it
   // shuts nobody in, whatever its doors: the cold, the night's sound and the Choir come in as through an open door. Boarded
   // up from inside by holding Use within boardReach m (across the floor) of the hole for boardSeconds; let go and that
-  // board's started again. needsKit: only with the repair kit in hand. The train carries no repair kit yet (it's modelled,
-  // not placed: ARCHITECTURE §8), so true means the engineering kit's wrench (T109); false, anyone's hands and what's lying
-  // about the car.
+  // board's started again. needsKit: only by someone carrying the repair kit (note 150: it's an item); false, anyone's hands
+  // and what's lying about the car.
   "breach": {
     "boardSeconds": 8,
     "boardReach": 1.5,
@@ -161,9 +161,80 @@
   // What the train leaves the fortress with (T41). Radios are things you wear (spec A.5's radio channel): only someone
   // wearing one talks or hears on it, so a crew that loses them is shouting down the train (GDD §24 "radio breaks").
   // One rides in the cab, the rest in the guard van.
+  // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
+  // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
+  "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // The consist's make-up and fittings (GDD §10, §26, spec F.3; ARCHITECTURE §8 note 184). The counts and the handrails are
+  // what the fortress sells: campaign.json's upgrades add to them, and every machine builds the same train. Converted cars
+  // come out of the cargo cars, never leaving fewer than minCargoCars: extra guard cars first (each with a gun, in the
+  // middle of the cargo), then crew cars (right behind the engine: the first is the kit's car, its lockers its stores).
+  // Armour goes on from the rear forward, the guard van first.
+  "composition": {
+    "guardCars": 1,
+    "utilityCars": 0,
+    "armouredCars": 0,
+    "minCargoCars": 1,
+    // An armoured car's plate: this much heavier (a quarter of a loaded car; the train's slower for it), and it takes this
+    // much of what's done to its shell (a Car Hugger eats it half as fast; a hard knock at the couplers does half).
+    "armourTonnes": 10,
+    "armourDamage": 0.5,
+    // A crew car's stove: shut in, the whole car is warm, steam or none (spec B.2's recovery); with a door open, within
+    // this of the stove.
+    "stoveReach": 2.5,
+    // How fast the cold comes on in a car without heat (player.json cold.indoorsRate, times this): car insulation halves it.
+    "insulation": 1,
+    // Roof handrails (F.3 "Dragger resistance"): fitted, a Dragger's grab range is draggerGrab of what it was (0.6 m off the
+    // edge at a crawl, not 1), it hangs on draggerHang times as long before it has you (12 s, not 8: friends' time), and
+    // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5).
+    "handrails": false,
+    "rails": { "draggerGrab": 0.6, "draggerHang": 1.5, "throwOver": 1.5 }
+  },
+  // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
+  // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by
+  // (closing - safeContactSpeed)^2 x couplings.damagePerSpeedSquared x couplings.cargoDamageShare x shockShare (where the
+  // other cars only feel it over couplings.safeContactSpeed); and braking harder than brakeShockDecel m/s^2 spoils it
+  // brakeShockPerSecond a second for every m/s^2 over. Not in the GDD's numbers: a gentle coupling (under 1.5 m/s) costs a
+  // few percent, a full brake on a short train (2.2 m/s^2) about a fifth of the load from line speed to a stand.
+  "fragile": { "safeContactSpeed": 0.3, "shockShare": 3, "brakeShockDecel": 1.2, "brakeShockPerSecond": 0.02 },
   "kit": {
     "radios": 2,
     // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
-    "toys": 2
+    // GDD v1.4 App. C item 4: "some toys are noisy": four now, and three of them make a noise while carried (a squeaker, a
+    // music box, a wind-up drummer), in the carrier's name on the loudness meter (combat.json choir.toys; note 175).
+    "toys": 4,
+    "toyNoises": ["squeaker", "musicBox", "drummer"],
+    // GDD §12 "the repair kit is an item, not a station": one toolbox, in its locker (lockers.kitLocker) in car
+    // `repairKitCar` (counted back from the engine). It's what mends a ruptured boiler (boiler.json repairSeconds), so
+    // someone has to leave the footplate for it, and whoever carries it opens a Holdout's lock silently (holdouts.json
+    // "open"). When they die it's lying where they fell.
+    "repairKits": 1,
+    "repairKitCar": 1,
+    // Spare kits bought at the fortress (GDD App. E.12 question 4, answered: campaign.json spareKit). Always 0 here: the
+    // campaign adds what the save has (SessionSetup.SpareKits), and each starts the night in a locker beside the first.
+    "spareKits": 0,
+    // The crew lockers (GDD §12, ARCHITECTURE §8 note 173): a row of tall iron lockers along the left wall of the kit's car,
+    // ahead of its side door, each lettered with a crew grade in the railway's own words. Hold Use at one to open or shut
+    // its door; a tap of Use puts what's in your hands on its first free shelf, or takes the top thing off its shelves.
+    // What's inside is held by the locker, not lying in the car: it can't fall, slide, or go through a wall.
+    "lockers": {
+      // One locker a name, front to back: the grades as a depot would paint them on its lockers (the wheeltapper is the
+      // carriage-and-wagon examiner, whose hammer rang the wheels).
+      "names": ["DRIVER", "FIREMAN", "GUARD", "SHUNTER", "SIGNALMAN", "BRAKESMAN", "LAMPMAN", "FITTER", "GANGER", "WHEELTAPPER", "PORTER", "YARDMASTER"],
+      // The repair kit's locker. A fitter is the shed's mechanic, the one who mends engines, boilers included: the toolbox
+      // that mends a ruptured boiler is his. Spare kits go on his other shelf, then into the lockers after his.
+      "kitLocker": "FITTER",
+      // Shelves in each: the locker's floor, and one at chest height.
+      "slots": 2,
+      // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
+      "holds": ["lamp", "radio", "toy", "loot", "extinguisher", "repairKit"],
+      // Each locker's size (m): along the row, out from the wall, and tall. The row starts this far behind the front end
+      // wall (the car's extinguisher board goes in the gap) and stops short of the side door.
+      "width": 0.42,
+      "depth": 0.5,
+      "height": 1.9,
+      "fromFront": 0.7,
+      // Holding Use this long at one opens or shuts its door (a tap is shorter: it stows or takes).
+      "doorSeconds": 0.4
+    }
   }
 }

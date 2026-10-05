@@ -47,11 +47,17 @@ public enum PlayerActions : byte
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
     Tool = 32,
+    /// <summary>Sit at the gun you're at (T112): sent on the press. Sitting only, so a repeated intent is harmless; Jump gets up.</summary>
+    Seat = 64,
     /// <summary>
-    /// The Live Mic at your Holdout (GDD App. D.7), on or off: a toggle on the press, honoured only from the dead player
-    /// waiting in a lit Holdout. While it's on, their voice plays from its door to the living near it.
+    /// The dead's key (the last free bit, so two names for one context each; note 176, note 177). <see cref="Bookmark"/>: while
+    /// the run's under way, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12), sent on the press; the host
+    /// takes one on the tick it first sees it held. <see cref="Skip"/>: once the night's over, a held vote to skip the derailment
+    /// film to its cause card (App. E.5) or the Stranded outro (E.9); the host counts heads, and a majority, or the host, skips.
+    /// The two never overlap: a run under way has no film or outro, and a night that's over takes no bookmarks.
     /// </summary>
-    LiveMic = 64,
+    Bookmark = 128,
+    Skip = 128,
 }
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
@@ -147,7 +153,13 @@ public enum DeathCause : byte
     // to the Whistler's nest; seized by the Choir; taken with the caboose by the Passenger.
     Eaten, Suffocated, Devoured, Drained, Carried, Seized, Uncoupled,
     // GDD v1.2 App. D.5: not dead, waiting in the queue for a Holdout (joined after the gate opened).
-    Waiting
+    Waiting,
+    // GDD §19, App. B.9 (note 182): a powder car going up; a cannon fired by the chemicals.
+    Exploded, Poisoned,
+    // GDD §18 (WP15, note 185): a powder keg at the depot going up; a chemical works' hose leaking.
+    Keg, Leak,
+    // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
+    Wreckage
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -155,7 +167,15 @@ public enum DeathCause : byte
 public enum PlayerFlags : byte
 {
     None = 0,
-    /// <summary>Carrying freight (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing").</summary>
+    /// <summary>
+    /// Carrying a body, the last of the crew alive (GDD v1.4 App. D.9 "solo remainer"): <see cref="Heavy"/>'s pace on the
+    /// ground, but a ladder may still be climbed, slowly (<see cref="PlayerTuning.SoloBodyClimb"/>; note 181).
+    /// </summary>
+    SoloCarry = 1,
+    /// <summary>
+    /// Carrying something that needs both arms (spec B.2 "carrying heavy cargo: 2.8 m/s, no climbing"; GDD v1.4 App. C.4, D.9:
+    /// freight, a toy, a find, the child, a body).
+    /// </summary>
     Heavy = 2,
     /// <summary>A hand has coal on the shovel from the tender, on its way to the firebox (T29).</summary>
     Shovelful = 4,
@@ -168,6 +188,16 @@ public enum PlayerFlags : byte
     Held = 16,
     /// <summary>Pushing the gun they're at along its roof rail (T93): walking pace at most, and it goes where they go.</summary>
     Pushing = 32,
+    /// <summary>
+    /// In the gun's seat (T112): the mouse lays the gun (it follows at its own pace), the left button fires it, Use held
+    /// loads it, Jump gets up. Your feet are the seat's, on the carriage as it turns.
+    /// </summary>
+    Seated = 64,
+    /// <summary>
+    /// The repair kit in their hands (GDD §12): what mends a ruptured boiler (T109). Set by the host each tick from what
+    /// they carry, so a predicting client mends as the host does.
+    /// </summary>
+    RepairKit = 128,
 }
 
 /// <summary>
@@ -346,7 +376,7 @@ public static class PlayerMotor
         var hand = other ? s.OtherHand : s.Hand;
         if (hand == default)
             return null;
-        double c = Math.Cos(s.Yaw), n = Math.Sin(s.Yaw);
+        double c = DMath.Cos(s.Yaw), n = DMath.Sin(s.Yaw);
         return s.Position + new Double3(hand.X * c + hand.Z * n, hand.Y, -hand.X * n + hand.Z * c);
     }
 
@@ -400,11 +430,17 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             s.Velocity = new Double3(wish.X, 0, wish.Z);
-            if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
+            // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
+            if (s.Has(PlayerFlags.Seated))
+            {
+                if (intent.Has(PlayerButtons.Jump))
+                    s.Flags &= ~PlayerFlags.Seated;
+            }
+            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating))
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -438,7 +474,7 @@ public static class PlayerMotor
         // (T90 playtest: nobody found Use + forward). Not while pushing a gun along (Use and walking is that too, T103: the
         // guard van's hatch ladder comes up through the roof on the gun's way, and took whoever pushed it down inside); the
         // ladder key still does.
-        if (s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Heavy))
+        if (s.Surface != Surface.Ladder && (!s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.SoloCarry)) && !s.Has(PlayerFlags.Seated))
         {
             bool pushing = s.Has(PlayerFlags.Pushing);
             if (intent.Has(PlayerActions.Ladder))
@@ -453,7 +489,7 @@ public static class PlayerMotor
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
     public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
     {
-        if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy))
+        if (!s.Alive || s.Surface is Surface.Ladder or Surface.Air || s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.SoloCarry))
             return false;
         var probe = s;
         TryGrabLadder(ref probe, train, p, byHand: false);
@@ -465,8 +501,8 @@ public static class PlayerMotor
 
     /// <summary>
     /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
-    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, or a shut car while the
-    /// boiler has steam to heat it.
+    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, a shut car while the
+    /// boiler has steam to heat it, or a crew car's stove (note 184).
     /// </summary>
     static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
     {
@@ -476,8 +512,11 @@ public static class PlayerMotor
             s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
             return;
         }
-        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2).
-        s.Cold += Indoors(s, train) ? dt * c.IndoorsRate : dt;
+        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2), and slower still in insulated cars
+        // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
+        // the colder it is where they are (the night's cold, high ground, exposed track).
+        double deep = 1 + c.PerColdStep * Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+        s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
@@ -488,12 +527,30 @@ public static class PlayerMotor
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
     public static bool NearHeat(in PlayerState s, TrainOnLine train)
     {
+        if (BesideStove(s, train))
+            return true;
         int space = Space(s, train);
         if (space == Outside)
             return false;
         if (train.BoilerTuning is null)
             return true;
         return space == 0 ? train.Boiler.Firebox > 0 || train.Boiler.Pressure > 0 : train.Boiler.Pressure > 0;
+    }
+
+    /// <summary>
+    /// In a crew car's walls with its stove (note 184): its own heat, steam or none. Shut in, the whole car's warm; with a door
+    /// open, only near the stove (train.json <c>composition.stoveReach</c>), like standing at the cab's firebox.
+    /// </summary>
+    public static bool BesideStove(in PlayerState s, TrainOnLine train)
+    {
+        if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count || train.Frames[s.Parent].Shape.Stove is not { } stove || !Indoors(s, train))
+            return false;
+        // A breached car lets the cold in as an open door does (decided 1 Oct).
+        if (train.Vehicles[s.Parent] is { DoorsOpen: 0, Breached: false })
+            return true;
+        double dx = s.Position.X - Math.Clamp(s.Position.X, stove.Min.X, stove.Max.X), dz = s.Position.Z - Math.Clamp(s.Position.Z, stove.Min.Z, stove.Max.Z);
+        double reach = train.Dynamics.Tuning.Composition.StoveReach;
+        return dx * dx + dz * dz <= reach * reach;
     }
 
     /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>
@@ -505,8 +562,8 @@ public static class PlayerMotor
         double x = Math.Clamp(intent.MoveX, -1, 1), z = Math.Clamp(intent.MoveZ, -1, 1);
         double len = Math.Sqrt(x * x + z * z);
         if (len > 1) { x /= len; z /= len; }
-        var forward = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        var right = new Double3(Math.Cos(yaw), 0, -Math.Sin(yaw));
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        var right = new Double3(DMath.Cos(yaw), 0, -DMath.Sin(yaw));
         return right * x + forward * z;
     }
 
@@ -536,6 +593,14 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
+        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        if (train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                var local = w.ToLocal(world);
+                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
+                world = w.ToWorld(PushOut(local, box, p));
+            }
         return world;
     }
 
@@ -710,7 +775,7 @@ public static class PlayerMotor
                         || frame.Shape.Interior is { } room && room.Contains(ladder.Foot + new Double3(0, 0.2, 0)))
                         continue;
                     double yaw = WorldYaw(s, train);
-                    var facing = frame.DirToLocal(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+                    var facing = frame.DirToLocal(new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw)));
                     if (facing.X * ladder.Inward.X + facing.Z * ladder.Inward.Z < 0.7)
                         continue;
                 }
@@ -745,7 +810,9 @@ public static class PlayerMotor
         }
 
         double top = ladder.Top;
-        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * p.LadderClimb * dt;
+        // D.9: the last one standing hauls a body up a ladder at a quarter of the pace.
+        double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
+        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not

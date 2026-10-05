@@ -4,16 +4,36 @@
 // tools/audio/install.py; edit the cue or that file, not this one.
 {
  "tier": 1,
- "loop": true,
  "maxInstances": 1,
  "minDistance": 2,
- "maxDistance": 45,
- "gainDb": 8,
+ "maxDistance": 40,
+ "gainDb": 12,
  "layers": [
   {
    "source": "sample",
    "sample": "tell-track-doll/giggle",
-   "gain": 1
+   "gain": 1,
+   "rate": {
+    "param": "pitch",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      2,
+      2
+     ]
+    ]
+   },
+   "filters": [
+    {
+     "type": "peak",
+     "frequency": 4200,
+     "q": 0.9,
+     "gainDb": 11
+    }
+   ]
   }
  ]
 }

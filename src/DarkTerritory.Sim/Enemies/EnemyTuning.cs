@@ -59,6 +59,10 @@ public sealed record TrackDollTuning
     public double CargoPerSecond { get; init; } = 0.001;
     public double StraightNeeded { get; init; } = 250;
     public double EmptyCabWeight { get; init; } = 2;
+    /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
+    public bool CannonShatters { get; init; } = true;
+    public double RailHitRadius { get; init; } = 0.55;
+    public double RailHitHeight { get; init; } = 0.7;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -245,6 +249,12 @@ public sealed record CarFireTuning
     public double ChemicalSpread { get; init; } = 2;
     public double ChemicalGrowth { get; init; } = 1.3;
     public double PowderGrowth { get; init; } = 1.6;
+    public double FuelGrowth { get; init; } = 1.4;
+    public double FuelSpread { get; init; } = 2;
+    public double ExplodeAt { get; init; } = 1;
+    public double ExplodeRadius { get; init; } = 14;
+    public double ExplodeKillRadius { get; init; } = 5;
+    public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
 }
@@ -273,11 +283,17 @@ public sealed record GauntTuning
     public double SpawnOut { get; init; } = 25;
     public double LongStopWeight { get; init; } = 2;
     public double LongStopSeconds { get; init; } = 120;
+    public double LeaveSpeed { get; init; } = 1.4;
+    public double ClearedAt { get; init; } = 30;
+    public double CarryHigh { get; init; } = 1.7;
+    public double CarryLow { get; init; } = 0.55;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
 public sealed record ClimberTuning
 {
+    /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
+    public double LampOutSeconds { get; init; } = 45;
     public double PaceOut { get; init; } = 2.5;
     public double PaceSeconds { get; init; } = 6;
     public double Catch { get; init; } = 1.2;
@@ -369,6 +385,13 @@ public sealed record SwitchmanTuning
     public double GripAt { get; init; } = 250;
     public double Health { get; init; } = 3;
     public double LingerSeconds { get; init; } = 20;
+    /// <summary>
+    /// T121 playtest ("we appear to have derailed at a very low speed"): points thrown under a train crawling over them
+    /// split, they don't throw it off. At or under this (m/s) the train runs through them: the engine takes
+    /// <see cref="RunThroughDamage"/> and the clock takes the stop. Over it, it's off the rails.
+    /// </summary>
+    public double DerailAbove { get; init; } = 6.9;
+    public double RunThroughDamage { get; init; } = 0.25;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }
@@ -393,7 +416,18 @@ public sealed record DirectorTuning(
 {
     /// <summary>App. B.8: cargo name → (tuning name or "*") → weight.</summary>
     public Dictionary<string, Dictionary<string, double>> CargoWeights { get; init; } = new();
+    /// <summary>
+    /// GDD §18 "something already lives here" (note 185): facility name → (tuning name) → weight, while the train's stopped
+    /// at a facility of that kind.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, double>> Residents { get; init; } = new();
     public bool CometRelaxesGates { get; init; } = true;
+    /// <summary>
+    /// A threat that's gone this long with nobody alive within <see cref="LingerRadius"/> of it, short of a grab, gives up and
+    /// goes (T114 playtest: "where are all the monsters": a Climber settled in a car nobody went into held the caps full).
+    /// </summary>
+    public double LingerSeconds { get; init; } = 120;
+    public double LingerRadius { get; init; } = 12;
     /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
     public double PaceSeconds { get; init; } = 18;
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
@@ -427,4 +461,12 @@ public sealed record DirectorTuning(
     public Dictionary<string, double> WantShares { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
+    /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
+    public VoteTuning Vote { get; init; } = new();
 }
+
+/// <summary>
+/// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
+/// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// </summary>
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3);

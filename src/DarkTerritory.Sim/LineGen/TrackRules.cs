@@ -21,12 +21,21 @@ public static class TrackRules
         var r = plan.Rules;
         double v = rake.Speed;
         // A curve too fast anywhere under the train: √(a_derail R).
-        double k = 0;
+        double k = 0, at = rake.Distance;
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
-                k = Math.Max(k, Math.Abs(train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2).Curvature));
+            {
+                double mid = car.FrontDistance - car.Length / 2, kc = Math.Abs(train.Line.Sample(rake.Path, mid).Curvature);
+                if (kc > k)
+                    (k, at) = (kc, mid);
+            }
         if (k > 1e-9 && v > Math.Sqrt(r.ADerail / k))
-            return Derail(world, $"derailed on a {1 / k:0} m curve at {v:0.0} m/s");
+        {
+            // Too fast for it: the throttle's doing, or a Stoker's runaway (App. C.9; note 190).
+            string why = BendCause(plan, train.Line, rake.Path, at, v, Math.Sqrt(r.ADerail / k));
+            world.Overspeed(why);
+            return world.DerailCause;
+        }
 
         var (edge, s) = Locate(plan, train.Line, rake.Path, rake.Distance);
         foreach (var st in plan.Structures)
@@ -52,6 +61,22 @@ public static class TrackRules
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// T121 playtest ("if derailment happens people should know they took the corner too hard and by how much"): the
+    /// bend's posted figure from its board, the speed it was taken at, and how far over the board that was, in the km/h the
+    /// boards and the cab map are painted in. Where no board stands before it, against what the bend holds.
+    /// </summary>
+    public static string BendCause(LinePlan plan, RailLine line, int path, double distance, double v, double holds)
+    {
+        int kmh = (int)Math.Round(v * 3.6);
+        var (edge, s) = Locate(plan, line, path, distance);
+        var board = plan.Signage.Where(b => b is { Type: "speedBoard", Required: true } && b.Edge == edge && b.S <= s && b.S >= s - 900)
+            .OrderByDescending(b => b.S).FirstOrDefault();
+        if (board is not null && int.TryParse(board.Text, System.Globalization.CultureInfo.InvariantCulture, out int posted))
+            return $"took the {posted} km/h bend at {kmh} km/h, {kmh - posted} km/h too fast";
+        return $"took the bend at {kmh} km/h, {kmh - (int)Math.Round(holds * 3.6)} km/h over the {holds * 3.6:0} km/h it holds";
     }
 
     static string Derail(World world, string why)

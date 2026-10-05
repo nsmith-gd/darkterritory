@@ -32,6 +32,8 @@ public sealed partial class GameAudio
     double _earHint = double.NaN, _outsideClock = double.NaN, _engineFrontWas = double.NaN, _engineSpeedWas, _nextFar, _tenderAtPour, _rammedAgain;
     bool _outsidePrimed, _radioWas;
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
+    // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
+    const int HerdOwner = 10_000, HoseOwner = 11_000;
     Double3 _spoutAt;
     Places? _places;
 
@@ -99,8 +101,8 @@ public sealed partial class GameAudio
             WorldBrass(train, places, primed);
             PlaceThreshold(run, train, places, front, primed);
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
-            HoldoutCalls(world, places, primed);
         }
+        HoldoutCalls(world, _places, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
         _engineFrontWas = engine.Distance;
@@ -487,18 +489,17 @@ public sealed partial class GameAudio
             else
                 Flipped("place-coaling", 0, false, primed);
 
-            // The grain elevator's spout (run.json "grainSpout"): swung over the car as it opens, the grain pouring (fuller
-            // drumming into a car than hissing onto the ballast), and cut off when it's shut or the bin runs dry.
-            bool spouting = run.Facility >= 0 && run.HasSpout(run.Facility) && run.ChuteOpen;
-            if (spouting)
+            // The grain elevator's spout (GDD §18's set piece, note 185): swung over the car as the grain starts, the grain coming
+            // down while the lever's held (fuller drumming into a car than hissing onto the ballast), cut off as it's let go or
+            // the bin runs dry.
+            var elevator = run.CurrentSite is { } here && here.Has(ModuleKind.Spout) ? here : null;
+            if (elevator is { Pouring: true })
             {
-                var (spout, _) = run.SpoutAt(run.Facility, line);
-                var mouth = spout + Double3.Up * 6;
                 if (Flipped("place-grain", 0, true, primed) > 0)
-                    Cue("place-grain.spout-swing", mouth, outside);
-                bool intoCar = run.CarUnderSpout(train.Frames, train.Vehicles, spout) >= 0;
-                HoldLevel("place-grain.grain-pour", 0, spout + Double3.Up * 4, outside, intoCar ? 1 : 0.7);
-                _spoutAt = mouth;
+                    Cue("place-grain.spout-swing", elevator.Spout, outside);
+                bool intoCar = run.CarUnderSpout(train, elevator) is not null;
+                HoldLevel("place-grain.grain-pour", 0, elevator.Spout - Double3.Up * 2, outside, intoCar ? 1 : 0.7);
+                _spoutAt = elevator.Spout;
             }
             else if (Flipped("place-grain", 0, false, primed) < 0)
                 Cue("place-grain.spout-stop", _spoutAt, outside);
@@ -583,6 +584,28 @@ public sealed partial class GameAudio
                 Cue("place-crane.load-set", onCar ? "wood" : "ground", at, outside, casting.State == CastingState.Lost ? 1 : 0.7f);
             }
         }
+        // The slaughterhouse's herd stirred up (spec D.2 "constant noise"): the cattle in the pen and on the ramp, louder while
+        // they're being driven.
+        if (site.Has(ModuleKind.Ramp) && site.Stirred && (site.Pen - ear).Length < 150)
+            HoldLevel("world-livestock.cattle", HerdOwner + site.Index, (site.Pen + site.RampTop) * 0.5 + Double3.Up, outside, site.Herding ? 1 : 0.6);
+        // The chemical works' hose (note 185): its leak hissing at the stand while the pressure's over or the hose is torn.
+        if (site.Has(ModuleKind.Hose) && site.Leaking && (site.HoseStand - ear).Length < 150)
+            HoldLevel("place-chemical.leak", HoseOwner + site.Index, site.HoseStand + Double3.Up * 1.5, outside, 1);
+        // The wreck yard's heaps (note 187): a piece pulled out creaks it; its groan before it shifts (the tell, 3 s) is the
+        // creaking quickening and loud; the shift is the wreckage going.
+        foreach (var heap in site.Heaps)
+        {
+            if ((heap.Centre - ear).Length > 150)
+                continue;
+            int key = site.Index * 16 + heap.Index;
+            var at = heap.Centre + Double3.Up * 1.5;
+            if (Moved("place-wreck.stability", key, heap.Stability) < -1e-6 && primed)
+                Cue("place-wreck.creak", at, outside, 0.7f);
+            if (heap.Groan > 0 && Sometimes(3, dt))
+                Cue("place-wreck.creak", at + new Double3((OutsideOdds() * 2 - 1) * 2, 0, (OutsideOdds() * 2 - 1) * 2), outside, 1);
+            if (Moved("place-wreck.shifts", key, heap.Shifts) > 0 && primed)
+                Cue("place-wreck.shift", at, outside, 1);
+        }
         if (site.Feature.Facility != FacilityKind.WreckYard || (site.Capstan - ear).Length > 150)
             return;
         if (site.Turning)
@@ -602,7 +625,7 @@ public sealed partial class GameAudio
     /// a call or a shout in that prisoner's own voice for the run (voice-prisoner-sets), or a bout of banging on the walls
     /// (voice-callout). The host keeps it to one a Holdout per cooldown.
     /// </summary>
-    void HoldoutCalls(World world, Places places, bool primed)
+    void HoldoutCalls(World world, Places? places, bool primed)
     {
         if (world.Holdouts is not { } holdouts)
             return;
@@ -624,14 +647,20 @@ public sealed partial class GameAudio
             if (Moved("voice-callout.calls", h.Index, h.Calls) <= 0 || !primed)
                 continue;
             var inside = h.Inside + Double3.Up * 1.3;
-            int set = places.VoiceSets[(Math.Max(0, h.Occupant) % 8 + 8) % 8];
+            // The night's deal of the sets (Survey, by the route's seed); with no route surveyed, set n for player n.
+            int seat = (Math.Max(0, h.Occupant) % 8 + 8) % 8;
+            int set = places?.VoiceSets[seat] ?? seat + 1;
             // What this call is, from the Holdout and its count: the same on every machine.
             ulong roll = ((ulong)h.Index * 0x9E3779B97F4A7C15UL ^ (ulong)h.Calls * 0xBF58476D1CE4E5B9UL) >> 33;
             int kind = (int)(roll % 20);
-            if (kind < 9)
-                Cue($"voice-prisoner-sets.call.set{set}", inside, 0.35f);
-            else if (kind < 14)
-                Cue($"voice-prisoner-sets.shout.set{set}", inside, 0.35f);
+            // Where a voice set or the banging isn't installed, note 179's synthesised shout and bang stand in.
+            if (kind < 14)
+            {
+                if (Cue($"voice-prisoner-sets.{(kind < 9 ? "call" : "shout")}.set{set}", inside, 0.35f) is null)
+                    Mixer.Play("holdout-shout", inside)?.Also(v => v.Occlusion = 0.35f);
+            }
+            else if (!HasCue("voice-callout.bang"))
+                Mixer.Play("holdout-bang", inside)?.Also(v => v.Occlusion = 0.35f);
             else
             {
                 int bangs = 2 + (int)(roll / 20 % 3);

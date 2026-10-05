@@ -19,8 +19,8 @@ public sealed partial class GameAudio
 {
     /// <summary>A clear's or a board's count that's stopped rising this long (s) has stopped: a lost packet isn't a pause.</summary>
     const double FaultHoldGrace = 0.2;
-    // The fouled charge's pfft comes a beat after the misfire's click (s).
-    const double FizzleAfterMisfire = 0.12;
+    // The fouled bore's pfft comes a beat after the shot that fouled it, clear of the boom's attack (s).
+    const double FizzleAfterMisfire = 0.9;
     // Presentation, not design: the first nail this long after the board's put to the hole, then one a blow this often.
     const double HammerFirst = 0.35, HammerEvery = 0.55;
 
@@ -62,8 +62,9 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// A gun's foul: the dead click the moment it fouls (everyone's gun, from its state), and again at each pull of your own
-    /// trigger on a fouled gun you're at; the bore worked by hand while it's being cleared; and cleared.
+    /// A gun's foul (note 183: a shot fouls the bore as it goes): the damp charge's feeble pfft out of the vent a beat after
+    /// that shot, everyone's gun, from its state, so the crew hear it's fouled; the dead click at each pull of your own trigger
+    /// on a fouled gun you're at; the bore worked by hand while it's being cleared; and cleared.
     /// </summary>
     void FoulSounds(World world)
     {
@@ -91,9 +92,9 @@ public sealed partial class GameAudio
             {
                 // At the touch hole, where the priming didn't take and where it's picked clear.
                 var vent = train.Frames[v.Id].ToWorld(mount.Position - mount.Facing * 0.55 + Double3.Up * 0.15);
-                if (g.Jammed && (!m.Jammed || mine == v.Id))
+                if (g.Jammed && m.Jammed && mine == v.Id)
                     Cue("state-cannon-foul.misfire", vent, outside);
-                // As it fouls, the damp charge's feeble pfft out of the vent after the click (crew-mishaps).
+                // As it fouls, after the shot that fouled it, the damp charge's pfft out of the vent (crew-mishaps).
                 if (g.Jammed && !m.Jammed)
                     CrewAfter(FizzleAfterMisfire, "crew-mishaps.foul-fizzle", vent, outside);
                 if (g.Jammed && m.Jammed && g.ReloadProgress > m.Progress + 1e-6)

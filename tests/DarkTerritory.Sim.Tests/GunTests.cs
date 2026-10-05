@@ -11,8 +11,7 @@ public class GunTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    /// <summary>The guns without their misfires: those are rolled per night (FoulTests), and these pin everything else.</summary>
-    static readonly CombatTuning C = Tuning.Combat with { Guns = Tuning.Combat.Guns with { FoulChance = 0 } };
+    static readonly CombatTuning C = Tuning.Combat;
 
     static World World(int cars = 10)
     {
@@ -26,8 +25,16 @@ public class GunTests
     static readonly PlayerIntent Reload = new() { Buttons = PlayerButtons.Use };
     static double ReloadSeconds => C.Guns.ReloadSteps * C.Guns.ReloadStepSeconds + 0.2;
 
-    /// <summary>A player standing just behind a gun's pedestal, facing the way it faces.</summary>
+    /// <summary>A player sat in a gun's seat (T112), facing the way it faces.</summary>
     static PlayerState AtGun(World w, int vehicle)
+    {
+        var s = StandingAtGun(w, vehicle);
+        s.Flags |= PlayerFlags.Seated;
+        return s;
+    }
+
+    /// <summary>A player standing just behind a gun's pedestal, facing the way it faces.</summary>
+    static PlayerState StandingAtGun(World w, int vehicle)
     {
         var mount = w.Train.Frames[vehicle].Shape.Gun!.Value;
         var s = PlayerMotor.SpawnOnRoof(w.Train, vehicle, mount.Position.Z - mount.Facing.Z * 0.7, P);
@@ -116,10 +123,12 @@ public class GunTests
         return new HitTarget(7, t.Position + right * lateral + Double3.Up * height, 1.0);
     }
 
+    // Spec B.7's effective range (T121: 220 m, so the forward gun reaches the Track Doll from where the lamp shows her).
     [Theory]
     [InlineData(60, true)]
-    [InlineData(90, false)]
-    public void RangeIsEightyMetres(double metres, bool hits)
+    [InlineData(200, true)]
+    [InlineData(235, false)]
+    public void RangeIsTwoHundredAndTwentyMetres(double metres, bool hits)
     {
         var w = World();
         var s = AtGun(w, 0);
@@ -132,11 +141,54 @@ public class GunTests
     public void AimingPastTheTraverseStopsTheGun()
     {
         var w = World();
+        // T112: seated, the view itself is held at the traverse's stop, and the gun is laid there and no further.
         var s = AtGun(w, 0);
         s.Yaw = 120 * Math.PI / 180;
-        Assert.Empty(Hold(w, ref s, Fire, 1));
-        s.Yaw = 95 * Math.PI / 180;
-        Assert.NotEmpty(Hold(w, ref s, Fire, 1));
+        Hold(w, ref s, default, 3);
+        double stop = C.Guns.TraverseDegrees / 2;
+        Assert.Equal(stop, s.Yaw * 180 / Math.PI, 6);
+        Assert.Equal(stop, w.Train.Vehicles[0].Gun.Traverse * 180 / Math.PI, 6);
+        var shot = Hold(w, ref s, Fire, 0.2).Single();
+        var local = w.Train.Frames[0].DirToLocal(shot.Direction);
+        Assert.Equal(stop, Math.Atan2(-local.X, -local.Z) * 180 / Math.PI, 3);
+    }
+
+    [Fact]
+    public void TheSeatedGunnersGunFollowsTheViewAtItsOwnPaceAndFiresWhereTheBarrelPoints()
+    {
+        // T112: the mouse leads, the carriage turns after it at traverseDegreesPerSecond; a shot goes where the barrel is.
+        var w = World();
+        var s = AtGun(w, 0);
+        s.Yaw = 70 * Math.PI / 180;
+        var early = Hold(w, ref s, Fire, 0.1).Single();
+        var local = w.Train.Frames[0].DirToLocal(early.Direction);
+        double laid = Math.Atan2(-local.X, -local.Z) * 180 / Math.PI;
+        Assert.InRange(laid, 1, 70 * 0.2);
+        Hold(w, ref s, default, 70 / C.Guns.TraverseDegreesPerSecond + 0.2);
+        Assert.Equal(70, w.Train.Vehicles[0].Gun.Traverse * 180 / Math.PI, 6);
+        // The seat's on the carriage: the gunner turned with it, still behind the breech.
+        var mount = Guns.Mount(w.Train, 0)!.Value;
+        var seat = Guns.SeatAt(mount, w.Train.Vehicles[0].Gun, C.Guns, s.Position.Y);
+        Assert.Equal(seat.X, s.Position.X, 9);
+        Assert.Equal(seat.Z, s.Position.Z, 9);
+        Assert.True(seat.X > mount.Position.X + 0.5, "turned left, the seat swings out to the right of the pivot");
+    }
+
+    [Fact]
+    public void OnlyASeatedGunnerFiresAndJumpGetsThemUp()
+    {
+        var w = World();
+        var s = StandingAtGun(w, 0);
+        Assert.Empty(Hold(w, ref s, Fire, 0.5));
+        // Held for a few ticks (a host repeats a lost intent): sat, and still sat.
+        Hold(w, ref s, new PlayerIntent { Actions = PlayerActions.Seat }, 3.0 / SimConstants.TickRate);
+        Assert.True(s.Has(PlayerFlags.Seated));
+        Assert.NotEmpty(Hold(w, ref s, Fire, 0.2));
+        // Up out of the seat on Jump, without leaving the roof.
+        var jump = new PlayerIntent { Buttons = PlayerButtons.Jump };
+        PlayerMotor.Step(ref s, jump, w.Train, P, T, SimConstants.TickSeconds);
+        Assert.False(s.Has(PlayerFlags.Seated));
+        Assert.Equal(Surface.Roof, s.Surface);
     }
 
     [Fact]
@@ -157,6 +209,7 @@ public class GunTests
         var w = World();
         var s = AtGun(w, 0);
         s.Pitch = -11 * Math.PI / 180;
+        Hold(w, ref s, default, 1); // laid (T112)
         var shot = Hold(w, ref s, Fire, 0.1).Single();
         Assert.True(shot.BlockedByTrain);
         Assert.True(shot.Distance < 20);
@@ -190,8 +243,12 @@ public class GunTests
                     for (double yaw = -180; yaw < 180; yaw += 2)
                         for (double pitch = -10; pitch <= 40; pitch += 5)
                         {
-                            var s = gunner with { Yaw = yaw * Math.PI / 180, Pitch = pitch * Math.PI / 180 };
-                            w.Train.Vehicles[s.Parent].Gun.Cooldown = 0;
+                            var s = gunner;
+                            // The barrel laid on the trial aim (T112: it fires where it points), loaded each time.
+                            ref var g = ref w.Train.Vehicles[s.Parent].Gun;
+                            double face = Guns.FacingYaw(Guns.Mount(w.Train, s.Parent)!.Value);
+                            (g.Traverse, g.Elevation) = (yaw * Math.PI / 180 - face, pitch * Math.PI / 180);
+                            (g.Cooldown, g.ReloadNeeded, g.Ammo) = (0, 0, C.Guns.Ammo);
                             var shot = Guns.TryFire(s, Fire, w.Train, C.Guns, ref w.Choir, C.Choir, w.Targets, 0, 1);
                             Assert.False(shot?.HitTargetId == car, $"car {car} side {side} hit from vehicle {s.Parent} at yaw {yaw} pitch {pitch}");
                         }
@@ -219,10 +276,10 @@ public class GunTests
     [Fact]
     public void SustainedFireBringsTheSwarm()
     {
-        // Fire as fast as the reload allows, for a minute: the meter held loud gathers the Choir (App. A.7, C.7).
+        // Fire as fast as the reload allows, for a minute or two (T113: it takes buildSeconds held loud): the meter held loud gathers the Choir (App. A.7, C.7).
         var w = World();
         var s = AtGun(w, 0);
-        for (int i = 0; i < 14 && !w.Choir.Present; i++)
+        for (int i = 0; i < 30 && !w.Choir.Present; i++)
         {
             Hold(w, ref s, Fire, 0.2);
             Hold(w, ref s, Reload, ReloadSeconds);

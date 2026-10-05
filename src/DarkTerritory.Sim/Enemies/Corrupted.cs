@@ -79,7 +79,7 @@ public sealed class Passenger(int id) : Enemy(id)
                 if (to.Length > t.Reach)
                 {
                     Local += to.Normalized * Math.Min(t.WalkSpeed * SimConstants.TickSeconds, to.Length);
-                    Extra2 = Math.Atan2(-to.X, -to.Z);
+                    Extra2 = DMath.Atan2(-to.X, -to.Z);
                     return;
                 }
                 if (Enter(ctx, SpinePhase.Commit))
@@ -105,6 +105,7 @@ public sealed class Passenger(int id) : Enemy(id)
                                 int ahead = train.VehicleAhead(rear);
                                 if (ahead >= 0)
                                     train.Uncouple(ahead);
+                                train.Vehicles[rear].Taken = true;
                                 int victim = Holding;
                                 Enter(ctx, SpinePhase.Punish);
                                 Punish(ctx, victim);
@@ -181,6 +182,19 @@ public sealed class Switchman(int id) : Enemy(id)
     public override double MeleeRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.7 : 0;
     public int Branch => (int)Extra;
     public bool Derailer => Extra2 > 0.5;
+
+    /// <summary>
+    /// C.9's Switchman row (note 190) for its PUNISH short of a derailment (whose own record says it): the train down the dead
+    /// line, or the points split under a crawling engine. Whether the forward cannon was crewed, and by whom.
+    /// </summary>
+    protected override Run.Incident? Punished(EnemyContext ctx)
+    {
+        if (ctx.World.Derailed)
+            return null;
+        var (gunner, cannon) = Run.IncidentLog.ForwardCannon(ctx.World);
+        string what = Derailer ? "Split the Switchman's points under the engine" : "Switchman threw the train down the dead line";
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Points, what, gunner, cannon);
+    }
     /// <summary>Gripping the lever to throw it under the train (the derail's telegraph: the lamp flickers).</summary>
     public bool Gripping => Derailer && Phase == SpinePhase.Commit;
 
@@ -256,7 +270,22 @@ public sealed class Switchman(int id) : Enemy(id)
                 if (engine.Path == Rail.RailLine.MainPath && engine.Distance > branch.Toe + 2 && engine.RearDistance < branch.Toe - 2)
                 {
                     ctx.World.SetSwitch(Branch, true);
-                    ctx.World.Derail("the Switchman threw the points under it");
+                    double v = engine.Speed;
+                    if (v > t.DerailAbove)
+                    {
+                        // C.9's Switchman row (note 190): not the throttle, but whether the forward cannon was crewed, and by whom.
+                        var (gunner, cannon) = Run.IncidentLog.ForwardCannon(ctx.World);
+                        ctx.World.Derail($"the Switchman threw the points under it at {v * 3.6:0} km/h (over {t.DerailAbove * 3.6:0} km/h they throw a train off)",
+                            gunner, cannon);
+                    }
+                    else
+                    {
+                        // Run through at a crawl: the points split, the engine's wrenched about and brought up short.
+                        var front = train.Vehicles[engine.Consist.Vehicles[0].Id];
+                        front.Integrity = Math.Max(0, front.Integrity - t.RunThroughDamage);
+                        foreach (var rake in train.Rakes)
+                            rake.Velocity = 0;
+                    }
                     Enter(ctx, SpinePhase.Punish);
                     return;
                 }
@@ -327,6 +356,10 @@ public sealed class Grumbler(int id) : Enemy(id)
                         var c = crane.Castings[Casting];
                         if (c.State == CastingState.Loaded && c.Car >= 0 && c.Car < train.Frames.Count)
                         {
+                            // C.9's Grumbler row (note 190): aboard, and who ran the crane for that lift.
+                            int op = ctx.World.Attribution.CraneOperator;
+                            ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Aboard, $"Grumbler craned aboard car {c.Car}", op,
+                                op >= 0 ? "Crane: {actor}." : "Nobody at the crane.", c.Car));
                             Attached = c.Car;
                             Local = c.At + Double3.Up * 0.8;
                             Extra = -1;

@@ -56,7 +56,17 @@ public sealed class MeterTap(int frames)
 /// </summary>
 public sealed class Mixer
 {
+    /// <summary>
+    /// The tiers (spec A.3), tier 1 on top. Tier 7 is the work's music, under everything (decided 1 Oct: low, ambient,
+    /// almost a drone, and every other tier ducks it).
+    /// </summary>
     public const int Tiers = 7;
+    /// <summary>
+    /// The music bus (GDD v1.4 App. E.6): a sound with this tier is the derailment's opera, outside the tell tiers. It ducks
+    /// nothing and the tiers' rules never duck it; <see cref="MusicBusDef"/> says what it does. The work's drone is tier 7,
+    /// not this: the opera plays when the run's over, the drone while there's still a tell to hear.
+    /// </summary>
+    public const int MusicTier = 0;
     /// <summary>The <see cref="MeterTap"/> stem the reverb's return is metered as (all but the tells' own, while metering).</summary>
     public const string ReverbStem = "(reverb)";
     /// <summary>
@@ -86,6 +96,7 @@ public sealed class Mixer
     // Metering only: the tells' send, convolved apart.
     Convolver? _tellReverb;
     readonly float[] _tellSend = new float[Audio.Block], _tellLeft = new float[Audio.Block], _tellRight = new float[Audio.Block];
+    Smoothed _musicGain = new(1), _gameLowpass = new(0);
 
     public Mixer(SoundBank bank, MixDef mix)
     {
@@ -120,6 +131,13 @@ public sealed class Mixer
     public MeterTap? Tap { get; set; }
     /// <summary>Voices rendered in the last block (the rest were virtualised).</summary>
     public int RenderedVoices { get; private set; }
+
+    /// <summary>The music bus's duck gain now (1 = untouched; App. E.6's −6 dB under the dead channel).</summary>
+    public float MusicDuck => _musicGain.Value;
+    /// <summary>How far the rest of the game is into the music's low-pass (0 = dry, 1 = fully muffled).</summary>
+    public float GameLowpass => _gameLowpass.Value;
+    /// <summary>Music is sounding on the music bus.</summary>
+    public bool MusicActive { get; private set; }
 
     /// <summary>Current duck gain on a tier (1 = untouched).</summary>
     public float TierGain(int tier) => _tierGain[Math.Clamp(tier, 1, Tiers)].Value;
@@ -177,7 +195,7 @@ public sealed class Mixer
         }
         _selected.Clear();
         _selected.AddRange(_voices.Where(v => v.LastAudibleGain > 1e-4f || v.Stream is not null)
-            .OrderBy(v => v.Def.Tier == 1 ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));
+            .OrderBy(v => v.Def.Tier is 1 or MusicTier ? 0 : 1).ThenByDescending(v => v.LastAudibleGain).Take(_buffers.Length));
         foreach (var v in _voices)
         {
             v.Virtual = !_selected.Contains(v);
@@ -188,6 +206,7 @@ public sealed class Mixer
 
         Array.Clear(_tierActive);
         _soundActive.Clear();
+        MusicActive = false;
         for (int i = 0; i < _selected.Count; i++)
         {
             var v = _selected[i];
@@ -205,10 +224,28 @@ public sealed class Mixer
             double level = Math.Sqrt(sum / buffer.Length) * v.LastAudibleGain;
             if (level > 1e-3) // −60 dBFS: something you could hear
             {
-                _tierActive[Math.Clamp(v.Def.Tier, 1, Tiers)] = true;
+                if (v.Def.Tier == MusicTier)
+                    MusicActive = true;
+                else
+                    _tierActive[Math.Clamp(v.Def.Tier, 1, Tiers)] = true;
                 _soundActive.Add(v.Name);
             }
             Compress(v, level);
+        }
+
+        // The music bus (App. E.6): ducked under the dead channel, and while it plays, the rest of the game muffled.
+        var musicBus = Mix.Music;
+        if (musicBus is not null)
+        {
+            float duck = musicBus.DuckUnder.Any(_soundActive.Contains) ? Audio.DbToGain(musicBus.DuckDb) : 1;
+            _musicGain.Step(duck, duck < _musicGain.Value ? musicBus.DuckAttack : musicBus.DuckRelease);
+            _gameLowpass.Step(MusicActive ? 1 : 0, musicBus.LowpassSeconds);
+            if (_gameLowpass.Value < 1e-3 && !MusicActive)
+                _gameLowpass.Value = 0;
+            if (_gameLowpass.Value > 0)
+                for (int i = 0; i < _selected.Count; i++)
+                    if (Array.IndexOf(musicBus.LowpassTiers, _selected[i].Def.Tier) >= 0)
+                        Muffle(_selected[i], _buffers[i], musicBus.LowpassHz, _gameLowpass.Value);
         }
 
         // Tier ducking, smoothed: fast down, slow back up.
@@ -245,7 +282,7 @@ public sealed class Mixer
             var v = _selected[i];
             Spatial(v, out float left, out float right);
             int tier = Math.Clamp(v.Def.Tier, 1, Tiers);
-            float bus = _tierGain[tier].Value * master * Audio.DbToGain(Mix.Fader(tier)) * v.CompressorGain
+            float bus = (v.Def.Tier == MusicTier ? MusicBus() : _tierGain[tier].Value * Audio.DbToGain(Mix.Fader(tier))) * master * v.CompressorGain
                 * (_soundGain.TryGetValue(v.Name, out var sg) ? sg.Value : 1);
             float l0 = v.LeftGain.Value, r0 = v.RightGain.Value;
             float l1 = v.LeftGain.Step(left * bus, 0.01), r1 = v.RightGain.Step(right * bus, 0.01);
@@ -366,6 +403,21 @@ public sealed class Mixer
         v.CompressorEnvelopeDb += (float)((db - v.CompressorEnvelopeDb) * (1 - Math.Exp(-seconds / Math.Max(1e-4, time))));
         double over = Math.Max(0, v.CompressorEnvelopeDb - c.ThresholdDb);
         v.CompressorGain = Audio.DbToGain(c.MakeupDb - over * (1 - 1 / Math.Max(1, c.Ratio)));
+    }
+
+    float MusicBus() => Mix.Music is { } m ? Audio.DbToGain(m.LevelDb) * _musicGain.Value : 1;
+
+    /// <summary>The music's low-pass on one voice (App. E.6), crossfaded in by <paramref name="amount"/> so it never clicks on.</summary>
+    static void Muffle(SoundInstance v, float[] buffer, double hz, float amount)
+    {
+        v.GameFilterA.Set(FilterType.LowPass, hz, 0.707);
+        v.GameFilterB.Set(FilterType.LowPass, hz, 0.707);
+        for (int s = 0; s < Audio.Block; s++)
+        {
+            float dry = buffer[s];
+            float wet = v.GameFilterB.Process(v.GameFilterA.Process(dry));
+            buffer[s] = dry + (wet - dry) * amount;
+        }
     }
 
     /// <summary>Tier-1 tells are never occluded past the floor (spec A.3).</summary>

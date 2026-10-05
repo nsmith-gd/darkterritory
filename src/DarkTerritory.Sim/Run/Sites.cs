@@ -11,6 +11,14 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
 
     public CraneTuning Crane { get; init; } = new();
     public PowerTuning Power { get; init; } = new();
+    /// <summary>GDD §18's set pieces (WP15, note 185): the grain elevator's spout, the slaughterhouse's ramp, the chemical works' hose, the depot's powder.</summary>
+    public SpoutTuning Spout { get; init; } = new();
+    public RampTuning Ramp { get; init; } = new();
+    public HoseTuning Hose { get; init; } = new();
+    public KegTuning Kegs { get; init; } = new();
+    /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
+    public RakesTuning Rakes { get; init; } = new();
+    public WreckYardTuning Wreck { get; init; } = new();
 
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
@@ -97,15 +105,153 @@ public sealed record CraneTuning
     public double CrushRadius { get; init; } = 1.4;
 }
 
+/// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>
+public sealed record SpoutTuning
+{
+    public double Back { get; init; } = 80;
+    public double Height { get; init; } = 5.2;
+    public double LeverAlong { get; init; } = 2;
+    public double LeverLateral { get; init; } = 3.4;
+    public double LeverReach { get; init; } = 1.2;
+    public double Tolerance { get; init; } = 1.5;
+    public double PourPerSecond { get; init; } = 0.05;
+    public double Bin { get; init; } = 3;
+    public double OverfillDamagePerLoad { get; init; } = 0.6;
+}
+
+/// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
+public sealed record RampTuning
+{
+    public double Along { get; init; } = -10;
+    public double RampLateral { get; init; } = 2.6;
+    public double PenLateral { get; init; } = 10;
+    public double PenRadius { get; init; } = 4;
+    public int[] Head { get; init; } = [4, 6];
+    public double LoadPerHead { get; init; } = 0.2;
+    public double SecondsPerHead { get; init; } = 6;
+    public int Herders { get; init; } = 2;
+    public double ExtraHerder { get; init; } = 0.25;
+    public double CarReach { get; init; } = 9;
+    public double ChoirFloor { get; init; } = 0.35;
+}
+
+/// <summary>The chemical works' fluid gantry (GDD §18 "leaks. Do not fire indoors"; spec D.2). Field docs in facilities.json.</summary>
+public sealed record HoseTuning
+{
+    public double Along { get; init; } = 4;
+    public double Lateral { get; init; } = 4.2;
+    public double Reach { get; init; } = 1.4;
+    public double CarReach { get; init; } = 9;
+    public double TearSlack { get; init; } = 2;
+    public double ConnectSeconds { get; init; } = 2.5;
+    public double FlowPerSecond { get; init; } = 0.04;
+    public double PressureRise { get; init; } = 0.05;
+    public double Bleed { get; init; } = 0.15;
+    public double LeakRadius { get; init; } = 6;
+    public double LeakDamagePerSecond { get; init; } = 12;
+    public double SpoilPerSecond { get; init; } = 0.02;
+    public double TornSeconds { get; init; } = 20;
+    public double TornSpoil { get; init; } = 0.25;
+    public double IndoorsM { get; init; } = 60;
+}
+
+/// <summary>The military depot's powder (GDD §18-19 "explodes"). Field docs in facilities.json.</summary>
+public sealed record KegTuning
+{
+    public double BlowSpeed { get; init; } = 6;
+    public double KillRadius { get; init; } = 3;
+    public double Radius { get; init; } = 9;
+    public int Damage { get; init; } = 150;
+    public double Chain { get; init; } = 3;
+    public double CarDamage { get; init; } = 0.3;
+}
+
+/// <summary>The switchyard's standing cars (GDD §18 "cars scattered across six sidings"; WP15b). Field docs in facilities.json.</summary>
+public sealed record RakesTuning
+{
+    public int[] Cars { get; init; } = [1, 2];
+    public double[] Load { get; init; } = [0.5, 1];
+    public string[] Cargoes { get; init; } = ["goods"];
+    public double Back { get; init; } = 1;
+    public int Spare { get; init; } = 1;
+}
+
+/// <summary>The wreck yard's derailed train (GDD §18 "unstable, unlit"; WP15b). Field docs in facilities.json.</summary>
+public sealed record WreckYardTuning
+{
+    public int[] Heaps { get; init; } = [3, 4];
+    public double[][] Layout { get; init; } = [[8, 1.5], [20, 4.5], [-24, 12], [16, 15]];
+    public int[] Salvage { get; init; } = [2, 3];
+    public double LampReach { get; init; } = 6;
+    public double BeamLength { get; init; } = 40;
+    public double BeamSpread { get; init; } = 0.2;
+    public double StrainPerPiece { get; init; } = 0.4;
+    public double WarnSeconds { get; init; } = 3;
+    public double CrushRadius { get; init; } = 3.5;
+    public int Damage { get; init; } = 45;
+    public double Settle { get; init; } = 0.6;
+    public int Shifts { get; init; } = 2;
+}
+
+/// <summary>
+/// One heap of the wreck yard's derailed train (GDD §18; WP15b, note 187): a car on its side beside the line, and the
+/// salvage still in it, which nobody finds in the dark. Its stability goes as pieces are pulled out of it; at none it groans
+/// for a few seconds and then shifts, on whoever's by it.
+/// </summary>
+public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage)
+{
+    public int Index { get; } = index;
+    /// <summary>Where it lies (on the ground), and which way its length runs (radians, from the track's heading).</summary>
+    public Double3 Centre { get; } = centre;
+    public double Yaw { get; } = yaw;
+    public int SalvageStart { get; } = salvage;
+    /// <summary>Pieces still in it, unfound: they come out onto the ground beside it the first time a lamp's on it.</summary>
+    public int Salvage { get; internal set; } = salvage;
+    public bool Found { get; internal set; }
+    /// <summary>1 settled, 0 about to go.</summary>
+    public double Stability { get; internal set; } = 1;
+    /// <summary>Seconds of groaning left before it shifts (0: quiet). The tell.</summary>
+    public double Groan { get; internal set; }
+    /// <summary>How many times it's shifted (each tips it further; it settles for good after the tuning's shifts).</summary>
+    public int Shifts { get; internal set; }
+    /// <summary>Who pulled the last piece out of it. Host only.</summary>
+    internal int By = -1;
+
+    public HeapState State => new(Salvage, Found, Stability, Groan, Shifts);
+
+    public void Mirror(in HeapState s)
+    {
+        Salvage = s.Salvage;
+        Found = s.Found;
+        Stability = s.Stability;
+        Groan = s.Groan;
+        Shifts = s.Shifts;
+    }
+}
+
+/// <summary>A wreck heap's replicated state.</summary>
+public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
+
 /// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
 public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,
-    Stops.PowerState Power = Stops.PowerState.Live, double Restart = 0);
+    Stops.PowerState Power = Stops.PowerState.Live, double Restart = 0)
+{
+    /// <summary>The set pieces' (WP15, note 185): the spout's grain left and whether it's pouring; the herd left, how far the next is up the ramp, and whether it's being driven; the hose's car, its pressure, and a torn hose's leak left.</summary>
+    public double Bin { get; init; }
+    public bool Pouring { get; init; }
+    public int Head { get; init; }
+    public double Herd { get; init; }
+    public bool Herding { get; init; }
+    public int HoseCar { get; init; } = -1;
+    public double Pressure { get; init; }
+    public double Leak { get; init; }
+}
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -121,7 +267,7 @@ public sealed class Site
     /// <param name="mid">Distance along <paramref name="track"/> the modules are laid out from.</param>
     /// <param name="mainDistance">About where that is along the main line (to find the ground from).</param>
     public Site(int index, RouteFeature feature, IReadOnlyList<ModuleKind> modules, FacilityTuning t, RailLine track, double mid, int side,
-        double mainDistance, int crates, int spur = RailLine.MainPath, int heavy = 0)
+        double mainDistance, int crates, int spur = RailLine.MainPath, int heavy = 0, double? room = null, int head = 0, int[]? salvage = null)
     {
         Index = index;
         Feature = feature;
@@ -161,7 +307,89 @@ public sealed class Site
         }
         if (Has(ModuleKind.Crane))
             Crane = new Crane(t.Crane, (along, lateral, up) => At(along, lateral, up));
+        if (Has(ModuleKind.Spout))
+        {
+            // Over the track, as far back from the end as the standing track allows (up to "back"): the car nearest the
+            // engine comes under it with the engine well short of the buffer stop, and the ones behind it as it runs on in.
+            var sp = t.Spout;
+            double back = Math.Min(sp.Back, Math.Max(0, (room ?? track.Length - mid) - 4));
+            SpoutAlong = room is null ? mid : Math.Max(0, track.Length - back);
+            Spout = At(SpoutAlong - mid, 0, sp.Height);
+            SpoutLever = At(SpoutAlong - mid + sp.LeverAlong, sp.LeverLateral, 0.9);
+            Bin = sp.Bin;
+        }
+        if (Has(ModuleKind.Ramp))
+        {
+            var r = t.Ramp;
+            RampTop = At(r.Along, r.RampLateral, 1.2);
+            Pen = At(r.Along, r.PenLateral);
+            PenRadius = r.PenRadius;
+            HeadStart = Head = head;
+        }
+        if (Has(ModuleKind.Hose))
+            HoseStand = At(t.Hose.Along, t.Hose.Lateral);
+        MainDistance = mainDistance;
+        if (Has(ModuleKind.Wreck) && salvage is not null)
+        {
+            // Laid out from the end of the line, where the last train came off (GDD §18): some through the buffer stop and
+            // strewn on beyond it, in the headlamp of an engine run up to it; the rest beside the track, in the dark.
+            var w = t.Wreck;
+            var heaps = new List<WreckHeap>();
+            for (int i = 0; i < salvage.Length && i < w.Layout.Length; i++)
+            {
+                double along = w.Layout[i][0], lateral = w.Layout[i][1];
+                heaps.Add(new WreckHeap(i, Off(track, track.Length + along, side * lateral), (i % 2 == 0 ? 1 : -1) * (0.35 + 0.3 * i), salvage[i]));
+            }
+            Heaps = heaps;
+        }
     }
+
+    /// <summary>A point beside a track, <paramref name="lateral"/> to its right, past its end on along its last heading.</summary>
+    internal static Double3 Off(RailLine track, double along, double lateral)
+    {
+        var sample = track.Sample(Math.Clamp(along, 0, track.Length));
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        return sample.Position + sample.Tangent * Math.Max(0, along - track.Length) + right * lateral;
+    }
+
+    /// <summary>About where the modules are along the main line (to find the ground, and a body's line hint, from).</summary>
+    public double MainDistance { get; }
+
+    /// <summary>The wreck yard's heaps (WP15b, note 187); none elsewhere.</summary>
+    public IReadOnlyList<WreckHeap> Heaps { get; } = [];
+
+    /// <summary>The spout's mouth over the track, how far along the track it is, its lever beside the track, and the car-loads of grain in the bin.</summary>
+    public Double3 Spout { get; }
+    public double SpoutAlong { get; }
+    public Double3 SpoutLever { get; }
+    public double Bin { get; internal set; }
+    /// <summary>Someone's holding the spout's lever and grain's coming down (the elevator's machinery: loud).</summary>
+    public bool Pouring { get; internal set; }
+    /// <summary>Who's on the spout's lever this tick (−1 for nobody). Host only.</summary>
+    internal int Pourer = -1;
+
+    /// <summary>The ramp's top by the cars, the pen out beyond it, the head penned at the start and left.</summary>
+    public Double3 RampTop { get; }
+    public Double3 Pen { get; }
+    public double PenRadius { get; }
+    public int HeadStart { get; }
+    public int Head { get; internal set; }
+    /// <summary>How far the next one's been driven up the ramp (0..1), and whether enough are driving them now.</summary>
+    public double Herd { get; internal set; }
+    public bool Herding { get; internal set; }
+    /// <summary>The herd's stirred up (being driven, or some aboard and some still penned): spec D.2 "constant noise. Raises Choir floor while active".</summary>
+    public bool Stirred => Head > 0 && (Herding || Head < HeadStart);
+    /// <summary>Who's driving the herd this tick. Host only.</summary>
+    internal readonly SortedSet<int> Herders = [];
+
+    /// <summary>The fluid gantry's stand, the car its hose is on (−1 for none), its pressure (0..1, leaking at 1), and a torn hose's leak left (seconds).</summary>
+    public Double3 HoseStand { get; }
+    public int HoseCar { get; internal set; } = -1;
+    public double Pressure { get; internal set; }
+    public double Leak { get; internal set; }
+    public bool Leaking => Pressure >= 1 - 1e-9 || Leak > 0;
+    /// <summary>Someone's at the stand minding the pressure this tick. Host only.</summary>
+    internal bool Attended;
 
     /// <summary>The gantry crane here, if the facility has one (T48).</summary>
     public Crane? Crane { get; }
@@ -219,7 +447,7 @@ public sealed class Site
     public Double3 Grip(int handle)
     {
         double a = Crank + handle * Math.PI;
-        return Handles[handle] + (Outward * Math.Cos(a) + Double3.Up * Math.Sin(a)) * CrankRadius;
+        return Handles[handle] + (Outward * DMath.Cos(a) + Double3.Up * DMath.Sin(a)) * CrankRadius;
     }
 
     /// <summary>
@@ -233,7 +461,7 @@ public sealed class Site
         double rho = Math.Sqrt(u * u + v * v);
         if (rho < CrankRadius * 0.5 || Math.Sqrt((rho - CrankRadius) * (rho - CrankRadius) + a * a) > grab)
             return null;
-        return Math.Atan2(v, u) - handle * Math.PI;
+        return DMath.Atan2(v, u) - handle * Math.PI;
     }
     public Double3 SledFrom { get; }
     public Double3 SledTo { get; }
@@ -262,7 +490,17 @@ public sealed class Site
     /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
     internal int Restarter = -1;
 
-    public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart);
+    public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart)
+    {
+        Bin = Bin,
+        Pouring = Pouring,
+        Head = Head,
+        Herd = Herd,
+        Herding = Herding,
+        HoseCar = HoseCar,
+        Pressure = Pressure,
+        Leak = Leak,
+    };
 
     /// <summary>Client side: adopts the host's state.</summary>
     public void Mirror(in SiteState s)
@@ -275,5 +513,13 @@ public sealed class Site
         Crank = s.Crank;
         Power = s.Power;
         Restart = s.Restart;
+        Bin = s.Bin;
+        Pouring = s.Pouring;
+        Head = s.Head;
+        Herd = s.Herd;
+        Herding = s.Herding;
+        HoseCar = s.HoseCar;
+        Pressure = s.Pressure;
+        Leak = s.Leak;
     }
 }

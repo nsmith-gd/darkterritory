@@ -16,7 +16,7 @@ public sealed partial class Run
 {
     LootTuning? _loot;
     RailLine? _lootLine;
-    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds)> _stopLoot = [];
+    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds, IReadOnlyList<int> Kits)> _stopLoot = [];
     bool[] _stocked = [];
     readonly Dictionary<int, double> _lootSettling = new();
     readonly List<LootFind> _stowed = [];
@@ -44,7 +44,7 @@ public sealed partial class Run
         double perCar = Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700);
         for (int i = 0; i < _route.Features.Count; i++)
             if (_route.Features[i].Stop is { } stop)
-                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar)));
+                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
@@ -148,15 +148,25 @@ public sealed partial class Run
             Stock(bodies, line, t, stop);
     }
 
-    /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds.</summary>
+    /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
+    public IReadOnlyList<int> KitsAt(int stop) => stop >= 0 && stop < _stopLoot.Count ? _stopLoot[stop].Kits : [];
+
+    /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds, and a repair kit now and then.</summary>
     void Stock(Physics.Bodies bodies, RailLine line, LootTuning t, int k)
     {
         _stocked[k] = true;
-        var (f, index, stop, finds) = _stopLoot[k];
+        var (f, index, stop, finds, kits) = _stopLoot[k];
         double heavy = _facilityTuning?.Crates.Heavy.Radius ?? 0.55;
         foreach (var c in stop.Containers)
         {
             double hint = f.Start + c.At.S;
+            // A repair kit (E.12 question 4), lying beside what the container holds: not the crew's until one of them picks it up.
+            if (kits.Contains(c.Index))
+            {
+                var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
+                    ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
+            }
             switch (c.Kind)
             {
                 case ContainerKind.CrateStack:
@@ -171,8 +181,11 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
+                    // A find in a shut house is put out on its step (T114: the houses are walls now, with no way in).
+                    var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
+                        ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
                     if (finds.Any(x => x.Container == c.Index))
-                        bodies.SpawnLoot(StopWorld(line, f, c.At), hint, LootOwner(k, c.Index), t.Radius);
+                        bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     break;
             }
         }

@@ -4,6 +4,8 @@ reaching in over the cess, the bag hung at a car's doorway height for the hook o
   * mail_crane: a tall timber post on a stone footing, braced, with its two iron arms swung out toward the line, the bag's
     clamps at their ends, a step-iron ladder up it and a tin flag. Its origin is the post's foot; +X is toward the line;
     the arms' clamps reach 0.85 m in (sockets bag_top and bag_foot: where the bag's ends are held);
+  * mail_crane_arm: one arm, its origin the hinge at the collar's face, PIVOT out from the post's axis: drawn twice, at
+    ARMS, level with the bag in its clamps, and swung down to hang by the post once the bag's been taken;
   * mail_bag: the bag: a canvas sack strapped round in leather, tied at its neck, 0.6 m long, its middle at the origin,
     pale enough for the scene to tint by what's in it (mail grey, coal black, rounds olive, spares brass).
 
@@ -21,6 +23,9 @@ from mathutils import Matrix  # noqa: E402
 
 REACH = 0.85
 BAG_TOP, BAG_FOOT = 2.65, 2.05
+# The arms' heights on the post, and their hinge, at the collar's face: an arm that's let go hangs down the post's side.
+ARMS = (BAG_TOP + 0.08, BAG_FOOT - 0.08)
+PIVOT = 0.12
 
 
 def materials():
@@ -44,19 +49,32 @@ def crane(m):
     for sy in (-1, 1):
         p.append(make.box((-0.3, sy * 0.06, 0.9), (0.03, 0.03, 0.75), m["post"], bevel=0.006, name="brace",
                           rot=Matrix.Rotation(0.32, 4, "Y")))
-    # The arms: iron bars swung out toward the line from collars on the post, each with the bag's clamp at its end.
-    for z in (BAG_TOP + 0.08, BAG_FOOT - 0.08):
+    # The arms' collars on the post, each with the hinge lug the arm hangs from (mail_crane_arm: drawn on its own, so it
+    # can fall when the bag's taken).
+    for z in ARMS:
         p.append(make.box((0, 0, z), (0.12, 0.12, 0.03), m["iron"], bevel=0.004, name="collar"))
-        p.append(make.box((REACH / 2, 0, z), (REACH / 2, 0.02, 0.018), m["iron"], bevel=0.004, name="arm"))
-        p.append(make.cyl((REACH / 2 - 0.1, 0, z - 0.02), (0.08, 0, z - 0.25), 0.012, m["iron"], n=8, bevel=0, name="stay", low=4))
         for sy in (-1, 1):
-            p.append(make.box((REACH, sy * 0.035, z), (0.015, 0.008, 0.04), m["iron"], bevel=0.002, name="clamp"))
+            p.append(make.box((PIVOT, sy * 0.03, z), (0.025, 0.006, 0.03), m["iron"], bevel=0.002, name="lug"))
     # Step irons up the post's side, and its tin flag at the top, the line's colour on it.
     for k in range(9):
         z = 0.7 + k * 0.33
         p.append(make.cyl((0.0, -0.09, z), (0.0, -0.2, z), 0.012, m["iron"], n=6, bevel=0, name="step", low=0))
     p.append(make.box((0, 0.2, 3.45), (0.012, 0.11, 0.08), m["paint"], bevel=0.003, name="flag"))
     p.append(make.stencil("MAIL", (0.014, 0.2, 3.45), (1, 0, 0), (0, 0, 1), 0.05, m["ink"]))
+    return p
+
+
+def arm(m):
+    """One of the crane's arms, its origin the hinge at the collar (+X along it toward the line, the clamp at its end): an
+    iron bar with a stay back under it, and the bag's clamp. The scene swings it down when the bag's been taken: on a
+    real crane the arms drop to the post once the pouch is gone, so a crane that's been worked reads empty."""
+    n = REACH - PIVOT
+    p = [make.box((n / 2, 0, 0), (n / 2, 0.02, 0.018), m["iron"], bevel=0.004, name="arm")]
+    p.append(make.cyl((0, -0.035, 0), (0, 0.035, 0), 0.012, m["iron"], n=8, bevel=0, name="pin", low=4))
+    p.append(make.cyl((n * 0.55, 0, -0.012), (n * 0.12, 0, -0.16), 0.01, m["iron"], n=8, bevel=0, name="stay", low=4))
+    p.append(make.box((n * 0.12, 0, -0.16), (0.02, 0.015, 0.012), m["iron"], bevel=0.002, name="stay_foot"))
+    for sy in (-1, 1):
+        p.append(make.box((n, sy * 0.035, 0), (0.015, 0.008, 0.04), m["iron"], bevel=0.002, name="clamp"))
     return p
 
 
@@ -90,6 +108,7 @@ def build(name, fn, what, budget, sockets=None, centre=False):
 PIECES = {
     "mail_crane": lambda: build("mail_crane", crane, "a lineside mail crane", 1600,
                                 sockets={"bag_top": (REACH, 0, BAG_TOP), "bag_foot": (REACH, 0, BAG_FOOT)}),
+    "mail_crane_arm": lambda: build("mail_crane_arm", arm, "a mail crane's arm", 300),
     "mail_bag": lambda: build("mail_bag", bag, "a mail crane's bag", 700, centre=True),
 }
 want = set(cook.args()) or set(PIECES)

@@ -47,6 +47,11 @@ public sealed class SoundInstance
     public StreamBuffer? Stream { get; set; }
     readonly float[] _streamBlock = new float[Audio.Block];
 
+    /// <summary>The recording a <see cref="SourceKind.Sample"/> layer plays (App. E.6's music).</summary>
+    public AudioClip? Clip { get; set; }
+    /// <summary>Where in <see cref="Clip"/> the next block starts, in the clip's seconds: set it to start from an in-point.</summary>
+    public double ClipSeconds { get; set; }
+
     public int Id { get; }
     public string Name { get; }
     public SoundDef Def { get; internal set; }
@@ -66,7 +71,8 @@ public sealed class SoundInstance
     /// enough to go to a worker (it starts from the top when it arrives). With any sample layers, the sound is over once they all have
     /// played out, and not before its duration only if it has synth layers too and gives one. An all-sample one-shot
     /// ignores the duration: its takes are its length, so a 0.2 s footstep frees its voice at 0.2 s (not after 0.8 s of
-    /// silence holding a voice and an instance), and a 3 s take isn't cut off at a default second.
+    /// silence holding a voice and an instance), and a 3 s take isn't cut off at a default second. A sound playing its
+    /// <see cref="Clip"/> (the opera) is over when the clip is.
     /// </summary>
     public bool Finished => Stopped || !Def.Loop && Ended;
 
@@ -74,6 +80,8 @@ public sealed class SoundInstance
     {
         get
         {
+            if (Clip is { } clip)
+                return ClipSeconds >= clip.Seconds;
             if (!_hasSamples)
                 return Age >= (Def.Duration ?? 1);
             foreach (var layer in _layers)
@@ -96,6 +104,8 @@ public sealed class SoundInstance
     // Mixer-side state.
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
+    // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
+    internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
     // The listener's space: shut out by it (ramped, not cut), and a voice's compressor (its level at the ear in dB, and the
     // gain it's giving, makeup included).
@@ -113,11 +123,30 @@ public sealed class SoundInstance
         // One read per block, shared by every stream layer (a radio is the stream plus its static).
         if (Stream is not null)
             Stream.Read(_streamBlock.AsSpan(0, output.Length));
+        else if (Clip is not null)
+            ReadClip(output.Length);
         foreach (var layer in _layers)
             layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop);
         if (Def.Crush is { } crush)
             Crush(output, crush);
         Age += (double)output.Length / Audio.SampleRate;
+    }
+
+    /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
+    void ReadClip(int count)
+    {
+        var clip = Clip!;
+        double step = (double)clip.SampleRate / Audio.SampleRate, at = ClipSeconds * clip.SampleRate;
+        for (int i = 0; i < count; i++)
+        {
+            if (Def.Loop && at >= clip.Samples.Length)
+                at -= clip.Samples.Length;
+            _streamBlock[i] = clip.At(at);
+            at += step;
+        }
+        ClipSeconds += (double)count / Audio.SampleRate;
+        if (Def.Loop && ClipSeconds >= clip.Seconds)
+            ClipSeconds -= clip.Seconds;
     }
 
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
@@ -126,6 +155,8 @@ public sealed class SoundInstance
         foreach (var layer in _layers)
             layer.Skip(samples, Params, Age, Def.CycleSeconds, Def.Loop);
         Age += (double)samples / Audio.SampleRate;
+        if (Clip is not null)
+            ClipSeconds += (double)samples / Audio.SampleRate;
         // A virtual stream still consumes, or it would play stale speech when it comes back.
         Stream?.Read(_streamBlock.AsSpan(0, Math.Min(samples, _streamBlock.Length)));
     }
@@ -212,7 +243,8 @@ public sealed class SoundInstance
                 _late += (double)output.Length / Audio.SampleRate;
                 return;
             }
-            if (def.Source == SourceKind.Sample && PlayedOut)
+            // A take played out is silence; a sample layer naming no take plays the instance's clip (the stream block).
+            if (def.Source == SourceKind.Sample && def.Sample is not null && PlayedOut)
                 return;
             double EnvelopeTime(double at) => cycleSeconds > 0 ? at % cycleSeconds : at;
             var buffer = scratch.AsSpan(0, output.Length);
@@ -262,7 +294,7 @@ public sealed class SoundInstance
                     SourceKind.Sine => (float)Math.Sin(2 * Math.PI * _phase),
                     SourceKind.Saw => (float)(2 * _phase - 1),
                     SourceKind.Square => _phase < 0.5 ? 1f : -1f,
-                    SourceKind.Stream => stream[i],
+                    SourceKind.Stream or SourceKind.Sample => stream[i],
                     // A click when the phase wraps, with a little noise so repeats aren't identical.
                     SourceKind.Impulse => _phase < prev ? 1f + 0.3f * _noise.Next() : 0f,
                     _ => 0f,

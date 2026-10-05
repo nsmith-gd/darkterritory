@@ -35,6 +35,43 @@ public sealed record AtmosphereTuning
     public float? LampIntensity { get; init; }
     /// <summary>What the night goes over to as the dawn comes up (the run's dawn clock, GDD §21).</summary>
     public DawnTuning? Dawn { get; init; }
+    /// <summary>What the night's cold does to how things look: frost, and breath.</summary>
+    public ColdTuning Cold { get; init; } = new();
+    /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
+    public WindTuning Wind { get; init; } = new();
+}
+
+/// <summary>
+/// The wind (the checklist's "wind": smoke, steam, trees and grass moving with it): read off the route's weather wind
+/// (0..1), a calm's breeze to a gale, from one quarter, rolling through in gusts. The foliage's cards and boughs bend
+/// with it in the scene shader.
+/// </summary>
+public sealed record WindTuning
+{
+    public float Calm { get; init; } = 2;
+    public float Full { get; init; } = 16;
+    public Vector3 From { get; init; } = new(-0.7f, 0, -0.4f);
+    public float Gusts { get; init; } = 0.7f;
+
+    /// <summary>The wind at <paramref name="wind"/> (0..1): m/s, world axes, blowing away from <see cref="From"/>.</summary>
+    public Vector3 Of(double wind) => -Vector3.Normalize(From) * (Calm + (Full - Calm) * Math.Clamp((float)wind, 0, 1));
+}
+
+/// <summary>
+/// The cold (GDD §26: "frost on windows and metal, breath vapour"): read off the route's weather cold (0..1), so a deep
+/// tier's night is rimed and every mouth smokes, a local one's isn't.
+/// </summary>
+public sealed record ColdTuning
+{
+    public float FrostFrom { get; init; } = 0.35f;
+    public float FrostFull { get; init; } = 0.85f;
+    public float BreathFrom { get; init; } = 0.15f;
+
+    /// <summary>How heavy the frost is at <paramref name="cold"/>, 0..1.</summary>
+    public float Frost(double cold) => Math.Clamp(((float)cold - FrostFrom) / Math.Max(1e-3f, FrostFull - FrostFrom), 0, 1);
+
+    /// <summary>How much a breath shows at <paramref name="cold"/>, 0..1 (all of it by the frost's full).</summary>
+    public float Breath(double cold) => Math.Clamp(((float)cold - BreathFrom) / Math.Max(1e-3f, FrostFull - BreathFrom), 0, 1);
 }
 
 /// <summary>
@@ -51,6 +88,8 @@ public sealed record DawnTuning
     public Vector3 SunColour { get; init; } = new(0.95f, 0.68f, 0.52f);
     public float SunStrength { get; init; } = 0.9f;
     public float Ambient { get; init; } = 0.3f;
+    /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
+    public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
 }
 
 /// <summary>
@@ -303,6 +342,8 @@ public sealed class Look
         light.MoonColour = Vector3.Lerp(light.MoonColour, d.SunColour, t);
         light.MoonStrength = float.Lerp(light.MoonStrength, d.SunStrength, t);
         light.Ambient = float.Lerp(light.Ambient, d.Ambient, t);
+        light.Dawn = t;
+        light.DawnGlow = d.HorizonGlow;
         return light;
     }
 

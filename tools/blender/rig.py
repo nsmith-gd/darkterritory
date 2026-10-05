@@ -35,7 +35,7 @@ FPS = 30
 # Metres per repeat of each tiling texture (content/art/textures/index.json "tileMetres"). Atlases (crew_atlas,
 # lamp_lens) are mapped whole and have no entry.
 TILE = {
-    "coat_oilskin": 0.5, "leather": 0.5, "wool": 0.5, "skin": 0.25, "flesh": 0.5, "fungal_crust": 0.5,
+    "coat_oilskin": 0.5, "leather": 0.5, "wool": 0.5, "fleece": 0.5, "skin": 0.25, "flesh": 0.5, "fungal_crust": 0.5,
     "mineral_growth": 0.5, "tar": 0.5, "sac": 0.5, "ember_crack": 0.5, "glass_dirty": 0.5, "iron_plate": 1.0,
     "rust_heavy": 1.0, "wood_grey": 1.0, "wood_sleeper": 1.0, "brass": 0.5,
 }

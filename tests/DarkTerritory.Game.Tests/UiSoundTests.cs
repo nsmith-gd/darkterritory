@@ -1,8 +1,8 @@
 using Ballast;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
-using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Campaign;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
@@ -205,7 +205,7 @@ public sealed class UiSoundTests : IDisposable
         int g = Enumerable.Range(0, w.Train.Vehicles.Count).Last(i => w.Train.Vehicles[i].HasGun);
         var gunner = PlayerMotor.SpawnOnRoof(w.Train, g, Guns.Mount(w.Train, g)!.Value.Position.Z + 0.5, P);
         w.Train.Vehicles[g].Gun.Jammed = true;
-        w.Train.Vehicles[g].Gun.ReloadProgress = C.Guns.FoulClearSeconds / 2;
+        w.Train.Vehicles[g].Gun.ReloadProgress = C.Guns.ClearSeconds / 2;
         audio.Interface(w, gunner, 1);
         var hold = Assert.Single(audio.Mixer.Voices, v => v.Name == UiCue.Hold);
         Assert.InRange(hold.Params.Get("progress"), 0.45, 0.55);
@@ -220,7 +220,10 @@ public sealed class UiSoundTests : IDisposable
         w.Train.Vehicles[car].Breach(Breaches.EndWall(w.Train.Frames[car].Shape)!.Value);
         var boarder = new PlayerState
         {
-            Parent = car, Position = Breaches.StandAt(w.Train, car), Surface = Surface.Deck, Health = P.Health,
+            Parent = car,
+            Position = Breaches.StandAt(w.Train, car),
+            Surface = Surface.Deck,
+            Health = P.Health,
             ActionProgress = T.Breach.BoardSeconds / 2,
         };
         audio.Interface(w, boarder, 1);
@@ -307,31 +310,37 @@ public sealed class UiSoundTests : IDisposable
         Assert.Equal(0, Played(alive, UiCue.Queue));
     }
 
+    /// <summary>A night's report as the host sends it (GDD v1.4 App. D.12): these lines, the money under them.</summary>
+    static RunReport Reported(params ReportLine[] lines) =>
+        new RunReport(RunEnd.Derailed, 300, 5, 0, 3, 0, 0, 0, 0, 0, 0, 0, lines.Count(l => l.Kind == IncidentKind.Death)) { Lines = lines };
+
+    static ReportLine Death(int who, DeathCause cause) =>
+        new(IncidentKind.Death, $"Crew {who}", $"{IncidentLog.What(cause)} at km 5.") { Victim = who, Cause = cause };
+
     [Fact]
     public void TheReportStampsEachDeathOfTheNightAndTypesOutTheOnesTheCrewDidToThemselves()
     {
+        // The report's lines in its order (Hud.IncidentReport): a death is stamped, one the crew did to themselves (a tunnel's
+        // mouth, a throw off a roof) typed out beside it; anything else, and the money under it all, tallied.
         var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
         var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), route.Build(), 5_000, B), C);
-        w.EnableRun(RunT, route, 600, authority: true);
+        w.EnableRun(RunT, route, 600, authority: false);
         var me = PlayerMotor.SpawnInCab(w.Train, P);
-        var mate = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
-        var other = PlayerMotor.SpawnOnRoof(w.Train, 3, 0, P);
         var audio = StampingAudio();
         audio.Interface(w, me, 1);
-        // One into a tunnel's mouth (their own doing), one taken by something (not): the host's world gives each a body, and
-        // the report lists them.
-        w.StepBodies([(1, me), (2, mate with { Health = 0, Death = DeathCause.Struck }), (3, other with { Health = 0, Death = DeathCause.Mauled })]);
-        w.Derail();
-        w.StepRun([me]);
-        Assert.Equal(2, w.Run!.Report!.Fatalities.Count);
-        for (int i = 0; i < 6 * SimConstants.TickRate; i++)
+        w.Run!.Mirror(RunPhase.Failed, RunEnd.Derailed, 300, -1, false, []);
+        w.Run.MirrorReport(Reported(Death(2, DeathCause.Struck), Death(3, DeathCause.Mauled),
+            new ReportLine(IncidentKind.Derailed, "", "Consist derailed at km 5.")));
+        for (int i = 0; i < 12 * SimConstants.TickRate; i++)
             audio.Interface(w, me, 1);
-        Assert.Equal(Hud.DeathLines(w.Run.Report).Count, Played(audio, UiCue.DeathStamp));
+        Assert.Equal(1, Played(audio, UiCue.Report));
         Assert.Equal(2, Played(audio, UiCue.DeathStamp));
         Assert.Equal(1, Played(audio, UiCue.OwnGoal));
-        // After the report's own lines.
-        var first = audio.Mixer.Voices.First(v => v.Name == UiCue.DeathStamp);
-        Assert.All(audio.Mixer.Voices.Where(v => v.Name == UiCue.Tally), t => Assert.True(t.Id < first.Id));
+        // The derailment's line and the money.
+        Assert.Equal(2, Played(audio, UiCue.Tally));
+        // In the report's order: both stamps before the line after them.
+        var stamps = audio.Mixer.Voices.Where(v => v.Name == UiCue.DeathStamp).Select(v => v.Id).ToList();
+        Assert.All(audio.Mixer.Voices.Where(v => v.Name == UiCue.Tally), t => Assert.True(t.Id > stamps.Max()));
     }
 
     /// <summary>The interface sounds with the report's stamp and typewriter, whether or not they're installed yet.</summary>
@@ -344,9 +353,9 @@ public sealed class UiSoundTests : IDisposable
     }
 
     [Fact]
-    public void OnAClientTheReportTalliesInWhenItArrivesAndALongListStampsItsLines()
+    public void OnAClientTheReportGoesInWhenItArrives()
     {
-        // A client mirrors the run: the phase can come a snapshot before the report it's sent (WorldRecords' report record).
+        // A client mirrors the run: the phase can come before the report it's sent (in chunks, Messages.ReportMessages).
         var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7);
         var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), route.Build(), 5_000, B), C);
         w.EnableRun(RunT, route, 600, authority: false);
@@ -358,17 +367,15 @@ public sealed class UiSoundTests : IDisposable
             audio.Interface(w, me, 1);
         Assert.Equal(1, Played(audio, UiCue.Report));
         Assert.Equal(0, Played(audio, UiCue.Tally));
-        // A massacre: the HUD lists the first few and a line for the rest, and each line it shows is stamped.
-        var dead = Enumerable.Range(1, 9).Select(i => new Fatality(i, i == 1 ? DeathCause.Thrown : DeathCause.Derailed, 2, DeathSpot.Roof, 5));
-        var report = new RunReport(RunEnd.Derailed, 300, 5, 0, 3, 0, 0, 0, 0, 0, 0, 0, 9, Fatalities: new DeathRoll(dead));
+        // A massacre: each death stamped, the one thrown off a roof typed out too, then the money.
+        var report = Reported([.. Enumerable.Range(1, 9).Select(i => Death(i, i == 1 ? DeathCause.Thrown : DeathCause.Derailed))]);
         w.Run.MirrorReport(report);
-        for (int i = 0; i < 12 * SimConstants.TickRate; i++)
+        for (int i = 0; i < 20 * SimConstants.TickRate; i++)
             audio.Interface(w, me, 1);
         Assert.Equal(1, Played(audio, UiCue.Report));
-        Assert.Equal(Hud.ReportLines(report).Count - 1, Played(audio, UiCue.Tally));
-        Assert.True(Hud.DeathLines(report).Count < 9);
-        Assert.Equal(Hud.DeathLines(report).Count, Played(audio, UiCue.DeathStamp));
+        Assert.Equal(9, Played(audio, UiCue.DeathStamp));
         Assert.Equal(1, Played(audio, UiCue.OwnGoal));
+        Assert.Equal(1, Played(audio, UiCue.Tally));
     }
 
     [Fact]
@@ -391,12 +398,11 @@ public sealed class UiSoundTests : IDisposable
         audio.Interface(w, me, 1);
         Assert.Equal(1, Played(audio, UiCue.Report));
         Assert.Equal(0, Played(audio, UiCue.Tally));
-        // A line under the headline for each tally, a moment after it comes up.
-        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        // Each line that isn't a death, and the money, a moment after it comes up.
+        for (int i = 0; i < 6 * SimConstants.TickRate; i++)
             audio.Interface(w, me, 1);
         Assert.Equal(1, Played(audio, UiCue.Report));
-        Assert.Equal(Hud.ReportLines(w.Run.Report!).Count - 1, Played(audio, UiCue.Tally));
-        Assert.True(Played(audio, UiCue.Tally) > 0);
+        Assert.Equal(w.Run.Report!.Lines.Count(l => l.Kind != IncidentKind.Death) + 1, Played(audio, UiCue.Tally));
         // Left and come back to (or joined) already over: not news.
         audio.InterfaceEnd();
         audio.Interface(w, me, 1);

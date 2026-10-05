@@ -115,7 +115,7 @@ def plates(i, j, a, p, fr):
     f = k - math.floor(k)
     top = smooth01(-0.35, 0.1, math.cos(a))
     # Each plate's front edge stood up a little over the one before it, its back edge tucked under the next.
-    d = top * (0.012 * smooth01(0.0, 0.25, f) - 0.016 * smooth01(0.75, 1.0, f))
+    d = top * (0.024 * smooth01(0.0, 0.2, f) - 0.03 * smooth01(0.72, 1.0, f))
     return p + out * (d + 0.003 * noise3(p * 16, 141, 1.0))
 
 
@@ -124,7 +124,7 @@ def plate_or_flesh(face, n):
     k = (c.y - TAIL) / SEG
     f = k - math.floor(k)
     under = n.z < -0.25
-    joint = f > 0.86 or f < 0.04
+    joint = f > 0.82 or f < 0.05
     return FLESH if under or joint or c.y < TAIL else PLATE
 
 

@@ -75,7 +75,7 @@ public class VoiceTests
     /// stands <paramref name="metres"/> from its door. How many frames reached the living, where their voice played from,
     /// the door, and how loud it was in the voice band.
     /// </summary>
-    static (int Heard, Double3? From, Double3 Door, double Db) LiveMic(bool on, double metres = 3)
+    static (int Heard, Double3? From, Double3 Inside, double Db) LiveMic(bool on, double metres = 3)
     {
         var trains = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
         var players = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
@@ -111,8 +111,12 @@ public class VoiceTests
         var h = host.World.Holdouts!.All.Single(x => x.Occupant == dead);
         var offset = new Double3(metres, 0, 0);
         host.SetPlayerState(living, PlayerMotor.SpawnOnGround(h.Door + offset, host.Train.Line, h.LineHint, players));
+        // D.7 (note 179): the dead's Jump at their Holdout is its Live Mic, on the press.
         if (on)
-            Tick(new PlayerIntent { Actions = PlayerActions.LiveMic });
+        {
+            Tick(new PlayerIntent { Buttons = PlayerButtons.Jump });
+            Tick();
+        }
         for (int i = 0; i < 5; i++)
             Tick();
         Assert.Equal(on, host.World.Holdouts.LiveMicOf(dead) == h);
@@ -137,7 +141,8 @@ public class VoiceTests
                 spoken += n;
             }
             Tick();
-            heard += listener.VoiceFrames.Count;
+            // Voice, not the hard-cut's marker (note 172: the speaker died, a frame with no sound).
+            heard += listener.VoiceFrames.Count(f => !f.Path.HasFlag(VoicePath.Cut));
             var frames = listener.Train.Frames;
             var crew = listener.RemoteIds.Select(id => listener.TryGetRemote(id, 1, out var s) ? (Crewmate?)Mate(id, s, frames) : null)
                 .Where(c => c is not null).Select(c => c!.Value).ToList();
@@ -149,7 +154,7 @@ public class VoiceTests
         }
         var from = audio.Mixer.Voices.FirstOrDefault(v => v.Name == "voice")?.Position;
         double db = tap.Stems.TryGetValue("voice", out var stem) ? Meter.BandDb(stem, 300, 3000) : -180;
-        return (heard, from, h.Door, db);
+        return (heard, from, h.Inside, db);
 
         static Crewmate Mate(byte id, PlayerState s, IReadOnlyList<CarFrame> frames)
         {
@@ -159,7 +164,7 @@ public class VoiceTests
     }
 
     [Fact]
-    public void ALiveMicIsHeardFromTheHoldoutDoorByTheRescuerThere()
+    public void ALiveMicIsHeardFromTheHoldoutByTheRescuerAtItsDoor()
     {
         // Off (the default), the living hear nothing of the dead: the dead channel is theirs alone (spec C.1).
         var off = LiveMic(on: false);
@@ -168,7 +173,8 @@ public class VoiceTests
         var on = LiveMic(on: true);
         Assert.True(on.Heard > 20, $"{on.Heard} frames heard");
         Assert.NotNull(on.From);
-        Assert.True((on.From!.Value - (on.Door + Double3.Up * 1.6)).Length < 0.01, $"voice from {on.From}, the door is {on.Door}");
+        // From inside the Holdout (note 179: the client places it by the replicated Holdout).
+        Assert.True((on.From!.Value - (on.Inside + Double3.Up * 1.4)).Length < 0.01, $"voice from {on.From}, the Holdout's inside is {on.Inside}");
         Assert.True(on.Db > -25, $"{on.Db} dB at 3 m");
         // Past the 26 m cutoff, nobody: it only tells the rescuer at the door anything.
         Assert.Equal(0, LiveMic(on: true, metres: 40).Heard);
@@ -181,5 +187,20 @@ public class VoiceTests
         var rough = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: false, link: new LinkConditions(0.09, 0.02, 0.05));
         Assert.True(rough.FramesHeard < rough.FramesSent);
         Assert.InRange(clean.NearDb - rough.NearDb, -1.5, 1.5);
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. D.2 and C.8, the hard-cut: on the tick of death the victim's voice stops mid-word, near and on the
+    /// radio, with no fade and nothing buffered played out. The living hear the cut.
+    /// </summary>
+    [Fact]
+    public void DeathCutsTheVoiceOffMidWord()
+    {
+        foreach (bool radio in new[] { false, true })
+        {
+            var r = VoiceBench.Run(Content, speakerCar: radio ? 9 : 3, speakerZ: radio ? 0 : 4, radio: radio, seconds: 2, dieAt: 1.0);
+            Assert.True(r.FramesHeard > 0, "heard before the death");
+            Assert.True(r.AfterCutDb < -150, $"{(radio ? "radio" : "near")}: {r.AfterCutDb} dB after the death");
+        }
     }
 }

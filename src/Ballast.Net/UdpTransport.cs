@@ -35,6 +35,9 @@ public sealed class UdpTransport : DatagramTransport<EndPoint>
 
     public int Port => ((IPEndPoint)_socket.LocalEndPoint!).Port;
 
+    /// <summary>Bound to the loopback only: nobody on another machine can reach it.</summary>
+    public bool LocalLoopbackOnly => IPAddress.IsLoopback(((IPEndPoint)_socket.LocalEndPoint!).Address);
+
     static Socket MakeSocket()
     {
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { Blocking = false };

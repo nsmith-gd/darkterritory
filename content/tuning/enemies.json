@@ -66,7 +66,13 @@
     "hauntMoveSeconds": 25, "vanishNear": 3, "cornerWithin": 6, "tamperAfterEmpty": 8, "toyReach": 1.8,
     "cargoPerSecond": 0.001,
     // B.2: needs a straight this long ahead (so the lamp can find it), and weighs this much more with the cab empty.
-    "straightNeeded": 250, "emptyCabWeight": 2
+    "straightNeeded": 250, "emptyCabWeight": 2,
+    // T121 playtest ("I shot the track doll and it did nothing while she was on the track"): a forward cannon's ball that
+    // hits her on the rail shatters her, gone for the run, the same outcome as stopping short (App. A.2's VANISH), so the
+    // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
+    // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
+    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
+    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7
   },
 
   // CAR HUGGER · vibration · rear (App. A.3, B.3). Latched: the train's top speed capped at speedCap m/s (the train drags
@@ -132,7 +138,10 @@
   // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
   "switchman": {
     "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5,
+    // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
+    // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
+    "derailAbove": 6.9, "runThroughDamage": 0.25
   },
 
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
@@ -177,13 +186,18 @@
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
   // waker at followAt m. Every silenceSeconds with nobody talking (voice above talkingAbove, 0-255) within listenRadius,
-  // its anger climbs one; at attackAt it attacks. Led into a car, it takes lootCargo of the best load and leaves.
+  // its anger climbs one; at attackAt it attacks. Led into a car, it takes the most valuable thing there (or, with none,
+  // lootCargo of the best load) and leaves: out through the car's nearest door and off into the dark at leaveSpeed (m/s,
+  // "walking pace", App. A.6), in full view: clutched under its body by the hips, hanging carryHigh m up as it stalks
+  // and carryLow as it creeps aboard (the sac's underside in each, tools/blender/gaunt.py); it's gone with it once it's
+  // clearedAt m from the train. Kill it before then and it drops it.
   // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
   "gaunt": {
     "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
     "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 35, "hitEvery": 2, "grabBelowHealth": 35,
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
-    "longStopWeight": 2, "longStopSeconds": 120
+    "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
+    "carryLow": 0.55
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
@@ -214,11 +228,18 @@
   // sprayPerSecond, for chargeSeconds of spray, recharging over rechargeSeconds on its bracket. DESIGN-TODO: the GDD has
   // no numbers; these let one crewmate who gets there in the half minute a fire takes to take hold put it out with one
   // extinguisher, and a fire left longer need two.
+  // App. B.9 (note 182): coal and timber "burn" (§19) and "fire cascades escalate faster": a car of either grows fuelGrowth
+  // times as fast and runs its spread clock fuelSpread times as fast. Gunpowder and shot "explodes" (§19): a powder car with
+  // cargo left in it at explodeAt (full blaze) goes up once, the car and its cargo gone; everyone within explodeKillRadius m
+  // takes explodeDamage (killed), less with distance out to explodeRadius; the cars either side catch. DESIGN-TODO: not in
+  // the GDD's numbers: the kill radius is the powder car's own length and its neighbours' near ends.
   "carFire": {
     "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 2.5,
     "sprayPerSecond": 0.06, "chargeSeconds": 15, "rechargeSeconds": 90, "burnDamage": 10, "burnReach": 4,
     "burnEverySeconds": 2, "cargoPerSecond": 0.003, "integrityPerSecond": 0.0015, "spreadFrom": 0.8, "spreadSeconds": 30,
-    "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "burnOutPerSecond": 0.05, "maxActive": 3
+    "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "fuelGrowth": 1.4, "fuelSpread": 2,
+    "explodeAt": 1, "explodeRadius": 14, "explodeKillRadius": 5, "explodeDamage": 150,
+    "burnOutPerSecond": 0.05, "maxActive": 3
   },
 
   "choirSwarm": {
@@ -228,6 +249,9 @@
   },
 
   "director": {
+    // GDD v1.4 App. D.11 and D.13, the dead's creature vote (note 180): a ballot of `options` drawn from what the director
+    // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag.
+    "vote": { "perVote": 1.2, "cap": 1.5, "options": 3 },
     // App. B.1.
     "baseBudget": { "local": 90, "frontier": 150, "deadLines": 230, "deepTerritory": 330 },
     "lengthPerCarBeyondThird": 0.15,
@@ -251,6 +275,11 @@
     "incidentFullCrew": 3,
     "facilityLullSeconds": 20,
     "cooldownSeconds": [30, 60],
+    // T114 playtest ("where are all the monsters"): a threat that goes lingerSeconds with nobody alive within lingerRadius m
+    // of it (and has nobody in its grip) gives up and goes, so what nobody's answering doesn't hold the caps below full.
+    "lingerSeconds": 120,
+    // Near enough to be met: a car's length (a Climber settled in the car behind the cab is 15-25 m from the driver).
+    "lingerRadius": 12,
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,
@@ -272,6 +301,14 @@
       "comet": { "*": 1.4 }
     },
     "cometRelaxesGates": true,
+    // GDD §18 "Slaughterhouse: animals are loud, and something already lives here" (note 185): while the train's stopped at a
+    // facility of this kind, these come on this many times as often. The Gaunt sleeps in yards (App. B.6); in a
+    // slaughterhouse it's the resident.
+    "residents": {
+      "slaughterhouse": { "gaunt": 4, "followers": 1.5 },
+      // GDD §18 "Wreck yard: unstable, unlit, already occupied" (note 187): Draggers under the cars on their sides.
+      "wreckYard": { "draggers": 3, "gaunt": 2 }
+    },
     // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
     // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much

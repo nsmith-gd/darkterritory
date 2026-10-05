@@ -5,6 +5,7 @@ using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim.Campaign;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
 
@@ -21,6 +22,10 @@ public abstract record Launch
         /// <summary>Bot crewmates to take along (T89): the first drives, the rest crew the train with you.</summary>
         public int Bots { get; init; }
         public string? RouteFile { get; init; }
+        /// <summary>Hosting: listed for anyone to find, or private (invite and address only).</summary>
+        public bool Public { get; init; } = true;
+        /// <summary>Hosting: what the lobby browser calls it (null: the host's name's run).</summary>
+        public string? LobbyName { get; init; }
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
     public sealed record Join(string Address) : Launch;
@@ -34,7 +39,7 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -91,8 +96,31 @@ public sealed class FrontEnd
     public CampaignState? Open { get; private set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
+    /// <summary>
+    /// The public games for the join screen (T116; the user's playtest, "I see active lobbies I can join and then what my
+    /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
+    /// </summary>
+    public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
+    public string DefaultPlayerName { get; set; } = Environment.UserName;
+    /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
+    public string LobbyName => Settings.LobbyName is { Length: > 0 } set ? set : _blankName ? "" : DefaultLobbyName;
+    string DefaultLobbyName => $"{(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}'S RUN";
+    /// <summary>The name erased to nothing while it's being typed: blank until typed or left, then the default again.</summary>
+    bool _blankName;
+    bool _refresh;
+
+    /// <summary>REFRESH was chosen on the join screen since the last ask: the app looks again (a new search, fresh pings).</summary>
+    public bool TakeRefresh()
+    {
+        bool r = _refresh;
+        _refresh = false;
+        return r;
+    }
+    /// <summary>The wire protocol this build speaks: a game on another can't be joined.</summary>
+    public int Protocol { get; init; }
     /// <summary>The address typed so far on the join screen.</summary>
-    public string Address { get; private set; } = "127.0.0.1";
+    public string Address { get; private set; } = "";
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
     public Control? Capturing { get; private set; }
 
@@ -121,8 +149,12 @@ public sealed class FrontEnd
         Cue?.Invoke(UiCue.Select);
     }
 
-    /// <summary>The join screen wants typed text (the app turns text input on).</summary>
-    public bool WantsText => Screen == Screen.Join;
+    /// <summary>The join screen's address, or the host screen's lobby name while it's chosen, wants typed text (the app turns text input on).</summary>
+    public bool WantsText => Screen == Screen.Join || NamingLobby;
+
+    /// <summary>The host screen's NAME is chosen: it's after the night's options and VISIBILITY.</summary>
+    bool NamingLobby => Screen == Screen.Host && Selected == NightOptions().Count + 1;
+    const string NameLabel = "NAME: ";
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
     public bool Headset { get; set; }
 
@@ -149,7 +181,7 @@ public sealed class FrontEnd
             Cue?.Invoke(UiCue.Back);
         Show(Screen switch
         {
-            Screen.Upgrades => Screen.Fortress,
+            Screen.Upgrades or Screen.Stores => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
             Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
@@ -176,6 +208,17 @@ public sealed class FrontEnd
 
     public void Type(string text)
     {
+        if (NamingLobby)
+        {
+            // From the name shown: typing onto the default carries on from it.
+            string name = LobbyName;
+            foreach (char c in text.ToUpperInvariant())
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxLobbyName)
+                    name += c;
+            _blankName = false;
+            Change(Settings with { LobbyName = name });
+            return;
+        }
         if (!WantsText)
             return;
         foreach (char c in text)
@@ -183,20 +226,41 @@ public sealed class FrontEnd
                 Address += c;
     }
 
+    /// <summary>A lobby name's longest: what fits the browser's name column.</summary>
+    public const int MaxLobbyName = 24;
+
     public void Erase()
     {
+        if (NamingLobby)
+        {
+            // Erased to nothing, it's the default again.
+            if (LobbyName.Length == 0)
+                return;
+            string name = LobbyName[..^1];
+            _blankName = name.Trim().Length == 0;
+            Change(Settings with { LobbyName = _blankName ? "" : name });
+            return;
+        }
         if (WantsText && Address.Length > 0)
             Address = Address[..^1];
     }
 
     public void Show(Screen screen)
     {
+        _blankName = false;
         Screen = screen;
         Selected = 0;
         // Skip to the first item you can do something with.
         var entries = Entries();
         while (Selected < entries.Count - 1 && !entries[Selected].Item.Enabled)
             Selected++;
+    }
+
+    /// <summary>A night that couldn't start (a join nobody answered, a host's line this build won't make): back where it was chosen, saying why.</summary>
+    public void Failed(Screen from, string why)
+    {
+        Show(from);
+        Message = why.ToUpperInvariant();
     }
 
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
@@ -228,6 +292,7 @@ public sealed class FrontEnd
         if (entries.Count == 0)
             return;
         int was = Selected;
+        _blankName = false;
         // Over anything greyed out.
         for (int i = 0; i < entries.Count; i++)
         {
@@ -258,6 +323,17 @@ public sealed class FrontEnd
         settings.Save(_settingsPath);
     }
 
+    /// <summary>A night's tier, seed, cars and bots: the quick night's and the host's.</summary>
+    List<Entry> NightOptions() =>
+    [
+            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
+                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
+            new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
+            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
+            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
+                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+    ];
+
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
     readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false);
 
@@ -266,30 +342,49 @@ public sealed class FrontEnd
         Screen.Title =>
         [
             .. _edition.Campaign ? [new Entry(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; })] : (Entry[])[],
-            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed. Alone, or hosted for friends." : "Any seed. Alone, or hosted for friends."), () => { Show(Screen.QuickNight); return null; }),
-            new(new("JOIN A NIGHT", "By address. Steam invites join from the friends list."), () => { Show(Screen.Join); return null; }),
+            new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed, alone or with bots." : "Any seed, alone or with bots."), () => { Show(Screen.QuickNight); return null; }),
+            // T116 (the co-op games' way, Lethal Company's ship): the host opens a lobby, the yard, and waits there; friends
+            // join it from the list, by invite or by address; the host drives out of the yard when everyone's in.
+            // The user's playtest: "You should be able to host a run, not a night. The button should just say HOST."
+            new(new("HOST", "Open a lobby in the yard for a run. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
+            new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
+        Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
         [
-            new(new($"TIER: {Name(_tiers[_tier])}", _tiers.Length > 1 ? "Local, frontier, the dead lines, the deep territory: farther is darker." : "The full game goes farther out.", _tiers.Length > 1),
-                null, by => _tier = (_tier + by + _tiers.Length) % _tiers.Length),
-            new(new($"SEED: {_seed}", "The same seed is the same line for everyone."), null, by => _seed = by > 0 ? _seed + 1 : Math.Max(1UL, _seed - 1)),
-            new(new($"CARS: {_cars}"), null, by => _cars = Math.Clamp(_cars + by, 3, MaxCars)),
-            new(new(_bots == 0 ? "CREW: JUST YOU" : $"CREW: YOU AND {_bots} BOT{(_bots == 1 ? "" : "S")}",
-                "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
+            .. NightOptions(),
             new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
-            new(new("HOST FOR FRIENDS", "They join by your address, or from your Steam lobby. Bots fill the crew until they do."),
-                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots }),
+            BackTo(Screen.Title),
+        ],
+        Screen.Host =>
+        [
+            .. NightOptions(),
+            // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+            new(new($"VISIBILITY: {(Settings.PublicLobby ? "PUBLIC" : "PRIVATE")}", Settings.PublicLobby
+                    ? "Listed: anyone on your network, or on Steam, finds it on their join screen."
+                    : "Not listed: friends join by Steam invite, or type your address."),
+                Toggle(s => s with { PublicLobby = !s.PublicLobby }), _ => Change(Settings with { PublicLobby = !Settings.PublicLobby })),
+            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", "Type to rename it: what the join screen calls it."), null),
+            new(new("OPEN THE LOBBY", "You wait in the yard with the train; you drive out when everyone's in."),
+                () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots, Public = Settings.PublicLobby, LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName }),
             BackTo(Screen.Title),
         ],
         Screen.Join =>
         [
-            new(new($"ADDRESS: {Address}_", "Type it; the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
+            new(new(Row("LOBBY", "CREW", "TIER", "PING"), null, false)),
+            .. Games.Select(g => new Entry(new(Row(g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
+                    Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-", g.PingMs is { } ms ? $"{ms:0} MS" : "--")
+                    + (g.Protocol != Protocol ? "  OTHER VERSION" : g.Full ? "  FULL" : ""),
+                    g.Where, g.Protocol == Protocol && !g.Full),
+                () => g.Join)),
+            .. Games.Count == 0 ? [new Entry(new("  NO PUBLIC GAMES YET", "When someone opens a public lobby, it shows here.", false))] : (Entry[])[],
+            new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
+            new(new($"ADDRESS: {Address}_", "A private game, or one far off: type it, and the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             BackTo(Screen.Title),
         ],
@@ -322,6 +417,10 @@ public sealed class FrontEnd
         ],
         _ => [],
     };
+
+    /// <summary>The join screen's columns: the font's fixed-width, so spaces line them up under the header.</summary>
+    static string Row(string name, string crew, string tier, string ping) =>
+        $"{(name.Length > MaxLobbyName ? name[..MaxLobbyName] : name),-25}{crew,-7}{tier,-16}{ping,6}";
 
     int MaxCars => _edition.MaxCars > 0 ? Math.Min(_edition.MaxCars, _campaign.MaxCars) : _campaign.MaxCars;
 
@@ -368,7 +467,9 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {c.PerCar:0} A CAR", $"Pays on what arrives: {s.Cars} cars could bring in {c.PerCar * s.Cars:0}."),
+                // GDD §9 "choose freight contracts" (note 182): each names the freight the train leaves with, and pays a car by it.
+                string cargo = Cargoes.Name(c.Cargo).ToUpperInvariant();
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, {cargo}, {c.PerCar:0} A CAR", $"{Carrying(c.Cargo)} Up to {c.PerCar * s.Cars:0} on {s.Cars} cars."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host)));
             }
         }
@@ -376,6 +477,27 @@ public sealed class FrontEnd
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
             !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+        // GDD §9 "add or remove railcars" (note 182): a car off brings back a share of its price; a shorter train works a lower tier.
+        if (_campaign.SellCar is { } sell)
+        {
+            bool fewest = s.Cars <= sell.Fewest;
+            var tierAfter = Campaign.TierFor(_campaign, s.Cars - 1);
+            string after = tierAfter != Campaign.TierFor(_campaign, s.Cars) ? $" The consist drops to {Name(tierAfter)} work." : "";
+            list.Add(new(new(fewest ? $"TAKE A CAR OFF: {sell.Fewest} IS THE FEWEST" : $"TAKE A CAR OFF: +{Campaign.SellBack(_campaign, s):0} SCRIP",
+                fewest ? null : $"Car {s.Cars} back to the yard for {sell.Share:P0} of its price.{after}", !fewest && s.Current is null),
+                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.")));
+        }
+        // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
+        if (_campaign.SpareKit is { } spare)
+        {
+            bool most = s.SpareKits >= spare.Most;
+            string have = s.SpareKits == 0 ? "None aboard yet" : $"{s.SpareKits} aboard";
+            list.Add(new(new(most ? $"SPARE REPAIR KIT: THE LOCKERS HOLD {spare.Most}" : $"BUY A SPARE REPAIR KIT: {spare.Cost:0} SCRIP",
+                $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
+                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
+        }
+        if (_campaign.Stores is not null)
+            list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         list.Add(BackTo(Screen.Slots));
@@ -396,6 +518,45 @@ public sealed class FrontEnd
             list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
                 () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
         }
+        list.Add(BackTo(Screen.Fortress));
+        return list;
+    }
+
+    /// <summary>What a contract's freight does to the night (GDD §19, App. B.9), said on the board.</summary>
+    static string Carrying(CargoKind cargo) => cargo switch
+    {
+        CargoKind.Comet => "Comet material: best pay; everything wants it.",
+        CargoKind.Ammunition => "Powder and shot: a fire in its car can blow.",
+        CargoKind.Chemicals => "Chemicals: fires spread; no cannon beside it.",
+        CargoKind.Medicine => "Medicine: rough couplings and brakes spoil it.",
+        CargoKind.Coal => "Coal: it burns, and fire runs down the train.",
+        CargoKind.Timber => "Timber: it burns, and fire runs down the train.",
+        CargoKind.Livestock => "Livestock: loud all night; hounds smell it.",
+        CargoKind.Food => "Food: the scavengers come for it.",
+        CargoKind.Heavy => "Machine parts: heavy, inert, safe.",
+        _ => "Goods.",
+    };
+
+    static string StoresLine(Stores st) => st.Any
+        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
+        : "Powder and shot, spare lamps and extinguishers for tonight.";
+
+    /// <summary>The departure's stores (GDD §9 "stock ... powder and shot, lamps, repair supplies"; note 182): for the coming night.</summary>
+    List<Entry> StoreEntries()
+    {
+        if (Open is not { } s || _campaign.Stores is not { } st)
+            return [BackTo(Screen.Fortress)];
+        var list = new List<Entry>();
+        void Row(StoreKind kind, StoreItem item, string name, string detail)
+        {
+            int have = s.Stores.Of(kind);
+            bool most = have >= item.Most;
+            list.Add(new(new(most ? $"{name}: {have} OF {item.Most}, ALL A NIGHT TAKES" : $"{name}: {item.Cost:0} SCRIP ({have} OF {item.Most})", detail, !most && s.Current is null),
+                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.")));
+        }
+        Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
+        Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
+        Row(StoreKind.Extinguisher, st.Extinguishers, "SPARE EXTINGUISHER", "Loose in the guard van: a second hand on a fire. It doesn't recharge.");
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
@@ -425,25 +586,26 @@ public sealed class FrontEnd
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
     static readonly Vector4 Faint = new(0.40f, 0.39f, 0.36f, 1);
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
-    static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.72f);
 
     /// <summary>Draws the screen in the frame's own pixels, over whatever the frame shows behind it.</summary>
     public void Draw(Overlay o, int width, int height)
     {
         o.Clear();
-        float x = 20, y = 18;
-        o.Text(x, y, "DARK TERRITORY", Amber, scale: 3);
+        float x = 20, y = 14;
+        // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
+        float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
         if (_edition.Tag is { Length: > 0 } tag)
-            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 8, y + 14, tag, Dim);
-        y += 30;
+            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 24, y + board - 9, tag, Amber);
+        y += board + 8;
         string? heading = Screen switch
         {
             Screen.Slots => "CAMPAIGN",
-            Screen.Fortress or Screen.Upgrades when Open is { } s =>
+            Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{s.Name.ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
-            Screen.Join => "JOIN A NIGHT",
+            Screen.Join => "JOIN",
+            Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
@@ -460,6 +622,11 @@ public sealed class FrontEnd
             o.Text(x, y, "UPGRADES COST A SHARE OF THE NEXT CAR", Faint);
             y += 10;
         }
+        if (Screen == Screen.Stores)
+        {
+            o.Text(x, y, "STORES FOR TONIGHT: SPENT WITH THE NIGHT", Faint);
+            y += 10;
+        }
         y += 4;
         var items = Items;
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
@@ -467,10 +634,13 @@ public sealed class FrontEnd
         int rows = Math.Max(1, (int)((height - y - 44) / 10));
         int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
         int shown = Math.Min(rows, items.Count - first);
-        o.Rect(x - 6, y - 4, Math.Min(width - x, widest + 8), shown * 10 + 6, Panel);
+        UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, widest + 12), shown * 10 + 10);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            // The selection: a brass-lit bar under it, as a lamp on a lever frame's plate.
+            if (on)
+                o.Rect(x - 4, y - 1, Math.Min(width - x, widest + 12) - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
             string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
@@ -484,9 +654,11 @@ public sealed class FrontEnd
         }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
-        o.TextRight(width - 8, height - 12, Capturing is not null ? "PRESS THE KEY   ESC KEEP IT"
-            : WantsText ? "TYPE   ENTER JOIN   ESC BACK"
-            : Headset ? "STICK UP/DOWN CHOOSE   TRIGGER   STICK LEFT/RIGHT CHANGE   B BACK"
-            : "UP/DOWN CHOOSE   ENTER   LEFT/RIGHT CHANGE   ESC BACK", Faint);
+        string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
+            : NamingLobby ? "TYPE A NAME   [UP/DOWN] CHOOSE   [ESC] BACK"
+            : WantsText ? "TYPE   [ENTER] JOIN   [ESC] BACK"
+            : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
+            : "[UP/DOWN] CHOOSE   [ENTER]   [LEFT/RIGHT] CHANGE   [ESC] BACK";
+        UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
     }
 }

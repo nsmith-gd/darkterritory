@@ -130,6 +130,9 @@ public class ClimberTests
         Assert.True(c.Inside);
         Assert.Equal(1, c.Attached);
         Assert.Equal(Tuning.Player.Health, night.Crew[inside - 1].Health);
+        // GDD §23 "lights fail" (note 183): the lamp went out as it came in; the occupied car's stays lit.
+        Assert.False(night.Train.Vehicles[1].LampLit);
+        Assert.True(night.Train.Vehicles[2].LampLit);
     }
 
     [Fact]

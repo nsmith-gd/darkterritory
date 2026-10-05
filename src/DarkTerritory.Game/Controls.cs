@@ -15,6 +15,8 @@ public enum Control
     Uncouple,
     // T94: onto the nearest ladder.
     Ladder,
+    // GDD v1.4 App. D.10, D.12: dead, a bookmark of the view you're following.
+    Bookmark,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -46,6 +48,7 @@ public static class Controls
         [Control.CarLamp] = "K",
         [Control.Uncouple] = "Z",
         [Control.Ladder] = "F",
+        [Control.Bookmark] = "P",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -65,6 +68,7 @@ public static class Controls
         Control.CarLamp => "CAR LAMP",
         Control.Uncouple => "UNCOUPLE (HOLD, LOOKING DOWN)",
         Control.Ladder => "GRAB LADDER",
+        Control.Bookmark => "BOOKMARK (DEAD)",
         _ => c.ToString().ToUpperInvariant(),
     };
 

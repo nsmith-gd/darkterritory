@@ -12,6 +12,9 @@ namespace DarkTerritory.Sim.Enemies;
 /// whenever the cab is empty. It vanishes when approached from one side; come at it from both ends of its car at once and
 /// it's cornered, and two players can club it. Or give it a toy, and it steals it and leaves. No lethal punish of its own:
 /// it costs speed control and cargo, and it's the reason someone stays in the cab (App. A.2, replacing the Deadman).
+/// A forward cannon's ball that finds her on the rail shatters her (T121 playtest: "I shot the track doll and it did
+/// nothing"): gone for the run, the same as stopping short, so the train passes where she stood. The answer's loud (the
+/// meter) and costs the reload; she's a cost-only enemy, and the cannon pays the cost another way.
 /// </summary>
 /// <remarks>
 /// On the rail it's free on the main line (<see cref="Enemy.LineDistance"/>). Haunting (<see cref="SpinePhase.Punish"/>)
@@ -29,6 +32,17 @@ public sealed class TrackDoll(int id) : Enemy(id)
     public override bool OnMainLine => Attached < 0;
     /// <summary>Only cornered can it be struck (App. A.2 CORNERED).</summary>
     public override double MeleeRadius => Phase == SpinePhase.Punish && Cornered ? 0.6 : 0;
+    /// <summary>
+    /// Standing on the rail ahead (not yet struck), she can be shot (T121): a hit volume this big round her body
+    /// (enemies.json <c>trackDoll.railHitRadius</c>; 0 with <c>cannonShatters</c> off). Aboard, the cannon can't reach her.
+    /// </summary>
+    public override double HitRadius => Attached < 0 && Phase is SpinePhase.Dormant or SpinePhase.Telegraph ? RailHitRadius : 0;
+    public override double HitHeight => Attached < 0 ? RailHitHeight : 0;
+    /// <summary>Her hit volume on the rail: set from tuning where she's put there (a client's mirror keeps the defaults).</summary>
+    public double RailHitRadius { get; init; } = 0.55;
+    public double RailHitHeight { get; init; } = 0.7;
+    /// <summary>Shattered by a cannonball (T121), not stopped short of: the same end, but the porcelain's in pieces.</summary>
+    public bool Shattered { get; private set; }
 
     /// <summary>At the controls of an empty cab (App. A.2 TAMPER): replicated, so a predicting client drives as it does.</summary>
     public bool Tampering => Phase == SpinePhase.Punish && Attached == 0 && Extra2 > 0.5;
@@ -42,6 +56,8 @@ public sealed class TrackDoll(int id) : Enemy(id)
         LineDistance = train.Dynamics.Distance + ahead,
         Height = 0,
         Health = t.Health,
+        RailHitRadius = t.CannonShatters ? t.RailHitRadius : 0,
+        RailHitHeight = t.RailHitHeight,
     };
 
     /// <summary>
@@ -54,7 +70,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
             return false;
         var first = train.Line.Sample(at - length).Tangent;
         for (double s = at - length; s <= at; s += 25)
-            if (Double3.Dot(first, train.Line.Sample(s).Tangent) < Math.Cos(3 * Math.PI / 180))
+            if (Double3.Dot(first, train.Line.Sample(s).Tangent) < DMath.Cos(3 * Math.PI / 180))
                 return false;
         return true;
     }
@@ -91,7 +107,11 @@ public sealed class TrackDoll(int id) : Enemy(id)
                         if (Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
                             Haunt(ctx);
                         else
+                        {
+                            // C.9 "Track Doll struck" all the same: the throttle, and the speed.
+                            ctx.World.Attribution.Add(Run.IncidentLog.Struck(ctx.World, "Struck the Track Doll before she could be seen"));
                             Enter(ctx, SpinePhase.Gone);
+                        }
                     }
                     return;
                 }
@@ -103,6 +123,9 @@ public sealed class TrackDoll(int id) : Enemy(id)
                 return;
         }
     }
+
+    /// <summary>C.9's Track Doll row (note 190): struck, with who was on the throttle and the speed at impact.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => Run.IncidentLog.Struck(ctx.World, "Struck the Track Doll");
 
     /// <summary>Aboard: into a car with a room, the one farthest from anyone.</summary>
     void Haunt(EnemyContext ctx)
@@ -207,6 +230,21 @@ public sealed class TrackDoll(int id) : Enemy(id)
         if (!Cornered)
             return;
         base.Struck(ctx, by, damage);
+    }
+
+    /// <summary>
+    /// A cannonball on the rail (T121): shattered, whatever her health, and gone for the run by the same way out as stopping
+    /// short (BREAK OFF, then gone), so nothing's left on the rail for the train to strike and nothing to haunt it.
+    /// </summary>
+    public override bool Hit(EnemyContext ctx, double damage)
+    {
+        if (HitRadius <= 0 || Gone)
+            return false;
+        Shattered = true;
+        Health = 0;
+        Enter(ctx, SpinePhase.BreakOff);
+        Enter(ctx, SpinePhase.Gone);
+        return true;
     }
 
     /// <summary>Plays with the throttle and the brake, in turns of a few seconds (from replicated state, so clients agree).</summary>

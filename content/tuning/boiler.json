@@ -19,6 +19,10 @@
   "safetyValveCapacity": 0.6,
   // Tractive effort fades out below workingBandMin and is gone at this pressure.
   "powerFloor": 20,
+  // GDD §22 deep cold (note 183): each cold step where the engine is takes coldEfficiencyPerStep off what a shovelful makes,
+  // to no less than coldEfficiencyFloor.
+  "coldEfficiencyPerStep": 0.06,
+  "coldEfficiencyFloor": 0.7,
 
   "tenderCapacity": 400,
   "fireboxCapacity": 6,
@@ -36,8 +40,8 @@
   // speed). T109 playtest: in the cab, on its left side, so one player can drive it all from the footplate.
   "ventRate": 12,
   // T109: a rupture (spec B.6, GDD §23) seizes the cylinders: the train sheds speed at ruptureDecel (m/s²) down to
-  // ruptureCoastBelow (m/s), then coasts, to a stop unless braked. The engineering kit (a wrench, racked in the cab)
-  // held at the firebox for repairSeconds makes the boiler good again, cold and empty: fire it back up from nothing.
+  // ruptureCoastBelow (m/s), then coasts, to a stop unless braked. The repair kit (GDD §12; train.json kit, it rides in
+  // car 1) held at the firebox for repairSeconds makes the boiler good again, cold and empty: fire it back up from nothing.
   "ruptureDecel": 1.5,
   "ruptureCoastBelow": 4,
   "repairSeconds": 25,

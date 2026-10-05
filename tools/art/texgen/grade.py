@@ -45,7 +45,7 @@ ALBEDO = {
     # foliage
     "pine_card": 0.04, "pine_bough": 0.04, "dead_tree_card": 0.07, "grass_card": 0.08, "brass_weed_card": 0.08,
     # cloth and crew
-    "coat_oilskin": 0.07, "leather": 0.08, "wool": 0.06, "skin": 0.14, "crew_atlas": 0.09,
+    "coat_oilskin": 0.07, "leather": 0.08, "wool": 0.06, "fleece": 0.2, "skin": 0.14, "crew_atlas": 0.09,
     # corruption (flesh/skin already sit right; sac comes down)
     "flesh": 0.14, "fungal_crust": 0.10, "mineral_growth": 0.07, "tar": 0.035, "sac": 0.08,
     # glass

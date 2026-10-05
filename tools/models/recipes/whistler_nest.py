@@ -37,12 +37,10 @@ def blob(centre, radii, material, name="blob", n=14, low=10, rot=None):
     for segs, keep in ((low, bool(low)), (n, True)):
         if not keep:
             continue
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=segs, ring_count=max(4, segs // 2), radius=1)
-        o = bpy.context.view_layer.objects.active
-        o.data.transform(Matrix.Diagonal((*radii, 1)))
+        m = Matrix.Diagonal((*radii, 1))
         if rot is not None:
-            o.data.transform(rot)
-        o.data.transform(Matrix.Translation(Vector(centre)))
+            m = rot @ m
+        o = cook.uv_sphere(segs, max(4, segs // 2), 1, Matrix.Translation(Vector(centre)) @ m)
         o.data.materials.clear()
         o.data.materials.append(material)
         if segs == low and segs != n:

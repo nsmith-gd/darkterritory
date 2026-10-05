@@ -1550,6 +1550,27 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "fleece",
+    "diffuse": "fleece.png",
+    "spec": "fleece_s.png",
+    "normal": "fleece_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "cloth",
+    "alphaTest": false,
+    "albedoTarget": 0.2,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "stamped crimped locks, tufts, soot",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "skin",
     "diffuse": "skin.png",
     "spec": "skin_s.png",

@@ -25,12 +25,19 @@ public static class Views
             "roof" => Camera.LookAt(target.ToWorld(new Double3(0.2, roof + 1.65, 3)), target.ToWorld(new Double3(0, roof + 1.2, -40)), 75),
             // (Not one of Names, which the perf budgets walk.) Close on the roof crew (Staging.Crew), and what's behind them.
             "crew" => Camera.LookAt(target.ToWorld(new Double3(0.6, roof + 1.75, -1.6)), target.ToWorld(new Double3(-0.6, roof + 1.45, -6.2)), 50),
+            // Off the car's left side on the ballast, level with it: what it is from the lineside (note 184: the crew car's lit
+            // windows and stovepipe, an armoured car's plate, a guard car's gun).
+            "side" => Camera.LookAt(target.ToWorld(new Double3(-9, 2.6, 5)), target.ToWorld(new Double3(0, 2.4, -1)), 60),
             // Inside the car, at its front end, looking back down the aisle past the cargo.
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
+            "trail" => TrailCamera(train),
+            // Close on the nest at the trail's end, the Whistler crouched over its catch.
+            "nest" => NestCamera(train),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
@@ -79,6 +86,13 @@ public static class Views
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
+            // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
+            // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
+            "cut" => CutCamera(train),
+            // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
+            // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
+            "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
+                target.ToWorld(new Double3(0.9, Floor(train) + 0.45, -target.Shape.HalfLength + 2.2)), 70),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
@@ -96,6 +110,12 @@ public static class Views
             // (Not one of Names.) In the gun car (the guard van) at its front end: the powder and shot locker in the corner
             // ahead of the tool lockers on the left (SceneArt.Fittings).
             "locker" => LockerCamera(train),
+            // (Not one of Names.) In car 1, at its repair kit in the fitter's locker (World.RepairKitStowage; dt screenshot
+            // --stocked; the locker's shut unless it's opened, as the lockers view does).
+            "kit" => KitCamera(train),
+            // (Not one of Names.) In car 1's aisle at the crew lockers (note 173): the row along the left wall, their grades on
+            // their doors, the fitter's open on the repair kit (dt screenshot --stocked --view lockers opens it).
+            "lockers" => LockersCamera(train),
             // (Not one of Names.) In this car, across the aisle at its extinguisher stood on its board (World.ExtinguisherMount;
             // with dt screenshot --stocked, its charge in the glass).
             "mount" => Camera.LookAt(target.ToWorld(new Double3(-0.05, Floor(train) + 1.3, -target.Shape.HalfLength + 2.95)),
@@ -171,6 +191,20 @@ public static class Views
         return Camera.LookAt(at.ToWorld(new Double3(w + 2.6, 1.7, z + 0.6)), at.ToWorld(new Double3(0, 1.0, z)), 55);
     }
 
+    static Camera TrailCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(-w - 0.6, 3.4, z - 6)), at.ToWorld(new Double3(-Staging.NestOut, 0.3, z)), 50);
+    }
+
+    static Camera NestCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
+        return Camera.LookAt(at.ToWorld(new Double3(-Staging.NestOut + 4.2, 2.4, z - 3.4)), at.ToWorld(new Double3(-Staging.NestOut, 0.0, z)), 55);
+    }
+
     static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
 
     static Camera DoorCamera(TrainOnLine train, int car)
@@ -204,6 +238,41 @@ public static class Views
         return Camera.LookAt(f.ToWorld(new Double3(-0.2, floor + 1.55, l - 0.5)), f.ToWorld(new Double3(0.2, floor + 0.2, l - 2.6)), 75);
     }
 
+    static Camera CutCamera(TrainOnLine train)
+    {
+        var rake = train.Rakes.FirstOrDefault(r => r.Consist.HasEngine) ?? train.Rakes[0];
+        var f = train.Frames[rake.Consist.Vehicles[^1].Id];
+        double l = f.Shape.HalfLength;
+        return Camera.LookAt(f.ToWorld(new Double3(0.9, 1.35, l + 1.5)), f.ToWorld(new Double3(0.05, 0.9, l + 0.45)), 45);
+    }
+
+    static Camera KitCamera(TrainOnLine train)
+    {
+        if (Sim.World.RepairKitCar(train) is not { } v || train.Frames[v].Shape.Interior is not { } room)
+            return LockerCamera(train);
+        var f = train.Frames[v];
+        var kit = Sim.World.RepairKitStowage(f.Shape, room);
+        // In its locker: from the aisle, close, down into it.
+        if (Sim.World.KitLocker(f.Shape) is { } bay)
+            return Camera.LookAt(f.ToWorld(kit + new Double3(1.25, 1.3, 0.35)), f.ToWorld(kit + new Double3(0, 0.25, 0)), 55);
+        // From the aisle at the load's front end, looking across and down at it in its corner by the door.
+        return Camera.LookAt(f.ToWorld(kit + new Double3(-1.45, 1.35, 0.5)), f.ToWorld(kit + new Double3(0, 0.1, -0.05)), 60);
+    }
+
+    /// <summary>
+    /// The crew lockers (note 173): from the aisle at the load's face, square on to the fitter's open locker, so its door
+    /// stands out of the way to the left and its neighbours' plates read either side of it.
+    /// </summary>
+    public static Camera LockersCamera(TrainOnLine train)
+    {
+        if (Sim.World.KitLocker(train) is not { } at)
+            return LockerCamera(train);
+        var f = train.Frames[at.Car];
+        var box = at.Bay.Box;
+        double floor = box.Min.Y;
+        return Camera.LookAt(f.ToWorld(new Double3(0.22, floor + 1.5, box.Centre.Z + 0.12)), f.ToWorld(new Double3(box.Max.X, floor + 1.0, box.Centre.Z - 0.02)), 72);
+    }
+
     static Camera LockerCamera(TrainOnLine train)
     {
         int v = Enumerable.Range(1, train.Vehicles.Count - 1).FirstOrDefault(i => train.Vehicles[i].HasGun && train.Frames[i].Shape.Interior is not null, train.Vehicles.Count - 1);
@@ -228,10 +297,90 @@ public static class Views
             : Camera.LookAt(f.ToWorld(eye), f.ToWorld(new Double3(p.X, p.Y + 0.1, p.Z + dir * 12)), 65);
     }
 
-    static Camera ChaseCamera(TrainOnLine train)
+    /// <summary>
+    /// The derailment's camera (T117): pulled out and up over the wreck, turning slowly round it, close at first and drawing
+    /// back as it spreads, looking at the middle of the pile with the engine in it.
+    /// </summary>
+    public static Camera Wreck(Sim.Train.Wreck wreck, double seconds)
     {
-        var last = train.Frames[^1];
+        var centre = Double3.Zero;
+        foreach (var b in wreck.Bodies)
+            centre += b.Centre;
+        centre *= 1.0 / Math.Max(1, wreck.Bodies.Count);
+        double spread = wreck.Bodies.Max(b => (b.Centre - centre).Length);
+        var engine = wreck.Bodies[0].Centre;
+        // Close in on the engine end, where it's worst; through the fog a wide shot of the whole train reads as nothing.
+        var look = Double3.Lerp(centre, engine, 0.55);
+        double angle = 0.9 + seconds * 0.11, distance = 12 + spread * 0.4 + Math.Min(seconds, 8) * 0.8;
+        var eye = look + new Double3(Math.Sin(angle) * distance, 5 + spread * 0.1 + Math.Min(seconds, 6) * 0.5, Math.Cos(angle) * distance);
+        return Camera.LookAt(eye, look, 55);
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: on where the repair kit should be (E.9's "empty engineering-kit rack": the
+    /// fitter's locker in car 1, standing open on its empty shelf, ARCHITECTURE notes 150, 169), then up and back over the
+    /// stopped consist to a high wide. "§6's small glowing machine in an enormous black world, going dark."
+    /// </summary>
+    public static Camera Stranded(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds)
+    {
+        Double3 rackAt, rackEye;
+        if (Sim.World.KitLocker(train) is { } locker)
+        {
+            // From the aisle, a step back from its open door (GreyboxScene.KitLockerOpen), into the bare locker.
+            var frame = train.Frames[locker.Car];
+            var box = locker.Bay.Box;
+            rackAt = frame.ToWorld(new Double3(box.Centre.X, box.Min.Y + 0.95, box.Centre.Z));
+            rackEye = frame.ToWorld(new Double3(box.Max.X + 1.25, box.Min.Y + 1.7, box.Max.Z + 0.75));
+        }
+        else if (Sim.World.RepairKitCar(train) is { } car && train.Frames[car].Shape.Interior is { } room)
+        {
+            // From across the aisle by the front door (the load is behind it), looking down at the bare boards where it's kept.
+            var frame = train.Frames[car];
+            var spot = Sim.World.RepairKitStowage(frame.Shape, room);
+            rackAt = frame.ToWorld(spot + new Double3(0, 0.1, 0));
+            rackEye = frame.ToWorld(spot + new Double3(-Math.Sign(spot.X == 0 ? 1 : spot.X) * 1.1, 1.5, -0.45));
+        }
+        else
+        {
+            // No kit's car: the cab's tool rack, across the cab at a standing eye (TrainKit.ToolRack: the pegs at 0.7).
+            var cab = train.Frames[0];
+            var rack = cab.Shape.Interactables.Where(i => i.Kind == InteractableKind.ToolRack).Select(i => (Double3?)i.Position).FirstOrDefault() ?? new Double3(0.8, 1.4, 0);
+            double side = Math.Sign(rack.X == 0 ? 1 : rack.X);
+            rackAt = cab.ToWorld(rack + new Double3(side * 0.12, 0.72, 0));
+            rackEye = cab.ToWorld(rack + new Double3(-side * 1.25, 1.45, 0.55));
+        }
+        if (seconds <= t.RackSeconds)
+            return Camera.LookAt(rackEye, rackAt, 50);
+        double u = Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1);
+        u = u * u * (3 - 2 * u);
         var mid = train.Frames[train.Frames.Count / 2];
+        var middle = mid.ToWorld(new Double3(0, 1, 0));
+        var wide = middle + mid.Back * t.BackM + mid.Right * (t.BackM * 0.6) + Double3.Up * t.HeightM;
+        return Camera.LookAt(Double3.Lerp(rackEye, wide, u), Double3.Lerp(rackAt, middle, Math.Min(1, u * 1.6)), (float)(50 + 10 * u));
+    }
+
+    /// <summary>
+    /// App. E.4 O12, the cinematic's light rig: the fog pushed out to at least twice the shot's distance, so what it's of
+    /// reads through the night.
+    /// </summary>
+    public static void CinematicFog(ref FrameLighting light, double shotDistance) =>
+        light.FogDensity = Math.Min(light.FogDensity, (float)(1 / (2 * Math.Max(1, shotDistance))));
+
+    /// <summary>E.9's shot distance at <paramref name="seconds"/>: the camera to the middle of the train.</summary>
+    public static double StrandedDistance(TrainOnLine train, Sim.Train.StrandedOutroTuning t, double seconds) =>
+        (Stranded(train, t, seconds).Position - train.Frames[train.Frames.Count / 2].Origin).Length;
+
+    /// <summary>E.9: how many of the train's lamps are out, from the last car forward (the engine's last of all).</summary>
+    public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
+        seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
+
+    static Camera ChaseCamera(TrainOnLine train) => Chase([.. train.Frames]);
+
+    /// <summary>The chase view over these frames: up and back off the last car, on the middle of the train.</summary>
+    public static Camera Chase(IReadOnlyList<CarFrame> frames)
+    {
+        var last = frames[^1];
+        var mid = frames[frames.Count / 2];
         return Camera.LookAt(last.ToWorld(new Double3(-12, 14, last.Shape.HalfLength + 30)), mid.ToWorld(new Double3(0, 2, 0)), 60);
     }
 

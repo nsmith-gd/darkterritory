@@ -13,8 +13,18 @@ namespace DarkTerritory.Game;
 /// <param name="Looks">Whose look they have (cap, scarf, tint, gait's beat), if not their own id's: the Passenger wears a crewmate's (T61).</param>
 /// <param name="Act">What they're doing with their hands (<see cref="CrewActs"/>), or null: standing, walking or running, by how they move.</param>
 /// <param name="Holding">The tool in their hand (T108's hotbar, <see cref="Kit.Held"/>).</param>
+/// <param name="Reach">Where the act puts both hands (from the feet, in the facing frame like <paramref name="Hand"/>): the levers
+/// a driver works, the whistle cord. Null to leave the hands to the clip (or a headset's).</param>
+/// <param name="Lamp">They carry the hand lamp: it hangs from their fist and swings with it, its light with it (GDD §31).</param>
+/// <param name="Survivor">Freed from a Holdout, whose figure they play as from then on (App. D.8).</param>
+/// <param name="Stressed">Something's after the train close by them (an enemy past its dormant phase within
+/// <see cref="CrewActs.StressRange"/>): their run is a hurried one (GDD §31).</param>
+/// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
+/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
+/// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
-    CrewPose? Act = null, Tool Holding = Tool.None)
+    CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
+    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None)
 {
     public int Variant => Looks ?? Id;
 }
@@ -36,10 +46,43 @@ public interface IPlaySession
 {
     TrainOnLine Train { get; }
     World World { get; }
+    /// <summary>The derailment's cinematic is playing (T117): the HUD holds the run's end back.</summary>
+    bool WreckCinematic => false;
+    /// <summary>Seconds since the train came off, as this client saw it.</summary>
+    double WreckSeconds => 0;
+    /// <summary>The derailment film (GDD v1.4 App. E), once this machine has shot it from the host's start; null till then.</summary>
+    WreckFilm? Film => null;
+    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    bool Skippable => false;
+    /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
+    string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
+        : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;
+    /// <summary>GDD v1.4 App. E.9: the Stranded outro is playing (the run's end screen waits for it).</summary>
+    bool StrandedOutro => false;
+    /// <summary>
+    /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest as the train leaves the yard, or the clerk's
+    /// tally at the terminus; null when nobody's on the air. <see cref="RadioSeconds"/> is how far into it.
+    /// </summary>
+    IReadOnlyList<string>? RadioReading => null;
+    double RadioSeconds => 0;
+    /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
+    bool ClerkTally => false;
+    /// <summary>This dead player's creature vote (GDD v1.4 App. D.11; note 180): the ballot offered and what they cast; null if none.</summary>
+    (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => null;
+    /// <summary>The dead's cue showing now (D.11): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM"; null when none is.</summary>
+    string? VoteCue => null;
+    /// <summary>The run-end commendation picker (D.12): who and which is picked, and whether it's given; null when there's none to give.</summary>
+    (string To, string What, bool Given)? CommendPick => null;
+    double OutroSeconds => 0;
     Sim.Route.Route? Route { get; }
     PlayerState Player { get; }
     TrainControls Controls { get; }
     long Tick { get; }
+    /// <summary>
+    /// The host's tick as this machine last heard it: what the sim's own timed records (a gun's last shot, World.Hits and
+    /// Impacts, T121) are stamped with. Playing alone, the session's own.
+    /// </summary>
+    long HostTick => Tick;
     string Status();
     void Step(in PlayerIntent intent);
     IReadOnlyList<CarFrame> InterpolatedFrames(double alpha);
@@ -66,13 +109,18 @@ public interface IPlaySession
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost);
+/// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
+/// <param name="Listed">Hosting a public lobby: it's in the join screen's list (a private one is joined by invite or address).</param>
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false);
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes
 {
     /// <summary>How far over the feet the eyes are, alive. A headset's tracking space hangs from here (<see cref="VrLocomotion"/>).</summary>
     public const double Height = 1.65;
+
+    /// <summary>In the gun's seat (T112): the eyes at the shield's aiming slot (the seat 0.48 m over the roof, note 137).</summary>
+    public const double Seated = 1.26;
 
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
@@ -89,7 +137,7 @@ public static class Eyes
     public static Camera From(in PlayerState cur, in PlayerState prev, IReadOnlyList<CarFrame> frames, double alpha, double pendingYaw, double pendingPitch)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (cur.Alive ? Height : 0.3);
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;
         double heading = onCar ? frames[cur.Parent].Heading : 0;

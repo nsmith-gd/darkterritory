@@ -21,6 +21,7 @@ public sealed record HoldoutTuning
     public required double CallOutCooldown { get; init; }
     public required BreachTuning Smash { get; init; }
     public required BreachTuning Pry { get; init; }
+    public required BreachTuning Open { get; init; }
     public required double BreachReach { get; init; }
     public required int FreedHealth { get; init; }
     public required double CrewLossFee { get; init; }
@@ -35,7 +36,8 @@ public enum HoldoutState : byte { Dormant, Occupied, Breaching, Freed }
 public enum HoldoutEventKind : byte { Assigned, Released, Freed, CalledOut }
 
 /// <summary>What a Holdout did this tick, for the host to act on (a shout to play) and for the harness to count.</summary>
-public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId);
+/// <param name="By">For <see cref="HoldoutEventKind.Freed"/>, who broke them out (D.12 "who freed whom").</param>
+public readonly record struct HoldoutEvent(HoldoutEventKind Kind, int Holdout, int PlayerId, int By = -1);
 
 /// <summary>One Holdout in the world: where it stands, and (host-authoritative, mirrored) who's in it.</summary>
 public sealed class Holdout
@@ -52,24 +54,29 @@ public sealed class Holdout
     public HoldoutState State { get; internal set; }
     /// <summary>Who's waiting in it (−1 for nobody).</summary>
     public int Occupant { get; internal set; } = -1;
-    /// <summary>Seconds of breach done, of <see cref="BreachSeconds"/>.</summary>
+    /// <summary>Seconds of breach done, of <see cref="Breach"/>'s.</summary>
     public double Progress { get; internal set; }
-    /// <summary>
-    /// Its occupant's Live Mic is on (D.7): their voice plays from the door to the living near it, on proximity voice. It
-    /// defaults off, and goes off when they're freed or released. It never counts toward loudness: only the living are heard.
-    /// </summary>
-    public bool LiveMic { get; internal set; }
-    /// <summary>
-    /// How many times it's been called out from (D.7): counted by the host and replicated, so every machine plays the shout
-    /// or the banging from the Holdout when it goes up (the call itself is a host-only event).
-    /// </summary>
-    public int Calls { get; internal set; }
+    /// <summary>The breach under way is the repair kit opening the lock: silent, and slower (D.7).</summary>
+    public bool Quiet { get; internal set; }
     internal int Breacher = -1;
     internal double CallCooldown;
+    /// <summary>How many Call Outs it's made (D.7): replicated, so a client plays each shout once, as the count goes up.</summary>
+    public int Calls { get; internal set; }
+    /// <summary>
+    /// D.7 Live Mic: the occupant's mic plays from here on the proximity layer (8 m clear, 26 m cutoff) as well as the dead
+    /// channel. Theirs alone to switch; off whenever nobody's waiting in it. Replicated.
+    /// </summary>
+    public bool LiveMic { get; internal set; }
 
     public bool Lit => State is HoldoutState.Occupied or HoldoutState.Breaching;
-    /// <summary>A lock is smashed (a prison car, a halt's lockup); a shelter's barricade is pried (D.7).</summary>
-    public BreachTuning Breach(HoldoutTuning t) => Layout.Kind == HoldoutKind.Shelter ? t.Pry : t.Smash;
+    /// <summary>
+    /// A lock is smashed (a prison car, a halt's lockup), or opened with the repair kit; a shelter's barricade is pried
+    /// (D.7).
+    /// </summary>
+    public BreachTuning Breach(HoldoutTuning t) => Layout.Kind == HoldoutKind.Shelter ? t.Pry : Quiet ? t.Open : t.Smash;
+
+    /// <summary>Whether the repair kit opens it: a lock does, a barricade doesn't (D.7 "open lock").</summary>
+    public bool Lockable => Layout.Kind != HoldoutKind.Shelter;
 }
 
 /// <summary>
@@ -85,8 +92,9 @@ public sealed class Holdouts
     readonly List<QueueEntry> _queue = [];
     // Each player's buttons last tick (a dead player's presses are edges), and who's holding a breach where.
     readonly Dictionary<int, PlayerButtons> _last = new();
-    readonly Dictionary<int, PlayerActions> _lastActions = new();
     readonly Dictionary<int, int> _holding = new();
+    // Who's holding a breach with the repair kit in their hands.
+    readonly HashSet<int> _withKit = [];
     readonly Dictionary<int, int> _health = new();
     readonly List<(int Player, int Holdout)> _callOuts = [];
 
@@ -99,6 +107,9 @@ public sealed class Holdouts
     public IReadOnlyList<QueueEntry> Queue => _queue;
     /// <summary>Players freed this run, in order (host only).</summary>
     public List<int> Freed { get; } = [];
+
+    /// <summary>What a freed player comes out with: the night's starting kit (player.json "kit"), set by the host.</summary>
+    public ulong StartingKit { get; set; } = Kit.Of([Tool.Crowbar]);
 
     public Holdouts(HoldoutTuning t, Route.Route route, RailLine line)
     {
@@ -124,23 +135,20 @@ public sealed class Holdouts
         }
     }
 
-    /// <summary>A player's hands this tick (host): holding Use at an occupied Holdout's door is breaching it; a dead player's Use calls out, Throw defers.</summary>
-    public void CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train)
+    /// <summary>
+    /// A player's hands this tick (host): holding Use at an occupied Holdout's door is breaching it; a dead player's Use
+    /// calls out, Throw defers. True while they're breaching.
+    /// </summary>
+    /// <param name="kit">They've the repair kit in their hands: a lock opens to it, quietly (D.7).</param>
+    public bool CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, bool kit = false)
     {
         var last = _last.GetValueOrDefault(playerId);
         var now = intent.Buttons;
         _last[playerId] = now;
         bool pressed(PlayerButtons b) => (now & b) != 0 && (last & b) == 0;
-        var lastActions = _lastActions.GetValueOrDefault(playerId);
-        _lastActions[playerId] = intent.Actions;
         if (!s.Alive)
         {
             _holding.Remove(playerId);
-            // D.7 Live Mic: a toggle offered only to the one waiting in it.
-            if ((intent.Actions & PlayerActions.LiveMic) != 0 && (lastActions & PlayerActions.LiveMic) == 0)
-                foreach (var h in _holdouts)
-                    if (h.Lit && h.Occupant == playerId)
-                        h.LiveMic = !h.LiveMic;
             // D.7 Call Out, from whichever Holdout they could be answered at (the one they're in, or any lit one).
             if (pressed(PlayerButtons.Use))
                 foreach (var h in _holdouts)
@@ -148,18 +156,27 @@ public sealed class Holdouts
                         _callOuts.Add((playerId, h.Index));
             if (pressed(PlayerButtons.Throw))
                 Defer(playerId);
-            return;
+            // D.7 Live Mic: only the one waiting in it can switch it, on or off.
+            if (pressed(PlayerButtons.Jump))
+                foreach (var h in _holdouts)
+                    if (h.Lit && h.Occupant == playerId)
+                        h.LiveMic = !h.LiveMic;
+            return false;
         }
         var at = PlayerMotor.WorldPosition(s, train);
         _holding.Remove(playerId);
+        _withKit.Remove(playerId);
         if (!intent.Has(PlayerButtons.Use))
-            return;
+            return false;
         foreach (var h in _holdouts)
             if (h.Lit && ((h.Door - at) with { Y = 0 }).Length <= Tuning.BreachReach)
             {
                 _holding[playerId] = h.Index;
-                return;
+                if (kit)
+                    _withKit.Add(playerId);
+                return true;
             }
+        return false;
     }
 
     /// <summary>D.6 defer: one place further back, never forward.</summary>
@@ -237,17 +254,23 @@ public sealed class Holdouts
             int breacher = _holding.Where(x => x.Value == h.Index).Select(x => x.Key).DefaultIfEmpty(-1).Min();
             if (breacher >= 0 && (h.Breacher < 0 || h.Breacher == breacher))
             {
+                // The repair kit at a lock opens it (D.7). Put down part way, and it's a smash from the start: the lock's
+                // half picked is no help to a crowbar.
+                bool quiet = h.Lockable && _withKit.Contains(breacher);
+                if (h.State == HoldoutState.Breaching && quiet != h.Quiet)
+                    h.Progress = 0;
+                h.Quiet = quiet;
                 var b = h.Breach(Tuning);
                 h.State = HoldoutState.Breaching;
                 h.Breacher = breacher;
                 h.Progress += dt;
-                // Its noise is the living's: it counts toward loudness (D.7). Call Out never does.
-                if (world.Combat is { } c)
+                // Its noise is the living's: it counts toward loudness (D.7), unless it's the kit's. Call Out never does.
+                if (world.Combat is { } c && b.Rounds > 0)
                     world.Choir.Loud(c.Choir, b.Rounds, dt);
                 if (h.Progress >= b.Seconds)
                 {
                     Free(h, crew, set);
-                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant));
+                    events.Add(new HoldoutEvent(HoldoutEventKind.Freed, h.Index, h.Occupant, breacher));
                 }
                 continue;
             }
@@ -256,6 +279,7 @@ public sealed class Holdouts
                 h.State = HoldoutState.Occupied;
                 h.Progress = 0;
                 h.Breacher = -1;
+                h.Quiet = false;
             }
 
             // D.5 release: the consist has left the zone moving away, and nobody living is near.
@@ -281,6 +305,10 @@ public sealed class Holdouts
             events.Add(new HoldoutEvent(HoldoutEventKind.CalledOut, h.Index, player));
         }
         _callOuts.Clear();
+        // Freed or released, nobody's there to hear through it: the Live Mic goes off (D.7).
+        foreach (var h in _holdouts)
+            if (!h.Lit)
+                h.LiveMic = false;
         return events;
     }
 
@@ -301,22 +329,13 @@ public sealed class Holdouts
         return null;
     }
 
-    /// <summary>The lit Holdout whose Live Mic is <paramref name="playerId"/>'s, on (D.7); null if they have none.</summary>
-    public Holdout? LiveMicOf(int playerId)
-    {
-        foreach (var h in _holdouts)
-            if (h.Lit && h.LiveMic && h.Occupant == playerId)
-                return h;
-        return null;
-    }
-
     void Release(Holdout h)
     {
         h.State = HoldoutState.Dormant;
         h.Occupant = -1;
-        h.LiveMic = false;
         h.Progress = 0;
         h.Breacher = -1;
+        h.Quiet = false;
     }
 
     /// <summary>D.8: they come back inside the Holdout, on 80 health with the standard kit; it's spent for the run.</summary>
@@ -324,7 +343,6 @@ public sealed class Holdouts
     {
         int id = h.Occupant;
         h.State = HoldoutState.Freed;
-        h.LiveMic = false;
         h.Progress = h.Breach(Tuning).Seconds;
         h.Breacher = -1;
         _queue.RemoveAll(e => e.PlayerId == id);
@@ -339,9 +357,9 @@ public sealed class Holdouts
             LineHint = h.LineHint,
             Yaw = was.Yaw,
             Placed = (byte)(was.Placed + 1),
-            // What they carried, back with them (T108: nobody comes out of a Holdout empty-handed).
-            Kit = was.Kit,
-            HeldSlot = was.HeldSlot,
+            // What they carried stayed on their body (GDD v1.4 App. D.2, the engineering kit too); they come out with the
+            // night's starting kit (T108: nobody comes out of a Holdout empty-handed).
+            Kit = StartingKit,
         };
         _health[id] = back.Health;
         set(id, back);
@@ -359,7 +377,7 @@ public sealed class Holdouts
     }
 
     /// <summary>Client side: adopts the host's Holdouts.</summary>
-    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool liveMic = false, int calls = 0)
+    public void Mirror(int index, HoldoutState state, int occupant, double progress, bool quiet = false, int calls = 0, bool liveMic = false)
     {
         if (index < 0 || index >= _holdouts.Count)
             return;
@@ -367,7 +385,19 @@ public sealed class Holdouts
         h.State = state;
         h.Occupant = occupant;
         h.Progress = progress;
-        h.LiveMic = liveMic;
+        h.Quiet = quiet;
         h.Calls = calls;
+        h.LiveMic = liveMic;
     }
+
+    /// <summary>Client side: the host's queue (D.6 "dead and lobbied players see the full queue and their position").</summary>
+    public void MirrorQueue(IEnumerable<(int PlayerId, bool Lobbied)> queue)
+    {
+        _queue.Clear();
+        foreach (var (id, lobbied) in queue)
+            _queue.Add(new QueueEntry(id, lobbied, double.NaN));
+    }
+
+    /// <summary>The Holdout <paramref name="player"/> is waiting in with the Live Mic on, if any (D.7).</summary>
+    public Holdout? LiveMicOf(int player) => _holdouts.FirstOrDefault(h => h.Lit && h.LiveMic && h.Occupant == player);
 }

@@ -18,7 +18,11 @@ public class UdpTransportTests
         public IEnumerable<TransportEvent> Data => Events.Where(e => e.Kind == TransportEventKind.Data);
     }
 
-    static void Until(Func<bool> done, params Peer[] peers)
+    static void Until(Func<bool> done, params Peer[] peers) => Until(done, sleep: true, peers);
+
+    /// <param name="sleep">False: poll flat out. On Windows <c>Thread.Sleep(1)</c> is a 15.6 ms timer tick, so a round trip
+    /// measured between sleeping polls is mostly the test's own sleeps (a 71 ms "loopback ping" on a busy runner).</param>
+    static void Until(Func<bool> done, bool sleep, params Peer[] peers)
     {
         var clock = Stopwatch.StartNew();
         while (!done())
@@ -26,7 +30,10 @@ public class UdpTransportTests
             Assert.True(clock.Elapsed.TotalSeconds < 5, "timed out");
             foreach (var p in peers)
                 p.Poll();
-            Thread.Sleep(1);
+            if (sleep)
+                Thread.Sleep(1);
+            else
+                Thread.Yield();
         }
     }
 
@@ -138,7 +145,7 @@ public class UdpTransportTests
         // well under a millisecond, but on a CI box whose cores the other test assemblies hold at startup the first few
         // can take tens, and the estimate carries them for a while.
         bool Settled() => client.T.RoundTrip(PeerId.Host) < 0.05 && host.T.RoundTrip(client.T.LocalId) < 0.05;
-        Until(() => clock.Elapsed.TotalSeconds > 0.3 && (Settled() || clock.Elapsed.TotalSeconds > 3), host, client);
+        Until(() => clock.Elapsed.TotalSeconds > 0.3 && (Settled() || clock.Elapsed.TotalSeconds > 3), sleep: false, host, client);
         Assert.InRange(client.T.RoundTrip(PeerId.Host), 0, 0.05);
         Assert.InRange(host.T.RoundTrip(client.T.LocalId), 0, 0.05);
     }
