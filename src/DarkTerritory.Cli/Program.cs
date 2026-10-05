@@ -163,8 +163,8 @@ object RunHarness(string[] args)
         Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
         Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
-        // And its look-out (note 212), as the sweep's.
-        Look = args.Contains("--insist") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
+        // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 222: the before of a before/after).
+        Look = args.Contains("--insist") && !args.Contains("--no-look") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -1204,6 +1204,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
         Tick = args.Contains("--muzzle") ? 100 + (long)Math.Round(Opt(args, "--shot-age", 1.0 / 30) * 30) : -1,
         Look = look,
+        // --greybox: the box figure's headset bodies from vr.json too (note 223; with the art pass, the look has it).
+        VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,
         Holdouts = holdouts,
@@ -2190,7 +2192,7 @@ static int Usage()
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
                      --comms poor|awful (or --voice-loss/-latency/-jitter/-talkover): the crew's calls over a degraded voice;
-                     --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand
+                     --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand (--no-look: without its look-out)
           balance --pairs|--triples [--wide] [--routes r,r] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n] [--seconds s] [--hazards clear,wet,cold,dark] [--only kind,kind]
                      GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set,
                      on every route with every crew size (tuning/balance.json combinations; --wide: its nightly grid); flags

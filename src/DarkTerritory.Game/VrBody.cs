@@ -174,3 +174,35 @@ public static class VrBody
 
     static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
 }
+
+/// <summary>
+/// Headset crewmates' strides kept from frame to frame (T82), by id: each in the frame its crewmate stands in, planted
+/// afresh when they start being drawn so, stop, or move frames. The crew model's (<see cref="Art.SceneArt"/>) and the
+/// greybox box figure's (<see cref="GreyboxScene"/>, note 223) keep one each.
+/// </summary>
+public sealed class VrStrides
+{
+    readonly Dictionary<byte, (VrStride Stride, int Parent, double Time)> _strides = new();
+
+    /// <summary>
+    /// The body under <paramref name="c"/>'s head this frame (<see cref="VrBody.Pose"/>), or null: no headset, or not
+    /// <paramref name="still"/> (walking, an act, dead), and then its stride is forgotten.
+    /// </summary>
+    public VrBodyPose? Pose(in Crewmate c, bool still, double time, VrBodyTuning t)
+    {
+        if (c.Headset is not { } h || !still)
+        {
+            _strides.Remove(c.Id);
+            return null;
+        }
+        VrStride stride;
+        if (h.Staged is { } staged)
+            stride = staged;
+        else if (_strides.TryGetValue(c.Id, out var was) && was.Parent == h.Parent && time >= was.Time)
+            stride = VrBody.Step(was.Stride, h.Local, h.Yaw, Math.Min(time - was.Time, 0.1), t);
+        else
+            stride = VrBody.Stand(h.Local, h.Yaw, t);
+        _strides[c.Id] = (stride, h.Parent, time);
+        return VrBody.Pose(stride, h.Local, h.Yaw, h.Head, h.Pitch, Eyes.Height, t);
+    }
+}
