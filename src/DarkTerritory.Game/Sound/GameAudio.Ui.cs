@@ -28,16 +28,16 @@ public static class UiCue
     // ui-run-end: the incident report (GDD App. D.12).
     public const string Report = "ui-run-end.report";
     public const string Tally = "ui-run-end.tally";
-    /// <summary>A commendation awarded (D.12). Nothing awards one yet: there's no commendation in the game to hook.</summary>
+    /// <summary>A commendation given on the run-end screen (D.12; note 218).</summary>
     public const string Commendation = "ui-run-end.commendation";
     /// <summary>A death of the night entered on the report: the stamp; and, where the crew did it to themselves, the typewriter.</summary>
     public const string DeathStamp = "ui-run-end.death-stamp";
     public const string OwnGoal = "ui-run-end.own-goal";
     // ui-dead-phase (GDD App. D.10).
     public const string Queue = "ui-dead-phase.queue";
-    /// <summary>A creature vote locked in (D.11). There's no vote in the game yet to hook.</summary>
+    /// <summary>A creature vote locked in by the host (D.11; notes 180, 202, 218).</summary>
     public const string Vote = "ui-dead-phase.vote";
-    /// <summary>A bookmark taken (D.12). There's no bookmark in the game yet to hook.</summary>
+    /// <summary>A bookmark this player took (D.12's manual ones; notes 176, 203, 218).</summary>
     public const string Bookmark = "ui-dead-phase.bookmark";
 }
 
@@ -109,6 +109,39 @@ public sealed partial class GameAudio
         DeadPhase(world, me);
     }
 
+    int _ballotPick = -1;
+    bool _ballotSent, _ballotLocked, _commendGiven, _choicesPrimed;
+    readonly HashSet<int> _heardBookmarks = [];
+
+    /// <summary>
+    /// This player's choices heard (GDD v1.4 App. D.11, D.12; note 218), each as it happens, from the session as it shows
+    /// them: the dead's ballot (the pick moving through it, the cast going off, and the host's lock coming back, the vote's
+    /// stamp), each manual bookmark they took as the host records it, and a commendation given on the run-end screen.
+    /// What's already so on the first look isn't news.
+    /// </summary>
+    public void Choices(IPlaySession s)
+    {
+        bool primed = _choicesPrimed;
+        int pick = s.Picker?.Pick ?? -1;
+        if (primed && pick >= 0 && pick != _ballotPick)
+            Ui(UiCue.Move);
+        _ballotPick = pick;
+        bool sent = s.Picker?.Sent == true, locked = s.Ballot is { Cast: not null };
+        if (primed && sent && !_ballotSent && !locked)
+            Ui(UiCue.Select);
+        if (primed && locked && !_ballotLocked)
+            Ui(UiCue.Vote);
+        (_ballotSent, _ballotLocked) = (sent, locked);
+        foreach (var b in s.World.Bookmarks.All)
+            if (b.Kind == Sim.Run.BookmarkKind.Manual && b.Taker == s.PlayerId && _heardBookmarks.Add(b.Id) && primed)
+                Ui(UiCue.Bookmark);
+        bool given = s.CommendPick is { Given: true };
+        if (primed && given && !_commendGiven)
+            Ui(UiCue.Commendation);
+        _commendGiven = given;
+        _choicesPrimed = true;
+    }
+
     /// <summary>The night's been left: a hold's loop stops, and the report's tallies still to come won't.</summary>
     void EndNightUi()
     {
@@ -124,6 +157,9 @@ public sealed partial class GameAudio
         _tallies.Clear();
         _occupants.Clear();
         _uiWorld = null;
+        _ballotPick = -1;
+        _ballotSent = _ballotLocked = _commendGiven = _choicesPrimed = false;
+        _heardBookmarks.Clear();
     }
 
     enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp }

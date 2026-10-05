@@ -829,6 +829,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 PlayerMotor.Space(ears, session.Train));
             // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
             sound.Interface(session.World, session.Player, session.PlayerId);
+            sound.Choices(session);
             if (voice is not null && net is not null)
                 voice.Update(net.Client, session.Crew(session.InterpolatedFrames(1), 1), SimConstants.TickSeconds);
         }
