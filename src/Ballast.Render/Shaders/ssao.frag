@@ -1,26 +1,30 @@
 #version 450
+#include "view.glsl"
 // Screen-space ambient occlusion, at half resolution (the benchmarks' contact darkening: the dark where a crate meets the
 // floor, down a coupling's throat, under a roof's eave; Crysis's, then BioShock 2's and Dead Space's). From the scene's
 // depth alone: each pixel's view-space position and normal are rebuilt from it, and a dozen points in the hemisphere over
 // the normal are tested against the depth they land on. The composite blurs it and darkens the scene by it.
-layout(set = 0, binding = 0) uniform sampler2D depthTex;
+layout(set = 0, binding = 0) uniform EYE_SAMPLER depthTex;
 // a: the projection's M33, M43, M11, M22 (System.Numerics, Vulkan's clip space: M22 flipped).
-// b: x = radius (m), y = intensity, z, w = one full-resolution texel. c: x = fade-out distance (m).
+// b: x = radius (m), y = intensity, z, w = one full-resolution texel. c: x = fade-out distance (m), y, z = the right
+// eye's M11, M22 when one pass draws both (multiview; the near and far planes, so M33 and M43, are both eyes').
 layout(push_constant) uniform Post { vec4 a; vec4 b; vec4 c; } post;
 layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
+// This eye's focal lengths (M11, M22).
+#define FOCAL (EYE == 0 ? post.a.zw : post.c.yz)
 
 vec3 viewAt(vec2 uv, float d) {
     // Right-handed, depth 0..1: z_ndc = -M33 - M43 / z, so z = -M43 / (d + M33) (negative in front).
     float z = -post.a.y / (d + post.a.x);
     vec2 ndc = uv * 2.0 - 1.0;
-    return vec3(ndc.x * -z / post.a.z, ndc.y * -z / post.a.w, z);
+    return vec3(ndc.x * -z / FOCAL.x, ndc.y * -z / FOCAL.y, z);
 }
 
-vec3 viewAt(vec2 uv) { return viewAt(uv, texture(depthTex, uv).r); }
+vec3 viewAt(vec2 uv) { return viewAt(uv, texture(depthTex, EYE_UV(uv)).r); }
 
 vec2 project(vec3 p) {
-    return vec2(p.x * post.a.z / -p.z, p.y * post.a.w / -p.z) * 0.5 + 0.5;
+    return vec2(p.x * FOCAL.x / -p.z, p.y * FOCAL.y / -p.z) * 0.5 + 0.5;
 }
 
 // (Without sin: exact at a screen's pixel coordinates and a long night's clock on any GPU; note 140.)
@@ -31,7 +35,7 @@ float hash(vec2 p) {
 }
 
 void main() {
-    float d = texture(depthTex, vUv).r;
+    float d = texture(depthTex, EYE_UV(vUv)).r;
     if (d >= 0.99999) {
         outColor = vec4(1.0);
         return;

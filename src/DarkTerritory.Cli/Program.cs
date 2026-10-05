@@ -262,7 +262,14 @@ static object VrCheck(TrainTuning t, string content, string[] args)
     DarkTerritory.Game.VrView vr;
     try
     {
-        vr = DarkTerritory.Game.VrView.Start("dt vr check", Opt(args, "--scale", 0.5));
+        // How the eyes are drawn: tuning/vr.json's way (multiview where the GPU has it), or --stereo multiview|per-eye.
+        var stereo = Str(args, "--stereo", "") switch
+        {
+            "per-eye" => StereoPath.PerEye,
+            "multiview" => StereoPath.Multiview,
+            _ => DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)).Stereo,
+        };
+        vr = DarkTerritory.Game.VrView.Start("dt vr check", Opt(args, "--scale", 0.5), stereo: stereo);
     }
     catch (Ballast.Xr.XrUnavailableException e)
     {
@@ -352,6 +359,10 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             recommended = new[] { vr.Headset.EyeWidth, vr.Headset.EyeHeight },
             eyeRender = new[] { vr.Session.EyeWidth, vr.Session.EyeHeight },
             swapchainFormat = vr.Session.SwapchainFormat.ToString(),
+            // Multiview: both eyes in one pass and one submit a frame; per-eye: a renderer, a pass and a submit an eye.
+            stereo = vr.Stereo.ToString(),
+            multiviewDevice = vr.Gpu.Multiview,
+            eyeSubmitsPerFrame = vr.Session.FramesRendered > 0 ? Math.Round((double)vr.Session.EyeSubmits / vr.Session.FramesRendered, 2) : 0,
             framesRendered = vr.Session.FramesRendered,
             fps = Math.Round(vr.Session.FramesRendered / seconds, 1),
             outcomes,
@@ -2193,7 +2204,7 @@ static int Usage()
           facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
           facility drill <kind> [--route tier:seed] [--cars n] [--hands n] [--seconds s]   a bot crew works a facility of that kind (GDD §18 set pieces)
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
-          vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
+          vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--stereo multiview|per-eye] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
