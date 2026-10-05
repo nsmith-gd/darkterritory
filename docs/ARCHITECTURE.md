@@ -3333,3 +3333,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - the Tippy's recoil (7), arms flung wide where it was;
       - the rail doll vanishing (8; it's moved on ahead down the line about once a minute, so the shot is framed on where it was and its dust is small at that range).
       - Nobody was killed and no Car Hugger was cut loose that night, so those two are still verified staged (`--killed`, `--hugger ride`) and in tests.
+230. **Powder and shot: "carried to the cannon" is at departure (App. C.3; the checklist's powder-shot row, closed).** App. C.3 says powder and shot are "stocked at departure; carried to the cannon". There are two readings:
+    - **Carried at departure into the gun car.** This is the one taken, the art director's call on 5 Oct. The stock goes into the locker beside the gun, the iron-bound chest of note 148, whose wells empty as the gun's `Ammo` falls. The reload takes from it. The sim has no carried item, and its three timed steps from the seat (combat.json `reloadSteps`, `reloadStepSeconds`) are unchanged.
+    - **A carry from the stores to the gun before each reload.** This is the one declined. It would be a carried body like the repair kit's (note 150), and it would change the reload's rules and the numbers the spec pins.
+    - **What shows:** the reload's beats have their kit in hand (`CreatureArt.ReloadKit`): the powder bag shoved into the breech, then the rammer, then the vent pick.
