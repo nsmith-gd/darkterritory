@@ -192,51 +192,83 @@ def pine_bough(ctx):
     return card_out(ctx, d, alpha, s, g, "a frond: branchlets raked along a twig, furred with needles, gaps between")
 
 
-def branch(rng, x, y, ang, length, width, depth, lines, widths):
-    """Recursive gnarled branching for the dead tree."""
-    pts = [(x, y)]
-    steps = 5
+def branch(rng, x, y, ang, length, width, depth, lines, widths, bounds):
+    """Recursive gnarled branching for the dead tree. Each limb tapers along its length (drawn a segment at a time, so it
+    isn't a pipe that steps down at the fork), keeps reaching up and out (a dead tree's limbs grew toward the light; left
+    to wander they curl back over the crown and the card reads as a cage), and stops short of the card's edge: a limb
+    run off the edge is cut square there, the straight line that gives a card away."""
+    W, H, m = bounds
+    steps = 6
     a = ang
-    for _ in range(steps):
-        a += rng.normal(0, 0.18)
-        x += np.cos(a) * length / steps
-        y += np.sin(a) * length / steps
-        pts.append((x, y))
-    lines.append(pts)
-    widths.append(width)
-    if depth == 0 or width < 3.0:
+    side = 1 if np.cos(ang) >= 0 else -1
+    reach = -np.pi / 2 + side * min(1.1, abs(ang + np.pi / 2) + 0.15)
+    seg = length / steps
+    w0, w1 = width, width * 0.62
+    for i in range(steps):
+        a += rng.normal(0, 0.16) + 0.22 * (reach - a)
+        nx, ny = x + np.cos(a) * seg, y + np.sin(a) * seg
+        if not (m < nx < W - m and m < ny):
+            # At the edge: a short crook back in, then the limb ends (snapped, or thinned to nothing).
+            return
+        lines.append([(x, y), (nx, ny)])
+        widths.append(max(1.4, w0 + (w1 - w0) * (i + 1) / steps))
+        x, y = nx, ny
+    if depth == 0 or w1 < 2.2:
+        # Twigs: a few fine crooked ends.
+        for _ in range(rng.integers(1, 4)):
+            t = a + rng.uniform(-0.9, 0.9)
+            tx, ty = x + np.cos(t) * seg * 0.7, y + np.sin(t) * seg * 0.7
+            if m < tx < W - m and m < ty:
+                lines.append([(x, y), (tx, ty)])
+                widths.append(1.3)
         return
     n = 2 if rng.random() < 0.7 else 3
     for i in range(n):
-        spread = rng.uniform(0.35, 0.8) * (1 if i % 2 == 0 else -1)
-        branch(rng, x, y, a + spread, length * rng.uniform(0.55, 0.78), width * rng.uniform(0.55, 0.72),
-               depth - 1, lines, widths)
+        spread = rng.uniform(0.3, 0.7) * (1 if i % 2 == 0 else -1)
+        # A broken limb now and then: dead wood falls.
+        if depth < 4 and rng.random() < 0.15:
+            continue
+        branch(rng, x, y, a + spread, length * rng.uniform(0.6, 0.8), w1 * rng.uniform(0.6, 0.8),
+               depth - 1, lines, widths, bounds)
 
 
 @texture("dead_tree_card", "foliage", tile=None)
 def dead_tree_card(ctx):
-    """A bare dead tree (256x512): a leaning trunk forking into gnarled, broken limbs."""
+    """A bare dead tree (256x512): a leaning trunk forking into gnarled, broken limbs that thin to twigs, all within the
+    card."""
     H, W = 1024, 512
     rng = ctx.rng("tree")
     lines, widths = [], []
+    bounds = (W, H, 14)
     base = (W / 2 + 10, H - 10)
-    # Trunk: two segments, leaning.
-    trunk = [base, (W / 2 - 6, H - 360), (W / 2 + 14, H - 560)]
-    lines.append(trunk)
-    widths.append(46)
-    lines.append([base, (W / 2 - 6, H - 360)])
-    widths.append(58)
-    # Main limbs from the upper trunk.
-    for (y, a, L, w) in [(H - 540, -np.pi / 2 - 0.35, 300, 28), (H - 560, -np.pi / 2 + 0.4, 280, 26),
-                         (H - 420, -np.pi / 2 - 1.0, 200, 18), (H - 380, -np.pi / 2 + 1.1, 180, 17),
-                         (H - 600, -np.pi / 2 + 0.05, 330, 22)]:
-        branch(rng, W / 2 + 4, y, a, L, w, 5, lines, widths)
+    # Trunk: tapering, leaning, a kink where a limb went.
+    trunk = [base, (W / 2 - 6, H - 360), (W / 2 + 14, H - 560), (W / 2 + 4, H - 640)]
+    # Drawn in short pieces, each a little thinner, so the taper is smooth (no step in the bark where segments meet).
+    knots = np.cumsum([0] + [np.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(trunk, trunk[1:])])
+    pieces = 24
+    def along(t):
+        d = t * knots[-1]
+        i = min(int(np.searchsorted(knots, d, side="right")) - 1, len(trunk) - 2)
+        f = (d - knots[i]) / (knots[i + 1] - knots[i])
+        return (trunk[i][0] + (trunk[i + 1][0] - trunk[i][0]) * f, trunk[i][1] + (trunk[i + 1][1] - trunk[i][1]) * f)
+    for k in range(pieces):
+        lines.append([along(k / pieces), along(min(1, (k + 1.6) / pieces))])
+        widths.append(56 - 32 * (k / pieces) ** 1.2)
+    # Root flare.
+    for s in (-1, 1):
+        lines.append([(base[0] + s * 8, H - 60), (base[0] + s * 36, H - 4)])
+        widths.append(16)
+    # Main limbs from the upper trunk, short enough that the crown fits.
+    for (y, a, L, w) in [(H - 540, -np.pi / 2 - 0.45, 150, 22), (H - 560, -np.pi / 2 + 0.5, 140, 21),
+                         (H - 420, -np.pi / 2 - 1.05, 110, 15), (H - 380, -np.pi / 2 + 1.1, 100, 14),
+                         (H - 630, -np.pi / 2 + 0.08, 160, 18)]:
+        branch(rng, W / 2 + 4, y, a, L, w, 5, lines, widths, bounds)
     # Snapped stubs.
     for y in (H - 250, H - 300, H - 460):
         s = rng.choice([-1, 1])
         lines.append([(W / 2, y), (W / 2 + s * rng.uniform(30, 50), y - rng.uniform(10, 25))])
         widths.append(9)
-    alpha = draw.strokes((H, W), lines, widths, None, wrap=False)
+    alpha = draw.strokes((H, W), lines, widths, None, wrap=False, supersample=2)
     # Bark: vertical furrows in a dark grey-brown, lighter silvered patches where it's dead longest.
     fur = noise.fbm01(ctx.rng("bark"), (H, W), 2, octaves=3, stretch=(0.5, 5))
     silver = smoothstep(0.5, 0.8, noise.fbm01(ctx.rng("sil"), (H, W), 20))
@@ -249,7 +281,7 @@ def dead_tree_card(ctx):
     d = lerp(d, hexc("#3A4450"), rim(alpha, 2) * 0.35)
     s = np.full((H, W), 0.04, np.float32)
     g = np.full((H, W), 0.15, np.float32)
-    return card_out(ctx, d, alpha, s, g, "recursive gnarled branches (strokes), bark furrows")
+    return card_out(ctx, d, alpha, s, g, "recursive gnarled branches (tapered strokes, kept inside the card), bark furrows")
 
 
 @texture("grass_card", "foliage", tile=None)

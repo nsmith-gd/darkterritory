@@ -3004,3 +3004,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - An ember glow breathes in the load where it's caught, with one small light.
       - `dt screenshot --threats --smoulder --view fire` stages it. `EffectsTests.ACarFireSmouldersThenBurns` pins that the smoke outshines the walls and that the embers are short of flames.
     - **The playthrough's own camera** mirrors the app's scene state each frame (the Stoker's perch timing, the firebox door, the wreck). It aims where the scene draws a thing (the Fire Flies on the nearer lantern, the Stoker on the stack's rim) and keeps the fire up, since there's only the driver, so a night isn't lost to the boiler on the first grade.
+    - **A solo night stops at the first facility**, and the director's night only reaches its later roster further on: crew-of-4 solo nights met five kinds and stood still from 7 km.
+      - `--bots n` has the harness's bot crew work the night instead (clean loopback; stops and all). The host's world is photographed, with each crewmate drawn doing what they're doing (`CrewActs`).
+      - `--insist kind,kind` sends those kinds, as the combination audit does (note 186).
+      - Beside the line, the camera stands on the ground. In a cutting, 7 m off the line had put it inside the bank: a blank grey wall, with the slope's rocks and bushes floating.
+    - **What the bot nights found: the lineside dead trees read as cages.**
+      - `dead_tree_card`'s limbs ran off the card's edges, cut square there, and curled back over the crown, each a constant-width stroke.
+      - They now taper a segment at a time, keep reaching up and out, end in twigs inside the card, and the trunk tapers smoothly (tools/art/texgen/mat_foliage.py).

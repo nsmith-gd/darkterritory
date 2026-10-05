@@ -3,9 +3,12 @@ using System.Globalization;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 /// <summary>
@@ -23,6 +26,7 @@ static class PlaythroughCommands
         string spec = Str(args, "--route", "frontier:7");
         int width = (int)Opt(args, "--width", 960), height = (int)Opt(args, "--height", 540), cars = (int)Opt(args, "--cars", 6);
         double minutes = Opt(args, "--minutes", 20), every = Opt(args, "--every", 90), gap = Opt(args, "--gap", 2);
+        int bots = (int)Opt(args, "--bots", 0);
         // The ride drives the line's authority and knows nothing of debris; held under what debris lets you through at
         // (the Sleepers' 40 km/h), a night lasts long enough to meet the roster rather than ending on the first heap.
         double cap = Opt(args, "--cap", 38) / 3.6;
@@ -32,10 +36,6 @@ static class PlaythroughCommands
         Directory.CreateDirectory(dir);
 
         var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
-        // --crew n: the night the director plans for a crew of n (a solo night meets only part of the roster), the one
-        // player standing for them all.
-        var session = new PrototypeSession(content, route, cars, enemies: true, crew: (int)Opt(args, "--crew", 1));
-        var train = session.Train;
         using var gpu = new GpuContext("dt playthrough");
         using var renderer = new GreyboxRenderer(gpu, width, height);
         var look = Look.Load(content);
@@ -46,43 +46,43 @@ static class PlaythroughCommands
         var seen = new HashSet<(int, SpinePhase)>();
         double lastShot = double.NegativeInfinity, lastChase = 0, stokerSince = -1;
         var watch = Stopwatch.StartNew();
-        int ticks = (int)(minutes * 60 * SimConstants.TickRate);
 
-        void Shoot(string name, Camera camera, string what)
+        void Shoot(World world, IReadOnlyList<PlayerState> crew, string name, Camera camera, string what)
         {
-            double seconds = session.World.Tick * SimConstants.TickSeconds;
+            var train = world.Train;
+            double seconds = world.Tick * SimConstants.TickSeconds;
             var lighting = Views.Lighting(train, look);
             lighting.FogDensity = (float)route.Weather.FogDensity;
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
-            var p = session.Player;
             new GreyboxScene
             {
                 Look = look,
                 Route = route,
-                Signs = session.World.Lineside?.Signs,
-                SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
-                Enemies = session.World.ActiveEnemies,
-                Hits = session.World.Hits,
-                Impacts = session.World.Impacts,
-                Run = session.World.Run,
-                Holdouts = session.World.Holdouts,
+                Signs = world.Lineside?.Signs,
+                SignRange = world.Lineside?.Tuning.LampSignRange ?? 350,
+                Enemies = world.ActiveEnemies,
+                Hits = world.Hits,
+                Impacts = world.Impacts,
+                Run = world.Run,
+                Holdouts = world.Holdouts,
                 Vehicles = train.Vehicles,
-                Bodies = session.World.Bodies.All,
+                Bodies = world.Bodies.All,
                 Diverging = train.Diverging,
-                Stands = session.World.Switches,
+                Stands = world.Switches,
                 Time = seconds,
-                Tick = session.World.Tick,
-                Controls = session.Controls,
+                Tick = world.Tick,
+                Controls = world.Controls,
                 // What the app sets each frame from the night's state (DarkTerritory.App's render loop).
                 Wreck = train.Wreck,
-                Derailed = session.World.Derailed,
+                Derailed = world.Derailed,
                 FireDoorOpen = train.Boiler.FireDoorOpen,
                 FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f,
                 StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince,
-                StokerDownAt = session.World.Enemies?.Stoker.LowPressureSeconds ?? 45,
-                LampLit = session.World.LampShining,
+                StokerDownAt = world.Enemies?.Stoker.LowPressureSeconds ?? 45,
+                LampLit = world.LampShining,
                 Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train),
-                Crew = [new Crewmate(1, PlayerMotor.WorldPosition(p, train), PlayerMotor.WorldYaw(p, train), p.Alive)],
+                // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.
+                Crew = [.. crew.Select((s, i) => CrewActs.Crewmate((byte)(i + 1), s, world, train.Frames, crew))],
             }.Build(mesh, train, camera.Position);
             overlay.Clear();
             var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, overlay);
@@ -101,53 +101,111 @@ static class PlaythroughCommands
             lastShot = seconds;
         }
 
-        for (int t = 0; t < ticks && session.World.Run?.Over != true; t++)
+        // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
+        // line between.
+        void Watch(World world, IReadOnlyList<PlayerState> crew)
         {
-            if (route.Plan is { } plan)
-                DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
-            if (train.Dynamics.Speed > cap)
-                session.Controls = session.Controls with { Throttle = 0, Brake = 1 };
-            // The fireman's job, done for them (there's only the driver): the fire kept up, so the night isn't lost to the
-            // boiler running down on the first grade and the train rolling back.
-            if (train.BoilerTuning is { } boiler && train.Boiler.FireFraction(boiler) < 0.6 && t % SimConstants.TickRate == 0)
-                train.Boiler.Shovel(boiler);
-            session.Step(default);
-            double now = session.World.Tick * SimConstants.TickSeconds;
-            stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
-            // Each enemy as it arrives and at each beat of its spine that a crew would be watching for.
-            foreach (var e in session.World.EnemyEvents)
+            var train = world.Train;
+            double now = world.Tick * SimConstants.TickSeconds;
+            stokerSince = world.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
+            foreach (var e in world.EnemyEvents)
             {
                 if (e.To is not (SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Grab or SpinePhase.Punish) || now - lastShot < gap)
                     continue;
                 if (!seen.Add((e.EnemyId, e.To)))
                     continue;
-                var enemy = session.World.ActiveEnemies.FirstOrDefault(x => x.Id == e.EnemyId);
+                var enemy = world.ActiveEnemies.FirstOrDefault(x => x.Id == e.EnemyId);
                 if (enemy is null || enemy.Gone)
                     continue;
-                Shoot($"{e.Kind}-{e.To}".ToLowerInvariant(), Beside(train, enemy), $"{e.Kind} {e.From} -> {e.To}");
+                Shoot(world, crew, $"{e.Kind}-{e.To}".ToLowerInvariant(), Beside(train, enemy), $"{e.Kind} {e.From} -> {e.To}");
             }
             if (now - lastChase >= every)
             {
                 lastChase = now;
-                Shoot("line", Views.Get("chase", train, 2), "the line");
+                Shoot(world, crew, "line", Views.Get("chase", train, 2), "the line");
             }
+        }
+
+        World last;
+        if (bots > 0)
+            last = Crewed(content, route, cars, bots, minutes, args, Watch);
+        else
+        {
+            // --crew n: the night the director plans for a crew of n (a solo night meets only part of the roster), the one
+            // player standing for them all.
+            var session = new PrototypeSession(content, route, cars, enemies: true, crew: (int)Opt(args, "--crew", 1));
+            var train = session.Train;
+            int ticks = (int)(minutes * 60 * SimConstants.TickRate);
+            for (int t = 0; t < ticks && session.World.Run?.Over != true; t++)
+            {
+                if (route.Plan is { } plan)
+                    DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
+                if (train.Dynamics.Speed > cap)
+                    session.Controls = session.Controls with { Throttle = 0, Brake = 1 };
+                // The fireman's job, done for them (there's only the driver): the fire kept up, so the night isn't lost to the
+                // boiler running down on the first grade and the train rolling back.
+                if (train.BoilerTuning is { } boiler && train.Boiler.FireFraction(boiler) < 0.6 && t % SimConstants.TickRate == 0)
+                    train.Boiler.Shovel(boiler);
+                session.Step(default);
+                Watch(session.World, [session.Player]);
+            }
+            last = session.World;
         }
         string index = Path.Combine(dir, "index.json");
         File.WriteAllText(index, System.Text.Json.JsonSerializer.Serialize(shots, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         return new
         {
             route = spec,
-            seconds = Math.Round(session.World.Tick * SimConstants.TickSeconds),
-            km = Math.Round(train.Dynamics.Distance / 1000, 2),
-            over = session.World.Run?.Over ?? false,
-            // How the night ended, and the crew's state at its end (a solo night is one player: what killed them, if anything).
-            end = session.World.Run?.End.ToString(),
-            death = session.Player.Alive ? null : session.Player.Death.ToString(),
-            derailed = session.World.Derailed ? session.World.DerailCause : null,
+            seconds = Math.Round(last.Tick * SimConstants.TickSeconds),
+            km = Math.Round(last.Train.Dynamics.Distance / 1000, 2),
+            over = last.Run?.Over ?? false,
+            // How the night ended (a solo night's one player: what killed them, if anything).
+            end = last.Run?.End.ToString(),
+            derailed = last.Derailed ? last.DerailCause : null,
             shots = shots.Count,
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
         };
+    }
+
+    /// <summary>
+    /// --bots n: a crew of bots works the night instead (the harness's, over a clean loopback), stops and all, so it goes on
+    /// past the first facility a lone driver can't work; --insist kind,kind sends those (the combination audit's, note 186).
+    /// The host's world is photographed.
+    /// </summary>
+    static World Crewed(string content, DarkTerritory.Sim.Route.Route route, int cars, int bots, double minutes, string[] args,
+        Action<World, IReadOnlyList<PlayerState>> watch)
+    {
+        var c = AuditCommands.Load(content);
+        var routeTuning = RouteTuning.Load(content);
+        double yard = route.GateOr(routeTuning.YardLength);
+        World? last = null;
+        Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
+        {
+            Bots = bots,
+            Cars = cars,
+            Seconds = minutes * 60,
+            Seed = (int)Opt(args, "--seed", 1),
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = c.Run.DepartFrom(yard, Consist.Uniform(c.Train, cars, 1).LengthMetres),
+            Combat = c.Combat,
+            Enemies = c.Enemies,
+            Route = route,
+            Run = c.Run,
+            Facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
+            Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
+            Sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)),
+            YardLength = yard,
+            Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<EnemyKind>(k, ignoreCase: true))] : null,
+            InsistEvery = Opt(args, "--insist-every", 20),
+            Observe = (_, crew, world) =>
+            {
+                last = world;
+                watch(world, [.. crew.Select(x => x.State)]);
+            },
+            Until = world => world.Run?.Over == true,
+        }, c.Boiler);
+        return last ?? throw new InvalidOperationException("the night never started");
     }
 
     /// <summary>
@@ -189,6 +247,11 @@ static class PlaythroughCommands
         double lateral = Double3.Dot(at - line.Position, side);
         var away = lateral < -0.5 ? side * -1 : side;
         var from = at + away * 7 + Double3.Up * 2.8 - line.Tangent * 5;
+        // Never inside the ground: in a cutting, 7 m off the line is in its bank (seen from inside the hill, the rocks and
+        // bushes on it float and its face is a blank wall), so up out of it to stand on the slope.
+        double ground = PlayerMotor.GroundAt(from, train.Line, ref hint) + 1.7;
+        if (from.Y < ground)
+            from = new Double3(from.X, ground, from.Z);
         return Camera.LookAt(from, at + Double3.Up * 1.0, 62);
     }
 
