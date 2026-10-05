@@ -79,4 +79,5 @@ public class VoiceRoutingTests
         // The dead still hear the living near them: spectators watch, and say nothing useful to anyone.
         Assert.Equal(VoicePath.Proximity, VoiceRouting.Route(Roof(5, 2), dead, radio: false, Train));
     }
+
 }

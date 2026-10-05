@@ -77,7 +77,9 @@ public static class WorldRecords
                     // How the seated gunner has it laid (T112).
                     Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine),
                     // Its crew lockers' doors (note 173).
-                    v.LockersOpen]));
+                    v.LockersOpen,
+                    // Its shell breached, and where (decided 1 Oct: it shuts nobody in until it's boarded up).
+                    v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
@@ -296,7 +298,8 @@ public static class WorldRecords
                             Elevation = f.Length > 17 ? D(f[17], Fine) : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
-                        f.Length > 18 ? (uint)f[18] : 0));
+                        f.Length > 18 ? (uint)f[18] : 0,
+                        f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

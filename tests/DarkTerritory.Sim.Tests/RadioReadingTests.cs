@@ -65,4 +65,24 @@ public class RadioReadingTests
         Assert.Equal((3, 1.0), Radio.Reading(lines, 7, t));
         Assert.Equal(8, Radio.Length(lines, t));
     }
+
+    [Fact]
+    public void SpokenEachLineTakesAsLongAsItsSaidThenThePause()
+    {
+        // Note 240: with the yard's voice, a line's turn is what saying it takes and the pause after, never under lineSeconds,
+        // and the card's typed as it's said.
+        var t = new RadioTuning(LineSeconds: 1.6, PauseSeconds: 0.5);
+        string[] lines = ["short", "a much longer line", "end"];
+        // Said at 0.2 s a character: 1 s, 3.6 s and 0.6 s.
+        var times = Radio.Times(lines, t, l => l.Length * 0.2);
+        Assert.Equal(new[] { 1.6, 4.1, 1.6 }, times.Select(x => Math.Round(x, 9)));
+        Assert.Equal(1, Radio.Reading(lines, 1.5, t, times).Lines);
+        Assert.Equal(2, Radio.Reading(lines, 1.7, t, times).Lines);
+        // Typed in step with the voice: halfway through saying it, half typed; all of it once it's said, before the pause.
+        Assert.InRange(Radio.Reading(lines, 1.6 + 1.8, t, times).Typed, 0.49, 0.51);
+        Assert.Equal(1.0, Radio.Reading(lines, 1.6 + 3.7, t, times).Typed);
+        Assert.Equal(2, Radio.Reading(lines, 1.6 + 4.0, t, times).Lines);
+        Assert.Equal(3, Radio.Reading(lines, 1.6 + 4.2, t, times).Lines);
+        Assert.Equal(1.6 + 4.1 + 1.6 + 1.6, Radio.Length(lines, t, times), 9);
+    }
 }

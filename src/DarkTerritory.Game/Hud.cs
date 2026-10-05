@@ -61,7 +61,7 @@ public static class Hud
             Skip(o, width, height, s);
         // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
         if (s.RadioReading is { } reading)
-            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new());
+            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new(), s.RadioTimes);
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -488,7 +488,7 @@ public static class Hud
         if (s.StrandedOutro)
         {
             if (s.OutroSeconds > world.WreckTuning.Stranded.RackSeconds)
-                Small($"CONSIST REPORTED STRANDED AT KM {world.Run?.Report?.DistanceKm ?? 0:0}. RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE.", Dim);
+                Small(Sim.Run.Radio.Stranded(world.Run?.Report?.DistanceKm ?? 0).ToUpperInvariant(), Dim);
             return;
         }
         // GDD §9: the clerk tallies first; the end screen after.
@@ -945,9 +945,10 @@ public static class Hud
     /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest or the clerk's tally, a line at a time, typed
     /// out as it's read, flat, the last few on the card.
     /// </summary>
-    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t,
+        IReadOnlyList<double>? times = null)
     {
-        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t);
+        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t, times);
         if (shown == 0)
             return;
         int scale = Math.Max(1, height / 360);
@@ -1123,7 +1124,9 @@ public static class Hud
             var gun = train.Vehicles[manned].Gun;
             bool seated = p.Has(PlayerFlags.Seated);
             string up = seated ? "   [SPACE] GET UP" : "";
-            return gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
+            // GDD §23 (note 183): a shot's fouled it, and it's cleared by hand before anything else.
+            return gun.Jammed ? $"GUN FOULED: [E] HOLD: CLEAR IT ({Math.Min(1, gun.ReloadProgress / combat.Guns.ClearSeconds) * 100:0}%){up}"
+                : gun.ReloadNeeded > 0 ? $"[E] HOLD: LOAD IT ({LoadStep(gun, combat.Guns)}){up}"
                 : gun.Ammo <= 0 ? $"NO SHOT LEFT{up}"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? $"NO STEAM TO TURN THE GUN{up}"
                 : seated ? $"[LMB] FIRE   AIM WITH THE MOUSE{up}"
@@ -1131,6 +1134,12 @@ public static class Hud
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
+        // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
+        if (Breaches.Within(p, train, hand) is not null)
+            return $"[E] HOLD: BOARD UP THE BREACH ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
+            return train.Dynamics.Tuning.Breach.NeedsKit && !p.Has(PlayerFlags.RepairKit) ? "THE CAR'S BREACHED: BRING THE REPAIR KIT TO BOARD IT UP"
+                : "THE CAR'S BREACHED: BOARD UP THE HOLE";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
         if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))

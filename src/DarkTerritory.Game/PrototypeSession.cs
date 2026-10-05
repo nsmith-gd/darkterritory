@@ -322,7 +322,7 @@ public sealed class PrototypeSession : IPlaySession
         if (PlayerMotor.InCab(p, train))
             return "cab";
         if (PlayerMotor.Indoors(p, train))
-            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, door open" : $"inside car {p.Parent}, shut in";
+            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, {(train.Vehicles[p.Parent].Breached ? "breached" : "door open")}" : $"inside car {p.Parent}, shut in";
         return p.Parent == 0 ? "engine" : $"car {p.Parent}";
     }
 

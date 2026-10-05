@@ -1,0 +1,11 @@
+// Tell (tier 1), Tippy Toesie: "faint tiptoeing" behind its target (GDD v1.1 App. A.5), 1-2 kHz (the band the Deadman
+// held). Soft ticks of toes on boards, slow and deliberate, no rhythm a boot makes. Faint by design in that it carries only a short
+// way (maxDistance): close in, it's tier 1 like any tell (AudioTests), so the one it's after can hear it if they listen.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 1, "maxDistance": 14, "gainDb": 16,
+  "layers": [
+    { "source": "impulse", "gain": 1.4, "frequency": 4,
+      "filters": [{ "type": "bandPass", "frequency": 1500, "q": 4 }, { "type": "peak", "frequency": 1150, "q": 6, "gainDb": 6 }],
+      "tremolo": { "rate": 1.2, "depth": 1, "duty": 0.3, "jitter": 0.4 } }
+  ]
+}

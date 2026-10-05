@@ -18,3 +18,5 @@ external/steam/*.dylib
 # raw third-party art sources are fetched, not committed (intake/README.md, tools/art/fetch_sources.sh)
 intake/_sources/
 __pycache__/
+# agent worktrees (Claude Code)
+.claude/worktrees/

@@ -1914,6 +1914,20 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     _outEnd = WayOut(self, train);
                     return Next(Step.Reopen);
                 }
+                // The car's breached (the Car Hugger through its end, Climbers in through its roof): it warms nobody until it's
+                // boarded up (decided 1 Oct), so that first, at the hole. Not with the thing still at it, nor with no kit when
+                // boarding needs it: out, and warm somewhere else.
+                if (train.Vehicles[_car].Breached)
+                {
+                    if (Barred?.Invoke(_car) == true || train.Dynamics.Tuning.Breach.NeedsKit && !self.Has(PlayerFlags.RepairKit))
+                    {
+                        _outEnd = WayOut(self, train);
+                        return Next(Step.Reopen);
+                    }
+                    if (Breaches.Within(self, train) is not null)
+                        return new PlayerIntent { Buttons = PlayerButtons.Use };
+                    return Steer(self, Breaches.StandAt(train, _car), self.Yaw).Step;
+                }
                 // Someone came or went and left a door open: shut it again (a roof hatch is the crane's, T99, worked from the roof).
                 int ajar = train.Vehicles[_car].DoorsOpen & ~(1 << CarShape.HatchBit);
                 for (int d = 0; d < CarShape.HatchBit; d++)

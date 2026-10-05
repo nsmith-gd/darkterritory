@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Pure C# mixer and synthesis: no devices, so it renders offline in tests and the harness (ARCHITECTURE §6.4). -->
+  <!-- Pure C# mixer and synthesis: no devices, so it renders offline in tests and the harness (ARCHITECTURE §6.4).
+       Concentus (managed Opus, as Ballast.Voice uses) decodes the recorded takes in content/audio/samples. -->
   <PropertyGroup>
     <RootNamespace>Ballast.Audio</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Concentus" Version="2.2.2" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Ballast.Core/Ballast.Core.csproj" />
   </ItemGroup>

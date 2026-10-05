@@ -1,0 +1,9 @@
+// Tell (tier 1), the Stoker: "pressure rise, wrong glow hiss", 1-3 kHz (spec A.3). Steam hissing where it shouldn't, from
+// the firebox door, rising and falling like breathing, over the fire's roar.
+{
+  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 2, "maxDistance": 35, "gainDb": 6,
+  "layers": [
+    { "source": "noise", "gain": 1.0, "filters": [{ "type": "bandPass", "frequency": 1900, "q": 2.5 }, { "type": "peak", "frequency": 2600, "q": 4, "gainDb": 5 }],
+      "tremolo": { "rate": 0.55, "depth": 0.7, "jitter": 0.4 } }
+  ]
+}
