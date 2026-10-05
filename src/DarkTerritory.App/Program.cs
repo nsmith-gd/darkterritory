@@ -845,7 +845,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
-            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames)
+            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames, session.Train.StandingCar)
             : filmShot is { } filming ? DerailSequence.FilmCamera(filming.Shot, filming.Into)
             : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);

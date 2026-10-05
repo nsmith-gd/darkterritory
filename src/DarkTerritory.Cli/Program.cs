@@ -70,6 +70,7 @@ return args switch
     ["harness", ..] => Print(RunHarness(args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
+    ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
     // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
     ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") => AuditCommands.Combinations(content, args),

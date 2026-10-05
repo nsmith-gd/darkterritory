@@ -2980,3 +2980,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - Protocol 20 (19 is the sound package's): the report carries the new incident kinds. No tuning changed. Tests: `IncidentEventTests` (each new record and its actor and action; clubbing the Stoker is tending; a bend too fast with a Stoker feeding is its runaway on the cause card, without one the throttle; a victimless PUNISH's bookmark beside its line), `DerailCauseTests` (a Switchman derailment names the forward gunner, or that nobody was on it, and writes no second record; the split points' record), `AttributionTests` (the Stoker's runaway derailment in the report and its deaths; a non-death line's text).
 
 195. **Protocol 21 for #149's body record (an audit fix).** #149 gave the body record an eleventh field, `TakenBy` (who holds a body or loot: the Gaunt walking it out of the car, App. A.6), and left the protocol at 20. A host and a joiner of the two builds would both say 20 and then misread each other's bodies (`WorldRecords` reads `f[10]` unguarded) instead of the joiner being refused at the lobby. Now 21. Numbers 191-194 are left to the branches that hold them (194 is the WP25 opera's); 19 stays reserved for the sound package.
+
+196. **`dt playthrough`, and the train's own frames (the 5 October audit).** The art checklist rates each piece in a staged view. Nothing showed what a crew sees over a real night.
+    - **`dt playthrough --route frontier:7 [--minutes 20] [--every 90]`:**
+      - plays a solo night with the director's enemies, the train driven by the line's own authority (`LineGen.Ride`, as the app's `--ride`);
+      - photographs every encounter as it happens (each enemy's Alert, Telegraph, Grab and Punish), from beside it, or down the aisle if it's in a car, with the game's own scene;
+      - takes a chase shot every `--every` seconds;
+      - writes frames and `index.json` (what, when, where) to out/playthrough.
+    - **What it found: the chase view and the derailment were filming a switchyard.**
+      - A switchyard's standing cars (note 187) are frames past the train's own, so `Views.Chase`'s "last car" was one of them, 17 km down the line on frontier:7.
+      - The Tab chase view and the derailment's replay (`DerailSequence.ReplayCamera`) looked at an empty siding.
+      - Worse, `Wreck.Begin` made a wreck body of every frame: a derailment threw the standing cars off their siding with the train, and the orbit round the wreck's middle (`Views.Wreck`) framed nothing.
+    - **Fixed:**
+      - `Wreck.Begin` skips standing rakes, in its bodies and its links.
+      - `Views.Train(frames, StandingCar)` gives the train's own frames, and the chase view and the replay use it.
+    - **Verified:**
+      - `FacilityTests.ADerailmentLeavesTheSwitchyardsStandingCarsWhereTheyStand`;
+      - `ChaseCameraTests` (frontier:7: the chase view and the replay within 250 m of the engine);
+      - both fail without the fix;
+      - a playthrough's chase shots show the train.

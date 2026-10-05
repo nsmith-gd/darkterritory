@@ -374,9 +374,15 @@ public static class Views
     public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
         seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
 
-    static Camera ChaseCamera(TrainOnLine train) => Chase([.. train.Frames]);
+    static Camera ChaseCamera(TrainOnLine train) => Chase(Train(train.Frames, train.StandingCar));
 
-    /// <summary>The chase view over these frames: up and back off the last car, on the middle of the train.</summary>
+    /// <summary>
+    /// The train's own frames: not a switchyard's cars standing on their sidings (note 187), which sit at the end of the
+    /// frames kilometres off, where a "last car" would put the camera.
+    /// </summary>
+    public static CarFrame[] Train(IEnumerable<CarFrame> frames, Func<int, bool> standing) => [.. frames.Where(f => !standing(f.Index))];
+
+    /// <summary>The chase view over these frames (the train's own: <see cref="Train"/>): up and back off the last car, on the middle of the train.</summary>
     public static Camera Chase(IReadOnlyList<CarFrame> frames)
     {
         var last = frames[^1];
