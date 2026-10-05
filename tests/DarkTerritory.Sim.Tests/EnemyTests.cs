@@ -93,7 +93,7 @@ public class EnemyTests
         // The lamp found them 120 m out: six seconds at 20 m/s.
         Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, 5.5, 6.5);
         Assert.True(n.World.Derailed);
-        // Each dies on their own hit in the wreck (GDD v1.4 App. E.2 step 1; note 257), inside their first person's window.
+        // Each dies on their own hit in the wreck (GDD v1.4 App. E.2 step 1; note 258), inside their first person's window.
         n.Run(n.World.WreckTuning.Film.FirstPersonMax + 1);
         Assert.All(n.Crew.Values, s => Assert.Equal(DeathCause.Derailed, s.Death));
         n.AssertFair();

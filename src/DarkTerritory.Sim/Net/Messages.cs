@@ -38,7 +38,7 @@ public static class Protocol
     //     Welcome; a player who quits on purpose says Leave first, so their place frees at once instead of being held.
     // 28: the film's start carries each car's mounted gun and whether a crewmate was in its seat, and the film it shoots is a
     //     different one (cars hit bodies, landings, a death per crewmate); the living ride the wreck to their own hit, not
-    //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 257).
+    //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 258).
     public const int Version = 28;
 }
 
