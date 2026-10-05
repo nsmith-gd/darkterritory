@@ -24,8 +24,15 @@
   // they lay in wait all night), not judged. By default each combination meets one hazard set, the sets in turn down the
   // list (--every-hazard for the whole cross, the nightly's), and --triples runs tripleSample of the 680 (--sample 0 for
   // all of them), so a default run takes minutes.
+  // The grid (§34 "every hazard set"; B.10 "at every crew size"; note 204): each combination is run on every one of routes
+  // with every one of crews, seeds nights a (route, crew) cell. Unwinnable is lost every night in some cell; trivial is
+  // nothing landed in any night anywhere. The default is one cell, quick; wide is the nightly's (dt balance --wide): a
+  // Frontier line and a Dead Lines one (its dead lines and marsh are other places to stage from), B.10's smallest and
+  // largest crews, and two seeds, so an unwinnable verdict is two lost nights, not one. --routes, --crews, --seeds override.
   "combinations": {
-    "route": "frontier:7", "crew": 4, "cars": 6, "seconds": 90, "seeds": 1, "tripleSample": 136, "insistEvery": 10, "leadM": 20,
+    "routes": ["frontier:7"], "crews": [4], "seeds": 1,
+    "wide": { "routes": ["frontier:7", "deadLines:2"], "crews": [2, 8], "seeds": 2 },
+    "cars": 6, "seconds": 90, "tripleSample": 136, "insistEvery": 10, "leadM": 20,
     // With --at-stops (the nightly's: a stop's night costs several times a line's), a combination with something that comes
     // at a stop (the Whistler, Ribbits, the Gaunt, Followers, Soot Children, the Passenger, the Grumbler) starts approachM
     // short of the first facility's spur the crew can work (one with a crane for the Grumbler), and runs stopSeconds: time

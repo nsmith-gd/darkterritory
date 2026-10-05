@@ -630,6 +630,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
+    // In a headset the ballot and the commendations are the stick's (note 202), and say so.
+    Hud.Headset = vr is not null;
+    var nightKeys = new VrMenuInput();
     NetPlaySession.PlayerName = settings.PlayerName;
     bool Held(Control c) => input.Down(keyOf[c]);
     bool Hit(Control c) => input.Pressed(keyOf[c]);
@@ -638,6 +641,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var derailSequence = new DerailSequence();
     // GDD v1.4 App. D.12: the night's bookmark stills, taken here as the host's bookmarks arrive.
     var stills = new BookmarkStills();
+    // D.12, D.13 (note 203): and kept past the run-end screen, in the user's app data, a folder for the night.
+    var album = new BookmarkAlbum(BookmarkAlbum.DefaultDirectory, DateTime.Now, session.Route?.Name ?? "night");
+    bool albumSaid = false;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -665,10 +671,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 profile.Record(session.World.Commendations, net.PlayerId);
             break;
         }
-        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives it.
+        // In a headset (note 202): the left stick's pushes and its click, once each, for the ballot and the commendations.
+        var vrPress = vr is null ? VrMenuPress.None : nightKeys.Read(vr.Session.Controllers);
+        // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives
+        // it; in a headset the stick picks and its click gives.
         if (session.World.Run?.Over == true && net is not null)
-            net.Commend((input.Pressed(Key.Right) ? 1 : 0) - (input.Pressed(Key.Left) ? 1 : 0),
-                (input.Pressed(Key.Down) ? 1 : 0) - (input.Pressed(Key.Up) ? 1 : 0), input.Pressed(Key.Space));
+            net.Commend((input.Pressed(Key.Right) || vrPress.HasFlag(VrMenuPress.Right) ? 1 : 0) - (input.Pressed(Key.Left) || vrPress.HasFlag(VrMenuPress.Left) ? 1 : 0),
+                (input.Pressed(Key.Down) || vrPress.HasFlag(VrMenuPress.Down) ? 1 : 0) - (input.Pressed(Key.Up) || vrPress.HasFlag(VrMenuPress.Up) ? 1 : 0),
+                input.Pressed(Key.Space) || vrPress.HasFlag(VrMenuPress.Click));
+        // D.11 (note 202): dead with a ballot to cast, a number key picks a creature and the same again (or Enter) casts it;
+        // in a headset the stick's up and down pick (its left and right still change whom you watch) and its click casts.
+        if (net is { Voting: true, Ballot: { } ballot })
+        {
+            int options = ballot.Options.Count;
+            for (var k = Key.D1; k < Key.D1 + options; k++)
+                if (input.Pressed(k))
+                    net.Picker.Key(k - Key.D1 + 1, options);
+            if (input.Pressed(Key.Enter))
+                net.Picker.Cast();
+            net.Picker.Headset(vrPress, options);
+        }
         // D.11: the dead's chime as a creature they voted for comes.
         if (net?.TakeNewCue() == true)
             sound.Play("vote-cue");
@@ -690,9 +712,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
             pendingSeat = true;
-        // The hotbar (T108): a number key picks its slot, the wheel steps through the tools.
+        // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
-            if (input.Pressed(k))
+            if (input.Pressed(k) && net is not { Voting: true })
                 pendingSelect = (byte)(k - Key.D1 + 1);
         pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
@@ -952,15 +974,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
         {
             var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            var (shownBodies, shownCut, shownLights, shownWreck, shownDerailed) = (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed);
             (scene.Own, scene.HeldHere) = (null, null);
-            foreach (var (mark, from) in due)
+            foreach (var (mark, from, peak) in due)
             {
-                scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
-                scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, from.Position);
-                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height);
+                // E.5: a derailment's still is that crew member's peak in the film, drawn as the film draws it.
+                var at = peak is not null ? DerailSequence.Stage(scene, peak, frames) : frames;
+                if (peak is null)
+                    scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
+                scene.Build(mesh, session.Train.Line, at, session.Train.Dynamics.Distance, from.Position);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null);
+                (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed) = (shownBodies, shownCut, shownLights, shownWreck, shownDerailed);
             }
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        }
+        // D.12, D.13 (note 203): once the report's in, the stills on it are kept on disk, so a player has them after the screen.
+        if (session.World.Run?.Report is { } kept && album.Save(kept, stills.Stills, session.World).Count > 0 && !albumSaid)
+        {
+            albumSaid = true;
+            Console.WriteLine($"bookmarks: the night's stills are kept in {album.Night}");
         }
         if (showHud)
         {
@@ -976,7 +1009,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }
             if (session.World.Run?.Over == true)
+            {
                 overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+                if (album.Kept > 0)
+                    overlay.TextCentred(UiWidth / 2f, UiHeight - 12, $"{album.Kept} STILLS KEPT IN YOUR BOOKMARKS FOLDER", new Vector4(0.6f, 0.6f, 0.6f, 1));
+            }
         }
         if (vr is null)
         {
@@ -1004,9 +1041,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         if (vr is not null)
             Mirror();
-        // The night's over: A goes back, as Enter does.
+        // The night's over: A goes back, as Enter does, keeping what you were commended for (D.12) as Enter does.
         if (vr is not null && session.World.Run?.Over == true && vr.Session.Controllers.Primary)
+        {
+            if (net is not null && session.World.Commendations.Count > 0)
+                profile.Record(session.World.Commendations, net.PlayerId);
             break;
+        }
 
         if (now >= titleAt)
         {

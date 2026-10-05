@@ -61,8 +61,9 @@ static class AuditCommands
     }
 
     /// <summary>
-    /// dt balance --pairs|--triples [--every-hazard] [--at-stops] [--sample n] [--seeds n] [--seconds s] [--crew n] [--hazards clear,wet]
-    /// [--only a,b] [--parallel p]: GDD §34's combination fairness.
+    /// dt balance --pairs|--triples [--wide] [--routes a,b] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n]
+    /// [--seconds s] [--hazards clear,wet] [--only a,b] [--parallel p]: GDD §34's combination fairness, over a grid of routes and
+    /// crew sizes (note 204).
     /// </summary>
     public static int Combinations(string content, string[] args)
     {
@@ -78,30 +79,39 @@ static class AuditCommands
         // Every combination against every hazard set is the nightly's (--every-hazard). By default each combination meets one,
         // the sets taken in turn down the list, so every combination is run and every set is met, in a few minutes.
         bool every = args.Contains("--every-hazard");
-        int seeds = (int)Opt(args, "--seeds", t.Seeds), crew = (int)Opt(args, "--crew", t.Crew), cars = (int)Opt(args, "--cars", t.Cars);
+        // The grid (note 204): every combination on every route with every crew size, seeds a cell. The default's quick; the
+        // nightly's --wide. --routes, --crews and --seeds override either (--route and --crew still name one).
+        var baseGrid = args.Contains("--wide") ? t.Wide : t.Grid;
+        var grid = new CombinationGrid(
+            Str(args, "--routes", Str(args, "--route", "")) is { Length: > 0 } rs ? [.. rs.Split(',')] : baseGrid.Routes,
+            Str(args, "--crews", Str(args, "--crew", "")) is { Length: > 0 } cs ? [.. cs.Split(',').Select(x => int.Parse(x, CultureInfo.InvariantCulture))] : baseGrid.Crews,
+            (int)Opt(args, "--seeds", baseGrid.Seeds));
+        int cars = (int)Opt(args, "--cars", t.Cars);
         double seconds = Opt(args, "--seconds", t.Seconds);
-        var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, Str(args, "--route", t.Route), cars);
         var routeTuning = RouteTuning.Load(content);
         var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
         var sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File));
-        double yard = route.GateOr(routeTuning.YardLength);
-        // Where each combination starts: it depends on the kinds only (the line's the same every night).
-        var stageLine = route.Build();
         bool Crane(RouteFeature f) => facilities.ModulesOf(f).Contains(DarkTerritory.Sim.Run.ModuleKind.Crane);
-        var stages = combos.ToDictionary(k => string.Join("+", k), k => DarkTerritory.Sim.Net.Combinations.Stage(route, stageLine, k, c.Enemies, yard, t.LeadM, t.ApproachM, Crane,
-            atStops: args.Contains("--at-stops")));
-        var nights = (from i in Enumerable.Range(0, combos.Count)
-                      from hz in every ? hazards : [hazards[i % hazards.Count]]
-                      from s in Enumerable.Range(1, seeds)
-                      select (Kinds: combos[i], Hazards: hz, Seed: s)).ToList();
+        var routes = grid.Routes.Distinct().ToDictionary(r => r, r => DarkTerritory.Sim.LineGen.Routes.Generate(content, r, cars));
+        var yards = routes.ToDictionary(x => x.Key, x => x.Value.GateOr(routeTuning.YardLength));
+        // Where each combination starts on each route: it depends on the kinds and the line only (the same every night).
+        var stages = routes.SelectMany(x =>
+        {
+            var stageLine = x.Value.Build();
+            return combos.Select(k => (Key: (x.Key, string.Join("+", k)), Stage: DarkTerritory.Sim.Net.Combinations.Stage(x.Value, stageLine, k, c.Enemies, yards[x.Key],
+                t.LeadM, t.ApproachM, Crane, atStops: args.Contains("--at-stops"))));
+        }).ToDictionary(x => x.Key, x => x.Stage);
+        var nights = DarkTerritory.Sim.Net.Combinations.Nights(combos, hazards, every, grid);
         var runs = new CombinationRun[nights.Count];
         var clock = System.Diagnostics.Stopwatch.StartNew();
         int done = 0;
         Parallel.For(0, nights.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>
         {
-            var (kinds, hz, seed) = nights[i];
-            var stage = stages[string.Join("+", kinds)];
-            var night = new CombinationNight(kinds, hz, seed, stage.StartM, stage.Unstaged);
+            var (kinds, hz, routeName, crew, seed) = nights[i];
+            var route = routes[routeName];
+            double yard = yards[routeName];
+            var stage = stages[(routeName, string.Join("+", kinds))];
+            var night = new CombinationNight(kinds, hz, seed, stage.StartM, stage.Unstaged, routeName);
             var report = Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
             {
                 Bots = crew,
@@ -131,16 +141,18 @@ static class AuditCommands
         var rows = nights.Select(x => (x.Kinds, x.Hazards)).Distinct().Select(key =>
         {
             var mine = Enumerable.Range(0, nights.Count).Where(i => nights[i].Kinds == key.Kinds && nights[i].Hazards == key.Hazards).Select(i => runs[i]).ToList();
-            return DarkTerritory.Sim.Net.Combinations.Judge(key.Kinds, key.Hazards, mine, stages[string.Join("+", key.Kinds)].Unstaged, t);
+            // What no place suited, on any of the routes (each says which in its cell's nights' start).
+            var unstaged = grid.Routes.Distinct().SelectMany(r => stages[(r, string.Join("+", key.Kinds))].Unstaged).Distinct().ToList();
+            return DarkTerritory.Sim.Net.Combinations.Judge(key.Kinds, key.Hazards, mine, unstaged, t);
         }).ToList();
         var result = DarkTerritory.Sim.Net.Combinations.Report(size, rows);
         Print(new
         {
             seconds = Math.Round(clock.Elapsed.TotalSeconds),
-            route = route.Name,
-            crew,
+            routes = grid.Routes,
+            crews = grid.Crews,
             nightSeconds = seconds,
-            seeds,
+            seeds = grid.Seeds,
             hazards = hazards.Select(x => x.Name),
             everyHazard = every,
             atStops = args.Contains("--at-stops"),

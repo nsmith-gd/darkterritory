@@ -13,7 +13,7 @@ on:
 jobs:
   soak:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -49,6 +49,10 @@ jobs:
         run: |
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --every-hazard > out/soak/pairs.json || echo "pairs: flagged"
           jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, neverExercised: .result.neverExercised}' out/soak/pairs.json
+          # And on the wide grid (note 204): two routes, crews of two and eight, two seeds a cell; unwinnable is a cell lost
+          # every night.
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --wide > out/soak/pairs-wide.json || echo "pairs, wide: flagged"
+          jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, byCell: [.result.byCell[] | {route, crew, nights, lost, unwinnable: (.unwinnable | length)}]}' out/soak/pairs-wide.json
           # And what comes at a stop, met at a facility the crew get down and work at.
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --at-stops > out/soak/pairs-stops.json || echo "pairs at stops: flagged"
           jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, neverExercised: .result.neverExercised}' out/soak/pairs-stops.json
