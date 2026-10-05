@@ -3221,3 +3221,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The glows are toned down:** the coals' glow is a soft low blob, not a sheet, and the roaring white heart is smaller, so the coals still show at full heat.
     - **The scene's flat band** (`GreyboxScene`) is drawn only without the art pass's fire, or with the door shut.
     - **Tests:** `EffectsTests.TheBedIsAHeapOfCoalsNotABand`. Looked at: `dt screenshot --firedoor --view firebox` (at `--coal` 1, the default and 9), and `--view fireman --flare 0.15`.
+217. **The spruce near the line is modelled, and the pines fill out (the 5 October audit's "pines from above": narrow stacked columns).**
+    - **What the chase camera found:**
+      - Along a Maritime-planned forest (PlanArt), every spruce was `NovaKit.Conifer`'s three crossed narrow cards; from above they read as a column of separate dark clumps with a stick on top.
+      - The modelled pine (`WorldKit.Pine`) showed sky between its 14 whorls, and its trunk poked out above the leader.
+    - **The fix:**
+      - `WorldKit.Pine` and the new `WorldKit.Spruce` share one bough builder. The pine now has 18 whorls, and both have a slim core of crossed foliage cards inside the boughs, so the gaps between whorls are foliage. The trunk stops in the leader.
+      - The spruce has short boughs in 24 whorls, a narrow spire as black spruce is, a club of dense short boughs at the top, and is tinted bluer like the far cards.
+      - PlanArt uses it within `NearSpruce` (40 m, as WorldArt's `NearTrees`) of the line; out in the fog, the cards stay.
+    - **Cost:** near-line forest frames on frontier:7 at km 15.9 go from about 260k to 410k triangles (chase and trackside), inside `perf.json`'s 1.5M.
+    - **Tests:** `LinesideArtTests.TheNearSpruceIsModelledNarrowAndMassed`. Looked at: `--route frontier:7 --at 15930 --view chase` and `--view trackside`, and `--at 4000 --view chase`.
