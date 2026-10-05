@@ -3231,3 +3231,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - PlanArt uses it within `NearSpruce` (40 m, as WorldArt's `NearTrees`) of the line; out in the fog, the cards stay.
     - **Cost:** near-line forest frames on frontier:7 at km 15.9 go from about 260k to 410k triangles (chase and trackside), inside `perf.json`'s 1.5M.
     - **Tests:** `LinesideArtTests.TheNearSpruceIsModelledNarrowAndMassed`. Looked at: `--route frontier:7 --at 15930 --view chase` and `--view trackside`, and `--at 4000 --view chase`.
+218. **The one the Car Hugger swallows is drawn in its mouth (the checklist's "nothing draws a player held in its mouth").**
+    - **Before:** the sim holds its catch wherever in `mouthReach` they were caught. Drawn there in `held_mouth` (bent double, the head 0.62 to 0.82 m ahead of the feet), they could be bent into thin air or a wall.
+    - **Now** the swallowing Car Hugger records its `mouth` bone, which sits over the end door's line and not at the model's origin, and the way into the mouth, in `CreatureArt.Clutches`. Clutches now say which kind of hold it is (`Hung` for the Whistler's).
+    - **`GreyboxScene.Hung` stands the victim** `CreatureArt.SwallowReach` (0.72 m) in front of the mouth on their own floor, facing into it, so their head is in it. Presentation only.
+    - **Staging:** `dt screenshot --threats --hugger swallow --doors-open --view swallow`. The swallow view is inside the rear car, looking at its end door. The staged catch is caught off to one side, 1.4 m in, and is seen in the mouth.
+    - **Tests:** `CreatureArtTests.TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught`.

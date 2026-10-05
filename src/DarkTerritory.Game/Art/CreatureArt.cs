@@ -1469,7 +1469,7 @@ public sealed class CreatureArt
                         SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,
                             adjust: (_, look) => look with { Colour = look.Colour * HuggerLurkMud }),
                         SpinePhase.BreakOff => Draw(mesh, "car_hugger", "release", t, false, model),
-                        SpinePhase.Grab or SpinePhase.Punish => Draw(mesh, "car_hugger", "swallow", t, true, model, regrip),
+                        SpinePhase.Grab or SpinePhase.Punish => Swallowing(Draw(mesh, "car_hugger", "swallow", t, true, model, regrip), model),
                         SpinePhase.Telegraph when t < latch => Draw(mesh, "car_hugger", "latch", t, false, model),
                         SpinePhase.Telegraph => Draw(mesh, "car_hugger", "feed", t - latch, true, model, regrip),
                         _ => Draw(mesh, "car_hugger", "feed", t, true, model, regrip),
@@ -1547,7 +1547,7 @@ public sealed class CreatureArt
                     if (clip == "carry" && Draw(mesh, "whistler", clip, t, true, model, seed: 41))
                     {
                         _clutch = ((BoneAt("whistler", "hook_r", model) + BoneAt("whistler", "hook_l", model)) / 2,
-                            Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model)));
+                            Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model)), true);
                         return true;
                     }
                     return Draw(mesh, "whistler", clip == "carry" ? "run" : clip, t, true, model, seed: 41);
@@ -1866,18 +1866,37 @@ public sealed class CreatureArt
     double _hit = -1;
 
     /// <summary>
-    /// Who each Whistler drawn this frame is carrying off (the player's id): its forelegs' hooks, camera-relative, and the
-    /// way it's running (tools/blender/whistler.py carry, its sockets hook_r and hook_l). GreyboxScene hangs them there by
-    /// the armpits (<see cref="CarriedUnderarm"/> over their feet) and clears it each frame.
+    /// Who each creature drawn this frame has hold of (the player's id), and where: a Whistler carrying them off, its
+    /// forelegs' hooks and the way it's running (tools/blender/whistler.py carry, its sockets hook_r and hook_l: Hung, by the
+    /// armpits, <see cref="CarriedUnderarm"/> over their feet); a Car Hugger swallowing them, its mouth and the way into it
+    /// (stood <see cref="SwallowReach"/> back from it on their own floor, bent into it). Camera-relative. GreyboxScene puts
+    /// them there, and clears it each frame.
     /// </summary>
-    public Dictionary<int, (Vector3 At, Vector3 Forward)> Clutches { get; } = new();
+    public Dictionary<int, (Vector3 At, Vector3 Forward, bool Hung)> Clutches { get; } = new();
+
+    /// <summary>How far in front of the Car Hugger's mouth someone it's swallowing stands: their head in it
+    /// (crew_clips.py held_mouth, bent double, the head 0.62-0.82 m ahead of their feet).</summary>
+    public const float SwallowReach = 0.72f;
+
+    // The Car Hugger just drawn swallowing: its mouth bone (over the end door's line), and the way into the mouth is its
+    // back (it faces the car).
+    bool Swallowing(bool drawn, in Matrix4x4 model)
+    {
+        if (drawn)
+        {
+            var into = Vector3.TransformNormal(Vector3.UnitZ, model) with { Y = 0 };
+            if (into.LengthSquared() > 1e-8f)
+                _clutch = (BoneAt("car_hugger", "mouth", model), Vector3.Normalize(into), false);
+        }
+        return drawn;
+    }
 
     /// <summary>How far over their feet someone carried off by the Whistler is held: under the arms (whistler.py
     /// CARRY_UNDERARM; crew_clips.py held_carried lifts them 0.1 m to it).</summary>
     public const float CarriedUnderarm = 1.42f;
 
     // The clutch of the Whistler just drawn in its carry, for Clutches.
-    (Vector3 At, Vector3 Forward)? _clutch;
+    (Vector3 At, Vector3 Forward, bool Hung)? _clutch;
 
     bool EnemyIn(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite, Prey? prey, Room? room, float pace)
     {

@@ -45,6 +45,10 @@ public static class Views
             // Off the staged Whistler's side on its run and a little ahead, at a chaser's eye, looking at it going with
             // its catch (--whistler carry).
             "carry" => CarryCamera(train),
+            // Inside the rear car, a few steps from its end door, looking at it: what the Car Hugger's mouth is over, and
+            // whoever it has there (--hugger swallow).
+            "swallow" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.7, Floor(train) + 1.6, train.Frames[^1].Shape.HalfLength - 3.6)),
+                train.Frames[^1].ToWorld(new Double3(-0.45, Floor(train) + 1.0, train.Frames[^1].Shape.HalfLength)), 60),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),

@@ -352,6 +352,31 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
+    {
+        // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
+        // front of the mouth on their own floor, facing into it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Hugger(Staging.Threats(train), "swallow");
+        var caught = Staging.Swallowed(train);
+        var eye = caught.Feet + new Double3(1, 1.5, -3);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [caught], Tick = Staging.StrikeTick };
+        scene.Build(new MeshBuilder(), train, eye);
+        Assert.True(Look.Art.Creatures!.Clutches.TryGetValue(caught.Id, out var mouth));
+        Assert.False(mouth.Hung);
+        var at = eye + new Double3(mouth.At.X, mouth.At.Y, mouth.At.Z);
+        // Where the scene stands them: in front of the mouth, along the way into it, not where the sim caught them.
+        var feet = (at - new Double3(mouth.Forward.X, 0, mouth.Forward.Z) * CreatureArt.SwallowReach) with { Y = caught.Feet.Y };
+        Assert.True((feet - caught.Feet).Length > 0.5, "moved from where they were caught");
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        var local = rear.ToLocal(feet);
+        Assert.InRange(local.X, -0.9, 0.1);
+        Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    [Fact]
     public void TheTrackDollFlickersOutWhereItWasNotWalkingOff()
     {
         // GreyboxScene.Vanishing: come at, the sim moves it to another car from one tick to the next; the scene that saw it

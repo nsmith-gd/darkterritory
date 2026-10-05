@@ -573,6 +573,29 @@ public static class Staging
     /// sim has them, at its middle (the scene hangs them in its forelegs, or lays them in the nest: GreyboxScene.Hung).</summary>
     public static Crewmate Carried(Whistler w) => new(LoneId, w.Local, 0, true, Act: Art.CrewPose.HeldCarried);
 
+    /// <summary>
+    /// The staged Car Hugger swallowing (<c>dt screenshot --hugger swallow</c>, App. A.3 GRAB): crewmate <see cref="LoneId"/>
+    /// (<see cref="Swallowed"/>) caught at the rear car's end door in front of its mouth. The <c>swallow</c> view looks at it.
+    /// </summary>
+    public static List<Enemy> Hugger(List<Enemy> threats, string mode)
+    {
+        if (mode != "swallow" || threats.OfType<CarHugger>().FirstOrDefault(h => h.Attached >= 0) is not { } h)
+            return threats;
+        h.Restore(SpinePhase.Grab, 1.2, h.Health, h.Attached, h.Local, 0, 0, 0, 0, 0, holding: LoneId);
+        return threats;
+    }
+
+    /// <summary>The one the staged Car Hugger has (<c>--hugger swallow</c>): where the sim caught and holds them, in reach
+    /// of its mouth on the rear car's floor, off to one side (the scene stands them bent into the mouth: GreyboxScene.Hung).</summary>
+    public static Crewmate Swallowed(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        var at = rear.ToWorld(new Double3(0.3, floor, rear.Shape.HalfLength - 1.4));
+        var facing = rear.DirToWorld(new Double3(0, 0, 1));
+        return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
+    }
+
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)
     {

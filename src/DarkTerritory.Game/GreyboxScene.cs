@@ -845,16 +845,24 @@ public sealed class GreyboxScene
     /// </summary>
     /// <summary>
     /// Someone the Whistler's carrying off (App. A.4 GRAB), hung in its forelegs as it was drawn this frame (Art/CreatureArt
-    /// Clutches): by the armpits from its hooks, facing the way it runs, their toes catching the ground. The sim has them at
-    /// its middle; this is where they're seen. Put down at its nest (no longer in its forelegs), they're on their back in it,
+    /// Clutches): by the armpits from its hooks, facing the way it runs. The sim has them at its middle; this is where
+    /// they're seen. Someone a Car Hugger's swallowing (A.3) stands bent into its mouth wherever in reach the sim caught them. Put down at its nest (no longer in its forelegs), they're on their back in it,
     /// paralysed (App. A.4).
     /// </summary>
     Crewmate Hung(Crewmate c, Double3 eye)
     {
         if (Look?.Art.Creatures?.Clutches.TryGetValue(c.Id, out var clutch) != true)
             return c.Act == Art.CrewPose.HeldCarried ? c with { Act = Art.CrewPose.HeldPinned } : c;
+        var yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z);
+        if (!clutch.Hung)
+        {
+            // In the Car Hugger's mouth: stood in front of it on their own floor, facing it, bent into it.
+            var mouth = eye + new Double3(clutch.At.X, clutch.At.Y, clutch.At.Z);
+            var back = new Double3(clutch.Forward.X, 0, clutch.Forward.Z) * Art.CreatureArt.SwallowReach;
+            return c with { Feet = (mouth - back) with { Y = c.Feet.Y }, Yaw = yaw };
+        }
         var at = eye + new Double3(clutch.At.X, clutch.At.Y - Art.CreatureArt.CarriedUnderarm, clutch.At.Z);
-        return c with { Feet = at, Yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z) };
+        return c with { Feet = at, Yaw = yaw };
     }
 
     public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
