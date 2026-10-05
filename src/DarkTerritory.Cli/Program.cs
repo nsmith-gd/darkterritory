@@ -56,6 +56,7 @@ return args switch
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     ["art", "reel", ..] => Print(ArtReel(content, args)),
+    ["art", "clearance", ..] => Print(ArtClearance(content, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
@@ -1643,6 +1644,17 @@ static object ArtReel(string content, string[] args)
                 _ => null,
             };
             var lamp = clipName is "lantern" or "lantern_walk" ? props.Get("hand_lantern") : null;
+            // The extinguisher hangs from the left hand by its handle (the sim carries it there, Bodies.Carry): without it
+            // the extinguisher clips are someone gesturing at nothing (a Look Review note on spray).
+            var extinguisher = name == "crew" && clipName is "extinguish" or "spray" or "take_down" or "hang_up" ? props.Get("extinguisher") : null;
+            float extTop = extinguisher?.Vertices.Max(v => v.Position.Y) ?? 0;
+            int handL = model.Skeleton.IndexOf("hand_l"), handR = model.Skeleton.IndexOf("hand_r");
+            // The crate held in front (Bodies.Carry), between the hands.
+            var crate = name == "crew" && clipName is "carry" or "carry_walk" ? props.Get("stores_crate") : null;
+            float crateTop = crate?.Vertices.Max(v => v.Position.Y) ?? 0;
+            // A ladder for the climbs, its rungs (TrainKit.RungPitch) running down past them at the climb's pace, so the
+            // hands and feet are seen on them (crew_clips.py: two rungs a 40-frame cycle, the hand on its rung at the start).
+            float? rungAt = name == "crew" ? clipName is "climb" or "climb_carry" ? 1.94f : null : null;
             var c = model.Clip(clipName)!;
             bool loop = c.Loops;
             int frames = Math.Clamp((int)Math.Round(c.Duration * fps) + (loop ? 0 : 1), 4, 72);
@@ -1700,6 +1712,32 @@ static object ArtReel(string content, string[] args)
                 mesh.PointLights.Add(new PointLight(anchor - toEye * 0.8f + new System.Numerics.Vector3(0, (float)dist * 0.6f, 0), new System.Numerics.Vector3(0.5f, 0.56f, 0.7f), reach));
                 if (act is { } pose)
                     art.Crewmate(mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), pose, time, 0, inHand: held, hanging: lamp);
+                if (crate is not null && handL >= 0 && handR >= 0)
+                {
+                    var js = art.Joints(name, clipName, time, loop).ToArray();
+                    var mid = (js[handL] + js[handR]) * 0.5f;
+                    mesh.Append(crate, System.Numerics.Matrix4x4.CreateTranslation(mid - new System.Numerics.Vector3(0, crateTop * 0.6f, 0.08f) - e));
+                }
+                if (rungAt is { } top)
+                {
+                    var k = new DarkTerritory.Game.Art.Kit(look, mesh);
+                    k.Use("rust_heavy", DarkTerritory.Game.Palette.IronGrey, 0.8f, 0.3f);
+                    float shift = (float)(time / c.Duration * 2 * DarkTerritory.Game.Art.TrainKit.RungPitch);
+                    float z = -0.34f;
+                    foreach (int sx in new[] { -1, 1 })
+                        k.Box(new System.Numerics.Vector3(sx * 0.27f - 0.02f, 0, z - 0.02f) - e, new System.Numerics.Vector3(sx * 0.27f + 0.02f, 2.6f, z + 0.02f) - e);
+                    for (int r = -8; r <= 3; r++)
+                    {
+                        float y = top - shift + r * DarkTerritory.Game.Art.TrainKit.RungPitch;
+                        if (y is > 0.05f and < 2.55f)
+                            k.Rod(new System.Numerics.Vector3(-0.27f, y, z) - e, new System.Numerics.Vector3(0.27f, y, z) - e, 0.016f);
+                    }
+                }
+                if (extinguisher is not null && handL >= 0)
+                {
+                    var hand = art.Joints(name, clipName, time, loop).ElementAt(handL);
+                    mesh.Append(extinguisher, System.Numerics.Matrix4x4.CreateTranslation(hand - new System.Numerics.Vector3(0, extTop - 0.02f, 0) - e));
+                }
                 else
                     art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
@@ -1717,6 +1755,28 @@ static object ArtReel(string content, string[] args)
     }
     File.WriteAllText(Path.Combine(dir, "reel.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
     return new { dir = Path.GetFullPath(dir), clips = manifest.Count, width = w, height = h };
+}
+
+// A figure's clips checked for limbs through its body (Art.Clearance; a Look Review note: "arms through body, legs
+// through coat"): each clip's worst overlap per pair and when, deepest first; a pair over --limit (m) is a failure. A hand
+// meant to be on a knee is let through with --allow clip:pair.
+static object ArtClearance(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    string name = Str(args, "--only", "crew");
+    var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
+    float limit = (float)Opt(args, "--limit", DarkTerritory.Game.Art.Clearance.Touching);
+    var allow = Str(args, "--allow", "") is { Length: > 0 } al ? al.Split(',').ToHashSet() : [];
+    var rows = DarkTerritory.Game.Art.Clearance.Check(look.Art.Creatures, name, clipsOnly);
+    var failing = rows.Where(r => r.Depth > limit && !allow.Contains($"{r.Clip}:{r.Pair}")).ToList();
+    return new
+    {
+        model = name,
+        limit,
+        failing = failing.Count,
+        worst = failing.Take(60).Select(r => new { clip = r.Clip, pair = r.Pair, depth = Math.Round(r.Depth, 3), at = Math.Round(r.At, 2) }),
+        allowed = rows.Where(r => r.Depth > limit && allow.Contains($"{r.Clip}:{r.Pair}")).Select(r => $"{r.Clip}:{r.Pair} {r.Depth:0.000}"),
+    };
 }
 
 // The art pass's surfaces (T39, look.json), unless --greybox asks for flat colour to compare against.
@@ -2307,6 +2367,7 @@ static int Usage()
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short]   the trailer cut from the game itself: frames to out/trailer, ffmpeg to trailer.mp4
+          art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
           art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
