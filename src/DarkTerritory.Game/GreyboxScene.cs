@@ -130,6 +130,8 @@ public sealed class GreyboxScene
     public Func<int, bool>? Utility { get; set; }
     /// <summary>The train has roof handrails (spec F.3, train.json <c>composition.handrails</c>; note 184).</summary>
     public bool Handrails { get; set; }
+    /// <summary>The cab has the powered switch thrower's lever (spec F.3, train.json <c>composition.switchThrower</c>; note 196).</summary>
+    public bool SwitchThrower { get; set; }
     /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
     public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
     public double? StagedCold { get; set; }
@@ -190,6 +192,7 @@ public sealed class GreyboxScene
         Vehicles ??= train.Vehicles;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
+        SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -2337,6 +2340,16 @@ public sealed class GreyboxScene
                 Lever(levers.BrakeAt(Controls.Brake), 0.2);
                 Lever(levers.ReverserAt(Controls.Reverser), 0.9);
             }
+            // The powered switch thrower's lever (note 196), fitted: an iron stand from the floor and its handle in signal
+            // red, the colour a lineside lever frame paints its points levers.
+            if (SwitchThrower)
+                foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Points))
+                {
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.45, 0), new Double3(0.05, 0.45, 0.05)), Palette.IronGrey);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.95, 0), new Double3(0.02, 0.07, 0.16)), Palette.IronGrey);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 1.25, -0.06), new Double3(0.018, 0.28, 0.018)), Palette.SignalRed);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 1.55, -0.06), new Double3(0.03, 0.05, 0.03)), Palette.TarnishedBrass);
+                }
         }
         if (shape.Interior is not null && Look is not null)
         {

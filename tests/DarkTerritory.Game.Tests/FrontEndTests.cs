@@ -75,7 +75,7 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades: bought once, then owned and greyed out; the ones the night doesn't model say so.
+        // Upgrades: bought once, then owned and greyed out.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");
@@ -86,8 +86,9 @@ public sealed class FrontEndTests : IDisposable
         var owned = m.Items.Single(i => i.Label.StartsWith(first.Name.ToUpperInvariant(), StringComparison.Ordinal));
         Assert.EndsWith("OWNED", owned.Label);
         Assert.False(owned.Enabled);
-        var unmodelled = C.Upgrades.First(u => u.Effect.Count == 0);
-        Assert.Contains("not modelled", m.Items.Single(i => i.Label.StartsWith(unmodelled.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail);
+        // Every upgrade the fortress sells does something tonight (note 196): none says it isn't modelled.
+        Assert.All(C.Upgrades, u => Assert.DoesNotContain("not modelled",
+            m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
     }
