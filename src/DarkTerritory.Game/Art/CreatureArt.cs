@@ -110,6 +110,17 @@ public sealed class CreatureArt
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
 
+    /// <summary>How close to its frozen catch a Ribbit is on them, devouring (m): the sim's hop stops 0.8 m short.</summary>
+    public const float RibbitDevourReach = 1.2f;
+
+    /// <summary>
+    /// The clip a Ribbit on the attack plays, <paramref name="near"/> metres from the one its pack is after: its tongue out at
+    /// them (COMMIT), then, with them frozen (GRAB), creeping in on them low on the sim's quarter-speed hop, and close to, on
+    /// them, devouring (App. A.6).
+    /// </summary>
+    public static string RibbitClip(SpinePhase phase, float near) =>
+        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour" : "tongue";
+
     /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
     public MeshAsset? DollHolding { get; set; }
 
@@ -1651,15 +1662,21 @@ public sealed class CreatureArt
                             return Draw(mesh, "ribbit", "swell", t, true, model, seed: (float)extra2);
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
+                                // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
+                                string clip = RibbitClip(phase, near);
                                 Vector3? mouth = null;
                                 var at = model;
-                                bool drawn = Draw(mesh, "ribbit", "tongue", t, true, at, e =>
+                                void Mouth(Entry e)
                                 {
                                     int jaw = e.Model.Skeleton.IndexOf("tongue_02");
                                     if (jaw >= 0)
                                         mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
-                                }, seed: (float)extra2);
-                                if (drawn && mouth is { } a && prey is { } p)
+                                }
+                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
+                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
                                     Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
                                 return drawn;
                             }

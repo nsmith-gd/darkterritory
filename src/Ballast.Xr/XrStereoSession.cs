@@ -213,7 +213,7 @@ public sealed unsafe class XrStereoSession : IDisposable
 
     /// <summary>
     /// <see cref="Frame(Func{XrEye, VkCommandBuffer, GreyboxRenderer}, Action{XrControllerState}?)"/> with both eyes drawn
-    /// at once (multiview, ARCHITECTURE §8 note 219): <paramref name="drawBoth"/> records both into one renderer's
+    /// at once (multiview, ARCHITECTURE §8 note 221): <paramref name="drawBoth"/> records both into one renderer's
     /// two-layer image (left, right) and returns it, and each layer is copied to its eye's swapchain in the same submit.
     /// </summary>
     public XrFrameResult FrameBoth(Func<IReadOnlyList<XrEye>, VkCommandBuffer, GreyboxRenderer> drawBoth, Action<XrControllerState>? synced = null) =>

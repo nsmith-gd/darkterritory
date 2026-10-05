@@ -39,7 +39,7 @@ public sealed unsafe class GpuContext : IDisposable
     /// <summary>
     /// Whether the device draws both of a headset's eyes in one pass (VK_KHR_multiview, core since Vulkan 1.1, but an
     /// optional feature: enabled here wherever the device has it, with room for two views). The stereo renderer picks
-    /// its path from this (<see cref="StereoPath"/>, ARCHITECTURE §8 note 219).
+    /// its path from this (<see cref="StereoPath"/>, ARCHITECTURE §8 note 221).
     /// </summary>
     public bool Multiview { get; private set; }
 

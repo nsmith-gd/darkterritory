@@ -84,6 +84,21 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AsTheChoirComesTheAirGoesToFrost()
+    {
+        // Effects.Frost (App. A.7's arrival beat): nothing until it's coming, a glitter of frost when it is, thicker nearer.
+        var none = Mesh();
+        Fx.Frost(none, new Double3(100, 0, 40), 3, 0);
+        Assert.Empty(none.AdditiveFx);
+        var some = Mesh();
+        Fx.Frost(some, new Double3(100, 0, 40), 3, 0.4f);
+        var thick = Mesh();
+        Fx.Frost(thick, new Double3(100, 0, 40), 3, 1);
+        Assert.NotEmpty(some.AdditiveFx);
+        Assert.True(thick.AdditiveFx.Count > some.AdditiveFx.Count * 1.5, $"{thick.AdditiveFx.Count} against {some.AdditiveFx.Count}");
+    }
+
+    [Fact]
     public void TheBedIsAHeapOfCoalsNotABand()
     {
         // The firebox through its hole (Effects.Coals): lumps of coal across the grate, mounded and banked, not a flat bright

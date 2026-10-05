@@ -1,4 +1,4 @@
-// Which eye this invocation draws (ARCHITECTURE section 8, note 219). A multiview renderer compiles every scene and
+// Which eye this invocation draws (ARCHITECTURE section 8, note 221). A multiview renderer compiles every scene and
 // post shader with MULTIVIEW defined (and GL_EXT_multiview enabled, ahead of this): one pass draws both eyes into the
 // layers of an array target, and gl_ViewIndex says which layer an invocation is for. Without it, the same source draws
 // one view into a plain 2D target, as it always has. (ASCII only in this file: a section sign this early in a shader
