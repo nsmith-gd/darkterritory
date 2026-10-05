@@ -649,7 +649,7 @@ public sealed class GreyboxScene
         return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * e.Height;
     }
 
-    static bool Falls(EnemyKind k) => k is not (EnemyKind.Choir or EnemyKind.FireFlies or EnemyKind.CarFire or EnemyKind.Stoker or EnemyKind.CarHugger
+    internal static bool Falls(EnemyKind k) => k is not (EnemyKind.Choir or EnemyKind.FireFlies or EnemyKind.CarFire or EnemyKind.Stoker or EnemyKind.CarHugger
         or EnemyKind.Sleepers or EnemyKind.Drift);
 
     /// <summary>How far over a killed creature has gone, <paramref name="age"/> seconds after the blow: pushed along it and

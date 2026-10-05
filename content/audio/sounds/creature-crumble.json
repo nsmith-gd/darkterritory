@@ -1,0 +1,28 @@
+// A kill confirmed (player actions, tier 4; note 222): a creature that stands on something goes over when it's killed and,
+// from halfway through (Effects.DeathSeconds), crumbles to ash and is gone (note 208). This is that: a dry, ashy collapse,
+// the body's weight settling under it, and a few embers ticking out. One sound for every kind, so the crew learn it means
+// dead whatever it was; each creature's own death cry (where it has one) comes at the blow, before it.
+{
+  "tier": 4, "duration": 1.6, "maxInstances": 6, "minDistance": 2, "maxDistance": 60,
+  "layers": [
+    // The collapse: dry crackle through a mid band, coarse at first and finer as it goes.
+    { "source": "noise", "gain": 0.9,
+      "filters": [{ "type": "bandPass", "frequency": 1100, "q": 0.8 }, { "type": "lowPass", "frequency": 4500 }],
+      "tremolo": { "rate": 31, "depth": 0.85, "jitter": 0.9 },
+      "envelope": [[0, 0], [0.03, 1], [0.35, 0.55], [1.1, 0]] },
+    // Its weight settling: a soft low slump.
+    { "source": "noise", "gain": 1.1,
+      "filters": [{ "type": "lowPass", "frequency": 170, "q": 0.9 }],
+      "envelope": [[0, 0], [0.06, 1], [0.5, 0.3], [0.9, 0]] },
+    // Ash sifting down after.
+    { "source": "noise", "gain": 0.35, "delay": 0.2,
+      "filters": [{ "type": "highPass", "frequency": 2400 }, { "type": "lowPass", "frequency": 7000 }],
+      "tremolo": { "rate": 6, "depth": 0.5, "jitter": 0.8 },
+      "envelope": [[0, 0], [0.2, 1], [1.3, 0]] },
+    // A few embers going out.
+    { "source": "impulse", "frequency": 9, "gain": 0.5, "delay": 0.15,
+      "filters": [{ "type": "bandPass", "frequency": 3200, "q": 3 }],
+      "tremolo": { "rate": 4, "depth": 1, "duty": 0.3, "jitter": 0.9 },
+      "envelope": [[0, 1], [1.4, 0]] }
+  ]
+}

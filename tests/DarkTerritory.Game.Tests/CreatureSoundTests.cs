@@ -247,6 +247,36 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void AKilledCreatureCrumblesAsItsSeenToAndOneThatGoesOtherwiseDoesnt()
+    {
+        // Note 222: killed is the host's word (HitConfirm.Killed), and a creature that stands on something goes over and
+        // crumbles from halfway through Effects.DeathSeconds (note 208): the crumble's heard then, once.
+        using var scene = new Scene(2, "creature-crumble", "cs-ribbits.hit");
+        var at = scene.Train.Frames[2].ToWorld(new Double3(-4, 0, 0));
+        Ribbit Toad(int id) => Record(new Ribbit(id, 0), SpinePhase.Dormant, 0, 3, Enemy.Loose, at, extra: 1);
+        HitConfirm Blow(int id, int enemy, bool killed) =>
+            new(id, scene.World.Tick, enemy, EnemyKind.Ribbit, 1, HitSource.Melee, at + Double3.Up * 0.5, Double3.Up, killed);
+        scene.Tick(Toad(70), Toad(71));
+        // One's killed, and its record goes with the blow.
+        scene.World.Hits.Add(Blow(1, 70, killed: true));
+        var heard = scene.Tick(Toad(71));
+        Assert.Contains("cs-ribbits.hit", heard);
+        Assert.DoesNotContain("creature-crumble", heard);
+        var later = new List<string>();
+        for (int i = 0; i < (int)(DarkTerritory.Game.Art.Effects.DeathSeconds * 0.5 * SimConstants.TickRate) + 2; i++)
+            later.AddRange(scene.Tick(Toad(71)));
+        Assert.Single(later, h => h == "creature-crumble");
+        // The other's struck and goes, but not killed (it hopped off): no death, no crumble, whatever its health was.
+        scene.World.Hits.Add(Blow(2, 71, killed: false));
+        scene.Tick(Record(new Ribbit(71, 0), SpinePhase.Dormant, 0, 0.5, Enemy.Loose, at, extra: 1));
+        var after = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate * 2; i++)
+            after.AddRange(scene.Tick());
+        Assert.DoesNotContain("creature-crumble", after);
+        Assert.DoesNotContain("cs-ribbits.hit", after);
+    }
+
+    [Fact]
     public void ThePassengerWalksInTheCrewsOwnBootsAndDragsItsVictim()
     {
         using var scene = new Scene(5, "crew-footsteps.walk.wood", "cs-passenger.drag.wood~");
