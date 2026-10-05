@@ -24,9 +24,13 @@ namespace DarkTerritory.Game;
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 /// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
 /// under it. Null for a keyboard or a bot.</param>
+/// <param name="Car">The car whose frame they stand in (their replicated <see cref="PlayerState.Parent"/>), or
+/// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 210).</param>
+/// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
-    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, HeadsetBody? Headset = null)
+    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
+    Double3 Local = default, HeadsetBody? Headset = null)
 {
     public int Variant => Looks ?? Id;
 }

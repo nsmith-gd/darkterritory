@@ -20,32 +20,37 @@ public sealed partial class SceneArt(Look look)
     public WorldArt World { get; } = new(look);
 
     CreatureArt? _creatures;
-    readonly Dictionary<byte, (Double3 Feet, int Frame, double Time, float Speed)> _crewMotion = new();
+    readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
 
     /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
     public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
 
     /// <summary>
     /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
-    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
+    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). On a car that's over the car,
+    /// in its frame (note 210): stood still on a train at speed is stood still. False without the model.
     /// </summary>
     /// <param name="swung">Seconds since a blow of theirs landed (a HitConfirm by them, App. C.2), or negative: their swing
     /// is played round it, so another crewmate's blow is seen as well as felt.</param>
     public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time, double swung = -1)
     {
         float speed = 0;
-        // A headset crewmate's pace is taken in the frame they stand in (T82): it decides whether their legs are the walk's
-        // or their own, and the car carrying them isn't them walking.
-        var (at, frame) = c.Headset is { } hs ? (hs.Local, hs.Parent) : (c.Feet, int.MinValue);
-        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time && last.Frame == frame)
+        // Measured in the frame they stand in: the car's, or the ground's (World). The step they change frames on (a car to
+        // the next, off onto the ballast) has its two samples in different frames, so it keeps the pace they had.
+        var at = c.Car != Sim.Player.PlayerState.World ? c.Local : c.Feet;
+        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
         {
-            var d = at - last.Feet;
-            float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
-            float now = moved / (float)(time - last.Time);
-            // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
-            speed = float.Lerp(last.Speed, now, 0.35f);
+            speed = last.Speed;
+            if (last.Car == c.Car)
+            {
+                var d = at - last.At;
+                float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
+                float now = moved / (float)(time - last.Time);
+                // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
+                speed = float.Lerp(last.Speed, now, 0.35f);
+            }
         }
-        _crewMotion[c.Id] = (at, frame, time, speed);
+        _crewMotion[c.Id] = (at, c.Car, time, speed);
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
@@ -58,6 +63,7 @@ public sealed partial class SceneArt(Look look)
             // Running with something waking close by, hunched and hurried (GDD §31).
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        LastPose = pose;
         // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
             _staggered[c.Id] = time;
@@ -153,6 +159,9 @@ public sealed partial class SceneArt(Look look)
     }
 
     readonly Dictionary<byte, (VrStride Stride, int Parent, double Time)> _strides = new();
+
+    /// <summary>The pace-chosen pose of the crewmate last drawn (before a stagger, a swing or the fire door take over).</summary>
+    public CrewPose LastPose { get; private set; }
 
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
     readonly Dictionary<byte, int> _crewHealth = new();

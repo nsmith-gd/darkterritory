@@ -33,7 +33,8 @@ public static class CrewActs
             Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
-            Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null);
+            Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
+            Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position);
     }
 
     /// <summary>How near a waking threat has to be for a crewmate's run to be a hurried one (m).</summary>
