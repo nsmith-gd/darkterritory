@@ -64,6 +64,12 @@ public sealed class SoundInstance
     internal float LastAudibleGain;
     /// <summary>Past the voice budget last block: keeping time, not rendered.</summary>
     public bool Virtual { get; internal set; }
+    /// <summary>
+    /// How fast it plays (1 as made): its clock, envelopes and oscillators all run at this rate, so at 0.5 it lasts twice
+    /// as long an octave down (the game under the opera, App. E.6). A stream (a voice) always plays as it comes.
+    /// </summary>
+    internal double Speed = 1;
+    double Rate => Stream is null ? Speed : 1;
 
     /// <summary>Synthesises the next block, mono, into <paramref name="output"/> (overwritten).</summary>
     internal void Render(Span<float> output)
@@ -75,17 +81,17 @@ public sealed class SoundInstance
         else if (Clip is not null)
             ReadClip(output.Length);
         foreach (var layer in _layers)
-            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock);
+            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Rate);
         if (Def.Crush is { } crush)
             Crush(output, crush);
-        Age += (double)output.Length / Audio.SampleRate;
+        Age += output.Length * Rate / Audio.SampleRate;
     }
 
     /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
     void ReadClip(int count)
     {
         var clip = Clip!;
-        double step = (double)clip.SampleRate / Audio.SampleRate, at = ClipSeconds * clip.SampleRate;
+        double step = clip.SampleRate * Rate / Audio.SampleRate, at = ClipSeconds * clip.SampleRate;
         for (int i = 0; i < count; i++)
         {
             if (Def.Loop && at >= clip.Samples.Length)
@@ -93,7 +99,7 @@ public sealed class SoundInstance
             _streamBlock[i] = clip.At(at);
             at += step;
         }
-        ClipSeconds += (double)count / Audio.SampleRate;
+        ClipSeconds += count * Rate / Audio.SampleRate;
         if (Def.Loop && ClipSeconds >= clip.Seconds)
             ClipSeconds -= clip.Seconds;
     }
@@ -101,9 +107,9 @@ public sealed class SoundInstance
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
     internal void Skip(int samples)
     {
-        Age += (double)samples / Audio.SampleRate;
+        Age += samples * Rate / Audio.SampleRate;
         if (Clip is not null)
-            ClipSeconds += (double)samples / Audio.SampleRate;
+            ClipSeconds += samples * Rate / Audio.SampleRate;
         // A virtual stream still consumes, or it would play stale speech when it comes back.
         Stream?.Read(_streamBlock.AsSpan(0, Math.Min(samples, _streamBlock.Length)));
     }
@@ -134,7 +140,8 @@ public sealed class SoundInstance
         bool _filtersSet;
 
         /// <param name="cycleSeconds">If positive, envelopes repeat on this period (a loop's breathing, a pack's howls).</param>
-        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream)
+        /// <param name="rate">How fast it plays (<see cref="Speed"/>): the layer's clock and pitch both scale by it.</param>
+        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, double rate = 1)
         {
             double t = age - def.Delay;
             if (t < 0)
@@ -159,7 +166,7 @@ public sealed class SoundInstance
                 }
             _filtersSet = true;
 
-            double dt = 1.0 / Audio.SampleRate;
+            double dt = rate / Audio.SampleRate;
             double vibRate = def.Vibrato?.Rate.Evaluate(p) ?? 0, vibDepth = def.Vibrato?.Depth ?? 0;
             for (int i = 0; i < buffer.Length; i++)
             {

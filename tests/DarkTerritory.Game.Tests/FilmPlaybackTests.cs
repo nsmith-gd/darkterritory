@@ -52,6 +52,60 @@ public class FilmPlaybackTests
     }
 
     [Fact]
+    public void TheWholeSequenceRunsFirstPersonReplayThenTheCutShotByShot()
+    {
+        // `dt film` (note 232) renders frame by frame along this: the beats back to back, the film's shots in its order.
+        var (_, film) = Shot();
+        var beats = DerailSequence.Timeline(W, film);
+        Assert.Equal([DerailBeat.FirstPerson, DerailBeat.Replay], beats.Take(2).Select(b => b.Beat));
+        Assert.Equal(film.Cut, beats.Skip(2).Select(b => b.Shot));
+        Assert.Equal(0, beats[0].From);
+        for (int i = 1; i < beats.Count; i++)
+            Assert.Equal(beats[i - 1].To, beats[i].From, 9);
+        Assert.Equal(DerailSequence.Length(W, film), beats[^1].To, 9);
+        Assert.Equal(ShotKind.Cause, beats[^1].Shot!.Kind);
+        // Sampled at a low frame rate, every frame's beat is the timeline's, and the frame count is the length's.
+        const int fps = 4;
+        int frames = (int)Math.Ceiling(DerailSequence.Length(W, film) * fps - 1e-9);
+        Assert.Equal((int)Math.Ceiling((W.FirstPersonSeconds + W.ReplaySeconds + film.CutLength) * fps - 1e-9), frames);
+        for (int f = 0; f < frames; f++)
+        {
+            double at = f / (double)fps;
+            var beat = beats.Last(b => b.From <= at + 1e-9);
+            Assert.Equal(beat.Beat, DerailSequence.Beat(W, at, film));
+            if (beat.Shot is { } shot)
+                Assert.Same(shot, film.CutAt(DerailSequence.FilmSeconds(W, at))!.Value.Shot);
+        }
+        Assert.Equal(DerailBeat.None, DerailSequence.Beat(W, frames / (double)fps, film));
+        // Without a film the orbit stands in for the cut.
+        Assert.Equal(DerailBeat.Orbit, DerailSequence.Timeline(W, null)[^1].Beat);
+    }
+
+    [Fact]
+    public void ACrewmateInsideStandsOnTheFloorAndARoofRiderIsNotFlyingTillThrown()
+    {
+        // Note 232: inside, the floor was the box's foot, so they fell through to the rails; and the peak read the pelvis
+        // over the ground, so a roof rider was "in the air" from the first frame.
+        var (world, film) = Shot();
+        double Ground(double x, double z)
+        {
+            double hint = film.Start.Along;
+            return PlayerMotor.GroundAt(new Double3(x, 0, z), world.Train.Line, ref hint);
+        }
+        int inside = film.Start.Players.ToList().FindIndex(p => p.Inside == 2);
+        var car = film.Start.Cars.First(c => c.Vehicle == 2);
+        Assert.True(car.Floor > 0.5, $"car 2's floor at {car.Floor}");
+        for (int f = 0; f < 6; f++)
+        {
+            var (o, _, up, _) = film.Frames[f].Cars[film.Start.Cars.ToList().IndexOf(car)];
+            Assert.All(film.Frames[f].Ragdolls[inside], j => Assert.True(Double3.Dot(j - o, up) > car.Floor - 0.05));
+        }
+        int roof = film.Start.Players.ToList().FindIndex(p => p.Inside < 0);
+        Assert.True(film.Clearance(0, roof, Ground) < WreckFilm.AirborneAbove, "stood on the roof isn't in the air");
+        Assert.True(film.Clearance(0, inside, Ground) < WreckFilm.AirborneAbove, "stood on the floor isn't in the air");
+    }
+
+    [Fact]
     public void ASubjectInsideACarIsSeenThroughItAndLit()
     {
         var (world, film) = Shot();

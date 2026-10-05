@@ -19,6 +19,23 @@ public sealed record FilmPeak(WreckFilm Film, FilmShot Shot, double Into, double
 }
 
 /// <summary>
+/// What the derailment shows on a frame (<see cref="DerailSequence.Show"/>): the beat, the cars as drawn (the replay's kept
+/// frames, or the film's poses), the beat's camera (null with no derailment playing), and the replay or the film's shot
+/// behind it. The app and `dt film` both draw from this, so the film on disk is the one the crew sees.
+/// </summary>
+/// <param name="FilmAt">The recorded instant the film's shot shows (0 outside the film).</param>
+/// <param name="Distance">How far the camera is from what it frames, in the replay and the film (0 otherwise): E.4 O12's fog.</param>
+public sealed record DerailShot(DerailBeat Beat, IReadOnlyList<CarFrame> Frames, Camera? Camera, (CarFrame[] Frames, Crewmate[] Crew, bool Off)? Replay,
+    WreckFilm? Film, (FilmShot Shot, double Into)? Filming, double FilmAt, double Distance = 0);
+
+/// <summary>One beat of the whole sequence (<see cref="DerailSequence.Timeline"/>): the first person, the replay, then the cut shot by shot.</summary>
+/// <param name="Shot">The film's shot, in the film's beat; null for the first person, the replay and the orbit.</param>
+public sealed record SequenceBeat(DerailBeat Beat, double From, double To, FilmShot? Shot)
+{
+    public double Seconds => To - From;
+}
+
+/// <summary>
 /// The derailment as the crew sees it (T121 playtest: "instead of cutting straight to that lets first ... let people
 /// experience it first hand, then replay the moment from the third person train view that we already have"). First, the
 /// eye stays where you were, in your car, riding it as it comes off and ploughs in (the cars follow the wreck's bodies, so
@@ -46,6 +63,94 @@ public sealed class DerailSequence
     /// <summary>The whole sequence: the first person, the replay, then the film's cut (or the orbit without one).</summary>
     public static double Length(WreckTuning t, WreckFilm? film) =>
         film is null ? t.SequenceSeconds : t.FirstPersonSeconds + t.ReplaySeconds + film.CutLength;
+
+    /// <summary>
+    /// The sequence beat by beat, in sequence seconds: the first person, the replay, then each of the film's shots (or the
+    /// orbit without a film). It ends at <see cref="Length"/>.
+    /// </summary>
+    public static IReadOnlyList<SequenceBeat> Timeline(WreckTuning t, WreckFilm? film)
+    {
+        double replayEnd = t.FirstPersonSeconds + t.ReplaySeconds;
+        var beats = new List<SequenceBeat>
+        {
+            new(DerailBeat.FirstPerson, 0, t.FirstPersonSeconds, null),
+            new(DerailBeat.Replay, t.FirstPersonSeconds, replayEnd, null),
+        };
+        if (film is null)
+        {
+            beats.Add(new(DerailBeat.Orbit, replayEnd, Length(t, null), null));
+            return beats;
+        }
+        double at = replayEnd;
+        foreach (var s in film.Cut)
+        {
+            beats.Add(new(DerailBeat.Film, at, at + s.Real, s));
+            at += s.Real;
+        }
+        return beats;
+    }
+
+    /// <summary>
+    /// What <paramref name="session"/>'s derailment shows this frame, over its live <paramref name="frames"/>: by the
+    /// beat at its <see cref="IPlaySession.WreckSeconds"/>, the cars as drawn and the camera. <paramref name="ownEyes"/>
+    /// false (a headset, whose eyes stay its own) skips the first person's camera for the orbit's.
+    /// </summary>
+    public DerailShot Show(IPlaySession session, IReadOnlyList<CarFrame> frames, bool ownEyes = true)
+    {
+        var t = session.World.WreckTuning;
+        double seconds = session.WreckSeconds;
+        var wreck = session.Train.Wreck;
+        bool wrecking = session.WreckCinematic && wreck is not null;
+        var film = session.Film;
+        var beat = wrecking ? Beat(t, seconds, film) : DerailBeat.None;
+        var replay = beat == DerailBeat.Replay ? ReplayAt(seconds, t) : null;
+        if (replay is { } replaying)
+            frames = replaying.Frames;
+        // E.5: the film, everyone's own death: its cars, each shot's camera (note 177).
+        var filming = beat == DerailBeat.Film && film is not null ? film.CutAt(FilmSeconds(t, seconds)) : null;
+        double at = filming is { } fs ? fs.Shot.At(fs.Into) : 0;
+        if (filming is not null)
+            frames = FilmFrames(film!, at, frames);
+        Camera? camera = !wrecking ? null
+            : beat == DerailBeat.FirstPerson && ownEyes ? FirstPerson(frames)
+            : replay is { } shot ? ReplayCamera(shot.Frames, session.Train.StandingCar, shot.Off)
+            : filming is { } f ? FilmCamera(f.Shot, f.Into)
+            : Views.Wreck(wreck!, OrbitSeconds(t, seconds));
+        double distance = filming is { } framed ? (framed.Shot.Camera - framed.Shot.Look).Length
+            : replay is { } r && camera is { } c && Views.Train(r.Frames, session.Train.StandingCar) is { Length: > 0 } own
+                ? (own[own.Length / 2].Origin - c.Position).Length : 0;
+        return new DerailShot(beat, frames, camera, replay, film, filming, at, distance);
+    }
+
+    /// <summary>
+    /// Sets what <paramref name="scene"/> draws for <paramref name="shot"/> seen from <paramref name="eye"/>: in the film,
+    /// the crew as ragdolls and nobody else, the cutaway and the light rig; in the replay, the crew as they were; outside
+    /// either, the live bodies and <paramref name="crew"/>. The live wreck's dust and sparks only once it's off and not in the film.
+    /// </summary>
+    public static void Dress(GreyboxScene scene, DerailShot shot, IPlaySession session, Double3 eye, IReadOnlyList<Crewmate> crew)
+    {
+        bool filming = shot.Filming is not null && shot.Film is not null;
+        scene.Bodies = filming ? FilmBodies(shot.Film!, shot.FilmAt) : session.World.Bodies.All;
+        scene.Crew = shot.Replay is { } replayed ? replayed.Crew : filming ? [] : crew;
+        scene.CutAway = filming ? FilmCutAway(shot.Film!, shot.Filming!.Value.Shot, shot.FilmAt, shot.Frames, eye) : null;
+        scene.Lights = filming ? FilmLights(shot.Film!, shot.Filming!.Value.Shot, shot.FilmAt, eye) : null;
+        // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks. The film draws its own wreck; the
+        // live one's dust and sparks are somewhere else by then.
+        scene.Wreck = shot.Replay is { Off: false } || filming ? null : session.Train.Wreck;
+        scene.Derailed = shot.Replay is { } rerun ? rerun.Off : session.World.Derailed;
+    }
+
+    /// <summary>
+    /// E.4 O12 for the film: the fog pushed out to at least twice the shot's distance (camera to what it frames), so a wide
+    /// of the whole wreck reads through the night as a close shot does; and the same for the replay's chase view. Nothing
+    /// in the first person.
+    /// </summary>
+    public static void Fog(ref FrameLighting light, DerailShot shot)
+    {
+        // The replay too: its chase view is 80 m off the middle of the train, which the night's fog had all but swallowed.
+        if (shot.Distance > 0)
+            Views.CinematicFog(ref light, shot.Distance);
+    }
 
     /// <summary>Seconds into the film's cut.</summary>
     public static double FilmSeconds(WreckTuning t, double seconds) => Math.Max(0, seconds - t.FirstPersonSeconds - t.ReplaySeconds);
@@ -313,13 +418,19 @@ public sealed class DerailSequence
     /// frame as it ploughs on and piles up.
     /// </summary>
     /// <param name="standing">A switchyard's standing cars (TrainOnLine.StandingCar), which the shot leaves out.</param>
-    public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing)
+    /// <param name="off">The frame shown is from the moment it came off or after (<see cref="ReplayAt"/>'s Off); before it,
+    /// the camera rides with the train. (It used to be held from the replay's first frame, so the train ran in from behind
+    /// it and the whole run-in was lost in the fog: note 232.)</param>
+    public Camera ReplayCamera(CarFrame[] now, Func<int, bool> standing, bool off = true)
     {
         now = Views.Train(now, standing);
-        var at = _shots.FindLast(s => s.At < _derailedAt) is { Frames.Length: > 0 } before ? before.Frames : now;
-        var held = Views.Chase(Views.Train(at, standing));
         var mid = now[now.Length / 2].ToWorld(new Double3(0, 2, 0));
-        var shot = Views.Chase(now);
-        return Camera.LookAt(ReferenceEquals(at, now) ? shot.Position : held.Position, mid, 60);
+        if (!off || _shots.FindLast(s => s.At < _derailedAt) is not { Frames.Length: > 0 } before)
+            return Camera.LookAt(Views.Chase(now).Position, mid, 60);
+        // Off the rails: from where the chase view was as it came off, carried along with the middle of the train as it
+        // ploughs on (its travel, not the cars' tumbling), so the pile-up stays in frame rather than running off into the fog.
+        var then = Views.Train(before.Frames, standing);
+        var midThen = then[then.Length / 2].ToWorld(new Double3(0, 2, 0));
+        return Camera.LookAt(Views.Chase(then).Position + (mid - midThen), mid, 60);
     }
 }

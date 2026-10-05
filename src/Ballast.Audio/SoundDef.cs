@@ -139,7 +139,7 @@ public sealed record SoundDuckRule(string[] When, string[] Ducks, double Db);
 /// and are never ducked by the tiers' rules. The bus sits at <see cref="LevelDb"/>, dips <see cref="DuckDb"/> while any of
 /// <see cref="DuckUnder"/> is audible (the dead channel, so the laughing stays audible), and while music plays the rest of
 /// the game on <see cref="LowpassTiers"/> goes through a <see cref="LowpassHz"/> low-pass, faded in and out over
-/// <see cref="LowpassSeconds"/>.
+/// <see cref="LowpassSeconds"/>, and plays at <see cref="GameSpeed"/> (E.6: "at half speed"), eased in with the low-pass.
 /// </summary>
 public sealed record MusicBusDef(double LevelDb, double DuckDb, string[] DuckUnder, double DuckAttack, double DuckRelease,
-    double LowpassHz, int[] LowpassTiers, double LowpassSeconds);
+    double LowpassHz, int[] LowpassTiers, double LowpassSeconds, double GameSpeed = 1);

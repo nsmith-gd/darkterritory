@@ -926,7 +926,8 @@ public static class Hud
             // The clerk on the radio: the picture dims under the card, and the line types out as it's read.
             o.Rect(0, 0, width, height, new Vector4(0, 0, 0, (float)Math.Clamp(into / 0.3, 0, 0.72)));
             int scale = Math.Max(1, height / 300);
-            int chars = Math.Max(20, (int)(width * 0.7f / (o.Font.Measure("M", scale))));
+            // A glyph advances its width and a pixel of spacing (note 232: by the width alone the clerk ran off the screen).
+            int chars = Math.Max(20, (int)(width * 0.7f / (o.Font.Measure("M", scale) + scale)));
             string typed = shot.Card.ToUpperInvariant();
             typed = typed[..(int)Math.Min(typed.Length, typed.Length * Math.Clamp(into / Math.Max(0.1, shot.Real * 0.7), 0, 1))];
             var lines = Wrap(typed, chars).ToList();
@@ -957,7 +958,7 @@ public static class Hud
         UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
         o.Text(x + 6 * scale, y + 4 * scale, "RADIO: THE YARD", Dim, scale);
         float ly = y + 4 * scale + lh;
-        int chars = Math.Max(12, (int)((w - 12 * scale) / o.Font.Measure("M", scale)));
+        int chars = Math.Max(12, (int)((w - 12 * scale) / (o.Font.Measure("M", scale) + scale)));
         for (int i = shown - keep; i < shown; i++)
         {
             string line = lines[i].ToUpperInvariant();

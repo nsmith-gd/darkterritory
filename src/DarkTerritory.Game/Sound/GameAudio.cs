@@ -52,6 +52,67 @@ public sealed class GameAudio
     /// </summary>
     public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
 
+    // The film's own wreck heard (note 232): where its shot has got to in the recording, and when it last crashed.
+    double _filmAt = double.NaN, _filmCrashed = double.NegativeInfinity;
+    SoundInstance? _filmGrind;
+
+    /// <summary>
+    /// Every frame: the derailment film's shot and how far into it (<see cref="WreckFilm.CutAt"/>), or null outside the film.
+    /// The film's wreck is what's on screen, so it's what's heard: each recorded hit (<see cref="FilmFrame.Impacts"/>) as the
+    /// shot plays through it, a shot that goes back over a moment playing its crash again from its own angle, and the grind
+    /// of the fastest car still sliding. The live wreck goes quiet meanwhile; it's somewhere else by then.
+    /// </summary>
+    public void Film(WreckFilm? film, (FilmShot Shot, double Into)? at)
+    {
+        if (film is null || at is not { } now)
+        {
+            _filmAt = double.NaN;
+            _filmGrind?.Stop();
+            _filmGrind = null;
+            return;
+        }
+        double recorded = now.Shot.At(now.Into);
+        // A cut (to a new shot, back or on in the recording): from here, not everything between.
+        if (double.IsNaN(_filmAt) || recorded < _filmAt || recorded - _filmAt > 0.2)
+            _filmAt = recorded;
+        int from = (int)Math.Floor(_filmAt * WreckFilm.Rate) + 1, to = Math.Min(film.Frames.Count - 1, (int)Math.Floor(recorded * WreckFilm.Rate));
+        WreckImpact? hardest = null;
+        for (int f = Math.Max(1, from); f <= to; f++)
+            foreach (var hit in film.Frames[f].Impacts)
+                if (hit.Speed > (hardest?.Speed ?? 3))
+                    hardest = hit;
+        if (hardest is { } h && _time - _filmCrashed > 0.2)
+        {
+            Mixer.Play("wreck-crash", h.At, (float)Math.Clamp(h.Speed / 9, 0.35, 1));
+            _filmCrashed = _time;
+        }
+        _filmAt = recorded;
+        // The grind: the fastest car in the recording at this moment, by its travel between keyframes.
+        var (a, b, _) = film.At(recorded);
+        int fastest = -1;
+        double speed = 0;
+        for (int c = 0; c < a.Cars.Count && c < b.Cars.Count; c++)
+        {
+            double v = (b.Cars[c].Origin - a.Cars[c].Origin).Length * WreckFilm.Rate;
+            if (v > speed)
+                (fastest, speed) = (c, v);
+        }
+        if (fastest >= 0 && speed > 0.6)
+        {
+            _filmGrind ??= Mixer.Play("wreck-grind");
+            if (_filmGrind is not null)
+            {
+                _filmGrind.Position = a.Cars[fastest].Origin;
+                _filmGrind.Volume = (float)Math.Clamp(speed / 12, 0.15, 1);
+            }
+        }
+        else if (_filmGrind is not null)
+        {
+            _filmGrind.Stop();
+            _filmGrind = null;
+        }
+    }
+
     sealed class EnemySound
     {
         public SpinePhase Phase;
@@ -344,7 +405,7 @@ public sealed class GameAudio
                 Mixer.Play("slack-clunk", _slack[i].Position, _slack[i].Volume);
                 _slack.RemoveAt(i);
             }
-        Wreck(train.Wreck);
+        Wreck(double.IsNaN(_filmAt) ? train.Wreck : null);
     }
 
     /// <summary>

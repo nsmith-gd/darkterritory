@@ -135,4 +135,44 @@ public class MusicBusTests
         double voice = Meter.Db(tap.Stems["talk"].AsSpan(Audio.SampleRate * 2 - Audio.SampleRate / 2, Audio.SampleRate / 2));
         Assert.InRange(voice, talking - 0.5, talking + 0.5);
     }
+
+    [Fact]
+    public void UnderTheMusicTheGamePlaysAtHalfSpeed()
+    {
+        // E.6: "everything else plays at half speed". A 0.5 s, 200 Hz tone on a game tier lasts a second an octave down
+        // once the music's eased in; alone it plays as made.
+        var slowed = Mix with { Music = Bus with { GameSpeed = 0.5 } };
+        var tone = new SoundDef(3, [new LayerDef(SourceKind.Sine, 0.5, 200.0)], Duration: 0.5, Flat: true);
+        Mixer Fresh()
+        {
+            var bank = new SoundBank();
+            bank.Add("music", Music);
+            bank.Add("tone", tone);
+            return new Mixer(bank, slowed) { Listener = Listener.At(Double3.Zero, 0) };
+        }
+        static int Crossings(float[] stereo)
+        {
+            int n = 0;
+            for (int i = 1; i < stereo.Length / 2; i++)
+                if (stereo[(i - 1) * 2] < 0 && stereo[i * 2] >= 0)
+                    n++;
+            return n;
+        }
+
+        var alone = Fresh();
+        var plain = alone.Play("tone")!;
+        Assert.InRange(Crossings(Render(alone, 0.4)), 76, 84);
+        Render(alone, 0.2);
+        Assert.True(plain.Finished);
+
+        var scored = Fresh();
+        var music = scored.Play("music")!;
+        music.Clip = Sine(440, 10, amplitude: 0.1f);
+        Render(scored, 0.3);
+        var slow = scored.Play("tone")!;
+        Render(scored, 0.8);
+        Assert.False(slow.Finished, "a half-speed half second is still going at 0.8 s");
+        Render(scored, 0.3);
+        Assert.True(slow.Finished);
+    }
 }

@@ -148,6 +148,10 @@ public sealed class Mixer
                 v.Skip(Audio.Block);
         }
         RenderedVoices = _selected.Count;
+        // App. E.6: under the music the rest of the game slows (GameSpeed, eased in and out with its low-pass).
+        if (Mix.Music is { } slowed)
+            foreach (var v in _voices)
+                v.Speed = Array.IndexOf(slowed.LowpassTiers, v.Def.Tier) >= 0 ? 1 + (slowed.GameSpeed - 1) * _gameLowpass.Value : 1;
 
         Array.Clear(_tierActive);
         _soundActive.Clear();
