@@ -3165,3 +3165,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Facing:** carrying, it faces square off the line, the way its nest is from the gap (Sim `Whistler`), not off the nearest car's middle; a gap is at a car's end, which put it 45 degrees out.
     - **Staging:** `dt screenshot --threats --whistler carry --view carry` (a second into the run, 7 m out, `Staging.CarryOut`). `--whistler nest` now has its catch too.
     - **Tests:** `WhistlerTests.CarryingSomeoneOffItHoldsThemUpUnderTheArmsInFrontOfItsRearedFront`; `CreatureArtTests` budgets list `carry`.
+211. **The Choir disperses (the checklist's "not yet": "a disperse when the crew hushes (it just leaves)").**
+    - **Before:** driven off (World: its quiet held, enemies.json `choir.disperseQuietSeconds`, or its one taken), the swarm is dismissed the same tick (`Enemy.Dismiss`: BreakOff, then Gone), and every ghost blinked out.
+    - **Now the scene sees it go** (`GreyboxScene.Leaving`, presentation only, the scene's own memory like note 208's deaths). A ghost it drew last frame that's gone without being killed is drawn going for `CreatureArt.ChoirLeaveSeconds` (3 s):
+      - turned away from the train, in its swoop (tipped mouth first, tendrils streamed back);
+      - swept up 14 m and out 10 m from the train, faster and faster (the square of the time);
+      - its cold light going out, the cold mist off it gone at 60%.
+    - **`DrawEnemy`'s flinch push now applies with or without a tip** (going is all push). Every existing push came with a tip, so nothing else moves.
+    - **Staging:** `dt screenshot --threats --dispersing s --view choir` (the staged ghosts driven off s seconds ago).
+    - **Tests:** `CreatureArtTests.TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone`.
+    - **Not yet:** like the deaths, `dt playthrough`'s fresh scene per shot doesn't carry it.

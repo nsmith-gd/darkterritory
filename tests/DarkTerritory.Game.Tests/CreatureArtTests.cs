@@ -320,6 +320,38 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone()
+    {
+        // GreyboxScene.Leaving: the sim dismisses the swarm the tick it's driven off (World: quiet held); the scene that saw
+        // its ghosts last frame draws them going, higher and higher, until CreatureArt.ChoirLeaveSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var ghosts = threats.Where(e => e.Kind == EnemyKind.Choir).ToList();
+        Assert.NotEmpty(ghosts);
+        var eye = ghosts[0].WorldPosition(train) + new Double3(6, -1, 4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Tick = Staging.StrikeTick };
+        float[] Heights(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("choir", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation.Y)];
+        }
+        var there = Heights(-1.0 / Sim.SimConstants.TickRate);
+        Assert.NotEmpty(there);
+        scene.Enemies = [.. threats.Except(ghosts)];
+        var going = Heights(0.1);
+        var gone = Heights(CreatureArt.ChoirLeaveSeconds * 0.8);
+        Assert.Equal(there.Length, going.Length);
+        Assert.Equal(there.Length, gone.Length);
+        Assert.True(gone.Max() > there.Max() + 4, $"going up: from {there.Max()} to {gone.Max()}");
+        // (Going from the frame that first missed them, 0.1 s in.)
+        Assert.Empty(Heights(0.1 + CreatureArt.ChoirLeaveSeconds + 0.1));
+    }
+
+    [Fact]
     public void TheDeadLieAsTheirRagdollLies()
     {
         // The staged body (Staging.Bodies: a crewmate dead on car 3's roof, settled for 90 ticks), as the scene draws it.

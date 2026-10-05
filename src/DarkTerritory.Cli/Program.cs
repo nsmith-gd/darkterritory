@@ -1303,6 +1303,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         boarding.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, Opt(args, "--board", 0.5), boarding.Health, boarding.Attached, boarding.Local, 0, 0, 0,
             boarding.Extra, boarding.Extra2);
     }
+    // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
+    if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
+    {
+        foreach (var ghost in swarm.Where(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.Choir).ToList())
+        {
+            swarm.Remove(ghost);
+            scene.Dispersed(ghost, Staging.StrikeTick);
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--dispersing", 1) * SimConstants.TickRate);
+    }
     // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
     // and crumbling (GreyboxScene.Deaths).
     if (Str(args, "--killed", "") is { Length: > 0 } killed && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> living)

@@ -601,6 +601,8 @@ public sealed class GreyboxScene
     // own memory of it (presentation only; nothing here goes back to the sim).
     readonly Dictionary<int, Enemy> _seen = new();
     readonly Dictionary<int, (Enemy Body, uint Tick, Vector3 From)> _dying = new();
+    // The Choir's ghosts driven off since (with the tick they went): the sim dismisses the swarm at once.
+    readonly Dictionary<int, (Enemy Body, uint Tick)> _leaving = new();
 
     /// <summary>
     /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
@@ -616,10 +618,15 @@ public sealed class GreyboxScene
             foreach (var h in Hits)
                 if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
                     _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
+        // The Choir driven off (A.7: its quiet held, or its one taken): every ghost the sim's dismissed this tick, not killed.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.Choir && !_dying.ContainsKey(id) && !_leaving.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+                _leaving[id] = (was, (uint)Tick);
         _seen.Clear();
         foreach (var e in Enemies ?? [])
             if (!e.Gone)
                 _seen[e.Id] = e;
+        Leaving(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -637,6 +644,41 @@ public sealed class GreyboxScene
                 fx.Crumble(mesh, V(at, eye), (float)age, id);
         }
     }
+
+    /// <summary>
+    /// The Choir dispersing (GDD v1.2 App. A.7, the checklist's "a disperse when the crew hushes"): the sim takes the swarm
+    /// out the tick it's driven off; here each ghost is seen going (<see cref="Art.CreatureArt.ChoirLeaveSeconds"/>): turned
+    /// away from the train mouth first in its swoop, swept up and out into the dark faster and faster, its cold going out.
+    /// </summary>
+    void Leaving(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, (body, tick)) in _leaving.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.CreatureArt.ChoirLeaveSeconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _leaving.Remove(id);
+                continue;
+            }
+            var at = BodyAt(body, line, frames);
+            var near = frames.Count == 0 ? at : frames.MinBy(f => (f.ToWorld(default) - at).Length)!.ToWorld(default);
+            var off = new Double3(at.X - near.X, 0, at.Z - near.Z);
+            off = off.Length > 1e-6 ? off.Normalized : new Double3(1, 0, 0);
+            float go = (float)(age / Art.CreatureArt.ChoirLeaveSeconds);
+            go *= go;
+            var push = new Vector3((float)off.X, 0, (float)off.Z) * (LeaveOut * go) + Vector3.UnitY * (LeaveUp * go);
+            var ghost = new Sim.Enemies.ChoirGhost(body.Id);
+            ghost.Restore(SpinePhase.BreakOff, age, body.Health, body.Attached, body.Local, body.LineDistance, body.Lateral, body.Height, -1, body.Extra2);
+            DrawEnemy(mesh, line, frames, ghost, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity));
+        }
+    }
+
+    // How far a dispersing ghost has gone at the end of its going: out from the train and up (m).
+    const float LeaveOut = 10, LeaveUp = 14;
+
+    /// <summary>Staged (<c>dt screenshot --dispersing s</c>): the Choir's ghost <paramref name="e"/> driven off at
+    /// <paramref name="tick"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Dispersed(Enemy e, uint tick) => _leaving[e.Id] = (e, tick);
 
     /// <summary>
     /// Staged (<c>dt screenshot --killed kind:s</c>): <paramref name="e"/> killed at <paramref name="tick"/> by a blow going
@@ -1075,12 +1117,10 @@ public sealed class GreyboxScene
             float away = Vector3.Dot(new Vector3(flinch.Push.X, 0, flinch.Push.Z), r) >= 0 ? -1 : 1;
             flinch = (flinch.Push, Quaternion.CreateFromAxisAngle(Vector3.Normalize(b), roll * away));
         }
-        // Flinching from a blow (T121): knocked back and tipped away from it, about its feet.
+        // Flinching from a blow (T121): knocked back and tipped away from it, about its feet. (Going, Deaths: carried off.)
+        o += flinch.Push;
         if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
-        {
-            o += flinch.Push;
             (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
-        }
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
         if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge, dying))
             return;

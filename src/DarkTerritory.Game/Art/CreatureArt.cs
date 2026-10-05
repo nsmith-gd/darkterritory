@@ -110,6 +110,9 @@ public sealed class CreatureArt
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
 
+    /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
+    public const double ChoirLeaveSeconds = 3.0;
+
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
 
@@ -1658,18 +1661,21 @@ public sealed class CreatureArt
                     // about it is all the light it has (§26: not neon).
                     _prey = null;
                     var at = Matrix4x4.CreateTranslation(0, (float)(0.12 * Math.Sin(t * 2.3 + extra2)), 0) * model;
+                    // Driven off (BREAK OFF: GreyboxScene.Leaving carries it away), it goes in its swoop, its cold going out.
                     string clip = phase switch
                     {
                         SpinePhase.Commit when extra >= 0 => "swoop",
                         SpinePhase.Commit => "besiege",
                         SpinePhase.Grab or SpinePhase.Punish => "seize",
+                        SpinePhase.BreakOff => "swoop",
                         _ => "drift",
                     };
+                    float cold = phase == SpinePhase.BreakOff ? Math.Clamp(1 - (float)(t / ChoirLeaveSeconds), 0, 1) : 1;
                     bool drawn = Draw(mesh, "choir", clip, t, true, at, seed: 71 + (float)extra2);
                     if (drawn)
                     {
-                        mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * ChoirCold, 2.5f));
-                        if (_fx.HasFlames)
+                        mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * (ChoirCold * cold), 2.5f));
+                        if (_fx.HasFlames && cold > 0.4f)
                             _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
                     }
                     return drawn;
@@ -1813,8 +1819,11 @@ public sealed class CreatureArt
         {
             case EnemyKind.Choir when _models.ContainsKey("choir"):
                 {
-                    // Swooping, it faces who it's after (the loose basis faces the train: at the doors, it faces them).
-                    if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab)
+                    // Swooping, it faces who it's after (the loose basis faces the train: at the doors, it faces them);
+                    // driven off, away from the train.
+                    if (e.Phase == SpinePhase.BreakOff)
+                        m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                    else if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab)
                     {
                         var (r, _, b) = Basis(model);
                         var to = p.Feet - model.Translation;
