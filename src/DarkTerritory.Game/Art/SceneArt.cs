@@ -100,6 +100,9 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Swing => swung + SwingHitAt,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
+            // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
+            // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
+            CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
@@ -168,6 +171,9 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>crew_clips.py's firedoor clip (21 frames); how near the door's foot someone stands to be the one at it (m).</summary>
     const double FireDoorSeconds = 21 / 30.0, FireDoorReach = 1.3;
+
+    /// <summary>crew_clips.py's climb and climb_carry: one 40-frame cycle per two rungs (TrainKit.RungPitch) climbed.</summary>
+    const double ClimbCycleSeconds = 40 / 30.0, ClimbCycleRise = 2 * TrainKit.RungPitch;
 
     /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
     const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;

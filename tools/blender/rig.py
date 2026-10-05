@@ -837,12 +837,17 @@ def hang(skeleton: Skeleton, pose, name, rx=0.0, ry=0.0, rz=0.0):
     return Wp.inverted() @ rot(rx, ry, rz)
 
 
-def reach(skeleton: Skeleton, pose, upper, lower, target, end=None, elbow_axis=2, bend=1.0, avoid=None):
+def reach(skeleton: Skeleton, pose, upper, lower, target, end=None, elbow_axis=2, bend=1.0, avoid=None, pole=None):
     """Poses an arm (or leg) so the tip of `end` (default: `lower`'s child's tail... the lower bone's tail) reaches
     `target`: a deterministic coordinate descent over the upper bone's three angles and the lower bone's bend about
     `elbow_axis` (0 x, 1 y, 2 z; `bend` its sign). Returns the pose with those two joints set. `avoid(point_of_elbow)`
-    may add a penalty (keep an elbow out of the body)."""
+    may add a penalty (keep an elbow out of the body); `pole`, a point the elbow (or knee) is drawn toward, says which
+    way it points (down and out on a ladder's rungs, back behind a runner)."""
     target = Vector(target)
+    if pole is not None:
+        pole = Vector(pole)
+        avoid0 = avoid
+        avoid = lambda e: (avoid0(e) if avoid0 else 0.0) + 0.05 * (e - pole).length  # noqa: E731
     p = dict(pose)
     up = list(p.get(upper, (0.0, 0.0, 0.0)))
     lo = list(p.get(lower, (0.0, 0.0, 0.0)))
