@@ -40,6 +40,12 @@
   "occlusionLowpass": 900,
   "tellOcclusionFloorDb": -6,
   "masterDb": 9,
+  // Spec A.4: a tell is "directional to within ~30°: car four, left side", and VR needs better than a pan. A spherical
+  // head on every positioned voice (Ballast.Audio.HeadDef; note 246): the far ear late by Woodworth's delay (an 8.75 cm
+  // head, 0.66 ms at the side) and 10 dB duller above 1.8 kHz, the pinna's 6 dB shelf above 3.5 kHz from straight
+  // behind, a 4 dB peak at 8 kHz overhead (a notch underfoot), and the level pan under it at 0.6 of a speaker's. A tell
+  // is never cut more than 3 dB by any of it (spec A.3, as the occlusion floor below): it still points, it isn't masked.
+  "head": { "radius": 0.0875, "shadowHz": 1800, "shadowDb": -10, "rearHz": 3500, "rearDb": -6, "heightHz": 8000, "heightDb": 4, "panWidth": 0.6, "tellFloorDb": -3 },
   // GDD v1.4 App. E.6, the derailment's opera, on a bus of its own outside the tiers (tier 0: it ducks nothing and no
   // tier ducks it). Tracks arrive at -16 LUFS (each one's manifest gain); levelDb against masterDb's +9 puts the opera
   // out 3 dB over that, on top of the wreck's grind (it's the punchline: E.1 "the first bar is the punchline"). It ducks 6 dB under any voice on the dead channel (50 ms attack, 400 ms release),

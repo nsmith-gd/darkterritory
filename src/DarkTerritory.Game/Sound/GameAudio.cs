@@ -16,6 +16,8 @@ namespace DarkTerritory.Game.Sound;
 public sealed partial class GameAudio
 {
     readonly HotData<MixDef> _mix;
+    // The walls' numbers; a content root without walls.json (a test's own) has the defaults.
+    readonly HotData<WallsTuning>? _walls;
     readonly Dictionary<int, EnemySound> _enemies = new();
     readonly Dictionary<int, double> _packs = new();
     readonly Dictionary<int, SoundInstance> _packHowls = new();
@@ -34,6 +36,8 @@ public sealed partial class GameAudio
     {
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
+        string walls = Path.Combine(contentRoot, WallsTuning.File);
+        _walls = File.Exists(walls) ? new HotData<WallsTuning>(walls) : null;
         Mixer = new Mixer(Bank, _mix.Value);
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
@@ -51,7 +55,8 @@ public sealed partial class GameAudio
     /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
     /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
     /// </summary>
-    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1, double hitAt = -1) =>
+        Opera.Update(Mixer, track, sequenceSeconds, tuning, end, hitAt);
 
     sealed class EnemySound
     {
@@ -85,6 +90,69 @@ public sealed partial class GameAudio
         Whistle(world, train);
         Cues(world);
         Toys(world, train);
+        Ride(train);
+        HearWalls(world);
+    }
+
+    // The one-shots started on a car, riding it: the voice, the car, and where on it (the car's frame).
+    readonly List<(SoundInstance Voice, int Car, Double3 Local)> _riding = [];
+    int _lastVoice;
+    /// <summary>How far outside a car's bounds a one-shot still counts as on it (a boot on the step, a hand on the rail).</summary>
+    const double OnCar = 0.5;
+
+    /// <summary>The world's own sounds (a tunnel's mouth, a bridge, a facility's works, the wreck yard's heap): where they are, whatever passes.</summary>
+    static bool OfTheWorld(string name) =>
+        name.StartsWith("world-", StringComparison.Ordinal) || name.StartsWith("place-", StringComparison.Ordinal) || name.StartsWith("heap-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// A one-shot started on a car rides with it (spec A.4 "spatially precise"): it was played at a world point, and at speed
+    /// the train ran on from under it (at 22 m/s a one-second giggle in the cab ended up a car and a half back). Each new
+    /// positioned one-shot on a car is kept in the car's frame and put back where it is on the car every frame until it's
+    /// done. Loops follow their owners already; one-shots off the train, and the world's own (<see cref="OfTheWorld"/>: a
+    /// tunnel's mouth the engine's passing), stay put.
+    /// </summary>
+    void Ride(TrainOnLine train)
+    {
+        foreach (var v in Mixer.Voices)
+        {
+            if (v.Id <= _lastVoice)
+                continue;
+            if (v.Def.Loop || v.Def.Flat || v.Def.Tier == Mixer.MusicTier || OfTheWorld(v.Name))
+                continue;
+            for (int car = 0; car < train.Frames.Count; car++)
+            {
+                var local = train.Frames[car].ToLocal(v.Position);
+                var b = train.Frames[car].Shape.Bounds;
+                if (local.X >= b.Min.X - OnCar && local.X <= b.Max.X + OnCar && local.Y >= b.Min.Y - OnCar && local.Y <= b.Max.Y + OnCar
+                    && local.Z >= b.Min.Z - OnCar && local.Z <= b.Max.Z + OnCar)
+                {
+                    _riding.Add((v, car, local));
+                    break;
+                }
+            }
+        }
+        if (Mixer.Voices.Count > 0)
+            _lastVoice = Math.Max(_lastVoice, Mixer.Voices.Max(v => v.Id));
+        _riding.RemoveAll(r => r.Voice.Finished || r.Car >= train.Frames.Count);
+        foreach (var (voice, car, local) in _riding)
+            voice.Position = train.Frames[car].ToWorld(local);
+    }
+
+    /// <summary>
+    /// The walls between the ear and each sound (spec A.5, A.7; <see cref="Sound.Walls"/>, note 248), from where both are
+    /// this frame. Not the train's bed (tier 5): that's the car itself, which the space (spaces.json) has. Not a sound a
+    /// caller put part-way behind something (a shout through a holdout's door): that's its own judgement.
+    /// </summary>
+    static readonly WallsTuning DefaultWalls = new();
+
+    void HearWalls(World world)
+    {
+        _walls?.Refresh();
+        var tuning = _walls?.Value ?? DefaultWalls;
+        var ear = Mixer.Listener.Position;
+        foreach (var v in Mixer.Voices)
+            v.Walls = v.Def.Flat || v.Def.Tier is 5 or Mixer.MusicTier || v.Occlusion is > 0 and < 1 ? 0
+                : Sound.Walls.Between(world.Train, ear, v.Position, tuning);
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];

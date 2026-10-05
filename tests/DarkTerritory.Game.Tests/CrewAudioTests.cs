@@ -186,6 +186,46 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void APowderKegIsHandledAsAKegNotACrate()
+    {
+        // Note 245: a keg (the depot's powder, cargo Ammunition) goes up from a hard knock and is fine set down by hand
+        // (SetPieces.Kegs); its own lift, the powder shifting in it, and its own careful set-down.
+        var b = new Bench("crew-carry.keg-lift", "crew-carry.keg-set", "crew-carry.crate-lift", "crew-carry.crate-set");
+        b.World.EnableBodies();
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var keg = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 0), Sim.Physics.BodyKind.Cargo);
+        keg.Cargo = CargoKind.Ammunition;
+        for (int i = 0; i < 5; i++)
+            b.Step();
+        keg.Carrier = 1;
+        b.Step();
+        Assert.Equal(1, b.Count("crew-carry.keg-lift"));
+        Assert.Equal(0, b.Count("crew-carry.crate-lift"));
+        keg.Carrier = -1;
+        for (int i = 0; i < SimConstants.TickRate * 2; i++)
+            b.Step();
+        Assert.Equal(1, b.Count("crew-carry.keg-set"));
+        Assert.Equal(0, b.Count("crew-carry.crate-set"));
+    }
+
+    [Fact]
+    public void ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook()
+    {
+        // Note 245: a crewmate's swing (World.Swings) that meets no creature lands on the train where their replicated
+        // look puts it, iron or wood, as your own does.
+        var b = new Bench("crew-melee.crowbar-swing", "crew-melee.crowbar-hit-metal", "crew-melee.crowbar-hit-wood");
+        b.Audio.OwnId = 1;
+        var you = PlayerMotor.SpawnOnRoof(b.Train, 2, 3, P);
+        // Stood on the roof, looking down at it.
+        var mate = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0, Pitch = -1.2 };
+        b.Step((1, you), (2, mate));
+        b.World.Swings.Add(new SwingEvent(9, b.World.Tick, 2));
+        b.Step((1, you), (2, mate));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-swing"));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-hit-metal") + b.Count("crew-melee.crowbar-hit-wood"));
+    }
+
+    [Fact]
     public void ACrewmateKilledWithAToolInHandDropsItABeatAfterTheBody()
     {
         var b = new Bench("crew-hurt.body-fall.roof", "crew-melee.wrench-drop.roof");

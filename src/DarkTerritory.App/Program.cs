@@ -87,6 +87,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
+    // The settings' MICROPHONE: what there is to choose from.
+    MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -226,6 +228,7 @@ void FeedSpeaker()
 {
     while (speaker is not null && speaker.QueuedSeconds < 0.06)
     {
+        sound.Mixer.Volumes = frontEnd.Settings.Volumes;
         sound.Mixer.Render(audioBlock);
         if (frontEnd.Settings.Mute)
             Array.Clear(audioBlock);
@@ -575,7 +578,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
     sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
-        : AudioIn.Open(Audio.SampleRate, out var micError) is { } m ? m : NoMic(micError);
+        : AudioIn.Open(Audio.SampleRate, out var micError, settings.MicDevice) is { } m ? m : NoMic(micError);
+    if (voice is not null)
+        voice.MicLevel = (float)settings.MicLevel;
     var clock = new FixedStepClock(SimConstants.TickRate);
     var locomotion = vr is null ? null : new VrLocomotion(settings.Apply(DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File))));
     var levers = vr is null ? null : new VrLevers();
@@ -874,8 +879,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
         // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
         // faded under the film's cause card.
+        // Its hit on the final player's apex in the film (E.5-E.6; note 245), or the replay's derail moment with no film.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
-            film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
+            film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt,
+            film?.FinalApexAt is { } apex ? wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + apex : -1);
         // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio, said a line at a time
         // as each comes on (note 240).
         var reading = session.RadioReading;

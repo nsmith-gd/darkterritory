@@ -33,6 +33,18 @@ public class VoiceTests
     }
 
     [Fact]
+    public void TheMicLevelIsWhatTheCrewHearAndTurnedRightDownNothingGoes()
+    {
+        // The settings' MIC LEVEL (the audio checklist's mix-settings): a gain before anything hears the mic. Halved, the
+        // crew hear you 6 dB down; at nothing, the open mic never opens.
+        var full = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: false);
+        var half = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: false, micLevel: 0.5f);
+        var none = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: false, micLevel: 0);
+        Assert.InRange(full.NearDb - half.NearDb, 4.5, 7.5);
+        Assert.Equal(0, none.FramesSent);
+    }
+
+    [Fact]
     public void TheRadioCarriesTheLengthOfTheTrainBandLimited()
     {
         var r = VoiceBench.Run(Content, speakerCar: 9, speakerZ: 0, radio: true);

@@ -29,7 +29,7 @@ public static class VoiceBench
     /// <param name="space">Hear it as if in this space (a tunnel: GDD §22's compressed, close voice); null, where the listener is.</param>
     /// <param name="dieAt">Seconds into the speech the speaker dies, mid-word (the hard-cut's check).</param>
     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
-        string? space = null, double? dieAt = null)
+        string? space = null, double? dieAt = null, float micLevel = 1)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
@@ -43,7 +43,7 @@ public static class VoiceBench
         var audio = new GameAudio(content) { SpaceOverride = space };
         audio.Bank.Samples.InlineBytes = long.MaxValue; // offline: the same every run
         var ears = new VoiceChat(audio.Mixer);
-        var mouth = new VoiceChat(new Mixer(new SoundBank(), audio.Mixer.Mix)) { RadioHeld = radio };
+        var mouth = new VoiceChat(new Mixer(new SoundBank(), audio.Mixer.Mix)) { RadioHeld = radio, MicLevel = micLevel };
         var speech = SyntheticSpeech.Generate(seconds);
         int perTick = VoiceFormat.SampleRate / SimConstants.TickRate;
         int total = (int)(seconds * VoiceFormat.SampleRate) + VoiceFormat.SampleRate / 2;

@@ -79,7 +79,8 @@ public class AudioTests
         Assert.Equal(tier, bank.Get(sound)!.Tier);
         var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 4, speed: 0, listenerCar: 1, seconds: 2);
         double level = report.StemsDb.GetValueOrDefault(sound, double.NegativeInfinity);
-        Assert.InRange(level, -25, -3);
+        // Measured at the ears (Meter, note 246): off to one side that's 3 dB over the mono sum it once was.
+        Assert.InRange(level, -22, 0);
         Assert.True(level > report.StemsDb.GetValueOrDefault("boiler-roar", double.NegativeInfinity) + 20, $"{sound} at {level} dB");
     }
 
@@ -186,6 +187,15 @@ public class AudioTests
         foreach (var toy in toys)
             Assert.True(report.StemsDb[toy] > wind + 6, $"{toy} at {report.StemsDb[toy]} dB, wind {wind:0.0}");
         Assert.InRange(toys.Max(t => report.StemsDb[t]) - toys.Min(t => report.StemsDb[t]), 0, 4);
+    }
+
+    [Fact]
+    public void TheMimicIsACrewmatesVoiceThroughASmallerThroatAtOneLoudness()
+    {
+        // Spec A.5-A.6 (T40, note 247): no falloff, and the crewmate's voice formant-shifted up, not pitched.
+        var mimic = new SoundBank(Path.Combine(Content, "audio", "sounds")).Get("voice-mimic")!;
+        Assert.Equal(0, mimic.Rolloff);
+        Assert.InRange(mimic.Formant!.Shift, 1.05, 1.4);
     }
 
     [Fact]

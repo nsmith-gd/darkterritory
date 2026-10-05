@@ -65,6 +65,11 @@ public sealed class SoundInstance
     public Double3 Position { get; set; }
     /// <summary>0 = clear line to the listener, 1 = fully behind a car wall (spec A.5: −12 dB, 900 Hz lowpass).</summary>
     public float Occlusion { get; set; }
+    /// <summary>
+    /// What the game's geometry found between the ear and this voice (the walls in the way), 0..1, set each frame. The mixer
+    /// hears the greater of it and <see cref="Occlusion"/>, so a caller's own judgement is never undone.
+    /// </summary>
+    public float Walls { get; set; }
     /// <summary>Extra gain the game applies (e.g. a clinger's drill louder as it works through).</summary>
     public float Volume { get; set; } = 1;
     public double Age { get; private set; }
@@ -110,6 +115,10 @@ public sealed class SoundInstance
     // Mixer-side state.
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
+    // Through the listener's head (MixDef.Head): made the first block the voice is heard positioned.
+    internal HeadState? Head;
+    // The formant shift (SoundDef.Formant), made the first block it renders.
+    FormantShifter? _formant;
     // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
     internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
@@ -134,6 +143,8 @@ public sealed class SoundInstance
         double rate = Stream is null && Clip is null ? Rate : 1;
         foreach (var layer in _layers)
             layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate);
+        if (Def.Formant is { } formant)
+            (_formant ??= new FormantShifter(formant)).Process(output);
         if (Def.Crush is { } crush)
             Crush(output, crush);
         Age += rate * output.Length / Audio.SampleRate;

@@ -392,10 +392,14 @@ public static class AudioBench
         }
     }
 
-    /// <summary>Band-limited level of a tell and its margin over a masker, counted only while the tell is sounding.</summary>
+    /// <summary>
+    /// Band-limited level of a tell and its margin over a masker, counted only while the tell is sounding. Each ear's band
+    /// energy, summed: what reaches the ears, not a mono downmix, which would comb-filter a voice heard through the head's
+    /// delay (note 246) and count a sound panned to one side 3 dB down on one in the middle.
+    /// </summary>
     static (double TellDb, double MarginDb, double SoundingSeconds) Contrast(ReadOnlySpan<float> tell, ReadOnlySpan<float> masker, (double Low, double High) band)
     {
-        Biquad[] ft = Band(band), fm = Band(band);
+        Biquad[] tl = Band(band), tr = Band(band), ml = Band(band), mr = Band(band);
         double tellEnergy = 0, maskEnergy = 0;
         int sounding = 0, frames = tell.Length / 2;
         for (int start = 0; start + Audio.Block <= frames; start += Audio.Block)
@@ -403,10 +407,11 @@ public static class AudioBench
             double te = 0, me = 0;
             for (int i = start; i < start + Audio.Block; i++)
             {
-                float t = Filter(ft, 0.5f * (tell[i * 2] + tell[i * 2 + 1]));
-                float m = Filter(fm, 0.5f * (masker[i * 2] + masker[i * 2 + 1]));
-                te += t * t;
-                me += m * m;
+                float a = Filter(tl, tell[i * 2]), b = Filter(tr, tell[i * 2 + 1]);
+                float c = Filter(ml, masker[i * 2]), d = Filter(mr, masker[i * 2 + 1]);
+                // Half each ear's, so a sound in the middle measures as the mono sum did.
+                te += 0.5 * (a * a + b * b);
+                me += 0.5 * (c * c + d * d);
             }
             if (te / Audio.Block < 1e-7) // quieter than −70 dBFS in band: not sounding this block
                 continue;

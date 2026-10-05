@@ -313,6 +313,45 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheSoundSettingsAreSavedAndAreTheMixersVolumes()
+    {
+        // The audio checklist's mix-settings: master, effects, music and voice volumes, the microphone and its level.
+        var m = new FrontEnd(C, R, Saves, SettingsPath, () => 42) { MicDevices = ["Desk Mic", "Headset"] };
+        Choose(m, "SETTINGS");
+        Pick(m, "EFFECTS VOLUME");
+        m.Left();
+        m.Left();
+        m.Left();
+        Pick(m, "VOICE VOLUME");
+        m.Right();
+        Pick(m, "MUSIC VOLUME");
+        for (int i = 0; i < 12; i++)
+            m.Left();
+        Pick(m, "MICROPHONE");
+        m.Right();
+        m.Right();
+        Pick(m, "MIC LEVEL");
+        m.Right();
+        m.Right();
+        Assert.Equal(0.7, m.Settings.EffectsVolume, 6);
+        Assert.Equal(1, m.Settings.VoiceVolume, 6);
+        Assert.Equal(0, m.Settings.MusicVolume, 6);
+        Assert.Equal("Headset", m.Settings.MicDevice);
+        Assert.Equal(1.2, m.Settings.MicLevel, 6);
+        Assert.Equal(m.Settings, Settings.Load(SettingsPath));
+        // What the mixer's given: effects on the tells and the train, music silent, the crew at full.
+        var v = m.Settings.Volumes;
+        Assert.Equal(0.7f, v.Of(1), 4);
+        Assert.Equal(0.7f, v.Of(5), 4);
+        Assert.Equal(1f, v.Of(2), 4);
+        Assert.Equal(0f, v.Of(7), 4);
+        // Round past the last microphone to the default.
+        Pick(m, "MICROPHONE");
+        m.Right();
+        Assert.Equal("", m.Settings.MicDevice);
+    }
+
+    [Fact]
     public void TheDisplaySettingsAreSavedAndSayWhatTheGameDrawsAt()
     {
         // T83: fullscreen, the resolution, the render scale, vsync.
