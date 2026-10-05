@@ -37,9 +37,12 @@ public sealed partial class GameAudio
         Mixer = new Mixer(Bank, _mix.Value);
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
+        Clerk = new ClerkVoice(Bank.Samples);
     }
 
     public SoundBank Bank { get; }
+    /// <summary>The yard's voice on the radio (note 208): what it can say, and how long a line takes it.</summary>
+    public ClerkVoice Clerk { get; }
     public Mixer Mixer { get; }
     /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
     public Opera Opera { get; }
@@ -120,20 +123,43 @@ public sealed partial class GameAudio
         }
     }
 
-    SoundInstance? _whistle, _radioVoice;
+    SoundInstance? _whistle, _radioVoice, _radioSays;
+    IReadOnlyList<string>? _radioLines;
+    int _radioSaid;
     // The fraction of the working band's bottom under which the whistle only wheezes.
     const double WheezeBelow = 0.5;
 
-    /// <summary>The fortress reading over the radio (GDD §9; note 178): its voice and static for as long as it's on the air.</summary>
-    public void Radio(bool onAir)
+    /// <summary>
+    /// The fortress reading over the radio (GDD §9; notes 178, 208): the set's static for as long as it's on the air, and
+    /// each of <paramref name="reading"/>'s lines said as it comes on (<paramref name="onAir"/> of them so far, from
+    /// Sim.Run.Radio.Reading at the voice's own pace), in the clerk's voice through the set. Null, nobody's on the air.
+    /// </summary>
+    public void Radio(IReadOnlyList<string>? reading, int onAir)
     {
-        if (!onAir)
+        if (reading is null)
         {
             _radioVoice?.Stop();
-            _radioVoice = null;
+            _radioSays?.Stop();
+            _radioVoice = _radioSays = null;
+            _radioLines = null;
             return;
         }
         _radioVoice ??= Mixer.Play("radio-clerk");
+        if (!ReferenceEquals(reading, _radioLines))
+        {
+            _radioLines = reading;
+            _radioSaid = 0;
+        }
+        for (; _radioSaid < Math.Min(onAir, reading.Count); _radioSaid++)
+        {
+            // Behind (a stalled frame, or joined mid-reading): only the newest line is said, not a pile of them at once.
+            if (_radioSaid < onAir - 1 || Clerk.Render(reading[_radioSaid]) is not { } said)
+                continue;
+            _radioSays?.Stop();
+            _radioSays = Mixer.Play("radio-clerk-voice");
+            if (_radioSays is not null)
+                _radioSays.Clip = said;
+        }
     }
 
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
@@ -565,7 +591,8 @@ public sealed partial class GameAudio
     public void EndNight()
     {
         Mixer.StopAll();
-        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = _radioVoice = null;
+        _roar = _chuff = _brake = _wind = _valve = _strain = _vent = _whistle = _radioVoice = _radioSays = null;
+        _radioLines = null;
         _enemies.Clear();
         _packs.Clear();
         _packHowls.Clear();

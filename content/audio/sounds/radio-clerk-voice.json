@@ -1,0 +1,14 @@
+// The yard's voice (GDD §9; note 208): a line of the manifest or the tally, strung together by the game from the clerk's
+// word bank (samples/voice-clerk/bank, tools/audio/clerk.py) and played as this sound's clip. Through the set as a
+// crewmate's radio is (voice-radio): flat, band-limited 300 Hz-3 kHz with the set's honk, and crushed. Tier 2: the bed
+// ducks under it, and nothing ducks it.
+{
+  "tier": 2, "flat": true, "maxInstances": 1, "gainDb": 2,
+  "crush": { "bits": 8, "rate": 11025 },
+  "layers": [
+    { "source": "sample", "gain": 1.4,
+      "filters": [{ "type": "highPass", "frequency": 300 }, { "type": "highPass", "frequency": 300 },
+                  { "type": "lowPass", "frequency": 3000 }, { "type": "lowPass", "frequency": 3000 },
+                  { "type": "peak", "frequency": 1800, "q": 1, "gainDb": 4 }] }
+  ]
+}

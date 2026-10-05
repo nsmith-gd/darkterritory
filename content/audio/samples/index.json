@@ -10631,7 +10631,7 @@
     "label": "A young boy calling for help (synthesised stand-in)",
     "key": "boy",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 4,
@@ -11091,6 +11091,22 @@
   "takes": 4,
   "sha": "286b12b5c5326929"
  },
+ "voice-clerk/bank": {
+  "cue": "voice-clerk.bank",
+  "picked": "speaker385",
+  "candidates": [
+   {
+    "label": "The yard clerk: a low, even man's voice, every word of the manifest and the tally (synthesised stand-in)",
+    "key": "speaker385",
+    "sources": [
+     "Piper, LibriTTS en-us high (rhasspy/piper v0.0.2)"
+    ],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 78,
+  "sha": "12f0d352617313af"
+ },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",
   "surface": "set1",
@@ -11100,7 +11116,7 @@
     "label": "Prisoner 1: a deep man's voice, calling for help (synthesised stand-in)",
     "key": "set1",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11115,7 +11131,7 @@
     "label": "Prisoner 2: a man's voice, bright and reedy, calling for help (synthesised stand-in)",
     "key": "set2",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11130,7 +11146,7 @@
     "label": "Prisoner 3: a man's voice, plain, calling for help (synthesised stand-in)",
     "key": "set3",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11145,7 +11161,7 @@
     "label": "Prisoner 4: a man's voice, rough, calling for help (synthesised stand-in)",
     "key": "set4",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11160,7 +11176,7 @@
     "label": "Prisoner 5: a woman's voice, warm, calling for help (synthesised stand-in)",
     "key": "set5",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11175,7 +11191,7 @@
     "label": "Prisoner 6: a woman's voice, clear, calling for help (synthesised stand-in)",
     "key": "set6",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11190,7 +11206,7 @@
     "label": "Prisoner 7: a woman's voice, bright, calling for help (synthesised stand-in)",
     "key": "set7",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11205,7 +11221,7 @@
     "label": "Prisoner 8: a high man's voice, calling for help (synthesised stand-in)",
     "key": "set8",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 5,
@@ -11220,7 +11236,7 @@
     "label": "Prisoner 1: a deep man's voice, a raw shout (synthesised stand-in)",
     "key": "set1",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11235,7 +11251,7 @@
     "label": "Prisoner 2: a man's voice, bright and reedy, a raw shout (synthesised stand-in)",
     "key": "set2",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11250,7 +11266,7 @@
     "label": "Prisoner 3: a man's voice, plain, a raw shout (synthesised stand-in)",
     "key": "set3",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11265,7 +11281,7 @@
     "label": "Prisoner 4: a man's voice, rough, a raw shout (synthesised stand-in)",
     "key": "set4",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11280,7 +11296,7 @@
     "label": "Prisoner 5: a woman's voice, warm, a raw shout (synthesised stand-in)",
     "key": "set5",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11295,7 +11311,7 @@
     "label": "Prisoner 6: a woman's voice, clear, a raw shout (synthesised stand-in)",
     "key": "set6",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11310,7 +11326,7 @@
     "label": "Prisoner 7: a woman's voice, bright, a raw shout (synthesised stand-in)",
     "key": "set7",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,
@@ -11325,7 +11341,7 @@
     "label": "Prisoner 8: a high man's voice, a raw shout (synthesised stand-in)",
     "key": "set8",
     "sources": [],
-    "licence": "CC0"
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
   "takes": 3,

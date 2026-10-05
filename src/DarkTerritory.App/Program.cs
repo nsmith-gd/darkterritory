@@ -557,6 +557,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
+    // The yard's readings go at its voice's pace (note 208): the card typed as it's said.
+    if (net is not null && sound.Clerk.Speaks)
+        net.RadioPace = sound.Clerk.Seconds;
     // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
     if (look is not null)
     {
@@ -845,8 +848,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // faded under the film's cause card.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
-        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
-        sound.Radio(session.RadioReading is not null);
+        // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio, said a line at a time
+        // as each comes on (note 208).
+        var reading = session.RadioReading;
+        sound.Radio(reading, reading is null ? 0
+            : DarkTerritory.Sim.Run.Radio.Reading(reading, session.RadioSeconds, session.World.Run?.Tuning.Radio ?? new(), session.RadioTimes).Lines);
         // E.9: the Stranded outro's cooling boiler and its lamps going out, in time with the picture.
         sound.Stranded(session.Train, wreckTuning.Stranded, outro ? session.OutroSeconds : -1);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,

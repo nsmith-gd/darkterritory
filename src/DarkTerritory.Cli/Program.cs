@@ -82,6 +82,7 @@ return args switch
     ["facility", "drill", ..] => Print(FacilityDrill(train, content, routeTuning, args)),
     ["audio", "render", ..] => Print(RenderAudio(content, args)),
     ["audio", "opera", ..] => Print(OperaCommands.Run(content, args)),
+    ["audio", "clerk", ..] => Print(RenderClerk(content, args)),
     ["edit", ..] => Edit(content, args),
     ["voice", "bench", ..] => Print(DarkTerritory.Game.Sound.VoiceBench.Run(content, (int)Opt(args, "--car", 3), Opt(args, "--z", 4), args.Contains("--radio"),
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
@@ -1965,6 +1966,51 @@ static object RenderSound(string content, string sound, string[] args)
     string picture = Path.ChangeExtension(output, ".png");
     PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(mix, 800, 300), 800, 300, 1);
     return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report };
+}
+
+// dt audio clerk [--line "Crew: Priya."]: the yard on the radio (note 208), a manifest and a tally said through the set at the
+// voice's own pace, to a WAV and its spectrogram, with each line's turn and what the set broke up over.
+static object RenderClerk(string content, string[] args)
+{
+    var audio = new DarkTerritory.Game.Sound.GameAudio(content) { Mixer = { Listener = Ballast.Audio.Listener.At(Double3.Zero, 0) } };
+    audio.Bank.Samples.InlineBytes = long.MaxValue;
+    var t = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Radio;
+    string[] lines = Str(args, "--line", "") is { Length: > 0 } one ? [one] :
+    [
+        "Yard to consist. Manifest follows.", "Crew: Okafor.", "Crew: Priya.", "Crew: Halloran.", "Coal: 412.", "Powder and shot: 40.",
+        "Cars: 6.", "Freight: grain, medicine.", "Gates open. Yard out.",
+        "Yard clerk. Consist received. Tally follows.", "Cars delivered: 5. Cargo: 2450.", "Cars lost: 1.",
+        "Reyes. Body recovered. Fee 350. Refund 263.", "Priya. Body not recovered. Fee 350.", "Mail: 90.",
+        "Coal: 40. Powder and shot: 12. Repairs: 30.", "Net: 1158. Next.",
+    ];
+    var times = DarkTerritory.Sim.Run.Radio.Times(lines, t, audio.Clerk.Seconds);
+    double length = DarkTerritory.Sim.Run.Radio.Length(lines, t, times), blockSeconds = (double)Ballast.Audio.Audio.Block / Ballast.Audio.Audio.SampleRate;
+    var mix = new List<float>();
+    var block = new float[Ballast.Audio.Audio.Block * 2];
+    for (double at = 0; at < length; at += blockSeconds)
+    {
+        audio.Radio(lines, DarkTerritory.Sim.Run.Radio.Reading(lines, at, t, times).Lines);
+        audio.Mixer.Render(block);
+        mix.AddRange(block);
+    }
+    string output = Str(args, "--out", "out/audio/clerk.wav");
+    var all = mix.ToArray();
+    Ballast.Audio.Wav.Write(output, all);
+    string picture = Path.ChangeExtension(output, ".png");
+    PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(all, 800, 300), 800, 300, 1);
+    return new
+    {
+        path = Path.GetFullPath(output),
+        spectrogram = Path.GetFullPath(picture),
+        seconds = Math.Round(length, 2),
+        lines = lines.Select((l, i) => new
+        {
+            line = l,
+            at = Math.Round(times.Take(i).Sum(), 2),
+            said = Math.Round(audio.Clerk.Seconds(l), 2),
+            brokeUp = audio.Clerk.Pieces(l).Where(p => p.Kind == DarkTerritory.Game.Sound.ClerkVoice.PieceKind.Breakup).Select(p => p.Text),
+        }),
+    };
 }
 
 static string Str(string[] args, string name, string fallback)

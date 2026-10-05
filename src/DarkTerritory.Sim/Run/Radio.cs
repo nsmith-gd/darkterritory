@@ -1,8 +1,9 @@
 namespace DarkTerritory.Sim.Run;
 
 /// <summary>run.json <c>radio</c>: how long each line of the dispatcher's manifest and the clerk's tally stays on the air.</summary>
-/// <param name="LineSeconds">Each line's turn, read flat (GDD §9: "with the same tone used for the coal").</param>
-public sealed record RadioTuning(double LineSeconds = 1.6);
+/// <param name="LineSeconds">Each line's turn, read flat (GDD §9: "with the same tone used for the coal"); the least a spoken one gets.</param>
+/// <param name="PauseSeconds">Spoken (note 208), the breath after each line before the next: the reading's even pace.</param>
+public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5);
 
 /// <summary>
 /// The fortress on the radio (GDD v1.4 §9, WP9; ARCHITECTURE §8 note 178): at the gate the yard dispatcher reads the crew
@@ -61,16 +62,39 @@ public static class Radio
         return lines;
     }
 
-    /// <summary>How many of <paramref name="lines"/> are on the air <paramref name="seconds"/> in, and the newest's share typed.</summary>
-    public static (int Lines, double Typed) Reading(IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    /// <summary>
+    /// How many of <paramref name="lines"/> are on the air <paramref name="seconds"/> in, and the newest's share typed. With
+    /// <paramref name="times"/> (each line's turn, from <see cref="Times"/>), at the voice's pace, typed as it's said;
+    /// without, a line every <see cref="RadioTuning.LineSeconds"/>.
+    /// </summary>
+    public static (int Lines, double Typed) Reading(IReadOnlyList<string> lines, double seconds, RadioTuning t, IReadOnlyList<double>? times = null)
     {
         if (seconds < 0 || lines.Count == 0)
             return (0, 0);
+        if (times is not null)
+        {
+            double start = 0;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                double turn = i < times.Count ? times[i] : t.LineSeconds;
+                if (seconds < start + turn || i == lines.Count - 1)
+                    return (i + 1, Math.Clamp((seconds - start) / Math.Max(0.1, turn - t.PauseSeconds), 0, 1));
+                start += turn;
+            }
+        }
         double at = seconds / Math.Max(0.1, t.LineSeconds);
         int done = Math.Min(lines.Count, (int)at + 1);
         return (done, done >= lines.Count && at >= lines.Count ? 1 : Math.Clamp((at - (done - 1)) * 1.6, 0, 1));
     }
 
-    /// <summary>The whole reading's length.</summary>
-    public static double Length(IReadOnlyList<string> lines, RadioTuning t) => lines.Count * t.LineSeconds + t.LineSeconds;
+    /// <summary>The whole reading's length: every line's turn, and the last held one more.</summary>
+    public static double Length(IReadOnlyList<string> lines, RadioTuning t, IReadOnlyList<double>? times = null) =>
+        (times is null ? lines.Count * t.LineSeconds : lines.Select((_, i) => i < times.Count ? times[i] : t.LineSeconds).Sum()) + t.LineSeconds;
+
+    /// <summary>
+    /// Each line's turn when it's spoken (note 208): as long as <paramref name="spoken"/> says saying it takes, and the pause
+    /// after, never less than <see cref="RadioTuning.LineSeconds"/>. The voice is presentation, so each machine times its own.
+    /// </summary>
+    public static List<double> Times(IReadOnlyList<string> lines, RadioTuning t, Func<string, double> spoken) =>
+        [.. lines.Select(l => Math.Max(t.LineSeconds, spoken(l) + t.PauseSeconds))];
 }

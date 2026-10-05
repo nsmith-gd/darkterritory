@@ -243,6 +243,11 @@ SYNTH_DEFS = os.path.join(HERE, "synth-defs")
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
+# Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
+KEEP_SAMPLES = {"voice-clerk"}
+# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
+TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
+TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
 VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 
@@ -368,14 +373,19 @@ def main():
     args = [a for a in args if a != store]
     dry = "--dry" in sys.argv
     if not args and not dry:
-        # A full install starts clean: what the checklist no longer picks leaves the game.
-        shutil.rmtree(SAMPLES, ignore_errors=True)
+        # A full install starts clean: what the checklist no longer picks leaves the game. The clerk's word bank isn't a
+        # checklist pick (clerk.py builds it), so it stays.
+        for entry in os.listdir(SAMPLES) if os.path.isdir(SAMPLES) else []:
+            if entry not in KEEP_SAMPLES and os.path.isdir(os.path.join(SAMPLES, entry)):
+                shutil.rmtree(os.path.join(SAMPLES, entry))
         for f in os.listdir(SOUNDS):
             with open(os.path.join(SOUNDS, f)) as fh:
                 if "tools/audio/install.py" in fh.readline():
                     os.unlink(os.path.join(SOUNDS, f))
     index_path = os.path.join(SAMPLES, "index.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
+    if not args and not dry:
+        index = {rel: e for rel, e in index.items() if rel.split("/")[0] in KEEP_SAMPLES}
     n_cues = n_files = 0
     for line, cues in C.CUES.items():
         if args and line not in args:
@@ -427,7 +437,8 @@ def main():
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
-                                              "licence": "Sonniss GDC" if k.get("restricted") else "CC0"} for k in chosen],
+                                              "licence": "Sonniss GDC" if k.get("restricted")
+                                              else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen],
                               "takes": len(takes),
                               "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
                                                              for f in sorted(os.listdir(folder)))).hexdigest()[:16]}

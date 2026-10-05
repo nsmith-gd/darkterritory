@@ -61,7 +61,7 @@ public static class Hud
             Skip(o, width, height, s);
         // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
         if (s.RadioReading is { } reading)
-            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new());
+            RadioCard(o, width, height, reading, s.RadioSeconds, s.World.Run?.Tuning.Radio ?? new(), s.RadioTimes);
         Engine(o, s, line);
         RouteStrip(o, width, s, line);
         if (s.Link is { } link)
@@ -844,9 +844,10 @@ public static class Hud
     /// The fortress on the radio (GDD §9; note 178): the dispatcher's manifest or the clerk's tally, a line at a time, typed
     /// out as it's read, flat, the last few on the card.
     /// </summary>
-    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t)
+    public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t,
+        IReadOnlyList<double>? times = null)
     {
-        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t);
+        var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t, times);
         if (shown == 0)
             return;
         int scale = Math.Max(1, height / 360);

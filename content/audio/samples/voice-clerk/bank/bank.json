@@ -1,0 +1,319 @@
+// The clerk's vocabulary (tools/audio/clerk.py; note 208): each phrase or word, its take, and how long it runs.
+{
+ "entries": {
+  "achebe": {
+   "file": "achebe",
+   "seconds": 0.471
+  },
+  "body not recovered": {
+   "file": "body-not-recovered",
+   "seconds": 0.86
+  },
+  "body recovered": {
+   "file": "body-recovered",
+   "seconds": 0.737
+  },
+  "cargo": {
+   "file": "cargo",
+   "seconds": 0.399
+  },
+  "cars": {
+   "file": "cars",
+   "seconds": 0.421
+  },
+  "cars delivered": {
+   "file": "cars-delivered",
+   "seconds": 0.652
+  },
+  "cars lost": {
+   "file": "cars-lost",
+   "seconds": 0.683
+  },
+  "chemicals": {
+   "file": "chemicals",
+   "seconds": 0.568
+  },
+  "child survivor": {
+   "file": "child-survivor",
+   "seconds": 0.779
+  },
+  "child survivors": {
+   "file": "child-survivors",
+   "seconds": 0.966
+  },
+  "coal": {
+   "file": "coal",
+   "seconds": 0.251
+  },
+  "comet-derived material": {
+   "file": "comet-derived-material",
+   "seconds": 1.301
+  },
+  "consist received": {
+   "file": "consist-received",
+   "seconds": 0.853
+  },
+  "crew": {
+   "file": "crew",
+   "seconds": 0.28
+  },
+  "dunmore": {
+   "file": "dunmore",
+   "seconds": 0.429
+  },
+  "eight": {
+   "file": "eight",
+   "seconds": 0.322
+  },
+  "eighteen": {
+   "file": "eighteen",
+   "seconds": 0.476
+  },
+  "eighty": {
+   "file": "eighty",
+   "seconds": 0.324
+  },
+  "eleven": {
+   "file": "eleven",
+   "seconds": 0.407
+  },
+  "fee": {
+   "file": "fee",
+   "seconds": 0.25
+  },
+  "fifteen": {
+   "file": "fifteen",
+   "seconds": 0.481
+  },
+  "fifty": {
+   "file": "fifty",
+   "seconds": 0.391
+  },
+  "five": {
+   "file": "five",
+   "seconds": 0.377
+  },
+  "food": {
+   "file": "food",
+   "seconds": 0.339
+  },
+  "forty": {
+   "file": "forty",
+   "seconds": 0.347
+  },
+  "four": {
+   "file": "four",
+   "seconds": 0.296
+  },
+  "fourteen": {
+   "file": "fourteen",
+   "seconds": 0.504
+  },
+  "freight": {
+   "file": "freight",
+   "seconds": 0.261
+  },
+  "gates open": {
+   "file": "gates-open",
+   "seconds": 0.579
+  },
+  "goods": {
+   "file": "goods",
+   "seconds": 0.33
+  },
+  "grain": {
+   "file": "grain",
+   "seconds": 0.393
+  },
+  "gunpowder and shot": {
+   "file": "gunpowder-and-shot",
+   "seconds": 1.048
+  },
+  "halloran": {
+   "file": "halloran",
+   "seconds": 0.444
+  },
+  "hundred": {
+   "file": "hundred",
+   "seconds": 0.383
+  },
+  "lindqvist": {
+   "file": "lindqvist",
+   "seconds": 0.45
+  },
+  "livestock": {
+   "file": "livestock",
+   "seconds": 0.592
+  },
+  "machine parts": {
+   "file": "machine-parts",
+   "seconds": 0.855
+  },
+  "mail": {
+   "file": "mail",
+   "seconds": 0.395
+  },
+  "manifest follows": {
+   "file": "manifest-follows",
+   "seconds": 0.955
+  },
+  "medicine": {
+   "file": "medicine",
+   "seconds": 0.431
+  },
+  "million": {
+   "file": "million",
+   "seconds": 0.462
+  },
+  "minus": {
+   "file": "minus",
+   "seconds": 0.46
+  },
+  "moreau": {
+   "file": "moreau",
+   "seconds": 0.496
+  },
+  "net": {
+   "file": "net",
+   "seconds": 0.312
+  },
+  "next": {
+   "file": "next",
+   "seconds": 0.424
+  },
+  "nine": {
+   "file": "nine",
+   "seconds": 0.367
+  },
+  "nineteen": {
+   "file": "nineteen",
+   "seconds": 0.538
+  },
+  "ninety": {
+   "file": "ninety",
+   "seconds": 0.459
+  },
+  "okafor": {
+   "file": "okafor",
+   "seconds": 0.662
+  },
+  "one": {
+   "file": "one",
+   "seconds": 0.332
+  },
+  "ore": {
+   "file": "ore",
+   "seconds": 0.327
+  },
+  "paid": {
+   "file": "paid",
+   "seconds": 0.325
+  },
+  "petrov": {
+   "file": "petrov",
+   "seconds": 0.584
+  },
+  "powder and shot": {
+   "file": "powder-and-shot",
+   "seconds": 0.767
+  },
+  "refund": {
+   "file": "refund",
+   "seconds": 0.456
+  },
+  "repairs": {
+   "file": "repairs",
+   "seconds": 0.59
+  },
+  "reyes": {
+   "file": "reyes",
+   "seconds": 0.429
+  },
+  "salvage": {
+   "file": "salvage",
+   "seconds": 0.528
+  },
+  "seven": {
+   "file": "seven",
+   "seconds": 0.413
+  },
+  "seventeen": {
+   "file": "seventeen",
+   "seconds": 0.642
+  },
+  "seventy": {
+   "file": "seventy",
+   "seconds": 0.479
+  },
+  "six": {
+   "file": "six",
+   "seconds": 0.414
+  },
+  "sixteen": {
+   "file": "sixteen",
+   "seconds": 0.537
+  },
+  "sixty": {
+   "file": "sixty",
+   "seconds": 0.476
+  },
+  "tally follows": {
+   "file": "tally-follows",
+   "seconds": 0.729
+  },
+  "ten": {
+   "file": "ten",
+   "seconds": 0.337
+  },
+  "thirteen": {
+   "file": "thirteen",
+   "seconds": 0.5
+  },
+  "thirty": {
+   "file": "thirty",
+   "seconds": 0.368
+  },
+  "thousand": {
+   "file": "thousand",
+   "seconds": 0.461
+  },
+  "three": {
+   "file": "three",
+   "seconds": 0.298
+  },
+  "timber": {
+   "file": "timber",
+   "seconds": 0.401
+  },
+  "twelve": {
+   "file": "twelve",
+   "seconds": 0.371
+  },
+  "twenty": {
+   "file": "twenty",
+   "seconds": 0.395
+  },
+  "two": {
+   "file": "two",
+   "seconds": 0.302
+  },
+  "yard clerk": {
+   "file": "yard-clerk",
+   "seconds": 0.681
+  },
+  "yard out": {
+   "file": "yard-out",
+   "seconds": 0.46
+  },
+  "yard to consist": {
+   "file": "yard-to-consist",
+   "seconds": 0.851
+  },
+  "zero": {
+   "file": "zero",
+   "seconds": 0.405
+  }
+ },
+ "speaker": 385,
+ "voice": "a low, even man's voice"
+}
