@@ -135,6 +135,133 @@ public class LinesideTests
         Assert.True(crew[2].Alive, $"inside: {crew[2].Death}");
     }
 
+    /// <summary>
+    /// A scripted ride (note 260): a train driven by <paramref name="speedAt"/> (m/s, by the second) over a route, with riders
+    /// stood on every car's roof who never get down, lamps lit or not. Every tick it watches the roof warning as a player's
+    /// HUD would (<see cref="Lineside.Warning"/>), and each roof death, when it came, and how long the warning had been up.
+    /// </summary>
+    static (List<(DeathCause Cause, double Warned)> Deaths, int Spared, double FirstWarning) Watch(Route.Route route, Func<double, double> speedAt, bool lamp,
+        double until, int cars = 5)
+    {
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), route.Build(), 600);
+        var world = new World(train, Tuning.Combat) { LampLit = lamp };
+        world.EnableBodies();
+        world.EnableLineside(S, route);
+        var states = Enumerable.Range(1, cars - 1).Select(car => PlayerMotor.SpawnOnRoof(train, car, 0, P)).ToArray();
+        var deaths = new List<(DeathCause, double)>();
+        double up = -1, first = double.NaN;
+        for (int tick = 0; train.Dynamics.RearDistance < until && !world.Derailed && tick < 30 * 600; tick++)
+        {
+            double now = tick * SimConstants.TickSeconds;
+            train.Dynamics.Velocity = speedAt(now);
+            world.BeginTick();
+            for (int i = 0; i < states.Length; i++)
+                world.CrewAct(ref states[i], default, i + 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            // The warning as this tick's HUD has it: up since when.
+            bool warned = world.Lineside!.Warning(train) is not null;
+            up = warned ? up < 0 ? now : up : -1;
+            if (warned && double.IsNaN(first))
+                first = now;
+            // The host's commits this tick, before they're applied: the mouth's blow, the throw.
+            foreach (var d in world.Damage)
+                if (d.Cause is DeathCause.Struck or DeathCause.Thrown)
+                    deaths.Add((d.Cause, up < 0 ? -1 : now - up));
+            world.ApplyDamage(id => states[id - 1], (id, s) => states[id - 1] = s, Enumerable.Range(1, states.Length));
+            for (int i = 0; i < states.Length; i++)
+                PlayerMotor.Step(ref states[i], default, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        return (deaths, world.Lineside!.Spared, first);
+    }
+
+    [Fact]
+    public void EveryRoofDeathOnTheLineIsWarnedAFullLeadAhead()
+    {
+        // GDD App. A.1: "TELEGRAPH always precedes COMMIT." The line's own kills (a tunnel's mouth, a bend too fast) come
+        // after a warning up for leadSeconds at least, at any speed, lamp lit or not, and with the train gathering speed.
+        double lead = S.RoofWarning.LeadSeconds;
+        var bend = Curve(300);
+        double limit = Lineside.Boards(S, bend).Single(s => s.Kind == SignKind.SpeedLimit).Limit;
+        var runs = new (string Name, Route.Route Route, Func<double, double> Speed, bool Lamp, double Until, DeathCause Cause)[]
+        {
+            ("tunnel at 12 m/s", Tunnel(), _ => 12, true, 1750, DeathCause.Struck),
+            ("tunnel at 22 m/s, dark", Tunnel(), _ => 22, false, 1750, DeathCause.Struck),
+            ("tunnel, gathering speed", Tunnel(), t => Math.Min(22, 4 + 0.6 * t), true, 1750, DeathCause.Struck),
+            ("bend well over", bend, _ => limit + S.ThrowOver + 0.5, true, 1200, DeathCause.Thrown),
+            ("bend, dark", bend, _ => limit + S.ThrowOver + 0.5, false, 1200, DeathCause.Thrown),
+            // Under the board to 10 m short of it, then over in a moment: the warning comes late, so the throw waits for it.
+            ("bend, a surge at the board", bend, t => 600 + limit * t < 790 ? limit - 1 : limit + S.ThrowOver + 0.5, true, 1200, DeathCause.Thrown),
+        };
+        foreach (var (name, route, speed, lamp, until, cause) in runs)
+        {
+            var (deaths, _, first) = Watch(route, speed, lamp, until);
+            Assert.True(deaths.Count > 0, $"{name}: nobody up top was taken (warned at {first:0.0} s)");
+            Assert.All(deaths, d => Assert.Equal(cause, d.Cause));
+            Assert.All(deaths, d => Assert.True(d.Warned >= lead - 1e-6, $"{name}: {d.Cause} with the warning up {d.Warned:0.00} s, under {lead} s"));
+        }
+    }
+
+    [Fact]
+    public void ABendTakenAtItsBoardIsNoWarningAndATunnelAlwaysIs()
+    {
+        var bend = Curve(300);
+        double limit = Lineside.Boards(S, bend).Single(s => s.Kind == SignKind.SpeedLimit).Limit;
+        var (none, _, first) = Watch(bend, _ => limit, true, 1200);
+        Assert.Empty(none);
+        Assert.True(double.IsNaN(first), $"warned at {first:0.0} s for a bend at its board");
+        // A tunnel's mouth is warned of at a crawl too.
+        var (_, _, crawl) = Watch(Tunnel(), _ => 4, true, 1460);
+        Assert.False(double.IsNaN(crawl));
+    }
+
+    [Fact]
+    public void TheWarningIsForWhoeverIsUpTop()
+    {
+        var route = Tunnel();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 1450);
+        var world = new World(train, Tuning.Combat);
+        world.EnableLineside(S, route);
+        var lineside = world.Lineside!;
+        var warning = lineside.Warning(train);
+        Assert.Equal(SignKind.LowClearance, warning?.Kind);
+        var room = train.Frames[3].Shape.Interior!.Value;
+        Assert.True(lineside.For(PlayerMotor.SpawnOnRoof(train, 2, 0, P), world));
+        Assert.False(lineside.For(PlayerMotor.SpawnInCab(train, P), world));
+        Assert.False(lineside.For(new PlayerState { Parent = 3, Position = new Double3(0, room.Min.Y, 0), Surface = Surface.Deck, Health = P.Health }, world));
+        // roofOnly off: the cab's told too.
+        var everyone = new Lineside(S with { RoofWarning = S.RoofWarning with { RoofOnly = false } }, route);
+        Assert.True(everyone.For(PlayerMotor.SpawnInCab(train, P), world));
+    }
+
+    [Fact]
+    public void ACrouchClearsAMouthOnlyIfTunedTo()
+    {
+        // Note 260: the spec doesn't say; the kept reading is that it doesn't (a tuning flag says otherwise).
+        PlayerState[] Crouched(TrainOnLine train) => [PlayerMotor.SpawnOnRoof(train, 2, 0, P) with { Head = 0.8 }];
+        var (_, kept) = Ride(Tunnel(), 12, 1750, Crouched);
+        Assert.Equal(DeathCause.Struck, kept[0].Death);
+        var flagged = S with { RoofWarning = S.RoofWarning with { CrouchClearsMouth = true } };
+        var route = Tunnel();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        world.EnableLineside(flagged, route);
+        world.Hand = P.Hand;
+        var s = Crouched(train)[0];
+        // A headset rider down on their haunches: the head's height comes with a reported hand (T82).
+        var crouch = new PlayerIntent { Buttons = PlayerButtons.Hand, HandX = 0.3f, HandY = 0.6f, HandZ = -0.3f, Head = 0.8f };
+        while (train.Dynamics.RearDistance < 1750)
+        {
+            train.Dynamics.Velocity = 12;
+            world.BeginTick();
+            world.CrewAct(ref s, crouch, 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
+            PlayerMotor.Step(ref s, crouch, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.True(s.Alive, $"crouched under the mouth: {s.Death}");
+    }
+
     [Fact]
     public void GreaseTakesTheGrip()
     {
@@ -191,20 +318,22 @@ public class LinesideTests
         Assert.True(darkSound < 1, $"integrity {darkSound}");
     }
 
-    [Fact]
-    public void WalkersGetOffTheRoofsForAPostedTunnel()
+    /// <summary>Two roof-walker bots up on cars 2 and 4 over a route at a speed: how they ended, and whether either went in.</summary>
+    static (PlayerState[] Crew, bool WentIn, double Slowest) Walk(Route.Route route, double speed, double until, bool lamp = true)
     {
-        var route = Tunnel();
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 400);
-        var world = new World(train);
+        var world = new World(train) { LampLit = lamp };
         world.EnableBodies();
         world.EnableLineside(S, route);
         var bots = new[] { new RoofWalkerBot(5, P.Cold), new RoofWalkerBot(6, P.Cold) };
         var crew = new[] { PlayerMotor.SpawnOnRoof(train, 2, 0, P), PlayerMotor.SpawnOnRoof(train, 4, 0, P) };
         bool wentIn = false;
-        for (uint tick = 0; train.Dynamics.RearDistance < 1720; tick++)
+        // How long after the warning went up the last of them was off the roofs (s).
+        double up = -1, slowest = 0;
+        for (uint tick = 0; train.Dynamics.RearDistance < until && !world.Derailed; tick++)
         {
-            train.Dynamics.Velocity = 10;
+            double now = tick * SimConstants.TickSeconds;
+            train.Dynamics.Velocity = speed;
             world.BeginTick();
             var intents = new PlayerIntent[crew.Length];
             for (int i = 0; i < crew.Length; i++)
@@ -219,9 +348,35 @@ public class LinesideTests
                 PlayerMotor.Step(ref crew[i], intents[i], train, P, T, SimConstants.TickSeconds, applyLook: false);
                 wentIn |= crew[i].Surface == Surface.Deck;
             }
+            bool warned = RoofWalkerBot.RoofWarned(world);
+            up = warned ? up < 0 ? now : up : -1;
+            if (up >= 0 && crew.Any(c => c.Alive && c.Surface == Surface.Roof))
+                slowest = Math.Max(slowest, now - up);
         }
-        Assert.All(crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
-        Assert.True(wentIn);
+        return (crew, wentIn, slowest);
+    }
+
+    [Fact]
+    public void WalkersGetOffTheRoofsOnTheRoofWarning()
+    {
+        // Note 260: the bots get down on the warning a player gets (RoofWalkerBot.RoofWarned, the same Lineside.Warning), and
+        // in its lead: for a tunnel, lit or dark (it was the board read, so lamps down they learned of the mouth 10 m short),
+        // and for a bend the train's taking too fast.
+        var bend = Curve(300);
+        double limit = Lineside.Boards(S, bend).Single(s => s.Kind == SignKind.SpeedLimit).Limit;
+        foreach (var (name, route, speed, lamp, until) in new[]
+        {
+            ("tunnel", Tunnel(), 10.0, true, 1720.0),
+            ("tunnel, dark", Tunnel(), 10.0, false, 1720.0),
+            ("tunnel, fast", Tunnel(), 20.0, true, 1720.0),
+            ("bend too fast", bend, limit + S.ThrowOver + 0.5, true, 1200.0),
+        })
+        {
+            var (crew, wentIn, slowest) = Walk(route, speed, until, lamp);
+            Assert.All(crew, c => Assert.True(c.Alive, $"{name}: died of {c.Death}"));
+            Assert.True(wentIn, name);
+            Assert.True(slowest < S.RoofWarning.LeadSeconds, $"{name}: still up top {slowest:0.0} s into the warning");
+        }
     }
 
     [Fact]
@@ -230,7 +385,8 @@ public class LinesideTests
         // T81 (deepTerritory:2): three walkers turned away from a car a Climber had climbed straight back up the ladder from
         // the plate, into the mouth. Off the roofs already, they stay off them till it's by.
         var route = Tunnel();
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 1300);
+        // (Note 260: 120 m short of the mouth at 10 m/s, inside the roof warning's lead from the start.)
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), 1380);
         var world = new World(train);
         world.EnableBodies();
         world.EnableLineside(S, route);
@@ -248,8 +404,8 @@ public class LinesideTests
             world.Step(new TrainControls { Reverser = 1 });
             world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
             PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
-            roofed |= s.Surface == Surface.Roof && RoofWalkerBot.TunnelNear(world);
-            sawItPosted |= tick < 30 && RoofWalkerBot.TunnelNear(world);
+            roofed |= s.Surface == Surface.Roof && RoofWalkerBot.RoofWarned(world);
+            sawItPosted |= tick < 30 && RoofWalkerBot.RoofWarned(world);
         }
         Assert.True(s.Alive, $"died of {s.Death}");
         Assert.False(roofed, "up on a roof with the tunnel's mouth near");

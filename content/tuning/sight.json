@@ -55,5 +55,36 @@
   // so these are its moments.
   "terminusBoard": 1400,
   "homeSignal": 600,
-  "platformBoard": 100
+  "platformBoard": 100,
+
+  // The roof warning (note 260; GDD App. A.1's fairness contract: "TELEGRAPH always precedes COMMIT", and kills by the line
+  // itself are no exception). A tunnel's mouth (struckDamage) and a posted stretch taken over throwOver are both warned of
+  // to whoever's up on the roofs, on the HUD and by ear (systems spec A.3 tier 1, A.4: warn-low-clearance's telltale slaps,
+  // warn-curve's roof irons chattering), lamp or no lamp, and neither takes anyone until its warning has been up a full
+  // leadSeconds. Roof-walker bots get down on the same warning.
+  "roofWarning": {
+    // Warned this long before the hazard reaches the leading car at the speed now (s): App. A.1's reaction window at its
+    // longest (4 s) and about 6 s more to reach an end ladder from mid-roof at a walk (player.json walk 2.4 m/s over a
+    // 14 m car) and climb down it (ladderClimb 1.6 m/s).
+    "leadSeconds": 10,
+    // Plus this far (m), so a train gathering speed is still warned in time; below minSpeed (m/s) it counts as minSpeed.
+    "leadMargin": 30,
+    "minSpeed": 3,
+    // A posted stretch is warned of with the train within this (m/s) of throwing roof riders off it (throwOver over the
+    // board, more with handrails): the driver can still brake out of it, and the warning goes again if they do.
+    "curveHeadroom": 1.5,
+    // The HUD line and the cue only for players up top (on a roof, or an end ladder on the way up or down; not a gun's crew
+    // behind its shield). Off: everyone aboard gets it, the cab too.
+    "roofOnly": true,
+    // While it's up, the cue sounds again this often (s); spec A.4 rule 4, not so often it's tuned out.
+    "repeatSeconds": 4,
+    // Not in the spec: whether a crouch gets you under a tunnel's mouth. The reading kept is that it doesn't ("anyone
+    // standing on a roof", note 71; ARCHITECTURE section 8, note 260). On, a headset rider whose head is down under crouchHead
+    // (m over the feet) is clear; the keyboard's body has no crouch.
+    "crouchClearsMouth": false,
+    "crouchHead": 1.0,
+    // Its sounds (content/audio/sounds).
+    "lowClearanceSound": "warn-low-clearance",
+    "curveSound": "warn-curve"
+  }
 }
