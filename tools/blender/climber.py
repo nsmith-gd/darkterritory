@@ -173,17 +173,25 @@ for s, sx in (("r", 1), ("l", -1)):
                    fmat=belly_or_back)
         limbs.blob(T(up_), (0.044 * big, 0.044 * big, 0.044 * big), 8, 6, SKIN, {up_: 0.5, lo: 0.5})
         limbs.tube([H(lo), H(lo).lerp(T(lo), 0.5), T(lo)], [0.04 * big, 0.03 * big, 0.024 * big], 8, SKIN, ([lo, ha], 6.0), ref=(0, 1, 0))
-        # The hand: a narrow palm, three long hooked fingers off its end.
+        # The hand: a broad flat palm, three heavy knuckled fingers off its end, each ending in a black hook, and a short
+        # thumb-hook off its inner side. (Thin fingers read as a fork at the gap, from the roof; these are made for steel.)
         w, e = H(ha), T(ha)
         fwd = (e - w).normalized()
         across = fwd.cross(Vector((0, 0, 1))).normalized()
-        limbs.blob(w.lerp(e, 0.5), (0.03, 0.06, 0.016), 8, 5, SKIN, {ha: 1.0}, rot=Vector((0, 1, 0)).rotation_difference(fwd).to_matrix().to_4x4())
+        hand_rot = Vector((0, 1, 0)).rotation_difference(fwd).to_matrix().to_4x4()
+        limbs.blob(w.lerp(e, 0.55), (0.046, 0.068, 0.022), 10, 6, SKIN, {ha: 1.0}, rot=hand_rot)
         for f in (-1, 0, 1):
-            root = e + across * 0.018 * f
-            tip = T(ho) + across * 0.03 * f + fwd * 0.03 + Vector((0, 0, 0.034))
-            curl = tip - Vector((0, 0, 0.035))
-            limbs.tube([root, root.lerp(tip, 0.5) + Vector((0, 0, 0.012)), tip, curl], [0.011, 0.009, 0.006, 0.0012], 6, SKIN, ho, ref=(0, 0, 1),
-                       fmat=lambda pts_, n, curl=curl, tip=tip: HOOK if (sum(pts_, Vector()) / len(pts_) - curl).length < (tip - curl).length * 1.4 else SKIN)
+            root = e + across * 0.026 * f - fwd * 0.012
+            tip = T(ho) + across * 0.042 * f + fwd * (0.04 - 0.008 * abs(f)) + Vector((0, 0, 0.03))
+            knuckle = root.lerp(tip, 0.45) + Vector((0, 0, 0.026))
+            curl = tip - Vector((0, 0, 0.031)) - fwd * 0.012      # down to the floor at rest, not through it
+            limbs.blob(knuckle, (0.015, 0.015, 0.014), 6, 4, SKIN, {ho: 1.0})
+            limbs.tube([root, knuckle, tip, curl], [0.017, 0.014, 0.009, 0.0015], 7, SKIN, ho, ref=(0, 0, 1),
+                       fmat=lambda pts_, n, curl=curl, tip=tip: HOOK if (sum(pts_, Vector()) / len(pts_) - curl).length < (tip - curl).length * 1.5 else SKIN)
+        inner = -across * (1 if s == "r" else -1)
+        troot = w.lerp(e, 0.6) + inner * 0.04
+        ttip = troot + inner * 0.03 + fwd * 0.02 + Vector((0, 0, 0.012))
+        limbs.tube([troot, ttip, ttip - Vector((0, 0, 0.022))], [0.011, 0.006, 0.0012], 6, HOOK, ha, ref=(0, 0, 1))
 
 
 # ----------------------------------------------------------------------------------------------------------------

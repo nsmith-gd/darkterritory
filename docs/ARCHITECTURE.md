@@ -3095,7 +3095,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Nightly:** `soak.yml` adds `balance --pairs --wide` beside the default grid's `--every-hazard` run, and prints `byCell`. The job's timeout is 240 min (note 186's 180 min no longer leaves room).
     - **Not done:** bringing the dormant kinds on (the Gaunt, the Draggers, Ribbits). It needs the bots to go near a sleeping Gaunt, stand at a roof's edge, or get caught on the ground, and that's bot behaviour, not the sweep's. Left as note 186 says.
     - Harness-side only; protocol unchanged. Tests: `AuditTests.TheGridRunsEveryCombinationOnEveryRouteWithEveryCrew` (the nights' count and order, the hazards in turn or all of them, the tuning's two grids) and `UnwinnableIsLostEveryNightInSomeCell` (a cell lost every night is unwinnable and named; a loss in every cell that never takes a whole cell isn't; trivial is nothing landed anywhere; `byCell`'s nights, losses and unwinnable list).
-205. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
+205. **The Climber in play: hands for steel, skin that isn't plastic (the 5 October audit, note 200; note 136's model).** In the playthroughs the Climber at a coupling gap read as a pale curved pipe. Up close, in the staged gap (`dt screenshot --threats --climber scrabble --view gapside`), it read as a smooth blue-grey toy with forks for hands.
+    - **The hands** were a narrow palm and three thin straight fingers (11 mm), a fork against the sky. Now (tools/blender/climber.py):
+      - a broad flat palm;
+      - three heavy fingers, each knuckled (a joint bump and a bend) and ending in a black hook;
+      - a short thumb-hook off the inner side.
+    - **The skin** was one black at a roughness of 0.25 everywhere, so it mirrored the pale sky and read blue. Now (tools/models/recipes/climber.py):
+      - roughness 0.45, wet only in blotches;
+      - deeper crossing wrinkles and shallow puckered pits in the bake;
+      - a dull bruise-brown mottling under the black, so the light breaks on it.
+    - It's 4,768 triangles (was 3,652), well inside its budget (`dt art check`). The rig, the clips and the sim are unchanged.
+    - **Looked at:** gapside scrabble, before and after; the crouch in the aisle; and the walk on the roof.
+206. **A car fire's flames aren't a row of cards (the 5 October audit, note 200).** Burning, the fire read as one flat sheet of flame with a straight bright edge along its foot.
+    - **The cause, in two parts:**
+      - `fx_flame`'s tongues rose off a ruled line, faded in over only the bottom 7% of the frame;
+      - `Effects.CarFire` stood every tongue's foot on the floor, in two straight ranks.
+    - Side by side, the feet joined into one edge.
+    - **Now:**
+      - each tongue's root rises over a ragged, noise-broken band (tools/art/texgen/mat_fx.py);
+      - the tongues' feet are where the load burns: some at the floor, some up on the crates and in the gaps between, in and out from the face.
+    - `--view fire --threats`: before and after. The furnace and the guns use the same flipbook. Their roots only soften.
+207. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
     - **What's replicated.** The head's yaw and pitch already were (the sim's look follows the headset, note 30), and the hands (note 51). Its height wasn't: the tracking space hangs from the eye point, so a real crouch moved nothing in the sim. Now `PlayerIntent.Head` (the headset's height over the feet, `Eyes.Height` plus where the head is in the LOCAL space) rides with the hands, in the spare bits of the "other hand" byte plus an I16 of centimetres, and `PlayerState.Head` goes out on the player record (one more field, zero for a keyboard or a bot, so delta encoding makes it free). `TakeHand` takes it with the hands, held between kneeling (0.5 m) and `hand.overhead`; nothing in the sim acts on it. Remote players' heads are interpolated with their hands. Protocol 24.
       - **Reading: with the hands, not on its own.** Every free bit of the intent's three flag bytes is taken; the hand block's byte had seven. So a headset whose controllers have both dropped out stands its body straight until they're back.
       - The app now copies the other hand into the intent too: `VrLocomotion.Intent` built it (T43), but the app took only the reaching hand from it, so on the real path the host never had two hands for a heavy crate. `HandTests` drove `PlayerIntent.Reach` directly and never saw it.
