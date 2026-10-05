@@ -63,7 +63,7 @@
     // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
     "perColdStep": 0.25
   },
-  // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 200). Up on a roof, the wind
+  // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
   // side to the other over gustMetres of line. walking: walking or standing, this of what it is at a roof run (balance).

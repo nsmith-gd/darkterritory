@@ -432,7 +432,7 @@ public static class PlayerMotor
             if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
-            // GDD §22 wind on a roof (note 200): a sideways push across the car, on top of where you're going.
+            // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
             s.Velocity = new Double3(wish.X + WindPush(s, intent, train, p, t), 0, wish.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
@@ -529,7 +529,7 @@ public static class PlayerMotor
         Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
 
     /// <summary>
-    /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 200): how hard the wind pushes someone on a roof
+    /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 201): how hard the wind pushes someone on a roof
     /// across their car (m/s along the car's +X, its right), or 0 off one. The route's wind there (the night's, ×1.5 on
     /// exposed track), harder the faster the train goes and at a run, in gusts from either side along the line; a hand
     /// on the roof handrails takes most of it, and a gun's seat is behind its shield. The same on every machine: the
@@ -553,7 +553,7 @@ public static class PlayerMotor
     }
 
     /// <summary>
-    /// The wind's gusts along the line (note 200): −1 (from the right) to +1 (from the left), a hash of each
+    /// The wind's gusts along the line (note 201): −1 (from the right) to +1 (from the left), a hash of each
     /// <paramref name="metres"/> of line, eased from one to the next. No trig and no dice, so a predicting client agrees.
     /// </summary>
     public static double Gust(double along, double metres)

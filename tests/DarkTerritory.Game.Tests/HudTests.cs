@@ -148,7 +148,7 @@ public class HudTests
     [Fact]
     public void TheHudSaysHowDeepTheColdIs()
     {
-        // GDD §22 deep cold (note 200): from the line's conditions, which every machine builds from the night's seed.
+        // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
         var s = new PrototypeSession(Content, "test-loop", 4);
         Assert.Null(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
         DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
@@ -162,7 +162,7 @@ public class HudTests
     [Fact]
     public void TheKitInHandOffersToMendABrokenRadio()
     {
-        // GDD §23 "radio breaks" (note 200): the repair kit mends it, held; how far it's got from the body record.
+        // GDD §23 "radio breaks" (note 201): the repair kit mends it, held; how far it's got from the body record.
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
         var bodies = s.World.Bodies;

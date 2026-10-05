@@ -174,7 +174,7 @@
     // Roof handrails (F.3 "Dragger resistance"): fitted, a Dragger's grab range is draggerGrab of what it was (0.6 m off the
     // edge at a crawl, not 1), it hangs on draggerHang times as long before it has you (12 s, not 8: friends' time), and
     // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5), and the
-    // wind's push on the roofs (GDD §22, player.json wind; note 200) is wind times what it was: a hand on the rail.
+    // wind's push on the roofs (GDD §22, player.json wind; note 201) is wind times what it was: a hand on the rail.
     "handrails": false,
     "rails": { "draggerGrab": 0.6, "draggerHang": 1.5, "throwOver": 1.5, "wind": 0.4 },
     // The powered switch thrower (F.3 "removes the ground excursion at junctions", ARCHITECTURE §8 note 196): fitted, a lever

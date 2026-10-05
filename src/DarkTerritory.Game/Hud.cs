@@ -398,7 +398,7 @@ public static class Hud
     }
 
     /// <summary>
-    /// GDD §22 deep cold on the HUD (note 200): under the radio, while the line where you are is in a cold step, how deep and
+    /// GDD §22 deep cold on the HUD (note 201): under the radio, while the line where you are is in a cold step, how deep and
     /// what it does: the cold comes on that much faster outside. Amber out in it, dim in the warm.
     /// </summary>
     static void Cold(Overlay o, int width, IPlaySession s, int line)
@@ -409,7 +409,7 @@ public static class Hud
     }
 
     /// <summary>
-    /// The cold step where a player is, in words (note 200), or null on a normal night. Every machine builds the night's
+    /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
     /// conditions from its seed, so a client knows it as the host does.
     /// </summary>
     public static string? ColdLine(in PlayerState p, TrainOnLine train, PlayerTuning tuning)

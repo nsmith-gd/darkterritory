@@ -21,7 +21,7 @@ public sealed record PlayerTuning(
     /// </summary>
     public double SoloBodyClimb { get; init; } = 0.4;
 
-    /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 200).</summary>
+    /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
@@ -38,7 +38,7 @@ public sealed record PlayerTuning(
 public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
     double PerColdStep = 0.25);
 /// <summary>
-/// GDD §22 wind on a roof (note 200): the wind across a moving train pushes whoever's up top sideways, in gusts from
+/// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.
 /// </summary>
 public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);

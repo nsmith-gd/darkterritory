@@ -73,7 +73,7 @@ public sealed record ThrowerTuning(double Reach = 200, double MaxSpeed = 5);
 /// <param name="DraggerGrab">The Draggers' grab range, times this.</param>
 /// <param name="DraggerHang">How long one hangs on to you before it has you, times this.</param>
 /// <param name="ThrowOver">How far over a bend's limit throws you off the roof (sight.json <c>throwOver</c>), times this.</param>
-/// <param name="Wind">The wind's push on the roofs (GDD §22, player.json <c>wind</c>; note 200), times this.</param>
+/// <param name="Wind">The wind's push on the roofs (GDD §22, player.json <c>wind</c>; note 201), times this.</param>
 public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5, double Wind = 0.4);
 
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>

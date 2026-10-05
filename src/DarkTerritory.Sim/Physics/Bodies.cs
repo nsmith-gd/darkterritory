@@ -81,7 +81,7 @@ public sealed class Body
     /// <summary>A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead.</summary>
     public bool Broken { get; set; }
     /// <summary>
-    /// A broken radio being mended with the repair kit (note 200): how many ticks Use has been held at it, 0 when nobody is.
+    /// A broken radio being mended with the repair kit (note 201): how many ticks Use has been held at it, 0 when nobody is.
     /// On the body record, so the mender's HUD shows how far it's got.
     /// </summary>
     public int MendTicks { get; set; }
@@ -127,7 +127,7 @@ public sealed class Bodies
     readonly Dictionary<int, bool> _useWas = new(), _throwWas = new();
     // How many ticks each player has held Use at a locker, from the press (a tap stows or takes; a hold works the door).
     readonly Dictionary<int, int> _lockerHeld = new();
-    // Who's holding Use with the repair kit at a broken radio (note 200): which radio, and for how many ticks from the press
+    // Who's holding Use with the repair kit at a broken radio (note 201): which radio, and for how many ticks from the press
     // (a tap puts the kit down; a hold mends).
     readonly Dictionary<int, (int Radio, int Ticks)> _mending = new();
     int _nextId = 1;
@@ -462,7 +462,7 @@ public sealed class Bodies
     }
 
     /// <summary>
-    /// GDD §23 "radio breaks", mended (note 200): the repair kit in hand (§12, the engineer is whoever has it), not at
+    /// GDD §23 "radio breaks", mended (note 201): the repair kit in hand (§12, the engineer is whoever has it), not at
     /// anything Use works, and a broken radio on your belt or lying in reach. Use held there, standing, for train.json
     /// <c>kit.radioMendSeconds</c> mends it; moving or letting go starts it over. Like a locker's tap and hold, the hands
     /// wait for the release: a tap still puts the kit down. Returns whether it had the hands this tick.
@@ -507,7 +507,7 @@ public sealed class Bodies
     }
 
     /// <summary>
-    /// The broken radio a player with the repair kit would mend (note 200): their own, on their belt, or else the nearest one
+    /// The broken radio a player with the repair kit would mend (note 201): their own, on their belt, or else the nearest one
     /// lying loose in reach. Null if there's none, or they're at something Use works. Also the HUD's prompt.
     /// </summary>
     public Body? MendableRadio(in PlayerState s, TrainOnLine train, HandTuning? hand, int playerId)

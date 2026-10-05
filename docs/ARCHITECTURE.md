@@ -2816,7 +2816,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - A Climber coming into the cab smashes the forward lamp for `climber.lampOutSeconds` (45).
       - A derailment puts every lamp out, the forward lamp included.
       - **Reading:** the lamp goes out when it gets in, not as it mounts. Otherwise it would pick the car it had just darkened (App. A.4 ENTER: "the first car unlit or with nobody in it").
-    - **Not yet:** wind on footing or sway; the cold step on the HUD; repairing a broken radio. All three since: note 200.
+    - **Not yet:** wind on footing or sway; the cold step on the HUD; repairing a broken radio. All three since: note 201.
     - Protocol 16. Tests: `HazardTests` (cold rate, boiler efficiency, the foul hash, clearing a jam, radios breaking on a knock and on a grab, a derailment's lamps), and the lamp in `ClimberTests`. `EnemyTests`' spraying gunner gets 30 s more for the Choir, since a fouled bore can hold it off past 90 s.
 184. **Consist variety: the crew car, armour, a second guard car, and the consist's upgrades (GDD §10, §26, spec F.3; WP16).** §10: "Experienced crews run engine, armour, cannons, utility cars and many freight cars." F.3 listed the consist's upgrades, bought and saved with an empty `effect`.
     - **Composition (`train.json composition`):** the counts are what's been bought; campaign.json's consist upgrades add to them (`utilityCars`, `guardCars`, `armouredCars`) or fit something (`handrails`), and `Consist.Uniform` builds the train from them. The upgrade list already travels in the Welcome, so every machine builds the same train with nothing new on the wire.
@@ -3005,7 +3005,38 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The joiner's lobby lines.** A joiner was shown the host's "EVERYONE IN? DRIVE OUT OF THE YARD" (and, with no ping, "A PRIVATE NIGHT"); it reads "THE HOST DRIVES OUT WHEN EVERYONE'S IN".
     - **The ping** is just "100 MS" at the big size: "PING 100 MS" ran into the route strip at 1280 wide.
     - Rerun, the joiner held its link ("2 aboard, ping 100 ms") and its screen read right. Tests: `NetcodeTests.ADroppedClientKnowsItAndDoesntSeeItselfAsCrew`.
-200. **Hazards, the rest: wind on a roof's footing, the cold step on the HUD, mending a broken radio (GDD §22, §23; WP14, note 183's "not yet").**
+
+200. **`dt playthrough`, and the train's own frames (the 5 October audit).** The art checklist rates each piece in a staged view. Nothing showed what a crew sees over a real night.
+    - **`dt playthrough --route frontier:7 [--minutes 20] [--every 90]`:**
+      - plays a solo night with the director's enemies, the train driven by the line's own authority (`LineGen.Ride`, as the app's `--ride`);
+      - photographs every encounter as it happens (each enemy's Alert, Telegraph, Grab and Punish), from beside it, or down the aisle if it's in a car, with the game's own scene;
+      - takes a chase shot every `--every` seconds;
+      - writes frames and `index.json` (what, when, where) to out/playthrough.
+    - **What it found: the chase view and the derailment were filming a switchyard.**
+      - A switchyard's standing cars (note 187) are frames past the train's own, so `Views.Chase`'s "last car" was one of them, 17 km down the line on frontier:7.
+      - The Tab chase view and the derailment's replay (`DerailSequence.ReplayCamera`) looked at an empty siding.
+      - Worse, `Wreck.Begin` made a wreck body of every frame: a derailment threw the standing cars off their siding with the train, and the orbit round the wreck's middle (`Views.Wreck`) framed nothing.
+    - **Fixed:**
+      - `Wreck.Begin` skips standing rakes, in its bodies and its links.
+      - `Views.Train(frames, StandingCar)` gives the train's own frames, and the chase view and the replay use it.
+    - **Verified:**
+      - `FacilityTests.ADerailmentLeavesTheSwitchyardsStandingCarsWhereTheyStand`;
+      - `ChaseCameraTests` (frontier:7: the chase view and the replay within 250 m of the engine);
+      - both fail without the fix;
+      - a playthrough's chase shots show the train.
+    - **What else it found: a car fire's TELEGRAPH couldn't be seen** (App. C.5 smoke before flame; the fairness rule says a tell must be perceivable). The smoulder's smoke was grey at 0.24, as bright as lamp-lit planking, and the car looked untouched.
+      - It's `Effects.SmoulderGrey` now, at HDR level (the effects pass isn't lit, and the lit walls run over 1), denser and bigger, pooling lower under the roof.
+      - An ember glow breathes in the load where it's caught, with one small light.
+      - `dt screenshot --threats --smoulder --view fire` stages it. `EffectsTests.ACarFireSmouldersThenBurns` pins that the smoke outshines the walls and that the embers are short of flames.
+    - **The playthrough's own camera** mirrors the app's scene state each frame (the Stoker's perch timing, the firebox door, the wreck). It aims where the scene draws a thing (the Fire Flies on the nearer lantern, the Stoker on the stack's rim) and keeps the fire up, since there's only the driver, so a night isn't lost to the boiler on the first grade.
+    - **A solo night stops at the first facility**, and the director's night only reaches its later roster further on: crew-of-4 solo nights met five kinds and stood still from 7 km.
+      - `--bots n` has the harness's bot crew work the night instead (clean loopback; stops and all). The host's world is photographed, with each crewmate drawn doing what they're doing (`CrewActs`).
+      - `--insist kind,kind` sends those kinds, as the combination audit does (note 186).
+      - Beside the line, the camera stands on the ground. In a cutting, 7 m off the line had put it inside the bank: a blank grey wall, with the slope's rocks and bushes floating.
+    - **What the bot nights found: the lineside dead trees read as cages.**
+      - `dead_tree_card`'s limbs ran off the card's edges, cut square there, and curled back over the crown, each a constant-width stroke.
+      - They now taper a segment at a time, keep reaching up and out, end in twigs inside the card, and the trunk tapers smoothly (tools/art/texgen/mat_foliage.py).
+201. **Hazards, the rest: wind on a roof's footing, the cold step on the HUD, mending a broken radio (GDD §22, §23; WP14, note 183's "not yet").**
     - **Wind on footing (§22; spec B.2 "roof run: wind and balance penalty"):** up on a roof, `PlayerMotor.WindPush` adds a sideways push across the car to the motor's velocity: `ITrackConditions.Wind` where you are (the night's, ×1.5 on exposed track) × `player.json wind.drift` (0.3 m/s), from `wind.still` (0.4) of that with the train stopped up to all of it at `train.json maxSpeed`, in gusts. ×`wind.walking` (0.5) walking or standing; a roof run takes it all. The roof handrails take it to `composition.rails.wind` (0.4) of that; a gun's seat, a grabbed player and anyone off a roof get none. At the worst (exposed, flat out, running) about 0.45 m/s: walking against it holds you, but stood at the edge in a gust it walks you off, and the fall is the landing rules' (never a kill of its own).
     - **Reading: the gusts.** The weather has a wind but no direction, so the push comes in gusts from either side: a hash of each `wind.gustMetres` (120 m) of line where you are (`PlayerMotor.Gust`, −1 to +1, eased from one to the next). No trig and no dice, and the conditions are built from the night's seed on every machine, so a predicting client pushes exactly as the host does.
     - **Reading: no crouch, no camera roll.** The sim has no crouch to resist it with (a headset player crouches for real, unseen), so walking rather than running is the balance, and the rails are the upgrade. The drift is what's seen; a camera roll would be felt in a headset's stomach.

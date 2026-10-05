@@ -208,7 +208,7 @@ public static class WorldRecords
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll => (long)body.Tools,
                 Physics.BodyKind.Toy => (long)body.Noise,
-                // Broken, and how far the kit's got mending it (note 200): 0 whole, 1 + ticks broken.
+                // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
                 _ => (long)body.Cargo,
             };

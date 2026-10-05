@@ -517,6 +517,27 @@ public class FacilityTests
     }
 
     [Fact]
+    public void ADerailmentLeavesTheSwitchyardsStandingCarsWhereTheyStand()
+    {
+        // The audit's playthrough: the wreck was every frame's, so a switchyard's cars kilometres off came off their siding
+        // with the train, and the orbit round the wreck's middle looked at nothing.
+        var (world, _, _) = Switchyard();
+        var train = world.Train;
+        world.WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(DataFile.FindContentRoot(), WreckTuning.File));
+        var standing = train.Rakes.Where(train.Standing).SelectMany(r => r.Consist.Vehicles.Select(v => v.Id)).ToList();
+        Assert.NotEmpty(standing);
+        var before = standing.ToDictionary(v => v, v => train.Frames[v].Origin);
+        train.Dynamics.Velocity = 18;
+        world.Derail("test");
+        var wreck = train.Wreck!;
+        Assert.Equal(train.OwnVehicles, wreck.Bodies.Count);
+        Assert.DoesNotContain(wreck.Bodies, b => standing.Contains(b.Vehicle));
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            world.Step(default);
+        Assert.All(standing, v => Assert.True((train.Frames[v].Origin - before[v]).Length < 1e-6, $"car {v} moved"));
+    }
+
+    [Fact]
     public void CoupledUpToTheStandingCarsComeAwayAheadOfTheEngineAndAreTheTrains()
     {
         var (world, _, _) = Switchyard();
