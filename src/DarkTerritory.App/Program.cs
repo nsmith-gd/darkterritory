@@ -930,6 +930,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
+        scene.SinceShovel = session.Train.Boiler.SinceShovel;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;
