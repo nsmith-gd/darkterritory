@@ -1704,11 +1704,30 @@ static object HudShot(string content, string[] args)
         : null;
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
-    // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot.
-    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote")) : null;
+    // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot (--ballot implies it).
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot")) : null;
     IPlaySession session;
     if (spectated is { } pair)
+    {
         session = pair.Watcher;
+        // --ballot pick|cast (note 201): the ballot's screen with its second creature picked, or cast and locked by the host;
+        // --headset: as a headset's panel says it (the stick, not the keys).
+        Hud.Headset = args.Contains("--headset");
+        if (Str(args, "--ballot", "") is { Length: > 0 } stage && pair.Watcher.Ballot is { Options.Count: > 1 } offered)
+        {
+            pair.Watcher.Picker.Key(2, offered.Options.Count);
+            if (stage == "cast")
+            {
+                pair.Watcher.Picker.Cast();
+                for (int t = 0; t < SimConstants.TickRate / 2; t++)
+                {
+                    pair.Host.Step(default);
+                    pair.Watcher.Step(default);
+                    Thread.Sleep(1);
+                }
+            }
+        }
+    }
     else
     {
         var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);

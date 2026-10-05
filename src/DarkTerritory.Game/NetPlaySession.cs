@@ -253,6 +253,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
 
+    public BallotPicker Picker { get; } = new();
+
+    /// <summary>Dead with a ballot still to cast (D.11): the number keys (or the headset's stick) are the ballot's, not the hotbar's.</summary>
+    public bool Voting => !Player.Alive && Ballot is { Cast: null, Options.Count: > 0 } && World.Run is not { Over: true };
+
     string? _cue;
     double _cueSeconds;
 
@@ -664,7 +669,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
         if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
             host.HostPlayer = me;
-        Client.Step(Spectate(intent));
+        // D.11 (note 201): a cast vote goes as the option's number, the hotbar choice, till the host's ballot says it's locked.
+        var sent = intent;
+        if (Picker.Select(Ballot) is > 0 and var vote && !Player.Alive)
+            sent.Select = vote;
+        Client.Step(Spectate(sent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
         StepRadio();

@@ -99,6 +99,24 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Flies(intent, session.Predicted, session.World, t);
         intent = Heed.Followers(intent, session.Predicted, session.World, me, calls, t);
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
+        return Vote(intent, session, me);
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. D.11 (note 201): a dead bot is a crewmate like any other, so it has the vote. A while after the host
+    /// offers it a ballot (<see cref="Enemies.VoteTuning.BotSeconds"/>, by the host's tick, so the same night votes the same),
+    /// it casts it the way a player does: the option's number as the intent's hotbar choice, until the host says it's cast.
+    /// Which option is its id's turn round the ballot: no dice, and a crew of bots spreads its votes.
+    /// </summary>
+    public static PlayerIntent Vote(PlayerIntent intent, ClientSession session, int me)
+    {
+        var self = session.Predicted;
+        if (self.Alive || self.Death == DeathCause.Waiting || session.Ballot is not { Cast: null, Options.Count: > 0 } ballot)
+            return intent;
+        double wait = session.World.Enemies?.Director.Vote.BotSeconds ?? new Enemies.VoteTuning().BotSeconds;
+        if (session.NewestSnapshotTick - session.BallotOfferedTick < wait * SimConstants.TickRate)
+            return intent;
+        intent.Select = (byte)(me % ballot.Options.Count + 1);
         return intent;
     }
 }
