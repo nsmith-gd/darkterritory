@@ -39,6 +39,31 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheCreditsListEveryTrackWithItsPerformersLicenceAndSource()
+    {
+        // GDD v1.4 App. E.6: "the credits screen lists every performer anyway" (note 194): a row a track from the manifest.
+        var music = DarkTerritory.Sim.Music.MusicManifest.Load(Content).Tracks;
+        var m = Menu();
+        m.Music = music;
+        Choose(m, "CREDITS");
+        Assert.Equal(Screen.Credits, m.Screen);
+        Assert.Equal(music.Length + 1, m.Items.Count);
+        foreach (var (t, item) in music.Zip(m.Items))
+        {
+            Assert.Contains(t.Work, item.Label);
+            Assert.Contains(t.Composer, item.Label);
+            Assert.Contains(t.Performers, item.Detail);
+            Assert.Contains(t.Licence, item.Detail);
+            Assert.Contains(t.Recorded ? t.Source.Replace("https://", "") : Path.GetFileName(t.Source), item.Detail);
+        }
+        // It draws (two lines a track, scrolled), and Esc goes back to the title.
+        var o = new Overlay();
+        m.Draw(o, 480, 270);
+        m.Back();
+        Assert.Equal(Screen.Title, m.Screen);
+    }
+
+    [Fact]
     public void AnEmptySlotStartsACampaignAtTheFortress()
     {
         var m = Menu();

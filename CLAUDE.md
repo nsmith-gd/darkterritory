@@ -12,6 +12,7 @@ dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless ins
 tools/package.sh [--demo] [win-x64] [linux-x64]    # builds for players: self-contained, zipped, in out/dist/ (--demo: the demo edition beside it)
 dotnet run --project src/DarkTerritory.Cli -- --edition demo harness --route frontier:7 --bots 8 --enemies   # any dt command (or the app) on the demo edition (editions/demo)
 tools/xr-sim.sh && XDG_RUNTIME_DIR=/tmp/xr dotnet run --project src/DarkTerritory.Cli -- vr check   # VR end to end on a simulated headset
+python3 tools/audio/fetch_music.py --dry-run          # E.6's CC0 music intake: the candidate list (--offline-test the cut path); the real run is .github/workflows/music-intake.yml (Commons is blocked here)
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget

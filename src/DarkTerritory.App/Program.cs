@@ -87,6 +87,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
+    // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
+    Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
     // The settings' MICROPHONE: what there is to choose from.
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
 };
