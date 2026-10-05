@@ -171,7 +171,7 @@ public sealed class GreyboxScene
     public Look? Look { get; set; }
     /// <summary>
     /// vr.json's body (T82) for the box figure's headset crewmates when there's no art pass (with one, <see cref="Look"/>'s):
-    /// unset, the mirror's own numbers (note 221).
+    /// unset, the mirror's own numbers (note 223).
     /// </summary>
     public VrBodyTuning? VrBody { get; set; }
     readonly VrStrides _bodies = new();
@@ -494,7 +494,7 @@ public sealed class GreyboxScene
             {
                 var c = Hung(held, eye);
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
-                    // A headset crewmate's body leans, crouches and turns under the head on the box figure too (note 221);
+                    // A headset crewmate's body leans, crouches and turns under the head on the box figure too (note 223);
                     // without the clips there's no gait to give way to, so only an act does.
                     DrawCrewmate(mesh, c, eye, _bodies.Pose(c, c.Act is null, Time, Look?.VrBody ?? VrBody ?? new VrBodyTuning()));
             }
@@ -988,7 +988,7 @@ public sealed class GreyboxScene
 
     /// <summary>
     /// A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down. A headset
-    /// crewmate's <paramref name="body"/> (T82, note 221), when there is one: the coat leans over from the hips and twists
+    /// crewmate's <paramref name="body"/> (T82, note 223), when there is one: the coat leans over from the hips and twists
     /// towards the head, the hips go down in a crouch and turn to their own yaw, the legs bend to the feet where they're
     /// planted, and the arms reach from where the shoulders have gone.
     /// </summary>

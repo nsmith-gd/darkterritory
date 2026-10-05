@@ -163,7 +163,7 @@ object RunHarness(string[] args)
         Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
         Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
-        // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 220: the before of a before/after).
+        // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 222: the before of a before/after).
         Look = args.Contains("--insist") && !args.Contains("--no-look") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
@@ -1204,7 +1204,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
         Tick = args.Contains("--muzzle") ? 100 + (long)Math.Round(Opt(args, "--shot-age", 1.0 / 30) * 30) : -1,
         Look = look,
-        // --greybox: the box figure's headset bodies from vr.json too (note 221; with the art pass, the look has it).
+        // --greybox: the box figure's headset bodies from vr.json too (note 223; with the art pass, the look has it).
         VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,

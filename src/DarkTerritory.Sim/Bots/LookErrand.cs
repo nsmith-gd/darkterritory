@@ -116,7 +116,7 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
 
     /// <summary>
     /// Whether there's anything to look at from where it stands this tick: a step on the errand, or a lip on another car to
-    /// make for (note 220: what takes a gunner off its gun). The same reading <see cref="Decide"/> makes, so it agrees with it.
+    /// make for (note 222: what takes a gunner off its gun). The same reading <see cref="Decide"/> makes, so it agrees with it.
     /// </summary>
     public bool Wants(in PlayerState self, World world, uint tick) => Decide(self, world, tick, out var head) is not null || head is not null;
 

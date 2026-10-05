@@ -178,7 +178,7 @@ public static class VrBody
 /// <summary>
 /// Headset crewmates' strides kept from frame to frame (T82), by id: each in the frame its crewmate stands in, planted
 /// afresh when they start being drawn so, stop, or move frames. The crew model's (<see cref="Art.SceneArt"/>) and the
-/// greybox box figure's (<see cref="GreyboxScene"/>, note 221) keep one each.
+/// greybox box figure's (<see cref="GreyboxScene"/>, note 223) keep one each.
 /// </summary>
 public sealed class VrStrides
 {
