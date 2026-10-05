@@ -3308,3 +3308,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Order:** `CreatureArt` plays the recoil where it was (`TippyRecoil`, the clip's length), and only then the flee, moving off. It's seen for the recoil plus the old half second of scuttle.
     - **Staging:** `dt screenshot --threats --crew --tippy recoil[:s] --view crew` (s seconds since it was pulled off, 0.15 by default).
     - **Tests:** `CreatureArtTests.TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles`; the Tippy's clip budget lists `recoil`.
+226. **The extinguisher sprayed braced, and hung back on its bracket (the checklist's crew-extinguisher "recoil while spraying, and a distinct hang-back").** Carried, the crewmate stood with it on the hip, aimed, whether or not a fire was going down under it. At the bracket the sim says `TakeDown` either way, so hanging it back played it being lifted off, and the drop snapped them back to stood.
+    - **Two new crew clips** (tools/blender/crew_clips.py):
+      - `spray`: braced lower into the jet, the weight forward, the nozzle kicking back and up with each pulse of it and dragged back down onto the fire's foot, the head turned a little from the heat.
+      - `hang_up`: lifted up off the hip to the bracket, pushed home onto it, the hands let go and come away, stood back up (1.3 s, once).
+    - **Spraying:** `GreyboxScene.Extinguishing` already draws the spray where a fire's going down with an extinguisher in reach; it now records whose (`SceneArt.Spraying`), and `SceneArt.Crewmate` plays `spray` for them instead of `extinguish`.
+    - **Hanging back:** at the mount, a crewmate who came to it carrying (their last pose `Extinguish`, `Spray` or `HangUp`) is hanging it up, not taking it down. `hang_up` plays on through the sim's drop until it's done, then they stand.
+    - **Presentation only.** **Test:** `CrewActsTests.TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain`. **Looked at:** the clips' contact sheets (`dt art clip crew spray`, `hang_up`).

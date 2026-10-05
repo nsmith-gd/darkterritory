@@ -130,6 +130,39 @@ public class CrewActsTests
     }
 
     [Fact]
+    public void TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain()
+    {
+        // App. C.5; SceneArt.Crewmate. Carried, it's on the hip; at work on a fire (GreyboxScene's Spraying), braced and
+        // kicking. At the bracket the sim says TakeDown either way: come to it empty-handed it's lifted off; come to it
+        // carrying, it's hung back, and that plays on through the drop rather than snapping to stood.
+        var art = new SceneArt(Look.Load(Content));
+        var stood = new Crewmate(1, new Double3(0, 0, -5_000), 0, true);
+        void At(double t, CrewPose? act) => art.Crewmate(new Ballast.Render.MeshBuilder(), stood with { Act = act }, default, t);
+
+        At(0.0, CrewPose.Extinguish);
+        Assert.Equal(CrewPose.Extinguish, art.LastPose);
+        art.Spraying = new HashSet<int> { 1 };
+        At(0.1, CrewPose.Extinguish);
+        Assert.Equal(CrewPose.Spray, art.LastPose);
+        art.Spraying = null;
+
+        // Back to its bracket carrying it: hung up, through the drop, then stood.
+        At(0.2, CrewPose.Extinguish);
+        At(0.3, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(0.8, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(1.0, null);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(1.8, null);
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+
+        // Come to it with nothing: taken down.
+        At(2.0, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.TakeDown, art.LastPose);
+    }
+
+    [Fact]
     public void ACrewmateStoodOnAMovingCarIsIdleNotRunning()
     {
         // Note 206: their pace is how fast they move over the car they're on, not over the ground. The train at 15 m/s,
