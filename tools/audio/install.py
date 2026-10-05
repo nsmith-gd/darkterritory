@@ -280,6 +280,11 @@ CUE_DEF = {
 }
 
 
+# Spec A.4 rule 4, a tell "non-repeating at short intervals" (note 250): every looping tell wanders a little in pitch and
+# level (Ballast.Audio DriftDef), so no two passes round its loop are the same.
+TELL_DRIFT = {"semitones": 0.4, "db": 1.5, "seconds": 2.5}
+
+
 def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
@@ -297,6 +302,8 @@ def sound_def(item, cue, folder, line):
                      "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
                      "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}
     d["layers"][0].update(LAYER_EXTRAS.get(f"{line}.{cue['id']}", {}))
+    if tier == 1 and d["loop"]:
+        d["drift"] = dict(TELL_DRIFT)
     d.update(CUE_DEF.get(f"{line}.{cue['id']}", {}))
     return d
 

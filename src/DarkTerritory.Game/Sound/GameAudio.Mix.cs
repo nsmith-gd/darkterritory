@@ -1,6 +1,7 @@
 using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 
@@ -107,6 +108,9 @@ public sealed partial class GameAudio
             double off = Math.Sqrt((on.X - ear.X) * (on.X - ear.X) + (on.Z - ear.Z) * (on.Z - ear.Z));
             if (off <= TunnelReach && route.InTunnel(along))
                 return "tunnel";
+            // Down the mine spur (note 250): the adit closing in, the outside gone.
+            if (world.Run is { } run && run.Underground(new PlayerState { Parent = PlayerState.World, Position = ear, LineHint = hint }, train))
+                return "mine";
             if (!cab && off <= FacilityReach && route.Features.Any(f => f.Kind == FeatureKind.Facility && f.Contains(along)))
                 return "facility";
         }

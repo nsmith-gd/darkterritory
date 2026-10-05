@@ -20,6 +20,7 @@ public sealed class SoundInstance
         Id = id;
         Name = name;
         Def = def;
+        _seed = seed;
         _layers = new LayerState[def.Layers.Length];
         var takes = new string?[_layers.Length];
         for (int i = 0; i < _layers.Length; i++)
@@ -141,13 +142,48 @@ public sealed class SoundInstance
         else if (Clip is not null)
             ReadClip(output.Length);
         double rate = Stream is null && Clip is null ? Rate : 1;
+        var (drift, driftGain) = Drift();
         foreach (var layer in _layers)
-            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate);
+            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate * drift);
+        if (driftGain != 1)
+            for (int i = 0; i < output.Length; i++)
+                output[i] *= driftGain;
         if (Def.Formant is { } formant)
             (_formant ??= new FormantShifter(formant)).Process(output);
         if (Def.Crush is { } crush)
             Crush(output, crush);
         Age += rate * output.Length / Audio.SampleRate;
+    }
+
+    readonly uint _seed;
+    // The loop's wander (SoundDef.Drift): the walk's last point and its next, in semitones and dB, and when it left the last.
+    double _driftFrom, _driftTo, _driftDbFrom, _driftDbTo, _driftAt;
+    Noise _driftNoise;
+    bool _drifting;
+
+    /// <summary>The pitch factor and gain the loop's wandered to now (1, 1 without a drift), eased between the walk's points.</summary>
+    (double Pitch, float Gain) Drift()
+    {
+        if (Def.Drift is not { } d)
+            return (1, 1);
+        double period = Math.Max(0.1, d.Seconds);
+        if (!_drifting)
+        {
+            // From where it was made, so it starts as it was made.
+            _driftNoise = new Noise(_seed * 2654435761u ^ 0xD1F7u);
+            _driftTo = d.Semitones * _driftNoise.Next();
+            _driftDbTo = d.Db * _driftNoise.Next();
+            _drifting = true;
+        }
+        while (Age >= _driftAt + period)
+        {
+            (_driftFrom, _driftDbFrom) = (_driftTo, _driftDbTo);
+            _driftTo = d.Semitones * _driftNoise.Next();
+            _driftDbTo = d.Db * _driftNoise.Next();
+            _driftAt += period;
+        }
+        double u = 0.5 - 0.5 * Math.Cos(Math.PI * (Age - _driftAt) / period);
+        return (Math.Pow(2, (_driftFrom + (_driftTo - _driftFrom) * u) / 12), Audio.DbToGain(_driftDbFrom + (_driftDbTo - _driftDbFrom) * u));
     }
 
     /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
