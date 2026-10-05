@@ -2098,9 +2098,10 @@ static int Usage()
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
                      --comms poor|awful (or --voice-loss/-latency/-jitter/-talkover): the crew's calls over a degraded voice;
                      --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand
-          balance --pairs|--triples [--every-hazard] [--at-stops] [--sample n] [--seeds n] [--seconds s] [--crew n] [--hazards clear,wet,cold,dark] [--only kind,kind]
-                     GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set
-                     (tuning/balance.json combinations); flags unwinnable and trivial meetings, exit 1 if any
+          balance --pairs|--triples [--wide] [--routes r,r] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n] [--seconds s] [--hazards clear,wet,cold,dark] [--only kind,kind]
+                     GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set,
+                     on every route with every crew size (tuning/balance.json combinations; --wide: its nightly grid); flags
+                     unwinnable (lost every night in a route and crew) and trivial meetings, exit 1 if any
           audit cascades [--only rupture,car-fire,…] | audit grabs [--only Dragger,…] [--crews 2,8]
                      §34's cascade audit (every §23 chain recovered in time) and App. A.9/B.10's per-tree check (every GRAB
                      broken by the crew present, at every crew size); exit 1 on a finding
