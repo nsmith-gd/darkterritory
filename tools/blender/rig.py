@@ -559,6 +559,17 @@ class Kit:
         self.skeleton, self.name = skeleton, name
         self.parts = []
         self.mats = {}
+        # The game mesh's triangles after build (`densify`), or None to keep the kit's own: a script sets it to take the
+        # mesh up toward GDD §27's budget for its class.
+        self.target_tris = None
+        # Parts to fuse into one skin after build (`fuse`): [(name, parts, voxel, faces, cut)].
+        self.fusions = []
+
+    def fuse(self, name, parts, voxel=0.004, faces=3000, cut=None):
+        """After build, `parts` become one continuous skin called `name` (see `fuse`): for a creature whose limbs grow
+        out of its body rather than bolt on. `cut(point) -> bool` opens the skin again where the parts were open on
+        purpose (a mouth): the faces whose centres it's true for are taken out."""
+        self.fusions.append((name, list(parts), voxel, faces, cut))
 
     def part(self, name, **kw):
         p = Part(self, name, **kw)
@@ -616,7 +627,266 @@ class Kit:
                     g.add([i], wt, "REPLACE")
             mod = ob.modifiers.new("Armature", "ARMATURE")
             mod.object = rig
+        for name, parts, voxel, faces, cut in self.fusions:
+            fuse(self, name, parts, voxel, faces, cut)
+        if self.target_tris:
+            densify(self, self.target_tris)
         return self
+
+
+def fuse(kit, name, parts, voxel, faces, cut=None):
+    """One skin from several built parts (a Look Review ask: the kit's limbs were tubes pushed into a body, a seam and
+    often a gap at every hip and shoulder). The crew body's way (tools/blender/crewbody.py), for any creature:
+      1. the parts' union, voxel-remeshed at `voxel` m: the solids flow into one another, a haunch into a flank, a
+         finger into a hand;
+      2. QuadriFlow down to about `faces` quads, smooth-shaded: the game mesh;
+      3. each new face takes the material of the part's face nearest it, each new vertex the bone weights of the
+         nearest point on the parts (interpolated over that face), then the weights are relaxed over the skin's
+         edges so the joins bend as one, at most four bones a vertex.
+    The union is closed (the parts' holes filled to remesh them): `cut` opens it again where an opening was meant.
+    UVs are projected (smart_project): tools/models re-unwraps for its atlas. The parts are replaced by the skin."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+
+    rig_ = kit.skeleton.rig
+    srcs = [o for o in bpy.data.objects if o.type == "MESH" and o.parent is rig_ and o.name in parts]
+    if not srcs:
+        return None
+    # The reference: the parts as one mesh (materials and vertex groups merged by name), for the lookups.
+    mats, groups = [], []
+    verts, polys, pmat, vw = [], [], [], []
+    for o in sorted(srcs, key=lambda o: o.name):
+        names = {g.index: g.name for g in o.vertex_groups}
+        base = len(verts)
+        for v in o.data.vertices:
+            verts.append(o.matrix_world @ v.co)
+            vw.append({names[g.group]: g.weight for g in v.groups if g.weight > 0})
+        for g in o.vertex_groups:
+            if g.name not in groups:
+                groups.append(g.name)
+        for f in o.data.polygons:
+            m = o.data.materials[f.material_index]
+            if m not in mats:
+                mats.append(m)
+            polys.append([base + i for i in f.vertices])
+            pmat.append(mats.index(m))
+    tree = BVHTree.FromPolygons(verts, polys)
+
+    # 1. The union. The parts are open (a tube's UV seam is a column of doubled vertices, its ends often uncapped): welded
+    # and their holes filled first, or the remesh can't tell inside from out and wraps both sides of every surface.
+    me = bpy.data.meshes.new(f"{kit.name}_{name}")
+    me.from_pydata([tuple(v) for v in verts], [], polys)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
+    bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=0)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    skin = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(skin)
+    for o in bpy.context.view_layer.objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = skin
+    skin.select_set(True)
+    me.remesh_voxel_size = voxel
+    me.remesh_voxel_adaptivity = 0.0
+    bpy.ops.object.voxel_remesh()
+    # Only the outer surfaces: a cavity the union closed over is a shell of its own, facing in (a negative volume).
+    bm = bmesh.new()
+    bm.from_mesh(skin.data)
+    shells, seen = [], set()
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        stack, shell = [f], []
+        seen.add(f.index)
+        while stack:
+            g = stack.pop()
+            shell.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in seen:
+                        seen.add(h.index)
+                        stack.append(h)
+        shells.append(shell)
+
+    def volume(shell):
+        return sum(f.verts[0].co.dot(f.verts[i].co.cross(f.verts[i + 1].co)) for f in shell for i in range(1, len(f.verts) - 1)) / 6
+
+    drop = [f for sh in shells if len(sh) < 40 or volume(sh) <= 0 for f in sh]
+    bmesh.ops.delete(bm, geom=drop, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(skin.data)
+    bm.free()
+    mod = skin.modifiers.new("relax", "SMOOTH")
+    mod.factor, mod.iterations = 0.5, 3
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    # QuadriFlow refuses a mesh with any edge under 0.1 mm a side, which the remesh and the relax leave where two
+    # surfaces just touch.
+    bm = bmesh.new()
+    bm.from_mesh(skin.data)
+    bmesh.ops.dissolve_degenerate(bm, dist=0.0003, edges=bm.edges)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    if cut is not None:
+        # Opened again where it was meant to be open, on the dense union so the opening's edge is the voxel's fine one.
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if cut(f.calc_center_median())], context="FACES")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    # (QuadriFlow takes an open edge, but not three faces on one edge nor two faces turned against each other.)
+    ready = all(len(e.link_loops) in (1, 2) and (len(e.link_loops) == 1 or e.link_loops[0].vert != e.link_loops[1].vert)
+                for e in bm.edges) and not any(
+        all(abs(a - b) <= 1e-4 for a, b in zip(e.verts[0].co, e.verts[1].co)) for e in bm.edges)
+    bm.to_mesh(skin.data)
+    bm.free()
+    # 2. The game mesh: QuadriFlow's quads, symmetric across x. It can drop a limb thinner than its quads (a shin, an
+    # ankle) or refuse a mesh outright (a sheet thinner than the voxel pinches the union into a non-manifold seam): its
+    # result is checked against the union, and where it lost anything a collapse of the union to the same count (which
+    # never loses a form, only spends its triangles less evenly) is used instead.
+    dense = skin.data.copy()
+    before = len(dense.polygons)
+    lost = None
+    # (QuadriFlow's result isn't the same run to run, a good one or a ruin from the same union: a few tries.)
+    for seed in range(4) if ready else ():
+        skin.data = dense.copy()
+        bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=True, use_preserve_sharp=False,
+                                         use_preserve_boundary=cut is not None, smooth_normals=False, seed=seed)
+        if len(skin.data.polygons) > faces * 2:
+            continue
+        got = BVHTree.FromPolygons([v.co for v in skin.data.vertices], [list(f.vertices) for f in skin.data.polygons])
+        probe = [v.co for v in dense.vertices][::max(1, len(dense.vertices) // 4000)]
+        lost = sum(1 for p in probe if got.find_nearest(p)[3] > max(4 * voxel, 0.008)) / len(probe)
+        print(f"[dt] fuse {name}: QuadriFlow (seed {seed}) {len(skin.data.polygons)} quads, {lost:.1%} of the union off it")
+        if lost <= 0.015:
+            break
+    if lost is None or lost > 0.015:
+        why = "not manifold" if not ready else "it failed" if lost is None else f"it lost {lost:.1%} of the form"
+        print(f"[dt] fuse {name}: no QuadriFlow ({why}), collapsing instead")
+        skin.data = dense
+        mod = skin.modifiers.new("dt_dec", "DECIMATE")
+        mod.decimate_type = "COLLAPSE"
+        # (The remesh is all quads, `before` of them twice that in triangles; QuadriFlow lands about a fifth under `faces`:
+        # the collapse is aimed at the same count.)
+        mod.ratio = min(1.0, 0.8 * faces / before)
+        mod.use_symmetry = True
+        mod.symmetry_axis = "X"
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    if cut is not None:
+        # (And again on the game mesh: whatever of it still spans the opening.)
+        bm = bmesh.new()
+        bm.from_mesh(skin.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if cut(f.calc_center_median())], context="FACES")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+        bm.to_mesh(skin.data)
+        bm.free()
+    me = skin.data
+    bpy.ops.object.shade_smooth()
+    for m in mats:
+        me.materials.append(m)
+    # 3. Materials and weights from the parts.
+    for f in me.polygons:
+        _, _, i, _ = tree.find_nearest(f.center)
+        f.material_index = pmat[i]
+    w = []
+    for v in me.vertices:
+        hit, _, i, _ = tree.find_nearest(v.co)
+        ring = polys[i]
+        k = poly_3d_calc([verts[j] for j in ring], hit)
+        acc = {}
+        for j, kk in zip(ring, k):
+            for b, x in vw[j].items():
+                acc[b] = acc.get(b, 0.0) + x * kk
+        w.append(acc)
+    nbr = [[] for _ in me.vertices]
+    for e in me.edges:
+        a, b = e.vertices
+        nbr[a].append(b)
+        nbr[b].append(a)
+    for _ in range(4):
+        nw = []
+        for i, acc in enumerate(w):
+            out = {b: x * 0.5 for b, x in acc.items()}
+            if nbr[i]:
+                share = 0.5 / len(nbr[i])
+                for j in nbr[i]:
+                    for b, x in w[j].items():
+                        out[b] = out.get(b, 0.0) + x * share
+            else:
+                out = dict(acc)
+            nw.append(out)
+        w = nw
+    vg = {g: skin.vertex_groups.new(name=g) for g in groups}
+    for i, acc in enumerate(w):
+        top = sorted(acc.items(), key=lambda t: (-t[1], t[0]))[:4]
+        tot = sum(x for _, x in top)
+        for b, x in top:
+            if x / tot > 0.02:
+                vg[b].add([i], x / tot, "REPLACE")
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.003)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for o in srcs:
+        bpy.data.objects.remove(o)
+    skin.name = name
+    skin.parent = rig_
+    mod = skin.modifiers.new("Armature", "ARMATURE")
+    mod.object = rig_
+    skin["dt_fused"] = 1
+    return skin
+
+
+def densify(kit, target):
+    """Takes the built game mesh up to about `target` triangles (GDD §27's budget; a Look Review ask for higher-poly
+    creatures): each part subdivided once (Catmull-Clark, its hard edges creased so iron, teeth and claws keep their
+    corners: flat-shaded faces' edges, and edges sharper than 50 degrees), then collapsed back down to its share of the
+    target, symmetric across x, keeping its UVs and bone weights (both interpolate through the two). The curves come out
+    rounder and the silhouettes smoother for the same count spent where the shape bends. Parts under 200 triangles
+    (sockets, markers) are left alone."""
+    obs = [o for o in bpy.data.objects if o.type == "MESH" and o.parent is kit.skeleton.rig]
+    counts = {}
+    for o in obs:
+        o.data.calc_loop_triangles()
+        counts[o.name] = len(o.data.loop_triangles)
+    # A fused skin (`fuse`) is already at its count.
+    big = {n: t for n, t in counts.items() if t >= 200 and not bpy.data.objects[n].get("dt_fused")}
+    small = sum(t for n, t in counts.items() if n not in big)
+    have = sum(big.values())
+    if have == 0 or target <= have + small:
+        return
+    scale = (target - small) / have
+    for o in obs:
+        if o.name not in big:
+            continue
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        crease = bm.edges.layers.float.get("crease_edge") or bm.edges.layers.float.new("crease_edge")
+        for e in bm.edges:
+            hard = len(e.link_faces) == 2 and (not all(f.smooth for f in e.link_faces) or e.calc_face_angle(0) > math.radians(50))
+            e[crease] = 1.0 if hard else 0.0
+        bm.to_mesh(o.data)
+        bm.free()
+        bpy.context.view_layer.objects.active = o
+        sub = o.modifiers.new("dt_sub", "SUBSURF")
+        sub.levels = sub.render_levels = 1
+        sub.uv_smooth = "PRESERVE_BOUNDARIES"
+        sub.use_creases = True
+        while o.modifiers[0] != sub:
+            bpy.ops.object.modifier_move_up(modifier=sub.name)
+        bpy.ops.object.modifier_apply(modifier=sub.name)
+        o.data.calc_loop_triangles()
+        now = len(o.data.loop_triangles)
+        want = big[o.name] * scale
+        if want < now:
+            dec = o.modifiers.new("dt_dec", "DECIMATE")
+            dec.decimate_type = "COLLAPSE"
+            dec.ratio = want / now
+            dec.use_symmetry = True
+            dec.symmetry_axis = "X"
+            while o.modifiers[0] != dec:
+                bpy.ops.object.modifier_move_up(modifier=dec.name)
+            bpy.ops.object.modifier_apply(modifier=dec.name)
+        o["dt_densified"] = 1
 
 
 # --------------------------------------------------------------------------------------------------------------

@@ -98,6 +98,11 @@ public sealed record RenderAssets
     /// are also kept at up to this size, in arrays of their own, and drawn from those.
     /// </summary>
     public int HeroSize { get; init; } = 1024;
+    /// <summary>
+    /// Hero layers authored larger still (the largest creatures', whose atlas is spread over most of a car) are kept at
+    /// up to this, in arrays of their own, so the other heroes don't grow with them.
+    /// </summary>
+    public int BigHeroSize { get; init; } = 2048;
     public IReadOnlyList<MaterialLayer> Layers { get; init; } = [];
     /// <summary>A 360° band of distant silhouettes (alpha = silhouette), horizon 85 % of the way down, 90° tall.</summary>
     public Image? Backdrop { get; init; }

@@ -96,7 +96,7 @@ def gum(p, n):
 
 SHAPE = {"flesh.hugger_pale": pale, "flesh.hugger_gum": gum, "flesh.hugger": hide,
          "rust_heavy.eaten": lambda p, n: 0.002 * (ridged(p, 131, 40.0) ** 3 - 0.4)}
-BAKED = ["body", "mouth", "arms", "iron"]
+BAKED = ["body", "hands", "mouth", "iron"]   # (the arms grown into the body: rig.fuse)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] car_hugger highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
@@ -185,10 +185,12 @@ def kind_of(m):
     return MOUTHK if m.name.startswith("flesh.hugger_gum") or m.name.startswith("skin.tooth") else 0
 
 
-atlas = overbake.Atlas("car_hugger", parts, BAKED, kind_of)
+# 2048: it wraps most of a car (48 m² of skin), and GDD §27 wants 256 px/m on what's seen close (look.json
+# bigHeroLayerSize keeps it at full size).
+atlas = overbake.Atlas("car_hugger", parts, BAKED, kind_of, size=2048)
 atlas.unwrap(boosts={MOUTHK: 1.6})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"body": (0.04, 0.08), "mouth": (0.02, 0.05), "arms": (0.03, 0.06), "iron": (0.02, 0.04)},
+atlas.bake(groups, cages={"body": (0.04, 0.08), "hands": (0.02, 0.05), "mouth": (0.02, 0.05), "iron": (0.02, 0.04)},
            height=3.0, masks={"wear": wear, "veins": veins, "marbling": marbling})
 M = atlas.maps
 worn, vein, marb = M["wear"], M["veins"], M["marbling"]

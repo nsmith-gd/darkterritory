@@ -140,15 +140,15 @@ for k in range(7):
     pts = [root, root + Vector((math.sin(a) * 0.02, -0.03, -0.06)), root + Vector((math.sin(a) * 0.04, -0.05, -drop * 0.5)),
            root + Vector((math.sin(a) * 0.05 + 0.01 * math.sin(k), -0.06, -drop))]
     head.tube(pts, [0.004, 0.0035, 0.003, 0.0015], 4, HAIR, ["head", "neck"], ref=(1, 0, 0), cap1="point")
+body = kit.part("body")   # (the neck is the body's: one skin with it, rig.fuse)
 NECK = [Vector((0, -0.01, TOP - 0.02)), Vector((0, 0.0, (TOP + NECK_TOP) / 2)), Vector((0, 0.01, NECK_TOP + 0.04))]
-head.tube(NECK, [(0.036, 0.034), (0.03, 0.03), (0.034, 0.032)], 10, SKIN, ["spine_03", "neck", "head"], ref=(0, 1, 0),
+body.tube(NECK, [(0.036, 0.034), (0.03, 0.03), (0.034, 0.032)], 10, SKIN, ["spine_03", "neck", "head"], ref=(0, 1, 0),
           shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * 0.004 * bell((abs(math.sin(a)) - 0.7) / 0.15))
 
 
 # ----------------------------------------------------------------------------------------------------------------
 # The body: starved, the waist a hand across, every rib and knuckle of the spine showing, the shoulders' bones
 # standing, the pelvis's crests; the shift hangs off it.
-body = kit.part("body")
 SPINE = (["pelvis", "spine_01", "spine_02", "spine_03"], 5.0)
 TORSO = [(HIP - 0.04, 0.13, 0.085), (HIP + 0.05, 0.12, 0.08), (WAIST, 0.085, 0.065), (WAIST + 0.08, 0.1, 0.075),
          (H("spine_02").z + 0.05, 0.13, 0.095), (CHEST + 0.03, 0.14, 0.1), (TOP - 0.07, 0.145, 0.088),
@@ -199,6 +199,7 @@ for sx in (-1, 1):
 # The arms, bone with skin over it, the elbows knobs; the hands broad, the fingers a hand's length again, knuckled, the
 # nails black; the legs long, knees like knots, and the feet grown into spikes it stands on the points of.
 limbs = kit.part("limbs")
+hands = kit.part("hands")   # the palms, fingers and nails: fine, kept out of the fused skin (rig.fuse)
 
 
 def jointed(a, b, c, upper, lower, blend=0.035):
@@ -222,7 +223,7 @@ for s, sx in (("r", 1), ("l", -1)):
     limbs.blob(wr, (0.022, 0.02, 0.018), 7, 4, SKIN, hd)
     k0 = T(hd)
     # The palm, broad and flat.
-    limbs.tube([wr + Vector((sx * 0.01, 0, 0)), wr.lerp(k0, 0.55), k0], [(0.034, 0.014), (0.05, 0.015), (0.056, 0.014)], 10, SKIN, hd,
+    hands.tube([wr + Vector((sx * 0.01, 0, 0)), wr.lerp(k0, 0.55), k0], [(0.034, 0.016), (0.05, 0.019), (0.056, 0.016)], 12, SKIN, hd,
                ref=(0, 0, 1), cap0=False)
     # Four fingers, three knuckles each, a hand's length again; the knuckles swollen, the nails black.
     fl = 0.3
@@ -231,20 +232,31 @@ for s, sx in (("r", 1), ("l", -1)):
         base = k0 + Vector((0, spread, 0))
         along = Vector((sx, spread * 1.2, 0)).normalized()
         n = fl * (0.8 + 0.2 * (1 - abs(f - 1.5) / 1.5)) * (0.85 if f == 3 else 1.0)
-        pts = [base, base + along * n * 0.36, base + along * n * 0.66, base + along * n]
+        # Hanging relaxed: each knuckle bent a little further down (T-pose, palm down: -z), the tips spread.
+        down = Vector((0, 0, -1))
+        fan = Vector((0, spread * 0.6, 0))
+        pts = [base, base + along * n * 0.36 + down * 0.012 + fan * 0.3, base + along * n * 0.65 + down * 0.036 + fan * 0.7,
+               base + along * n * 0.95 + down * 0.075 + fan]
         w = lambda p, base=base, n=n: {f"hand_{s}": 1.0} if (p - base).length < n * 0.1 else {f"fingers_{s}": 1.0}
-        limbs.tube(pts, [0.011, 0.01, 0.008, 0.005], 6, SKIN, w, ref=(0, 0, 1), cap1="point",
+        hands.blob(base + Vector((sx * 0.004, 0, 0.004)), (0.013, 0.012, 0.011), 8, 5, SKIN, f"hand_{s}")   # the knuckle
+        hands.tube(pts, [0.011, 0.01, 0.008, 0.005], 8, SKIN, w, ref=(0, 0, 1), cap1="point",
                    shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * (0.003 if i in (1, 2) else 0.0))
-        limbs.tube([pts[-1] - along * 0.03, pts[-1] + along * 0.004], [(0.007, 0.003), (0.005, 0.002)], 4, NAIL, f"fingers_{s}",
+        tip = (pts[-1] - pts[-2]).normalized()
+        hands.tube([pts[-1] - tip * 0.03 + Vector((0, 0, 0.004)), pts[-1] + tip * 0.004 + Vector((0, 0, 0.002))],
+                   [(0.007, 0.003), (0.005, 0.002)], 4, NAIL, f"fingers_{s}",
                    ref=(0, 0, 1))
     th0, th1 = H(f"thumb_{s}"), T(f"thumb_{s}")
-    limbs.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.9], [0.012, 0.01, 0.005], 6, SKIN, f"thumb_{s}", ref=(0, 0, 1), cap1="point")
+    hands.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.9], [0.012, 0.01, 0.005], 6, SKIN, f"thumb_{s}", ref=(0, 0, 1), cap1="point")
 
 for s, sx in (("r", 1), ("l", -1)):
     hp, kn, an, bl = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"ball_{s}")
     toe = T(f"ball_{s}")
     limbs.tube([hp + Vector((0, 0, 0.03)), hp.lerp(kn, 0.5), kn, kn.lerp(an, 0.4), an + Vector((0, 0, 0.03))],
                [0.052, 0.036, (0.04, 0.042), (0.03, 0.034), 0.022], 9, SKIN, jointed(hp, kn, an, f"thigh_{s}", f"calf_{s}"), ref=(0, 1, 0))
+    # Under the skin, what's left of the muscle: a kneecap standing out, a thin calf, the shin's edge.
+    limbs.blob(kn + Vector((0, 0.024, 0.004)), (0.021, 0.014, 0.026), 8, 5, SKIN, f"calf_{s}")
+    limbs.blob(kn.lerp(an, 0.28) + Vector((0, -0.014, 0)), (0.027, 0.026, 0.085), 8, 6, SKIN, f"calf_{s}")
+    limbs.blob(hp.lerp(kn, 0.45) + Vector((0, 0.01, 0)), (0.042, 0.04, 0.16), 10, 6, SKIN, f"thigh_{s}")
     limbs.blob(an, (0.026, 0.028, 0.026), 8, 4, SKIN, f"foot_{s}")
     # The heel's knob behind the ankle, and the foot grown to a spike: the arch, the ball, then all the toes gone into one
     # long point it stands on.
@@ -495,6 +507,10 @@ hit.key(2, over(W, spine_01=(10, 0, 8), spine_02=(8, 0, 6), neck=(12, 0, 0), hea
 hit.key(8, over(W, spine_02=(-6, 0, -4), head=(-6, 0, -6)), "LINEAR")
 hit.key(12, W, "CONSTANT")
 
+# One skin from the neck to the points of its feet, the limbs grown out of the body rather than pushed into it (rig.fuse);
+# then up toward GDD §27's budget (a character's, 4-10k): rig.densify rounds the head and hands out (Look Review asks).
+kit.fuse("body", ["body", "limbs"], voxel=0.0025, faces=2400)
+kit.target_tris = 8500
 kit.build()
 rig.bake(sk, [stalk, wait, flee, recoil, smother, hit, stoop, stalk_stoop, duck], plant=rig.feet_planter(sk, bones=("ball_l", "ball_r"), lowest=0.004))
 print("[dt] tippy_toesie", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))

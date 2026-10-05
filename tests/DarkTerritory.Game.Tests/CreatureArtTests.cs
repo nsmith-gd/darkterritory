@@ -157,6 +157,24 @@ public class CreatureArtTests
         Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
     }
 
+    /// <summary>
+    /// The demo's creatures, from their own meshes (Clearance.Mesh: a capsule fitted to each bone's share of the skin):
+    /// no part of one goes through another in any clip deeper than reads as touching, beyond how they sit at rest (a
+    /// Car Hugger's folded arm through its mouth, a Track Doll's fingers through its head; note 260).
+    /// </summary>
+    [Theory]
+    [InlineData("ribbit")]
+    [InlineData("track_doll")]
+    [InlineData("car_hugger")]
+    [InlineData("whistler")]
+    [InlineData("tippy_toesie")]
+    [InlineData("choir")]
+    public void TheDemoCreaturesStayOutOfThemselves(string name)
+    {
+        var through = Clearance.Mesh(Get(name)).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
     [Theory]
     [MemberData(nameof(Models))]
     public void ClipsAre30FpsAndLoopsCloseCleanly(string name)

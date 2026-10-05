@@ -151,7 +151,7 @@ def skin_by_part(p, n):
 
 
 SHAPE = {"skin.tippy_face": face_shape, "skin.tippy": skin_by_part, "wool.shift": linen, "wool.tippy_hair": strands}
-BAKED = ["head", "body", "limbs", "shift"]
+BAKED = ["head", "body", "hands", "shift"]   # (the limbs grown into the body: rig.fuse)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] tippy_toesie highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
@@ -272,7 +272,7 @@ def kind_of(m):
 atlas = overbake.Atlas("tippy_toesie", parts, BAKED, kind_of)
 atlas.unwrap(boosts={FACE: 3.0, EYE: 2.0})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"head": (0.008, 0.02), "body": (0.01, 0.03), "limbs": (0.008, 0.02), "shift": (0.015, 0.03)},
+atlas.bake(groups, cages={"head": (0.008, 0.02), "body": (0.01, 0.03), "hands": (0.004, 0.012), "shift": (0.015, 0.03)},
            height=2.2, masks={"face": face_marks, "skin": skin_marks, "shift": shift_marks, "glass": glass_and_blotch})
 
 M = atlas.maps
@@ -286,7 +286,7 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
-flesh = (atlas.masks["head"] | atlas.masks["body"] | atlas.masks["limbs"])
+flesh = (atlas.masks["head"] | atlas.masks["body"] | atlas.masks["hands"])
 base = np.where(flesh[..., None], base * (0.86 + 0.28 * glass[..., 1:2]), base)   # uneven, as plaster is
 base = paint(base, (0.17, 0.18, 0.21), skin[..., 0] * 0.55)       # veins, blue-grey through the skin
 base = paint(base, (0.5, 0.49, 0.46), skin[..., 2] * 0.25)        # drawn tight over the bone

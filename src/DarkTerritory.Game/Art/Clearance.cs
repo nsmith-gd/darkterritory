@@ -1,4 +1,5 @@
 using System.Numerics;
+using Ballast.Assets;
 
 namespace DarkTerritory.Game.Art;
 
@@ -98,6 +99,133 @@ public static class Clearance
                 found.Add(new(clipName, pair, w.Depth, w.At));
         }
         return [.. found.OrderByDescending(r => r.Depth)];
+    }
+
+    /// <summary>A part of a model fitted from its own mesh: the vertices a bone carries most of, as a capsule (rest pose).</summary>
+    readonly record struct Region(int Bone, Vector3 A, Vector3 Z, float R);
+
+    /// <summary>
+    /// Any model's clips checked for one part of it through another, from its own mesh rather than a figure's measured
+    /// sizes (the creatures: a ribbit's haunch through its belly, a Car Hugger's arm through its hide). Each bone with
+    /// <paramref name="minVertices"/> or more vertices carried mostly by it is a capsule fitted to them (along their
+    /// longest spread, the radius their median distance from it, so it sits inside the skin); every pair of bones three
+    /// or more joints apart (not a joint's own neighbours, which fold into each other by design) is measured each frame
+    /// at 30 fps, and how much deeper they overlap than they do at rest is the finding. Bones that only swell are left out.
+    /// </summary>
+    public static List<Overlap> Mesh(Model model, IReadOnlyCollection<string>? clips = null, int minVertices = 24)
+    {
+        var sk = model.Skeleton;
+        int n = sk.Count;
+        var pts = new List<Vector3>[n];
+        for (int b = 0; b < n; b++)
+            pts[b] = [];
+        foreach (var part in model.Parts)
+        {
+            if (part.Clip is not null || (part.Variants & 1) == 0)
+                continue;
+            for (int v = 0; v < part.Positions.Length; v++)
+            {
+                int best = -1;
+                float bw = 0;
+                for (int k = 0; k < 4; k++)
+                    if (part.Weights[v * 4 + k] > bw)
+                        (best, bw) = (part.Joints[v * 4 + k], part.Weights[v * 4 + k]);
+                if (best >= 0 && bw >= 0.5f)
+                    pts[best].Add(part.Positions[v]);
+            }
+        }
+        // A bone a clip scales (a Ribbit's throat sac, a Car Hugger's rings as it gulps) is a swelling: its part is meant to
+        // grow into its neighbours, the skin over both stretching, so it isn't measured.
+        var swells = new bool[n];
+        foreach (var clip in model.Clips.Values)
+            for (int i = 0; i < clip.Scale.Length; i++)
+                if (Vector3.Distance(clip.Scale[i], sk.RestScale[i % clip.Bones]) > 0.05f)
+                    swells[i % clip.Bones] = true;
+        var regions = new List<Region>();
+        for (int b = 0; b < n; b++)
+            if (!sk.Socket[b] && !swells[b] && pts[b].Count >= minVertices && Fit(b, pts[b]) is { } r)
+                regions.Add(r);
+        int Depth(int b) => sk.Parents[b] < 0 ? 0 : 1 + Depth(sk.Parents[b]);
+        int Apart(int a, int b)
+        {
+            int steps = 0, da = Depth(a), db = Depth(b);
+            for (; da > db; da--, steps++)
+                a = sk.Parents[a];
+            for (; db > da; db--, steps++)
+                b = sk.Parents[b];
+            for (; a != b; steps += 2)
+                (a, b) = (sk.Parents[a], sk.Parents[b]);
+            return steps;
+        }
+        var pairs = new List<(Region P, Region Q, float AtRest)>();
+        for (int i = 0; i < regions.Count; i++)
+            for (int k = i + 1; k < regions.Count; k++)
+                if (Apart(regions[i].Bone, regions[k].Bone) >= 3)
+                {
+                    var (p, q) = (regions[i], regions[k]);
+                    pairs.Add((p, q, Math.Max(0, p.R + q.R - SegmentDistance(p.A, p.Z, q.A, q.Z))));
+                }
+        var found = new List<Overlap>();
+        foreach (var clipName in model.Clips.Keys.Order(StringComparer.Ordinal))
+        {
+            if (clips is not null && !clips.Contains(clipName))
+                continue;
+            var c = model.Clip(clipName)!;
+            var worst = new Dictionary<string, (float Depth, double At)>();
+            for (int f = 0; f <= (int)Math.Round(c.Duration * 30); f++)
+            {
+                double t = f / 30.0;
+                var skin = Skinner.Skin(model, clipName, t, c.Loops);
+                foreach (var (p, q, atRest) in pairs)
+                {
+                    var (pa, pz) = (Vector3.Transform(p.A, skin[p.Bone]), Vector3.Transform(p.Z, skin[p.Bone]));
+                    var (qa, qz) = (Vector3.Transform(q.A, skin[q.Bone]), Vector3.Transform(q.Z, skin[q.Bone]));
+                    float depth = p.R + q.R - SegmentDistance(pa, pz, qa, qz) - atRest;
+                    string pair = $"{sk.Names[p.Bone]}~{sk.Names[q.Bone]}";
+                    if (depth > 0 && (!worst.TryGetValue(pair, out var w) || depth > w.Depth))
+                        worst[pair] = (depth, t);
+                }
+            }
+            foreach (var (pair, w) in worst)
+                found.Add(new(clipName, pair, w.Depth, w.At));
+        }
+        return [.. found.OrderByDescending(r => r.Depth)];
+    }
+
+    /// <summary>A capsule inside <paramref name="pts"/>: along their longest spread (power iteration on their covariance),
+    /// from the 10th to the 90th percentile of it, the radius their median distance off that line.</summary>
+    static Region? Fit(int bone, List<Vector3> pts)
+    {
+        var mean = Vector3.Zero;
+        foreach (var p in pts)
+            mean += p;
+        mean /= pts.Count;
+        float xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+        foreach (var p in pts)
+        {
+            var d = p - mean;
+            xx += d.X * d.X; xy += d.X * d.Y; xz += d.X * d.Z; yy += d.Y * d.Y; yz += d.Y * d.Z; zz += d.Z * d.Z;
+        }
+        var axis = Vector3.Normalize(new Vector3(1, 0.7f, 0.4f));
+        for (int i = 0; i < 32; i++)
+        {
+            var next = new Vector3(xx * axis.X + xy * axis.Y + xz * axis.Z, xy * axis.X + yy * axis.Y + yz * axis.Z,
+                xz * axis.X + yz * axis.Y + zz * axis.Z);
+            if (next.LengthSquared() < 1e-20f)
+                return null;
+            axis = Vector3.Normalize(next);
+        }
+        var along = pts.Select(p => Vector3.Dot(p - mean, axis)).Order().ToArray();
+        float lo = along[along.Length / 10], hi = along[along.Length * 9 / 10];
+        var off = pts.Select(p =>
+        {
+            var d = p - mean;
+            return (d - axis * Vector3.Dot(d, axis)).Length();
+        }).Order().ToArray();
+        float r = off[off.Length / 2];
+        // The capsule's caps stay inside the ends of the spread: its segment pulled in by its radius (to a point at most).
+        float mid = (lo + hi) / 2, half = Math.Max(0, (hi - lo) / 2 - r);
+        return new Region(bone, mean + axis * (mid - half), mean + axis * (mid + half), r);
     }
 
     /// <summary>The closest two segments come (m).</summary>
