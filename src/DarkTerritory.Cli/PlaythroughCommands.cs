@@ -32,7 +32,9 @@ static class PlaythroughCommands
         Directory.CreateDirectory(dir);
 
         var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
-        var session = new PrototypeSession(content, route, cars, enemies: true);
+        // --crew n: the night the director plans for a crew of n (a solo night meets only part of the roster), the one
+        // player standing for them all.
+        var session = new PrototypeSession(content, route, cars, enemies: true, crew: (int)Opt(args, "--crew", 1));
         var train = session.Train;
         using var gpu = new GpuContext("dt playthrough");
         using var renderer = new GreyboxRenderer(gpu, width, height);
