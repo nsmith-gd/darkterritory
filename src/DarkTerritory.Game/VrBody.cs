@@ -3,7 +3,7 @@ using Ballast;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// Mirror of content/tuning/vr.json <c>body</c> (T82, roadmap M4 "VR body IK"; ARCHITECTURE §8 note 208). Not in the GDD or
+/// Mirror of content/tuning/vr.json <c>body</c> (T82, roadmap M4 "VR body IK"; ARCHITECTURE §8 note 209). Not in the GDD or
 /// the spec (note 40: there are no VR numbers in either): our reading of how a headset player's body should look to the
 /// rest of the crew.
 /// </summary>

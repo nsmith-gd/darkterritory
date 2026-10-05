@@ -45,7 +45,7 @@
     "followSeconds": 0.6
   },
 
-  // A headset player's body as the rest of the crew see it (T82, roadmap M4 "VR body IK"; ARCHITECTURE §8 note 208). Not
+  // A headset player's body as the rest of the crew see it (T82, roadmap M4 "VR body IK"; ARCHITECTURE §8 note 209). Not
   // in the GDD or the spec (note 40): our reading, from how people stand and shift. It's drawn from what the snapshot
   // already has (the head's yaw and pitch, the hands) and the head's height over the feet, which rides with the hands.
   "body": {

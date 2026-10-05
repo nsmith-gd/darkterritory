@@ -60,6 +60,21 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AKilledCreatureCrumblesToAshThenIsGone()
+    {
+        var falling = Mesh();
+        Fx.Crumble(falling, O, 0.3f, 7);
+        Assert.Empty(falling.AlphaFx);
+        var crumbling = Mesh();
+        Fx.Crumble(crumbling, O, (float)Effects.DeathSeconds * 0.65f, 7);
+        Assert.NotEmpty(crumbling.AlphaFx);
+        Assert.NotEmpty(crumbling.AdditiveFx);
+        var gone = Mesh();
+        Fx.Crumble(gone, O, (float)Effects.DeathSeconds + 1.3f, 7);
+        Assert.Empty(gone.AlphaFx);
+    }
+
+    [Fact]
     public void TheFurnaceBurnsAndLightsTheCab()
     {
         var mesh = Mesh();

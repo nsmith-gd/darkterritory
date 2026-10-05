@@ -294,6 +294,32 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void AKilledCreatureGoesOverThenIsGone()
+    {
+        // GreyboxScene.Deaths: out of the sim at once, but drawn going over and crumbling until Effects.DeathSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var living = Staging.Threats(train);
+        var dead = living.First(e => e.Kind == EnemyKind.Switchman);
+        living.Remove(dead);
+        var eye = dead.WorldPosition(train) + new Double3(3, 1.6, 2);
+        int Drawn(double age, bool kill)
+        {
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = living, Tick = Staging.StrikeTick + (long)Math.Round(age * Sim.SimConstants.TickRate) };
+            if (kill)
+                scene.Killed(dead, Staging.StrikeTick, new Vector3(1, 0, 0));
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("switchman", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.Equal(0, Drawn(0.6, kill: false));
+        Assert.True(Drawn(0.6, kill: true) > 0, "going over");
+        Assert.True(Drawn(Effects.DeathSeconds * 0.8, kill: true) > 0, "crumbling");
+        Assert.Equal(0, Drawn(Effects.DeathSeconds + 0.1, kill: true));
+    }
+
+    [Fact]
     public void TheDeadLieAsTheirRagdollLies()
     {
         // The staged body (Staging.Bodies: a crewmate dead on car 3's roof, settled for 90 ticks), as the scene draws it.
