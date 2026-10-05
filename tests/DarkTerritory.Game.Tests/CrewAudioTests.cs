@@ -271,6 +271,33 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void ACrewmatesSwingIsHeardInTheirHandsLandedOrNot()
+    {
+        // Note 197: the host logs every swing (World.Swings), so a crewmate's is heard on every machine, once, with the
+        // tool in their hands; your own is heard from your intent, so the log doesn't play it twice.
+        var b = new Bench("crew-mishaps.bare-swing", "crew-melee.crowbar-swing");
+        b.Audio.OwnId = 1;
+        var you = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        var mate = PlayerMotor.SpawnOnRoof(b.Train, 2, 2, P) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0 };
+        // Already in the log when this machine first looks: old news.
+        b.World.Swings.Add(new SwingEvent(1, b.World.Tick, 2));
+        b.Step((1, you), (2, mate));
+        Assert.Empty(b.Heard);
+        b.World.Swings.Add(new SwingEvent(2, b.World.Tick, 2));
+        b.World.Swings.Add(new SwingEvent(3, b.World.Tick, 1));
+        for (int i = 0; i < 5; i++)
+            b.Step((1, you), (2, mate));
+        var swing = Assert.Single(b.Heard, h => h.Name == "crew-melee.crowbar-swing");
+        Assert.True((swing.At - b.Train.Frames[2].ToWorld(mate.Position)).Length < 2.5);
+        Assert.Equal(0, b.Count("crew-mishaps.bare-swing"));
+        // Empty-handed, it's a sleeve.
+        b.World.Swings.Add(new SwingEvent(4, b.World.Tick, 2));
+        b.Step((1, you), (2, mate with { HeldSlot = 3 }));
+        Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-swing"));
+    }
+
+    [Fact]
     public void AnExtinguisherRunDryGivesUpItsDregs()
     {
         var b = new Bench("crew-extinguisher.run-dry", "crew-extinguisher.spray", "crew-mishaps.extinguisher-dregs");

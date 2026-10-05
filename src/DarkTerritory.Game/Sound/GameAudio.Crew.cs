@@ -16,8 +16,8 @@ namespace DarkTerritory.Game.Sound;
 /// shovel, the cab's controls, switches, couplings, the boiler's mending, the cannons, carrying, the extinguisher, tools,
 /// getting hurt, jumping off and the cold. Everything is read off replicated state (out/audio/hooks-map.md): an edge
 /// against last tick is the event, kept per player, vehicle, gun and body by id, so a client hears what the host does.
-/// The listener's own swing (and trigger) are the exception: crewmates' aren't replicated, so only this machine's own
-/// intent (<see cref="OwnIntent"/>) can say when one happens.
+/// The listener's own swing (and trigger) are the exception: heard from this machine's own intent (<see cref="OwnIntent"/>),
+/// the tick it's pressed. A crewmate's swing is the host's <c>World.Swings</c> (note 197), landed or not.
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -132,6 +132,8 @@ public sealed partial class GameAudio
     partial void EndNightCrew()
     {
         _crewMembers.Clear();
+        _heardSwings.Clear();
+        _swingsPrimed = false;
         _crewCars.Clear();
         _crewGuns.Clear();
         _crewBodies.Clear();
@@ -212,11 +214,23 @@ public sealed partial class GameAudio
 
     // ------------------------------------------------------------------------------------------------ the crew themselves
 
+    readonly HashSet<int> _heardSwings = [], _swungNow = [];
+    bool _swingsPrimed;
+
     void CrewPeople(World world)
     {
         var train = world.Train;
         var tuning = PlayerTuning;
         var seen = new HashSet<int>();
+        // Who started a swing since the last update (note 197's SwingEvent: one per recovery, landed or not), each once. On
+        // the first update what's there is old news. Your own is heard from your intent instead, a round trip sooner.
+        _swungNow.Clear();
+        foreach (var w in world.Swings)
+            if (_heardSwings.Add(w.Id) && _swingsPrimed && w.By != OwnId)
+                _swungNow.Add(w.By);
+        _swingsPrimed = true;
+        if (_heardSwings.Count > 64)
+            _heardSwings.IntersectWith(world.Swings.Select(w => w.Id));
         var weather = (world.Route ?? world.Run?.Route)?.Weather;
         foreach (var (id, s) in CrewStates)
         {
@@ -396,7 +410,7 @@ public sealed partial class GameAudio
             else
                 c.NextBreath = Math.Max(c.NextBreath, _time + 0.5 + 0.37 * (id % 5));
 
-            // ---- tools (App. C.2): into the hand, back on the belt; your own swing.
+            // ---- tools (App. C.2): into the hand, back on the belt; your own swing and a crewmate's.
             var held = Kit.Held(s);
             if (held != c.Held)
             {
@@ -421,6 +435,8 @@ public sealed partial class GameAudio
             }
             else
                 c.NextSwing = Math.Min(c.NextSwing, _time);
+            if (_swungNow.Contains(id))
+                Cue(held != Tool.None ? $"crew-melee.{ToolName(held)}-swing" : "crew-mishaps.bare-swing", hands, occlusion);
 
             // ---- hands at work.
             Working(world, id, s, c, occlusion);
