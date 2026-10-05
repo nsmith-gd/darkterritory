@@ -1,3 +1,4 @@
+#include "view.glsl"
 // The frame's constants, shared by every scene shader (std140; mirrors FrameData in GreyboxRenderer.cs).
 layout(set = 0, binding = 0) uniform Frame {
     mat4 viewProj;
@@ -21,4 +22,22 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 dawn;         // xyz = the glow low on the dawn's horizon, w = how far it's up
     vec4 wind;         // xyz = the wind (m/s, world axes), w = gustiness 0..1
     vec4 swayOf[64];   // per layer (4 a vec4): 1 where it bends in the wind (foliage cards and boughs), else 0
+    mat4 viewProj1;    // the right eye's, when one pass draws both (multiview: view.glsl)
+    mat4 invViewProj1;
 } frame;
+
+// This invocation's eye's view (the only one, drawing a single view).
+mat4 eyeViewProj() {
+#ifdef MULTIVIEW
+    return gl_ViewIndex == 0 ? frame.viewProj : frame.viewProj1;
+#else
+    return frame.viewProj;
+#endif
+}
+mat4 eyeInvViewProj() {
+#ifdef MULTIVIEW
+    return gl_ViewIndex == 0 ? frame.invViewProj : frame.invViewProj1;
+#else
+    return frame.invViewProj;
+#endif
+}

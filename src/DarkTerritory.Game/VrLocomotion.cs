@@ -25,6 +25,8 @@ public sealed record VrTuning
     public VrPanelTuning Menu { get; init; } = new() { Distance = 2.0, Width = 2.0, Drop = 0, FollowDegrees = 35, FollowSeconds = 0.6 };
     /// <summary>A headset player's body as the rest of the crew see it (T82).</summary>
     public VrBodyTuning Body { get; init; } = new();
+    /// <summary>How the eyes are drawn: both in one pass where the GPU can (multiview), or each alone (note 213).</summary>
+    public StereoPath Stereo { get; init; } = StereoPath.Multiview;
 }
 
 public sealed record VignetteTuning

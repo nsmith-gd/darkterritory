@@ -24,7 +24,7 @@ float noise(vec2 p) {
 }
 
 void main() {
-    vec4 far = frame.invViewProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+    vec4 far = eyeInvViewProj() * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
     vec3 dir = normalize(far.xyz / far.w);
     // The horizon's haze is a little brighter than the fog: fogged geometry converges to the fog colour, and the sky
     // behind it has to be paler still, or depth reads backwards (far things darker than near).

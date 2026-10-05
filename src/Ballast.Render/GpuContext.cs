@@ -36,6 +36,13 @@ public sealed unsafe class GpuContext : IDisposable
 
     public string DeviceName { get; }
 
+    /// <summary>
+    /// Whether the device draws both of a headset's eyes in one pass (VK_KHR_multiview, core since Vulkan 1.1, but an
+    /// optional feature: enabled here wherever the device has it, with room for two views). The stereo renderer picks
+    /// its path from this (<see cref="StereoPath"/>, ARCHITECTURE §8 note 213).
+    /// </summary>
+    public bool Multiview { get; private set; }
+
     /// <summary>Nanoseconds per GPU timestamp tick, or 0 when the graphics queue can't time its work.</summary>
     public double TimestampPeriod { get; private set; }
 
@@ -99,7 +106,16 @@ public sealed unsafe class GpuContext : IDisposable
 
         float priority = 1;
         var queueInfo = new VkDeviceQueueCreateInfo { queueFamilyIndex = QueueFamily, queueCount = 1, pQueuePriorities = &priority };
-        var features13 = new VkPhysicalDeviceVulkan13Features { dynamicRendering = true, synchronization2 = true };
+        // Multiview where the device has it, and room for both eyes in it.
+        var has11 = new VkPhysicalDeviceVulkan11Features();
+        var has = new VkPhysicalDeviceFeatures2 { pNext = &has11 };
+        InstanceApi.vkGetPhysicalDeviceFeatures2(PhysicalDevice, &has);
+        var multiviewProps = new VkPhysicalDeviceMultiviewProperties();
+        var props2 = new VkPhysicalDeviceProperties2 { pNext = &multiviewProps };
+        InstanceApi.vkGetPhysicalDeviceProperties2(PhysicalDevice, &props2);
+        Multiview = has11.multiview && multiviewProps.maxMultiviewViewCount >= 2;
+        var features11 = new VkPhysicalDeviceVulkan11Features { multiview = Multiview };
+        var features13 = new VkPhysicalDeviceVulkan13Features { pNext = &features11, dynamicRendering = true, synchronization2 = true };
         // Anisotropic filtering where the device has it (every desktop GPU, and lavapipe): textures stay sharp at a
         // glancing angle, the track and the roofs running away from you.
         VkPhysicalDeviceFeatures supported;
