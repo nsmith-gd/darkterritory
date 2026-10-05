@@ -166,9 +166,14 @@ public static class Hud
     {
         var crew = s.Roster();
         float x = 6, y = MathF.Round(height * 0.22f), w = 250;
-        var lines = new List<(string Text, Vector4 Colour)> { ($"THE LOBBY: {crew.Count} ABOARD", Amber) };
+        // Of the crew cap (note 254), when there is one.
+        var lines = new List<(string Text, Vector4 Colour)> { ($"THE LOBBY: {crew.Count} ABOARD{(link.Cap > 0 ? $" OF {link.Cap}" : "")}", Amber) };
         lines.AddRange(crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)));
-        if (link.JoinAt is { } at)
+        // Hosting at the cap: the lobby's shut (listed FULL, the platform lobby closed) till a place frees. The places taken
+        // can be more than the names above: a dropped player's held place, someone waiting to board.
+        if (link.Full)
+            lines.Add(($"CREW FULL ({link.Places}/{link.Cap}): NOBODY ELSE CAN JOIN", Red));
+        else if (link.JoinAt is { } at)
         {
             lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
@@ -294,6 +299,9 @@ public static class Hud
         // Note 253: a joiner whose link went tries to get back, and says how it's going; out of tries, F5 tries again.
         if (link.Lost && link.Attempt > 0)
             o.TextRight(right, 5 + 4 * line, $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}", Amber);
+        // Note 254: turned away on the way back (the place ran out, and the crew's full).
+        else if (link.Lost && link.Refused is { } refused)
+            o.TextRight(right, 5 + 4 * line, $"{refused}: [F5] TRY AGAIN", Red);
         else if (link.Lost && link.CanReconnect)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST: [F5] RECONNECT", Red);
         else if (link.Lost)
@@ -483,6 +491,12 @@ public static class Hud
             {
                 Big("RECONNECTING", Amber);
                 Small($"TRY {lost.Attempt} OF {lost.Attempts}: YOUR BODY LIES WHERE YOU STOOD TILL YOU'RE BACK", Ink);
+            }
+            // Note 254: back too late, the place had gone, and the crew had filled it.
+            else if (lost.Refused is { } refused)
+            {
+                Big(refused, Red);
+                Small("YOUR PLACE WAS HELD TILL IT RAN OUT, AND THE CREW'S FULL: [F5] TRY AGAIN", Ink);
             }
             else if (lost.CanReconnect)
             {

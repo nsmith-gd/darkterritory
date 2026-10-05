@@ -106,6 +106,13 @@ public sealed record DropRejoin(int Bot, double At, double Away)
 public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedAt, double RedialAt, double ReconnectSeconds, string Came,
     int HostRejoins, int Reserved, int ReservesExpired, bool OthersSeeOne, double MaxCorrectionAfterM, int CorrectionsAfter);
 
+/// <summary>
+/// The crew cap on a harness night (note 254): <paramref name="Cap"/> (player.json crew.cap), <paramref name="Occupied"/>
+/// the places taken at the night's end (the crew, the waiting, the held), <paramref name="Refusals"/> the host's count of
+/// joiners turned away, and <paramref name="Refused"/> each refused bot with what its client was told.
+/// </summary>
+public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
+
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
 public interface IHarnessNetwork : IDisposable
 {
@@ -130,6 +137,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public VoiceReport? Voice { get; init; }
     /// <summary>With <see cref="HarnessOptions.DropRejoin"/>: how the bot that dropped came back (note 253).</summary>
     public RejoinReport? Rejoin { get; init; }
+    /// <summary>The crew cap (note 254): the cap, the places taken at the end, and the bots turned away and what they were told.</summary>
+    public CrewCapReport? Crew { get; init; }
     /// <summary>
     /// Seconds from boarding until each bot first reached its post (T102): the driver and fireman in the cab, the gunner on
     /// the guard gun, a walker up on the train; −1 for never. Keyed "bot#id".
@@ -187,6 +196,8 @@ public static class Harness
             ?? (udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port)));
         var hostTransport = new CountingTransport(o.Network?.Host() ?? udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+        // The crew the host will take (player.json crew.cap, note 254): more bots than that and the last are turned away.
+        int crewSize = Math.Min(o.Bots, host.Cap);
         if (o.Hazards is { } hazards)
             HazardConditions.Apply(line, hazards);
         // Insisted on (note 186), the director's roster is those kinds alone: no Sleepers or marsh on the line, no Stoker but
@@ -195,7 +206,7 @@ public static class Harness
             ? full with { Director = full.Director with { Roster = only.Count == 0 ? ["none"] : [.. only.Select(Director.Key)] } }
             : o.Enemies;
         if (enemyTuning is { } et)
-            host.EnableEnemies(et, o.Route, (ulong)o.Seed, o.Bots);
+            host.EnableEnemies(et, o.Route, (ulong)o.Seed, crewSize);
         if (o.Insist is { } insist)
         {
             host.World.Insist = insist;
@@ -237,12 +248,14 @@ public static class Harness
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
-            IBot bot = BotCrew.Make(i, o.Bots, calls, o.Combat, playerTuning, o.Seed);
+            // Past the cap (note 254) the crew is the crew of the cap, its parts as ever; the rest are spare hands with no part
+            // at a stop, turned away at the door.
+            IBot bot = BotCrew.Make(i, crewSize, i < crewSize ? calls : null, o.Combat, playerTuning, o.Seed);
             var session = new ClientSession(transport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
             // The enemies' tuning, as a joiner loads it: prediction drags with the Weight as the host does (T59), and the bots
             // read their counters from it (the Gaunt's view, the Passenger's reach).
             if (enemyTuning is { } cet)
-                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, o.Bots, authority: false);
+                session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, crewSize, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
                 session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
@@ -380,7 +393,10 @@ public static class Harness
         }
 
         var hostPlayers = host.Players.ToDictionary(p => p.Id, p => p.State);
-        var reports = clients.Select(c =>
+        // Note 254: the bots turned away at the door are no one's crew, so they're out of the crew's figures.
+        var crewCap = new CrewCapReport(host.Cap, host.Occupied, host.Refusals,
+            [.. clients.Select((c, i) => (c, i)).Where(x => x.c.Session.Refused is not null).Select(x => $"bot {x.i + 1} ({x.c.Bot.Name}): {x.c.Session.Refused}")]);
+        var reports = clients.Where(c => c.Session.Refused is null).Select(c =>
         {
             byte id = c.Session.PlayerId ?? 0;
             var s = hostPlayers.GetValueOrDefault(id);
@@ -432,6 +448,7 @@ public static class Harness
             pacing)
         {
             Voice = calls?.Voice?.Report(),
+            Crew = crewCap,
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
             Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
                 c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
