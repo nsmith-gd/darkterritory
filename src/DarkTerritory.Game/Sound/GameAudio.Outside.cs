@@ -33,7 +33,7 @@ public sealed partial class GameAudio
     bool _outsidePrimed, _radioWas;
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
     // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
-    const int HerdOwner = 10_000, HoseOwner = 11_000;
+    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000;
     Double3 _spoutAt;
     Places? _places;
 
@@ -591,8 +591,9 @@ public sealed partial class GameAudio
         // The chemical works' hose (note 185): its leak hissing at the stand while the pressure's over or the hose is torn.
         if (site.Has(ModuleKind.Hose) && site.Leaking && (site.HoseStand - ear).Length < 150)
             HoldLevel("place-chemical.leak", HoseOwner + site.Index, site.HoseStand + Double3.Up * 1.5, outside, 1);
-        // The wreck yard's heaps (note 187): a piece pulled out creaks it; its groan before it shifts (the tell, 3 s) is the
-        // creaking quickening and loud; the shift is the wreckage going.
+        // The wreck yard's heaps (note 187): a piece pulled out creaks it; its groan before it shifts (the tell, 3 s) is
+        // heap-groan held for the whole warning (tier 1, note 198) with the creaking quickening and loud over it; the shift is
+        // the wreckage going.
         foreach (var heap in site.Heaps)
         {
             if ((heap.Centre - ear).Length > 150)
@@ -601,6 +602,8 @@ public sealed partial class GameAudio
             var at = heap.Centre + Double3.Up * 1.5;
             if (Moved("place-wreck.stability", key, heap.Stability) < -1e-6 && primed)
                 Cue("place-wreck.creak", at, outside, 0.7f);
+            if (heap.Groan > 0)
+                Hold("heap-groan", HeapOwner + key, at, outside);
             if (heap.Groan > 0 && Sometimes(3, dt))
                 Cue("place-wreck.creak", at + new Double3((OutsideOdds() * 2 - 1) * 2, 0, (OutsideOdds() * 2 - 1) * 2), outside, 1);
             if (Moved("place-wreck.shifts", key, heap.Shifts) > 0 && primed)

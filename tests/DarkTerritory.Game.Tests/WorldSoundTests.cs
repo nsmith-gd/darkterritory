@@ -230,4 +230,32 @@ public class WorldSoundTests
         Assert.Equal(2, ears.Started.Count(v => v.Name == "place-grain.spout-stop"));
         Assert.False(Playing(audio, "place-grain.grain-pour"));
     }
+
+    [Fact]
+    public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
+    {
+        // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them
+        // (heap-groan, the tell, note 198) with the recorded creaks over it, and comes down with place-wreck's shift.
+        var (world, yard) = Night(f => f.Facility == FacilityKind.WreckYard, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-wreck.creak", "place-wreck.shift");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(yard)]!;
+        var heap = site.Heaps[0];
+        var ear = heap.Centre + new Double3(4, 1.7, 0);
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, 5);
+        Assert.False(Playing(audio, "heap-groan"));
+        var was = heap.State;
+        heap.Mirror(was with { Stability = 0, Groan = 3 });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.True(Playing(audio, "heap-groan"));
+        Assert.Equal(1, audio.Mixer.Voices.Single(v => v.Name == "heap-groan").Def.Tier);
+        Assert.Contains(ears.Started, v => v.Name == "place-wreck.creak");
+        heap.Mirror(was with { Stability = 0, Groan = 0, Shifts = was.Shifts + 1 });
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        Assert.False(Playing(audio, "heap-groan"));
+        Assert.Single(ears.Started, v => v.Name == "place-wreck.shift");
+    }
 }

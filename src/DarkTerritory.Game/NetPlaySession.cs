@@ -681,7 +681,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (World.FilmSkipped && StrandedOutro)
             OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;
-        if (!_link.IsConnected && Client.Connected)
+        if (Client.Dropped || (!_link.IsConnected && Client.Connected))
             Lost = true;
     }
 

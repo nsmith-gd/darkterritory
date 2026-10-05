@@ -593,6 +593,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
+        Swings = session.World.Swings,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,

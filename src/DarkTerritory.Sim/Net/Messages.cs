@@ -25,11 +25,12 @@ public static class Protocol
     // 16: a broken radio on the body record; a fouled gun on the vehicle record (GDD §23; note 183).
     // 17: the facility set pieces on the run record (the spout's bin, the herd, the hose) and death causes Keg and Leak (GDD §18; note 185).
     // 18: a switchyard's standing cars (more rakes and vehicles from the start), the wreck yard's heaps, death cause Wreckage (GDD §18; note 187).
-    // 19: reserved for the sound package (it landed after 21: see 22).
+    // 19: reserved for the sound package (it landed after 22: see 23).
     // 20: the report's C.9 lines that aren't deaths (incident kinds Struck, Fire, Nest, Aboard, Runaway, Points, Punished; note 190).
     // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
-    // 22: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 201).
-    public const int Version = 22;
+    // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
+    // 23: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 201).
+    public const int Version = 23;
 }
 
 public enum MessageType : byte

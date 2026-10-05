@@ -464,8 +464,10 @@ public sealed class HostSession
         if (speaker.State.Alive)
             World.Voices.Hear(speaker.Id, opus, World.Tick);
         var route = Route ?? World.Route;
-        Func<double, bool>? tunnel = route is null ? null : route.InTunnel;
-        Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train) : null;
+        // Spec F.3's radio range (note 196): it carries this far in from a tunnel's mouth or a mine spur's points.
+        double reach = Train.Dynamics.Tuning.Kit.RadioReach;
+        Func<double, bool>? tunnel = route is null ? null : s => route.DeepInTunnel(s, reach);
+        Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train, reach) : null;
         // Held (GDD v1.4 App. C.8, "radio broadcast of a GRAB"): a grabbed player's radio is keyed open for the whole GRAB,
         // whatever they meant to say into it; it closes at break-off, or with the hard-cut at death (a dead speaker has only
         // the dead channel, VoiceRouting). The radio's a thing (T41): no radio on you, nobody hears you on it, and you hear

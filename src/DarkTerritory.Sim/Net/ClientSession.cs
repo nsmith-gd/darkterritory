@@ -110,6 +110,10 @@ public sealed class ClientSession
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
+    /// <summary>The link to the host went after this client was welcomed: the night's over for it.</summary>
+    public bool Dropped { get; private set; }
+    /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
+    byte? _was;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
     public TrainControls Controls;
@@ -186,6 +190,9 @@ public sealed class ClientSession
         {
             if (e.Kind == TransportEventKind.Disconnected)
             {
+                // Once aboard, a drop is the night lost to this client, said as much (the 4 Oct rehearsal: a joiner whose
+                // link timed out sat on "connecting…" and drew itself as a crewmate round its own eyes).
+                Dropped |= PlayerId is not null || _was is not null;
                 PlayerId = null;
                 _haveState = false;
                 continue;
@@ -208,6 +215,7 @@ public sealed class ClientSession
                     break;
                 case MessageType.Welcome:
                     (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
+                    _was = PlayerId;
                     if (Name.Length > 0)
                     {
                         Messages.WriteHello(_writer, Name);
@@ -385,7 +393,7 @@ public sealed class ClientSession
     }
 
     public IEnumerable<byte> RemoteIds =>
-        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != PlayerId);
+        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != (PlayerId ?? _was));
 
     static bool Find(PlayerSnapshot[] players, byte id, out PlayerState state)
     {

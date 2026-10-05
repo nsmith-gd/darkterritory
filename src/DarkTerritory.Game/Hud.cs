@@ -171,9 +171,11 @@ public static class Hud
             lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
-        else if (link.PingMs is null)
+        else if (link.PingMs is null && !link.Lost)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
-        lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
+        // The host starts the night; a joiner waits for it (the 4 Oct rehearsal: a joiner was told to drive out).
+        bool hosting = link.PingMs is null && !link.Lost;
+        lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
         UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
@@ -277,11 +279,13 @@ public static class Hud
         if (link.PingMs is { } ping)
         {
             var colour = ping < 80 ? Green : ping < 150 ? Amber : Red;
-            o.TextRight(right, 5, $"PING {ping:0} MS", colour, scale: 2);
+            // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
+            o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
         }
         else
         {
-            o.TextRight(right, 5, "HOST", Ink, scale: 2);
+            // No ping: this is the host, or a joiner whose link has gone (it says so below).
+            o.TextRight(right, 5, link.Lost ? "NO LINK" : "HOST", link.Lost ? Red : Ink, scale: 2);
         }
         o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
@@ -293,6 +297,10 @@ public static class Hud
 
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
+    /// <summary>Which way a switch goes when it's thrown: back to the main line, or over for its branch.</summary>
+    static string SwitchTo(TrainOnLine train, int branch) =>
+        train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
+
     static string RepairKitWhere(Sim.World world, int playerId)
     {
         // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
@@ -1058,6 +1066,17 @@ public static class Hud
                 return train.Traction < 1 || train.Sand > 0 ? $"[E] HOLD: SAND THE RAIL ({train.Traction * 100:0}% GRIP)" : "[E] HOLD: SAND";
             case InteractableKind.Door:
                 return "[E] DOOR";
+            // Spec F.3's powered switch thrower (note 196): the next points ahead, from the cab, slowed for them.
+            case InteractableKind.Points when world.Switches is { } stands && SwitchStands.CabLever(p, train, hand) is { } lever:
+                {
+                    var thrower = train.Dynamics.Tuning.Composition.Thrower;
+                    if (lever.Branch is not { } ahead)
+                        return $"POWERED POINTS: NONE WITHIN {thrower.Reach:0} M AHEAD";
+                    double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
+                    return !lever.Slow ? $"POWERED POINTS {off:0} M AHEAD: SLOW TO {thrower.MaxSpeed * 3.6:0} KM/H TO THROW THEM"
+                        : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POWERED POINTS: HELD, A WHEEL IS ON THEM"
+                        : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
+                }
         }
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
@@ -1099,10 +1118,9 @@ public static class Hud
         if (world.Switches?.InReach(p, train, hand) is { } branch)
         {
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
-            string to = train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
             return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength)
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
-                : $"[E] HOLD: THROW THE SWITCH TO {to}";
+                : $"[E] HOLD: THROW THE SWITCH TO {SwitchTo(train, branch)}";
         }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)

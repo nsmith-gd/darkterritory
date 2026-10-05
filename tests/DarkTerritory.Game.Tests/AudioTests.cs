@@ -65,6 +65,24 @@ public class AudioTests
         Assert.True(Meter.Db(mix.AsSpan(end - 4800, 4800)) < Meter.Db(mix.AsSpan(end - 2 * Audio.SampleRate * 2, 4800)) - 12);
     }
 
+    [Theory]
+    [InlineData("place-grain.grain-pour", 4)]
+    [InlineData("world-livestock.cattle", 6)]
+    [InlineData("place-chemical.leak", 6)]
+    [InlineData("heap-groan", 1)]
+    public void TheSetPiecesAreHeard(string sound, int tier)
+    {
+        // Note 198: the facilities' set pieces had no sound of their own (notes 185, 187). Each is a loop at its tier (the
+        // spout, herd and hose the checklist's recorded ones, note 201), heard 6 m off beside a standing train well over the
+        // train's own idle.
+        var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        Assert.Equal(tier, bank.Get(sound)!.Tier);
+        var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 4, speed: 0, listenerCar: 1, seconds: 2);
+        double level = report.StemsDb.GetValueOrDefault(sound, double.NegativeInfinity);
+        Assert.InRange(level, -25, -3);
+        Assert.True(level > report.StemsDb.GetValueOrDefault("boiler-roar", double.NegativeInfinity) + 20, $"{sound} at {level} dB");
+    }
+
     [Fact]
     public void EverySoundFileLoads()
     {
