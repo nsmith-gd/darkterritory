@@ -1195,6 +1195,27 @@ def export(path, kit: Kit):
           f"{len(bpy.data.materials)} materials, parts {[n + ':' + str(t) for n, t in tris.items()]}")
 
 
+def export_lod(path, kit: Kit, ratio, least=400):
+    """The model again at a distance's detail, after `export`: each mesh on the rig of `least` triangles or more collapsed
+    to `ratio` of them (symmetric across x; its UVs, materials and bone weights interpolate through the collapse), the rig
+    and clips the same. The engine poses it with the full model's palette (bones matched by name) and draws it past
+    look.json's creatureLodMetres: a headset draws every creature for two eyes and the shadows (tuning/perf.json)."""
+    for o in sorted((o for o in bpy.data.objects if o.type == "MESH" and o.parent is kit.skeleton.rig), key=lambda o: o.name):
+        o.data.calc_loop_triangles()
+        if len(o.data.loop_triangles) < least:
+            continue
+        bpy.context.view_layer.objects.active = o
+        mod = o.modifiers.new("dt_lod", "DECIMATE")
+        mod.decimate_type = "COLLAPSE"
+        mod.ratio = ratio
+        mod.use_symmetry = True
+        mod.symmetry_axis = "X"
+        while o.modifiers[0] != mod:
+            bpy.ops.object.modifier_move_up(modifier=mod.name)
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    export(path, kit)
+
+
 def along(axis, stops, extra=None):
     """Weights as a function of one coordinate: `stops` [(coord, bone)...] ascending; between two stops a vertex
     blends the two bones linearly. Rigid PS2-style skinning with soft joints. axis 'x' uses |x| (both sides share

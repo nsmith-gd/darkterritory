@@ -3791,6 +3791,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - The Car Hugger bakes to 2048. It wraps most of a car (38 m² of skin), and at 1024 it came out about 120 px/m.
       - **The renderer has a 2048 hero tier** for layers authored above 1024 (`look.json` `bigHeroLayerSize`). The scene set gains bindings 11–13, and a hero slot from 64 up samples the big arrays (`scene.frag`).
       - Texel density, against GDD §27's hero target of 256–512 px/m: Ribbit 434, Tippy 476, Choir 499, Track Doll 312, Whistler 282, Car Hugger 247. The Car Hugger is about 4% short; its belly and the inside of its funnel take a share of the atlas they don't need.
+    - **A distance copy for each, so the frame stays in budget.** At their full budgets the six creatures put the headset's trackside view at 1.57M triangles a frame, over `perf.json`'s 1.5M, because each is drawn for two eyes and the shadows (`PerfBudgetTests`). The precedent (note 102) was to trim the models to fit. Instead:
+      - `overbake.finish(lod=0.4)` also exports `<name>.lod1.glb` (`rig.export_lod`): every part of 400 triangles or more collapsed to two fifths, symmetric, on the same rig, clips, atlas and materials.
+      - `CreatureArt` loads it with its joints renumbered by name to the full model's. Past `look.json`'s `creatureLodMetres` (14 m) from the eye it draws the copy, posed with the full model's palette. The scene is built about the eye, so a creature's distance is its matrix's origin.
+      - Up close, as near as one comes to anyone, it's the whole model. `dt art clip` and the reel draw at the origin, so they always show the full model.
+      - `CreatureArtTests.TheDemoCreaturesHaveADistanceCopy` checks each copy: a quarter to three fifths of the triangles, the same materials, and every joint one of the full model's.
     - **`Clearance.Mesh`: any model's clips checked for parts through parts, from its own mesh.**
       - Each bone with 24 or more vertices carried mostly by it becomes a capsule fitted to them: along their longest spread, from the 10th to the 90th percentile of it, its radius their median distance off that line, so the capsule sits inside the skin.
       - Every pair of bones three or more joints apart is measured at 30 fps. The finding is how much deeper the pair overlaps than it does at rest.

@@ -217,4 +217,4 @@ rough = np.full(base.shape[:2], 0.3, np.float32)
 rough[atlas.masks["iron"]] = 0.75
 rough = rough - 0.12 * vein[..., 1]                            # the wet pooling in the hollows
 rough = np.where(worn[..., 1] > 0.35, np.maximum(rough, 0.7), rough)
-atlas.finish(base, kit, arm, made=make.provenance("car_hugger", "the Car Hugger, modelled over tools/blender/car_hugger.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("car_hugger", "the Car Hugger, modelled over tools/blender/car_hugger.py"), rough=rough, lod=0.4)

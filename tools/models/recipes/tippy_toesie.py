@@ -304,4 +304,4 @@ rough[flesh] = 0.62
 rough = np.where(flesh, rough - 0.2 * skin[..., 2] - 0.3 * face[..., 1] - 0.2 * face[..., 2], rough)
 rough = np.where(glass[..., 0] > 0.5, 0.05, rough)
 atlas.finish(base, kit, arm, made=make.provenance("tippy_toesie", "Tippy Toesie, modelled over tools/blender/tippy_toesie.py"),
-             rough=rough)
+             rough=rough, lod=0.4)

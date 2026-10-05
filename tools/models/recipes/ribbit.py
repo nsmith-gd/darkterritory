@@ -153,4 +153,4 @@ base = paint(base, (0.12, 0.07, 0.03), ey[..., 1] * 0.7)      # teeth's roots
 
 rough = np.full(base.shape[:2], 0.25, np.float32)
 rough = rough + 0.15 * mk[..., 0]
-atlas.finish(base, kit, arm, made=make.provenance("ribbit", "the Ribbits, modelled over tools/blender/ribbit.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("ribbit", "the Ribbits, modelled over tools/blender/ribbit.py"), rough=rough, lod=0.4)

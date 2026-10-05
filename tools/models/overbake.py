@@ -363,12 +363,14 @@ class Atlas:
     def height(self, scale=1.8):
         return self.maps["EMIT"][..., 0] * scale
 
-    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None, rough=None):
+    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None, rough=None, lod=None):
         """Writes the atlas (`base` linear HxWx3), with `rough` (HxW, 0 glazed .. 1 matte; default 0.75 all over) its gloss,
         splits the parts back out with
         their names and extras, bakes the layers, and exports content/art/models/<name>.glb with the rig and clips.
         `split` {kind: suffix}: those faces draw the atlas under a material of their own, <name>_0.<suffix> (the same
-        texture; the engine tells them apart by name: the crew's paint, tinted per player)."""
+        texture; the engine tells them apart by name: the crew's paint, tinted per player). `lod` (a fraction) also
+        exports <name>.lod1.glb: every part of 400 triangles or more collapsed to that share of them, the same rig, clips,
+        atlas and materials, which the engine draws past look.json's creatureLodMetres (rig.export_lod)."""
         S = self.size
         low = self.low
         bimg = bpy.data.images.new(f"{self.name}_base", S, S, alpha=True)
@@ -459,6 +461,8 @@ class Atlas:
             bpy.data.objects.remove(o, do_unlink=True)
         arm.data.pose_position = "POSE"
         rig.export(os.path.join(cook.ROOT, "content", "art", "models", f"{self.name}.glb"), kit)
+        if lod:
+            rig.export_lod(os.path.join(cook.ROOT, "content", "art", "models", f"{self.name}.lod1.glb"), kit, lod)
 
 
 def _attribute_material(name):
