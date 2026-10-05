@@ -130,7 +130,9 @@ public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, do
     CrushDef? Crush = null,
     // Heard without position (UI, the listener's own wind).
     bool Flat = false,
-    RolloffCurve Curve = RolloffCurve.Inverse);
+    RolloffCurve Curve = RolloffCurve.Inverse,
+    // Spec A.6's formant shift, on the whole sound after its layers (the Soot Children's mimicry of a crewmate's voice).
+    FormantDef? Formant = null);
 
 /// <summary>Mix bus rules (<c>content/audio/mix.json</c>).</summary>
 public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRelease, int MaxVoices,

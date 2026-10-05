@@ -112,6 +112,8 @@ public sealed class SoundInstance
     internal Biquad OcclusionFilter;
     // Through the listener's head (MixDef.Head): made the first block the voice is heard positioned.
     internal HeadState? Head;
+    // The formant shift (SoundDef.Formant), made the first block it renders.
+    FormantShifter? _formant;
     // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
     internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
@@ -136,6 +138,8 @@ public sealed class SoundInstance
         double rate = Stream is null && Clip is null ? Rate : 1;
         foreach (var layer in _layers)
             layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate);
+        if (Def.Formant is { } formant)
+            (_formant ??= new FormantShifter(formant)).Process(output);
         if (Def.Crush is { } crush)
             Crush(output, crush);
         Age += rate * output.Length / Audio.SampleRate;

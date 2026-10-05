@@ -130,7 +130,8 @@ This gets prototyped in M1 alongside the 4:1 speed-ratio feel test (spec G.1).
 - **Route:** `VoiceRouting` on the host decides proximity (with a 4 m forwarding margin past the 26 m cutoff), cab-wall occlusion, radio (not into or out of a tunnel), the dead channel, and a dead player's Live Mic from their Holdout (note 179).
 - **Play:** the receiver plays each path through the mixer as a stream voice on tier 2. Proximity uses spec A.5's log curve as a mixer rolloff mode. The radio is `voice-radio.json`: flat, 300 Hz–3 kHz, crushed, with static while keyed.
 - **Measured:** 4 m against 16.5 m is 8.3 dB, matching the curve. Past 26 m nothing is sent. The radio at 93 m keeps its band, with the low end 48 dB down. Talking ducks the bed by exactly −6 dB. On a 90 ms ±20 ms link with 5% loss, level stays within 1 dB of a perfect link.
-- **Not yet:** Soot Children mimicry, a per-player rolling buffer on the host, occlusion by car walls once interiors exist, a radio as an item (for now everyone carries one), and Steam Audio HRTF.
+- **Since:** Soot Children mimicry, replayed from the host (T40) and formant-shifted (note 245); the listener's head (note 244).
+- **Not yet:** occlusion by car walls once interiors exist, and a radio as an item (for now everyone carries one).
 
 ### 6.4 Audio (spec A) — why not FMOD
 FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent cannot sensibly author or verify. The spec's needs are specific and small: six tiered buses with sidechain ducking, parameter-driven layered events, voice limiting, positional slack-action delay chains, and heavy procedural synthesis. We build this in C#:
@@ -3498,3 +3499,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - overhead is unlike underfoot;
       - a tell loses no more than its floor;
       - with no head, it's the speaker pan.
+245. **The mimic's voice through a smaller throat (spec A.6 "formant-shifted crew voice: Soot Children"; the audio checklist's voice-mimic).** A Soot Child's call replayed the crewmate's own frames at one loudness however far (T40), so the falloff was the only tell. Spec A.6 asks for it formant-shifted as well.
+    - **A formant shift on any sound (`SoundDef.Formant`, `Ballast.Audio.FormantShifter`):** a short-time spectrum, 2048 points (43 ms, so a low man's harmonics are resolved) at a quarter-window hop, Hann in and out.
+      - Each frame's envelope comes from cepstral smoothing, the quefrencies under 2.9 ms kept. That resolves a formant to about 340 Hz and stops short of a grown voice's pitch period, so the harmonics don't get into the envelope.
+      - Each bin is scaled by the envelope at f/shift over the envelope at f, at most 24 dB up. The harmonics, which carry the pitch, and the phases stay where they are.
+      - It streams a block at a time, a window (43 ms) late, which a replayed voice can afford.
+    - **The mimic (voice-mimic.json):** shift 1.18. Their words and their pitch, its resonances 18% up: nearly them, and not.
+    - **Tests:** `FormantTests`: an "ah" (a 120 Hz buzz through 720 Hz and 1.2 kHz) shifted 1.2 has its first resonance at 800–920 Hz, the same pitch to 3 Hz and the same level to 4 dB; shifted 1.0 it's the input a window late, to −40 dB.

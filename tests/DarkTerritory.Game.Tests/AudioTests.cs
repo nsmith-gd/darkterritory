@@ -190,6 +190,15 @@ public class AudioTests
     }
 
     [Fact]
+    public void TheMimicIsACrewmatesVoiceThroughASmallerThroatAtOneLoudness()
+    {
+        // Spec A.5-A.6 (T40, note 245): no falloff, and the crewmate's voice formant-shifted up, not pitched.
+        var mimic = new SoundBank(Path.Combine(Content, "audio", "sounds")).Get("voice-mimic")!;
+        Assert.Equal(0, mimic.Rolloff);
+        Assert.InRange(mimic.Formant!.Shift, 1.05, 1.4);
+    }
+
+    [Fact]
     public void EveryEnemyTellIsSentAsFarAsItCanBeHeard()
     {
         // An enemy past the interest radius isn't on your machine, so its tell can't play there. The Choir's
