@@ -190,4 +190,32 @@ public class VrBodyTests
         float lowestThere = stepping.Flattened().Where(v => new Vector2(v.Position.X - under.X, v.Position.Z - under.Z).Length() < 0.12f).Min(v => v.Position.Y);
         Assert.True(lowestThere > T.StepHeight * 0.5, $"the stepping foot's sole is {lowestThere} m up");
     }
+    [Fact]
+    public void TheBoxFigureLeansAndCrouchesToo()
+    {
+        // Note 221: with no crew model (no art pass here), the greybox's box figure takes the same body. Its head comes down
+        // in a crouch and goes forward in a lean (it faces -z), and a keyboard crewmate's figure is as it always was.
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 2, 1)), line, 1200);
+        var feet = train.Frames[1].ToWorld(new Double3(0, train.Frames[1].Shape.RoofHeight, 0));
+        var eye = feet + new Double3(4, 1.5, 0);
+        List<Vector3> Figure(HeadsetBody? headset)
+        {
+            var mesh = new MeshBuilder();
+            new GreyboxScene { Time = 0.37, VrBody = T, Crew = [new Crewmate(3, feet, 0, true, Headset: headset)] }.Build(mesh, train, eye);
+            // Whatever's within a metre of where they stand, from the roof up.
+            var at = feet.RelativeTo(eye);
+            return [.. mesh.Flattened().Select(v => v.Position - at).Where(p => p.X * p.X + p.Z * p.Z < 1 && p.Y > 0.05f && p.Y < 2.2f)];
+        }
+        HeadsetBody Head(double head) => new(head, 0, 1, default, 0);
+        var keyboard = Figure(null);
+        var upright = Figure(Head(Eyes.Height));
+        float top = keyboard.Max(p => p.Y);
+        Assert.InRange(upright.Max(p => p.Y), top - 0.01f, top + 0.01f);
+        Assert.True(Figure(Head(1.0)).Max(p => p.Y) < top - 0.3f, "a crouch brings the head down");
+        static float HeadZ(List<Vector3> f) => f.Where(p => p.Y > 1.55f).Average(p => p.Z);
+        var leant = Figure(Head(Eyes.Height - T.LeanDrop));
+        Assert.True(HeadZ(leant) < HeadZ(upright) - 0.3f, $"a lean takes the head forward: {HeadZ(leant)} against {HeadZ(upright)}");
+    }
 }

@@ -47,6 +47,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     /// <summary>What its legs are doing about trouble in a car, and about the cold (for the harness's trace).</summary>
     public string? TendStep => _legs.TendStep;
     public string? WarmUpStep => _legs.WarmUpStep;
+    /// <summary>
+    /// The look-out's errand when there's no walker to send (a crew of two: driver and gunner; note 222), or null. Its legs
+    /// run it, off the gun while the gun can spare it.
+    /// </summary>
+    public LookErrand? Errand { get => _legs.Errand; set => _legs.Errand = value; }
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
@@ -85,6 +90,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
         // they have a part in.
         if (_legs.Warming(self) || _legs.Work(self, world) is not null)
+            return _legs.Decide(self, world, tick, out aimed);
+        // The look-out in a crew of two (note 222): off the gun to look, only while the gun can spare it (nothing at the back
+        // for it to shoot), and back to it once there's nothing left to look at from here.
+        if (!hounds && _legs.Errand is { } errand && errand.Wants(self, world, tick))
             return _legs.Decide(self, world, tick, out aimed);
         // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
         // off once nobody's near), then walk back to the guard car and take the gun again.

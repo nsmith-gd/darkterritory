@@ -13,7 +13,7 @@ Sat (its rest pose), facing +Y (the engine's -Z). The tongue's long shot is draw
 mouth to whoever it's got. Clips (GDD §31: still, then too fast): sit (dead still but for the throat; the ears twitch),
 hop (a leap and a sit, 1 s: the sim's half-second bursts), swell (the telegraph: up tall, the sac swelling and
 pulsing), tongue (mouth gaping, braced, reeling in), creep (the leader in low on its frozen catch, the tongue still out),
-devour (leant in over them, the head wrenching, the jaw snapping), hit.
+devour (reared up against them, forelegs on them, the head wrenching, the jaw snapping), hit.
 
     tools/models/build.sh ribbit        # this, its high copy and the bake -> content/art/models/ribbit.glb
 """
@@ -295,16 +295,19 @@ for f, k in ((0, 1), (12, -1), (24, 1), (36, -1)):
                   "throat@scale": (1.2 + 0.15 * (k > 0), 1.2, 1.3 + 0.2 * (k > 0))}, "BEZIER")
 creep.close(48)
 
-# Devour (1.2 s, loop): on them (App. A.6, ~8 s of it): leant right in over its catch, the little hands gripping down,
-# the head driving in and wrenching side to side, the jaw snapping shut and tearing back, the sac heaving.
-OVER = {"root@loc": (0, 0.1, -0.03), "pelvis": (-10, 0, 0), "spine_01": (-14, 0, 0), "chest": (-16, 0, 0), "neck": (-14, 0, 0),
-        "upperarm_r": (-42, 0, 0), "upperarm_l": (-42, 0, 0), "lowerarm_r": (30, 0, 0), "lowerarm_l": (30, 0, 0),
+# Devour (1.2 s, loop): on them (App. A.6, ~8 s of it): reared up on its haunches against its frozen catch, the front
+# half lifted and leant in over them, the little hands up on them gripping, the head bent down into them, driving in and
+# wrenching side to side, the jaw snapping shut and tearing back, the sac heaving. (The sim's hop stops 0.8 m short, so it
+# leans the rest of the way.)
+OVER = {"root@loc": (0, 0.22, 0.06), "pelvis": (28, 0, 0), "spine_01": (14, 0, 0), "chest": (8, 0, 0), "neck": (-18, 0, 0),
+        "thigh_r": (-28, 0, 0), "thigh_l": (-28, 0, 0),
+        "upperarm_r": (-20, 0, 0), "upperarm_l": (-20, 0, 0), "lowerarm_r": (10, 0, 0), "lowerarm_l": (10, 0, 0),
         "ear_r_01": (-16, 0, 0), "ear_l_01": (-16, 0, 0)}
 devour = Clip("devour")
 for f, jaw, shake, drive in ((0, -46, 0, 0), (4, -6, 16, 1), (8, -20, -14, 0.5), (12, -4, 18, 1), (17, -44, 0, 0), (22, -8, -18, 1),
                              (26, -24, 10, 0.4), (31, -5, -16, 1), (36, -46, 0, 0)):
-    devour.key(f, {**OVER, "jaw": (jaw, 0, 0), "head": (-22 - 10 * drive, 0, shake), "neck": (-14 - 6 * drive, 0, shake * 0.4),
-                   "root@loc": (0, 0.1 + 0.05 * drive, -0.03), "throat@scale": (1.15 + 0.2 * drive, 1.1, 1.2 + 0.25 * drive)},
+    devour.key(f, {**OVER, "jaw": (jaw, 0, 0), "head": (-30 - 12 * drive, 0, shake), "neck": (-18 - 6 * drive, 0, shake * 0.4),
+                   "root@loc": (0, 0.22 + 0.06 * drive, 0.06), "throat@scale": (1.15 + 0.2 * drive, 1.1, 1.2 + 0.25 * drive)},
                "CONSTANT" if jaw > -10 else "LINEAR")
 devour.close(36)
 

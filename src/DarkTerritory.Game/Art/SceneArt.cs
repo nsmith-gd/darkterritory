@@ -139,26 +139,10 @@ public sealed partial class SceneArt(Look look)
     /// clips', and so is any act (the lever, the shovel, a hold). Their feet are kept planted from frame to frame in the
     /// frame they stand in, and planted afresh when they start, stop or move frames.
     /// </summary>
-    VrBodyPose? HeadsetBody(in Crewmate c, CrewPose pose, double time)
-    {
-        if (c.Headset is not { } h || !c.Alive || c.Act is not null || pose != CrewPose.Idle)
-        {
-            _strides.Remove(c.Id);
-            return null;
-        }
-        var t = Look.VrBody;
-        VrStride stride;
-        if (h.Staged is { } staged)
-            stride = staged;
-        else if (_strides.TryGetValue(c.Id, out var was) && was.Parent == h.Parent && time >= was.Time)
-            stride = VrBody.Step(was.Stride, h.Local, h.Yaw, Math.Min(time - was.Time, 0.1), t);
-        else
-            stride = VrBody.Stand(h.Local, h.Yaw, t);
-        _strides[c.Id] = (stride, h.Parent, time);
-        return VrBody.Pose(stride, h.Local, h.Yaw, h.Head, h.Pitch, Eyes.Height, t);
-    }
+    VrBodyPose? HeadsetBody(in Crewmate c, CrewPose pose, double time) =>
+        _strides.Pose(c, c.Alive && c.Act is null && pose == CrewPose.Idle, time, Look.VrBody);
 
-    readonly Dictionary<byte, (VrStride Stride, int Parent, double Time)> _strides = new();
+    readonly VrStrides _strides = new();
 
     /// <summary>The pace-chosen pose of the crewmate last drawn (before a stagger, a swing or the fire door take over).</summary>
     public CrewPose LastPose { get; private set; }

@@ -249,6 +249,40 @@ public class AuditTests
     }
 
     [Fact]
+    public void ACrewOfTwosGunnerIsTheLookOut()
+    {
+        // Note 220: a crew of two is the driver and the gunner, no walker to send, so the Gaunt and a Dragger lay there all
+        // night; the gunner goes and looks, off its gun while the gun can spare it, and both come on.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
+        var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 2,
+            Cars = 6,
+            Seconds = 30,
+            Seed = 1,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = stage.StartM,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Run = Tuning.Run,
+            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            YardLength = route.GateOr(Tuning.Route.YardLength),
+            Insist = kinds,
+            Look = look,
+        }, Tuning.Boiler);
+        var without = Night(null);
+        Assert.Equal(["Dragger", "Gaunt"], without.Threats!.Spawned.Keys.Order());
+        Assert.Empty(without.Threats.Engaged);
+        var with = Night(Balance.Combinations.Look);
+        Assert.Equal(["Dragger", "Gaunt"], with.Threats!.Engaged.Keys.Order());
+    }
+
+    [Fact]
     public void TheCarHuggerIsStagedShortOfItsMarsh()
     {
         var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
