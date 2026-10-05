@@ -26,6 +26,8 @@ public enum CrewPose
     HeldHang, HeldMouth, HeldCarried, HeldCover, HeldFrozen, HeldPinned, HeldSeized, HeldDragged,
     // At the cannon's breech from the seat (note 137): played by the reload's progress, not a clock.
     Reload,
+    // The extinguisher at work on a fire, braced, kicking (App. C.5); hung back on its bracket (SceneArt.Crewmate).
+    Spray, HangUp,
 }
 
 /// <summary>
@@ -247,6 +249,9 @@ public sealed class CreatureArt
     // this speed (m/s), before it's gone. Smothering, it stands this far behind its victim's heels (m), its hand over
     // their mouth: a crewmate's, 1.8 m tall (tools/blender/crew.py), at this height, this far in front of their middle.
     const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
+
+    /// <summary>How long a Tippy Toesie pulled off or seen is held in its recoil before it scuttles (s): its clip's length.</summary>
+    double TippyRecoil => _models.TryGetValue("tippy_toesie", out var tippy) && tippy.Model.Clips.TryGetValue("recoil", out var c) ? c.Duration : 0;
 
     static float SmoothStep(float a, float b, float x)
     {
@@ -547,6 +552,8 @@ public sealed class CreatureArt
         CrewPose.Pick => "pick",
         CrewPose.GetUp => "getup",
         CrewPose.TakeDown => "take_down",
+        CrewPose.Spray => "spray",
+        CrewPose.HangUp => "hang_up",
         CrewPose.Hurry => "hurry",
         CrewPose.Stagger => "stagger",
         CrewPose.Throw => "throw",
@@ -599,12 +606,13 @@ public sealed class CreatureArt
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
-                : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner" : "idle";
+                : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
+                : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down" : "idle";
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);
@@ -1587,7 +1595,14 @@ public sealed class CreatureArt
                     switch (phase)
                     {
                         case SpinePhase.Dormant or SpinePhase.BreakOff:
-                            return Draw(mesh, "tippy_toesie", "flee", t, true, Matrix4x4.CreateTranslation(0, 0, TippyFleeSpeed * (float)t) * model);
+                            {
+                                // Pulled off its victim, or seen, it recoils first, jerked up and back and held a beat
+                                // where it was, then scuttles (the checklist's "recoil when pulled off").
+                                double recoil = TippyRecoil;
+                                if (t < recoil)
+                                    return Draw(mesh, "tippy_toesie", "recoil", t, false, model);
+                                return Draw(mesh, "tippy_toesie", "flee", t - recoil, true, Matrix4x4.CreateTranslation(0, 0, TippyFleeSpeed * (float)(t - recoil)) * model);
+                            }
                         case SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 Action<Entry>? smother = null;
@@ -2046,9 +2061,9 @@ public sealed class CreatureArt
                 }
             case EnemyKind.TippyToesie when _models.ContainsKey("tippy_toesie"):
                 {
-                    // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen scuttling off from
-                    // where it was (never placed yet: never seen).
-                    if (e.Phase == SpinePhase.Dormant && (e.Local == default || e.PhaseSeconds >= TippyFleeShow))
+                    // Hidden between tries (the sim's Dormant): nowhere, but for the moment it's seen recoiling and
+                    // scuttling off from where it was (never placed yet: never seen).
+                    if (e.Phase == SpinePhase.Dormant && (e.Local == default || e.PhaseSeconds >= TippyRecoil + TippyFleeShow))
                         return true;
                     _room = room ?? Room.Open;
                     var (r, _, b) = Basis(model);

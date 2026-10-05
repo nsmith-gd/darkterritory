@@ -345,6 +345,11 @@ public static class Staging
                 tippy.Restore(mode == "grab" ? SpinePhase.Grab : SpinePhase.Telegraph, tippy.PhaseSeconds, tippy.Health, tippy.Attached,
                     tippy.Local with { X = -0.7, Z = -6.7 }, 0, 0, 0, tippy.Extra, tippy.Extra2);
                 break;
+            case var r when r.StartsWith("recoil", StringComparison.Ordinal):
+                // Pulled off crewmate 1 s seconds ago (recoil:s, 0.15 by default): hidden again in the sim, but where it was.
+                double ago = r.Length > 7 ? double.Parse(r[7..], System.Globalization.CultureInfo.InvariantCulture) : 0.15;
+                tippy.Restore(SpinePhase.Dormant, ago, tippy.Health, tippy.Attached, tippy.Local with { X = -0.7, Z = -6.7 }, 0, 0, 0, -1, tippy.Extra2);
+                break;
             case "in":
                 tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(-0.35, floor, -3.6), 0, 0, 0, -1, 0);
                 break;
@@ -352,7 +357,7 @@ public static class Staging
                 tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(x, floor, shape.HalfLength - 0.3), 0, 0, 0, -1, 0);
                 break;
             default:
-                throw new ArgumentException($"--tippy {mode}: behind, grab, in or door");
+                throw new ArgumentException($"--tippy {mode}: behind, grab, recoil[:s], in or door");
         }
         return threats;
     }
