@@ -1291,6 +1291,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Hits = Staging.HitsOn(struck, train, camera.Position);
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
     }
+    // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
+    // and crumbling (GreyboxScene.Deaths).
+    if (Str(args, "--killed", "") is { Length: > 0 } killed && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> living)
+    {
+        var parts = killed.Split(':');
+        var deadKind = Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(parts[0], ignoreCase: true);
+        double ago = parts.Length > 1 ? double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0.4;
+        var dead = living.First(e => e.Kind == deadKind);
+        living.Remove(dead);
+        var toward = dead.WorldPosition(train) - camera.Position;
+        scene.Killed(dead, Staging.StrikeTick, new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z));
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
+    }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
     scene.Build(mesh, train, camera.Position);
