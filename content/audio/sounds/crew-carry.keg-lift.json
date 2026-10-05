@@ -1,0 +1,15 @@
+// Player actions (tier 4; note 241): a powder keg picked up (GDD §18-19, the military depot's "worst cargo"; note 185's
+// kegs). The crate's lift, deeper (a cask, not a box), with the powder shifting inside it: a dry grainy whisper as it
+// tips. The crew hear which one they're holding: a keg goes up from a hard knock, a crate doesn't.
+{
+  "tier": 4, "maxInstances": 8, "minDistance": 1, "maxDistance": 40, "gainDb": 2,
+  "layers": [
+    { "source": "sample", "sample": "crew-carry/crate-lift", "gain": 1, "rate": 0.82, "pitchJitter": 0.3, "gainJitter": 1.0,
+      "filters": [{ "type": "peak", "frequency": 180, "q": 1.4, "gainDb": 4 }] },
+    // The powder sliding in the cask as it's tipped up.
+    { "source": "noise", "gain": 0.35, "delay": 0.05,
+      "filters": [{ "type": "bandPass", "frequency": 4200, "q": 0.9 }],
+      "tremolo": { "rate": 40, "depth": 0.7, "jitter": 0.9 },
+      "envelope": [[0, 0], [0.12, 1], [0.55, 0]] }
+  ]
+}

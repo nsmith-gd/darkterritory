@@ -51,7 +51,8 @@ public sealed partial class GameAudio
     /// Every frame: the derailment's opera, the host's draw (<see cref="World.DerailMusic"/>) at
     /// <paramref name="sequenceSeconds"/> into the sequence (negative with no derailment). It starts on the replay.
     /// </summary>
-    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1) => Opera.Update(Mixer, track, sequenceSeconds, tuning, end);
+    public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1, double hitAt = -1) =>
+        Opera.Update(Mixer, track, sequenceSeconds, tuning, end, hitAt);
 
     sealed class EnemySound
     {
