@@ -163,6 +163,8 @@ object RunHarness(string[] args)
         Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
         Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
+        // And its look-out (note 211), as the sweep's.
+        Look = args.Contains("--insist") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 

@@ -204,6 +204,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>Its own player id (the session's), so it knows what's in its hands. Set by whoever runs it.</summary>
     public int Me { get; set; } = -1;
 
+    /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 211); null otherwise.</summary>
+    public LookErrand? Errand { get; set; }
+
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
     bool _looked;
@@ -587,8 +590,18 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (!_looked)
             Look(world, self);
         _looked = false;
+        // The look-out on an insisted night (note 211): a Dragger to meet keeps it out on the roofs, not in for a bag.
+        if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
+        {
+            (_drop, _catchCar) = (null, null);
+            _warm.Into = null;
+            _warm.Indoors = null;
+        }
         if (Kit(self, world, tick) is { } bringing)
             return bringing;
+        int? lookAt = null;
+        if (_warm is not { Active: true } && Errand?.Decide(self, world, tick, out lookAt) is { } looking)
+            return looking;
         if (Work(self, world) is { } working)
             return working;
         var train = world.Train;
@@ -611,6 +624,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Trouble (or a bag to catch) in another car: head along the roofs for it (in through its door when we're there).
             if ((_trouble?.Attached ?? _catchCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
                 _direction = goal < parent ? -1 : 1;
+            // Or the lip over a Dragger the look-out's making for, on another car (note 211).
+            else if (lookAt is { } lip && lip != parent && _warm is not { Active: true } && self.Surface == Surface.Roof)
+                _direction = lip < parent ? -1 : 1;
             // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
             if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
                 _direction = -1;

@@ -26,6 +26,8 @@ public sealed record CombinationTuning
     public double UnwinnableLost { get; init; } = 0.5;
     public double TrivialCargoLoss { get; init; } = 0.02;
     public IReadOnlyList<HazardSet> HazardSets { get; init; } = [HazardSet.Clear];
+    /// <summary>The look-out's errand on the sweep's nights (note 211).</summary>
+    public Bots.LookTuning Look { get; init; } = new();
 }
 
 /// <summary>Which routes, crew sizes and seeds a sweep runs each combination over (note 204). A (route, crew) pair is a cell.</summary>
