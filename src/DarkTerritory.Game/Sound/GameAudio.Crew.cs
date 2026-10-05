@@ -1270,7 +1270,7 @@ public sealed partial class GameAudio
             }
             // A broken radio mended with the repair kit (note 201): the kit opened at it as the hands go to work, the
             // ratchet's small turns while they stay at it, and once it's whole the kit shut and the set coming back to
-            // life with a squelch, so the crew hear their radio's back (note 211).
+            // life with a squelch, so the crew hear their radio's back (note 216).
             if (b.Kind == BodyKind.Radio)
             {
                 if (b.MendTicks > 0 && m.MendTicks == 0)

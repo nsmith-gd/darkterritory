@@ -557,7 +557,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var settings = frontEnd.Settings;
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
-    // The yard's readings go at its voice's pace (note 210): the card typed as it's said.
+    // The yard's readings go at its voice's pace (note 215): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
     // A generated night has its own far horizon (Art.PlanSky); a hand-laid line keeps the look's.
@@ -849,7 +849,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
         // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio, said a line at a time
-        // as each comes on (note 210).
+        // as each comes on (note 215).
         var reading = session.RadioReading;
         sound.Radio(reading, reading is null ? 0
             : DarkTerritory.Sim.Run.Radio.Reading(reading, session.RadioSeconds, session.World.Run?.Tuning.Radio ?? new(), session.RadioTimes).Lines);

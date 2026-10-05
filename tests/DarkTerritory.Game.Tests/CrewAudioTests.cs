@@ -351,7 +351,7 @@ public class CrewAudioTests
     [Fact]
     public void OnARoofTheGustPushingYouIsHeardOnTheSideItBlowsFrom()
     {
-        // Note 201's wind on a roof's footing (note 211): the gust that pushes you is a gale's roar off the side it comes
+        // Note 201's wind on a roof's footing (note 216): the gust that pushes you is a gale's roar off the side it comes
         // from, as loud as it pushes, so you hear it build before it walks you to the edge.
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = new Windy(1) };
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
@@ -388,7 +388,7 @@ public class CrewAudioTests
     [Fact]
     public void ARadioMendedWithTheKitIsHeardComingBack()
     {
-        // Note 201's mending (note 211): the kit opened as the hands go to work, its ratchet while they stay at it, and the
+        // Note 201's mending (note 216): the kit opened as the hands go to work, its ratchet while they stay at it, and the
         // set's squelch with the kit shut once the radio's whole.
         var b = new Bench("crew-repair.kit-open", "crew-repair.ratchet", "crew-repair.done", "voice-radio-sfx.squelch");
         b.Audio.Bank.Add("crew-repair.ratchet", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));

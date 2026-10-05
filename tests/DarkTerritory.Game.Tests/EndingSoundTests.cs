@@ -9,7 +9,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The sounds of how a night can go wrong that main's GDD v1.4 work left silent (ARCHITECTURE §8 note 204): a powder
+/// The sounds of how a night can go wrong that main's GDD v1.4 work left silent (ARCHITECTURE §8 note 209): a powder
 /// blast of its own, and the Stranded outro's cooling boiler and lamps going out (App. E.9).
 /// </summary>
 public class EndingSoundTests

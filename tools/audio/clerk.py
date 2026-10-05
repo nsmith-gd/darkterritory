@@ -112,7 +112,7 @@ def build(speaker):
             os.remove(os.path.join(BANK, stale))
     label = dict(CANDIDATES).get(speaker, f"LibriTTS speaker {speaker}")
     with open(os.path.join(BANK, "bank.json"), "w") as f:
-        f.write("// The clerk's vocabulary (tools/audio/clerk.py; note 210): each phrase or word, its take, and how long it runs.\n")
+        f.write("// The clerk's vocabulary (tools/audio/clerk.py; note 215): each phrase or word, its take, and how long it runs.\n")
         json.dump({"speaker": speaker, "voice": label, "entries": entries}, f, indent=1, sort_keys=True)
         f.write("\n")
     with open(INDEX) as f:
