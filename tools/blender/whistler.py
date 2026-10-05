@@ -385,7 +385,8 @@ carry.close(18)
 hit = Clip("hit", loop=False)
 hit.key(0, WATCH, "CONSTANT")
 hit.key(2, grounded(centred(over(WATCH_BODY, seg_06=(10, 0, 50), seg_07=(0, 0, -40), seg_08=(40, 0, -30), head=(20, 0, 30)) | legs_pose(lift=lambda k: 40))), "CONSTANT")
-hit.key(7, grounded(centred(over(WATCH_BODY, seg_07=(0, 0, 10)) | legs_pose(tuck=0.3) | FOREFOLD)), "LINEAR")
+# (Settling back, the legs fold as they were, not out across the tail's turn: dt art clearance.)
+hit.key(7, grounded(centred(over(WATCH_BODY, seg_07=(0, 0, 10)) | legs_pose(tuck=0.5) | FOREFOLD)), "LINEAR")
 hit.key(12, WATCH, "CONSTANT")
 
 # One skin from the tail to the siphon's lip, the head grown out of the body rather than pushed onto it (rig.fuse); then up
