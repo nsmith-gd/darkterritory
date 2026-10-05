@@ -119,6 +119,28 @@ public sealed class ClientSession
     public ulong Token { get; private set; }
     /// <summary>How many times this client has come back after a drop.</summary>
     public int Reconnects { get; private set; }
+    /// <summary>The host turned this connection away instead of welcoming it (a full crew, note 254); null otherwise.</summary>
+    public Refusal? Refused { get; private set; }
+
+    /// <summary>
+    /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
+    /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
+    /// holds the place as for any drop.
+    /// </summary>
+    public void Leave()
+    {
+        if (Left)
+            return;
+        Left = true;
+        Messages.WriteLeave(_writer);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+        _transport.Disconnect(PeerId.Host);
+        PlayerId = null;
+        _haveState = false;
+    }
+
+    /// <summary>This player quit (<see cref="Leave"/>): the session's done.</summary>
+    public bool Left { get; private set; }
 
     /// <summary>
     /// Note 253: after a drop, connects again on <paramref name="transport"/> (a new link to the same host: UDP, a lobby, any
@@ -132,6 +154,7 @@ public sealed class ClientSession
         PlayerId = null;
         _haveState = false;
         WaitingReason = null;
+        Refused = null;
         _helloSent = false;
         _decoded.Clear();
         _snapshots.Clear();
@@ -171,6 +194,9 @@ public sealed class ClientSession
 
     public void Step(in PlayerIntent intent)
     {
+        // Gone for good (Leave): a transport polled after hanging up would dial the host again as someone new.
+        if (Left)
+            return;
         Receive();
         if (!Connected)
             return;
@@ -256,6 +282,10 @@ public sealed class ClientSession
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();
+                    break;
+                case MessageType.Refused:
+                    // Note 254: turned away (a full crew). Kept to show; the host hangs up on this link in a moment.
+                    Refused = Messages.ReadRefused(ref r);
                     break;
                 case MessageType.Welcome:
                     {

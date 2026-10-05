@@ -34,7 +34,9 @@ public static class Protocol
     // 25: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 233).
     // 26: rejoining after a drop (note 253): a joiner's Hello comes first, before it's welcomed, with the token from an
     //     earlier Welcome (or 0); the Welcome carries the token the host issued for that slot.
-    public const int Version = 26;
+    // 27: the crew cap (note 254): a joiner past it is turned away with a Refused (why, the crew, the cap) instead of a
+    //     Welcome; a player who quits on purpose says Leave first, so their place frees at once instead of being held.
+    public const int Version = 27;
 }
 
 public enum MessageType : byte
@@ -72,6 +74,35 @@ public enum MessageType : byte
     Commendations = 14,
     /// <summary>Host → client, reliable: each player's look from earlier nights (D.8), by id, whenever it changes.</summary>
     Looks = 15,
+    /// <summary>
+    /// Host → a joiner, reliable, in place of a Welcome: turned away, why (<see cref="RefusalReason"/>), and the crew and the
+    /// cap it was turned away at (note 254). The host hangs up crew.refuseLingerSeconds later, time for it to get there; a
+    /// game's join gives up on reading it.
+    /// </summary>
+    Refused = 16,
+    /// <summary>
+    /// Client → host, just before it hangs up on purpose (the player quit): their place isn't held for a rejoin (note 253),
+    /// so a full crew opens a place at once (note 254). Lost on the way, the place is held as for any drop.
+    /// </summary>
+    Leave = 17,
+}
+
+/// <summary>Why the host turned a joiner away (note 254).</summary>
+public enum RefusalReason : byte
+{
+    /// <summary>The crew's at player.json crew.cap: aboard, dead, waiting at a stop, or a dropped player's place held.</summary>
+    CrewFull = 1,
+}
+
+/// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
+public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
+{
+    /// <summary>What the joiner is shown, on the menu or the HUD: "CREW FULL (8/8)".</summary>
+    public override string ToString() => Reason switch
+    {
+        RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
+        _ => $"TURNED AWAY ({Reason})",
+    };
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -227,6 +258,26 @@ public static class Messages
         if (path.HasFlag(VoicePath.Fading))
             w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));
         w.Bytes(opus);
+    }
+
+    /// <summary>A joiner turned away (note 254): why, and the crew and the cap.</summary>
+    public static void WriteRefused(NetWriter w, Refusal refusal)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Refused);
+        w.U8((byte)refusal.Reason);
+        w.U16((ushort)Math.Clamp(refusal.Crew, 0, ushort.MaxValue));
+        w.U16((ushort)Math.Clamp(refusal.Cap, 0, ushort.MaxValue));
+    }
+
+    /// <summary>Reads a Refused after its type byte.</summary>
+    public static Refusal ReadRefused(ref NetReader r) => new((RefusalReason)r.U8(), r.U16(), r.U16());
+
+    /// <summary>A player quitting on purpose (note 254): their place frees now, not held for a rejoin.</summary>
+    public static void WriteLeave(NetWriter w)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Leave);
     }
 
     public static void WriteWait(NetWriter w, string reason)

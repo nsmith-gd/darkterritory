@@ -294,7 +294,6 @@ public class NetcodeTests
         var net = new LoopbackNetwork();
         var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), TestLoop, 600), T, P);
         var evil = net.CreateClient();
-        host.Step();
         // Let in first (note 253: nobody is welcomed before they've said hello), then the junk.
         var hello = new NetWriter();
         Messages.WriteHello(hello, "evil", 0);

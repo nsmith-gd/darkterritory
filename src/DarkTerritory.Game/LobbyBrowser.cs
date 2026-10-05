@@ -13,6 +13,7 @@ namespace DarkTerritory.Game;
 /// <param name="Where">For the detail line: how it was found and what the night is.</param>
 public sealed record ListedGame(string Name, int Aboard, int Max, string Tier, double? PingMs, int Protocol, string Where, Launch Join)
 {
+    /// <summary>The crew's at its cap (note 254): shown FULL, greyed, not joinable.</summary>
     public bool Full => Max > 0 && Aboard >= Max;
 
     /// <summary>A game a LAN beacon described (its ping the browser's own round trip to it).</summary>
@@ -26,7 +27,9 @@ public sealed record ListedGame(string Name, int Aboard, int Max, string Tier, d
         string host = l.Get(Lobby.HostKey);
         return new(l.Get(NetPlaySession.NameKey) is { Length: > 0 } n ? n : $"{(host.Length > 0 ? host : "someone")}'s run",
             int.TryParse(l.Get(NetPlaySession.AboardKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out int aboard) ? aboard : l.Members,
-            l.MaxMembers, l.Get(NetPlaySession.TierKey), l.PingMs,
+            // The crew cap (note 254) as the host says it; an older host's lobby, its member limit.
+            int.TryParse(l.Get(NetPlaySession.MaxKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out int max) && max > 0 ? max : l.MaxMembers,
+            l.Get(NetPlaySession.TierKey), l.PingMs,
             int.TryParse(l.Get(Lobby.ProtocolKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out int protocol) ? protocol : -1,
             $"On {platform}, hosted by {host}: {l.Get(NetPlaySession.RunKey)}", new Launch.JoinLobby(l.Id));
     }
