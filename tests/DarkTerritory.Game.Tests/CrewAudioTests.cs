@@ -209,6 +209,39 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void ANoisyToyJostledAsItLandsSoundsAMomentThenGoesQuiet()
+    {
+        // The checklist's crew-noisy-toys, "while carried or jostled" (note 250): dropped, the squeaker squeaks as it lands
+        // as well as the drop, and lying still it's quiet again.
+        var b = new Bench("crew-carry.toy-lift", "crew-carry.toy-drop");
+        b.World.EnableBodies();
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var toy = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 0), Sim.Physics.BodyKind.Toy);
+        toy.Noise = Sim.Physics.ToyNoise.Squeaker;
+        int Squeaking() => b.Audio.Mixer.Voices.Count(v => v.Name == "toy-squeaker" && !v.Finished);
+        for (int i = 0; i < 5; i++)
+            b.Step();
+        Assert.Equal(0, Squeaking());
+        toy.Carrier = 1;
+        b.Step();
+        Assert.Equal(1, Squeaking());
+        toy.Carrier = -1;
+        int landedAt = -1;
+        for (int i = 0; i < SimConstants.TickRate * 2 && landedAt < 0; i++)
+        {
+            b.Step();
+            // The drop's on whatever it lands on (crew-carry.toy-drop.wood and the rest).
+            if (b.Heard.Any(h => h.Name.StartsWith("crew-carry.toy-drop", StringComparison.Ordinal)))
+                landedAt = b.Tick;
+        }
+        Assert.True(landedAt >= 0, "the toy never landed");
+        Assert.Equal(1, Squeaking());
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step();
+        Assert.Equal(0, Squeaking());
+    }
+
+    [Fact]
     public void ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook()
     {
         // Note 245: a crewmate's swing (World.Swings) that meets no creature lands on the train where their replicated

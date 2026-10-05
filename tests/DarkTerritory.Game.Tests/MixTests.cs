@@ -67,11 +67,14 @@ public class MixTests
     public void EverySpaceSoundsLikeItself()
     {
         var spaces = DataFile.Load<SpacesDef>(Path.Combine(Content, SpacesDef.File)).Spaces;
-        Assert.Equal(["cab", "car", "facility", "outside", "tunnel"], spaces.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["cab", "car", "facility", "mine", "outside", "tunnel"], spaces.Keys.Order(StringComparer.Ordinal));
         // The open night is dry; every enclosed space has a response of its own, the tunnel's the longest by far.
         Assert.Null(spaces["outside"].Reverb);
         double Decay(string s) => spaces[s].Reverb!.Decay;
         Assert.True(Decay("cab") < Decay("car") && Decay("car") < Decay("facility") && Decay("facility") < Decay("tunnel"));
+        // The mine's adit (note 250) is narrower than a tunnel: its tail's shorter, its first reflection sooner.
+        Assert.True(Decay("facility") < Decay("mine") && Decay("mine") < Decay("tunnel"));
+        Assert.True(spaces["mine"].Reverb!.Early![0][0] < spaces["tunnel"].Reverb!.Early![0][0]);
         foreach (var (name, space) in spaces)
         {
             if (space.Reverb is not { } reverb)
@@ -84,11 +87,14 @@ public class MixTests
             Assert.Equal(0, space.Send(7));
             Assert.True(space.Send(1) < space.Send(2), name);
         }
-        // The tunnel has no outside (GDD §22) but keeps its own sounds, and only it compresses voice.
-        var tunnel = spaces["tunnel"];
-        Assert.True(tunnel.Mutes("wind") && tunnel.Mutes("world-night.night") && tunnel.Mutes("bed-wind.wind-fast") && tunnel.Mutes("world-rain.rain-out"));
-        Assert.False(tunnel.Mutes("world-tunnels.inside") || tunnel.Mutes("world-rain.rain-roof") || tunnel.Mutes("wheel-rail") || tunnel.Mutes("voice"));
-        Assert.Equal(["tunnel"], spaces.Where(s => s.Value.Voice is not null).Select(s => s.Key));
+        // The tunnel and the mine have no outside (GDD §22) but keep their own sounds, and only they compress voice.
+        foreach (var under in new[] { spaces["tunnel"], spaces["mine"] })
+        {
+            Assert.True(under.Mutes("wind") && under.Mutes("world-night.night") && under.Mutes("bed-wind.wind-fast") && under.Mutes("world-rain.rain-out"));
+            Assert.False(under.Mutes("world-tunnels.inside") || under.Mutes("world-rain.rain-roof") || under.Mutes("wheel-rail") || under.Mutes("voice")
+                || under.Mutes("place-mine.underground"));
+        }
+        Assert.Equal(["mine", "tunnel"], spaces.Where(s => s.Value.Voice is not null).Select(s => s.Key).Order(StringComparer.Ordinal));
     }
 
     [Fact]

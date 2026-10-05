@@ -3,6 +3,8 @@
 // groaning rasp with a sub-bass tearing under it, from the back of the train. Low, like the bed, so it's the heave and the
 // tearing that tell it apart.
 {
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
   "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 120, "gainDb": 10,
   "layers": [
     { "source": "noise", "gain": 1.0,
