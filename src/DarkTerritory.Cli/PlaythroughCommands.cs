@@ -39,7 +39,7 @@ static class PlaythroughCommands
         var overlay = new Overlay();
         var shots = new List<object>();
         var seen = new HashSet<(int, SpinePhase)>();
-        double lastShot = double.NegativeInfinity, lastChase = 0;
+        double lastShot = double.NegativeInfinity, lastChase = 0, stokerSince = -1;
         var watch = Stopwatch.StartNew();
         int ticks = (int)(minutes * 60 * SimConstants.TickRate);
 
@@ -68,6 +68,15 @@ static class PlaythroughCommands
                 Time = seconds,
                 Tick = session.World.Tick,
                 Controls = session.Controls,
+                // What the app sets each frame from the night's state (DarkTerritory.App's render loop).
+                Wreck = train.Wreck,
+                Derailed = session.World.Derailed,
+                FireDoorOpen = train.Boiler.FireDoorOpen,
+                FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f,
+                StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince,
+                StokerDownAt = session.World.Enemies?.Stoker.LowPressureSeconds ?? 45,
+                LampLit = session.World.LampShining,
+                Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train),
                 Crew = [new Crewmate(1, PlayerMotor.WorldPosition(p, train), PlayerMotor.WorldYaw(p, train), p.Alive)],
             }.Build(mesh, train, camera.Position);
             overlay.Clear();
@@ -91,8 +100,13 @@ static class PlaythroughCommands
         {
             if (route.Plan is { } plan)
                 DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
+            // The fireman's job, done for them (there's only the driver): the fire kept up, so the night isn't lost to the
+            // boiler running down on the first grade and the train rolling back.
+            if (train.BoilerTuning is { } boiler && train.Boiler.FireFraction(boiler) < 0.6 && t % SimConstants.TickRate == 0)
+                train.Boiler.Shovel(boiler);
             session.Step(default);
             double now = session.World.Tick * SimConstants.TickSeconds;
+            stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
             // Each enemy as it arrives and at each beat of its spine that a crew would be watching for.
             foreach (var e in session.World.EnemyEvents)
             {
@@ -135,6 +149,21 @@ static class PlaythroughCommands
     /// </summary>
     static Camera Beside(TrainOnLine train, Enemy e)
     {
+        // Drawn where the scene draws them (GreyboxScene): the Fire Flies on the nearer of the car's two lanterns, the
+        // Stoker waiting on the stack's rim.
+        if (e.Kind == EnemyKind.FireFlies && e.Attached > 0 && e.Attached < train.Frames.Count && train.Frames[e.Attached].Shape.Interior is { } lamps)
+        {
+            var near = DarkTerritory.Game.Art.SceneArt.LampPositions(lamps).MinBy(p => Math.Abs(p.Z - e.Local.Z));
+            var frame = train.Frames[e.Attached];
+            var lamp = new Double3(near.X, near.Y, near.Z);
+            return Camera.LookAt(frame.ToWorld(lamp + new Double3(0.8, -0.6, 1.4)), frame.ToWorld(lamp), 55);
+        }
+        if (e.Kind == EnemyKind.Stoker && train.Frames[0].Shape.Solids.FirstOrDefault(s => s.Part == PartKind.Stack) is { Box: var stack } && stack.Max.Y > 0)
+        {
+            var engine = train.Frames[0];
+            var rim = engine.ToWorld(new Double3(0, stack.Max.Y, stack.Centre.Z));
+            return Camera.LookAt(rim + engine.Right * 6 + engine.Up * 1.5 + engine.Back * 4, rim, 50);
+        }
         var at = e.WorldPosition(train);
         if (e.Attached >= 0 && e.Attached < train.Frames.Count && train.Frames[e.Attached].Shape.Interior is { } room
             && e.Local.X >= room.Min.X && e.Local.X <= room.Max.X && e.Local.Z >= room.Min.Z && e.Local.Z <= room.Max.Z
