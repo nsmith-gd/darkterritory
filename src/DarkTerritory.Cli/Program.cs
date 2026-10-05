@@ -1416,6 +1416,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.Wetness = 1;
     // --cold c: a night that cold (0..1, the route weather's): its frost here, its breath in the scene (GreyboxScene.Cold).
     lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(scene.Cold) ?? 0;
+    // --gathering g: the Choir's cold on the frame too, as the app has it (Look.Chill).
+    if (look is not null)
+        lighting = look.Chill(lighting, GreyboxScene.ChoirCold(scene.ChoirGathering));
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);

@@ -1191,7 +1191,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             cruise = Math.Min(cruise, LineGen.LineAuthority.For(plan, train.Line).Allowed(train));
         // The boards it's read (sight.json): down to a posted speed in time, and held there till the last car's through.
         cruise = Math.Min(cruise, Posted(world));
-        // And the Sleepers in the lamp, or greased rail down a grade: under the Sleepers' speed (note 228).
+        // And the Sleepers in the lamp, or greased rail down a grade: under the Sleepers' speed (note 230).
         cruise = Math.Min(cruise, HazardAllow(world));
         if (Stops is { } stops)
         {
@@ -1217,7 +1217,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (Sand(self, world, cruise) is { } sanding)
             return sanding with { Lamp = lamp };
         // With no fireman at the blow-off, the driver vents for the Sleepers (or a fading brake) himself, holding the brake (the
-        // cab's vent is a step across: T109). Their crews of two ran onto them over the brake as the eights did (note 228).
+        // cab's vent is a step across: T109). Their crews of two ran onto them over the brake as the eights did (note 230).
         if (calls?.FiremanMinding != true && calls?.Venting != true && (HazardAllow(world) < double.MaxValue || train.Dynamics.BrakeEfficiency < FadedBrake || Venting) && Vent(self, world) is { } ventingAlone)
             return KeepClear(self, world, ventingAlone with { Buttons = ventingAlone.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 }, +1) with { Lamp = lamp };
         var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
@@ -1322,7 +1322,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     int _ventLeg = -1;
     /// <summary>Over the pressure that makes the speed the line allows by this much, the fireman goes out and vents (T106).</summary>
     const double VentOver = 10;
-    /// <summary>The brake faded under this (spec B.5's fade, from 1), the steam pulling against it is vented (note 228).</summary>
+    /// <summary>The brake faded under this (spec B.5's fade, from 1), the steam pulling against it is vented (note 230).</summary>
     const double FadedBrake = 0.7;
     /// <summary>Out on the running board at the blow-off, or on the way there or back (for the harness's trace).</summary>
     public bool Venting => _ventLeg >= 0;
@@ -1435,7 +1435,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const double GreasedFall = 0.5;
 
     /// <summary>
-    /// The Sleepers seen ahead as a limit (note 228): with steam driving (T97) the engine pulls against the brake at full effort
+    /// The Sleepers seen ahead as a limit (note 230): with steam driving (T97) the engine pulls against the brake at full effort
     /// while its steam would make more than the train's speed, and a brake faded on the descent before (spec B.5) is no
     /// match for it. Braking for them from 12 m/s, deepTerritory:4's and :1's trains lost under 1 m/s in 200 m and derailed
     /// on them at 42–44 km/h. Steam's taken off as well as the brake put on: the vent, as for a board (T106).
@@ -1562,7 +1562,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // the brake would be holding the train back from its own steam, and burning coal to do it).
         double fireTo = train.BoilerTuning is { SteamDrive: true } sd ? Boiler.PressureFor(sd, _cruise + 1, train.Dynamics.Tuning.MaxSpeed)
             : train.BoilerTuning is { } lb ? lb.WorkingBandMax - 2 : 0;
-        // Its brake fading against the steam (note 228): no more than steam that doesn't pull at the cruise, as it's vented to.
+        // Its brake fading against the steam (note 230): no more than steam that doesn't pull at the cruise, as it's vented to.
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
         if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
@@ -1850,7 +1850,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // Over the plate, not the roof's middle: it lies on the end doors' line (PlateX, left of centre), and from
                     // the centreline its edge is a hand's breadth away. deepTerritory:3's gunner stepped off car 10's front
                     // 7 cm right of the middle, went down past the plate's edge to the ballast at 14 m/s and was left on 1 hp
-                    // (note 228). At the end, not off it until squarely over it.
+                    // (note 230). At the end, not off it until squarely over it.
                     var g = train.Dynamics.Tuning.Geometry;
                     double across = g.PlateX - self.Position.X;
                     go &= !atEdge || Math.Abs(across) < g.CouplerWidth / 2 - PlateMargin;
@@ -1962,7 +1962,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     const int FrontDoor = 0, RearDoor = 1; // doors are listed front (−Z) then rear (+Z)
     /// <summary>The share of a roof walk a walker steps off the end onto a rear platform at (0.7 m/s: 0.55 m in the fall).</summary>
     const float PlatformStep = 0.4f;
-    /// <summary>How far inside the plate's edge a walker squares up before stepping off the roof onto it (note 228).</summary>
+    /// <summary>How far inside the plate's edge a walker squares up before stepping off the roof onto it (note 230).</summary>
     internal const double PlateMargin = 0.2;
     double _dropYaw;
     int _outEnd = 1;

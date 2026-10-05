@@ -9,7 +9,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The Deep sweep (T81, ARCHITECTURE §8 note 228): with steam driving (T97) the engine pulls against the brake while its steam
+/// The Deep sweep (T81, ARCHITECTURE §8 note 230): with steam driving (T97) the engine pulls against the brake while its steam
 /// would make more than the train's speed, so the brake alone, faded on a descent (spec B.5), can't take the speed off. The
 /// bots vent as well. And a walker stepping off a roof into a gap does it over the plate.
 /// </summary>
