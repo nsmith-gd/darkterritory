@@ -207,8 +207,10 @@ public sealed class ClientSession
         SendInputs();
     }
 
-    void Predict(in PlayerIntent intent)
+    void Predict(in PlayerIntent given)
     {
+        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it.
+        var intent = World.Wrecked(Predicted) ? World.WreckedIntent(given) : given;
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
@@ -217,7 +219,8 @@ public sealed class ClientSession
         CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
-        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+        if (!World.Wrecked(Predicted))
+            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly. The hand
         // isn't replicated (the next intent brings it), but this machine's HUD reads it between ticks, so it stays.
         _quantise.Clear();

@@ -1787,7 +1787,7 @@ Every number in this appendix lives in data, not code.
 
 | Step | Where | What |
 |---|---|---|
-| **1. Derail tick** | Host | The run ends as Derailed. Every mic hard-cuts mid-word and moves to the dead channel (C.8). |
+| **1. Derail tick** | Host | The run ends as Derailed, and the settlement is fixed (E.7). Nobody dies yet: from this tick the living are the wreck's, and nothing they press moves them. Each player dies in an impact that follows, as the wreck's physics plays it (E.3): alive, they take their first hits (two, where the wreck gives them that many), and the next hard one kills them (the ground, a car, the train running into them), as does being crushed under a car or a hit of 16 m/s at any time; the fourth hit kills whatever it is. The host reads it from the pre-sim (step 3) and kills each of them as it lands in their own first person (E.5); their mic hard-cuts mid-word then and moves to the dead channel (C.8). A bystander (E.3) takes no hit: they die as their first person ends, with the settle. *(The director's decision, 5 Oct 2026.)* |
 | **2. Snapshot** | Host | The world at that tick is copied: every car's position and velocity, every player's world position and velocity, every loose body aboard. |
 | **3. Pre-simulate** | Host | The copy runs the wreck to rest under E.3, up to **6s of sim time**, recording every body at 30Hz. It's a few hundred PBD steps and costs less than a frame. |
 | **4. Plan** | Host | The camera director (E.4) uses the full recording to choose shots, find each player's peak moment, and pick and align the music (E.6). It can see the future, which is what makes the occlusion rules achievable. |
@@ -1803,9 +1803,10 @@ Every number in this appendix lives in data, not code.
 | **Cars become rigid boxes** | On the derail tick, the engine and every car become PBD rigid boxes (8 corner particles with edge and diagonal constraints), keeping their mass and velocity. |
 | **Couplings tear** | Each coupling becomes a distance constraint that breaks above a strain threshold. The consist concertinas, then comes apart. |
 | **Players ragdoll** | Every living player becomes their existing ragdoll (the 11-particle body from D.9), launched with their world velocity at the derail tick. |
-| **Comic fling** | Each player ragdoll gets its velocity × **1.3**, an upward kick of **2–4 m/s** and a spin of up to **4 rad/s**, all drawn from the run seed. Ejection speed is capped at **30 m/s** so bodies stay in frame and in the sim. |
+| **Alive till the fatal hit** | Until their fatal impact (E.2 step 1) each player's ragdoll is alive: an active ragdoll with muscle tone, holding a brace (elbows and hands up and out, knees bent) and reaching its hands toward where it's going. It collides with the cars, the ground, the others and the debris, and takes its first hits and survives them, visibly knocked about. At the fatal hit the muscles let go and it goes limp. *(The director's decision, 5 Oct 2026, take 3.)* |
+| **Comic fling** | Each player ragdoll gets its velocity × **1.6**, an upward kick of **3–5 m/s** and a spin of **3.5–7 rad/s**, all drawn from the run seed. Ejection speed is capped at **30 m/s** so bodies stay in frame and in the sim. Someone in the gun's seat is thrown up out of it at **6 m/s** with the seat's own velocity, from clear of the gun, head over heels at the full spin. *(The director's numbers, 5 Oct 2026; they were ×1.3, 2–4 m/s and 4 rad/s.)* |
 | **Slow derails still throw people** | Below 6 m/s the kick is applied in full regardless, so a slow tip-over still launches somebody. |
-| **Bystanders** | A player more than 25 m from every car at the derail tick gets no impulse. They play a 0.8s beat turning to watch the wreck, then go limp where they stand. They die with the run (§23) and get a shot like everyone else. |
+| **Bystanders** | A player more than 25 m from every car at the derail tick gets no impulse. They play a 0.8s beat turning to watch the wreck, then go limp where they stand. Nothing hits them, so they die as their own first person ends, with the settle (E.2 step 1), and get a shot like everyone else. |
 | **Extras** | Bodies of the already-dead stowed in cars, crates, loot and extinguishers aboard all join the wreck. They never get their own shot. |
 | **Joint limits** | Elbows and knees bend one way only, and the head-chest-pelvis spine bends at most 60°. No limb separates. |
 
@@ -1813,7 +1814,7 @@ Every number in this appendix lives in data, not code.
 
 | Rule | Detail |
 |---|---|
-| **What collides** | Terrain heightfield, track bed, bridges, tunnel bores, car boxes, static props within 50 m, and every ragdoll particle against every other ragdoll's (0.12 m spheres), so bodies pile up. |
+| **What collides** | Terrain heightfield, track bed, bridges, tunnel bores, car boxes, static props within 50 m, and every ragdoll particle against every other ragdoll's (0.12 m spheres), so bodies pile up. The cars are moving solids: a car that ploughs into a body throws it, and one that comes down on a body pins it, which crushes it. Nothing is pushed out to somewhere safe; a body can end up under a car. A mounted gun is solid too. |
 | **Cars are hollow** | Floor, walls and roof collide from both sides. Doorways and windows are gaps, so a player inside tumbles around inside the car and can be thrown out through an opening, but never through a wall. |
 | **No starting overlap** | Before the first step, any particle inside a solid is pushed out along the shortest axis. The pre-sim never starts interpenetrating. |
 | **No tunnelling** | 4 substeps per tick. Each particle's travel per substep is clamped to its radius, and each car's to its half-thickness. |
@@ -1850,15 +1851,15 @@ Shots may revisit the same sim time from new angles. The cinematic is edited, no
 
 | Beat | Real time | Speed | What |
 |---|---|---|---|
-| **Freeze** | 0.4s | Held | Each client holds its own first-person frame from the derail tick, just after the mic cut. |
+| **Freeze** | To your death, then 3.8s (4.5–9s) | 0.5× | Each client sees through its own player's eyes as their body is thrown, through the hits they survive and the impact that kills them (E.2 step 1), then 3.8s more as the view rolls and settles with the limp body. It no longer holds the derail tick's frame, and it isn't a fixed length. *(The director's decision, 5 Oct 2026; take 3 added 3s after the death.)* |
 | **Establishing** | 3s | 0.25× | A wide of the consist leaving the rails. The music starts on the cut. |
-| **One per player** | 2.5s each, block capped at 16s | 0.25×, easing to 0.1× at the player's peak and back | Each player's ragdoll at its peak: highest apex, longest airtime or hardest landing, whichever scores highest. A lower-third name card in the clerk's typewriter face: **DAVE — on the throttle**, the role taken from where they stood (§12). |
+| **One per player** | 4s each, block capped at 32s | 0.4×, easing to 0.15× at the hit and back | Each player's ragdoll thrown into the hit that kills them (E.2 step 1), with the hits they took on the way, and then the limp aftermath. *(4s, the director's decision of 5 Oct 2026, take 3; it was 2.5s, capped at 16s.)* Their peak (the highest apex, longest airtime or hardest landing, whichever scores highest) orders the shots. *(The director's decision, 5 Oct 2026: it was the peak itself, at 0.25× to 0.1×.)* A lower-third name card in the clerk's typewriter face: **DAVE — on the throttle**, the role taken from where they stood (§12). |
 | **Settle** | 3s | 0.25× ramping to 1× | A wide as everything comes to rest. |
 | **Cause card** | 2s | — | The clerk on radio static, reading the derail's attribution line (C.9). |
 
-- **Order.** Players go in ascending order of peak score, so the biggest flight comes last. The music's hit (E.6) lands on that final apex.
-- **Length.** About 18s at crew 4 and 24s at crew 8. At crew 8 each player shot drops to 2s to fit the cap.
-- **Bookmarks.** Each player's peak frame is captured as their auto-bookmark (D.12).
+- **Order.** Players go in ascending order of peak score, so the biggest flight comes last. The music's hit (E.6) lands on that final death.
+- **Length.** From the first person to the cause card, with the replay between: about 36s at crew 4 and 52s at crew 8 (the first person 4.5–9s, the replay 9s, 4s a player, the settle 3s, the cause card 2s). *(5 Oct 2026, take 3; it was about 18s and 24s.)*
+- **Bookmarks.** Each player's death frame is captured as their auto-bookmark (D.12).
 - **The cause card**, for example: *Consist derailed at mile 14, 19 m/s. Track debris, uncalled. Throttle: Dave. Recovery not scheduled.*
 - **Skipping.** After the first player shot, anyone can vote to skip, and a majority of the session skips to the cause card. The host can always skip. The cause card is never skipped.
 
@@ -1948,16 +1949,18 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.3 | ×1.0–2.0 |
-| Upward kick | 2–4 m/s | 0–6 m/s |
-| Spin | ≤4 rad/s | 0–8 |
+| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
+| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
+| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.25× | 0.1–0.5× |
-| Peak slow motion | 0.1× | 0.05–0.25× |
-| Player shot | 2.5s | 1.5–3.5s |
-| Player-shot block cap | 16s | 10–24s |
+| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
+| Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
+| First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |
+| Hits survived before the fatal one | 2, at most 3 (5 Oct, take 3) | 0–4 |
 | Camera sphere / min distance | 0.3 m / 2.5 m | — |
 | Lens clearance | 1.5 m | 1–3 m |
 | Occluder fade | 0.15s | 0.1–0.3s |

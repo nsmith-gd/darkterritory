@@ -19,7 +19,7 @@ public class FilmPlaybackTests
 
     internal static (World World, WreckFilm Film) Shot()
     {
-        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Train, 5, 1)), line, 2250);
         train.Dynamics.Velocity = 18;
         train.RefreshFrames();

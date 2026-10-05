@@ -67,6 +67,12 @@ public interface IPlaySession
     double WreckSeconds => 0;
     /// <summary>The derailment film (GDD v1.4 App. E), once this machine has shot it from the host's start; null till then.</summary>
     WreckFilm? Film => null;
+    /// <summary>
+    /// The derailment sequence's timing as this player sees it: the wreck's tuning, with the first-person beat this player's
+    /// own (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026: up to and through their own death in the film,
+    /// <see cref="WreckFilm.FirstPersonOf"/>), so the replay, the cut and the opera follow on from it.
+    /// </summary>
+    WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
     /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
     bool Skippable => false;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>

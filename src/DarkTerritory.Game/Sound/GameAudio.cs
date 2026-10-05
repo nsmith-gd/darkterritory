@@ -92,6 +92,13 @@ public sealed partial class GameAudio
             Mixer.Play("wreck-crash", h.At, (float)Math.Clamp(h.Speed / 9, 0.35, 1));
             _filmCrashed = _time;
         }
+        // Each body's landings (the director, 5 Oct 2026): a thud where it hit, as loud as it hit, off the ground or a car's
+        // planks; the hardest few in the stretch, so a pile-up isn't a wall of them.
+        int thuds = 0;
+        for (int f = Math.Max(1, from); f <= to; f++)
+            foreach (var land in film.Frames[f].Landings.OrderByDescending(l => l.Speed))
+                if (thuds++ < 3)
+                    Mixer.Play(land.Car ? "crew-carry.body-land.wood" : "crew-carry.body-land.ground", land.At, (float)Math.Clamp(land.Speed / 10, 0.3, 1));
         _filmAt = recorded;
         // The grind: the fastest car in the recording at this moment, by its travel between keyframes.
         var (a, b, _) = film.At(recorded);

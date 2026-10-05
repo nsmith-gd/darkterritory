@@ -43,7 +43,9 @@ static class FilmCommands
         // --track id: that track, instead of the host's draw from a fresh bag.
         if (Str(args, "--track", "") is { Length: > 0 } wanted)
             hostWorld.Music = new DarkTerritory.Sim.Music.MusicRotation([.. DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks.Where(t => t.Id == wanted)], hostWorld.WreckTuning.Music);
-        var t = session.World.WreckTuning;
+        // The sequence's timing is the host player's: their own first person, up to their own death once the film's shot
+        // (App. E.2 step 1, the director's decision of 5 Oct 2026; IPlaySession.SequenceTuning), so it's read afresh each tick.
+        var t = session.SequenceTuning;
         var sequence = new DerailSequence();
         var audio = new GameAudio(content);
         var mix = new List<float>();
@@ -59,6 +61,7 @@ static class FilmCommands
         {
             session.Step(default);
             Thread.Sleep(1);
+            t = session.SequenceTuning;
             var frames = session.InterpolatedFrames(1);
             if (!seen)
                 camera = session.EyeCamera(frames, 1, 0, 0);
@@ -97,6 +100,9 @@ static class FilmCommands
         }
         hostWorld.Train.Dynamics.Velocity = speed;
         hostWorld.Train.RefreshFrames();
+        // --gunner: the last of the crew sat in a gun's seat (T112) as it comes off, to see them thrown out of it.
+        if (args.Contains("--gunner"))
+            SeatAGunner(session);
         int kmh = (int)Math.Round(speed * 3.6);
         hostWorld.Derail(Str(args, "--cause", $"took the 45 km/h bend at {kmh} km/h, {Math.Max(0, kmh - 45)} km/h too fast"));
         var clock = Stopwatch.StartNew();
@@ -135,6 +141,7 @@ static class FilmCommands
         WreckFilm? shot = null;
         for (; shot is null || frame < Math.Ceiling(DerailSequence.Length(t, shot) * fps - 1e-9); frame++)
         {
+            t = session.SequenceTuning;
             double at = frame / (double)fps;
             while (session.WreckSeconds + 1e-9 < at)
                 Step();
@@ -229,11 +236,21 @@ static class FilmCommands
                 fadedBy = Math.Round(t.FirstPersonSeconds + t.ReplaySeconds + film.CauseAt, 3),
                 runsOutAt = Math.Round(t.FirstPersonSeconds + track.OutPoint - track.StartFor(t.ReplayLeadSeconds), 3),
             },
-            crew = film.Start.Players.Select(p => new
+            crew = film.Start.Players.Select((p, doll) => new
             {
                 p.Id,
                 p.Name,
                 p.Role,
+                p.Seated,
+                // App. E.2 step 1 (the director's decision of 5 Oct 2026): how they died in the film, when (recorded seconds),
+                // how hard (m/s), and how long their own first person runs (to a little past it).
+                death = new { at = Math.Round(film.Deaths[p.Id].At, 2), kind = film.Deaths[p.Id].Kind.ToString(), speed = Math.Round(film.Deaths[p.Id].Speed, 1), survived = film.Deaths[p.Id].Survived },
+                firstPerson = Math.Round(film.FirstPersonOf(p.Id) ?? 0, 2),
+                landings = film.Frames.Sum(f => f.Landings.Count(l => l.Doll == doll)),
+                // As the film starts them: inside which car (−1 none), how fast, and how far over they ever go (degrees).
+                inside = p.Inside,
+                speedAtDerail = Math.Round(p.Velocity.Length, 1),
+                tumble = Math.Round(film.Frames.Max(f => Math.Acos(Math.Clamp((f.Ragdolls[doll][0] - f.Ragdolls[doll][2]).Normalized.Y, -1, 1)) * 180 / Math.PI)),
                 peak = Math.Round(film.Peaks[p.Id].Score, 2),
                 peakAt = Math.Round(film.Peaks[p.Id].At, 2),
                 // Over their own shot: how much of it they're in the middle of the frame (O6 asks 80%), how tall in it (O6:
@@ -251,12 +268,39 @@ static class FilmCommands
         };
     }
 
+    /// <summary>
+    /// Sits the last of the crew in the gun's seat of the first car with a gun (T112), the way the seat has them (on the
+    /// carriage behind the breech, facing along the gun), and steps the night once so the host has them there.
+    /// </summary>
+    static void SeatAGunner(NetPlaySession session)
+    {
+        var host = session.Host!;
+        var train = host.World.Train;
+        int gun = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(v => train.Vehicles[v].HasGun && DarkTerritory.Sim.Combat.Guns.Mount(train, v) is not null, -1);
+        var last = host.Players.OrderBy(p => p.Id).LastOrDefault();
+        if (gun < 0 || last.State.Health <= 0)
+            return;
+        var mount = DarkTerritory.Sim.Combat.Guns.Mount(train, gun)!.Value;
+        var g = train.Vehicles[gun].Gun;
+        var seat = DarkTerritory.Sim.Combat.Guns.SeatAt(mount, g, host.World.Combat!.Guns, mount.Position.Y - 0.9);
+        host.SetPlayerState(last.Id, last.State with
+        {
+            Parent = gun,
+            Position = seat,
+            Velocity = Double3.Zero,
+            Yaw = DarkTerritory.Sim.Combat.Guns.FacingYaw(mount) + g.Traverse,
+            Surface = Surface.Roof,
+            Flags = last.State.Flags | PlayerFlags.Seated,
+        });
+        session.Step(default);
+    }
+
     /// <summary>What the app's loop sets on the scene each frame from the night's state, for a frame of the derailment.</summary>
     static void Dress(GreyboxScene scene, NetPlaySession session, Camera camera, double at, IReadOnlyList<CarFrame> frames)
     {
         var train = session.Train;
         var me = session.Player;
-        scene.Own = !me.Alive || session.Watching >= 0 ? null
+        scene.Own = !me.Alive || session.Watching >= 0 || session.WreckCinematic ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, CrewActs.Of(me, session.PlayerId, session.World), false, -1, session.PlayerId, DarkTerritory.Sim.Player.Kit.Held(me));
         scene.HeldHere = null;
         scene.Time = session.Tick * SimConstants.TickSeconds;

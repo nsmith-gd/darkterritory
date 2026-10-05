@@ -348,6 +348,8 @@ public sealed class GreyboxScene
         foreach (var frame in frames)
             if (CutAway?.Contains(frame.Index) != true)
                 Car(mesh, frame, eye);
+            else
+                CutFloor(mesh, frame, eye);
         Lap(mesh, "cars");
         if (Look is not null)
         {
@@ -1496,6 +1498,26 @@ public sealed class GreyboxScene
     }
 
     static Vector3 V(Double3 p, Double3 eye) => p.RelativeTo(eye);
+
+    /// <summary>
+    /// A car the film cuts away (E.4 O2) keeps its floor: someone tumbling inside it is seen lying in a car with its shell
+    /// lifted off, not on the track under nothing (note 251's "a cutaway that keeps the floor").
+    /// </summary>
+    static void CutFloor(MeshBuilder mesh, in CarFrame frame, Double3 eye)
+    {
+        var shape = frame.Shape;
+        // The film's floor for it (World.Derail): a walk-in car's, or the engine's cab's.
+        double floor = (shape.Interior ?? shape.Cab)?.Min.Y ?? 0;
+        if (floor <= 0.05)
+            return;
+        var (right, up, back) = (ToF(frame.Right), ToF(frame.Up), ToF(frame.Back));
+        mesh.Box(V(frame.ToWorld(new Double3(0, floor / 2, 0)), eye), right, up, back,
+            new Vector3((float)shape.HalfWidth, (float)floor / 2, (float)shape.HalfLength), Palette.DeepBrown);
+        // A sill along each side, so it reads as a car's floor and not a plank.
+        foreach (int side in new[] { -1, 1 })
+            mesh.Box(V(frame.ToWorld(new Double3(side * (shape.HalfWidth - 0.05), floor + 0.1, 0)), eye), right, up, back,
+                new Vector3(0.05f, 0.1f, (float)shape.HalfLength), Palette.RustRed);
+    }
 
     void Track(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double centre)
     {

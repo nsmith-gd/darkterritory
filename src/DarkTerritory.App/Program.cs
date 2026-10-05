@@ -877,7 +877,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Off the rails (T117, T121): first in your own eyes riding it, then the chase view replaying it from a few seconds
         // before, then the camera circling the wreck. What was drawn is kept for the replay (DerailSequence).
         bool outro = session.StrandedOutro;
-        var wreckTuning = session.World.WreckTuning;
+        // The sequence's timing is this player's: their own first person, up to their own death (App. E.2 step 1).
+        var wreckTuning = session.SequenceTuning;
         bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
         var film = session.Film;
         // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
@@ -932,7 +933,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
-        scene.HeldHere = chase || !session.Player.Alive ? null
+        // Off the rails the living ride the wreck to their death (App. E.2 step 1): no hands, nothing carried, in the sequence.
+        scene.HeldHere = chase || cinematic || !session.Player.Alive ? null
             : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
         // Your own arms in view (X3), and the swing you've started: a blow lasts the melee's recovery, and held, they follow
         // one another (World.Swing's cadence). A headset draws its own hands; behind a crewmate's eyes, theirs aren't yours.
@@ -945,7 +947,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         double swing = swingFrom >= 0 && now - swingFrom < swingSeconds ? now - swingFrom : -1;
         if (swing < 0)
             swingFrom = -1;
-        scene.Own = chase || vr is not null || !me.Alive || session.Watching >= 0 ? null
+        scene.Own = chase || cinematic || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.PlayerId, Kit.Held(me));
         scene.Time = now;

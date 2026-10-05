@@ -1985,21 +1985,22 @@ static object FilmStill(string content, string[] args)
     hostWorld.Train.Dynamics.Velocity = Opt(args, "--speed", 20);
     hostWorld.Train.RefreshFrames();
     hostWorld.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
-    var t = session.World.WreckTuning;
-    double want = t.FirstPersonSeconds + t.ReplaySeconds + filmAt;
+    // The cut starts after this player's own first person, which is as long as the film says (App. E.2 step 1).
+    double Want() => session.SequenceTuning.FirstPersonSeconds + session.SequenceTuning.ReplaySeconds + filmAt;
     var clock = Stopwatch.StartNew();
-    while ((session.WreckSeconds < want || session.Film is null) && clock.Elapsed.TotalSeconds < 120)
+    while ((session.WreckSeconds < Want() || session.Film is null) && clock.Elapsed.TotalSeconds < 120)
     {
-        if (session.WreckSeconds < want)
+        if (session.WreckSeconds < Want())
             session.Step(default);
         Thread.Sleep(1);
     }
+    var t = session.SequenceTuning;
     var film = session.Film;
     if (film is null || film.CutAt(DerailSequence.FilmSeconds(t, session.WreckSeconds)) is not { } at)
         return new { error = "no film to show there", wreckSeconds = session.WreckSeconds, film = film?.CutLength };
     double recorded = at.Shot.At(at.Into);
     var frames = DerailSequence.FilmFrames(film, recorded, session.InterpolatedFrames(1));
-    var camera = DerailSequence.FilmCamera(at.Shot, at.Into);
+    var camera = DerailSequence.FilmCamera(at.Shot, at.Into, film);
     int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/film.png");
     using var gpu = new GpuContext("dt screenshot --film");

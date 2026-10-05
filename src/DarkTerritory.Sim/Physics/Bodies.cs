@@ -338,6 +338,20 @@ public sealed class Bodies
     /// <summary>In-run deaths so far, each with its body (drop-outs aren't deaths: D.2). Host only.</summary>
     public int Deaths { get; private set; }
 
+    // Deaths counted before the body goes down (a derailment's, on the derail tick: World.ApplyDamage).
+    readonly HashSet<int> _ahead = [];
+
+    /// <summary>
+    /// Counts <paramref name="owner"/>'s death now, though their body goes down later: a derailment's crew, whose deaths the
+    /// settlement fixes on the derail tick and who each die on their own hit in the wreck (GDD v1.4 App. E.2 step 1, the
+    /// director's decision of 5 Oct 2026). The body still comes when they die; it isn't counted twice.
+    /// </summary>
+    public void CountAhead(int owner)
+    {
+        if (_ahead.Add(owner))
+            Deaths++;
+    }
+
     /// <summary>Host: a body for everyone who died this tick (not a mid-run joiner still waiting: they've no body).</summary>
     /// <returns>Who died this tick, and the body each left.</returns>
     public List<(int Id, PlayerState State, Body Body)> OnDeaths(TrainOnLine train, IEnumerable<(int Id, PlayerState State)> crew)
@@ -353,7 +367,8 @@ public sealed class Bodies
             if (s.Death == DeathCause.Waiting || !_bodied.Add(id))
                 continue;
             died.Add((id, s, SpawnRagdoll(train, id, s)));
-            Deaths++;
+            if (!_ahead.Remove(id))
+                Deaths++;
         }
         return died;
     }

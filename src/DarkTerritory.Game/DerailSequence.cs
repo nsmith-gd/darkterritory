@@ -15,7 +15,7 @@ public enum DerailBeat : byte { None, FirstPerson, Replay, Orbit, Film }
 public sealed record FilmPeak(WreckFilm Film, FilmShot Shot, double Into, double Recorded)
 {
     /// <summary>The shot's camera at the peak.</summary>
-    public Camera Camera => DerailSequence.FilmCamera(Shot, Into);
+    public Camera Camera => DerailSequence.FilmCamera(Shot, Into, Film);
 }
 
 /// <summary>
@@ -25,8 +25,10 @@ public sealed record FilmPeak(WreckFilm Film, FilmShot Shot, double Into, double
 /// </summary>
 /// <param name="FilmAt">The recorded instant the film's shot shows (0 outside the film).</param>
 /// <param name="Distance">How far the camera is from what it frames, in the replay and the film (0 otherwise): E.4 O12's fog.</param>
+/// <param name="Eye">In the first person with the film shot: which of its ragdolls is yours (you see through its eyes, at
+/// <paramref name="FilmAt"/>); −1 otherwise.</param>
 public sealed record DerailShot(DerailBeat Beat, IReadOnlyList<CarFrame> Frames, Camera? Camera, (CarFrame[] Frames, Crewmate[] Crew, bool Off)? Replay,
-    WreckFilm? Film, (FilmShot Shot, double Into)? Filming, double FilmAt, double Distance = 0);
+    WreckFilm? Film, (FilmShot Shot, double Into)? Filming, double FilmAt, double Distance = 0, int Eye = -1);
 
 /// <summary>One beat of the whole sequence (<see cref="DerailSequence.Timeline"/>): the first person, the replay, then the cut shot by shot.</summary>
 /// <param name="Shot">The film's shot, in the film's beat; null for the first person, the replay and the orbit.</param>
@@ -52,6 +54,14 @@ public sealed class DerailSequence
     int _car = -1;
     Double3 _eyeLocal, _lookLocal;
     Camera _worldEye;
+
+    /// <summary>
+    /// The sequence's timing for <paramref name="player"/>: the first person is their own, up to and through their death in
+    /// the film (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026), once it's shot; till then, and for anyone
+    /// not in it, the tuning's.
+    /// </summary>
+    public static WreckTuning TuningFor(WreckTuning t, WreckFilm? film, int player) =>
+        film?.FirstPersonOf(player) is { } own ? t with { FirstPersonSeconds = own } : t;
 
     public static DerailBeat Beat(WreckTuning t, double seconds, WreckFilm? film = null) =>
         seconds < 0 ? DerailBeat.None
@@ -97,12 +107,18 @@ public sealed class DerailSequence
     /// </summary>
     public DerailShot Show(IPlaySession session, IReadOnlyList<CarFrame> frames, bool ownEyes = true)
     {
-        var t = session.World.WreckTuning;
+        var film = session.Film;
+        var t = session.SequenceTuning;
         double seconds = session.WreckSeconds;
         var wreck = session.Train.Wreck;
         bool wrecking = session.WreckCinematic && wreck is not null;
-        var film = session.Film;
         var beat = wrecking ? Beat(t, seconds, film) : DerailBeat.None;
+        // Your own eyes (App. E.2 step 1, the director's decision): once the film's shot, through your own ragdoll's, flung
+        // with it to the hit that kills you and a moment past; till then, riding your car.
+        int eye = beat == DerailBeat.FirstPerson && ownEyes && film is not null ? Doll(film, session.PlayerId) : -1;
+        double ownAt = eye >= 0 ? OwnAt(film!, seconds) : 0;
+        if (eye >= 0)
+            frames = FilmFrames(film!, ownAt, frames);
         var replay = beat == DerailBeat.Replay ? ReplayAt(seconds, t) : null;
         if (replay is { } replaying)
             frames = replaying.Frames;
@@ -112,14 +128,64 @@ public sealed class DerailSequence
         if (filming is not null)
             frames = FilmFrames(film!, at, frames);
         Camera? camera = !wrecking ? null
+            : eye >= 0 ? FilmEye(film!, eye, ownAt, _worldEye.FovYDegrees > 0 ? _worldEye.FovYDegrees : 70)
             : beat == DerailBeat.FirstPerson && ownEyes ? FirstPerson(frames)
             : replay is { } shot ? ReplayCamera(shot.Frames, session.Train.StandingCar, shot.Off)
-            : filming is { } f ? FilmCamera(f.Shot, f.Into)
+            : filming is { } f ? FilmCamera(f.Shot, f.Into, film)
             : Views.Wreck(wreck!, OrbitSeconds(t, seconds));
         double distance = filming is { } framed ? (framed.Shot.Camera - framed.Shot.Look).Length
             : replay is { } r && camera is { } c && Views.Train(r.Frames, session.Train.StandingCar) is { Length: > 0 } own
                 ? (own[own.Length / 2].Origin - c.Position).Length : 0;
-        return new DerailShot(beat, frames, camera, replay, film, filming, at, distance);
+        return new DerailShot(beat, frames, camera, replay, film, filming, eye >= 0 ? ownAt : at, distance, eye);
+    }
+
+    /// <summary>Which of the film's ragdolls is <paramref name="player"/>'s (−1 if they're not in it).</summary>
+    public static int Doll(WreckFilm film, int player)
+    {
+        for (int i = 0; i < film.Start.Players.Count; i++)
+            if (film.Start.Players[i].Id == player)
+                return i;
+        return -1;
+    }
+
+    /// <summary>The recorded moment the first person shows <paramref name="seconds"/> into it (<see cref="FilmTuning.FirstPersonRate"/>).</summary>
+    public static double OwnAt(WreckFilm film, double seconds) => Math.Clamp(seconds * film.Tuning.FirstPersonRate, 0, film.Recorded);
+
+    /// <summary>
+    /// Through a ragdoll's eyes in the film at <paramref name="recorded"/>: at its head, facing the way its chest does, its
+    /// shoulders the horizon (it tumbles, you tumble), steadied over a few recorded frames so it reads as a body flung, not
+    /// a camera shaken.
+    /// </summary>
+    public static Camera FilmEye(WreckFilm film, int doll, double recorded, float fovY = 70)
+    {
+        Double3 up = Double3.Zero, right = Double3.Zero;
+        for (int k = -2; k <= 2; k++)
+        {
+            var (a, b, u) = film.At(recorded + k / (double)WreckFilm.Rate);
+            Double3 J(int j) => Double3.Lerp(a.Ragdolls[doll][j], b.Ragdolls[doll][j], u);
+            double w = 3 - Math.Abs(k);
+            up += (J(0) - J(2)) * w;
+            right += (J(5) - J(3)) * w;
+        }
+        var (ha, hb, hu) = film.At(recorded);
+        var head = Double3.Lerp(ha.Ragdolls[doll][0], hb.Ragdolls[doll][0], hu);
+        up = up.Length > 1e-6 ? up.Normalized : Double3.Up;
+        right -= up * Double3.Dot(right, up);
+        right = right.Length > 1e-6 ? right.Normalized : Double3.Cross(up, new Double3(0, 0, 1)).Normalized;
+        var fwd = Double3.Cross(up, right).Normalized;
+        // From just in front of the face, looking a little down the body's front (where you'd see the ground coming), rolled
+        // with the shoulders.
+        var eye = head + fwd * 0.12 + up * 0.04;
+        var back = (fwd * 0.94 - up * 0.34).Normalized * -1;
+        var camUp = Double3.Cross(back, right).Normalized;
+        var m = new Matrix4x4(
+            (float)right.X, (float)right.Y, (float)right.Z, 0,
+            (float)camUp.X, (float)camUp.Y, (float)camUp.Z, 0,
+            (float)back.X, (float)back.Y, (float)back.Z, 0,
+            0, 0, 0, 1);
+        var cam = Camera.LookAt(eye, eye - back, fovY);
+        cam.Orientation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
+        return cam;
     }
 
     /// <summary>
@@ -130,13 +196,17 @@ public sealed class DerailSequence
     public static void Dress(GreyboxScene scene, DerailShot shot, IPlaySession session, Double3 eye, IReadOnlyList<Crewmate> crew)
     {
         bool filming = shot.Filming is not null && shot.Film is not null;
-        scene.Bodies = filming ? FilmBodies(shot.Film!, shot.FilmAt) : session.World.Bodies.All;
-        scene.Crew = shot.Replay is { } replayed ? replayed.Crew : filming ? [] : crew;
+        // In your own eyes through the film: its cars and the rest of the crew as its ragdolls, not your own (you're in its head).
+        bool own = shot.Eye >= 0 && shot.Film is not null;
+        scene.Bodies = filming ? FilmBodies(shot.Film!, shot.FilmAt)
+            : own ? [.. FilmBodies(shot.Film!, shot.FilmAt).Where(b => b.Owner != shot.Film!.Start.Players[shot.Eye].Id)]
+            : session.World.Bodies.All;
+        scene.Crew = shot.Replay is { } replayed ? replayed.Crew : filming || own ? [] : crew;
         scene.CutAway = filming ? FilmCutAway(shot.Film!, shot.Filming!.Value.Shot, shot.FilmAt, shot.Frames, eye) : null;
         scene.Lights = filming ? FilmLights(shot.Film!, shot.Filming!.Value.Shot, shot.FilmAt, eye) : null;
         // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks. The film draws its own wreck; the
         // live one's dust and sparks are somewhere else by then.
-        scene.Wreck = shot.Replay is { Off: false } || filming ? null : session.Train.Wreck;
+        scene.Wreck = shot.Replay is { Off: false } || filming || own ? null : session.Train.Wreck;
         scene.Derailed = shot.Replay is { } rerun ? rerun.Off : session.World.Derailed;
     }
 
@@ -267,11 +337,23 @@ public sealed class DerailSequence
         return lights;
     }
 
-    /// <summary>A shot's camera <paramref name="into"/> seconds in: held, or dollying slowly to its end (E.4 O13).</summary>
-    public static Camera FilmCamera(FilmShot shot, double into)
+    /// <summary>
+    /// A shot's camera <paramref name="into"/> seconds in: held, or dollying slowly to its end (E.4 O13). A player's shot,
+    /// given its <paramref name="film"/>, turns to follow the subject's middle (<see cref="WreckFilm.Middle"/>) through its
+    /// tight lens, so they stay in the middle of the frame (O6).
+    /// </summary>
+    public static Camera FilmCamera(FilmShot shot, double into, WreckFilm? film = null)
     {
         double u = shot.Real > 0 ? Math.Clamp(into / shot.Real, 0, 1) : 0;
-        return Camera.LookAt(Double3.Lerp(shot.Camera, shot.CameraTo, u), Double3.Lerp(shot.Look, shot.LookTo, u), (float)shot.Fov);
+        var look = Double3.Lerp(shot.Look, shot.LookTo, u);
+        var eye = Double3.Lerp(shot.Camera, shot.CameraTo, u);
+        if (shot.Kind == ShotKind.Player && film is not null && Doll(film, shot.Subject) is >= 0 and var doll)
+        {
+            look = film.Middle(doll, shot.At(into));
+            // Someone inside a car: the camera's rigged to it, so the car carrying them stays in the shot.
+            eye = film.CameraAt(shot, shot.At(into), eye);
+        }
+        return Camera.LookAt(eye, look, (float)shot.Fov);
     }
 
     /// <summary>
