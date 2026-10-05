@@ -211,6 +211,36 @@ public class RejoinTests
     }
 
     [Fact]
+    public void ARedialGivenUpOnBeforeItSpokeIsNoOne()
+    {
+        // The 5 Oct CI failure: a redial the client gave up on before it said hello (its socket closed, the host's Accept
+        // unheard) left a connection nobody was behind, and greetSeconds later the host welcomed it as a third crewmate.
+        // It must hold up the line no longer than that, and never come aboard; the real redial behind it gets the slot.
+        var night = new Night(2);
+        night.Run(20);
+        var client = night.Clients[1];
+        byte id = client.PlayerId!.Value;
+        night.Drop(1);
+        night.Run(5);
+        var abandoned = night.Net.CreateClient();
+        var events = new List<TransportEvent>();
+        for (int t = 0; t < 5; t++)
+        {
+            night.Run(1);
+            abandoned.Poll(events);
+        }
+        night.Redial(1);
+        night.Run(SimConstants.TickRate * 2);
+        Assert.Equal(id, client.PlayerId);
+        Assert.True(client.Connected);
+        Assert.Equal(1, night.Host.Rejoins);
+        Assert.Equal(2, night.Host.PlayerCount);
+        night.Run(SimConstants.TickRate * 3);
+        Assert.Equal(2, night.Host.PlayerCount);
+        abandoned.Dispose();
+    }
+
+    [Fact]
     public void WithReclaimBodyOffTheBodyStaysAndTheyDropIn()
     {
         // GDD v1.4 App. D.2's letter (rejoin.reclaimBody false): the body stays for the crew to recover, and the player comes

@@ -84,7 +84,7 @@
   // player (the respawn queue, or with no Holdouts a drop-in). A body gone (the Gaunt has it) is always D.2's letter.
   // Past reserveSeconds the slot frees and a returning player is a new joiner.
   // greetSeconds: a joiner says hello (with the token, if it has one) before it's welcomed; one that says nothing in this
-  // long is welcomed anyway. The client retries a dropped link `retries` times, retrySeconds apart, then offers RECONNECT.
+  // long stops holding up the others, and is welcomed only once it does (note 253). The client retries a dropped link `retries` times, retrySeconds apart, then offers RECONNECT.
   "rejoin": {
     "reserveSeconds": 180,
     "reclaimBody": true,

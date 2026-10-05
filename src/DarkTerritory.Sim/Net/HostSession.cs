@@ -287,6 +287,8 @@ public sealed class HostSession
         public readonly PeerId Peer = peer;
         public readonly uint Since = since;
         public bool Said;
+        /// <summary>Quiet past greetSeconds: out of the line's way, and welcomed only once it does say hello.</summary>
+        public bool Late;
         public string Name = "";
         public ulong Token;
     }
@@ -344,16 +346,27 @@ public sealed class HostSession
     }
 
     /// <summary>
-    /// Lets the greeting line in, in the order they connected (first aboard takes the cab): each once it's said hello, or
-    /// after greetSeconds of saying nothing. A Hello with a held slot's token gets that slot back.
+    /// Lets the greeting line in, in the order they connected (first aboard takes the cab), each once it's said hello. One
+    /// quiet for greetSeconds stops holding up the rest, and is welcomed whenever it does speak. It's never let in silent:
+    /// a redial given up on before it spoke (its socket closed, the host's Accept unheard) is a connection nobody's
+    /// behind, and welcomed it was a phantom crewmate (note 253). The link's timeout takes it instead.
+    /// A Hello with a held slot's token gets that slot back.
     /// </summary>
     void Greet()
     {
         int patience = TicksOf(PlayerTuning.Rejoin.GreetSeconds);
-        while (_greeting.Count > 0 && (_greeting[0].Said || Tick - _greeting[0].Since >= patience))
+        for (int i = 0; i < _greeting.Count;)
         {
-            var g = _greeting[0];
-            _greeting.RemoveAt(0);
+            var g = _greeting[i];
+            if (!g.Said)
+            {
+                if (!g.Late && Tick - g.Since < patience)
+                    break;
+                g.Late = true;
+                i++;
+                continue;
+            }
+            _greeting.RemoveAt(i);
             byte id = g.Token != 0 && Return(g.Peer, g.Token) is { } back ? back : Join(g.Peer);
             Name(id, g.Name);
         }
