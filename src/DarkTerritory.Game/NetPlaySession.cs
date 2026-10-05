@@ -330,7 +330,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     double _manifestSeconds = -1, _tallySeconds = -1;
 
     /// <summary>
-    /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 215), so the reading goes at its pace: the card
+    /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 218), so the reading goes at its pace: the card
     /// typed as it's said, the end screen waiting for the last word. Null (no voice), a line every lineSeconds.
     /// </summary>
     public Func<string, double>? RadioPace { get; set; }

@@ -10,7 +10,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 note 215): the clerk's word bank says every line the dispatcher
+/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 note 218): the clerk's word bank says every line the dispatcher
 /// and the clerk read, a line at a time as it comes on, through the set; a name it doesn't have is the set breaking up.
 /// </summary>
 public class ClerkVoiceTests
@@ -119,7 +119,7 @@ public class ClerkVoiceTests
     [Fact]
     public void EveryCauseCardAndTheStrandedLineAreSaidWithNothingBreakingUp()
     {
-        // Note 217: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
+        // Note 220: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
         // causes are the sim's templates (Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the
         // Stoker's runaway); the places are the line generator's own words. A new word in any of them fails here until the
         // bank (tools/audio/clerk.py) has it.

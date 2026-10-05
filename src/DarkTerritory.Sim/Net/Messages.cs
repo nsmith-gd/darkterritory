@@ -30,7 +30,7 @@ public static class Protocol
     // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
     // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
     // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
-    // 24: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 208).
+    // 24: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 211).
     public const int Version = 24;
 }
 

@@ -65,7 +65,7 @@ public interface IPlaySession
     /// </summary>
     IReadOnlyList<string>? RadioReading => null;
     double RadioSeconds => 0;
-    /// <summary>Each of <see cref="RadioReading"/>'s lines' turn when it's spoken (note 215); null, a line every lineSeconds.</summary>
+    /// <summary>Each of <see cref="RadioReading"/>'s lines' turn when it's spoken (note 218); null, a line every lineSeconds.</summary>
     IReadOnlyList<double>? RadioTimes => null;
     /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
     bool ClerkTally => false;
