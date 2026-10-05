@@ -10,7 +10,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 note 208): the clerk's word bank says every line the dispatcher
+/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 note 210): the clerk's word bank says every line the dispatcher
 /// and the clerk read, a line at a time as it comes on, through the set; a name it doesn't have is the set breaking up.
 /// </summary>
 public class ClerkVoiceTests

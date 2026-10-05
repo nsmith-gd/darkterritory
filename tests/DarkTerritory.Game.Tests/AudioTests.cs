@@ -73,7 +73,7 @@ public class AudioTests
     public void TheSetPiecesAreHeard(string sound, int tier)
     {
         // Note 198: the facilities' set pieces had no sound of their own (notes 185, 187). Each is a loop at its tier (the
-        // spout, herd and hose the checklist's recorded ones, note 201), heard 6 m off beside a standing train well over the
+        // spout, herd and hose the checklist's recorded ones, note 203), heard 6 m off beside a standing train well over the
         // train's own idle.
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         Assert.Equal(tier, bank.Get(sound)!.Tier);

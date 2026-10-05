@@ -2,7 +2,7 @@ namespace DarkTerritory.Sim.Run;
 
 /// <summary>run.json <c>radio</c>: how long each line of the dispatcher's manifest and the clerk's tally stays on the air.</summary>
 /// <param name="LineSeconds">Each line's turn, read flat (GDD §9: "with the same tone used for the coal"); the least a spoken one gets.</param>
-/// <param name="PauseSeconds">Spoken (note 208), the breath after each line before the next: the reading's even pace.</param>
+/// <param name="PauseSeconds">Spoken (note 210), the breath after each line before the next: the reading's even pace.</param>
 public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5);
 
 /// <summary>
@@ -92,7 +92,7 @@ public static class Radio
         (times is null ? lines.Count * t.LineSeconds : lines.Select((_, i) => i < times.Count ? times[i] : t.LineSeconds).Sum()) + t.LineSeconds;
 
     /// <summary>
-    /// Each line's turn when it's spoken (note 208): as long as <paramref name="spoken"/> says saying it takes, and the pause
+    /// Each line's turn when it's spoken (note 210): as long as <paramref name="spoken"/> says saying it takes, and the pause
     /// after, never less than <see cref="RadioTuning.LineSeconds"/>. The voice is presentation, so each machine times its own.
     /// </summary>
     public static List<double> Times(IReadOnlyList<string> lines, RadioTuning t, Func<string, double> spoken) =>

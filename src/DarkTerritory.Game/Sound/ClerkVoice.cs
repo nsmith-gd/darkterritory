@@ -5,7 +5,7 @@ using Ballast.Audio;
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>
-/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 notes 178, 208): the dispatcher's manifest and the clerk's tally,
+/// The yard's voice on the radio (GDD §9; ARCHITECTURE §8 notes 178, 210): the dispatcher's manifest and the clerk's tally,
 /// said in one man's voice the crew learn. The lines are made from the night's own numbers (Sim.Run.Radio), so there's no
 /// script: <c>tools/audio/clerk.py</c> builds the clerk's vocabulary (each phrase and word a take, with its length in
 /// <c>bank.json</c>) and a line is strung together from it as it goes on air: numbers said as words, the longest phrase

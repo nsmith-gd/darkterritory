@@ -13,7 +13,7 @@
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
-  // lineSeconds over the radio. Spoken (note 208), each line takes as long as it's said and pauseSeconds after (an even,
+  // lineSeconds over the radio. Spoken (note 210), each line takes as long as it's said and pauseSeconds after (an even,
   // bored pace), never less than lineSeconds.
   "radio": { "lineSeconds": 1.6, "pauseSeconds": 0.5 },
 
