@@ -1270,6 +1270,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --phase s: how far through a timed act the staged crew are (the cannon's reload: 1.5 s a beat; Crewmate.Phase).
     if (args.Contains("--phase") && scene.Crew is { } phased)
         scene.Crew = [.. phased.Select(c => c with { Phase = Opt(args, "--phase", 0) })];
+    // --tippy grab: crewmate 1, the one it has, as the game draws them (CrewActs: held_cover, its hand over their mouth).
+    if (Str(args, "--tippy", "") == "grab" && scene.Crew is { } held)
+        scene.Crew = [.. held.Select(c => c.Id == 1 ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldCover } : c)];
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train)];
