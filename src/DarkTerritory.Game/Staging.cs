@@ -139,6 +139,38 @@ public static class Staging
     }
 
     /// <summary>
+    /// Three headset crewmates on car 2's roof (T82, <c>dt screenshot --view crew --vr-body</c>, or crewside): one leaning
+    /// over to reach down ahead of them, looking down at it; one crouched right down, both hands low by the roof; and one
+    /// who has turned their head well past the hips' deadzone, the hips come round after it and a foot halfway through
+    /// its step to catch up (the stride lived up to that moment, since a screenshot is one frame).
+    /// </summary>
+    public static List<Crewmate> Headsets(TrainOnLine train, string content)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var body = DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body;
+        Crewmate At(byte id, double x, double z, double yaw, double head, double pitch, Double3 hand, Double3 other = default, VrStride? stride = null)
+        {
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, z, player, x) with { Yaw = yaw, Pitch = pitch, Head = head };
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other,
+                Headset: new HeadsetBody(head, pitch, s.Parent, s.Position, s.Yaw, stride));
+        }
+        // Side by side across the roof, far enough down it for the crew view to have them head to foot, and facing across
+        // it (a little towards the camera), so it sees them side on.
+        // The stepper: stood square facing `from`, then the head turned round to `to` and the hips shuffled a little aside.
+        double across = -Math.PI / 2 - 0.3, to = across, from = to + 100 * Math.PI / 180;
+        var stand = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -5.9, player, 0.95);
+        var stride = VrBody.Stand(stand.Position + new Double3(-0.08, 0, 0), from, body);
+        for (int i = 0; i < 600 && !(stride.Stepping != 0 && stride.Progress >= 0.5); i++)
+            stride = VrBody.Step(stride, stand.Position, to, 1 / 120.0, body);
+        return
+        [
+            At(31, -1.0, -5.5, across, head: 1.42, pitch: -0.55, hand: new Double3(0.2, 0.9, -0.6)),
+            At(32, 0.0, -5.7, across, head: 1.0, pitch: -0.35, hand: new Double3(0.25, 0.35, -0.4), other: new Double3(-0.22, 0.4, -0.35)),
+            At(33, 0.95, -5.9, to, head: 1.62, pitch: 0, hand: new Double3(0.3, 1.1, -0.5), stride: stride),
+        ];
+    }
+
+    /// <summary>
     /// The crew at work (X1, <c>dt screenshot --working</c>; their acts are <see cref="Art.CrewActs"/>' and the clips
     /// crew_clips.py's): on car 2's roof one carrying a crate, one heaving at a hatch, one winding the brake wheel at its
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.

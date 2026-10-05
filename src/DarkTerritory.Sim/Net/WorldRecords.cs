@@ -236,6 +236,8 @@ public static class WorldRecords
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand.
                 (long)s.Kit, s.HeldSlot,
+                // A headset's head height over the feet (T82): zero, so free, for a keyboard or a bot.
+                Q(s.Head, Cm),
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -588,6 +590,7 @@ public static class WorldRecords
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
             Kit = f.Length > 24 ? (ulong)f[23] : 0,
             HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
+            Head = f.Length > 25 ? D(f[25], Cm) : 0,
         });
     }
 
