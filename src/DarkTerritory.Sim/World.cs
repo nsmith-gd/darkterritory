@@ -249,7 +249,7 @@ public sealed class World
         LastCrew = [.. crew];
         // App. C.9: every death in the log, the tick its body goes down, with the contributing action its failure names.
         foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
-            if (Run is not null)
+            if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         Recover();
@@ -623,7 +623,19 @@ public sealed class World
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
                 Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
-                    v => v >= 0 && v < Train.Frames.Count && Train.Frames[v].Shape.Interior is { } room ? room.Min.Y : 0);
+                    v => v >= 0 && v < Train.Frames.Count && (Train.Frames[v].Shape.Interior ?? Train.Frames[v].Shape.Cab) is { } room ? room.Min.Y : 0,
+                    v => v >= 0 && v < Train.Vehicles.Count && Train.Vehicles[v].HasGun && Sim.Combat.Guns.Mount(Train, v) is { } mount
+                        ? (mount.Position, Sim.Combat.Guns.FacingYaw(mount) + Train.Vehicles[v].Gun.Traverse) : null,
+                    v => v >= 0 && v < Train.Frames.Count ? [.. Train.Frames[v].Shape.DoorList.Select(d => d.Box)] : []);
+                // App. E.2 step 1 (the director's decision of 5 Oct 2026): nobody dies on the derail tick. The film's own
+                // physics, recorded now, says when each of the crew takes the hit that kills them; they die then, as it lands
+                // in their own first person (FilmTuning.DeathDelay), and every client's first person ends on its own.
+                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film));
+                _filmRecorded = Film;
+                _derailTick = Tick;
+                _doomedAt.Clear();
+                foreach (var (id, death) in _recording.Deaths)
+                    _doomedAt[id] = Tick + (uint)Math.Ceiling(WreckTuning.Film.DeathDelay(death.At) * SimConstants.TickRate - 1e-9);
             }
         }
         Derailed = true;
@@ -648,10 +660,41 @@ public sealed class World
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
         }
         return crew;
     }
+
+    FilmRecording? _recording;
+    FilmStart? _filmRecorded;
+    uint _derailTick;
+    readonly Dictionary<int, uint> _doomedAt = [];
+    readonly HashSet<int> _countedAhead = [];
+    bool _doomed;
+
+    /// <summary>
+    /// Host, after a derailment (App. E.2 step 1, the director's decision of 5 Oct 2026): the tick each of the crew dies on,
+    /// their first hard hit in the film's physics as it lands in their first person. Empty before, and on a client.
+    /// </summary>
+    public IReadOnlyDictionary<int, uint> DoomedAt => _doomedAt;
+
+    /// <summary>The tick the train came off (host).</summary>
+    public uint DerailTick => _derailTick;
+
+    /// <summary>
+    /// Off the rails, the living are the wreck's, not their own (host and a predicting client alike): nothing they press
+    /// moves them; they ride where they were till the hit that kills them. Only the skip vote still counts (E.5).
+    /// </summary>
+    public bool Wrecked(in PlayerState s) => Derailed && s.Alive;
+
+    /// <summary>What's left of an intent once the wreck has you (<see cref="Wrecked"/>): the skip vote.</summary>
+    public static PlayerIntent WreckedIntent(in PlayerIntent i) => new() { Actions = i.Actions & PlayerActions.Skip };
+
+    Func<double, double, double> FilmGround(FilmStart start) => (x, z) =>
+    {
+        double hint = start.Along;
+        return PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref hint);
+    };
 
     /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
     public WreckTuning WreckTuning { get; set; } = new();
@@ -669,11 +712,9 @@ public sealed class World
     {
         if (Film is not { } start)
             return null;
-        return WreckFilm.Shoot(WreckTuning, start, (x, z) =>
-        {
-            double hint = start.Along;
-            return PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref hint);
-        });
+        // The host recorded it on the derail tick (for the deaths); a client records the same from the start it's sent.
+        var recorded = _recording;
+        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null);
     }
 
     /// <summary>
@@ -1302,6 +1343,9 @@ public sealed class World
         {
             if (get(d.PlayerId) is not { Alive: true } s)
                 continue;
+            // The wreck has them: what kills them is its hit (App. E.2 step 1), already in the log.
+            if (Derailed && _doomedAt.ContainsKey(d.PlayerId))
+                continue;
             if (d.Pull is { } outward)
             {
                 PlayerMotor.PullOff(ref s, Train, outward, Train.Dynamics.Tuning, d.Cause);
@@ -1333,8 +1377,24 @@ public sealed class World
                 }
         if (!Derailed)
             return;
+        // App. E.2 step 1 (the director's decision of 5 Oct 2026): the run ends on the derail tick and the settlement is fixed
+        // there (E.7), so every death the wreck will cause is counted and logged on it; each player's body goes down on the
+        // tick of their own hit (DoomedAt), and that death isn't counted or logged again (Bodies.OnDeaths, StepBodies).
+        if (!_doomed)
+        {
+            _doomed = true;
+            var all = crew.Select(id => (Id: id, State: get(id))).Where(c => c.State is not null).Select(c => (c.Id, c.State!.Value)).ToList();
+            foreach (var (id, s) in all)
+                if (s.Alive && _doomedAt.ContainsKey(id))
+                {
+                    Bodies.CountAhead(id);
+                    _countedAhead.Add(id);
+                    if (Run is not null)
+                        Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s with { Health = 0, Death = DeathCause.Derailed }, null, all));
+                }
+        }
         foreach (int id in crew)
-            if (get(id) is { Alive: true } s)
+            if (get(id) is { Alive: true } s && (!_doomedAt.TryGetValue(id, out uint at) || Tick >= at))
                 set(id, s with { Health = 0, Death = DeathCause.Derailed });
     }
 }

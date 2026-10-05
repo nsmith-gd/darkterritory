@@ -75,7 +75,7 @@ public class RejoinTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Equal(("Dave", 42ul), Messages.ReadHello(ref r));
-        Assert.Equal(27, Protocol.Version);
+        Assert.Equal(28, Protocol.Version);
     }
 
     [Fact]

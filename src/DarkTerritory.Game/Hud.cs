@@ -508,7 +508,7 @@ public static class Hud
         // what did it: "TOOK THE 45 KM/H BEND AT 68 KM/H, 23 KM/H TOO FAST".
         if (s.WreckCinematic)
         {
-            if (DerailSequence.Beat(world.WreckTuning, s.WreckSeconds) == DerailBeat.Replay)
+            if (DerailSequence.Beat(s.SequenceTuning, s.WreckSeconds) == DerailBeat.Replay)
             {
                 Big("REPLAY", Ink);
                 // The host has the cause; a client has it from the incident report (sent as the run ends, on the derail tick).
@@ -933,7 +933,7 @@ public static class Hud
     /// </summary>
     static void Film(Overlay o, int width, int height, IPlaySession s)
     {
-        var t = s.World.WreckTuning;
+        var t = s.SequenceTuning;
         if (s.Film is not { } film || DerailSequence.Beat(t, s.WreckSeconds, film) != DerailBeat.Film
             || film.CutAt(DerailSequence.FilmSeconds(t, s.WreckSeconds)) is not { } at)
             return;

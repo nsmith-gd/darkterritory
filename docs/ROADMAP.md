@@ -15,7 +15,7 @@ off), the few pieces still greybox, and testing on real machines with real peopl
 | **M1 — Feel prototype** | done | Window, Vulkan renderer, headless screenshots, FPS controller on moving frames, a drivable train | Spec G.1/G.2 answered through four playtest rounds (T90–T121) |
 | **M2 — Crew of eight** | done on LAN | Replication, prediction, interest management, physics sync, Steam lobby code, bots, nightly 8-client rough-link soak, LAN host/join lobby, rejoining after a drop (note 253) | A first run on real Steam between two accounts; a real two-machine LAN night |
 | **M3 — Voice** | done | Opus, host routing, proximity and occlusion, the radio item, the dead channel, the GRAB on the radio, the hard-cut | An eight-person voice test |
-| **M4 — VR** | in progress | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210), multiview stereo: both eyes in one pass, a pass an eye where the GPU can't (note 221) | Hands that hold what they carry, the exit test on a real Quest and SteamVR (and multiview's numbers on a real GPU, note 221) |
+| **M4 — VR** | backburner (5 Oct) | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210), multiview stereo: both eyes in one pass, a pass an eye where the GPU can't (note 221) | On the backburner (see Status) |
 | **M5 — Demo slice** | built, in review | Procedural line, fortress, facilities and their set pieces, the v1.4 roster of five plus the Choir, director, mixer, art and audio at L1 | The director's sign-off to L2 on the demo's rows; set pieces still greybox |
 | **M6 — Demo ship** | in progress | Packaged Windows/Linux builds from CI, the demo edition, upload scripts, crash reports, settings, store art at L1 | The Coming Soon page, store art and trailer to L2, itch build (EOS) |
 | M7 — Next Fest | partly | Mod loader v1 (Thunderstore), balance sweeps | Feb build polish, more facilities and enemies |
@@ -303,10 +303,7 @@ Remaining for M2:
 
 - **The crew see a headset's arms (T47):** the hands go out in snapshots (free for keyboard players), and a two-bone arm reaches from the shoulder to each; `dt screenshot --view roof --crew` shows them.
 
-Remaining for M4:
-- the rest of body IK (a spine that follows the headset, stepping legs)
-- ~~multiview~~ done (ARCHITECTURE §8 note 221): both eyes in one pass where the GPU has VK_KHR_multiview, a pass an eye where it hasn't
-- the exit test on a real Quest and SteamVR
+**Backburner (the director, 5 Oct 2026):** VR support is on the backburner for now. What's built stays as it is, and nothing in VR is in the priority orders. Its remaining items wait until it's picked up again: hands that hold what they carry, the exit test on a real Quest and SteamVR, and multiview's numbers on a real GPU (note 221). (The body under the headset is done, note 210, and multiview, note 221.)
 
 **GDD v1.4 (1–4 Oct, #127–#149):**
 - **Playtest rounds 2–4:** the gun seat, a rarer and musical Choir, solo nights planned for one, a cause on every death, the LAN host/join lobby with a game list, the giggling Track Doll, crew lockers, the voice hard-cut, hit confirms (T112–T121).
@@ -325,5 +322,7 @@ Remaining for M4:
 4. **P1, the set pieces heard:** (done, note 198) the spout's pour, the herd, the hose's leak, the wreck yard's heaps groaning (notes 185, 187); their models are the art pass's.
 5. **P2, real machines:** (rehearsed here in two app windows, note 199: a dropped joiner fixed) a two-machine LAN night and a two-account Steam night from the CI packages, then the eight-person voice test.
 6. **P3, the director's review:** the art and audio checklists' In-review rows (112 art, 104 audio, 291 audio cues), demo scope first, with store art and the trailer ahead of the Coming Soon page.
-7. **P4, the rest:** (done, notes 201–204, 210) WP14 (wind on footing, the cold on the HUD), WP11 (a vote screen, VR voting), WP8 (per-player bookmark shots), WP17 (the sweep over more routes and crew sizes), T82 (the VR body).
+7. **P4, the rest:** (done, notes 201–204) WP14 (wind on footing, the cold on the HUD), WP11 (a vote screen), WP8 (per-player bookmark shots), WP17 (the sweep over more routes and crew sizes).
+
+VR is not in these orders: it's on the backburner (the director, 5 Oct 2026; M4 above).
 

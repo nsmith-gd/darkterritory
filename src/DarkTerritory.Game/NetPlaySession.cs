@@ -238,7 +238,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The host's shuffle bag as it stands (E.6), to keep with the campaign save or the app's data; null on a joiner.</summary>
     public Sim.Music.MusicBag? MusicBag => Host?.World.Music?.Bag;
 
-    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < DerailSequence.Length(World.WreckTuning, Film);
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < DerailSequence.Length(SequenceTuning, Film);
+
+    /// <summary>The sequence's timing with this player's own first person (<see cref="IPlaySession.SequenceTuning"/>).</summary>
+    public WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
 
     Task<WreckFilm?>? _shooting;
 
@@ -249,9 +252,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public WreckFilm? Film => _shooting is { IsCompletedSuccessfully: true } done ? done.Result : null;
 
     public bool Skippable =>
-        Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) >= film.SkippableFrom
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt
+        Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) >= film.SkippableFrom
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
 
@@ -419,6 +422,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
         hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
+        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 258): compiled now, off the
+        // frame loop, so that tick isn't held up by the JIT as well (a second, the first time).
+        var warmTuning = hostWorld.WreckTuning;
+        _ = Task.Run(() => WreckFilm.Warm(warmTuning));
         // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
         if (setup.Identities is { } identities)
             hostWorld.LooksByName = identities;
@@ -825,9 +832,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _shooting = Task.Run(() => (WreckFilm?)world.ShootFilm());
         }
         // E.5: voted off, the film cuts to the cause card (never past it); E.9: the outro to its end.
-        if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt)
-            WreckSeconds = World.WreckTuning.FirstPersonSeconds + World.WreckTuning.ReplaySeconds + film.CauseAt;
+        if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt;
         if (World.FilmSkipped && StrandedOutro)
             OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;

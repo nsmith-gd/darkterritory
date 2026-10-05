@@ -20,7 +20,7 @@ public class FilmTests
     /// <summary>A world with <paramref name="crew"/> aboard, spread down the train (cab, roofs, cars), derailed on a curve.</summary>
     static World Derailed(int crew, double speed = 20, int cars = 6)
     {
-        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, 2250);
         train.Dynamics.Velocity = speed;
         train.RefreshFrames();

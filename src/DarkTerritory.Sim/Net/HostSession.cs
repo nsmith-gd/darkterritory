@@ -111,7 +111,12 @@ public sealed class HostSession
         BoardWaiting();
 
         foreach (var c in _crew)
+        {
             c.ThisTick = NextIntent(c);
+            // Off the rails, the living are the wreck's till its hit kills them (App. E.2 step 1): only the skip vote counts.
+            if (World.Wrecked(c.State))
+                c.ThisTick = World.WreckedIntent(c.ThisTick);
+        }
 
         World.BeginTick();
         // The brake is held, so it's cleared each tick and re-applied by whoever's holding it; with nobody at the controls
@@ -148,7 +153,8 @@ public sealed class HostSession
         World.ApplyDamage(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s, _crew.Select(c => (int)c.Id));
         CutTheDead();
         foreach (var c in _crew)
-            PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+            if (!World.Wrecked(c.State))
+                PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
         if (World.Holdouts is { } holdouts)
             holdouts.StartingKit = PlayerTuning.StartingKit;

@@ -113,7 +113,7 @@ public class BookmarkStillsTests
             Assert.Equal((ShotKind.Player, p.Id), (peak.Shot.Kind, peak.Shot.Subject));
             Assert.InRange(peak.Into, 0, peak.Shot.Real);
             Assert.Equal(Math.Clamp(film.Peaks[p.Id].At, peak.Shot.From, peak.Shot.To), peak.Recorded, 4);
-            Assert.True((peak.Camera.Position - DerailSequence.FilmCamera(peak.Shot, peak.Into).Position).Length < 1e-9);
+            Assert.True((peak.Camera.Position - DerailSequence.FilmCamera(peak.Shot, peak.Into, film).Position).Length < 1e-9);
         }
         Assert.Null(DerailSequence.PeakOf(film, 7));
     }

@@ -688,7 +688,8 @@ public sealed partial class Run
         const double WithTheTrain = 40;
         // Stranded (§23.2): the dawn freight tows the train in, and the living come home with it, wherever they're stood.
         bool stranded = End == RunEnd.Stranded;
-        int crewHome = crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
+        // Derailed, nobody comes home: the living on the derail tick are the wreck's, and die in it (App. E.2 step 1).
+        int crewHome = End == RunEnd.Derailed ? 0 : crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
         double recovery = stranded ? Math.Round(Tuning.Stranded.RecoveryFee * perCar) : 0;
         // GDD App. D.9, bodies as loot: every death costs the crew a fee; every body brought home (stowed in a car still on
