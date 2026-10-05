@@ -522,7 +522,7 @@ public sealed partial class GameAudio
         float occ = Occlusion(c.Space);
         bool killed = Killed(world, c);
         // Killed, it goes over and crumbles to ash from halfway (note 208's GreyboxScene.Deaths, Effects.DeathSeconds): the
-        // crumble's heard as it's seen, the kill confirmed whatever it was (note 237).
+        // crumble's heard as it's seen, the kill confirmed whatever it was (note 240).
         if (killed && GreyboxScene.Falls(c.Kind))
             CueLater(Effects.DeathSeconds * 0.5, "creature-crumble", c.At, occ);
         switch (c.Kind)
@@ -597,7 +597,7 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// Killed: the host's word, where it's given (T121's HitConfirm.Killed: a blow, a round or a blast that killed it, on the
-    /// wire with the record it ends; note 237). With no hit on it at all to go by: the last record's Health was within one
+    /// wire with the record it ends; note 240). With no hit on it at all to go by: the last record's Health was within one
     /// blow (a tool's, or a round's just after a gun fired), and something could have dealt it: a gun just fired, or a
     /// crewmate in reach (or no crew records to say otherwise).
     /// </summary>

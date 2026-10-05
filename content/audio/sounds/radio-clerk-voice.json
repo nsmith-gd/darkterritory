@@ -1,4 +1,4 @@
-// The yard's voice (GDD §9; note 233): a line of the manifest or the tally, strung together by the game from the clerk's
+// The yard's voice (GDD §9; note 236): a line of the manifest or the tally, strung together by the game from the clerk's
 // word bank (samples/voice-clerk/bank, tools/audio/clerk.py) and played as this sound's clip. Through the set as a
 // crewmate's radio is (voice-radio): flat, band-limited 300 Hz-3 kHz with the set's honk, and crushed. Tier 2: the bed
 // ducks under it, and nothing ducks it.

@@ -13,7 +13,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The dead's and the run end's choices heard (GDD v1.4 App. D.11, D.12; ARCHITECTURE §8 note 236): the ballot's pick, its
+/// The dead's and the run end's choices heard (GDD v1.4 App. D.11, D.12; ARCHITECTURE §8 note 239): the ballot's pick, its
 /// cast and the host's lock, a bookmark this player took, a commendation given; each once, and none for what was already so.
 /// </summary>
 public class ChoiceSoundTests
