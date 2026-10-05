@@ -80,6 +80,51 @@ public sealed class GameAudio
         Whistle(world, train);
         Toys(world, train);
         CallOuts(world);
+        SetPieces(world);
+    }
+
+    readonly Dictionary<(string Sound, int Site, int Index), SoundInstance> _setPieces = [];
+
+    /// <summary>
+    /// The facilities' set pieces heard (note 198; notes 185, 187 had them silent): the spout pouring, the herd stirred up,
+    /// the hose leaking, and a wreck-yard heap groaning before it shifts (its tell). Each a loop where it is, for as long as
+    /// the run's state says so; the run's set pieces and heaps are replicated, so every client hears the same.
+    /// </summary>
+    void SetPieces(World world)
+    {
+        var want = new HashSet<(string, int, int)>();
+        if (world.Run is { } run)
+            for (int i = 0; i < run.Sites.Count; i++)
+            {
+                if (run.Sites[i] is not { } site)
+                    continue;
+                if (site.Pouring)
+                    Keep(want, ("spout-pour", i, 0), site.Spout);
+                if (site.Stirred)
+                    Keep(want, ("herd", i, 0), site.Pen);
+                if (site.Leaking)
+                    Keep(want, ("hose-leak", i, 0), site.HoseStand);
+                for (int h = 0; h < site.Heaps.Count; h++)
+                    if (site.Heaps[h].Groan > 0)
+                        Keep(want, ("heap-groan", i, h), site.Heaps[h].Centre + Double3.Up);
+            }
+        foreach (var key in _setPieces.Keys.Where(k => !want.Contains(k)).ToList())
+        {
+            _setPieces[key].Stop();
+            _setPieces.Remove(key);
+        }
+    }
+
+    void Keep(HashSet<(string, int, int)> want, (string Sound, int Site, int Index) key, Double3 at)
+    {
+        want.Add(key);
+        if (!_setPieces.TryGetValue(key, out var loop) && Mixer.Play(key.Sound, at) is { } started)
+            _setPieces[key] = loop = started;
+        if (loop is not null)
+        {
+            loop.Position = at;
+            loop.Occlusion = Occlusion(PlayerMotor.Outside);
+        }
     }
 
     readonly Dictionary<int, int> _calls = [];

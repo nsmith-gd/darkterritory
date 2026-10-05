@@ -61,6 +61,28 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void ADroppedClientKnowsItAndDoesntSeeItselfAsCrew()
+    {
+        // The 4 Oct two-window rehearsal: a joiner whose link timed out sat on "connecting…", with its own player back in the
+        // crew list (RemoteIds filtered on a PlayerId the drop had cleared), drawn round its own eyes.
+        var net = new LoopbackNetwork();
+        var hostLink = net.CreateHost();
+        var host = new HostSession(hostLink, new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600), T, P);
+        var clientLinks = new[] { net.CreateClient(), net.CreateClient() };
+        var clients = clientLinks.Select(l => new ClientSession(l, new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600), T, P)).ToArray();
+        Run(net, host, clients, 30, _ => default);
+        byte me = clients[0].PlayerId!.Value;
+        Assert.DoesNotContain(me, clients[0].RemoteIds);
+        Assert.False(clients[0].Dropped);
+        hostLink.Disconnect(clientLinks[0].LocalId);
+        Run(net, host, clients, 2, _ => default);
+        Assert.True(clients[0].Dropped);
+        Assert.False(clients[0].Connected);
+        Assert.DoesNotContain(me, clients[0].RemoteIds);
+        Assert.False(clients[1].Dropped);
+    }
+
+    [Fact]
     public void OnlySomeoneOnTheEngineCanDrive()
     {
         var (net, host, clients) = Session(2);

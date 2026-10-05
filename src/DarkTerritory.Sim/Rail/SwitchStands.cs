@@ -11,7 +11,8 @@ public readonly record struct SwitchThrow(int Branch, int PlayerId, bool Divergi
 
 /// <summary>
 /// The switch stands beside every branch's points (GDD §17: "switches are thrown by hand. Someone is on the ground at
-/// every junction, alone, calling the route"). A player stands at one and holds Use to throw it; the host decides.
+/// every junction, alone, calling the route"). A player stands at one and holds Use to throw it; the host decides. With
+/// spec F.3's powered switch thrower fitted, the cab's lever throws the next points ahead the same way (note 196).
 /// </summary>
 public sealed class SwitchStands(JunctionTuning tuning)
 {
@@ -29,9 +30,16 @@ public sealed class SwitchStands(JunctionTuning tuning)
         return t.Position + right * (b.Side * Tuning.LeverOffset) + Double3.Up * 0.9;
     }
 
-    /// <summary>The switch a player could put their hands on (the HUD's prompt, and <see cref="CrewAct"/>).</summary>
+    /// <summary>
+    /// The switch a player could put their hands on (the HUD's prompt, and <see cref="CrewAct"/>): a stand's, or with the
+    /// powered thrower fitted, the next points ahead from its lever in the cab (<see cref="FromCab"/>).
+    /// </summary>
     /// <param name="hand">When hands are reported (T29), a reaching hand has to be on the lever.</param>
-    public int? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    public int? InReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        AtStand(s, train, hand) ?? (AtThrower(s, train, hand) ? PointsAhead(train) : null);
+
+    /// <summary>The stand whose lever a player has their hands on.</summary>
+    int? AtStand(in PlayerState s, TrainOnLine train, HandTuning? hand)
     {
         if (!s.Alive || train.Line.Branches.Count == 0)
             return null;
@@ -45,13 +53,48 @@ public sealed class SwitchStands(JunctionTuning tuning)
         return null;
     }
 
+    /// <summary>
+    /// At the powered switch thrower's lever in the cab (spec F.3 "removes the ground excursion at junctions"; note 196),
+    /// and it's fitted (train.json <c>composition.switchThrower</c>).
+    /// </summary>
+    public static bool AtThrower(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        s.Alive && train.Dynamics.Tuning.Composition.SwitchThrower && s.Parent == 0 && PlayerMotor.InCab(s, train)
+        && CrewActions.Nearest(s, train, hand) == InteractableKind.Points;
+
+    /// <summary>
+    /// The points the powered thrower reaches: the nearest ahead of the engine's front on the main line, within
+    /// <c>composition.thrower.reach</c>. Null with none, or with the engine off the main line (down a branch, there are none
+    /// ahead of it).
+    /// </summary>
+    public static int? PointsAhead(TrainOnLine train)
+    {
+        double front = train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
+        if (double.IsNaN(front))
+            return null;
+        double reach = train.Dynamics.Tuning.Composition.Thrower.Reach;
+        int? best = null;
+        foreach (var b in train.Line.Branches)
+            if (b.Toe >= front && b.Toe - front <= reach && (best is not { } k || b.Toe < train.Line.Branches[k].Toe))
+                best = b.Index;
+        return best;
+    }
+
+    /// <summary>Whether the train's slow enough for the powered thrower (<c>composition.thrower.maxSpeed</c>, either way).</summary>
+    public static bool SlowEnough(TrainOnLine train) => Math.Abs(train.Dynamics.Velocity) <= train.Dynamics.Tuning.Composition.Thrower.MaxSpeed;
+
+    /// <summary>Who's at the cab's lever, the switch it reaches (null with none), and whether it'll throw now (the HUD's prompt).</summary>
+    public static (int? Branch, bool Slow)? CabLever(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        AtThrower(s, train, hand) ? (PointsAhead(train), SlowEnough(train)) : null;
+
     /// <summary>How far through throwing it a player is, 0..1 (host only: clients see the switch move when it has).</summary>
     public double Progress(int playerId) => _held.TryGetValue(playerId, out var h) ? Math.Min(1, h.Held / Tuning.ThrowSeconds) : 0;
 
     /// <summary>Host: a player's hands this tick. Holding Use at a stand long enough throws it over, once per hold.</summary>
     public SwitchThrow? CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null)
     {
-        if (InReach(s, train, hand) is not { } branch || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5)
+        // From the cab (note 196), only with the train slowed for it.
+        int? reached = AtStand(s, train, hand) ?? (AtThrower(s, train, hand) && SlowEnough(train) ? PointsAhead(train) : null);
+        if (reached is not { } branch || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5)
         {
             _held.Remove(playerId);
             return null;

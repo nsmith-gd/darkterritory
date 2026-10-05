@@ -320,9 +320,10 @@ public static class Campaign
         spares <= 0 ? l : l with { Train = l.Train with { Kit = l.Train.Kit with { SpareKits = spares } } };
 
     /// <summary>
-    /// The night's tunings after the crew's upgrades. Upgrades with no modelled effect change nothing. Most effects multiply
-    /// a tuning; the consist's (note 184) add cars to train.json's <c>composition</c> (<c>utilityCars</c>, <c>guardCars</c>,
-    /// <c>armouredCars</c>) or fit something (<c>handrails</c>), and every machine builds the same train from them.
+    /// The night's tunings after the crew's upgrades. Most effects multiply a tuning; <c>radioReach</c> adds metres to the
+    /// radio's (note 196); the consist's (note 184) add cars to train.json's <c>composition</c> (<c>utilityCars</c>,
+    /// <c>guardCars</c>, <c>armouredCars</c>) or fit something (<c>handrails</c>, <c>switchThrower</c>), and every machine
+    /// builds the same train from them. An effect name nobody models changes nothing.
     /// </summary>
     public static Loadout Apply(CampaignTuning t, IEnumerable<string> upgrades, Loadout base_)
     {
@@ -348,6 +349,12 @@ public static class Campaign
                     "contactSafe" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { SafeContactSpeed = l.Train.Couplings.SafeContactSpeed * k } } },
                     "underLoad" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { UncoupleUnderLoadSeconds = l.Train.Couplings.UncoupleUnderLoadSeconds * k } } },
                     "unhook" when l.Enemies is { } e => l with { Enemies = e with { Passenger = e.Passenger with { UncoupleSeconds = e.Passenger.UncoupleSeconds * k } } },
+                    // The last of F.3's small ones and its switch thrower (note 196).
+                    "lampOut" when l.Enemies is { } e => l with { Enemies = e with { Climbers = e.Climbers with { LampOutSeconds = e.Climbers.LampOutSeconds * k } } },
+                    "foul" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { FoulChance = l.Combat.Guns.FoulChance * k } } },
+                    "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
+                    "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
+                    "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
                     _ => l,
                 };
         }

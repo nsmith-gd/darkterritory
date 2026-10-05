@@ -173,6 +173,9 @@
   // held by fewer players (within countRadius) than it has Climbers, scrabbling scrabbleSeconds first. Up, they traverse
   // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds.
   "climbers": {
+    // GDD §23 "lights fail" (note 183): coming over the engine's end into the cab, it smashes the forward lamp for this
+    // long (s). Lamp armour (campaign.json, F.3) shortens it.
+    "lampOutSeconds": 45,
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10
