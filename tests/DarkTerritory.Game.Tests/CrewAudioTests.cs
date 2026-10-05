@@ -5,6 +5,7 @@ using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -32,9 +33,13 @@ public class CrewAudioTests
         public int Tick;
 
         public Bench(params string[] cues)
+            : this(new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), 5_000), C), cues)
         {
-            var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
-            World = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        }
+
+        public Bench(World world, params string[] cues)
+        {
+            World = world;
             foreach (var cue in cues)
                 Audio.Bank.Add(cue, new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
             Audio.PlayerTuning = P;
@@ -295,6 +300,43 @@ public class CrewAudioTests
         b.Step((1, you), (2, mate with { HeldSlot = 3 }));
         Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
         Assert.Equal(1, b.Count("crew-melee.crowbar-swing"));
+    }
+
+    [Fact]
+    public void ThePoweredThrowersLeverGoesOverInTheCabNotAtTheStand()
+    {
+        // Spec F.3's powered switch thrower (note 196): the driver throws the points ahead from a lever in the cab. Taking
+        // hold of it and its going over are heard there, where they are; the points still move at the points.
+        var fitted = T with { Composition = T.Composition with { SwitchThrower = true } };
+        var junctions = RouteTuning.Load(Content).Junctions;
+        const double Toe = 3_000;
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(8_000)]),
+            [new BranchDefinition(BranchKind.DeadLine, Toe, +1,
+                [new TrackSegment(junctions.DivergeLength, -junctions.DivergeRadius), new TrackSegment(junctions.DivergeLength, junctions.DivergeRadius), new TrackSegment(500)])]);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(fitted, 4, 1)), line, Toe - 150), C);
+        world.EnableBodies();
+        world.EnableSwitches(junctions);
+        world.SetSwitch(0, true);
+        var b = new Bench(world, "crew-switch.lever-unlatch", "crew-switch.lever-throw", "crew-switch.points-move", "crew-switch.lever-latch");
+        b.Audio.OwnId = 1;
+        var leverAt = b.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Points).Position;
+        var s = PlayerMotor.SpawnInCab(b.Train, P);
+        s.Position = s.Position with { X = Math.Clamp(leverAt.X, -1.05, 1.05), Z = leverAt.Z };
+        Assert.True(SwitchStands.AtThrower(s, b.Train));
+        var cab = b.Train.Frames[0].ToWorld(leverAt);
+        b.Step((1, s));
+        b.Audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Use };
+        b.Step((1, s));
+        var unlatch = Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-unlatch");
+        Assert.True((unlatch.At - cab).Length < 0.01);
+        // The host throws it (replicated as the switch's setting): the cab's lever over and latched, the points at the toe.
+        world.SetSwitch(0, false);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((1, s));
+        var thrown = Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-throw");
+        Assert.True((thrown.At - cab).Length < 0.01);
+        Assert.True((Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-latch").At - cab).Length < 0.01);
+        Assert.True((Assert.Single(b.Heard, h => h.Name == "crew-switch.points-move").At - line.Sample(Toe).Position).Length < 0.01);
     }
 
     [Fact]

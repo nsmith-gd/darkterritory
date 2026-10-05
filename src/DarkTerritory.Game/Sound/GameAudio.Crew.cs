@@ -6,6 +6,7 @@ using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
 using Kit = DarkTerritory.Sim.Player.Kit;
 
@@ -502,12 +503,18 @@ public sealed partial class GameAudio
         // The shovel by hand (T29): coal onto the blade at the tender's face.
         if (s.Has(PlayerFlags.Shovelful) && !c.Shovelful)
             CoalFace(train, occlusion);
-        // Your own hand on a switch stand's lever (its hold is host-only): the latch lifted as you take hold.
+        // Your own hand on a switch stand's lever (its hold is host-only): the latch lifted as you take hold. At the powered
+        // thrower's lever in the cab (note 196) it's that lever's, in the cab, not the stand's down the line.
         if (id == OwnId && world.Switches is { } stands)
         {
             int? lever = OwnIntent.Has(PlayerButtons.Use) ? stands.InReach(s, train, world.Hand) : null;
             if (Rose("crew-switch.lever", id, lever is not null) && lever is { } b)
-                Cue("crew-switch.lever-unlatch", stands.LeverAt(train.Line, b), Occlusion(PlayerMotor.Outside));
+            {
+                if (SwitchStands.AtThrower(s, train, world.Hand) && CabLever(train) is { } cab)
+                    Cue("crew-switch.lever-unlatch", cab, Occlusion(0));
+                else
+                    Cue("crew-switch.lever-unlatch", stands.LeverAt(train.Line, b), Occlusion(PlayerMotor.Outside));
+            }
         }
         if (s.Parent == PlayerState.World || s.ActionProgress <= 0)
             return;
@@ -989,12 +996,28 @@ public sealed partial class GameAudio
                 continue;
             _crewSwitches[i] = diverging;
             var toe = line.Sample(line.Branches[i].Toe).Position;
-            var lever = world.Switches?.LeverAt(line, i) ?? toe;
             float outside = Occlusion(PlayerMotor.Outside);
-            Cue("crew-switch.lever-throw", lever, outside);
             Cue("crew-switch.points-move", toe, outside);
-            CrewAfter(LeverLatchAfter, "crew-switch.lever-latch", lever, outside);
+            // Thrown from the cab (the powered thrower, note 196: someone at its lever, and these the points it reaches), the
+            // lever that goes over is the cab's, where the driver is; otherwise the stand's, beside the points.
+            bool fromCab = CabLever(train) is { } cab && SwitchStands.PointsAhead(train) == i
+                && CrewStates.Any(p => SwitchStands.AtThrower(p.State, train, world.Hand));
+            var (lever, heard) = fromCab ? (CabLever(train)!.Value, Occlusion(0)) : (world.Switches?.LeverAt(line, i) ?? toe, outside);
+            Cue("crew-switch.lever-throw", lever, heard);
+            CrewAfter(LeverLatchAfter, "crew-switch.lever-latch", lever, heard);
         }
+    }
+
+    /// <summary>The powered switch thrower's lever in the cab (spec F.3, note 196), in the world; null when it isn't fitted.</summary>
+    static Double3? CabLever(TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.SwitchThrower || train.Frames.Count == 0)
+            return null;
+        var engine = train.Frames[0];
+        foreach (var i in engine.Shape.Interactables)
+            if (i.Kind == InteractableKind.Points)
+                return engine.ToWorld(i.Position);
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------------ the cannons
