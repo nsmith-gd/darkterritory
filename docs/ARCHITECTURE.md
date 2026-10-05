@@ -3521,3 +3521,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `WallsTests`: the same room is clear; a shut car's walls are a wall from outside and from inside; an open door in line is clear and the far side leaks; a breach is a hole; from one shut car into another is walls; the roof of the car you're in is a wall.
       - `RidingTests`: a one-shot on a car at 22 m/s rides it, and a world one stays put.
       - The tell audit holds with them.
+249. **The sound settings: the volumes, the microphone and its level (the audio checklist's mix-settings: "master, effects and voice volumes, mic device and level, push-to-talk, mute").** The settings had sound on or off and push-to-talk.
+    - **Volumes (`Settings.MasterVolume`, `EffectsVolume`, `MusicVolume`, `VoiceVolume`; `Ballast.Audio.MixVolumes`):** 0–100% each, a tenth at a time. They go on top of the mix: they scale buses, they don't move the mix's own levels.
+      - Effects is the game's sounds: the tells, the train, the world, your own hands (tiers 1 and 3–6).
+      - Music is the work's drone (tier 7) and the opera's bus.
+      - Voice is tier 2: the crew near, on the radio and on the dead channel, and the yard's clerk.
+      - Turning effects down turns the tells down with them. That's the player's own choice; the ducking still keeps them over the bed.
+    - **The microphone (`Settings.MicDevice`, `AudioIn.Devices`, `AudioIn.Open(..., device)`):** the default or one by name, round the ones SDL lists. A name that's gone opens the default. It applies from the next night, when the mic opens.
+    - **Its level (`Settings.MicLevel`, `VoiceChat.MicLevel`):** 0–300%, before anything hears the mic, the voice activity included, so a quiet mic turned up opens it. It's clipped at full scale.
+    - **Tests:** `MixerTests.ThePlayersVolumesScaleTheirBuses`, `FrontEndTests.TheSoundSettingsAreSavedAndAreTheMixersVolumes`, `VoiceTests.TheMicLevelIsWhatTheCrewHearAndTurnedRightDownNothingGoes`. `dt screenshot --menu settings` shows the screen.

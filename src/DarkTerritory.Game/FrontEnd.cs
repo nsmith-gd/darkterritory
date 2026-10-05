@@ -119,6 +119,8 @@ public sealed class FrontEnd
     }
     /// <summary>The wire protocol this build speaks: a game on another can't be joined.</summary>
     public int Protocol { get; init; }
+    /// <summary>The microphones there are, by name (the app asks the platform): the settings' MICROPHONE goes round them.</summary>
+    public IReadOnlyList<string> MicDevices { get; init; } = [];
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "";
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
@@ -392,6 +394,15 @@ public sealed class FrontEnd
         [
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            // The audio checklist's mix-settings: the volumes, the microphone and its level.
+            Volume("MASTER VOLUME", "Everything you hear.", Settings.MasterVolume, (s, v) => s with { MasterVolume = v }),
+            Volume("EFFECTS VOLUME", "The train, the world, the things in the dark, your own hands.", Settings.EffectsVolume, (s, v) => s with { EffectsVolume = v }),
+            Volume("MUSIC VOLUME", "The drone under the night, and the opera when it's over.", Settings.MusicVolume, (s, v) => s with { MusicVolume = v }),
+            Volume("VOICE VOLUME", "The crew, near and on the radio, the dead, and the yard.", Settings.VoiceVolume, (s, v) => s with { VoiceVolume = v }),
+            new(new($"MICROPHONE: {(Settings.MicDevice is { Length: > 0 } mic ? mic.ToUpperInvariant() : "DEFAULT")}", "Left and right to change. From the next night."),
+                Toggle(s => s with { MicDevice = NextMic(s.MicDevice, 1) }), by => Change(Settings with { MicDevice = NextMic(Settings.MicDevice, by) })),
+            new(new($"MIC LEVEL: {Settings.MicLevel * 100:0}%", "Left and right to change: up if the crew can't hear you."), null,
+                by => Change(Settings with { MicLevel = Math.Clamp(Math.Round(Settings.MicLevel + by * 0.1, 1), 0, 3) })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
                 _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
@@ -429,6 +440,17 @@ public sealed class FrontEnd
     Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
 
     Func<Launch?> Toggle(Func<Settings, Settings> change) => () => { Change(change(Settings)); return null; };
+
+    /// <summary>A volume row: left and right a tenth at a time, from silent to full.</summary>
+    Entry Volume(string label, string what, double now, Func<Settings, double, Settings> set) =>
+        new(new($"{label}: {now * 100:0}%", what), null, by => Change(set(Settings, Math.Clamp(Math.Round(now + by * 0.1, 1), 0, 1))));
+
+    /// <summary>The next microphone along (the default first, then each by name), wrapping round.</summary>
+    string NextMic(string now, int by)
+    {
+        string[] all = ["", .. MicDevices];
+        return Settings.Cycle(all, Array.IndexOf(all, now) < 0 ? "" : now, by);
+    }
 
     Entry SlotEntry(int slot, CampaignState? s)
     {

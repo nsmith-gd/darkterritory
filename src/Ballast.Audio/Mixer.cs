@@ -18,6 +18,18 @@ public struct Listener
 }
 
 /// <summary>
+/// The player's volumes (the settings screen; the audio checklist's mix-settings), 0..1 each, on top of the mix: everything,
+/// the game's sounds (tiers 1 and 3-6), the crew's voices (tier 2) and the music (tier 7 and the opera's bus).
+/// </summary>
+public readonly record struct MixVolumes(float Master = 1, float Effects = 1, float Voice = 1, float Music = 1)
+{
+    public MixVolumes() : this(1, 1, 1, 1) { }
+
+    /// <summary>The gain on a tier's bus.</summary>
+    public float Of(int tier) => Math.Clamp(Master, 0, 1) * Math.Clamp(tier switch { 2 => Voice, Mixer.MusicTier or Mixer.Tiers => Music, _ => Effects }, 0, 1);
+}
+
+/// <summary>
 /// Records the mix split into stems by sound name, post-gain and post-duck, so a test can ask whether a tell
 /// cuts through everything else in its own band (spec A.3: "tier 1 is inviolable").
 /// </summary>
@@ -112,6 +124,8 @@ public sealed class Mixer
     }
 
     public MixDef Mix { get; set; }
+    /// <summary>The player's volumes, over the mix's own levels.</summary>
+    public MixVolumes Volumes { get; set; } = new();
     public Listener Listener;
     /// <summary>
     /// The space the listener's in (<c>content/audio/spaces.json</c>, chosen by the game): its reverb, what it shuts out,
@@ -294,6 +308,7 @@ public sealed class Mixer
             Spatial(v, out float left, out float right);
             int tier = Math.Clamp(v.Def.Tier, 1, Tiers);
             float bus = (v.Def.Tier == MusicTier ? MusicBus() : _tierGain[tier].Value * Audio.DbToGain(Mix.Fader(tier))) * master * v.CompressorGain
+                * Volumes.Of(v.Def.Tier)
                 * (_soundGain.TryGetValue(v.Name, out var sg) ? sg.Value : 1);
             float l0 = v.LeftGain.Value, r0 = v.RightGain.Value;
             float l1 = v.LeftGain.Step(left * bus, 0.01), r1 = v.RightGain.Step(right * bus, 0.01);
