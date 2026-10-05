@@ -4,6 +4,7 @@ using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -88,6 +89,52 @@ public class SteamAgainstTheBrakeTests
         });
         Assert.True(fastest < 15.9, $"ran away at {fastest:0.0} m/s, the gauge at {a.Train.Boiler.Pressure:0}, the brake at {a.Train.Dynamics.BrakeEfficiency:0.00}");
         Assert.True(a.Train.Boiler.Pressure < 75, $"the gauge at {a.Train.Boiler.Pressure:0}");
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(5.5)]
+    public void ADriverAloneLetsTheBrakeOffToSandUpAGreasedClimbAndIsBackInOnceItsGoing(double speed)
+    {
+        // Note 233 (deepTerritory:3 and :2 at a crew of two): up a greased climb the lone driver went out to sand with the brake
+        // held. On the sand it bit, the train stood on it (CabControls.Clears), never got off the grease, and he stayed out
+        // ~100 s while the fire burnt down and the Stoker got in. Standing on its brake, or slowing on the climb: off it, the
+        // steam pulls on the sand, and he's back at the controls once it's going, without letting it run back down the hill.
+        var route = new Route.Route("test", RouteTier.DeepTerritory, 1, new LineDefinition("test", [new TrackSegment(300), new TrackSegment(3000, 0, 2), new TrackSegment(2000)]),
+            [new RouteFeature(FeatureKind.Grease, 350, 3200)], new RouteWeather(0.01, false, 0, 0), 3600);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 10, 1)), route.Build(), 800, Tuning.Boiler);
+        train.Dynamics.Velocity = speed;
+        train.Boiler.Pressure = 70;
+        train.Boiler.Firebox = 4.5;
+        var world = new World(train);
+        world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File)), route);
+        var driver = new ConductorBot(new CrewCalls(), 0);
+        var d = PlayerMotor.SpawnInCab(train, P);
+        var c = new TrainControls { Reverser = 1, Brake = speed == 0 ? 1 : 0 };
+        double from = train.Dynamics.Distance, lowest = from, outFor = 0, longestOut = 0;
+        bool wentOut = false, backIn = false;
+        for (uint t = 0; t < 60 * SimConstants.TickRate && !backIn; t++)
+        {
+            var intent = driver.Decide(d, world, t, out _);
+            if (CabControls.CanDrive(d, train) && CabControls.Clears(c, train, CabControls.ReleasesBrake(intent, d, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, intent, d, train);
+            world.BeginTick();
+            world.CrewAct(ref d, intent, 1);
+            world.Step(c);
+            PlayerMotor.Step(ref d, intent, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            lowest = Math.Min(lowest, train.Dynamics.Distance);
+            bool outside = !PlayerMotor.InCab(d, train);
+            outFor = outside ? outFor + SimConstants.TickSeconds : 0;
+            longestOut = Math.Max(longestOut, outFor);
+            wentOut |= outside;
+            backIn = wentOut && !outside && driver.Sanding == false;
+        }
+        Assert.True(wentOut, "out to sand");
+        Assert.True(backIn, $"still out after {longestOut:0} s, at {train.Dynamics.Speed:0.0} m/s, the brake at {c.Brake}");
+        Assert.True(train.Dynamics.Speed > 3 && train.Dynamics.Distance > from + 20, $"at {train.Dynamics.Speed:0.0} m/s, {train.Dynamics.Distance - from:0} m on");
+        Assert.True(from - lowest < 5, $"ran back {from - lowest:0.0} m");
+        Assert.True(longestOut < 40, $"out for {longestOut:0} s");
     }
 
     [Fact]

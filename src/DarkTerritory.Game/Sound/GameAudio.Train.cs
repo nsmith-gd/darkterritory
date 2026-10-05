@@ -528,7 +528,13 @@ public sealed partial class GameAudio
         double since = _time - _derailedAt;
         var e = train.Frames[0];
         HoldLevel("state-rupture.steam-out", 1, e.ToWorld(new Double3(0, 2.4, -e.Shape.HalfLength * 0.4)), Occlusion(0), since < 3 ? 1 - 0.65 * since / 3 : 0.35);
-        if (train.Wreck is { } wreck)
+        // While the derailment film plays, its own recorded wreck is what's heard (GameAudio.Film); the live one goes quiet.
+        if (!double.IsNaN(_filmAt))
+        {
+            _wreckGrind?.Stop();
+            _wreckGrind = null;
+        }
+        else if (train.Wreck is { } wreck)
             WreckHeard(wreck);
     }
 

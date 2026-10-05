@@ -876,7 +876,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var wreckTuning = session.World.WreckTuning;
         bool wrecking = session.WreckCinematic && session.Train.Wreck is not null;
         var film = session.Film;
-        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
         // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
         // faded under the film's cause card.
         // Its hit on the final player's apex in the film (E.5-E.6; note 245), or the replay's derail moment with no film.
@@ -893,6 +892,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // E.5, E.9: the clerk's one line, said as it comes up (note 242): the film's cause card, the Stranded report over the
         // pull-back. It runs on past the card into the end screen if it's longer.
         string? clerkLine = null;
+        var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
         if (beat == DerailBeat.Film && film?.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) is { } cut
             && cut.Shot.Kind == DarkTerritory.Sim.Train.ShotKind.Cause)
             clerkLine = cut.Shot.Card;
@@ -901,22 +901,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         sound.ClerkLine(clerkLine);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
-        var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
-        if (replay is { } replaying)
-            frames = replaying.Frames;
-        // E.5: the film, everyone's own death: its cars, the crew ragdolled, each shot's camera (note 177).
-        var filmShot = beat == DerailBeat.Film && film is not null ? film.CutAt(DerailSequence.FilmSeconds(wreckTuning, session.WreckSeconds)) : null;
-        double filmAt = filmShot is { } fs ? fs.Shot.At(fs.Into) : 0;
-        if (filmShot is not null)
-            frames = DerailSequence.FilmFrames(film!, filmAt, frames);
-        scene.Bodies = filmShot is not null ? DerailSequence.FilmBodies(film!, filmAt) : session.World.Bodies.All;
+        // The beat, the cars as drawn (the replay's, the film's) and its camera: the same pick `dt film` renders (note 251).
+        var derailShot = derailSequence.Show(session, frames, ownEyes: vr is null);
+        frames = derailShot.Frames;
+        // The film's own wreck heard, not the live one (note 251).
+        sound.Film(derailShot.Film, derailShot.Filming);
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
-            : beat == DerailBeat.FirstPerson && vr is null ? derailSequence.FirstPerson(frames)
-            : replay is { } shot ? derailSequence.ReplayCamera(shot.Frames, session.Train.StandingCar)
-            : filmShot is { } filming ? DerailSequence.FilmCamera(filming.Shot, filming.Into)
-            : cinematic ? Views.Wreck(session.Train.Wreck!, DerailSequence.OrbitSeconds(wreckTuning, session.WreckSeconds))
+            : derailShot.Camera is { } sequenceCamera ? sequenceCamera
             : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
@@ -927,12 +920,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
-        scene.Crew = replay is { } replayed ? replayed.Crew : filmShot is not null ? [] : session.Crew(frames, clock.Alpha);
-        scene.CutAway = filmShot is { } cutting ? DerailSequence.FilmCutAway(film!, cutting.Shot, filmAt, frames, camera.Position) : null;
-        scene.Lights = filmShot is { } lit ? DerailSequence.FilmLights(film!, lit.Shot, filmAt, camera.Position) : null;
+        // E.5's film draws the crew as ragdolls, its cutaway and light rig; the replay, the crew as they were (DerailSequence.Dress).
+        DerailSequence.Dress(scene, derailShot, session, camera.Position, derailShot.Replay is null && derailShot.Filming is null ? session.Crew(frames, clock.Alpha) : []);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
         if (session.Watching >= 0 && !chase)
-            scene.Crew = [.. scene.Crew.Where(c => c.Id != session.Watching)];
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
         // What you carry is drawn at your hands as you see them this frame, not where the last tick left it (T92).
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
@@ -971,13 +963,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
+        DerailSequence.Fog(ref lighting, derailShot);
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
-        // Replaying the run-in, the train's still on the rails: no wreck yet, no sparks.
-        // The film draws its own wreck; the live one's dust and sparks are somewhere else by then.
-        scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
         scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
@@ -990,7 +980,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
-        scene.Derailed = replay is { } rerun ? rerun.Off : session.World.Derailed;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)

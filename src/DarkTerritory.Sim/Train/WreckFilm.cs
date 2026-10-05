@@ -23,8 +23,10 @@ public sealed record FilmTuning(
     double SimRadius = 300);
 
 /// <summary>A car at the derail tick, exactly (E.2's snapshot).</summary>
+/// <param name="Floor">Its floor over the box's foot (the rails), in its own frame: a crewmate inside stands on it, not on the
+/// track under the car (note 251: they fell through to the rails and lay under the cut-away car).</param>
 public sealed record FilmCar(int Vehicle, Double3 Origin, Double3 Right, Double3 Up, Double3 Back, Double3 Velocity, Double3 Spin,
-    double Mass, double HalfWidth, double Height, double HalfLength, double Railed);
+    double Mass, double HalfWidth, double Height, double HalfLength, double Railed, double Floor = 0);
 
 /// <summary>A crewmate at the derail tick: where, how fast, which car they were in (−1 out of one), and what they were doing.</summary>
 /// <param name="Role">For the name card: "on the throttle", "at the firebox", "on the roof".</param>
@@ -167,9 +169,10 @@ public sealed class WreckFilm
     }
 
     /// <summary>The start, from the wreck just begun and the crew as they were at the derail tick (host).</summary>
-    public static FilmStart StartOf(Wreck wreck, IEnumerable<FilmPlayer> crew, string cause, double speed, double along = 0) =>
+    /// <param name="floor">Each vehicle's floor over its box's foot (<see cref="FilmCar.Floor"/>); none, the foot.</param>
+    public static FilmStart StartOf(Wreck wreck, IEnumerable<FilmPlayer> crew, string cause, double speed, double along = 0, Func<int, double>? floor = null) =>
         new(wreck.Seed, [.. wreck.Bodies.Select(b => new FilmCar(b.Vehicle, b.Origin, b.Right, b.Up, b.Back, b.Velocity, b.Spin,
-                b.Mass, b.HalfWidth, b.Height, b.HalfLength, b.Railed))],
+                b.Mass, b.HalfWidth, b.Height, b.HalfLength, b.Railed, floor?.Invoke(b.Vehicle) ?? 0))],
             [.. wreck.Links.Select(l => new FilmLink(l.A, l.B, l.Length))], [.. crew], cause, speed, along);
 
     /// <summary>Shoots and edits the film: the same on every machine with the same start and ground.</summary>
@@ -216,7 +219,8 @@ public sealed class WreckFilm
                         continue;
                     }
                     var home = d.Inside >= 0 ? cars.FirstOrDefault(c => c.Vehicle == d.Inside) : null;
-                    d.Body.Step(h, new Double3(0, -wt.Gravity, 0), (p, r) => Touch(p, r, cars, home, ground));
+                    double floor = home is null ? 0 : start.Cars.FirstOrDefault(c => c.Vehicle == home.Vehicle)?.Floor ?? 0;
+                    d.Body.Step(h, new Double3(0, -wt.Gravity, 0), (p, r) => Touch(p, r, cars, home, floor, ground));
                 }
                 Pile(dolls);
             }
@@ -230,7 +234,7 @@ public sealed class WreckFilm
             if (still >= 0.5)
                 break;
         }
-        var peaks = start.Players.Select((p, i) => (p.Id, Peak(frames, i, ground))).ToDictionary(x => x.Id, x => x.Item2);
+        var peaks = start.Players.Select((p, i) => (p.Id, Peak(frames, start.Cars, i, ground))).ToDictionary(x => x.Id, x => x.Item2);
         var shots = Director.Plan(t, start, frames, peaks, ground);
         return new WreckFilm(start, frames, shots, peaks);
     }
@@ -287,7 +291,7 @@ public sealed class WreckFilm
     /// E.3's colliders for one joint: the ground (and never more than 0.5 m under it), and the cars as hollow boxes, so a
     /// player inside tumbles around inside theirs and one outside is pushed off the rest (the deepest wins).
     /// </summary>
-    static Contact? Touch(Double3 p, double r, List<WreckBody> cars, WreckBody? home, Func<double, double, double> ground)
+    static Contact? Touch(Double3 p, double r, List<WreckBody> cars, WreckBody? home, double floor, Func<double, double, double> ground)
     {
         Contact? best = null;
         double deepest = 0;
@@ -306,7 +310,7 @@ public sealed class WreckFilm
             {
                 // Inside its walls: kept in (doorways and windows aren't gaps yet).
                 double hw = car.HalfWidth - 0.05, hl = car.HalfLength - 0.05, top = car.Height - 0.05;
-                var kept = new Double3(Math.Clamp(local.X, -hw + r, hw - r), Math.Clamp(local.Y, 0.05 + r, top - r), Math.Clamp(local.Z, -hl + r, hl - r));
+                var kept = new Double3(Math.Clamp(local.X, -hw + r, hw - r), Math.Clamp(local.Y, floor + 0.05 + r, top - r), Math.Clamp(local.Z, -hl + r, hl - r));
                 if ((kept - local).Length < 1e-9)
                     continue;
                 var push = kept - local;
@@ -360,9 +364,11 @@ public sealed class WreckFilm
 
     /// <summary>
     /// E.5: a player's peak moment: the highest apex, the longest airtime or the hardest landing, whichever scores highest.
-    /// Returns when (recorded seconds) and the score.
+    /// Returns when (recorded seconds) and the score. "In the air" is off whatever's under them (<see cref="Clearance"/>):
+    /// stood up, or lying on a roof, isn't flying (note 251: the pelvis over the ground had a roof rider "airborne" all
+    /// film and anyone stood up "in the air", so the peak was rarely a flight).
     /// </summary>
-    static (double At, double Score) Peak(List<FilmFrame> frames, int doll, Func<double, double, double> ground)
+    static (double At, double Score) Peak(List<FilmFrame> frames, IReadOnlyList<FilmCar> cars, int doll, Func<double, double, double> ground)
     {
         double bestApex = 0, apexAt = 0, air = 0, bestAir = 0, airAt = 0, bestLanding = 0, landingAt = 0;
         Double3 last = frames[0].Ragdolls[doll][2];
@@ -370,10 +376,10 @@ public sealed class WreckFilm
         for (int f = 0; f < frames.Count; f++)
         {
             var pelvis = frames[f].Ragdolls[doll][2];
-            double height = pelvis.Y - ground(pelvis.X, pelvis.Z);
+            double height = Clearance(frames[f], cars, doll, ground);
             if (height > bestApex)
                 (bestApex, apexAt) = (height, f * Dt);
-            air = height > 0.6 ? air + Dt : 0;
+            air = height > AirborneAbove ? air + Dt : 0;
             if (air > bestAir)
                 (bestAir, airAt) = (air, (f - air * Rate / 2) * Dt);
             double v = f == 0 ? 0 : (pelvis - last).Length / Dt;
@@ -381,9 +387,38 @@ public sealed class WreckFilm
                 (bestLanding, landingAt) = (lastV - v, f * Dt);
             (last, lastV) = (pelvis, v);
         }
-        // Each in metres-ish: a metre of apex, a third of a second in the air, or 3 m/s lost on landing.
+        // Each in metres-ish: a metre of clear air under them, a third of a second in the air, or 3 m/s lost on landing.
         (double At, double Score)[] candidates = [(apexAt, bestApex), (airAt, bestAir * 3), (landingAt, bestLanding / 3)];
         return candidates.MaxBy(c => c.Score);
+    }
+
+    /// <summary>A body this far off what's under it (m, its lowest joint's centre) is in the air.</summary>
+    public const double AirborneAbove = 0.3;
+
+    /// <summary>
+    /// How far a ragdoll is off whatever's under it in a recorded frame: its lowest joint over the ground, or over the floor
+    /// or roof of a car it's over or inside (in the car's own frame, so a car on its side has its side for a floor).
+    /// </summary>
+    public double Clearance(int frame, int doll, Func<double, double, double> ground) => Clearance(Frames[frame], Start.Cars, doll, ground);
+
+    static double Clearance(FilmFrame frame, IReadOnlyList<FilmCar> cars, int doll, Func<double, double, double> ground)
+    {
+        double lowest = double.PositiveInfinity;
+        foreach (var j in frame.Ragdolls[doll])
+        {
+            double clear = j.Y - ground(j.X, j.Z);
+            for (int c = 0; c < cars.Count && c < frame.Cars.Count; c++)
+            {
+                var (o, right, up, back) = frame.Cars[c];
+                var d = j - o;
+                double x = Double3.Dot(d, right), y = Double3.Dot(d, up), z = Double3.Dot(d, back);
+                if (Math.Abs(x) > cars[c].HalfWidth || Math.Abs(z) > cars[c].HalfLength || y < 0)
+                    continue;
+                clear = Math.Min(clear, y >= cars[c].Height ? y - cars[c].Height : y >= cars[c].Floor ? y - cars[c].Floor : y);
+            }
+            lowest = Math.Min(lowest, clear);
+        }
+        return lowest;
     }
 
     /// <summary>The recorded frame at <paramref name="seconds"/>, with the next and the share between (for playback).</summary>
