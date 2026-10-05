@@ -17,7 +17,7 @@ public class FilmPlaybackTests
     static readonly PlayerTuning P = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
     static readonly WreckTuning W = DataFile.Load<WreckTuning>(Path.Combine(Content, WreckTuning.File));
 
-    static (World World, WreckFilm Film) Shot()
+    internal static (World World, WreckFilm Film) Shot()
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Train, 5, 1)), line, 2250);

@@ -629,6 +629,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var derailSequence = new DerailSequence();
     // GDD v1.4 App. D.12: the night's bookmark stills, taken here as the host's bookmarks arrive.
     var stills = new BookmarkStills();
+    // D.12, D.13 (note 203): and kept past the run-end screen, in the user's app data, a folder for the night.
+    var album = new BookmarkAlbum(BookmarkAlbum.DefaultDirectory, DateTime.Now, session.Route?.Name ?? "night");
+    bool albumSaid = false;
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -947,15 +950,26 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
         {
             var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            var (shownBodies, shownCut, shownLights, shownWreck, shownDerailed) = (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed);
             (scene.Own, scene.HeldHere) = (null, null);
-            foreach (var (mark, from) in due)
+            foreach (var (mark, from, peak) in due)
             {
-                scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
-                scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, from.Position);
-                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height);
+                // E.5: a derailment's still is that crew member's peak in the film, drawn as the film draws it.
+                var at = peak is not null ? DerailSequence.Stage(scene, peak, frames) : frames;
+                if (peak is null)
+                    scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
+                scene.Build(mesh, session.Train.Line, at, session.Train.Dynamics.Distance, from.Position);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null);
+                (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed) = (shownBodies, shownCut, shownLights, shownWreck, shownDerailed);
             }
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+        }
+        // D.12, D.13 (note 203): once the report's in, the stills on it are kept on disk, so a player has them after the screen.
+        if (session.World.Run?.Report is { } kept && album.Save(kept, stills.Stills, session.World).Count > 0 && !albumSaid)
+        {
+            albumSaid = true;
+            Console.WriteLine($"bookmarks: the night's stills are kept in {album.Night}");
         }
         if (showHud)
         {
@@ -971,7 +985,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }
             if (session.World.Run?.Over == true)
+            {
                 overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+                if (album.Kept > 0)
+                    overlay.TextCentred(UiWidth / 2f, UiHeight - 12, $"{album.Kept} STILLS KEPT IN YOUR BOOKMARKS FOLDER", new Vector4(0.6f, 0.6f, 0.6f, 1));
+            }
         }
         if (vr is null)
         {
