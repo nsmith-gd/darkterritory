@@ -107,9 +107,9 @@ public sealed partial class GameAudio
 
     sealed class CrewGun
     {
-        public bool Mounted, BallIn, Traversing;
+        public bool Mounted, BallIn, Traversing, Laying;
         public int Ammo, Needed;
-        public double Z, Progress, LastMove;
+        public double Z, Progress, LastMove, Traverse, Elevation, LastLaid;
     }
 
     sealed class CrewBody
@@ -999,7 +999,16 @@ public sealed partial class GameAudio
             var g = v.Gun;
             if (!_crewGuns.TryGetValue(v.Id, out var m))
             {
-                _crewGuns[v.Id] = new CrewGun { Mounted = g.Mounted, Ammo = g.Ammo, Z = g.Z, Needed = g.ReloadNeeded, Progress = g.ReloadProgress };
+                _crewGuns[v.Id] = new CrewGun
+                {
+                    Mounted = g.Mounted,
+                    Ammo = g.Ammo,
+                    Z = g.Z,
+                    Needed = g.ReloadNeeded,
+                    Progress = g.ReloadProgress,
+                    Traverse = g.Traverse,
+                    Elevation = g.Elevation
+                };
                 continue;
             }
             if (g.Mounted && Guns.Mount(train, v.Id) is { } mount)
@@ -1030,6 +1039,23 @@ public sealed partial class GameAudio
                     m.Traversing = false;
                     Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside);
                 }
+                // Laid by its seated gunner (T112): the steam motor and its gear while it turns or lifts, faster the faster it
+                // goes (combat.json's traverse rate is full), and the gear's clunk as it stops.
+                double laid = Math.Abs(g.Traverse - m.Traverse) + Math.Abs(g.Elevation - m.Elevation);
+                if (laid > 1e-5)
+                {
+                    m.LastLaid = _time;
+                    double full = (world.Combat?.Guns.TraverseDegreesPerSecond ?? 70) * Math.PI / 180 * SimConstants.TickSeconds;
+                    m.Laying = true;
+                    Hold("gun-lay", v.Id, frame.ToWorld(mount.Position), outside)?.Params.Set("speed", Math.Clamp(laid / full, 0, 1));
+                }
+                else if (m.Laying && _time - m.LastLaid < 0.1)
+                    Hold("gun-lay", v.Id, frame.ToWorld(mount.Position), outside);
+                else if (m.Laying)
+                {
+                    m.Laying = false;
+                    Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside, 0.6f);
+                }
                 // The reload: powder, ball, ram (App. C.3), a step at a time while Use is held.
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
                 {
@@ -1059,6 +1085,8 @@ public sealed partial class GameAudio
             m.Mounted = g.Mounted;
             m.Ammo = g.Ammo;
             m.Z = g.Z;
+            m.Traverse = g.Traverse;
+            m.Elevation = g.Elevation;
             m.Needed = g.ReloadNeeded;
             m.Progress = g.ReloadProgress;
         }

@@ -553,6 +553,31 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void LayingTheSeatedGunRunsItsSteamMotorWhileItTurnsAndClunksAsItStops()
+    {
+        // T112: the seated gunner lays it (Traverse and Elevation on the replicated gun); spec C.2: the turrets run on steam.
+        var b = new Bench("crew-cannon-fire.traverse-stop");
+        var gun = b.Train.Vehicles.Last(v => v.HasGun);
+        bool Laying() => b.Audio.Mixer.Voices.Any(v => v.Name == "gun-lay" && !v.Finished);
+        b.Step();
+        Assert.False(Laying());
+        for (int i = 0; i < 10; i++)
+        {
+            gun.Gun.Traverse += 0.02;
+            b.Step();
+        }
+        Assert.True(Laying());
+        // At its rate: faster turning, a faster gear.
+        var lay = b.Audio.Mixer.Voices.First(v => v.Name == "gun-lay" && !v.Finished);
+        Assert.InRange(lay.Params.Get("speed"), 0.3, 1);
+        // Still: it stops, once, with the gear's clunk.
+        for (int i = 0; i < 10; i++)
+            b.Step();
+        Assert.False(Laying());
+        Assert.Equal(1, b.Count("crew-cannon-fire.traverse-stop"));
+    }
+
+    [Fact]
     public void JumpLandClimbAndCutACoupling()
     {
         var b = new Bench("crew-footsteps.jump.roof", "crew-footsteps.land.roof", "crew-ladder.grab", "crew-ladder.rung-up", "crew-ladder.let-go",
