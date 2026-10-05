@@ -1,7 +1,7 @@
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The dead's ballot as a screen (GDD v1.4 App. D.11; note 201): pick a creature, then cast it, since a vote is locked on
+/// The dead's ballot as a screen (GDD v1.4 App. D.11; note 202): pick a creature, then cast it, since a vote is locked on
 /// submit and one stray key shouldn't spend it. A number key picks its option, and the same key again (or Enter) casts it;
 /// in a headset the left stick steps through them and clicking it casts. Casting sends the option's number as the intent's
 /// hotbar choice (the path a vote always took: the dead carry nothing), every tick until the host's ballot says it's cast.

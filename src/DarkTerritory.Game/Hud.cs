@@ -626,7 +626,7 @@ public static class Hud
                 rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
                 rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
             }
-            // D.11: the creature vote has a plate of its own (BallotPlate, note 201); once cast, the card keeps a line of it.
+            // D.11: the creature vote has a plate of its own (BallotPlate, note 202); once cast, the card keeps a line of it.
             if (s.Ballot is { Cast: { } cast })
                 rows.Add(($"YOU CALLED THE {Creature(cast)}. THE LIVING WON'T KNOW TILL THE END", Dim));
             if (s.VoteCue is { } cue)
@@ -654,7 +654,7 @@ public static class Hud
     static string Creature(Sim.Enemies.EnemyKind kind) => IncidentLog.Spoken(kind.ToString()).ToUpperInvariant();
 
     /// <summary>
-    /// The dead's creature vote as a screen (GDD v1.4 App. D.11; note 201), top to bottom: each creature on the ballot with
+    /// The dead's creature vote as a screen (GDD v1.4 App. D.11; note 202), top to bottom: each creature on the ballot with
     /// its key, and the want it serves as its <c>Note</c> (the vote only moves weight within a want); then what to do next:
     /// pick, cast (locked once cast), casting, cast. A row's <c>Picked</c> is the one lit. Keys as the player has them; a
     /// headset's stick and its click in one (<see cref="Headset"/>). Null with no ballot to show (alive, none offered, the
@@ -693,7 +693,7 @@ public static class Hud
     public const string BallotTitle = "THE DEAD'S VOTE: ONCE A RUN";
 
     /// <summary>
-    /// The ballot's plate (D.11; note 201): high on the right, clear of the dead card below, of what they're watching in the
+    /// The ballot's plate (D.11; note 202): high on the right, clear of the dead card below, of what they're watching in the
     /// middle and of the yard's lobby list on the left; <see cref="BallotTitle"/> over <see cref="BallotRows"/>, the picked
     /// creature on a lit bar with its want at the right, and the trim lit while there's a vote to cast.
     /// </summary>
@@ -720,7 +720,7 @@ public static class Hud
         }
     }
 
-    /// <summary>Whether this is a headset's panel (T36): the ballot and the commendations say the stick, not the keys (note 201).</summary>
+    /// <summary>Whether this is a headset's panel (T36): the ballot and the commendations say the stick, not the keys (note 202).</summary>
     public static bool Headset { get; set; }
 
     /// <summary>

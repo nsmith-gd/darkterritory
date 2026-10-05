@@ -669,7 +669,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
         if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
             host.HostPlayer = me;
-        // D.11 (note 201): a cast vote goes as the option's number, the hotbar choice, till the host's ballot says it's locked.
+        // D.11 (note 202): a cast vote goes as the option's number, the hotbar choice, till the host's ballot says it's locked.
         var sent = intent;
         if (Picker.Select(Ballot) is > 0 and var vote && !Player.Alive)
             sent.Select = vote;

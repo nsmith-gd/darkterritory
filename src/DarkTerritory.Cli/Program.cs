@@ -1710,7 +1710,7 @@ static object HudShot(string content, string[] args)
     if (spectated is { } pair)
     {
         session = pair.Watcher;
-        // --ballot pick|cast (note 201): the ballot's screen with its second creature picked, or cast and locked by the host;
+        // --ballot pick|cast (note 202): the ballot's screen with its second creature picked, or cast and locked by the host;
         // --headset: as a headset's panel says it (the stick, not the keys).
         Hud.Headset = args.Contains("--headset");
         if (Str(args, "--ballot", "") is { Length: > 0 } stage && pair.Watcher.Ballot is { Options.Count: > 1 } offered)

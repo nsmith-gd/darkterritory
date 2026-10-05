@@ -104,7 +104,7 @@ public sealed class VrPanel(VrPanelTuning tuning)
 /// <summary>
 /// The front end's keys, from controllers (T36): each press once, on the edge. <see cref="Click"/> is the left stick's
 /// click, which the menus leave alone: in a night it confirms what the stick picked (the dead's ballot, a commendation;
-/// note 201), since the trigger and A already mean something to the dead.
+/// note 202), since the trigger and A already mean something to the dead.
 /// </summary>
 [Flags]
 public enum VrMenuPress : byte { None = 0, Up = 1, Down = 2, Left = 4, Right = 8, Select = 16, Back = 32, Click = 64 }

@@ -618,7 +618,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
-    // In a headset the ballot and the commendations are the stick's (note 201), and say so.
+    // In a headset the ballot and the commendations are the stick's (note 202), and say so.
     Hud.Headset = vr is not null;
     var nightKeys = new VrMenuInput();
     NetPlaySession.PlayerName = settings.PlayerName;
@@ -656,7 +656,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 profile.Record(session.World.Commendations, net.PlayerId);
             break;
         }
-        // In a headset (note 201): the left stick's pushes and its click, once each, for the ballot and the commendations.
+        // In a headset (note 202): the left stick's pushes and its click, once each, for the ballot and the commendations.
         var vrPress = vr is null ? VrMenuPress.None : nightKeys.Read(vr.Session.Controllers);
         // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives
         // it; in a headset the stick picks and its click gives.
@@ -664,7 +664,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             net.Commend((input.Pressed(Key.Right) || vrPress.HasFlag(VrMenuPress.Right) ? 1 : 0) - (input.Pressed(Key.Left) || vrPress.HasFlag(VrMenuPress.Left) ? 1 : 0),
                 (input.Pressed(Key.Down) || vrPress.HasFlag(VrMenuPress.Down) ? 1 : 0) - (input.Pressed(Key.Up) || vrPress.HasFlag(VrMenuPress.Up) ? 1 : 0),
                 input.Pressed(Key.Space) || vrPress.HasFlag(VrMenuPress.Click));
-        // D.11 (note 201): dead with a ballot to cast, a number key picks a creature and the same again (or Enter) casts it;
+        // D.11 (note 202): dead with a ballot to cast, a number key picks a creature and the same again (or Enter) casts it;
         // in a headset the stick's up and down pick (its left and right still change whom you watch) and its click casts.
         if (net is { Voting: true, Ballot: { } ballot })
         {

@@ -69,7 +69,7 @@ public interface IPlaySession
     bool ClerkTally => false;
     /// <summary>This dead player's creature vote (GDD v1.4 App. D.11; note 180): the ballot offered and what they cast; null if none.</summary>
     (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => null;
-    /// <summary>The ballot's picking on this machine (note 201): what's picked, and whether it's cast and on its way to the host.</summary>
+    /// <summary>The ballot's picking on this machine (note 202): what's picked, and whether it's cast and on its way to the host.</summary>
     BallotPicker? Picker => null;
     /// <summary>The dead's cue showing now (D.11): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM"; null when none is.</summary>
     string? VoteCue => null;

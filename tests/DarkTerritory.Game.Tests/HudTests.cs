@@ -180,7 +180,7 @@ public class HudTests
     [Fact]
     public void TheBallotIsPickedThenCastAndOnlyCastOnce()
     {
-        // GDD v1.4 App. D.11 "locked on submit" (note 201): a number picks, the same again (or Enter) casts; a headset's
+        // GDD v1.4 App. D.11 "locked on submit" (note 202): a number picks, the same again (or Enter) casts; a headset's
         // stick steps and its click casts. What's sent is the option's number, till the host's ballot says it's locked.
         EnemyKind[] options = [EnemyKind.Whistler, EnemyKind.FireFlies, EnemyKind.TrackDoll];
         var picker = new BallotPicker();
@@ -220,7 +220,7 @@ public class HudTests
     [Fact]
     public void TheDeadSeeTheirBallotPickItAndSeeItLocked()
     {
-        // D.11 as the dead player's screen (note 201), over a real host: the creatures with their keys and wants, the pick
+        // D.11 as the dead player's screen (note 202), over a real host: the creatures with their keys and wants, the pick
         // lit, casting, then cast and locked by the host; nothing for the living.
         using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: true), port: 0);
         using var a = NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));

@@ -102,7 +102,7 @@ public sealed class ClientSession
     /// <summary>This dead player's creature vote (D.11), as the host offered it: the ballot and what they cast; null till offered.</summary>
     public (IReadOnlyList<Enemies.EnemyKind> Options, Enemies.EnemyKind? Cast)? Ballot { get; private set; }
 
-    /// <summary>The host's tick (the newest snapshot's) when <see cref="Ballot"/> was first offered: a dead bot votes a while after (note 201).</summary>
+    /// <summary>The host's tick (the newest snapshot's) when <see cref="Ballot"/> was first offered: a dead bot votes a while after (note 202).</summary>
     public uint BallotOfferedTick { get; private set; }
 
     /// <summary>D.11's cues to the dead, as they came: a creature they voted for is coming, and who called it. The game takes them.</summary>
