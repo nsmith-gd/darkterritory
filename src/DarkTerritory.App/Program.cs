@@ -874,7 +874,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var beat = wrecking ? DerailSequence.Beat(wreckTuning, session.WreckSeconds, film) : DerailBeat.None;
         // GDD v1.4 App. E.6: the opera, from the replay's first frame, its hit on the moment the replay shows it coming off,
         // faded under the film's cause card.
-        // Its hit on the final player's apex in the film (E.5-E.6; note 241), or the replay's derail moment with no film.
+        // Its hit on the final player's apex in the film (E.5-E.6; note 243), or the replay's derail moment with no film.
         sound.Music(session.World.DerailMusic, wrecking ? session.WreckSeconds : -1, wreckTuning,
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt,
             film?.FinalApexAt is { } apex ? wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + apex : -1);

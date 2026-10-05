@@ -1,4 +1,4 @@
-// Player actions (tier 4; note 241): a powder keg set down by hand, which is the one way it's safe (SetPieces.Kegs). The
+// Player actions (tier 4; note 243): a powder keg set down by hand, which is the one way it's safe (SetPieces.Kegs). The
 // crate's set-down on wood, deeper and softer (put down with care), and the powder settling after it.
 {
   "tier": 4, "maxInstances": 8, "minDistance": 1, "maxDistance": 40, "gainDb": 1,

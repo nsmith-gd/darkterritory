@@ -443,7 +443,7 @@ public sealed partial class GameAudio
             if (_swungNow.Contains(id))
             {
                 Cue(held != Tool.None ? $"crew-melee.{ToolName(held)}-swing" : "crew-mishaps.bare-swing", hands, occlusion);
-                // Their blow on the train's iron or wood, from their replicated look, as your own is (note 241).
+                // Their blow on the train's iron or wood, from their replicated look, as your own is (note 243).
                 if (held != Tool.None)
                     OwnBlow(world, s, held, occlusion);
             }
@@ -598,7 +598,7 @@ public sealed partial class GameAudio
     /// <summary>
     /// A blow landing on the train (hooks-map: the sim's swing only tests enemies): a ray from the eye along the look, as far
     /// as the tool reaches, onto the first solid; iron or wood by what it is. Your own as you swing; a crewmate's from their
-    /// swing on the wire and their replicated look (note 241). With something to hit in reach, it's that (the host's hit
+    /// swing on the wire and their replicated look (note 243). With something to hit in reach, it's that (the host's hit
     /// record, GameAudio.Strikes), not the train.
     /// </summary>
     void OwnBlow(World world, in PlayerState s, Tool held, float occlusion)
@@ -1182,7 +1182,7 @@ public sealed partial class GameAudio
                 m.Falling = false;
                 string? lift = b.Kind switch
                 {
-                    // A powder keg (GDD §18-19; note 185's kegs, note 241): the cask's own, the powder shifting in it.
+                    // A powder keg (GDD §18-19; note 185's kegs, note 243): the cask's own, the powder shifting in it.
                     BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition => "crew-carry.keg-lift",
                     BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => "crew-carry.crate-lift",
                     BodyKind.Lamp => "crew-carry.lamp-lift",

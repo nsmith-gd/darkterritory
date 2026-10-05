@@ -129,7 +129,7 @@ public class MusicManifestTests
     [Fact]
     public void WithAFilmTheHitLandsOnTheFinalPlayersApex()
     {
-        // E.6 "Alignment" (note 241): the planner puts the hit within ±0.1 s of the final player's apex (E.5's last shot,
+        // E.6 "Alignment" (note 243): the planner puts the hit within ±0.1 s of the final player's apex (E.5's last shot,
         // the biggest flight). A hit further into the track than the apex is starts mid-track; one nearer its in-point waits,
         // and the track comes in late, in time for it.
         var (_, film) = FilmPlaybackTests.Shot();

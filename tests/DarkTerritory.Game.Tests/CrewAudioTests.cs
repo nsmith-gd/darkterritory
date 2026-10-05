@@ -188,7 +188,7 @@ public class CrewAudioTests
     [Fact]
     public void APowderKegIsHandledAsAKegNotACrate()
     {
-        // Note 238: a keg (the depot's powder, cargo Ammunition) goes up from a hard knock and is fine set down by hand
+        // Note 243: a keg (the depot's powder, cargo Ammunition) goes up from a hard knock and is fine set down by hand
         // (SetPieces.Kegs); its own lift, the powder shifting in it, and its own careful set-down.
         var b = new Bench("crew-carry.keg-lift", "crew-carry.keg-set", "crew-carry.crate-lift", "crew-carry.crate-set");
         b.World.EnableBodies();
@@ -211,7 +211,7 @@ public class CrewAudioTests
     [Fact]
     public void ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook()
     {
-        // Note 238: a crewmate's swing (World.Swings) that meets no creature lands on the train where their replicated
+        // Note 243: a crewmate's swing (World.Swings) that meets no creature lands on the train where their replicated
         // look puts it, iron or wood, as your own does.
         var b = new Bench("crew-melee.crowbar-swing", "crew-melee.crowbar-hit-metal", "crew-melee.crowbar-hit-wood");
         b.Audio.OwnId = 1;
