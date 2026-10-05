@@ -3036,3 +3036,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **What the bot nights found: the lineside dead trees read as cages.**
       - `dead_tree_card`'s limbs ran off the card's edges, cut square there, and curled back over the crown, each a constant-width stroke.
       - They now taper a segment at a time, keep reaching up and out, end in twigs inside the card, and the trunk tapers smoothly (tools/art/texgen/mat_foliage.py).
+201. **The Climber in play: hands for steel, skin that isn't plastic (the 5 October audit, note 200; note 136's model).** In the playthroughs the Climber at a coupling gap read as a pale curved pipe. Up close, in the staged gap (`dt screenshot --threats --climber scrabble --view gapside`), it read as a smooth blue-grey toy with forks for hands.
+    - **The hands** were a narrow palm and three thin straight fingers (11 mm), a fork against the sky. Now (tools/blender/climber.py):
+      - a broad flat palm;
+      - three heavy fingers, each knuckled (a joint bump and a bend) and ending in a black hook;
+      - a short thumb-hook off the inner side.
+    - **The skin** was one black at a roughness of 0.25 everywhere, so it mirrored the pale sky and read blue. Now (tools/models/recipes/climber.py):
+      - roughness 0.45, wet only in blotches;
+      - deeper crossing wrinkles and shallow puckered pits in the bake;
+      - a dull bruise-brown mottling under the black, so the light breaks on it.
+    - It's 4,768 triangles (was 3,652), well inside its budget (`dt art check`). The rig, the clips and the sim are unchanged.
+    - **Looked at:** gapside scrabble, before and after; the crouch in the aisle; and the walk on the roof.
