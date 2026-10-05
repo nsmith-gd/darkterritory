@@ -206,6 +206,18 @@
     "settle": 0.6,
     "shifts": 2
   },
+  // Who works a stop (note 261; spec D.2's "Crew" column, which counts people at a module, not who they are). The shunter
+  // is free once the train's in, and takes a pair module's missing place (or carries, where fewer than two do).
+  "crew": {
+    // D.2 doesn't say whether the driver is one of a module's crew. Read so that a crew of two can work a winch ("2
+    // mandatory") at all: with too few others, the driver leaves the train standing on its brake and gets down to it.
+    "driverWorks": true,
+    // People playing are hands at a stop: the bots stop for what the crew, people and bots together, can load.
+    "peopleAreHands": true,
+    // A pair module only people playing can make up (one bot at the winch, someone playing for the other handle) is waited
+    // on while the loading's getting somewhere: this long with nothing loading, and the bots leave it (seconds).
+    "peopleWait": 45
+  },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
     "grainElevator": ["spout"],
