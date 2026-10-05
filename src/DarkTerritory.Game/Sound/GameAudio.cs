@@ -495,7 +495,10 @@ public sealed partial class GameAudio
         {
             if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
                 continue;
-            Mixer.Play(i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+            // Nobody's shot (World.Blast: a powder keg or a powder car going up, notes 182 and 185) is its own, bigger blast.
+            string boom = i.Shooter < 0 && Bank.Get("powder-blast") is not null ? "powder-blast"
+                : i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact";
+            Mixer.Play(boom, i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
             if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
                 Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
         }
@@ -522,6 +525,39 @@ public sealed partial class GameAudio
             _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
 
+    SoundInstance? _cooling;
+    int _lampsOut;
+
+    /// <summary>
+    /// GDD v1.4 App. E.9, the Stranded outro: "wind and the boiler ticking as it cools. No music." The dead boiler's iron
+    /// ticking at the firebox, slower as the outro goes on, and each car's lamp guttering out as the shot pulls back, the
+    /// last car first and the engine last (<see cref="Views.StrandedLampsOut"/>, the picture's own count). The app calls it
+    /// each frame with the outro's seconds, or −1 when there's none.
+    /// </summary>
+    public void Stranded(TrainOnLine train, StrandedOutroTuning t, double seconds)
+    {
+        if (seconds < 0)
+        {
+            _cooling?.Stop();
+            _cooling = null;
+            _lampsOut = 0;
+            return;
+        }
+        var engine = train.Frames[0];
+        var firebox = engine.ToWorld(new Double3(0, 1.6, engine.Shape.HalfLength * 0.5));
+        _cooling ??= Mixer.Play("boiler-tick", firebox);
+        if (_cooling is not null)
+        {
+            _cooling.Position = firebox;
+            _cooling.Params.Set("cool", Math.Clamp(seconds / Math.Max(1e-6, t.Seconds), 0, 1));
+        }
+        for (int gone = Views.StrandedLampsOut(train.Frames.Count, t, seconds); _lampsOut < Math.Min(gone, train.Frames.Count); _lampsOut++)
+        {
+            var car = train.Frames[train.Frames.Count - 1 - _lampsOut];
+            Mixer.Play("lamp-out", car.ToWorld(new Double3(0, car.Shape.RoofHeight * 0.8, 0)));
+        }
+    }
+
     /// <summary>
     /// A night is over (back to the menus): every sound it started stops, and what's remembered of it goes, so the menus are
     /// quiet under their own sound and the next night starts its bed, loops and edges afresh.
@@ -539,6 +575,8 @@ public sealed partial class GameAudio
         _heardHits.Clear();
         _heardImpacts.Clear();
         _strikesPrimed = false;
+        _cooling = null;
+        _lampsOut = 0;
         _wasRuptured = false;
         _space = PlayerMotor.Outside;
         EndNightCues();

@@ -846,6 +846,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             film is null ? -1 : wreckTuning.FirstPersonSeconds + wreckTuning.ReplaySeconds + film.CauseAt);
         // GDD §9: the dispatcher's manifest leaving the yard and the clerk's tally home, on the radio.
         sound.Radio(session.RadioReading is not null);
+        // E.9: the Stranded outro's cooling boiler and its lamps going out, in time with the picture.
+        sound.Stranded(session.Train, wreckTuning.Stranded, outro ? session.OutroSeconds : -1);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
         var replay = beat == DerailBeat.Replay ? derailSequence.ReplayAt(session.WreckSeconds, wreckTuning) : null;
