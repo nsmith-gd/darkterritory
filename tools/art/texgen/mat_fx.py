@@ -192,7 +192,10 @@ def fx_flame(ctx):
             half = w0 * saturate(1 - vv) ** 1.1 * (0.55 + 0.45 * smoothstep(0.0, 0.28, vv)) + 0.006
             dx = x - cx - 0.2 * (ns - 0.5) * vv ** 1.3
             across = saturate(1 - (np.abs(dx) / half) ** 1.6)
-            body = across * smoothstep(0.0, 0.07, v) * saturate(1.1 - vv) * (1 - 0.55 * vv)
+            # The root rises out of nothing over a ragged band (noise-broken), not off a ruled line: tongues side by side
+            # in a car fire otherwise join their feet into one straight bright edge, the card showing.
+            root = smoothstep(0.0, 0.1 + 0.16 * np.roll(nl, C // 5, axis=1), v)
+            body = across * root * saturate(1.1 - vv) * (1 - 0.55 * vv)
             I = np.maximum(I, body)
         # Eaten from the edges and the top by the rising noise: the tips break into separate licks; the inside is uneven.
         I = saturate((I - (0.04 + 0.42 * v) * nl) * 1.5) * (0.75 + 0.35 * np.roll(nl, C // 3, axis=1))
@@ -203,7 +206,7 @@ def fx_flame(ctx):
         return c, posterise(i, 14), i
     D, A, E = sheet(frames, 4, C, colour)
     return ctx.out(D, np.zeros_like(A), np.zeros_like(A), emissive=E, alpha=A, tiling=False, factor=2,
-                   frames=[4, 4], blend="additive", procedural="noise-eaten flame tongues, scrolled once round a loop",
+                   frames=[4, 4], blend="additive", procedural="noise-eaten flame tongues, ragged roots, scrolled once round a loop",
                    grain=0.0, chroma_block=1)
 
 

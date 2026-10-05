@@ -184,7 +184,7 @@ for s, sx in (("r", 1), ("l", -1)):
             root = e + across * 0.026 * f - fwd * 0.012
             tip = T(ho) + across * 0.042 * f + fwd * (0.04 - 0.008 * abs(f)) + Vector((0, 0, 0.03))
             knuckle = root.lerp(tip, 0.45) + Vector((0, 0, 0.026))
-            curl = tip - Vector((0, 0, 0.045)) - fwd * 0.012
+            curl = tip - Vector((0, 0, 0.031)) - fwd * 0.012      # down to the floor at rest, not through it
             limbs.blob(knuckle, (0.015, 0.015, 0.014), 6, 4, SKIN, {ho: 1.0})
             limbs.tube([root, knuckle, tip, curl], [0.017, 0.014, 0.009, 0.0015], 7, SKIN, ho, ref=(0, 0, 1),
                        fmat=lambda pts_, n, curl=curl, tip=tip: HOOK if (sum(pts_, Vector()) / len(pts_) - curl).length < (tip - curl).length * 1.5 else SKIN)

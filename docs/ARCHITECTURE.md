@@ -3047,3 +3047,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a dull bruise-brown mottling under the black, so the light breaks on it.
     - It's 4,768 triangles (was 3,652), well inside its budget (`dt art check`). The rig, the clips and the sim are unchanged.
     - **Looked at:** gapside scrabble, before and after; the crouch in the aisle; and the walk on the roof.
+202. **A car fire's flames aren't a row of cards (the 5 October audit, note 200).** Burning, the fire read as one flat sheet of flame with a straight bright edge along its foot.
+    - **The cause, in two parts:**
+      - `fx_flame`'s tongues rose off a ruled line, faded in over only the bottom 7% of the frame;
+      - `Effects.CarFire` stood every tongue's foot on the floor, in two straight ranks.
+    - Side by side, the feet joined into one edge.
+    - **Now:**
+      - each tongue's root rises over a ragged, noise-broken band (tools/art/texgen/mat_fx.py);
+      - the tongues' feet are where the load burns: some at the floor, some up on the crates and in the gaps between, in and out from the face.
+    - `--view fire --threats`: before and after. The furnace and the guns use the same flipbook. Their roots only soften.
