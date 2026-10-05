@@ -87,11 +87,17 @@ public sealed partial class GameAudio
             _places = Survey(route, line, world.TrackPlan ?? route.Plan);
         var run = world.Run;
         bool tunnel = route is not null && !double.IsNaN(earMain) && route.InTunnel(earMain);
-        bool underground = run is not null && run.Underground(new PlayerState { Parent = PlayerState.World, Position = ear, LineHint = _earHint }, train);
+        var earState = new PlayerState { Parent = PlayerState.World, Position = ear, LineHint = _earHint };
+        bool underground = run is not null && run.Underground(earState, train);
         var engine = train.Dynamics;
         double front = line.MainDistance(engine.Path, engine.Distance);
 
-        RadioDevice(ear, tunnel || underground, primed);
+        // Where the radio's dead is the host's test (HostSession.ForwardVoice): F.3's radio range carries it radioReach in
+        // from a tunnel's mouth or a spur's points (note 196), so the static starts where the voices stop.
+        double reach = engine.Tuning.Kit.RadioReach;
+        bool radioDead = route is not null && !double.IsNaN(earMain) && route.DeepInTunnel(earMain, reach)
+            || run is not null && run.Underground(earState, train, reach);
+        RadioDevice(ear, radioDead, primed);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);

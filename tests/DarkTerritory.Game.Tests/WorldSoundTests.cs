@@ -22,7 +22,7 @@ public class WorldSoundTests
     static readonly HoldoutTuning Holdouts = DataFile.Load<HoldoutTuning>(Path.Combine(Content, HoldoutTuning.File));
 
     /// <summary>A client's night with the engine <paramref name="from"/> metres from the start of the first feature like this.</summary>
-    static (World World, RouteFeature Feature) Night(Func<RouteFeature, bool> pick, double from)
+    static (World World, RouteFeature Feature) Night(Func<RouteFeature, bool> pick, double from, TrainTuning? trains = null)
     {
         var routes = RouteTuning.Load(Content);
         foreach (var tier in Enum.GetValues<RouteTier>())
@@ -31,7 +31,7 @@ public class WorldSoundTests
                 var route = RouteGenerator.Generate(routes, tier, seed);
                 if (route.Features.FirstOrDefault(f => f.Start > 900 && pick(f)) is not { } f)
                     continue;
-                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), f.Start + from, Boilers);
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trains ?? Trains, 4, 1)), route.Build(), f.Start + from, Boilers);
                 var world = new World(train);
                 world.EnableRun(Runs, route, 600, authority: false);
                 world.EnableHoldouts(Holdouts, route);
@@ -166,6 +166,29 @@ public class WorldSoundTests
         radio.RadioHeld = false;
         ears.Tick(under, 2);
         Assert.False(Playing(audio, "voice-radio-sfx.static"));
+    }
+
+    [Fact]
+    public void WithTheRadioRangeUpgradeTheStaticStartsWhereTheVoicesStop()
+    {
+        // Spec F.3's radio range (note 196): the radio carries kit.radioReach in from a tunnel's mouth before it dies, so the
+        // static does too (HostSession.ForwardVoice's test, heard where the voices stop).
+        var upgraded = Trains with { Kit = Trains.Kit with { RadioReach = 50 } };
+        var (world, tunnel) = Night(f => f.Kind == FeatureKind.Tunnel && f.Length > 150, from: 120, upgraded);
+        var audio = new GameAudio(Content) { Voice = null };
+        Stand(audio, "voice-radio-sfx.key-down", "voice-radio-sfx.key-up", "voice-radio-sfx.squelch");
+        Held(audio, "voice-radio-sfx.static");
+        var radio = new VoiceChat(audio.Mixer);
+        audio.Voice = radio;
+        var ears = new Ears(audio, world);
+        var mouth = world.Train.Line.Sample(tunnel.Start + 30).Position + Double3.Up * 2;
+        var deep = world.Train.Line.Sample(tunnel.Start + 75).Position + Double3.Up * 2;
+        ears.Tick(mouth);
+        radio.RadioHeld = true;
+        ears.Tick(mouth, 5);
+        Assert.False(Playing(audio, "voice-radio-sfx.static"));
+        ears.Tick(deep, 5);
+        Assert.True(Playing(audio, "voice-radio-sfx.static"));
     }
 
     [Fact]
