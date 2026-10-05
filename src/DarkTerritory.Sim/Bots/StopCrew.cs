@@ -192,6 +192,30 @@ public sealed partial class CrewCalls
 
     /// <summary>Someone's on their way to (or at) a Holdout's door: the driver waits for them (T96).</summary>
     public bool Breaching => _breach.Count > 0;
+
+    // Note 258: who in the crew is a bot, and which of them could go and breach a Holdout (a walker or the gunner, alive).
+    readonly SortedSet<int> _bots = [];
+    readonly SortedSet<int> _breachers = [];
+
+    /// <summary>A bot says which player it is: anyone else aboard is someone playing (note 259).</summary>
+    public void Bot(int playerId) => _bots.Add(playerId);
+    /// <summary>Whether this player is one of the bots (said so), not someone playing.</summary>
+    public bool IsBot(int playerId) => _bots.Contains(playerId);
+
+    /// <summary>
+    /// A bot says whether it's one to breach a Holdout (a walker or the gunner, alive): the driver leaves the breach to them,
+    /// and goes itself only with none of them left (note 259). Instant, like the claims: it's who goes where.
+    /// </summary>
+    public void CanBreach(int playerId, bool can)
+    {
+        if (can)
+            _breachers.Add(playerId);
+        else
+            _breachers.Remove(playerId);
+    }
+
+    /// <summary>Some living walker or gunner could take a Holdout's breach (note 259).</summary>
+    public bool AnyBreacher => _breachers.Count > 0;
 }
 
 /// <summary>
