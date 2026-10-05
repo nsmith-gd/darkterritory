@@ -3115,3 +3115,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - each tongue's root rises over a ragged, noise-broken band (tools/art/texgen/mat_fx.py);
       - the tongues' feet are where the load burns: some at the floor, some up on the crates and in the gaps between, in and out from the face.
     - `--view fire --threats`: before and after. The furnace and the guns use the same flipbook. Their roots only soften.
+207. **The effects' last "not yet"s: the furnace flare, brass dust, a fire you can see spreading (the checklist's demo VFX rows).**
+    - **The flare when coal goes on** (§31 "furnace flare"; the boiler's `SinceShovel`, already sent to clients):
+      - for `Effects.FlareSeconds` after a shovelful, the bed roars up (every tongue, taller);
+      - a gout of flame licks out of the hole and a shower of sparks is thrown into the cab;
+      - its light jumps.
+      - `GreyboxScene.SinceShovel`, set by the app and the playthrough. `dt screenshot --view fireman --flare 0.2`.
+    - **Brass dust over a brass field** (§30):
+      - `Effects.Air.Brass`: fine gold motes, hanging and turning slowly, each glinting now and then;
+      - wherever the eye is within 35 m of a plan's brass field (`WorldArt.NearBrass`), over the biome's own air.
+      - `dt screenshot --route deadlines:4 --at 5100 --view trackside`.
+    - **A car fire visibly on its way to the next car** (App. A.5 "grows, jumps couplings"):
+      - the sim's blaze (`Extra2`, already sent to clients) over enemies.json carFire.spreadSeconds is the spread;
+      - `Effects.CarFire` sends flames creeping along the aisle floor toward both ends of the car as it builds, and rolls the smoke a little further.
+      - `dt screenshot --threats --spread 0.9 --view fire` (`Staging.Spread`).
+    - **Verified:** `EffectsTests.AShovelfulFlaresTheFireThenItSettles`, `OverABrassFieldTheAirCarriesItsDust` and `AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds`, and each looked at.

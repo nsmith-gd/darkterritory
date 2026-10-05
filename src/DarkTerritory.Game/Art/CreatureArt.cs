@@ -310,6 +310,7 @@ public sealed class CreatureArt
     public string ContentRoot { get; }
 
     Sim.Enemies.WhistlerTuning? _whistler;
+    Sim.Enemies.CarFireTuning? _carFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
     MeshAsset? _fallenPine;
     MeshAsset[]? _reeds;
@@ -1074,9 +1075,13 @@ public sealed class CreatureArt
         double t = phaseSeconds;
         // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
         if (kind is EnemyKind.CarFire)
+        {
+            // Its spread: the sim's blaze (extra2) over the seconds it takes to jump (enemies.json carFire.spreadSeconds).
+            _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
             return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
-                kind, phase, t, extra, health, _fx);
+                kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
+        }
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {

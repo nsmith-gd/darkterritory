@@ -52,6 +52,8 @@ public sealed class GreyboxScene
     public IReadOnlyList<(Double3 At, Vector3 Colour, float Radius)>? Lights { get; set; }
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
     public bool FireDoorOpen { get; set; }
+    /// <summary>Seconds since the last shovelful (the boiler's <c>SinceShovel</c>): the firebox flares just after one (§31).</summary>
+    public double SinceShovel { get; set; } = double.PositiveInfinity;
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
     public bool Emergency { get; set; }
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
@@ -363,8 +365,9 @@ public sealed class GreyboxScene
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
-            // The air of a corrupted stretch: ash, spores (GDD §30).
-            Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir ?? Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre)));
+            // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
+            Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
+                ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
             Strikes(mesh, Look.Art.Effects, frames, eye);
         }
         Lap(mesh, "effects");
@@ -2331,7 +2334,7 @@ public sealed class GreyboxScene
                 foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 {
                     var bed = frame.ToWorld(i.Position + new Double3(0, 0.6, -0.17)).RelativeTo(eye);
-                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time);
+                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time, SinceShovel);
                 }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
