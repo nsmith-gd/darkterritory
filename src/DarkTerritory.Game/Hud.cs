@@ -171,9 +171,11 @@ public static class Hud
             lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
-        else if (link.PingMs is null)
+        else if (link.PingMs is null && !link.Lost)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
-        lines.Add(("EVERYONE IN? DRIVE OUT OF THE YARD", Ink));
+        // The host starts the night; a joiner waits for it (the 4 Oct rehearsal: a joiner was told to drive out).
+        bool hosting = link.PingMs is null && !link.Lost;
+        lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         w = lines.Max(l => o.Font.Measure(l.Text)) + 10;
         UiStyle.Plate(o, x - 2, y - 3, w, lines.Count * line + 6);
         foreach (var (text, colour) in lines)
@@ -277,11 +279,13 @@ public static class Hud
         if (link.PingMs is { } ping)
         {
             var colour = ping < 80 ? Green : ping < 150 ? Amber : Red;
-            o.TextRight(right, 5, $"PING {ping:0} MS", colour, scale: 2);
+            // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
+            o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
         }
         else
         {
-            o.TextRight(right, 5, "HOST", Ink, scale: 2);
+            // No ping: this is the host, or a joiner whose link has gone (it says so below).
+            o.TextRight(right, 5, link.Lost ? "NO LINK" : "HOST", link.Lost ? Red : Ink, scale: 2);
         }
         o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);

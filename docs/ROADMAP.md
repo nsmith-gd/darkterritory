@@ -322,7 +322,7 @@ Remaining for M4:
 2. **P1, nothing bought that does nothing:** (done, note 196) lamp armour, gun cooling, repair kit charges, radio range and the powered switch thrower, modelled (note 184's "not yet").
 3. **P1, what a crewmate sees:** (done, note 197) remote crewmates' tool swings replicated (note 146).
 4. **P1, the set pieces heard:** (done, note 198) the spout's pour, the herd, the hose's leak, the wreck yard's heaps groaning (notes 185, 187); their models are the art pass's.
-5. **P2, real machines:** a two-machine LAN night and a two-account Steam night from the CI packages, then the eight-person voice test.
+5. **P2, real machines:** (rehearsed here in two app windows, note 199: a dropped joiner fixed) a two-machine LAN night and a two-account Steam night from the CI packages, then the eight-person voice test.
 6. **P3, the director's review:** the art and audio checklists' In-review rows (112 art, 104 audio, 291 audio cues), demo scope first, with store art and the trailer ahead of the Coming Soon page.
 7. **P4, the rest:** WP8 (per-player bookmark shots), WP11 (a vote screen, VR voting), WP14 (wind on footing, the cold on the HUD), WP17 (the sweep over more routes and crew sizes), T82 (the VR body).
 
