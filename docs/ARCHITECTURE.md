@@ -2999,3 +2999,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `ChaseCameraTests` (frontier:7: the chase view and the replay within 250 m of the engine);
       - both fail without the fix;
       - a playthrough's chase shots show the train.
+    - **What else it found: a car fire's TELEGRAPH couldn't be seen** (App. C.5 smoke before flame; the fairness rule says a tell must be perceivable). The smoulder's smoke was grey at 0.24, as bright as lamp-lit planking, and the car looked untouched.
+      - It's `Effects.SmoulderGrey` now, at HDR level (the effects pass isn't lit, and the lit walls run over 1), denser and bigger, pooling lower under the roof.
+      - An ember glow breathes in the load where it's caught, with one small light.
+      - `dt screenshot --threats --smoulder --view fire` stages it. `EffectsTests.ACarFireSmouldersThenBurns` pins that the smoke outshines the walls and that the embers are short of flames.
+    - **The playthrough's own camera** mirrors the app's scene state each frame (the Stoker's perch timing, the firebox door, the wreck). It aims where the scene draws a thing (the Fire Flies on the nearer lantern, the Stoker on the stack's rim) and keeps the fire up, since there's only the driver, so a night isn't lost to the boiler on the first grade.
