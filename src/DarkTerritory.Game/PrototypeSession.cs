@@ -31,11 +31,13 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
     /// <param name="enemies">Run the pressure director and the route's Sleepers (GDD App. B).</param>
-    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true)
+    /// <param name="crew">The crew the director plans the night for (App. B: what it fields scales with it); one, played
+    /// solo. dt playthrough asks for more to meet the roster a bigger crew does.</param>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true, int crew = 1)
         : this(contentRoot, route.Build(), route, cars, 0)
     {
         if (enemies)
-            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
+            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: Math.Max(1, crew), authority: true);
         var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,

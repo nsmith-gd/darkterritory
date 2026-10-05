@@ -157,6 +157,12 @@ public sealed partial class Effects
     /// </summary>
     /// <param name="burn">How far it's gone, 0..1 (the sim's intensity).</param>
     /// <param name="ceiling">How high the roof is over the floor (m), where the smoke pools.</param>
+    /// <summary>
+    /// A smouldering load's smoke: pale, so it shows grey against lamp-lit planking. The audit's playthrough found the
+    /// darker grey it was the same brightness as the walls, and the telegraph unreadable.
+    /// </summary>
+    static readonly Vector3 SmoulderGrey = new(1.05f, 1.0f, 0.95f);
+
     public void CarFire(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, bool alight, double burn, double t, float ceiling = 2.0f)
     {
         Vector3 L(float x, float y, float z) => o + r * x + u * y + b * z;
@@ -175,32 +181,44 @@ public sealed partial class Effects
             float y = MathF.Min(climb, roof), spread = MathF.Max(0, climb - roof);
             float z = (h - 0.5f) * 2.2f + (h2 < 0.5f ? -1 : 1) * spread * 1.7f;
             float x = -0.1f - s * 0.7f;
-            float size = 0.45f + s * (alight ? 1.9f : 1.3f);
-            float a = MathF.Min(1, (alight ? 0.85f + 0.4f * burnF : 0.55f) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.3f)));
+            float size = alight ? 0.45f + s * 1.9f : 0.6f + s * 1.6f;
+            float a = MathF.Min(1, (alight ? 0.85f + 0.4f * burnF : 1.3f) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.3f)));
             // Lit from under by the flames while it's low and near them; black once it's rolled away along the roof.
             var grey = alight ? new Vector3(0.07f, 0.06f, 0.055f) + Palette.FurnaceOrange * 0.22f * burnF * MathF.Max(0, 1 - s * 1.6f)
-                : new Vector3(0.24f, 0.24f, 0.25f);
+                : SmoulderGrey;
             mesh.Billboard(L(x, y, z), size, h * 6.28f + age * 0.35f, new Vector4(grey * (0.85f + 0.3f * h2), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
         }
         // The pool under the roof: a ceiling of smoke out each way along the car, lower and thicker the worse it's got,
         // drifting slowly; what you crouch under.
         int pool = alight ? 30 : 12;
-        float reach = (alight ? 2.2f + 3.5f * burnF : 1.6f), depth = alight ? 0.25f + 0.45f * burnF : 0.15f;
+        float reach = (alight ? 2.2f + 3.5f * burnF : 2.2f), depth = alight ? 0.25f + 0.45f * burnF : 0.3f;
         for (int k = 0; k < pool; k++)
         {
             float h = Hash(k * 4.13f + 7.7f), h2 = Hash(k * 1.91f + 3.3f);
             float z = (k / (pool - 1f) - 0.5f) * 2 * reach + MathF.Sin((float)t * 0.15f + h * 6.28f) * 0.4f;
             float x = -0.5f + (h2 - 0.5f) * 0.9f;
             float y = ceiling - 0.2f - depth * h;
-            float a = MathF.Min(1, (alight ? 0.8f + 0.5f * burnF : 0.45f) * (1.15f - MathF.Abs(z) / reach));
+            float a = MathF.Min(1, (alight ? 0.8f + 0.5f * burnF : 1.1f) * (1.15f - MathF.Abs(z) / reach));
             // Thick and low over the fire, lit by it from under; thinner and darker away along the car.
             float near = MathF.Max(0, 1 - MathF.Abs(z) / 2.5f);
-            var grey = alight ? new Vector3(0.09f, 0.075f, 0.065f) + Palette.FurnaceOrange * 0.3f * burnF * near : new Vector3(0.3f, 0.3f, 0.31f);
+            var grey = alight ? new Vector3(0.09f, 0.075f, 0.065f) + Palette.FurnaceOrange * 0.3f * burnF * near : SmoulderGrey * 0.9f;
             mesh.Billboard(L(x, y, z), 1.3f + h * 0.9f, h * 6.28f + (float)t * 0.05f, new Vector4(grey, a), _smoke, FxBlend.Alpha, 6 + (int)(h2 * 8), 4,
                 stretch: 0.6f);
         }
         if (!alight)
+        {
+            // The seat of it (the TELEGRAPH, App. C.5: smoke before flame): a red glow down in the load's cracks, breathing,
+            // so a smouldering car reads as one from the aisle whatever the lamp's doing to the smoke.
+            for (int k = 0; k < 4; k++)
+            {
+                float h = Hash(k * 3.7f + 0.9f);
+                float breathe = 0.55f + 0.45f * MathF.Sin((float)t * (1.1f + h) + k * 1.9f);
+                mesh.Billboard(L(-0.05f, 0.25f + 0.35f * h, (h - 0.5f) * 1.2f), 0.35f + 0.25f * h, 0, new Vector4(Palette.FurnaceOrange * 0.55f * breathe, 1), -1,
+                    FxBlend.Additive);
+            }
+            mesh.PointLights.Add(new PointLight(L(-0.2f, 0.5f, 0), Palette.FurnaceOrange * 0.35f, 2.2f));
             return;
+        }
 
         // Flames: a front rank on the face of the load and a deeper one in it, each tongue on its own beat through the
         // flipbook (20 frames a second), its foot on the floor.

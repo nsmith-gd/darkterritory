@@ -84,7 +84,8 @@ public sealed record ThrowerTuning(double Reach = 200, double MaxSpeed = 5);
 /// <param name="DraggerGrab">The Draggers' grab range, times this.</param>
 /// <param name="DraggerHang">How long one hangs on to you before it has you, times this.</param>
 /// <param name="ThrowOver">How far over a bend's limit throws you off the roof (sight.json <c>throwOver</c>), times this.</param>
-public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5);
+/// <param name="Wind">The wind's push on the roofs (GDD §22, player.json <c>wind</c>; note 201), times this.</param>
+public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5, double Wind = 0.4);
 
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning
@@ -94,6 +95,10 @@ public sealed record KitTuning
     public double RadioBreakPerDamage { get; init; } = 0.006;
     /// <summary>... and when something grabs you.</summary>
     public double RadioBreakOnGrab { get; init; } = 0.25;
+    /// <summary>
+    /// Note 200: how long Use is held with the repair kit in hand to mend a broken radio, worn or in reach (s).
+    /// </summary>
+    public double RadioMendSeconds { get; init; } = 8;
     /// <summary>
     /// Spec A.5 "dies in tunnels and mine spurs": how far into one, from a tunnel's mouth or a mine spur's points, a radio
     /// still carries (m). Spec F.3's radio range adds to it (note 196).

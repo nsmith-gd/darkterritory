@@ -67,6 +67,7 @@ public static class Hud
         if (s.Link is { } link)
             Link(o, width, link, line);
         Radio(o, width, s, line);
+        Cold(o, width, s, line);
         Alerts(o, width, height, s, line);
         if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
@@ -393,7 +394,31 @@ public static class Hud
         string wearing = Bound(bodies.CarriedBy(s.PlayerId) is null ? "RADIO [T]  [RMB] SET IT DOWN" : "RADIO [T]");
         // GDD §23 "radio breaks" (note 183): carried, but smashed.
         bool broken = bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
-        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+        o.TextRight(width - 6, 5 + 5 * line, bodies.HasRadio(s.PlayerId) ? wearing : broken ? "RADIO BROKEN: THE REPAIR KIT MENDS IT" : "NO RADIO", bodies.HasRadio(s.PlayerId) ? Dim : Amber);
+    }
+
+    /// <summary>
+    /// GDD §22 deep cold on the HUD (note 201): under the radio, while the line where you are is in a cold step, how deep and
+    /// what it does: the cold comes on that much faster outside. Amber out in it, dim in the warm.
+    /// </summary>
+    static void Cold(Overlay o, int width, IPlaySession s, int line)
+    {
+        if (!s.Player.Alive || ColdLine(s.Player, s.Train, s.PlayerTuning) is not { } cold)
+            return;
+        o.TextRight(width - 6, 5 + 6 * line, cold, PlayerMotor.NearHeat(s.Player, s.Train) ? Dim : Amber);
+    }
+
+    /// <summary>
+    /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
+    /// conditions from its seed, so a client knows it as the host does.
+    /// </summary>
+    public static string? ColdLine(in PlayerState p, TrainOnLine train, PlayerTuning tuning)
+    {
+        int step = PlayerMotor.ColdStep(p, train);
+        if (step <= 0)
+            return null;
+        string name = step switch { 1 => "DEEP COLD", 2 => "BITTER COLD", _ => "KILLING COLD" };
+        return $"{name}: OUTSIDE, IT COMES ON {1 + tuning.Cold.PerColdStep * step:0.##}X FASTER";
     }
 
     /// <summary>
@@ -994,6 +1019,16 @@ public static class Hud
         // A crew locker in front of you (note 173): its door, and its shelves.
         if (LockerPrompt(world, p, s.PlayerId) is { } locker)
             return locker;
+        // Note 200: the kit in hand at a broken radio (your own, or one lying in reach): held, it's mended; a tap still puts the
+        // kit down.
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit } && world.Bodies.MendableRadio(p, train, world.Hand, s.PlayerId) is { } radio)
+        {
+            double mend = train.Dynamics.Tuning.Kit.RadioMendSeconds;
+            string whose = radio.Carrier == s.PlayerId ? "YOUR RADIO" : "THE RADIO";
+            return radio.MendTicks > 0
+                ? $"[E] HOLD: MENDING {whose} WITH THE KIT ({radio.MendTicks * Sim.SimConstants.TickSeconds / mend * 100:0}%)"
+                : $"[E] HOLD: MEND {whose} WITH THE KIT ({mend:0}S)   [E] PUT DOWN";
+        }
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
             return carried.Kind switch
             {
