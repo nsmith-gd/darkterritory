@@ -135,7 +135,7 @@ public sealed partial class Effects
     }
 
     /// <summary>What hangs in the air of a corrupted stretch (GDD §30, plan §13.2), by the biome it is.</summary>
-    public enum Air { Clean, Ash, Spores }
+    public enum Air { Clean, Ash, Spores, Brass }
 
     /// <summary>The air a biome has (linegen biomes.json): ash over the colliery towns, sick spores over the tar ponds.</summary>
     public static Air AirOf(string? biome) => biome switch
@@ -148,7 +148,9 @@ public sealed partial class Effects
     /// <summary>
     /// Corruption particulate (GDD §30's corrupted country; the checklist's "corruption particulate"): motes in the air
     /// round the eye, anchored to the world in 6 m cells (so the train runs through them, they don't ride along), ash
-    /// drifting down grey and slow, or spores rising, pale and sickly, catching the lamp. Faint: it's the air, not snow.
+    /// drifting down grey and slow, or spores rising, pale and sickly, catching the lamp; or, over a brass field (§30's
+    /// contamination, the same brass as the crystals), a fine dust of it hanging, turning slowly, each grain glinting now and
+    /// then as it catches the light. Faint: it's the air, not snow.
     /// </summary>
     public void Corruption(MeshBuilder mesh, Ballast.Double3 eye, double t, Air air)
     {
@@ -159,7 +161,7 @@ public sealed partial class Effects
         long cx0 = (long)Math.Floor(eye.X / cell), cz0 = (long)Math.Floor(eye.Z / cell);
         for (long i = cx0 - reach; i <= cx0 + reach; i++)
             for (long j = cz0 - reach; j <= cz0 + reach; j++)
-                for (int m = 0; m < 3; m++)
+                for (int m = 0; m < (air == Air.Brass ? 7 : 3); m++)
                 {
                     float h = Hash(i * 12.9898f + j * 78.233f + m * 3.1f), h2 = Hash(i * 39.35f + j * 11.13f + m * 7.7f), h3 = Hash(i * 3.3f + j * 9.1f + m * 1.3f);
                     double wx = (i + h) * cell, wz = (j + h2) * cell;
@@ -173,6 +175,17 @@ public sealed partial class Effects
                         wx += Math.Sin(t * 0.7 + h * 6.28) * 0.4;
                         size = 0.07f + 0.06f * h3;
                         colour = new Vector4(0.42f, 0.41f, 0.39f, 0.75f * MathF.Min(1, MathF.Min(fall, 6 - fall)));
+                    }
+                    else if (air == Air.Brass)
+                    {
+                        // Hanging, not falling: a slow drift round its own spot, rising and settling, and a glint.
+                        float a0 = (float)(t * (0.25 + 0.2 * h3)) + h * 6.28f;
+                        wx += Math.Cos(a0) * 0.6;
+                        wz += Math.Sin(a0 * 0.8f) * 0.6;
+                        y = 0.2f + 2.6f * h3 * h3 + 0.3f * MathF.Sin(a0 * 0.6f);
+                        size = 0.05f + 0.04f * h;
+                        float glint = MathF.Pow(0.5f + 0.5f * MathF.Sin((float)t * (2.1f + 1.7f * h2) + h * 40), 6);
+                        colour = new Vector4(0.95f, 0.72f, 0.36f, 0.35f + 0.9f * glint);
                     }
                     else
                     {
@@ -188,6 +201,8 @@ public sealed partial class Effects
                     // (The plain soft blob, filling its quad: a flipbook's dot would be a pixel at this size.)
                     if (air == Air.Ash)
                         mesh.Billboard(p, size, 0, colour, -1, FxBlend.Alpha);
+                    else if (air == Air.Brass)
+                        mesh.Billboard(p, size, 0, colour * new Vector4(0.8f, 0.8f, 0.8f, 1), -1, FxBlend.Additive);
                     else
                         mesh.Billboard(p, size, 0, colour * new Vector4(0.5f, 0.5f, 0.5f, 1), -1, FxBlend.Additive);
                 }

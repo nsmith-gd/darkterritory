@@ -47,12 +47,57 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds()
+    {
+        // App. A.5 "grows, jumps couplings": the nearer the blaze is to spreading, the further its flames reach along the car.
+        static float Reach(MeshBuilder m) => m.AdditiveFx.Max(v => MathF.Abs(v.Position.Z - O.Z));
+        var held = Mesh();
+        Fx.CarFire(held, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: true, 0.8, 5);
+        var going = Mesh();
+        Fx.CarFire(going, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: true, 0.8, 5, spread: 0.9f);
+        Assert.True(going.AdditiveFx.Count > held.AdditiveFx.Count, "the creep's flames");
+        Assert.True(Reach(going) > Reach(held) + 1.5f, $"reaches {Reach(going)} m along the car, {Reach(held)} held");
+    }
+
+    [Fact]
+    public void AKilledCreatureCrumblesToAshThenIsGone()
+    {
+        var falling = Mesh();
+        Fx.Crumble(falling, O, 0.3f, 7);
+        Assert.Empty(falling.AlphaFx);
+        var crumbling = Mesh();
+        Fx.Crumble(crumbling, O, (float)Effects.DeathSeconds * 0.65f, 7);
+        Assert.NotEmpty(crumbling.AlphaFx);
+        Assert.NotEmpty(crumbling.AdditiveFx);
+        var gone = Mesh();
+        Fx.Crumble(gone, O, (float)Effects.DeathSeconds + 1.3f, 7);
+        Assert.Empty(gone.AlphaFx);
+    }
+
+    [Fact]
     public void TheFurnaceBurnsAndLightsTheCab()
     {
         var mesh = Mesh();
         Fx.Furnace(mesh, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, 0.9f, Palette.FurnaceOrange, 3);
         Assert.NotEmpty(mesh.AdditiveFx);
         Assert.Single(mesh.PointLights);
+    }
+
+    [Fact]
+    public void AShovelfulFlaresTheFireThenItSettles()
+    {
+        // §31 "furnace flare": just after the coal lands the fire roars up, throws sparks out into the cab and its light jumps;
+        // by FlareSeconds it's as it was.
+        var steady = Mesh();
+        Fx.Furnace(steady, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, 0.6f, Palette.FurnaceOrange, 3);
+        var flaring = Mesh();
+        Fx.Furnace(flaring, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, 0.6f, Palette.FurnaceOrange, 3, sinceCoal: 0.1);
+        Assert.True(flaring.AdditiveFx.Count > steady.AdditiveFx.Count * 2, "the gout and the shower");
+        Assert.True(flaring.PointLights[0].Colour.Length() > steady.PointLights[0].Colour.Length() * 1.8f);
+        var settled = Mesh();
+        Fx.Furnace(settled, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, 0.6f, Palette.FurnaceOrange, 3, sinceCoal: Effects.FlareSeconds + 0.01);
+        Assert.Equal(steady.AdditiveFx.Count, settled.AdditiveFx.Count);
+        Assert.Equal(steady.PointLights[0].Colour, settled.PointLights[0].Colour);
     }
 
     [Fact]
@@ -188,5 +233,23 @@ public class EffectsTests
         var a = World(new Double3(100, 5, 200));
         var b = World(new Double3(106, 5, 200));
         Assert.True(a.Intersect(b).Count() > a.Count / 2, $"{a.Intersect(b).Count()} of {a.Count} shared");
+    }
+
+    [Fact]
+    public void OverABrassFieldTheAirCarriesItsDust()
+    {
+        // GDD §30 (the checklist's corruption particulate): brass dust, glinting, near a brass field and nowhere else.
+        var dust = Mesh();
+        Fx.Corruption(dust, new Double3(100, 5, 200), 3, Effects.Air.Brass);
+        Assert.NotEmpty(dust.AdditiveFx);
+        Assert.Empty(dust.AlphaFx);
+        var route = Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadlines:4", 6);
+        var line = route.Build();
+        var field = route.Plan!.Structures.First(s => s.Type == Sim.LineGen.StructureType.BrassField && s.Edge == "main");
+        var over = line.Sample((field.S0 + field.S1) / 2).Position + Double3.Up * 3;
+        Assert.True(WorldArt.NearBrass(route, over));
+        var away = line.Sample(Math.Min(line.Length - 1, field.S1 + 400)).Position + Double3.Up * 3;
+        Assert.DoesNotContain(route.Plan.Structures, s => s.Type == Sim.LineGen.StructureType.BrassField && s.S0 < field.S1 + 500 && s.S1 > field.S1 + 300);
+        Assert.False(WorldArt.NearBrass(route, away));
     }
 }

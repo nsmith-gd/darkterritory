@@ -309,7 +309,10 @@ public sealed class CreatureArt
     public Look Look { get; }
     public string ContentRoot { get; }
 
+    /// <summary>A Cinder Hound's board onto the rear car (tools/blender/cinder_hound.py "board", 33 frames at 30).</summary>
+    const double HoundBoardSeconds = 1.1;
     Sim.Enemies.WhistlerTuning? _whistler;
+    Sim.Enemies.CarFireTuning? _carFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
     MeshAsset? _fallenPine;
     MeshAsset[]? _reeds;
@@ -398,6 +401,11 @@ public sealed class CreatureArt
         // Struck: its own hit clip over whatever it was doing, while that runs (Enemy's hitAge).
         if (_hit >= 0 && clip != "hit" && m.Model.Clips.TryGetValue("hit", out var hit) && _hit < hit.Duration)
             (clip, c, time, loop) = ("hit", hit, _hit, false);
+        // Dead: held at the end of its flinch, or still where it was.
+        if (_dying)
+            (clip, c, time, loop) = m.Model.Clips.TryGetValue("hit", out var last)
+                ? ("hit", last, Math.Min(Math.Max(_hit, 0), last.Duration - 1e-3), false)
+                : (clip, c, 0, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         Emit(mesh, m, clip, at, variant, glow, seed, adjust);
@@ -1074,9 +1082,13 @@ public sealed class CreatureArt
         double t = phaseSeconds;
         // The in-car incidents are effects, not creatures with a model (Art/IncidentArt).
         if (kind is EnemyKind.CarFire)
+        {
+            // Its spread: the sim's blaze (extra2) over the seconds it takes to jump (enemies.json carFire.spreadSeconds).
+            _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
             return IncidentArt.Draw(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
                 Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
-                kind, phase, t, extra, health, _fx);
+                kind, phase, t, extra, health, _fx, Math.Clamp(extra2 / Math.Max(1e-6, _carFire.SpreadSeconds), 0, 1));
+        }
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
         switch (kind)
         {
@@ -1099,12 +1111,13 @@ public sealed class CreatureArt
                         (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
                     else if (aboard)
                     {
-                        // Onto the roof in one leap, then the pack fight: crouch (a held beat), lunge, crouch.
-                        if (t < 0.6)
-                            (clip, loop) = ("lunge", false);
+                        // Onto the rear car (its board: up off the ballast, scrabbling up the car's end, over the roof's lip), then
+                        // the pack fight: crouch (a held beat), lunge, crouch.
+                        if (t < HoundBoardSeconds)
+                            (clip, loop) = ("board", false);
                         else
                         {
-                            double c = (t - 0.6) % 2.0;
+                            double c = (t - HoundBoardSeconds) % 2.0;
                             (clip, ct, loop) = c < 1.1 ? ("crouch", c, true) : ("lunge", c - 1.1, false);
                         }
                     }
@@ -1748,10 +1761,12 @@ public sealed class CreatureArt
     /// for none lately): its rig's own <c>hit</c> clip plays over whatever it was doing for as long as that clip runs (the
     /// checklist's hit reacts), except while it has hold of someone.
     /// </summary>
+    /// <param name="dying">Killed (GreyboxScene.Deaths): held in its hit pose at the end of it (or, with no hit clip, still).</param>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
-        double hitAge = -1)
+        double hitAge = -1, bool dying = false)
     {
-        _hit = e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        _hit = !dying && e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
+        _dying = dying;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -1759,8 +1774,12 @@ public sealed class CreatureArt
         finally
         {
             _hit = -1;
+            _dying = false;
         }
     }
+
+    // Drawing the dead: no clip runs on (Draw holds the hit clip's last frame, or the clip's first).
+    bool _dying;
 
     // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
     double _hit = -1;

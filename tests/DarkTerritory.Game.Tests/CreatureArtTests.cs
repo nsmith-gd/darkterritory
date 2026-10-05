@@ -42,7 +42,7 @@ public class CreatureArtTests
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "board", "hit"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
@@ -291,6 +291,32 @@ public class CreatureArtTests
         new GreyboxScene { Look = Look, Time = 0.37, Crew = [new Crewmate(3, feet, 0, true, up)] }.Build(mesh, train, feet + new Double3(3, 1.5, 0));
         var at = (feet + up).RelativeTo(feet + new Double3(3, 1.5, 0));
         Assert.InRange(mesh.Flattened().Min(v => Vector3.Distance(v.Position, at)), 0, 0.1f);
+    }
+
+    [Fact]
+    public void AKilledCreatureGoesOverThenIsGone()
+    {
+        // GreyboxScene.Deaths: out of the sim at once, but drawn going over and crumbling until Effects.DeathSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var living = Staging.Threats(train);
+        var dead = living.First(e => e.Kind == EnemyKind.Switchman);
+        living.Remove(dead);
+        var eye = dead.WorldPosition(train) + new Double3(3, 1.6, 2);
+        int Drawn(double age, bool kill)
+        {
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = living, Tick = Staging.StrikeTick + (long)Math.Round(age * Sim.SimConstants.TickRate) };
+            if (kill)
+                scene.Killed(dead, Staging.StrikeTick, new Vector3(1, 0, 0));
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("switchman", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.Equal(0, Drawn(0.6, kill: false));
+        Assert.True(Drawn(0.6, kill: true) > 0, "going over");
+        Assert.True(Drawn(Effects.DeathSeconds * 0.8, kill: true) > 0, "crumbling");
+        Assert.Equal(0, Drawn(Effects.DeathSeconds + 0.1, kill: true));
     }
 
     [Fact]

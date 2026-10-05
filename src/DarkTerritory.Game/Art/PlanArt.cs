@@ -86,6 +86,26 @@ public sealed partial class WorldArt
     /// <summary>A generated line's biome at a main-line distance (linegen plan §13.1), or null for a hand-laid one.</summary>
     public static string? BiomeAt(Route? route, double s) => Scene(route)?.BiomeAt(s);
 
+    /// <summary>
+    /// Whether <paramref name="eye"/> is within <paramref name="reach"/> metres of a brass field on a generated line (its
+    /// crystals, <see cref="Brass"/>): where the air carries its dust (Effects.Corruption's <c>Air.Brass</c>).
+    /// </summary>
+    public static bool NearBrass(Route? route, Double3 eye, double reach = 35)
+    {
+        if (Scene(route) is not { } p)
+            return false;
+        foreach (var st in p.Plan.Structures)
+        {
+            if (st.Type != StructureType.BrassField)
+                continue;
+            var line = p.EdgeLine(st.Edge);
+            for (double s = st.S0 - reach; s <= st.S1 + reach; s += 10)
+                if ((line.Sample(Math.Clamp(s, 0, line.Length)).Position - eye).Length < reach)
+                    return true;
+        }
+        return false;
+    }
+
     static float SmoothStep(float a, float b, float x)
     {
         float t = Math.Clamp((x - a) / (b - a), 0, 1);

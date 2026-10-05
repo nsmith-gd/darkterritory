@@ -3134,6 +3134,43 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - each tongue's root rises over a ragged, noise-broken band (tools/art/texgen/mat_fx.py);
       - the tongues' feet are where the load burns: some at the floor, some up on the crates and in the gaps between, in and out from the face.
     - `--view fire --threats`: before and after. The furnace and the guns use the same flipbook. Their roots only soften.
+207. **The effects' last "not yet"s: the furnace flare, brass dust, a fire you can see spreading (the checklist's demo VFX rows).**
+    - **The flare when coal goes on** (§31 "furnace flare"; the boiler's `SinceShovel`, already sent to clients):
+      - for `Effects.FlareSeconds` after a shovelful, the bed roars up (every tongue, taller);
+      - a gout of flame licks out of the hole and a shower of sparks is thrown into the cab;
+      - its light jumps.
+      - `GreyboxScene.SinceShovel`, set by the app and the playthrough. `dt screenshot --view fireman --flare 0.2`.
+    - **Brass dust over a brass field** (§30):
+      - `Effects.Air.Brass`: fine gold motes, hanging and turning slowly, each glinting now and then;
+      - wherever the eye is within 35 m of a plan's brass field (`WorldArt.NearBrass`), over the biome's own air.
+      - `dt screenshot --route deadlines:4 --at 5100 --view trackside`.
+    - **A car fire visibly on its way to the next car** (App. A.5 "grows, jumps couplings"):
+      - the sim's blaze (`Extra2`, already sent to clients) over enemies.json carFire.spreadSeconds is the spread;
+      - `Effects.CarFire` sends flames creeping along the aisle floor toward both ends of the car as it builds, and rolls the smoke a little further.
+      - `dt screenshot --threats --spread 0.9 --view fire` (`Staging.Spread`).
+    - **Verified:** `EffectsTests.AShovelfulFlaresTheFireThenItSettles`, `OverABrassFieldTheAirCarriesItsDust` and `AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds`, and each looked at.
+208. **The killed go over and crumble (T121's hit confirm; the checklist's Switchman "shot or clubbed", Soot Children "killed").** A kill took a creature out of the sim at once (Gone, then removed that tick), and its hit lasts a second on the wire, so a killed creature blinked out behind its hit flash.
+    - **`GreyboxScene.Deaths`, presentation only:**
+      - The scene remembers what it drew last frame.
+      - When a killed hit arrives for one of those, it draws it for `Effects.DeathSeconds` (2 s) longer: rolled over onto its side about its own length, away from the blow (`Fallen`: eased in, pushed along it), held at the end of its hit clip or, with none, still (`CreatureArt.Enemy(..., dying)`).
+      - From halfway it crumbles (`Effects.Crumble`: ash and soot billowing up, a few embers going out), sinking into the ground or floor, and is gone.
+    - **Scope:**
+      - Every creature that stands on something.
+      - What floats, swarms, burns or is the train's own keeps its own end: the Choir, the Fire Flies, a car fire, the Stoker in its box, the Car Hugger, the Sleepers, the Drift.
+      - The first cut tipped them about the blow's axis, which stood a low crawler upright on its tail. They roll about their own length instead (a biped falls sideways, a crawler goes over).
+    - **Staging and tests:**
+      - `dt screenshot --threats --killed kind:s` stages one, `GreyboxScene.Killed`.
+      - `CreatureArtTests.AKilledCreatureGoesOverThenIsGone` (drawn going over and crumbling, not after) and `EffectsTests.AKilledCreatureCrumblesToAshThenIsGone`.
+    - **Not yet:** the scene's memory is per scene, so `dt playthrough`'s fresh scene a shot doesn't carry it.
+209. **The Cinder Hounds board the rear car (the checklist's "not yet": a distinct boarding leap, not the lunge).**
+    - **Before:** a hound's COMMIT aboard (Sim's `CinderHound.Board`: on the rear car's roof, 2.5 m in from its end) began with the lunge, a leap from roof level. On the roof from nowhere.
+    - **Now it has its own `board` clip** (tools/blender/cinder_hound.py, 1.1 s, `CreatureArt.HoundBoardSeconds`). The root starts a car's roof-height below and behind where the sim puts it:
+      - a bound off the ballast onto the car's end;
+      - the body reared up it, the forelegs hooked over the roof's lip, the hind legs scrabbling at the planks out of step;
+      - a heave up and over, landing in the pack fight's crouch, which the crouch-lunge loop takes on from.
+    - **At night it reads by its embers** climbing the car's end. The black body is lost on the end in shadow, which is how the hounds read anyway (GDD §21: "in the rear lamp").
+    - **Staging:** `dt screenshot --threats --board s --view board`. The `board` view is behind the rear car, a little over its roof; `--board` takes the staged Car Hugger off that end.
+    - **Tests:** `CreatureArtTests` budgets now list `board` among the hound's clips.
 210. **Breaches (the breach decided 1 Oct; spec B.9), and the fouled gun's sounds.** The breach was approved but missing from the sim, so its checklist sounds (state-breach, crew-repair's boarding) had no state to play from. (Fouling is note 183's.)
     - **A breach is `Vehicle.Breached` and `BreachAt`** (the hole, car frame), replicated in the vehicle record. The host sets it two ways. The Car Hugger sets it every `carHugger.breachEaten` (0.1, 25 s of feeding) of shell it eats, boarded up or not. That's past the guard van's platform into the end wall as `BiteTuning` draws it (its platform share is 0.08), so the hole is there when it's heard. Climbers set it when they get into a car that's shut (every door and the hatch) and unlit, through the roof (the hatch, on a cargo car).
       - **Reading:** the decision names "Climbers getting into an unlit car", while App. A.4's ENTER is "unlit or has nobody in it". A lit, empty car they get into isn't breached unless `climbers.breachLitCars` is set. A car with a door or its hatch open is got into that way, and nothing's forced.

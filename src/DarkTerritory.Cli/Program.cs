@@ -1207,7 +1207,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         StagedBurnt = Str(args, "--burnt", "") is { Length: > 0 } burnt && burnt.Split(',') is var bp
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
         Time = 0.37,
-        Enemies = args.Contains("--threats") ? Later(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--later", 0)) : null,
+        // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
+        Enemies = args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
@@ -1231,7 +1232,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
         RoofGlow = strandedAt >= 0,
-        FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker"),
+        FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker") || args.Contains("--flare"),
+        // --flare s: s seconds after a shovelful landed (default 0.15), the firebox flaring (§31).
+        SinceShovel = args.Contains("--flare") ? Opt(args, "--flare", 0.15) : double.PositiveInfinity,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
@@ -1290,6 +1293,28 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         scene.Hits = Staging.HitsOn(struck, train, camera.Position);
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
+    }
+    // --board s (with --threats): the staged hound on the rear car s seconds into its board (up the car's end, over the lip).
+    if (args.Contains("--board") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> pack
+        && pack.FirstOrDefault(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.CinderHound && e.Attached >= 0) is { } boarding)
+    {
+        // (The staged Car Hugger is on the same end: out of the way.)
+        pack.RemoveAll(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.CarHugger);
+        boarding.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, Opt(args, "--board", 0.5), boarding.Health, boarding.Attached, boarding.Local, 0, 0, 0,
+            boarding.Extra, boarding.Extra2);
+    }
+    // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
+    // and crumbling (GreyboxScene.Deaths).
+    if (Str(args, "--killed", "") is { Length: > 0 } killed && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> living)
+    {
+        var parts = killed.Split(':');
+        var deadKind = Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(parts[0], ignoreCase: true);
+        double ago = parts.Length > 1 ? double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 0.4;
+        var dead = living.First(e => e.Kind == deadKind);
+        living.Remove(dead);
+        var toward = dead.WorldPosition(train) - camera.Position;
+        scene.Killed(dead, Staging.StrikeTick, new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z));
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
     }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
