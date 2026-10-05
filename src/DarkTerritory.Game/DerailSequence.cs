@@ -11,6 +11,13 @@ namespace DarkTerritory.Game;
 /// </summary>
 public enum DerailBeat : byte { None, FirstPerson, Replay, Orbit, Film }
 
+/// <summary>A player's peak in the film (GDD v1.4 App. E.5): their shot, how far into it, and the recorded moment it shows.</summary>
+public sealed record FilmPeak(WreckFilm Film, FilmShot Shot, double Into, double Recorded)
+{
+    /// <summary>The shot's camera at the peak.</summary>
+    public Camera Camera => DerailSequence.FilmCamera(Shot, Into);
+}
+
 /// <summary>
 /// The derailment as the crew sees it (T121 playtest: "instead of cutting straight to that lets first ... let people
 /// experience it first hand, then replay the moment from the third person train view that we already have"). First, the
@@ -160,6 +167,48 @@ public sealed class DerailSequence
     {
         double u = shot.Real > 0 ? Math.Clamp(into / shot.Real, 0, 1) : 0;
         return Camera.LookAt(Double3.Lerp(shot.Camera, shot.CameraTo, u), Double3.Lerp(shot.Look, shot.LookTo, u), (float)shot.Fov);
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. E.5 "each player's peak frame is captured as their auto-bookmark" (D.12): where in the cut
+    /// <paramref name="player"/>'s own shot reaches their peak (<see cref="WreckFilm.Peaks"/>), as the film plays it. Null
+    /// if the film has no shot of them.
+    /// </summary>
+    public static FilmPeak? PeakOf(WreckFilm film, int player)
+    {
+        if (film.Cut.FirstOrDefault(s => s.Kind == ShotKind.Player && s.Subject == player) is not { } shot
+            || !film.Peaks.TryGetValue(player, out var peak))
+            return null;
+        // The shot's time eases (slowest at the peak) but only ever runs forward: halve towards the moment it shows the peak.
+        double target = Math.Clamp(peak.At, shot.From, shot.To), lo = 0, hi = shot.Real;
+        for (int i = 0; i < 40 && hi - lo > 1e-6; i++)
+        {
+            double mid = (lo + hi) / 2;
+            if (shot.At(mid) < target)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        double into = (lo + hi) / 2;
+        return new FilmPeak(film, shot, into, shot.At(into));
+    }
+
+    /// <summary>
+    /// Sets <paramref name="scene"/> to draw the film at a peak as the film itself draws that frame: its cars (returned,
+    /// over <paramref name="live"/>'s shapes), the crew as ragdolls and nobody else, the cutaway and the light rig for the
+    /// shot's camera, and none of the live wreck's dust.
+    /// </summary>
+    public static CarFrame[] Stage(GreyboxScene scene, FilmPeak p, IReadOnlyList<CarFrame> live)
+    {
+        var frames = FilmFrames(p.Film, p.Recorded, live);
+        var eye = p.Camera.Position;
+        scene.Bodies = FilmBodies(p.Film, p.Recorded);
+        scene.Crew = [];
+        scene.CutAway = FilmCutAway(p.Film, p.Shot, p.Recorded, frames, eye);
+        scene.Lights = FilmLights(p.Film, p.Shot, p.Recorded, eye);
+        scene.Wreck = null;
+        scene.Derailed = true;
+        return frames;
     }
 
     /// <summary>Seconds into the orbit (T117's <see cref="Views.Wreck"/>), after the first person and the replay.</summary>

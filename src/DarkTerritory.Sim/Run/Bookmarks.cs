@@ -78,8 +78,8 @@ public sealed record BookmarkTuning
 /// <summary>
 /// The night's bookmarks (GDD v1.4 App. D.12). The host writes them: a still at every GRAB start and every PUNISH, from the
 /// nearest living crewmate who can see the victim, else from the victim's own eyes; one per crew member at a derailment
-/// (taken at the peak of the cinematic's first-person beat, E.5); the Stranded outro's last frame (E.9); and a dead player's
-/// own, from the followed view. Clients are sent each as it's made and take the still then, from their own world; the
+/// (each client takes it at their peak in the film, E.5, with their first-person eye as the stand-in); the Stranded
+/// outro's last frame (E.9); and a dead player's own, from the followed view. Clients are sent each as it's made and take the still then, from their own world; the
 /// report keeps the ones that survive D.13's cap, beside the line each belongs to.
 /// </summary>
 public sealed class Bookmarks
@@ -134,7 +134,8 @@ public sealed class Bookmarks
 
     /// <summary>
     /// Host, the tick the night ends: a derailment's one still per crew member (each from their own eyes in the car they
-    /// rode, taken by every client at the peak of the first-person beat), or the Stranded outro's last frame.
+    /// rode: the stand-in until each client has the film, whose peak shot replaces it, E.5), or the Stranded outro's last
+    /// frame.
     /// </summary>
     public void End(World world, RunEnd end, IEnumerable<(int Id, PlayerState State)> crew)
     {

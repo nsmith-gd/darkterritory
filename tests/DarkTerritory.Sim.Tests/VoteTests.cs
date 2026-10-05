@@ -1,4 +1,5 @@
 using Ballast.Net;
+using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
@@ -115,6 +116,54 @@ public class VoteTests
         // The report says what the dead voted for.
         var lines = IncidentLog.Lines(host.World, 350, 263, _ => false);
         Assert.Contains(lines, l => l.Kind == IncidentKind.Voted && l.Text == $"The dead voted for the {IncidentLog.Spoken(choice.ToString())}: Priya.");
+    }
+
+    [Fact]
+    public void ADeadBotVotesAWhileAfterItsOfferedAndTheSameEveryTime()
+    {
+        // Note 201: a dead bot is a crewmate with a vote (D.11), cast through the same intent as a player's, after
+        // V.BotSeconds by the host's clock, for its id's turn round the ballot. A living bot doesn't.
+        (EnemyKind? Vote, double At, EnemyKind[] Ballot, int Me) Night()
+        {
+            var net = new LoopbackNetwork();
+            var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 3);
+            TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), route.Build(), 3_000, Tuning.Boiler);
+            var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, Tuning.Player);
+            host.World.EnableEnemies(Tuning.Enemies, route, 3, crew: 2, authority: true);
+            var bot = new ClientSession(net.CreateClient(), Train(), Tuning.Train, Tuning.Player);
+            var living = new ClientSession(net.CreateClient(), Train(), Tuning.Train, Tuning.Player);
+            var walker = new RoofWalkerBot(7);
+            int ticks = 0;
+            void Run(int n)
+            {
+                for (int t = 0; t < n; t++, ticks++)
+                {
+                    net.Advance(SimConstants.TickSeconds);
+                    host.Step();
+                    // The whole of a bot's tick (BotCrew.Think), as the harness and a solo crew run it.
+                    bot.Step(bot.Connected ? BotCrew.Think(bot, walker, (uint)ticks, null) : default);
+                    living.Step(BotCrew.Vote(default, living, living.PlayerId ?? 0));
+                }
+            }
+            Run(30);
+            int me = bot.PlayerId!.Value;
+            Assert.Equal(0, BotCrew.Vote(default, bot, me).Select); // alive: no vote
+            host.SetPlayerState((byte)me, bot.Predicted with { Health = 0, Death = DeathCause.Mauled });
+            int died = ticks;
+            while (host.World.Director!.VoteOf(me) is null && ticks < died + 30 * SimConstants.TickRate)
+                Run(1);
+            Run(10);
+            Assert.Equal(host.World.Director.VoteOf(me), bot.Ballot!.Value.Cast);
+            Assert.Null(host.World.Director.VoteOf(living.PlayerId!.Value));
+            Assert.Equal(0, BotCrew.Vote(default, bot, me).Select); // cast: it stops asking
+            return (host.World.Director.VoteOf(me), (ticks - 10 - died) * SimConstants.TickSeconds, [.. bot.Ballot!.Value.Options], me);
+        }
+        var (vote, at, ballot, me) = Night();
+        Assert.Equal(ballot[me % ballot.Length], vote);
+        // Not at once (it deliberates), and not long after.
+        Assert.InRange(at, V.BotSeconds, V.BotSeconds + 1.5);
+        // The same night votes the same.
+        Assert.Equal(vote, Night().Vote);
     }
 
     [Fact]
