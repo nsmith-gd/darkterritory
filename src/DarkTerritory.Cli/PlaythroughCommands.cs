@@ -23,6 +23,9 @@ static class PlaythroughCommands
         string spec = Str(args, "--route", "frontier:7");
         int width = (int)Opt(args, "--width", 960), height = (int)Opt(args, "--height", 540), cars = (int)Opt(args, "--cars", 6);
         double minutes = Opt(args, "--minutes", 20), every = Opt(args, "--every", 90), gap = Opt(args, "--gap", 2);
+        // The ride drives the line's authority and knows nothing of debris; held under what debris lets you through at
+        // (the Sleepers' 40 km/h), a night lasts long enough to meet the roster rather than ending on the first heap.
+        double cap = Opt(args, "--cap", 38) / 3.6;
         string dir = Str(args, "--out", "out/playthrough");
         if (Directory.Exists(dir))
             Directory.Delete(dir, true);
@@ -100,6 +103,8 @@ static class PlaythroughCommands
         {
             if (route.Plan is { } plan)
                 DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
+            if (train.Dynamics.Speed > cap)
+                session.Controls = session.Controls with { Throttle = 0, Brake = Math.Max(session.Controls.Brake, 0.4) };
             // The fireman's job, done for them (there's only the driver): the fire kept up, so the night isn't lost to the
             // boiler running down on the first grade and the train rolling back.
             if (train.BoilerTuning is { } boiler && train.Boiler.FireFraction(boiler) < 0.6 && t % SimConstants.TickRate == 0)
