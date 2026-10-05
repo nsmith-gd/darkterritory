@@ -364,7 +364,7 @@ public sealed partial class GameAudio
         double air = (derailed ? 0 : rake.Speed) + 8 * night;
         if (Sampled("wind"))
             HoldCrossfade("bed-wind.wind-slow", "bed-wind.wind-fast", 0, (air - 6) / 10, ear + Double3.Up * 0.5, 0, Math.Clamp(air / 10, 0, 1), "wind", air);
-        // On a line with weather the gusts are the line's own (GameAudio.Outside, note 231), heard from their side, not dice.
+        // On a line with weather the gusts are the line's own (GameAudio.Outside, note 234), heard from their side, not dice.
         if (air > 6 && train.Line.Conditions is null && Odds(0.03 + 0.1 * Math.Clamp(air / 22, 0, 1), dt))
             Cue("bed-wind.gust", ear + Mixer.Listener.Right * (_trainRng.Next() < 0.5 ? -3 : 3), 0, (float)(0.5 + 0.5 * _trainRng.Next()));
     }
