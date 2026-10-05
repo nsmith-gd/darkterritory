@@ -131,6 +131,7 @@ static class AuditCommands
                 YardLength = yard,
                 Insist = kinds,
                 InsistEvery = t.InsistEvery,
+                Look = t.Look,
                 Hazards = hz,
             }, c.Boiler);
             runs[i] = DarkTerritory.Sim.Net.Combinations.Run(night, report, t, crew);

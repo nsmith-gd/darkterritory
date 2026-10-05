@@ -312,4 +312,36 @@ public class HandTests
         Assert.True(watcher.TryGetRemote(headset.PlayerId!.Value, 1, out seen));
         Assert.Equal(default, seen.Hand);
     }
+
+    [Fact]
+    public void TheRestOfTheCrewSeeAHeadsetsHeadHeight()
+    {
+        // T82: the head's height rides with the hands, so another client can lean and crouch the body under it. A keyboard
+        // player's is zero, and their record is the size it was.
+        var net = new LoopbackNetwork();
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(50_000)])), 1_000);
+        var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, P);
+        var headset = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var watcher = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var crouched = new PlayerIntent();
+        crouched.Reach(new Double3(0.3, 0.9, -0.4), head: 1.123);
+        for (int i = 0; i < 40; i++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            headset.Step(i > 20 ? crouched : default);
+            watcher.Step(default);
+        }
+        Assert.True(watcher.TryGetRemote(headset.PlayerId!.Value, 1, out var seen));
+        Assert.Equal(1.12, seen.Head, 6);
+        Assert.Equal(1.12, headset.Predicted.Head, 6);
+        // A head below a crouch is held at kneeling height; none without a hand to carry it.
+        var s = new PlayerState();
+        var low = new PlayerIntent();
+        low.Reach(new Double3(0.3, 0.5, -0.4), head: 0.1);
+        PlayerMotor.TakeHand(ref s, low, H);
+        Assert.Equal(PlayerMotor.MinHead, s.Head);
+        PlayerMotor.TakeHand(ref s, default, H);
+        Assert.Equal(0, s.Head);
+    }
 }
