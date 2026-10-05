@@ -1614,7 +1614,9 @@ static object ArtReel(string content, string[] args)
     var art = look.Art.Creatures;
     string[] cut = ["clinger", "weight", "sleeper", "hollow"];
     var only = Str(args, "--only", "") is { Length: > 0 } o ? o.Split(',') : null;
+    var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
     int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 12);
+    var props = DarkTerritory.Game.Art.PropArt.Of(look);
     string dir = Str(args, "--out", "out/reel");
     using var gpu = new GpuContext("dt art reel");
     using var renderer = new GreyboxRenderer(gpu, w, h);
@@ -1627,8 +1629,20 @@ static object ArtReel(string content, string[] args)
         bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal);
         foreach (var clipName in model.Clips.Keys.Order())
         {
-            if (survivor && clipName is not ("idle" or "walk"))
+            if (survivor && clipName is not ("idle" or "walk") || clipsOnly is not null && !clipsOnly.Contains(clipName))
                 continue;
+            // The crew's acts are drawn as the game draws them, with what's in their hands: the reload's powder, rammer and
+            // pick, the hand lamp hung from the fist, the bar or the wrench (CreatureArt.Crewmate; a Look Review note).
+            var act = name == "crew" && clipName != "idle"
+                ? Enum.GetValues<DarkTerritory.Game.Art.CrewPose>().Cast<DarkTerritory.Game.Art.CrewPose?>().FirstOrDefault(p => DarkTerritory.Game.Art.CreatureArt.ClipOf(p!.Value) == clipName)
+                : null;
+            var held = clipName switch
+            {
+                "swing" or "smash" or "pry" => props.Get("tool_crowbar"),
+                "mend" => props.Get("tool_wrench"),
+                _ => null,
+            };
+            var lamp = clipName is "lantern" or "lantern_walk" ? props.Get("hand_lantern") : null;
             var c = model.Clip(clipName)!;
             bool loop = c.Loops;
             int frames = Math.Clamp((int)Math.Round(c.Duration * fps) + (loop ? 0 : 1), 4, 72);
@@ -1684,7 +1698,10 @@ static object ArtReel(string content, string[] args)
                 mesh.PointLights.Add(new PointLight(anchor + toEye + right * (float)(dist * 0.5) + new System.Numerics.Vector3(0, (float)dist * 0.4f, 0), DarkTerritory.Game.Palette.LampAmber * 3.4f, reach));
                 mesh.PointLights.Add(new PointLight(anchor + toEye * 0.8f - right * (float)(dist * 0.8) + new System.Numerics.Vector3(0, (float)dist * 0.2f, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.56f), reach));
                 mesh.PointLights.Add(new PointLight(anchor - toEye * 0.8f + new System.Numerics.Vector3(0, (float)dist * 0.6f, 0), new System.Numerics.Vector3(0.5f, 0.56f, 0.7f), reach));
-                art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
+                if (act is { } pose)
+                    art.Crewmate(mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), pose, time, 0, inHand: held, hanging: lamp);
+                else
+                    art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
                 light.FogDensity = 0.004f;
                 light.LampRange = 0.01f;
@@ -2290,7 +2307,7 @@ static int Usage()
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short]   the trailer cut from the game itself: frames to out/trailer, ffmpeg to trailer.mp4
-          art reel [--only a,b] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
+          art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
