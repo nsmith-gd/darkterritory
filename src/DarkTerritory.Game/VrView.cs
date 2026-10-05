@@ -10,7 +10,7 @@ namespace DarkTerritory.Game;
 /// player's body. The eyes sit where the flat camera's eye point is, turned to its yaw; the head supplies the rest.
 /// Both eyes draw the same mesh (it's built around the body's eye point), each from its own few centimetres off it:
 /// in one pass where the GPU has multiview (one renderer, a layer an eye), or a renderer an eye where it hasn't
-/// (<see cref="StereoPath"/>, tuning/vr.json; ARCHITECTURE §8 note 213).
+/// (<see cref="StereoPath"/>, tuning/vr.json; ARCHITECTURE §8 note 219).
 /// A panel (the HUD, the menus: <see cref="VrPanel"/>) is projected into each eye's overlay, under the vignette.
 /// </summary>
 public sealed class VrView : IDisposable

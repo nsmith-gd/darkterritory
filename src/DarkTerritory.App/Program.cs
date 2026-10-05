@@ -150,7 +150,7 @@ VrView? StartVr()
 {
     try
     {
-        // Both eyes in one pass where the GPU can (tuning/vr.json "stereo", ARCHITECTURE §8 note 213).
+        // Both eyes in one pass where the GPU can (tuning/vr.json "stereo", ARCHITECTURE §8 note 219).
         var stereo = DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Stereo;
         var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface, stereo);
         Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye, {view.Stereo}");

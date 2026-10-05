@@ -26,7 +26,7 @@
     "fallSeconds": 0.35
   },
 
-  // How the eyes are drawn (ARCHITECTURE §8 note 213). "multiview": both in one pass (VK_KHR_multiview), each draw recorded
+  // How the eyes are drawn (ARCHITECTURE §8 note 219). "multiview": both in one pass (VK_KHR_multiview), each draw recorded
   // once and rasterised into both eyes' layers; used wherever the GPU has the feature (every PCVR card, and lavapipe),
   // and the per-eye path otherwise. "perEye": each eye its own renderer and pass, always (the fallback, for comparison).
   "stereo": "multiview",

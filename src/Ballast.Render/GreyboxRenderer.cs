@@ -195,7 +195,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <param name="colorFormat">The frame's format: UNORM, holding display-ready (gamma-encoded) values. A headset renderer
     /// matches the channel order of its sRGB swapchain so the frame copies across bit for bit.</param>
     /// <param name="moonShadowSize">The moon's shadow map's size, texels square.</param>
-    /// <param name="views">2: a headset's both eyes in one pass (multiview, ARCHITECTURE §8 note 213): every per-eye target
+    /// <param name="views">2: a headset's both eyes in one pass (multiview, ARCHITECTURE §8 note 219): every per-eye target
     /// is a two-layer array, every scene and post pass draws both layers at once, and the shaders pick each eye's view by
     /// gl_ViewIndex. The shadow maps are the body's, not an eye's, so they're drawn once either way. Needs
     /// <see cref="GpuContext.Multiview"/>.</param>

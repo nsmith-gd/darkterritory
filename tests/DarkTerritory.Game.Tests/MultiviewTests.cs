@@ -7,12 +7,12 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// Both eyes in one pass (multiview, ARCHITECTURE §8 note 213) against each eye drawn alone (the per-eye fallback): the
+/// Both eyes in one pass (multiview, ARCHITECTURE §8 note 219) against each eye drawn alone (the per-eye fallback): the
 /// same pictures, from fewer draw calls. Lavapipe has the feature, so this runs in CI; a device without it skips.
 /// The scene is the look's (its kit pieces, the skinned crew and creatures, the effects), but the renderers aren't dressed
 /// in its textures: a dressed renderer holds every one, and three took the whole test run past the container's memory
 /// with the other GPU tests running alongside. Untextured, every material samples the one white layer, by both paths
-/// alike. `dt vr check` draws the dressed scene by both (note 213).
+/// alike. `dt vr check` draws the dressed scene by both (note 219).
 /// </summary>
 public class MultiviewTests
 {

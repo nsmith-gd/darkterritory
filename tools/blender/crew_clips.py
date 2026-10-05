@@ -695,15 +695,17 @@ for f, k in ((0, 1), (6, -1), (12, 1), (18, -1)):
     held_mouth.key(f, hands(over(MOUTH, spine_02=(-20, 0, 6 * k)), (0.32, 0.62, 1.2 + 0.05 * k), (-0.32, 0.6, 1.2 - 0.05 * k), fist=False), "LINEAR")
 held_mouth.close(24)
 clips.append(held_mouth)
-# Carried off (the Whistler): lifted by the shoulders, the hands up at what has them, the legs dangling and kicking.
+# Carried off (the Whistler): hoisted off their feet by the hooks under their arms (whistler.py carry: the armpits at its
+# CARRY_UNDERARM, 1.42 m, so the body's lifted 0.1 m), the shoulders forced up, the hands clawing back at the forelegs
+# either side of the head, the legs swept back off the ground by the run and kicking; the head jerked about.
 held_carried = Clip("held_carried")
-LIFT = over(STAND, spine_01=(6, 0, 0), spine_02=(4, 0, 0), neck=(-12, 0, 0), head=(-20, 0, 0),
-            clavicle_r=(0, 0, 20), clavicle_l=(0, 0, -20))
-for f, k in ((0, 1), (8, -1), (16, 1), (24, -1)):
-    held_carried.key(f, hands(over(LIFT, thigh_r=(24 + 16 * k, 0, 0), calf_r=(-50 - 20 * k, 0, 0), foot_r=(30, 0, -6),
-                                   thigh_l=(24 - 16 * k, 0, 0), calf_l=(-50 + 20 * k, 0, 0), foot_l=(30, 0, 6)),
-                              (0.14, 0.0, 1.66), (-0.14, 0.02, 1.68), grip=95))
-held_carried.close(32)
+LIFT = over(STAND, pelvis__loc=(0, 0, 0.1), pelvis=(6, 0, 0), spine_01=(6, 0, 0), spine_02=(4, 0, 0), neck=(-8, 0, 0),
+            head=(-14, 0, 0), clavicle_r=(0, 0, 24), clavicle_l=(0, 0, -24))
+for f, k in ((0, 1), (6, -1), (12, 1), (18, -1)):
+    held_carried.key(f, hands(over(LIFT, head=(-14, 0, 14 * k), thigh_r=(-14 + 10 * k, 0, 0), calf_r=(-30 - 14 * k, 0, 0),
+                                   foot_r=(46, 0, -6), thigh_l=(-14 - 10 * k, 0, 0), calf_l=(-30 + 14 * k, 0, 0), foot_l=(46, 0, 6)),
+                              (0.27, -0.06 + 0.04 * k, 1.56), (-0.27, -0.06 - 0.04 * k, 1.58), grip=95))
+held_carried.close(24)
 clips.append(held_carried)
 # Mouth covered (Tippy Toesie): both hands up at the mask, clawing at what's over it, the knees going.
 held_cover = Clip("held_cover")
