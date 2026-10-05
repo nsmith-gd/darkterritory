@@ -319,25 +319,28 @@ public sealed partial class Effects
         // The flare: strongest the moment the coal lands, gone by FlareSeconds.
         float coal = (float)Math.Max(0, sinceCoal);
         float flare = coal < FlareSeconds ? MathF.Pow(1 - coal / (float)FlareSeconds, 1.5f) : 0;
+        Coals(mesh, bed, right, up, back, hot, tint, t);
         // The fire's levels as it builds (T121): a few tongues off a low bed, the whole grate alight at capacity (and all of
-        // it for a moment as the coal catches).
+        // it for a moment as the coal catches). Each licks up off the heap where it is, its root up the mound or down in a
+        // hollow and in or out over the bed, not off a line.
         int tongues = Math.Clamp((int)MathF.Round(1 + 8 * (hot - 0.3f) / 0.7f) + (int)(9 * flare), 1, 9);
         for (int i = 0; i < 9; i++)
         {
             if ((i * 5 + 2) % 9 >= tongues)
                 continue;
-            float h = Hash(i * 2.37f + 0.9f);
+            float h = Hash(i * 2.37f + 0.9f), h2 = Hash(i * 1.71f + 5.3f);
             float x = (i / 8f - 0.5f) * 0.56f + (h - 0.5f) * 0.05f;
+            float root = Mound(x) - 0.02f + 0.03f * h2;
             float tall = (0.12f + 0.32f * hot) * (0.7f + 0.6f * h) * (1 + 1.3f * flare);
             int frame = (int)((t * 22 + i * 4.1) % 16);
-            mesh.Billboard(bed + right * x + up * (tall * 0.45f) - back * (0.06f * h), tall * 0.7f, (h - 0.5f) * 0.3f,
+            mesh.Billboard(bed + right * x + up * (root + tall * 0.45f) - back * (0.02f + 0.035f * h2), tall * 0.7f, (h - 0.5f) * 0.3f,
                 new Vector4(tint * (0.55f + 0.5f * hot), 1), _flame, FxBlend.Additive, frame, 4, stretch: 1.4f);
         }
-        // The coals' glow under the flames.
-        mesh.Billboard(bed + up * 0.03f, 0.8f, 0, new Vector4(tint * (0.25f + 0.35f * hot), 1), -1, FxBlend.Additive, stretch: 0.35f);
+        // The coals' glow, low among them (soft, not a sheet over the bed).
+        mesh.Billboard(bed - back * 0.05f, 0.5f, 0, new Vector4(tint * (0.12f + 0.2f * hot), 1), -1, FxBlend.Additive, stretch: 0.6f);
         // Roaring: the heart of it white-hot, a sheet of light over the whole bed.
         if (hot > 0.8f)
-            mesh.Billboard(bed + up * 0.16f, 0.62f, 0, new Vector4(new Vector3(1.2f, 1.05f, 0.75f) * (hot - 0.8f) * 3.5f, 1), -1, FxBlend.Additive, stretch: 0.55f);
+            mesh.Billboard(bed + up * 0.12f - back * 0.03f, 0.5f, 0, new Vector4(new Vector3(1.2f, 1.05f, 0.75f) * (hot - 0.8f) * 2.0f, 1), -1, FxBlend.Additive, stretch: 0.55f);
         // A cinder out of the hole now and then, up and out into the cab, going out.
         for (int k = 0; k < (hot > 0.8f ? 10 : 4); k++)
         {
@@ -379,6 +382,49 @@ public sealed partial class Effects
         float flicker = 0.85f + 0.08f * MathF.Sin((float)t * 9.1f) + 0.07f * MathF.Sin((float)t * 23.7f);
         mesh.PointLights.Add(new PointLight(bed + back * 0.55f + up * 0.35f, colour * (1.4f + 2.2f * hot) * flicker * (1 + 1.6f * flare), 4.5f + 2 * flare));
     }
+
+    /// <summary>
+    /// The bed of coals through the firehole (the checklist's firebox): a heap of lumps across the grate, mounded in the
+    /// middle and banked up at the back, each turned its own way. The dark ones are coal, lit by the fire. The ones in the
+    /// heart of it glow, more of them the hotter it is, each breathing on its own slow beat. It replaces the flat bright
+    /// band a bed of coals was.
+    /// </summary>
+    void Coals(MeshBuilder mesh, Vector3 bed, Vector3 right, Vector3 up, Vector3 back, float hot, Vector3 tint, double t)
+    {
+        float was = mesh.Emissive;
+        for (int k = 0; k < 72; k++)
+        {
+            float h1 = Hash(k * 3.17f + 0.4f), h2 = Hash(k * 1.93f + 2.2f), h3 = Hash(k * 4.41f + 1.1f), h4 = Hash(k * 2.63f + 7.9f);
+            float x = (h1 - 0.5f) * 0.6f, d = 0.01f + 0.12f * h2;
+            float y = Mound(x) + 0.025f * (d / 0.13f) - 0.012f * h3;
+            float size = 0.012f + 0.016f * h4;
+            float a = h3 * 6.283f, c = MathF.Cos(a), sn = MathF.Sin(a), yaw = h4 * 6.283f;
+            var r = right * c + up * sn;
+            var u = up * c - right * sn;
+            var b = back;
+            (r, b) = (r * MathF.Cos(yaw) + b * MathF.Sin(yaw), b * MathF.Cos(yaw) - r * MathF.Sin(yaw));
+            var at = bed + right * x + up * y - back * d;
+            var half = new Vector3(size, size * (0.45f + 0.5f * h1), size * (0.55f + 0.45f * h2));
+            // Glowing: down in the heart of the bed (the middle, the back), more of it alight the hotter the fire.
+            float heart = 1 - MathF.Abs(x) / 0.3f * 0.6f;
+            bool lit = Hash(k * 5.77f + 3.3f) < (0.2f + 0.55f * hot) * heart;
+            if (lit)
+            {
+                mesh.Emissive = 1;
+                float breath = 0.65f + 0.35f * MathF.Sin((float)t * (0.9f + 0.8f * h2) + k * 1.7f);
+                mesh.Box(at, r, u, b, half, tint * new Vector3(1, 0.62f, 0.42f) * (0.18f + 0.5f * hot) * breath * (0.7f + 0.6f * h3));
+            }
+            else
+            {
+                mesh.Emissive = was;
+                mesh.Box(at, r, u, b, half, new Vector3(0.011f, 0.010f, 0.010f) * (0.8f + 0.4f * h4));
+            }
+        }
+        mesh.Emissive = was;
+    }
+
+    // The heap's height off the bed's line across the grate (m): mounded in the middle, lower at the sides.
+    static float Mound(float x) => -0.07f + 0.05f * (1 - MathF.Min(1, MathF.Abs(x) / 0.3f) * MathF.Min(1, MathF.Abs(x) / 0.3f));
 
     /// <summary>How long a shovelful's flare lasts (s), from the coal landing: the roar up and the shower out of the hole.</summary>
     public const double FlareSeconds = 0.9;

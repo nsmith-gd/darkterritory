@@ -3149,7 +3149,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a bound off the ballast onto the car's end;
       - the body reared up it, the forelegs hooked over the roof's lip, the hind legs scrabbling at the planks out of step;
       - a heave up and over, landing in the pack fight's crouch, which the crouch-lunge loop takes on from.
-    - **At night it reads by its embers** climbing the car's end. The black body is lost on the end in shadow, which is how the hounds read anyway (GDD §21: "in the rear lamp").
+    - **Not yet: at night it doesn't read.** Climbing the car's end in shadow, only its ember slashes show. The pack on the ground behind is lost from the chase camera too (the Look Review round of 5 October). Their need is "read at range in the rear lamp, and as a pack": more glow, and a light of their own (launch scope; the hounds aren't in the demo).
     - **Staging:** `dt screenshot --threats --board s --view board`. The `board` view is behind the rear car, a little over its roof; `--board` takes the staged Car Hugger off that end.
     - **Tests:** `CreatureArtTests` budgets now list `board` among the hound's clips.
 210. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
@@ -3183,3 +3183,57 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **What it found:** the sweep now judges these kinds, and it fails on them. With one look-out who steps back from the lip and outruns the tongues, a Dragger or a Ribbit pack lands nothing in 90 s. That's the trivial verdict doing its job; it's left for balance, not hidden.
     - **Not yet:** a look-out in a crew of two (the gunner's legs are a walker's, but its gun is its post); looking more than once at the same thing; the Grumbler's crane out on the line (still unplaced without `--at-stops`).
     - Harness and bots only; protocol and enemy rules unchanged. Test: `AuditTests.TheLookOutGoesAndLooksAtWhatLiesInWait`: a 30 s insisted Gaunt+Dragger night, four bots. Without the look-out, both are placed and neither comes on; with it, both do.
+213. **The Whistler carries its victim (the checklist's "not yet": "the victim carried during the run").**
+    - **Before:** carrying someone off (App. A.4 GRAB), it played its run, laid flat on the ground. The one it had was drawn where the sim has them, at its middle, upright in `held_carried`, a pose made for the old upright Whistler. So the victim stood inside a flat coil.
+    - **Now it has a `carry` clip** (tools/blender/whistler.py, the run's 0.6 s loop):
+      - the back half runs flat and snaking (seg_05 takes back the snake's turn, so the front heads straight on);
+      - the front half rears two metres in a column, the head curled forward over them, the siphon out over their head;
+      - the forelegs wrap round from behind (solved with `rig.reach`), the hooks under their arms at `CARRY_UNDERARM`, 1.42 m.
+    - **Sockets `hook_r` and `hook_l`** at the forelegs' tips say where that is. `CreatureArt.Clutches` records them, by the held player's id, for each Whistler drawn this frame.
+    - **`GreyboxScene.Hung` draws the victim there,** by the armpits (`CreatureArt.CarriedUnderarm` over their feet), facing the way it runs. The sim still has them at its middle; this is presentation only.
+    - **`held_carried` is redone for it:** lifted 0.1 m to the hooks, the shoulders forced up, the hands clawing back at the forelegs, the legs swept back off the ground and kicking.
+    - **Put down at the nest,** out of its forelegs, they're drawn on their back (`held_pinned`), not hung in the air.
+    - **Facing:** carrying, it faces square off the line, the way its nest is from the gap (Sim `Whistler`), not off the nearest car's middle; a gap is at a car's end, which put it 45 degrees out.
+    - **Staging:** `dt screenshot --threats --whistler carry --view carry` (a second into the run, 7 m out, `Staging.CarryOut`). `--whistler nest` now has its catch too.
+    - **Tests:** `WhistlerTests.CarryingSomeoneOffItHoldsThemUpUnderTheArmsInFrontOfItsRearedFront`; `CreatureArtTests` budgets list `carry`.
+214. **The Choir disperses (the checklist's "not yet": "a disperse when the crew hushes (it just leaves)").**
+    - **Before:** driven off (World: its quiet held, enemies.json `choir.disperseQuietSeconds`, or its one taken), the swarm is dismissed the same tick (`Enemy.Dismiss`: BreakOff, then Gone), and every ghost blinked out.
+    - **Now the scene sees it go** (`GreyboxScene.Leaving`, presentation only, the scene's own memory like note 208's deaths). A ghost it drew last frame that's gone without being killed is drawn going for `CreatureArt.ChoirLeaveSeconds` (3 s):
+      - turned away from the train, in its swoop (tipped mouth first, tendrils streamed back);
+      - swept up 14 m and out 10 m from the train, faster and faster (the square of the time);
+      - its cold light going out, the cold mist off it gone at 60%.
+    - **`DrawEnemy`'s flinch push now applies with or without a tip** (going is all push). Every existing push came with a tip, so nothing else moves.
+    - **Staging:** `dt screenshot --threats --dispersing s --view choir` (the staged ghosts driven off s seconds ago).
+    - **Tests:** `CreatureArtTests.TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone`.
+    - **Not yet:** like the deaths, `dt playthrough`'s fresh scene per shot doesn't carry it.
+215. **The Track Doll vanishes, and takes a toy and goes (the checklist's "not yet": "vanish with no walk-off (it just stops being drawn); takes a toy and goes").**
+    - **Before:** the sim moves it from one tick to the next. Come at in its car, it hops to another; stopped short of on the rail, or appeased with a toy, it leaves the run. It simply stopped being drawn.
+    - **Now the scene sees it vanish** (`GreyboxScene.Vanishing`, presentation only, the scene's own memory as in notes 208 and 214). It copies each doll it drew (the sim moves its own). A doll that's gone, or moved car or more than a metre, is drawn where it was for a flicker (0.3 s, on and off at 15 Hz), held stock still in its last pose. It's never seen to walk.
+    - **Where it was,** `Effects.Vanish` leaves a puff of pale porcelain dust and a few white chips of glaze, for `Effects.VanishSeconds`.
+    - **Appeased,** a toy body gone the same tick goes with it: in the flicker it's clutched under its chin in both hands (its giggle's), drawn as `SceneArt.Toy` draws that toy (`CreatureArt.DollHolding`).
+    - **Staging:** `dt screenshot --threats --vanish s[:toy] --view inside` (the haunting doll moved into car 2 over its cargo and gone s seconds ago; s < 0, still there).
+    - **Tests:** `CreatureArtTests.TheTrackDollFlickersOutWhereItWasNotWalkingOff`.
+216. **The firebox's bed is a heap of coals (the 5 October audit; the checklist's firebox).** Through the open firehole, what the fireman sees all night was a flat bright band along the grate (an emissive box) under a row of flame cards rooted on one line.
+    - **Now `Effects.Coals` draws the bed** as 72 lumps across the grate, mounded in the middle and banked at the back, each turned its own way.
+      - The dark ones are coal, lit by the fire's own light.
+      - The ones in the heart of the bed glow, more of them the hotter the fire, each breathing on its own slow beat. They keep the Stoker's green.
+    - **The flames lick up off the heap:** each tongue's root follows the mound and sits in or out over the bed, shallow enough not to be cut by the back wall.
+    - **The glows are toned down:** the coals' glow is a soft low blob, not a sheet, and the roaring white heart is smaller, so the coals still show at full heat.
+    - **The scene's flat band** (`GreyboxScene`) is drawn only without the art pass's fire, or with the door shut.
+    - **Tests:** `EffectsTests.TheBedIsAHeapOfCoalsNotABand`. Looked at: `dt screenshot --firedoor --view firebox` (at `--coal` 1, the default and 9), and `--view fireman --flare 0.15`.
+217. **The spruce near the line is modelled, and the pines fill out (the 5 October audit's "pines from above": narrow stacked columns).**
+    - **What the chase camera found:**
+      - Along a Maritime-planned forest (PlanArt), every spruce was `NovaKit.Conifer`'s three crossed narrow cards; from above they read as a column of separate dark clumps with a stick on top.
+      - The modelled pine (`WorldKit.Pine`) showed sky between its 14 whorls, and its trunk poked out above the leader.
+    - **The fix:**
+      - `WorldKit.Pine` and the new `WorldKit.Spruce` share one bough builder. The pine now has 18 whorls, and both have a slim core of crossed foliage cards inside the boughs, so the gaps between whorls are foliage. The trunk stops in the leader.
+      - The spruce has short boughs in 24 whorls, a narrow spire as black spruce is, a club of dense short boughs at the top, and is tinted bluer like the far cards.
+      - PlanArt uses it within `NearSpruce` (40 m, as WorldArt's `NearTrees`) of the line; out in the fog, the cards stay.
+    - **Cost:** near-line forest frames on frontier:7 at km 15.9 go from about 260k to 410k triangles (chase and trackside), inside `perf.json`'s 1.5M.
+    - **Tests:** `LinesideArtTests.TheNearSpruceIsModelledNarrowAndMassed`. Looked at: `--route frontier:7 --at 15930 --view chase` and `--view trackside`, and `--at 4000 --view chase`.
+218. **The one the Car Hugger swallows is drawn in its mouth (the checklist's "nothing draws a player held in its mouth").**
+    - **Before:** the sim holds its catch wherever in `mouthReach` they were caught. Drawn there in `held_mouth` (bent double, the head 0.62 to 0.82 m ahead of the feet), they could be bent into thin air or a wall.
+    - **Now** the swallowing Car Hugger records its `mouth` bone, which sits over the end door's line and not at the model's origin, and the way into the mouth, in `CreatureArt.Clutches`. Clutches now say which kind of hold it is (`Hung` for the Whistler's).
+    - **`GreyboxScene.Hung` stands the victim** `CreatureArt.SwallowReach` (0.72 m) in front of the mouth on their own floor, facing into it, so their head is in it. Presentation only.
+    - **Staging:** `dt screenshot --threats --hugger swallow --doors-open --view swallow`. The swallow view is inside the rear car, looking at its end door. The staged catch is caught off to one side, 1.4 m in, and is seen in the mouth.
+    - **Tests:** `CreatureArtTests.TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught`.

@@ -241,12 +241,15 @@ public sealed partial class WorldArt
             return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
-        MeshAsset Tree(string kind, int v) => kind switch
+        // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
+        // the crossed cards.
+        MeshAsset Tree(string kind, int v, bool near) => kind switch
         {
             "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
             "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
+            _ when near => Piece($"spruce3d-{v}", () => WorldKit.Spruce(_look, v, 12)),
             _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
         };
 
@@ -296,7 +299,7 @@ public sealed partial class WorldArt
                     continue; // nothing grows on the crag
                 MeshAsset piece = dead
                     ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Tree(kind, variant);
+                    : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
                 if (dead)
                     (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
                 if (kind == "birch" && !dead)
@@ -928,6 +931,8 @@ public sealed partial class WorldArt
 
     static Vector3 F(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 
+    // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
+    const double NearSpruce = 40;
     // The causeway's bank, along: a stretch at a time.
     const double BankStep = 5;
     // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)
