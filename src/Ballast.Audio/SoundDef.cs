@@ -138,7 +138,10 @@ public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRe
     double TellOcclusionFloorDb, double OcclusionDb, double OcclusionLowpass, double MasterDb,
     SoundDuckRule[]? SoundDucking = null, MusicBusDef? Music = null,
     // Each tier bus's fader in dB, tier 1 first (missing ones are 0): the music's tier sits low whatever its takes' level.
-    double[]? TierDb = null)
+    double[]? TierDb = null,
+    // The listener's head (spec A.4 "directional to within ~30°"): its delay, shadow and pinna on every positioned voice.
+    // Null is the plain equal-power pan with a small rear cut.
+    HeadDef? Head = null)
 {
     public const string File = "audio/mix.json";
 

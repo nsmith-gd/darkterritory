@@ -146,14 +146,14 @@ FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent 
   - Every number can be a curve over a live parameter.
 - **Buses:** seven tier buses (spec A.3's six, and the work's drone under them), with the ducking rules and each tier's fader in `content/audio/mix.json`; and the opera's music bus apart from them (note 174).
 - **Spaces:** the listener's space (the cab, a car, a tunnel, a facility's yard, outside; `content/audio/spaces.json`) convolves everything positioned with a synthetic impulse response, shuts out what it shuts out, and compresses voice in a tunnel (note 192).
-- **Spatialisation:** distance rolloff and equal-power pan with a small rear cut, plus occlusion. Tells are floored at −6 dB.
+- **Spatialisation:** distance rolloff and a spherical head (note 244: the far ear's delay and shadow, the pinna's front-and-back and height cues), plus occlusion. Tells are floored at −6 dB.
 - **Voices:** per-sound instance limits with stealing, and a 64-voice budget. Past the budget, voices virtualise, but tells always render.
 - **Game hookup (`DarkTerritory.Game.Sound.GameAudio`)** drives it all from world state, so clients hear what the host does:
   - the bed follows speed, pressure, fire, throttle and brake;
   - slack action runs down the consist one coupling at a time;
   - the tells follow enemy phases;
   - the Choir adds voices and closes in as aggro climbs.
-- **Output:** device output is an SDL3 audio stream. miniaudio isn't needed yet, and Steam Audio's HRTF comes with VR.
+- **Output:** device output is an SDL3 audio stream. miniaudio isn't needed yet. Measured HRTFs (Steam Audio) stay open for VR, behind the head's stage (note 244).
 
 ### 6.5 Rendering (art direction)
 Forward+ renderer, deliberately limited:
@@ -3475,3 +3475,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - Without a film (no player shot), the hit still lands on the replay's derail moment.
     - **Stays:** a crewmate taking hold of a switch stand's lever isn't heard; the unlatch is only ever your own. The hold is the host's and isn't on the wire. Everyone hears the lever thrown, its latch and the points as they go over (`CrewSwitchStands`), at the stand or at the cab's powered thrower (note 237).
     - **Tests:** `CrewAudioTests.ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook`, `CrewAudioTests.APowderKegIsHandledAsAKegNotACrate`, `MusicManifestTests.WithAFilmTheHitLandsOnTheFinalPlayersApex`.
+244. **A head on the listener: side, front and back, and height, by ear (spec A.4 "directional to within ~30°. Players must be able to say 'car four, left side'"; the audio checklist's mix-spatial).** The spatialiser was an equal-power pan with a 2 dB cut from behind. It said which ear, not where.
+    - **The head (`Ballast.Audio.HeadDef`, mix.json "head"):** every positioned voice goes through a spherical head.
+      - The far ear is late by Woodworth's delay: an 8.75 cm head, 0.66 ms at the side. It's read from a short delay line, the delay gliding across each block.
+      - The far ear is 10 dB duller above 1.8 kHz: the head's shadow, a high shelf scaled by how far to the side the sound is.
+      - Both ears are 6 dB duller above 3.5 kHz from straight behind: the pinna, which tells front from back at the same angle.
+      - A 4 dB peak at 8 kHz overhead, and a notch underfoot, tell the roof from the floor.
+      - The level pan under it is 0.6 of a speaker's: a head lets the lows round to both ears.
+    - **A tell keeps its band.** Tier 1's cuts, taken together at its worse ear, stop at 3 dB (`tellFloorDb`). They're scaled down as one, so they still point the same way. This is spec A.3's floor, as occlusion has it.
+    - **Measured at the ears.** `Meter.BandDb` and the tell audit (`AudioBench.Contrast`) summed the ears' waveforms to mono.
+      - Through the head's delay, that comb-filters a single source: a 1.3 kHz tone 0.2 ms apart lost 4 dB.
+      - It also read a sound panned to one side 3 dB under the same sound in the middle.
+      - Both now sum each ear's energy, which reads the same as before for a sound in the middle.
+      - `AudioTests.TheSetPiecesAreHeard`'s range moved up 3 dB with it, to −22..0 dB: its sound is 6 m to the side.
+    - **What it bought:** with the head, every tell clears the bed by 6 dB for whoever has to hear it. The doll's giggle in the cab is 6.2 dB over; without the head, measured at the ears, it was 5.7 dB.
+    - **Why not measured HRTFs (Steam Audio):** a parametric head has every cue as a number in mix.json, costs a few filters a voice, renders the same offline as on the device, and needs no native library on either platform. Measured HRTFs are still open for VR, behind the same `Mixer` stage.
+    - **Tests:** `HeadTests`:
+      - straight ahead, both ears are the same;
+      - from the right, the left ear is 29–34 samples late and its highs a shadow down;
+      - each 30° step round moves the delay 6 samples or more;
+      - behind is duller than in front at the same angle;
+      - overhead is unlike underfoot;
+      - a tell loses no more than its floor;
+      - with no head, it's the speaker pan.

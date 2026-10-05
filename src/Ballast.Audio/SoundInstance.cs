@@ -110,6 +110,8 @@ public sealed class SoundInstance
     // Mixer-side state.
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
+    // Through the listener's head (MixDef.Head): made the first block the voice is heard positioned.
+    internal HeadState? Head;
     // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
     internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;

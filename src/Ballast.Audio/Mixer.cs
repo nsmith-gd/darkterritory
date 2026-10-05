@@ -96,6 +96,8 @@ public sealed class Mixer
     // Metering only: the tells' send, convolved apart.
     Convolver? _tellReverb;
     readonly float[] _tellSend = new float[Audio.Block], _tellLeft = new float[Audio.Block], _tellRight = new float[Audio.Block];
+    // A voice through the head, each ear.
+    readonly float[] _earLeft = new float[Audio.Block], _earRight = new float[Audio.Block];
     Smoothed _musicGain = new(1), _gameLowpass = new(0);
 
     public Mixer(SoundBank bank, MixDef mix)
@@ -294,12 +296,19 @@ public sealed class Mixer
             float l0 = v.LeftGain.Value, r0 = v.RightGain.Value;
             float l1 = v.LeftGain.Step(left * bus, 0.01), r1 = v.RightGain.Step(right * bus, 0.01);
             var buffer = _buffers[i];
+            // Through the head (spec A.4): each ear its own delay and shadow. Flat sounds aren't anywhere, so they skip it.
+            float[] earLeft = buffer, earRight = buffer;
+            if (Mix.Head is { } head && !v.Def.Flat)
+            {
+                (v.Head ??= new HeadState()).Process(buffer, _earLeft, _earRight, head, Direction(v), tell: v.Def.Tier == 1);
+                (earLeft, earRight) = (_earLeft, _earRight);
+            }
             float[]? stem = tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length ? tap.Stem(v.Name) : null;
             for (int s = 0; s < Audio.Block; s++)
             {
                 // Ramp across the block so gain changes never click.
                 float u = (s + 1f) / Audio.Block;
-                float l = buffer[s] * (l0 + (l1 - l0) * u), r = buffer[s] * (r0 + (r1 - r0) * u);
+                float l = earLeft[s] * (l0 + (l1 - l0) * u), r = earRight[s] * (r0 + (r1 - r0) * u);
                 output[s * 2] += l;
                 output[s * 2 + 1] += r;
                 if (stem is not null)
@@ -459,18 +468,26 @@ public sealed class Mixer
         }
         gain *= (float)attenuation;
 
-        double pan = 0, behind = 0;
-        if (d > 1e-6)
-        {
-            var dir = offset * (1 / d);
-            pan = Math.Clamp(Double3.Dot(dir, Listener.Right), -1, 1);
-            behind = Math.Max(0, -Double3.Dot(dir, Listener.Forward));
-        }
-        // A touch quieter from behind: a cheap front/back cue until HRTF (Steam Audio) is in.
-        gain *= Audio.DbToGain(-2 * behind);
-        double angle = (pan + 1) * Math.PI / 4;
+        var at = Direction(v);
+        // Without a head, a touch quieter from behind: a cheap front/back cue. With one, the pinna's shelf does that.
+        if (Mix.Head is null)
+            gain *= Audio.DbToGain(-2 * at.Behind);
+        double angle = (at.Lateral * (Mix.Head?.PanWidth ?? 1) + 1) * Math.PI / 4;
         left = gain * (float)Math.Cos(angle);
         right = gain * (float)Math.Sin(angle);
         return gain;
+    }
+
+    /// <summary>Where a voice is from the listener's head (all zero on top of it).</summary>
+    HeadDirection Direction(SoundInstance v)
+    {
+        var offset = v.Position - Listener.Position;
+        double d = offset.Length;
+        if (d <= 1e-6)
+            return default;
+        var dir = offset * (1 / d);
+        var up = Double3.Cross(Listener.Right, Listener.Forward);
+        return new HeadDirection(Math.Clamp(Double3.Dot(dir, Listener.Right), -1, 1), Math.Max(0, -Double3.Dot(dir, Listener.Forward)),
+            Math.Clamp(Double3.Dot(dir, up), -1, 1));
     }
 }

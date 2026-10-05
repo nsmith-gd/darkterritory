@@ -79,7 +79,8 @@ public class AudioTests
         Assert.Equal(tier, bank.Get(sound)!.Tier);
         var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 4, speed: 0, listenerCar: 1, seconds: 2);
         double level = report.StemsDb.GetValueOrDefault(sound, double.NegativeInfinity);
-        Assert.InRange(level, -25, -3);
+        // Measured at the ears (Meter, note 244): off to one side that's 3 dB over the mono sum it once was.
+        Assert.InRange(level, -22, 0);
         Assert.True(level > report.StemsDb.GetValueOrDefault("boiler-roar", double.NegativeInfinity) + 20, $"{sound} at {level} dB");
     }
 
