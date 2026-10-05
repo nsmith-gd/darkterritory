@@ -28,16 +28,16 @@ public static class UiCue
     // ui-run-end: the incident report (GDD App. D.12).
     public const string Report = "ui-run-end.report";
     public const string Tally = "ui-run-end.tally";
-    /// <summary>A commendation given on the run-end screen (D.12; note 239).</summary>
+    /// <summary>A commendation given on the run-end screen (D.12; note 241).</summary>
     public const string Commendation = "ui-run-end.commendation";
     /// <summary>A death of the night entered on the report: the stamp; and, where the crew did it to themselves, the typewriter.</summary>
     public const string DeathStamp = "ui-run-end.death-stamp";
     public const string OwnGoal = "ui-run-end.own-goal";
     // ui-dead-phase (GDD App. D.10).
     public const string Queue = "ui-dead-phase.queue";
-    /// <summary>A creature vote locked in by the host (D.11; notes 180, 202, 239).</summary>
+    /// <summary>A creature vote locked in by the host (D.11; notes 180, 202, 241).</summary>
     public const string Vote = "ui-dead-phase.vote";
-    /// <summary>A bookmark this player took (D.12's manual ones; notes 176, 203, 239).</summary>
+    /// <summary>A bookmark this player took (D.12's manual ones; notes 176, 203, 241).</summary>
     public const string Bookmark = "ui-dead-phase.bookmark";
 }
 
@@ -114,7 +114,7 @@ public sealed partial class GameAudio
     readonly HashSet<int> _heardBookmarks = [];
 
     /// <summary>
-    /// This player's choices heard (GDD v1.4 App. D.11, D.12; note 239), each as it happens, from the session as it shows
+    /// This player's choices heard (GDD v1.4 App. D.11, D.12; note 241), each as it happens, from the session as it shows
     /// them: the dead's ballot (the pick moving through it, the cast going off, and the host's lock coming back, the vote's
     /// stamp), each manual bookmark they took as the host records it, and a commendation given on the run-end screen.
     /// What's already so on the first look isn't news.
