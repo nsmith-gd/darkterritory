@@ -15,7 +15,7 @@ off), the few pieces still greybox, and testing on real machines with real peopl
 | **M1 — Feel prototype** | done | Window, Vulkan renderer, headless screenshots, FPS controller on moving frames, a drivable train | Spec G.1/G.2 answered through four playtest rounds (T90–T121) |
 | **M2 — Crew of eight** | done on LAN | Replication, prediction, interest management, physics sync, Steam lobby code, bots, nightly 8-client rough-link soak, LAN host/join lobby | A first run on real Steam between two accounts; a real two-machine LAN night |
 | **M3 — Voice** | done | Opus, host routing, proximity and occlusion, the radio item, the dead channel, the GRAB on the radio, the hard-cut | An eight-person voice test |
-| **M4 — VR** | in progress | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210) | Hands that hold what they carry, multiview, the exit test on a real Quest and SteamVR |
+| **M4 — VR** | in progress | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210), multiview stereo: both eyes in one pass, a pass an eye where the GPU can't (note 221) | Hands that hold what they carry, the exit test on a real Quest and SteamVR (and multiview's numbers on a real GPU, note 221) |
 | **M5 — Demo slice** | built, in review | Procedural line, fortress, facilities and their set pieces, the v1.4 roster of five plus the Choir, director, mixer, art and audio at L1 | The director's sign-off to L2 on the demo's rows; set pieces still greybox |
 | **M6 — Demo ship** | in progress | Packaged Windows/Linux builds from CI, the demo edition, upload scripts, crash reports, settings, store art at L1 | The Coming Soon page, store art and trailer to L2, itch build (EOS) |
 | M7 — Next Fest | partly | Mod loader v1 (Thunderstore), balance sweeps | Feb build polish, more facilities and enemies |
@@ -304,7 +304,7 @@ Remaining for M2:
 
 Remaining for M4:
 - the rest of body IK (a spine that follows the headset, stepping legs)
-- multiview
+- ~~multiview~~ done (ARCHITECTURE §8 note 221): both eyes in one pass where the GPU has VK_KHR_multiview, a pass an eye where it hasn't
 - the exit test on a real Quest and SteamVR
 
 **GDD v1.4 (1–4 Oct, #127–#149):**
