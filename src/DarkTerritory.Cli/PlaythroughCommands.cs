@@ -75,8 +75,15 @@ static class PlaythroughCommands
             string file = $"{shots.Count:000}-{name}.png";
             PngWriter.Write(Path.Combine(dir, file), pixels, width, height, 1);
             var engine = train.Frames[0].Origin;
-            shots.Add(new { file, seconds = Math.Round(seconds, 1), km = Math.Round(train.Dynamics.Distance / 1000, 2), what,
-                engine = new[] { Math.Round(engine.X), Math.Round(engine.Y), Math.Round(engine.Z) }, camera = new[] { Math.Round(camera.Position.X), Math.Round(camera.Position.Y), Math.Round(camera.Position.Z) } });
+            shots.Add(new
+            {
+                file,
+                seconds = Math.Round(seconds, 1),
+                km = Math.Round(train.Dynamics.Distance / 1000, 2),
+                what,
+                engine = new[] { Math.Round(engine.X), Math.Round(engine.Y), Math.Round(engine.Z) },
+                camera = new[] { Math.Round(camera.Position.X), Math.Round(camera.Position.Y), Math.Round(camera.Position.Z) }
+            });
             lastShot = seconds;
         }
 
