@@ -104,7 +104,7 @@ static class PlaythroughCommands
             if (route.Plan is { } plan)
                 DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
             if (train.Dynamics.Speed > cap)
-                session.Controls = session.Controls with { Throttle = 0, Brake = Math.Max(session.Controls.Brake, 0.4) };
+                session.Controls = session.Controls with { Throttle = 0, Brake = 1 };
             // The fireman's job, done for them (there's only the driver): the fire kept up, so the night isn't lost to the
             // boiler running down on the first grade and the train rolling back.
             if (train.BoilerTuning is { } boiler && train.Boiler.FireFraction(boiler) < 0.6 && t % SimConstants.TickRate == 0)
