@@ -339,6 +339,82 @@ public class CrewAudioTests
         Assert.True((Assert.Single(b.Heard, h => h.Name == "crew-switch.points-move").At - line.Sample(Toe).Position).Length < 0.01);
     }
 
+    sealed class Windy(double wind) : ITrackConditions
+    {
+        public double Ground(Double3 world) => 0;
+        public double Adhesion(int path, double distance) => 1;
+        public double Drag(int path, double distance, double speed) => 0;
+        public int ColdStep(int path, double distance) => 0;
+        public double Wind(int path, double distance) => wind;
+    }
+
+    [Fact]
+    public void OnARoofTheGustPushingYouIsHeardOnTheSideItBlowsFrom()
+    {
+        // Note 201's wind on a roof's footing (note 211): the gust that pushes you is a gale's roar off the side it comes
+        // from, as loud as it pushes, so you hear it build before it walks you to the edge.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = new Windy(1) };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        world.Train.Dynamics.Velocity = T.MaxSpeed;
+        var b = new Bench(world, "crew-footsteps.walk.roof");
+        b.Audio.OwnId = 1;
+        b.Audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Run };
+        var roof = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        // Two places along the line with strong gusts from opposite sides.
+        double From(double sign) => Enumerable.Range(0, 400).Select(i => 5_000.0 + i * 7).First(x => sign * PlayerMotor.Gust(x, P.Wind.GustMetres) > 0.8);
+        SoundInstance? Gale() => b.Audio.Mixer.Voices.SingleOrDefault(v => v.Name == "world-wind.gale" && !v.Finished);
+        foreach (double sign in new[] { 1.0, -1.0 })
+        {
+            var s = roof with { LineHint = From(sign) };
+            for (int i = 0; i < 3; i++)
+                b.Step((1, s));
+            double push = PlayerMotor.WindPush(s, b.Audio.OwnIntent, b.Train, P, T);
+            Assert.Equal(Math.Sign(sign), Math.Sign(push));
+            var gale = Gale();
+            Assert.NotNull(gale);
+            // Off the car's left for a push to its right, and the other way round.
+            var frame = b.Train.Frames[2];
+            double side = Double3.Dot(gale!.Position - frame.ToWorld(s.Position), frame.Right);
+            Assert.True(side * push < 0, $"gale {side:0.0} m across, push {push:0.00}");
+            Assert.InRange(gale.Volume, 0.5f, 1f);
+        }
+        // Down off the roof, in the car: no push, no gale.
+        var inside = PlayerMotor.SpawnInCab(b.Train, P);
+        for (int i = 0; i < 3; i++)
+            b.Step((1, inside));
+        Assert.Null(Gale());
+    }
+
+    [Fact]
+    public void ARadioMendedWithTheKitIsHeardComingBack()
+    {
+        // Note 201's mending (note 211): the kit opened as the hands go to work, its ratchet while they stay at it, and the
+        // set's squelch with the kit shut once the radio's whole.
+        var b = new Bench("crew-repair.kit-open", "crew-repair.ratchet", "crew-repair.done", "voice-radio-sfx.squelch");
+        b.Audio.Bank.Add("crew-repair.ratchet", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.Audio.Bank.Add("voice-radio-sfx.squelch", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
+        b.World.EnableBodies();
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        var radio = b.World.Bodies.SpawnCrate(b.Train, 2, new Double3(0.5, b.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Radio);
+        radio.Broken = true;
+        b.Step((1, s));
+        for (int i = 1; i <= 20; i++)
+        {
+            radio.MendTicks = i;
+            b.Step((1, s));
+        }
+        Assert.Equal(1, b.Count("crew-repair.kit-open"));
+        Assert.Contains(b.Audio.Mixer.Voices, v => v.Name == "crew-repair.ratchet" && !v.Finished);
+        Assert.Equal(0, b.Count("crew-repair.done"));
+        radio.Broken = false;
+        radio.MendTicks = 0;
+        for (int i = 0; i < 5; i++)
+            b.Step((1, s));
+        Assert.Equal(1, b.Count("crew-repair.done"));
+        Assert.True(b.Heard.Any(h => h.Name == "voice-radio-sfx.squelch") || b.Audio.Mixer.Voices.Any(v => v.Name == "voice-radio-sfx.squelch"));
+        Assert.DoesNotContain(b.Audio.Mixer.Voices, v => v.Name == "crew-repair.ratchet" && !v.Finished);
+    }
+
     [Fact]
     public void AnExtinguisherRunDryGivesUpItsDregs()
     {

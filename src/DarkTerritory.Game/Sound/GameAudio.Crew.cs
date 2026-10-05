@@ -119,9 +119,13 @@ public sealed partial class GameAudio
         public bool Lifted, Falling, Thrown, OnMount, Spraying;
         public double Charge, LastDrain = double.NegativeInfinity, ReleasedAt, Hint;
         public Double3 Local;
-        public int Still;
+        public int Still, MendTicks;
         public int? CarrierSpace;
+        public bool Broken;
     }
+
+    // Hold owners for a radio's mending, clear of the players' ids (the boiler's ratchet is held by player).
+    const int RadioMendOwner = 20_000;
 
     sealed class CrewEngine
     {
@@ -1161,7 +1165,9 @@ public sealed partial class GameAudio
                     Charge = b.Charge,
                     Local = b.Centre,
                     OnMount = OnMount(train, b),
-                    Hint = train.Dynamics.Distance
+                    Hint = train.Dynamics.Distance,
+                    Broken = b.Broken,
+                    MendTicks = b.MendTicks,
                 };
                 continue;
             }
@@ -1261,6 +1267,23 @@ public sealed partial class GameAudio
                 if (firePressed && carried && b.Carrier == OwnId && b.Charge <= 0)
                     Cue("crew-extinguisher.dry-trigger", at, occlusion);
                 m.Spraying = spraying;
+            }
+            // A broken radio mended with the repair kit (note 201): the kit opened at it as the hands go to work, the
+            // ratchet's small turns while they stay at it, and once it's whole the kit shut and the set coming back to
+            // life with a squelch, so the crew hear their radio's back (note 211).
+            if (b.Kind == BodyKind.Radio)
+            {
+                if (b.MendTicks > 0 && m.MendTicks == 0)
+                    Cue("crew-repair.kit-open", centre, occlusion, 0.6f);
+                if (b.MendTicks > 0 && Hold("crew-repair.ratchet", RadioMendOwner + b.Id, centre, occlusion) is { } ratchet)
+                    ratchet.Volume = 0.55f;
+                if (m.Broken && !b.Broken)
+                {
+                    Cue("crew-repair.done", centre, occlusion, 0.7f);
+                    Cue("voice-radio-sfx.squelch", centre, occlusion);
+                }
+                m.MendTicks = b.MendTicks;
+                m.Broken = b.Broken;
             }
             m.Carrier = b.Carrier;
             m.Lifted = lifted;

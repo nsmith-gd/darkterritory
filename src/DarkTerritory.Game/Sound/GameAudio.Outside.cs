@@ -33,7 +33,9 @@ public sealed partial class GameAudio
     bool _outsidePrimed, _radioWas;
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
     // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
-    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000;
+    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000;
+    // The line's gust where the ear was last tick (PlayerMotor.Gust), for the gust cue as one rises.
+    double _gustWas;
     Double3 _spoutAt;
     Places? _places;
 
@@ -98,6 +100,7 @@ public sealed partial class GameAudio
         bool radioDead = route is not null && !double.IsNaN(earMain) && route.DeepInTunnel(earMain, reach)
             || run is not null && run.Underground(earState, train, reach);
         RadioDevice(ear, radioDead, primed);
+        RoofGust(train);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
@@ -192,6 +195,32 @@ public sealed partial class GameAudio
         _radioWas = held;
         if (held && deadZone)
             HoldLevel("voice-radio-sfx.static", 0, chest, 0, 1);
+    }
+
+    /// <summary>
+    /// The wind on a roof's footing heard (GDD §22, spec B.2; note 201's push, note 211): up on a roof, the gust that's
+    /// pushing you is a gale's roar on the side it blows from, as loud as it pushes (PlayerMotor.WindPush, the sim's own
+    /// sum, so it's the gust you're in), so you hear it build before it walks you to the edge, and hear it ease off.
+    /// </summary>
+    void RoofGust(TrainOnLine train)
+    {
+        if (OwnId < 0 || PlayerTuning is not { } p)
+            return;
+        foreach (var (id, s) in CrewStates)
+        {
+            if (id != OwnId || s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
+                continue;
+            double push = PlayerMotor.WindPush(s, OwnIntent, train, p, train.Dynamics.Tuning);
+            // The worst a roof gets: exposed track's 1.5× of a full night's wind, flat out.
+            double worst = 1.5 * p.Wind.Drift;
+            if (Math.Abs(push) < 0.02 * worst)
+                return;
+            // A push to the car's right comes off its left.
+            var frame = train.Frames[s.Parent];
+            HoldLevel("world-wind.gale", GustOwner, frame.ToWorld(s.Position + new Double3(-Math.Sign(push) * 5, 1.6, 0)), 0,
+                Math.Clamp(Math.Abs(push) / worst, 0.15, 1));
+            return;
+        }
     }
 
     // ---- The world ---------------------------------------------------------------------------------------------------------
@@ -330,9 +359,21 @@ public sealed partial class GameAudio
         double wind = weather.Wind * exposure;
         if (wind > 0.4)
             HoldLevel("world-wind.gale", 0, ear + Double3.Up, 0, Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));
-        if (wind > 0.15 && Sometimes(0.02 + 0.15 * wind, dt))
+        if (train.Line.Conditions is not null && PlayerTuning is { } pt && !double.IsNaN(earMain))
+        {
+            // The line's own gusts (note 201: the same field the sim pushes roof standers with), each heard as it rises,
+            // from the side it blows from: a gust from the left comes off the train's left (note 211).
+            double gust = PlayerMotor.Gust(earMain, pt.Wind.GustMetres);
+            if (wind > 0.15 && Math.Abs(gust) > GustRises && Math.Abs(_gustWas) <= GustRises)
+                Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, 0, (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));
+            _gustWas = gust;
+        }
+        else if (wind > 0.15 && Sometimes(0.02 + 0.15 * wind, dt))
             Cue("world-wind.gust", ear + Mixer.Listener.Right * (OutsideOdds() < 0.5 ? -4 : 4) + Double3.Up, 0, (float)Math.Clamp(0.5 + 0.5 * wind, 0.5, 1));
     }
+
+    // How strong (of PlayerMotor.Gust's ±1) a gust is as it's heard rising.
+    const double GustRises = 0.6;
 
     /// <summary>world-brass: the engine cutting through brass growth across the rail at a crawl, or ramming it faster than that (and paying).</summary>
     void WorldBrass(TrainOnLine train, Places places, bool primed)
