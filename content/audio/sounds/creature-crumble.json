@@ -1,4 +1,4 @@
-// A kill confirmed (player actions, tier 4; note 242): a creature that stands on something goes over when it's killed and,
+// A kill confirmed (player actions, tier 4; note 244): a creature that stands on something goes over when it's killed and,
 // from halfway through (Effects.DeathSeconds), crumbles to ash and is gone (note 208). This is that: a dry, ashy collapse,
 // the body's weight settling under it, and a few embers ticking out. One sound for every kind, so the crew learn it means
 // dead whatever it was; each creature's own death cry (where it has one) comes at the blow, before it.

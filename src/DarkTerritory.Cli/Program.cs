@@ -2123,7 +2123,7 @@ static object RenderSound(string content, string sound, string[] args)
     return new { path = Path.GetFullPath(output), spectrogram = Path.GetFullPath(picture), report };
 }
 
-// dt audio clerk [--line "Crew: Priya."]: the yard on the radio (note 238), a manifest and a tally said through the set at the
+// dt audio clerk [--line "Crew: Priya."]: the yard on the radio (note 240), a manifest and a tally said through the set at the
 // voice's own pace, to a WAV and its spectrogram, with each line's turn and what the set broke up over.
 static object RenderClerk(string content, string[] args)
 {
