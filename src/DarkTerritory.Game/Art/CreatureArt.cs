@@ -309,6 +309,8 @@ public sealed class CreatureArt
     public Look Look { get; }
     public string ContentRoot { get; }
 
+    /// <summary>A Cinder Hound's board onto the rear car (tools/blender/cinder_hound.py "board", 33 frames at 30).</summary>
+    const double HoundBoardSeconds = 1.1;
     Sim.Enemies.WhistlerTuning? _whistler;
     Sim.Enemies.CarFireTuning? _carFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
@@ -1160,12 +1162,13 @@ public sealed class CreatureArt
                         (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
                     else if (aboard)
                     {
-                        // Onto the roof in one leap, then the pack fight: crouch (a held beat), lunge, crouch.
-                        if (t < 0.6)
-                            (clip, loop) = ("lunge", false);
+                        // Onto the rear car (its board: up off the ballast, scrabbling up the car's end, over the roof's lip), then
+                        // the pack fight: crouch (a held beat), lunge, crouch.
+                        if (t < HoundBoardSeconds)
+                            (clip, loop) = ("board", false);
                         else
                         {
-                            double c = (t - 0.6) % 2.0;
+                            double c = (t - HoundBoardSeconds) % 2.0;
                             (clip, ct, loop) = c < 1.1 ? ("crouch", c, true) : ("lunge", c - 1.1, false);
                         }
                     }

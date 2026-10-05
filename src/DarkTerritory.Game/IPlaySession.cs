@@ -25,7 +25,7 @@ namespace DarkTerritory.Game;
 /// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
 /// under it. Null for a keyboard or a bot.</param>
 /// <param name="Car">The car whose frame they stand in (their replicated <see cref="PlayerState.Parent"/>), or
-/// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 210).</param>
+/// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 211).</param>
 /// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,

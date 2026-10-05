@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Sim.Bots;
 
-/// <summary>Mirror of content/tuning/balance.json <c>combinations.look</c>: the look-out's errand (note 211). Field docs live there.</summary>
+/// <summary>Mirror of content/tuning/balance.json <c>combinations.look</c>: the look-out's errand (note 212). Field docs live there.</summary>
 public sealed record LookTuning
 {
     public double WaitSeconds { get; init; } = 12;
@@ -15,7 +15,7 @@ public sealed record LookTuning
 }
 
 /// <summary>
-/// GDD §34's combination sweep (note 211): in an insisted night only, one walker is the look-out, and goes and looks at what
+/// GDD §34's combination sweep (note 212): in an insisted night only, one walker is the look-out, and goes and looks at what
 /// lies in wait for a crew that never comes near it. Bots keep to their posts, and the Gaunt asleep in the yard, a Dragger
 /// under a roof's lip and a Ribbit pack out on the ballast were put there and never came on (note 186's "dormant"). The
 /// look-out walks over the ballast to the sleeping Gaunt, or toward the pack, away from the others, before boarding; up on

@@ -28,7 +28,7 @@ public sealed partial class SceneArt(Look look)
     /// <summary>
     /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
     /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). On a car that's over the car,
-    /// in its frame (note 210): stood still on a train at speed is stood still. False without the model.
+    /// in its frame (note 211): stood still on a train at speed is stood still. False without the model.
     /// </summary>
     /// <param name="swung">Seconds since a blow of theirs landed (a HitConfirm by them, App. C.2), or negative: their swing
     /// is played round it, so another crewmate's blow is seen as well as felt.</param>

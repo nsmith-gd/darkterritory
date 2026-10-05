@@ -62,7 +62,7 @@ public sealed record HarnessOptions
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
     /// <summary>
-    /// With <see cref="Insist"/>: the look-out's errand (note 211), the last walker's, to the Gaunt, Ribbits or a Dragger
+    /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's, to the Gaunt, Ribbits or a Dragger
     /// insisted on. Null: the crew keep to their posts.
     /// </summary>
     public LookTuning? Look { get; init; }
@@ -219,7 +219,7 @@ public static class Harness
                 session.World.EnableLineside(csight, lroute);
             clients.Add((session, bot, transport));
         }
-        // An insisted night's look-out (note 211): the last walker goes and looks at what lies in wait for it.
+        // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it.
         if (o.Insist is { } looked && o.Look is { } look && clients.Select(c => c.Bot).OfType<RoofWalkerBot>().LastOrDefault() is { } lookout)
             lookout.Errand = new LookErrand(looked, look);
 

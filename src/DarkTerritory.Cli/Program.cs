@@ -163,7 +163,7 @@ object RunHarness(string[] args)
         Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
         Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
-        // And its look-out (note 211), as the sweep's.
+        // And its look-out (note 212), as the sweep's.
         Look = args.Contains("--insist") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
@@ -1294,6 +1294,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         scene.Hits = Staging.HitsOn(struck, train, camera.Position);
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--hit-age", 0.07) * SimConstants.TickRate);
+    }
+    // --board s (with --threats): the staged hound on the rear car s seconds into its board (up the car's end, over the lip).
+    if (args.Contains("--board") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> pack
+        && pack.FirstOrDefault(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.CinderHound && e.Attached >= 0) is { } boarding)
+    {
+        // (The staged Car Hugger is on the same end: out of the way.)
+        pack.RemoveAll(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.CarHugger);
+        boarding.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, Opt(args, "--board", 0.5), boarding.Health, boarding.Attached, boarding.Local, 0, 0, 0,
+            boarding.Extra, boarding.Extra2);
     }
     // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
     // and crumbling (GreyboxScene.Deaths).

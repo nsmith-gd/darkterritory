@@ -204,7 +204,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>Its own player id (the session's), so it knows what's in its hands. Set by whoever runs it.</summary>
     public int Me { get; set; } = -1;
 
-    /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 211); null otherwise.</summary>
+    /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 212); null otherwise.</summary>
     public LookErrand? Errand { get; set; }
 
     uint _workedTick = uint.MaxValue;
@@ -590,7 +590,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (!_looked)
             Look(world, self);
         _looked = false;
-        // The look-out on an insisted night (note 211): a Dragger to meet keeps it out on the roofs, not in for a bag.
+        // The look-out on an insisted night (note 212): a Dragger to meet keeps it out on the roofs, not in for a bag.
         if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
         {
             (_drop, _catchCar) = (null, null);
@@ -624,7 +624,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Trouble (or a bag to catch) in another car: head along the roofs for it (in through its door when we're there).
             if ((_trouble?.Attached ?? _catchCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
                 _direction = goal < parent ? -1 : 1;
-            // Or the lip over a Dragger the look-out's making for, on another car (note 211).
+            // Or the lip over a Dragger the look-out's making for, on another car (note 212).
             else if (lookAt is { } lip && lip != parent && _warm is not { Active: true } && self.Surface == Surface.Roof)
                 _direction = lip < parent ? -1 : 1;
             // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).

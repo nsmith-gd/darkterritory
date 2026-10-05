@@ -36,6 +36,10 @@ public static class Views
             "gapside" => GapSideCamera(train, car),
             // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
             "trail" => TrailCamera(train),
+            // Behind the rear car and off its side, a little over its roof, looking at the roof's end and down the car's end: where
+            // the Cinder Hounds come up (their board, --board s).
+            "board" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-(train.Frames[^1].Shape.HalfWidth + 3.5), train.Frames[^1].Shape.RoofHeight + 1.4, train.Frames[^1].Shape.HalfLength + 7)),
+                train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight - 0.8, train.Frames[^1].Shape.HalfLength - 1.5)), 55),
             // Close on the nest at the trail's end, the Whistler crouched over its catch.
             "nest" => NestCamera(train),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.

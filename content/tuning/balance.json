@@ -41,7 +41,7 @@
     "approachM": 350, "stopSeconds": 150,
     "unwinnableLost": 0.5, "trivialCargoLoss": 0.02,
     // GDD §34 "every pair and triple": a meeting the bots never give its chance can't be judged (note 186's "dormant"). On
-    // these nights only, the last walker is the look-out (note 211): off the ballast at the start it waits up to waitSeconds
+    // these nights only, the last walker is the look-out (note 212): off the ballast at the start it waits up to waitSeconds
     // for what's sent at a crew on foot, then walks to within gauntM of a sleeping Gaunt (it wakes at enemies.json wakeAt 4)
     // or ribbitM of a Ribbit pack (away from the others: outnumbered), if it's within seekM; up on the roofs it stays out
     // there (not in for a bag) and stands edgeM in from the lip over a Dragger (it reaches draggers.grabRange 1.0 in). Once
