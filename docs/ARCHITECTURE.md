@@ -3252,3 +3252,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The choice** (`CreatureArt.RibbitClip`): COMMIT is `tongue`. GRAB and PUNISH are `creep` while the leader is more than `RibbitDevourReach` (1.2 m) from them, and `devour` inside it. Devouring, its own tongue isn't drawn out to them (it's in them); the rest of the pack's still are.
     - **Staging:** `dt screenshot --threats --crew --ribbits devour --view packside` (a new view, low along the car, side on). It puts the leader where the hop stops. `--ribbits tongue|devour` also draws crewmate 4 in the game's `held_frozen`.
     - **Tests:** `CreatureArtTests.TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem`; the ribbit's clip budget lists both.
+221. **The Car Hugger rides its cut car off (the checklist's "rides the cut car away").** Cut loose (A.3: "it goes with its car into the dark"), the sim's done with it: the tick its car's off the train, uncoupled, or eaten through so it drops away (`CarHugger.Tick`), it's Gone. But the car's still there, rolling free and falling behind, and the hugger blinked out from its end.
+    - **Now** `GreyboxScene.Riding` remembers a Car Hugger that was clamped on a car that's now off the engine's train (`Adrift`: a coupling cut between it and the engine, from `Cut`).
+      - It's drawn still clamped on that car's end, feeding and grinding (its sparks), its arms on the bitten edge, as the car goes.
+      - It stops when the car's out of sight, or coupled up again. A hugger gone off a car still in the train (killed) isn't kept.
+    - **Presentation only:** the sim isn't changed, and nothing goes back to it.
+    - **Staging:** `dt screenshot --threats --cut 3 --hugger ride --view cutoff`. `cutoff` is a new view, on the ground behind and off the last car of a cut train.
+    - **Tests:** `CreatureArtTests.TheCarHuggerCutLooseRidesItsCarOffNotBlinkingOut`.
