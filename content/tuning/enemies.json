@@ -247,8 +247,9 @@
 
   "director": {
     // GDD v1.4 App. D.11 and D.13, the dead's creature vote (note 180): a ballot of `options` drawn from what the director
-    // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag.
-    "vote": { "perVote": 1.2, "cap": 1.5, "options": 3 },
+    // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
+    // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
+    "vote": { "perVote": 1.2, "cap": 1.5, "options": 3, "botSeconds": 6 },
     // App. B.1.
     "baseBudget": { "local": 90, "frontier": 150, "deadLines": 230, "deepTerritory": 330 },
     "lengthPerCarBeyondThird": 0.15,

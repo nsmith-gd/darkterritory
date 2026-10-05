@@ -1704,11 +1704,30 @@ static object HudShot(string content, string[] args)
         : null;
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
-    // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot.
-    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote")) : null;
+    // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot (--ballot implies it).
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot")) : null;
     IPlaySession session;
     if (spectated is { } pair)
+    {
         session = pair.Watcher;
+        // --ballot pick|cast (note 202): the ballot's screen with its second creature picked, or cast and locked by the host;
+        // --headset: as a headset's panel says it (the stick, not the keys).
+        Hud.Headset = args.Contains("--headset");
+        if (Str(args, "--ballot", "") is { Length: > 0 } stage && pair.Watcher.Ballot is { Options.Count: > 1 } offered)
+        {
+            pair.Watcher.Picker.Key(2, offered.Options.Count);
+            if (stage == "cast")
+            {
+                pair.Watcher.Picker.Cast();
+                for (int t = 0; t < SimConstants.TickRate / 2; t++)
+                {
+                    pair.Host.Step(default);
+                    pair.Watcher.Step(default);
+                    Thread.Sleep(1);
+                }
+            }
+        }
+    }
     else
     {
         var solo = generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
@@ -1769,6 +1788,7 @@ static object HudShot(string content, string[] args)
     // The report's bookmarks (GDD v1.4 App. D.12): each still drawn from its camera as the app takes it, the staged crew in
     // view but for whoever's eyes it is, before the report that shows them.
     var stills = new BookmarkStills();
+    List<string>? kept = null;
     if (args.Contains("--report") && session.World.Run?.Report is { Bookmarks.Count: > 0 } staged)
     {
         var figures = Staging.ReportCrew(session.Train);
@@ -1781,10 +1801,9 @@ static object HudShot(string content, string[] args)
                 .Build(still, session.Train.Line, frames, session.Train.Dynamics.Distance, shot.Position);
             stills.Keep(b, renderer.Render(still, shot, lighting, lighting.FogColor), width, height);
         }
-        // --stills dir: each still on its own, full size, to look at.
+        // --stills dir: the night's stills kept as the app keeps them past the run end (note 203), a folder for the night in dir.
         if (Str(args, "--stills", "") is { Length: > 0 } dir)
-            foreach (var (id, s) in stills.Stills)
-                PngWriter.Write(Path.Combine(dir, $"bookmark-{id}.png"), s.Rgba, s.Width, s.Height, 1);
+            kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(staged, stills.Stills, session.World);
     }
     var hud = new Overlay();
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
@@ -1824,7 +1843,8 @@ static object HudShot(string content, string[] args)
         quads = hud.Count / 6,
         status = session.Status(),
         watching = session.Watching,
-        bookmarks = session.World.Run?.Report?.Bookmarks.Select(b => new { b.Id, kind = b.Kind.ToString(), b.Viewer, b.Victim, b.Frame, still = stills.Stills.ContainsKey(b.Id) })
+        bookmarks = session.World.Run?.Report?.Bookmarks.Select(b => new { b.Id, kind = b.Kind.ToString(), b.Viewer, b.Victim, b.Frame, still = stills.Stills.ContainsKey(b.Id) }),
+        kept,
     };
 }
 
@@ -1884,9 +1904,32 @@ static object FilmStill(string content, string[] args)
     Hud.Build(hud, width, height, session);
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
     PngWriter.Write(output, pixels, width, height, scale);
+    // --stills dir: each crewmate's derailment bookmark, their peak in the film (E.5, D.12), drawn as the app takes it, and
+    // kept as the app keeps the night's stills (note 203).
+    List<string>? kept = null;
+    var peaks = new List<object>();
+    if (Str(args, "--stills", "") is { Length: > 0 } dir && session.World.Run?.Report is { } report)
+    {
+        var stills = new BookmarkStills();
+        var live = session.InterpolatedFrames(1);
+        foreach (var (mark, from, peak) in stills.Due(session, live, 0, film))
+        {
+            if (peak is null)
+                continue;
+            var scene = new GreyboxScene { Route = session.Route, Vehicles = session.Train.Vehicles, Time = 0.37, Look = look };
+            var shotFrames = DerailSequence.Stage(scene, peak, live);
+            var still = new MeshBuilder();
+            scene.Build(still, session.Train.Line, shotFrames, session.Train.Dynamics.Distance, from.Position);
+            stills.Keep(mark, renderer.Render(still, from, lighting, lighting.FogColor), width, height, peak: true);
+            peaks.Add(new { mark.Id, mark.Victim, recorded = Math.Round(peak.Recorded, 2), into = Math.Round(peak.Into, 2), peakAt = Math.Round(film.Peaks[mark.Victim].At, 2) });
+        }
+        kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(report, stills.Stills, session.World);
+    }
     return new
     {
         path = Path.GetFullPath(output),
+        peaks,
+        kept,
         shot = new { kind = at.Shot.Kind.ToString(), at.Shot.Subject, card = at.Shot.Card, into = Math.Round(at.Into, 2), recorded = Math.Round(recorded, 2) },
         cut = film.Cut.Select(s => new { kind = s.Kind.ToString(), s.Subject, real = Math.Round(s.Real, 2), from = Math.Round(s.From, 2), to = Math.Round(s.To, 2), s.Card }),
         cutLength = Math.Round(film.CutLength, 2),
@@ -2030,7 +2073,10 @@ static int Usage()
           screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
-                     (GDD v1.4 App. D.12); --stills dir writes each still on its own
+                     (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
+                     night with night.txt (note 203)
+          screenshot --film s [--crew n --speed v --route r] [--stills dir]   a frame of the derailment film s seconds into
+                     its cut (note 177); --stills dir: each crewmate's bookmark, their peak in the film (E.5), kept as the app keeps them
                      --hazards clear|wet|cold|dark: a balance.json hazard set over the line; --mend t: the repair kit in hand,
                      a broken radio worn, t s into mending it (note 201)
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]

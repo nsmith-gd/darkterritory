@@ -521,7 +521,9 @@ public static class Hud
                 _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
             if (s.CommendPick is { } pick)
             {
-                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
+                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}"
+                    : Headset ? $"COMMEND [STICK LEFT/RIGHT] {pick.To}   [STICK UP/DOWN] {pick.What}   [CLICK STICK] GIVE"
+                    : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
                 UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
             }
             bool awards = _commendations is { Count: > 0 };
@@ -531,7 +533,10 @@ public static class Hud
             return;
         }
         if (!p.Alive)
+        {
             DeadCard(o, width, height, s, line);
+            BallotPlate(o, width, s, line);
+        }
         if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
             Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S. GET INSIDE", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
@@ -621,11 +626,9 @@ public static class Hud
                 rows.Add(("YOU'LL WAIT AT THE NEXT HALT OR YARD, IF THEY STOP FOR YOU", Dim));
                 rows.Add(("[RMB] LET SOMEONE ELSE GO FIRST", Dim));
             }
-            // D.11: the creature vote, the dead's alone, once a run.
-            if (s.Ballot is { } ballot && ballot.Options.Count > 0)
-                rows.Add(ballot.Cast is { } cast
-                    ? ($"YOU VOTED FOR THE {IncidentLog.Spoken(cast.ToString()).ToUpperInvariant()}", Dim)
-                    : ("VOTE: " + string.Join("   ", ballot.Options.Select((k, i) => $"[{i + 1}] {IncidentLog.Spoken(k.ToString()).ToUpperInvariant()}")), Amber));
+            // D.11: the creature vote has a plate of its own (BallotPlate, note 202); once cast, the card keeps a line of it.
+            if (s.Ballot is { Cast: { } cast })
+                rows.Add(($"YOU CALLED THE {Creature(cast)}. THE LIVING WON'T KNOW TILL THE END", Dim));
             if (s.VoteCue is { } cue)
                 rows.Add((cue, Red));
             // D.6: the dead and lobbied see the whole queue, and where they are in it (the living see nothing).
@@ -646,6 +649,79 @@ public static class Hud
             y += rowH;
         }
     }
+
+    /// <summary>A creature as the dead's ballot and cue name it: "CAR HUGGER".</summary>
+    static string Creature(Sim.Enemies.EnemyKind kind) => IncidentLog.Spoken(kind.ToString()).ToUpperInvariant();
+
+    /// <summary>
+    /// The dead's creature vote as a screen (GDD v1.4 App. D.11; note 202), top to bottom: each creature on the ballot with
+    /// its key, and the want it serves as its <c>Note</c> (the vote only moves weight within a want); then what to do next:
+    /// pick, cast (locked once cast), casting, cast. A row's <c>Picked</c> is the one lit. Keys as the player has them; a
+    /// headset's stick and its click in one (<see cref="Headset"/>). Null with no ballot to show (alive, none offered, the
+    /// run over).
+    /// </summary>
+    public static List<(string Text, Vector4 Colour, bool Picked, string? Note)>? BallotRows(IPlaySession s)
+    {
+        if (s.Player.Alive || s.Ballot is not { Options.Count: > 0 } ballot || s.World.Run is { Over: true })
+            return null;
+        var picker = s.Picker;
+        int pick = ballot.Cast is { } cast ? ballot.Options.ToList().IndexOf(cast) : picker?.Pick ?? -1;
+        var rows = new List<(string, Vector4, bool, string?)>();
+        for (int i = 0; i < ballot.Options.Count; i++)
+        {
+            var k = ballot.Options[i];
+            bool lit = i == pick;
+            var colour = ballot.Cast is null ? lit ? Amber : Ink : lit ? Green : Dim;
+            rows.Add(($"[{i + 1}] {Creature(k)}", colour, lit, Sim.Enemies.Director.WantOf(k).ToString().ToUpperInvariant()));
+        }
+        int n = ballot.Options.Count;
+        if (ballot.Cast is not null)
+            rows.Add(("CAST, AND LOCKED", Green, false, null));
+        else if (picker is { Sent: true })
+            rows.Add(("CASTING ...", Amber, false, null));
+        else if (pick < 0)
+            rows.Add((Headset ? "[STICK UP/DOWN] PICK ONE" : $"[1]-[{n}] PICK ONE", Ink, false, null));
+        else
+        {
+            rows.Add((Headset ? "[CLICK STICK] CAST IT" : $"[{pick + 1}] AGAIN OR [ENTER] CAST IT", Amber, false, null));
+            rows.Add(("IT'S LOCKED ONCE CAST", Dim, false, null));
+        }
+        return rows;
+    }
+
+    /// <summary>The ballot plate's title (D.11: once per run per player).</summary>
+    public const string BallotTitle = "THE DEAD'S VOTE: ONCE A RUN";
+
+    /// <summary>
+    /// The ballot's plate (D.11; note 202): high on the right, clear of the dead card below, of what they're watching in the
+    /// middle and of the yard's lobby list on the left; <see cref="BallotTitle"/> over <see cref="BallotRows"/>, the picked
+    /// creature on a lit bar with its want at the right, and the trim lit while there's a vote to cast.
+    /// </summary>
+    static void BallotPlate(Overlay o, int width, IPlaySession s, int line)
+    {
+        if (BallotRows(s) is not { } rows)
+            return;
+        float rowH = line + 4;
+        float notes = rows.Max(r => r.Note is null ? 0 : o.Font.Measure(r.Note) + 12);
+        float w = Math.Max(o.Font.Measure(BallotTitle), rows.Max(r => UiStyle.MeasureKeyed(o, r.Text) + (r.Note is null ? 0 : notes))) + 16;
+        float h = line + 10 + rows.Count * rowH + 2;
+        float x = MathF.Round(width - w - 6), y = 44;
+        UiStyle.Plate(o, x, y, w, h, s.Ballot is { Cast: null } ? Amber with { W = 0.7f } : null);
+        o.Text(x + 8, y + 5, BallotTitle, Amber);
+        y += line + 10;
+        foreach (var (text, colour, picked, note) in rows)
+        {
+            if (picked)
+                o.Rect(x + 4, y - 3, w - 8, rowH, colour with { W = 0.18f });
+            UiStyle.Keyed(o, x + 8, y, text, colour);
+            if (note is not null)
+                o.Text(x + w - 8 - o.Font.Measure(note), y, note, picked ? colour : Dim);
+            y += rowH;
+        }
+    }
+
+    /// <summary>Whether this is a headset's panel (T36): the ballot and the commendations say the stick, not the keys (note 202).</summary>
+    public static bool Headset { get; set; }
 
     /// <summary>
     /// The respawn queue as the dead see it (GDD v1.4 App. D.6; note 179): "QUEUE: 1 PRIYA  2 YOU  3 SAM (JOINING)", null when
