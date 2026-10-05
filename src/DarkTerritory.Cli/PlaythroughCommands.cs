@@ -119,6 +119,10 @@ static class PlaythroughCommands
             seconds = Math.Round(session.World.Tick * SimConstants.TickSeconds),
             km = Math.Round(train.Dynamics.Distance / 1000, 2),
             over = session.World.Run?.Over ?? false,
+            // How the night ended, and the crew's state at its end (a solo night is one player: what killed them, if anything).
+            end = session.World.Run?.End.ToString(),
+            death = session.Player.Alive ? null : session.Player.Death.ToString(),
+            derailed = session.World.Derailed ? session.World.DerailCause : null,
             shots = shots.Count,
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
