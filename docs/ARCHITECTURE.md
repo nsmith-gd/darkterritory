@@ -3367,6 +3367,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Next, for the Deep tier at a crew of 2 (findings, not fixed here):**
       - **The driver alone sands a train standing on its brake.** deepTerritory:3 and :2 end in a Stoker runaway. Up a greased climb, the lone driver waits in the cab for the fire door with the brake held (note 131), and the train comes to a stand. At a stand the brake latches (`CabControls.Clears`), and it goes out to sand anyway. It holds Use at the sandbox, but a braked train never gets off the grease and never passes `AloneSandingTop`, so it stays out for about 100 s while the fire burns down (0.44 to 0.05). It comes back in only once the gauge is at the power floor, and by then the Stoker is in the firebox.
         - Sanding wants the brake off with steam on, or a second pair of hands. With a crew of two, the gunner could sand while the driver drives. That's a design call about roles, so it's left.
+        - **Fixed in note 233:** alone, the driver lets the brake off to sand, and is back in once the train's going or the fire wants him.
       - **The dawn.** The crews of 2 that no longer derail run out of night at 31–38 km of about 40. The driver still brakes to 4 m/s for every group of Sleepers it sees (`WatchTheRoad`; the heavy damage is over the GDD's 20 km/h), and on these lines they come in fours and fives. Whether that's too careful is a balance question.
       - **The sweep starts in the yard.** `dt balance` (and `dt campaign`) still start the night 400 m along, where `dt harness` and the game start at the gate (note 188). It doesn't change the outcome inside the 5,400 s window, but its nights aren't quite the game's.
     - No tuning changed, and the protocol is unchanged. The new bot constants (`UnderSleepers`, `GreasedFall`, `FadedBrake`, `PlateMargin`) are how the bots read the tuning's thresholds, as `OutrunBy` and `VentOver` are.
@@ -3397,3 +3398,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - *Small in frame.* Subjects fill 5-40% of the frame's height, mostly under O6's 25%; the director's 7 m at 45° is a long way off a body lying down.
       - *The replay's tail is still.* At 20 m/s the cars are at rest a few seconds after coming off, and the replay holds 9 s.
     - **Tests:** `FilmPlaybackTests.TheWholeSequenceRunsFirstPersonReplayThenTheCutShotByShot` (the timeline, the frame count at 4 fps, each frame's beat and shot) and `ACrewmateInsideStandsOnTheFloorAndARoofRiderIsNotFlyingTillThrown`; `MusicBusTests.UnderTheMusicTheGamePlaysAtHalfSpeed`.
+233. **The lone driver lets the brake off to sand (note 231's first blocker).** deepTerritory:3 and :2 at a crew of 2 (driver and gunner, no fireman) ended in a Stoker runaway on a greased climb.
+    - **What the traces showed** (`dt harness --route deepTerritory:3 --bots 2 --enemies --start 400 --seconds 5400 --seed 3 --trace`, with the brake and sand added to the line for the look):
+      - On :3 the driver was already braking on the climb when he went out at 6 m/s. On :2 he waited for the fire door with the brake held, and slowed from 4 m/s to 0.2.
+      - Either way he left the cab with the brake on (`ConductorBot.Sand` held it on the way out, T107), and with nobody in the cab it stays where it was left. Once the sand was down the brake bit fully, the train stood on it at 5,803 m, and at a stand the brake latches (`CabControls.Clears`).
+      - A braked train never gets off the grease or past `AloneSandingTop`, so nothing called him back. He held Use for 80–100 s while the fire went from 0.41 to 0.05 and the gauge from 69 to 19. He came in at the power floor, with the Stoker already coming.
+    - **Now**, for a driver alone (steam driving, no fireman minding the controls):
+      - **He goes out with the brake off.** Moving, he just doesn't hold it. Standing on it, he lets it off with a notch up. On the sand the steam pulls the train up the climb. Rolling back, he still holds it on the way out: on grease, the sand is what makes the brake bite.
+      - **He doesn't brake while he waits for the fire door.** That wait was what braked :2 to a stand with the door open.
+      - **He comes back in** once the train's past `AloneSandingTop`, or once the fire wants him. That means the fire under 1.5 × `lowFireFraction` (`SandFireCalls`), or the gauge under the 60 he fires to at a stand (`StandingPressure`): both well before the Stoker's low fire and low pressure (App. A.5). He also comes back if it's rolling back with sand down (`SandRollBack`, 0.5 m/s): the steam can't hold the hill, and the train needs the brake.
+      - **He goes out again** only 1 m/s under `AloneSandingTop` (`AloneSandingBack`). Otherwise he was in and out of the doorway at 6 m/s.
+      - **Why the gauge:** with the fire check alone, :2 still stalled further up. He went out and in again and again as the gauge sank from 59 to 33 without ever firing, and the Stoker came for the low pressure at 25.58 km.
+    - **Rolling back:** standing on a 2 % greased climb with the brake let off, the train runs back 3–4 m at under 0.5 m/s until the sand bites, then pulls away. On grease the brake (scaled by traction) barely held it there anyway.
+    - **Measured** (`dt balance --tiers deepTerritory --seeds 4 --crews 2`):
+
+      | night, crew 2 | note 231 | now |
+      |---|---|---|
+      | deepTerritory:1 | dawn missed at 38.23 km, 1 lost | dawn missed at 38.23 km, 1 lost (the same night) |
+      | deepTerritory:2 | derailed 25.24 km (the Stoker) | dawn missed at 36.15 km, 1 lost |
+      | deepTerritory:3 | derailed 6.09 km (the Stoker) | dawn missed at 35.21 km, 1 lost |
+      | deepTerritory:4 | dawn missed at 31.47 km, 1 lost | dawn missed at 31.47 km, 1 lost (the same night) |
+
+      - No derailments at a crew of 2 (2 before). "Survivable at 2" still fails (0 of 4 delivered): every night now ends at the dawn, which is note 231's second blocker. The quiet checks and fairness pass (longest quiet 21.4 s).
+    - Bot behaviour only. No tuning, enemy rule or protocol changed. The new constants are how the driver reads the tuning's thresholds, as note 231's are.
+    - **Verified:** `SteamAgainstTheBrakeTests.ADriverAloneLetsTheBrakeOffToSandUpAGreasedClimbAndIsBackInOnceItsGoing`, about 1 s for both cases. It runs 10 cars on a 2 % greased climb, standing on the brake or slowing at 5.5 m/s. The driver goes out, comes back in with the train moving at over 3 m/s and over 20 m on, out for under 40 s, and rolls back under 5 m. Without the fix, both cases are still out after 59 s at a stand with the brake on.
+      - `SandTests` pass, among them T107's out-only-while-slow and the door test. So do `NetcodeTests` and the rest of `DarkTerritory.Sim.Tests` (806).

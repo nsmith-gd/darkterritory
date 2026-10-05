@@ -1250,6 +1250,12 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const double AloneSandingTop = 6;
     /// <summary>Slowed this far under its cruise on grease (m/s), it goes out to sand.</summary>
     const double SandBelowCruise = 2;
+    /// <summary>Alone, rolling back faster than this (m/s) with sand down, it's lost the hill: back to the brake (note 233).</summary>
+    const double SandRollBack = 0.5;
+    /// <summary>Alone, back in at <see cref="AloneSandingTop"/>, it's out again only this much under it (m/s; note 233).</summary>
+    const double AloneSandingBack = 1;
+    /// <summary>Alone, with the fire under this many times the low fire (boiler.json lowFireFraction), back in to fire it (note 233).</summary>
+    const double SandFireCalls = 1.5;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
     public bool Sanding => _sandLeg >= 0;
 
@@ -1273,11 +1279,20 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // the train runs on up to whatever its steam makes with the driver out on the board: deepTerritory:1's ran onto the
         // Sleepers at 11.8 m/s so. Alone, the driver goes out only while it's slow, and comes back in once it isn't.
         bool alone = train.BoilerTuning is { SteamDrive: true } && calls?.FiremanMinding != true;
-        if (alone && train.Dynamics.Speed > AloneSandingTop && _sandLeg >= 0 && _sandLeg < way.Length)
+        // Note 233: alone, the driver goes out with the brake off (below), so the sanded drivers pull. Then he's back in once
+        // the train's going, or once the fire wants him (well before the low fire or the low gauge that brings the Stoker,
+        // App. A.5: under the gauge he fires to at a stand, or a fire getting low), or once it's rolling back with sand down:
+        // the steam can't hold it on the hill, and it wants the brake. Out and in on deepTerritory:2's stall with the gauge
+        // going down, he never stood at the firebox long enough to fire it, and the Stoker came for the low pressure.
+        bool callsBack = alone && (train.Dynamics.Speed > AloneSandingTop || train.Boiler.Pressure < StandingPressure
+            || train.BoilerTuning is { } fb && train.Boiler.FireFraction(fb) < fb.LowFireFraction * SandFireCalls
+            || train.Dynamics.Velocity < -SandRollBack && train.Sand > 0.5);
+        if (callsBack && _sandLeg >= 0 && _sandLeg < way.Length)
             _sandLeg = 2 * way.Length - 1 - _sandLeg;
         if (_sandLeg < 0)
         {
-            if (alone && train.Dynamics.Speed > AloneSandingTop)
+            // And out again only once it's slowed a little under that, or it's in and out of the doorway at the top speed.
+            if (callsBack || alone && train.Dynamics.Speed > AloneSandingTop - AloneSandingBack)
                 return null;
             // Only when the grease is costing way: on the level the train coasts through it at speed, and whatever's behind
             // (the hounds gain on every slowing, App. A.3) is better left behind than stopped for. On a climb it can't hold
@@ -1299,7 +1314,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Not out of the cab with the firebox door still open from the last shovelful: only someone in the cab shuts it, and
         // an open door at a stand lets the Stoker in (App. A.5; the Switchman's club waits the same).
         if (_sandLeg == 0 && PlayerMotor.InCab(self, train) && train.Boiler.FireDoorOpen)
-            return new PlayerIntent { Buttons = train.BoilerTuning is { SteamDrive: true } ? PlayerButtons.Brake : PlayerButtons.None };
+            return new PlayerIntent { Buttons = train.BoilerTuning is { SteamDrive: true } && !alone ? PlayerButtons.Brake : PlayerButtons.None };
         if (_sandLeg >= 2 * way.Length)
         {
             _sandLeg = -1;
@@ -1309,8 +1324,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var (step, there) = WarmUp.Steer(self, way[at], 0);
         // With steam driving (T97) nobody's holding the train back while the driver's out on the board, and sanded drivers
         // pull it up to whatever speed its steam makes: out with the brake held, so it's standing on it till the driver's back.
+        // Note 233: but alone, that's a train on the climb that only ever stops: the brake bites on the sand it's laid, it
+        // stands on it there (CabControls.Clears), and never gets off the grease to call the driver back (deepTerritory:3 and
+        // :2 at a crew of two, out ~100 s while the fire burnt down and the Stoker got in). So alone it's let off on the way
+        // out (a notch up, if it's standing on it), and the steam pulls on the sand; he's back in once it's going (above).
+        // Rolling back, it's held, as before: the sand's what makes the brake bite on the grease.
         if (train.BoilerTuning is { SteamDrive: true } && PlayerMotor.InCab(self, train))
-            step.Buttons |= PlayerButtons.Brake;
+        {
+            if (!alone || train.Dynamics.Velocity < -RollingBack)
+                step.Buttons |= PlayerButtons.Brake;
+            else if (train.Dynamics.Speed < Net.CabControls.StandingBelow)
+                step.ThrottleNotch = 1;
+        }
         if (!there)
             return step;
         if (_sandLeg == way.Length - 1)
