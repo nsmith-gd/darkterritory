@@ -2071,7 +2071,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         double half = train.Frames[self.Parent].Shape.HalfLength, z = self.Position.Z;
-        // Jumping the gaps, along the middle; stepping off into one, over its plate (on the end doors' line, note 230).
+        // Jumping the gaps, along the middle; stepping off into one, over its plate (on the end doors' line, note 231).
         var g = train.Dynamics.Tuning.Geometry;
         double across = (jumpGaps ? 0 : g.PlateX) - self.Position.X;
         double lateral = Math.Clamp(across * 0.8 * (direction < 0 ? 1 : -1), -1, 1);
