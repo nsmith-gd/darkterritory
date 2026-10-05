@@ -377,6 +377,35 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void TheCarHuggerCutLooseRidesItsCarOffNotBlinkingOut()
+    {
+        // GreyboxScene.Riding (App. A.3, "cut loose, it goes with its car into the dark"): the sim's done with it the tick its
+        // car's cut from the train; the scene keeps it clamped on that car as it falls behind. Gone off a car still in the
+        // train (killed, say), it isn't.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        int Huggers(bool cut)
+        {
+            var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+            var threats = Staging.Threats(train);
+            var hugger = threats.OfType<CarHugger>().First(h => h.Attached >= 0);
+            int car = hugger.Attached;
+            var eye = train.Frames[car].ToWorld(new Double3(-5.5, 1.7, train.Frames[car].Shape.HalfLength + 7.5));
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Tick = Staging.StrikeTick };
+            scene.Build(new MeshBuilder(), train, eye);
+            if (cut)
+                Assert.True(train.Uncouple(train.VehicleAhead(car)));
+            hugger.Restore(SpinePhase.Gone, 0, hugger.Health, car, hugger.Local, 0, 0, 0, hugger.Extra, hugger.Extra2);
+            var mesh = new MeshBuilder();
+            scene.Tick = Staging.StrikeTick + Sim.SimConstants.TickRate;
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("car_hugger", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.True(Huggers(cut: true) > 0, "still on its car, cut loose");
+        Assert.Equal(0, Huggers(cut: false));
+    }
+
+    [Fact]
     public void TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem()
     {
         // App. A.6 GRAB: the tongues hold them and the leader hops in at a quarter speed, stopping 0.8 m short. Out in the

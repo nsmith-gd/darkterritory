@@ -621,6 +621,8 @@ public sealed class GreyboxScene
     readonly Dictionary<int, Enemy> _dollWas = new();
     readonly HashSet<int> _toysWas = new();
     readonly List<(Enemy Was, uint Tick, int Toy)> _vanished = new();
+    // The Car Huggers cut loose with their cars since (with the tick): the sim's done with one once its car is off the train.
+    readonly Dictionary<int, (Enemy Body, uint Tick)> _riding = new();
 
     /// <summary>
     /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
@@ -640,12 +642,19 @@ public sealed class GreyboxScene
         foreach (var (id, was) in _seen)
             if (was.Kind == EnemyKind.Choir && !_dying.ContainsKey(id) && !_leaving.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
                 _leaving[id] = (was, (uint)Tick);
+        // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
+        // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frames.Count && Adrift(was.Attached)
+                && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+                _riding[id] = (was, (uint)Tick);
         _seen.Clear();
         foreach (var e in Enemies ?? [])
             if (!e.Gone)
                 _seen[e.Id] = e;
         Leaving(mesh, line, frames, eye, from, to);
         Vanishing(mesh, line, frames, eye, from, to);
+        Riding(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -743,6 +752,41 @@ public sealed class GreyboxScene
                 fx.Vanish(mesh, V(at, eye), (float)age, was.Id);
         }
     }
+
+    /// <summary>
+    /// The Car Hugger cut loose (GDD v1.2 App. A.3, "cut loose, it goes with its car into the dark"; the checklist's "rides the
+    /// cut car away"): uncoupled from the train, or eaten through so the car drops away, the sim takes it out that tick, but
+    /// the car's still there, rolling free and falling behind. It doesn't let go: here it's seen still clamped on that car's
+    /// end, feeding, grinding, as the car goes off into the dark (until it's out of sight, or the car's coupled up again).
+    /// </summary>
+    void Riding(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, (body, tick)) in _riding.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            int car = body.Attached;
+            if (age < 0 || _seen.ContainsKey(id) || car >= frames.Count || !Adrift(car)
+                || (frames[car].ToWorld(default) - eye).Length > DrawDistance)
+            {
+                _riding.Remove(id);
+                continue;
+            }
+            var hugger = new Sim.Enemies.CarHugger(id);
+            hugger.Restore(SpinePhase.Commit, body.PhaseSeconds + age, body.Health, car, body.Local, 0, 0, 0, body.Extra, body.Extra2);
+            var bite = Look is { } look
+                ? Art.Bite.For(look.Tuning.Bite, frames[car].Shape, Vehicles is { } vs && car < vs.Count ? vs[car] : null, car)
+                : default;
+            DrawEnemy(mesh, line, frames, hugger, eye, from, to, Look?.Art.Creatures, bite);
+        }
+    }
+
+    /// <summary>Whether <paramref name="car"/> is off the engine's train: a coupling's cut somewhere between it and the engine
+    /// (<see cref="Cut"/>, a car's front end open where the car ahead of it is in another rake).</summary>
+    bool Adrift(int car) => Cut is { } cut && cut.Any(end => end % 2 == 0 && end / 2 >= 1 && end / 2 <= car);
+
+    /// <summary>Staged (<c>dt screenshot --cut n --hugger ride</c>): the Car Hugger <paramref name="e"/>, its car cut from the
+    /// train at <paramref name="tick"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Rode(Enemy e, uint tick) => _riding[e.Id] = (e, tick);
 
     // How long the Track Doll is seen flickering out where it was (s).
     const double DollFlicker = 0.3;
