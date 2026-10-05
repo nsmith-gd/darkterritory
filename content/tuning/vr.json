@@ -43,5 +43,30 @@
     "drop": 0.0,
     "followDegrees": 35,
     "followSeconds": 0.6
+  },
+
+  // A headset player's body as the rest of the crew see it (T82, roadmap M4 "VR body IK"; ARCHITECTURE §8 note 205). Not
+  // in the GDD or the spec (note 40): our reading, from how people stand and shift. It's drawn from what the snapshot
+  // already has (the head's yaw and pitch, the hands) and the head's height over the feet, which rides with the hands.
+  "body": {
+    // A head up to `leanDrop` m under standing height (Eyes.Height, where the headset's room hangs from) leans the torso
+    // over from the hips, `leanDegrees` at most; past it the knees bend, the hips going down by the rest, `crouchMost` m at most.
+    "leanDrop": 0.25,
+    "leanDegrees": 35,
+    "crouchMost": 0.5,
+    // The head turns `yawDeadzoneDegrees` from the hips before the hips come round after it; the torso takes `twistShare`
+    // of the turn between them, the neck the rest. The neck tips the head to the headset's pitch, `nodDegrees` at most.
+    "yawDeadzoneDegrees": 35,
+    "twistShare": 0.6,
+    "nodDegrees": 50,
+    // The feet stand `stanceHalfWidth` m either side of the hips and stay planted until the hips have moved a foot's place
+    // `stepDistance` m off it, or turned `stepTurnDegrees` from it; then it steps (one foot at a time), in `stepSeconds`,
+    // lifted `stepHeight` m at the middle, landing `stepOvershoot` of the step past its place so slow hips aren't chased.
+    "stanceHalfWidth": 0.12,
+    "stepDistance": 0.2,
+    "stepTurnDegrees": 30,
+    "stepSeconds": 0.28,
+    "stepHeight": 0.09,
+    "stepOvershoot": 0.25
   }
 }

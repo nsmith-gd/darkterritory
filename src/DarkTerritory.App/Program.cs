@@ -791,6 +791,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 intent.LookPitch = headset.LookPitch;
                 intent.Buttons |= headset.Buttons;
                 (intent.HandX, intent.HandY, intent.HandZ) = (headset.HandX, headset.HandY, headset.HandZ);
+                // The other hand (T43) and the head's height (T82) go with it: the host's two-handed grips and the body the
+                // crew see under the head need them.
+                (intent.Other, intent.OtherX, intent.OtherY, intent.OtherZ, intent.Head) = (headset.Other, headset.OtherX, headset.OtherY, headset.OtherZ, headset.Head);
                 // The cab's levers by hand (T29): the same notches, brake and reverser a keyboard sends.
                 levers!.Apply(ref intent, session.Player, session.Train, session.Controls, session.PlayerTuning.Hand);
             }

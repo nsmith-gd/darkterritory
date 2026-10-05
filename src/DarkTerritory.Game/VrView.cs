@@ -105,7 +105,7 @@ public sealed class VrView : IDisposable
         if (result is XrFrameResult.Rendered or XrFrameResult.Skipped)
         {
             double now = _clock.Elapsed.TotalSeconds;
-            comfort?.Frame(Session.Controllers, Session.Head, Math.Clamp(now - _lastFrame, 0, 0.1));
+            comfort?.Frame(Session.Controllers, Session.Head, Math.Clamp(now - _lastFrame, 0, 0.1), Session.HeadPosition);
             _lastFrame = now;
         }
         return result;

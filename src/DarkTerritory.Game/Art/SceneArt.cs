@@ -20,7 +20,7 @@ public sealed partial class SceneArt(Look look)
     public WorldArt World { get; } = new(look);
 
     CreatureArt? _creatures;
-    readonly Dictionary<byte, (Double3 Feet, double Time, float Speed)> _crewMotion = new();
+    readonly Dictionary<byte, (Double3 Feet, int Frame, double Time, float Speed)> _crewMotion = new();
 
     /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
     public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
@@ -34,15 +34,18 @@ public sealed partial class SceneArt(Look look)
     public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time, double swung = -1)
     {
         float speed = 0;
-        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
+        // A headset crewmate's pace is taken in the frame they stand in (T82): it decides whether their legs are the walk's
+        // or their own, and the car carrying them isn't them walking.
+        var (at, frame) = c.Headset is { } hs ? (hs.Local, hs.Parent) : (c.Feet, int.MinValue);
+        if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time && last.Frame == frame)
         {
-            var d = c.Feet - last.Feet;
+            var d = at - last.Feet;
             float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
             float now = moved / (float)(time - last.Time);
             // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
             speed = float.Lerp(last.Speed, now, 0.35f);
         }
-        _crewMotion[c.Id] = (c.Feet, time, speed);
+        _crewMotion[c.Id] = (at, frame, time, speed);
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
@@ -105,7 +108,7 @@ public sealed partial class SceneArt(Look look)
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor));
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
         if (drawn && Breath > 0 && c.Alive)
@@ -124,6 +127,32 @@ public sealed partial class SceneArt(Look look)
             _lampHands.Remove(c.Id);
         return drawn;
     }
+
+    /// <summary>
+    /// A headset crewmate's body under their head (T82, <see cref="VrBody"/>), stood still: walking and running are the
+    /// clips', and so is any act (the lever, the shovel, a hold). Their feet are kept planted from frame to frame in the
+    /// frame they stand in, and planted afresh when they start, stop or move frames.
+    /// </summary>
+    VrBodyPose? HeadsetBody(in Crewmate c, CrewPose pose, double time)
+    {
+        if (c.Headset is not { } h || !c.Alive || c.Act is not null || pose != CrewPose.Idle)
+        {
+            _strides.Remove(c.Id);
+            return null;
+        }
+        var t = Look.VrBody;
+        VrStride stride;
+        if (h.Staged is { } staged)
+            stride = staged;
+        else if (_strides.TryGetValue(c.Id, out var was) && was.Parent == h.Parent && time >= was.Time)
+            stride = VrBody.Step(was.Stride, h.Local, h.Yaw, Math.Min(time - was.Time, 0.1), t);
+        else
+            stride = VrBody.Stand(h.Local, h.Yaw, t);
+        _strides[c.Id] = (stride, h.Parent, time);
+        return VrBody.Pose(stride, h.Local, h.Yaw, h.Head, h.Pitch, Eyes.Height, t);
+    }
+
+    readonly Dictionary<byte, (VrStride Stride, int Parent, double Time)> _strides = new();
 
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
     readonly Dictionary<byte, int> _crewHealth = new();

@@ -22,12 +22,23 @@ namespace DarkTerritory.Game;
 /// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
 /// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
+/// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
+/// under it. Null for a keyboard or a bot.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
-    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None)
+    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, HeadsetBody? Headset = null)
 {
     public int Variant => Looks ?? Id;
 }
+
+/// <summary>
+/// What the snapshot says of a headset player's head (T82): its height over their feet (<see cref="PlayerState.Head"/>),
+/// the look's pitch, and where they stand and face in the frame they're in (<paramref name="Parent"/>, a car or the
+/// world), which the feet are planted in so the train moving under them moves nothing.
+/// </summary>
+/// <param name="Staged">A stride to draw instead of the one this machine has kept (a staged screenshot is one frame, so
+/// a step under way is given, not lived).</param>
+public readonly record struct HeadsetBody(double Head, double Pitch, int Parent, Double3 Local, double Yaw, VrStride? Staged = null);
 
 /// <summary>You, for your own arms in view (X3, <see cref="CreatureArt.OwnArms"/>): which way you face and look, what you're
 /// doing (<see cref="CrewActs.Of"/>), whether you're walking, how far into a swing you are (negative: not swinging), whose

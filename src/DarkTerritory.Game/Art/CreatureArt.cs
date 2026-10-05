@@ -559,9 +559,12 @@ public sealed class CreatureArt
     /// origin at its foot, the ring <see cref="LanternRing"/> over it), upright whatever the wrist does, so it swings with
     /// the hand; where its flame is then is <see cref="LastHanging"/>.</param>
     /// <param name="figure">Whose figure: <see cref="FigureOf"/> (the crew's, or a freed survivor's); the crew's where it isn't built.</param>
+    /// <param name="body">A headset player's body under their head (T82, <see cref="VrBody"/>): the clip's figure turned to
+    /// the hips, leant, crouched and twisted up the spine to the head, the feet where they're planted. Before the arms, so
+    /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew")
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -578,6 +581,8 @@ public sealed class CreatureArt
         // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
+        if (body is { } vr)
+            HeadsetBody(m, vr);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -947,6 +952,52 @@ public sealed class CreatureArt
         if (MathF.Abs(yaw) < 1e-4f)
             return;
         Bend(m, "head", Matrix4x4.CreateRotationY(yaw));
+    }
+
+    static readonly string[] Spine = ["spine_01", "spine_02", "spine_03"];
+
+    /// <summary>
+    /// The posed model under a headset's head (T82): turned from the feet to the hips' yaw and let down by the crouch; each
+    /// spine bone a third of the torso's lean (about the hips' own right, forward) and twist back towards the head; the
+    /// neck the rest of the way round, and tipped to the headset's pitch; each leg reached by two-bone IK to its ankle over
+    /// where the foot is (the knee forward and a little out), and the foot turned as the clip had it, to its own yaw.
+    /// </summary>
+    static void HeadsetBody(Entry m, in VrBodyPose b)
+    {
+        var sk = m.Model.Skeleton;
+        int footL = sk.IndexOf("foot_l"), footR = sk.IndexOf("foot_r");
+        if (footL < 0 || footR < 0)
+            return;
+        // The clip's feet as it stands them: the ankles' height over the floor, and how each foot is turned.
+        Matrix4x4 restL = m.Pose.World[footL], restR = m.Pose.World[footR];
+        float hips = (float)b.Hips;
+        Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateRotationY(hips) * Matrix4x4.CreateTranslation(0, -(float)b.Crouch, 0));
+        float yaw = hips, twist = (float)b.Twist / Spine.Length, lean = (float)b.Lean / Spine.Length;
+        foreach (var bone in Spine)
+        {
+            yaw += twist;
+            var across = new Vector3(MathF.Cos(yaw), 0, -MathF.Sin(yaw));
+            Bend(m, bone, Matrix4x4.CreateRotationY(twist) * Matrix4x4.CreateFromAxisAngle(across, -lean));
+        }
+        // The neck the rest of the way round to the head (the model's own facing), and nodded to the headset's pitch.
+        Bend(m, "neck", Matrix4x4.CreateRotationY(-yaw) * Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, (float)b.Nod));
+        Leg(m, "l", -1, restL, b.LeftFoot, (float)b.LeftYaw, hips);
+        Leg(m, "r", 1, restR, b.RightFoot, (float)b.RightYaw, hips);
+    }
+
+    /// <summary>One leg to a foot (model space x and z; y its lift), the knee forward of the hips and out to its side.</summary>
+    static void Leg(Entry m, string side, int sign, in Matrix4x4 rest, Double3 foot, float footYaw, float hips)
+    {
+        var target = new Vector3((float)foot.X, rest.M42 + (float)foot.Y, (float)foot.Z);
+        var forward = new Vector3(-MathF.Sin(hips), 0, -MathF.Cos(hips));
+        var across = new Vector3(MathF.Cos(hips), 0, -MathF.Sin(hips));
+        Reach(m, "thigh_" + side, "calf_" + side, "foot_" + side, target, forward + across * (0.25f * sign) + new Vector3(0, -0.1f, 0));
+        int at = m.Model.Skeleton.IndexOf("foot_" + side);
+        // Turned back from wherever the knee's swing left it, to the clip's foot turned to its own yaw.
+        var now = m.Pose.World[at] with { M41 = 0, M42 = 0, M43 = 0 };
+        var want = (rest with { M41 = 0, M42 = 0, M43 = 0 }) * Matrix4x4.CreateRotationY(footYaw);
+        if (Matrix4x4.Invert(now, out var undo))
+            Bend(m, "foot_" + side, undo * want);
     }
 
     /// <summary>One arm of the posed model to a hand position (model space) by two-bone IK, the elbow toward the pole.</summary>
