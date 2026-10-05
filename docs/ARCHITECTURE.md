@@ -3248,7 +3248,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 220. **The Ribbits creep in and devour (the checklist's ribbits-anim "still to do").** With its catch frozen (App. A.6 GRAB), the sim hops the pack's leader in on them at a quarter of its speed, stopping 0.8 m short, and the art played its `tongue` clip all the way: it slid in sitting up with its tongue out, and stayed so on them.
     - **Two new clips** (tools/blender/ribbit.py):
       - `creep`: flattened low, ears laid back, a slow belly-down crawl with the tongue still out.
-      - `devour`: reared over them on its forelegs, jaw working and head shaking, the throat sac swelling as it swallows.
+      - `devour`: reared up on its haunches against them, its front half leant in over them, its forelegs up on them, its head bent down into them, the jaw working and the head shaking, the throat sac swelling as it swallows. (The Look Review found the first cut, leant forward, read as a hunch at their legs.)
     - **The choice** (`CreatureArt.RibbitClip`): COMMIT is `tongue`. GRAB and PUNISH are `creep` while the leader is more than `RibbitDevourReach` (1.2 m) from them, and `devour` inside it. Devouring, its own tongue isn't drawn out to them (it's in them); the rest of the pack's still are.
     - **Staging:** `dt screenshot --threats --crew --ribbits devour --view packside` (a new view, low along the car, side on). It puts the leader where the hop stops. `--ribbits tongue|devour` also draws crewmate 4 in the game's `held_frozen`.
     - **Tests:** `CreatureArtTests.TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem`; the ribbit's clip budget lists both.
