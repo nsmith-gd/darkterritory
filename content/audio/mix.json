@@ -45,6 +45,11 @@
   // head, 0.66 ms at the side) and 10 dB duller above 1.8 kHz, the pinna's 6 dB shelf above 3.5 kHz from straight
   // behind, a 4 dB peak at 8 kHz overhead (a notch underfoot), and the level pan under it at 0.6 of a speaker's. A tell
   // is never cut more than 3 dB by any of it (spec A.3, as the occlusion floor below): it still points, it isn't masked.
+  // Spec A.6's "tape saturation, light wow and flutter" (Ballast.Audio.TapeDef; note 250), on the non-tell, non-voice
+  // tiers: their sum through a delay that wanders, a 0.55 Hz wow of ±0.12% and an 8.5 Hz flutter of ±0.03% on the pitch,
+  // then a soft saturation (unity for a quiet signal, rounding a loud one). Not the tells (spec A.4: a tell holds still),
+  // not the crew's voices, not the opera (a recording of its own).
+  "tape": { "drive": 1.3, "wowHz": 0.55, "wowDepth": 0.0012, "flutterHz": 8.5, "flutterDepth": 0.0003, "tiers": [3, 4, 5, 6, 7] },
   "head": { "radius": 0.0875, "shadowHz": 1800, "shadowDb": -10, "rearHz": 3500, "rearDb": -6, "heightHz": 8000, "heightDb": 4, "panWidth": 0.6, "tellFloorDb": -3 },
   // GDD v1.4 App. E.6, the derailment's opera, on a bus of its own outside the tiers (tier 0: it ducks nothing and no
   // tier ducks it). Tracks arrive at -16 LUFS (each one's manifest gain); levelDb against masterDb's +9 puts the opera

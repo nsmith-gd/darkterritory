@@ -71,7 +71,7 @@ return args switch
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
     // dt film: the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it, every frame
-    // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 250).
+    // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,

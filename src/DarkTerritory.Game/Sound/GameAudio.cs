@@ -58,7 +58,7 @@ public sealed partial class GameAudio
     public void Music(uint track, double sequenceSeconds, WreckTuning tuning, double end = -1, double hitAt = -1) =>
         Opera.Update(Mixer, track, sequenceSeconds, tuning, end, hitAt);
 
-    // The film's own wreck heard (note 250): where its shot has got to in the recording, and when it last crashed.
+    // The film's own wreck heard (note 251): where its shot has got to in the recording, and when it last crashed.
     double _filmAt = double.NaN, _filmCrashed = double.NegativeInfinity;
     SoundInstance? _filmGrind;
 
@@ -217,17 +217,23 @@ public sealed partial class GameAudio
     }
 
     readonly Dictionary<int, SoundInstance> _toys = [];
+    // Toys jostled as they landed, and until when they sound for it.
+    readonly Dictionary<int, double> _jostled = [];
+    /// <summary>How long a noisy toy sounds when it's jostled: a squeak, a few notes of the music box, a roll of the drum.</summary>
+    const double JostleSeconds = 0.7;
 
     /// <summary>
     /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
-    /// the carrier's car (and in the carrier's name on the Choir's meter, host-side). Put down, it's quiet.
+    /// the carrier's car (and in the carrier's name on the Choir's meter, host-side), and a moment as it's jostled landing.
+    /// Lying still, it's quiet.
     /// </summary>
     void Toys(World world, TrainOnLine train)
     {
         var carried = new HashSet<int>();
         foreach (var b in world.Bodies.All)
         {
-            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 || b.Noise == Sim.Physics.ToyNoise.None)
+            bool jostled = _jostled.TryGetValue(b.Id, out double until) && _time < until;
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled || b.Noise == Sim.Physics.ToyNoise.None)
                 continue;
             carried.Add(b.Id);
             if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
@@ -250,6 +256,8 @@ public sealed partial class GameAudio
             _toys[id].Stop();
             _toys.Remove(id);
         }
+        foreach (var id in _jostled.Where(j => _time >= j.Value).Select(j => j.Key).ToList())
+            _jostled.Remove(id);
     }
 
     SoundInstance? _whistle, _radioVoice, _radioSays, _clerkSays;

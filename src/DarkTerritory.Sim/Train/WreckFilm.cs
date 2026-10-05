@@ -24,7 +24,7 @@ public sealed record FilmTuning(
 
 /// <summary>A car at the derail tick, exactly (E.2's snapshot).</summary>
 /// <param name="Floor">Its floor over the box's foot (the rails), in its own frame: a crewmate inside stands on it, not on the
-/// track under the car (note 250: they fell through to the rails and lay under the cut-away car).</param>
+/// track under the car (note 251: they fell through to the rails and lay under the cut-away car).</param>
 public sealed record FilmCar(int Vehicle, Double3 Origin, Double3 Right, Double3 Up, Double3 Back, Double3 Velocity, Double3 Spin,
     double Mass, double HalfWidth, double Height, double HalfLength, double Railed, double Floor = 0);
 
@@ -365,7 +365,7 @@ public sealed class WreckFilm
     /// <summary>
     /// E.5: a player's peak moment: the highest apex, the longest airtime or the hardest landing, whichever scores highest.
     /// Returns when (recorded seconds) and the score. "In the air" is off whatever's under them (<see cref="Clearance"/>):
-    /// stood up, or lying on a roof, isn't flying (note 250: the pelvis over the ground had a roof rider "airborne" all
+    /// stood up, or lying on a roof, isn't flying (note 251: the pelvis over the ground had a roof rider "airborne" all
     /// film and anyone stood up "in the air", so the peak was rarely a flight).
     /// </summary>
     static (double At, double Score) Peak(List<FilmFrame> frames, IReadOnlyList<FilmCar> cars, int doll, Func<double, double, double> ground)

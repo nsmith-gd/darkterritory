@@ -13,7 +13,7 @@ using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
 /// <summary>
-/// `dt film` (ARCHITECTURE §8 note 250): the whole derailment as a player sees and hears it (GDD v1.4 App. E; notes 170,
+/// `dt film` (ARCHITECTURE §8 note 251): the whole derailment as a player sees and hears it (GDD v1.4 App. E; notes 170,
 /// 174, 177), as a video. A hosted night with --crew aboard (the rest bots) is derailed once, then stepped tick by tick
 /// through the first person, the chase-view replay, the film's cut and the cause card. Every frame is drawn at --fps the way
 /// the app draws it (the beat's pick is <see cref="DerailSequence.Show"/>, the app's own; the cards are the HUD's) to

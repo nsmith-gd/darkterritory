@@ -901,10 +901,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         sound.ClerkLine(clerkLine);
         derailSequence.Record((session.Tick + clock.Alpha) * DarkTerritory.Sim.SimConstants.TickSeconds, frames, scene.Crew, session.World.Derailed, camera,
             session.Player.Parent >= 0 ? session.Player.Parent : -1, wreckTuning);
-        // The beat, the cars as drawn (the replay's, the film's) and its camera: the same pick `dt film` renders (note 250).
+        // The beat, the cars as drawn (the replay's, the film's) and its camera: the same pick `dt film` renders (note 251).
         var derailShot = derailSequence.Show(session, frames, ownEyes: vr is null);
         frames = derailShot.Frames;
-        // The film's own wreck heard, not the live one (note 250).
+        // The film's own wreck heard, not the live one (note 251).
         sound.Film(derailShot.Film, derailShot.Filming);
         bool cinematic = wrecking || outro;
         var outroTuning = wreckTuning.Stranded;

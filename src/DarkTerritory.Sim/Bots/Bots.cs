@@ -1250,11 +1250,11 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     const double AloneSandingTop = 6;
     /// <summary>Slowed this far under its cruise on grease (m/s), it goes out to sand.</summary>
     const double SandBelowCruise = 2;
-    /// <summary>Alone, rolling back faster than this (m/s) with sand down, it's lost the hill: back to the brake (note 251).</summary>
+    /// <summary>Alone, rolling back faster than this (m/s) with sand down, it's lost the hill: back to the brake (note 252).</summary>
     const double SandRollBack = 0.5;
-    /// <summary>Alone, back in at <see cref="AloneSandingTop"/>, it's out again only this much under it (m/s; note 251).</summary>
+    /// <summary>Alone, back in at <see cref="AloneSandingTop"/>, it's out again only this much under it (m/s; note 252).</summary>
     const double AloneSandingBack = 1;
-    /// <summary>Alone, with the fire under this many times the low fire (boiler.json lowFireFraction), back in to fire it (note 251).</summary>
+    /// <summary>Alone, with the fire under this many times the low fire (boiler.json lowFireFraction), back in to fire it (note 252).</summary>
     const double SandFireCalls = 1.5;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
     public bool Sanding => _sandLeg >= 0;

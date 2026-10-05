@@ -110,6 +110,16 @@ public sealed record LayerDef(SourceKind Source, Value Gain, Value? Frequency = 
 public sealed record CrushDef(int Bits = 12, int Rate = 22050);
 
 /// <summary>
+/// A loop's slow wander (spec A.4 rule 4, "non-repeating at short intervals: repetition trains players to ignore it"): its
+/// pitch and level on a smooth random walk, seeded per instance, a new point every <see cref="Seconds"/>, so no two passes
+/// round a loop are the same and no two instances of it are either.
+/// </summary>
+/// <param name="Semitones">How far the pitch wanders, ±.</param>
+/// <param name="Db">How far the level wanders, ±.</param>
+/// <param name="Seconds">How long it takes from one point of the walk to the next.</param>
+public sealed record DriftDef(double Semitones = 0.5, double Db = 1.5, double Seconds = 2);
+
+/// <summary>
 /// A sound, as data (<c>content/audio/sounds/*.json</c>). Layers are summed, then the whole is spatialised
 /// and mixed on its tier's bus (spec A.3).
 /// </summary>
@@ -132,7 +142,9 @@ public sealed record SoundDef(int Tier, LayerDef[] Layers, bool Loop = false, do
     bool Flat = false,
     RolloffCurve Curve = RolloffCurve.Inverse,
     // Spec A.6's formant shift, on the whole sound after its layers (the Soot Children's mimicry of a crewmate's voice).
-    FormantDef? Formant = null);
+    FormantDef? Formant = null,
+    // A loop's slow wander in pitch and level (spec A.4 rule 4).
+    DriftDef? Drift = null);
 
 /// <summary>Mix bus rules (<c>content/audio/mix.json</c>).</summary>
 public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRelease, int MaxVoices,
@@ -143,13 +155,29 @@ public sealed record MixDef(DuckRule[] Ducking, double DuckAttack, double DuckRe
     double[]? TierDb = null,
     // The listener's head (spec A.4 "directional to within ~30°"): its delay, shadow and pinna on every positioned voice.
     // Null is the plain equal-power pan with a small rear cut.
-    HeadDef? Head = null)
+    HeadDef? Head = null,
+    // Spec A.6's tape on the tiers it names: wow, flutter and saturation. Null, none.
+    TapeDef? Tape = null)
 {
     public const string File = "audio/mix.json";
 
     /// <summary>A tier's fader (0 dB if the file doesn't give one).</summary>
     public double Fader(int tier) => TierDb is { } db && tier >= 1 && tier <= db.Length ? db[tier - 1] : 0;
 }
+
+/// <summary>
+/// Spec A.6's "tape saturation, light wow and flutter" on the tiers it names (not the tells, not the crew's voices): their
+/// sum goes through a delay that wanders (a slow wow and a quick flutter, the pitch moving by their depths) and a soft
+/// saturation, as a tape machine's would. It matches the art's worn look and hides cheap sources.
+/// </summary>
+/// <param name="Drive">The saturation's drive: tanh(drive·x)/drive, unity for a quiet signal, rounding a loud one.</param>
+/// <param name="WowHz">The wow's rate.</param>
+/// <param name="WowDepth">The wow's pitch swing, as a fraction (0.001 is a tenth of a percent).</param>
+/// <param name="FlutterHz">The flutter's rate.</param>
+/// <param name="FlutterDepth">The flutter's pitch swing, as a fraction.</param>
+/// <param name="Tiers">The tiers that go through it.</param>
+public sealed record TapeDef(double Drive = 1.3, double WowHz = 0.55, double WowDepth = 0.0012, double FlutterHz = 8.5,
+    double FlutterDepth = 0.0003, int[]? Tiers = null);
 
 /// <summary>
 /// The spaces a listener can be in (<c>content/audio/spaces.json</c>), by name: outside, the cab, a car, a tunnel, a

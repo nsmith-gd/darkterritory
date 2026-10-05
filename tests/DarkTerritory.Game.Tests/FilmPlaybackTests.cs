@@ -54,7 +54,7 @@ public class FilmPlaybackTests
     [Fact]
     public void TheWholeSequenceRunsFirstPersonReplayThenTheCutShotByShot()
     {
-        // `dt film` (note 250) renders frame by frame along this: the beats back to back, the film's shots in its order.
+        // `dt film` (note 251) renders frame by frame along this: the beats back to back, the film's shots in its order.
         var (_, film) = Shot();
         var beats = DerailSequence.Timeline(W, film);
         Assert.Equal([DerailBeat.FirstPerson, DerailBeat.Replay], beats.Take(2).Select(b => b.Beat));
