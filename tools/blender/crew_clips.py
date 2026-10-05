@@ -6,8 +6,8 @@ bone by name (ModelLoader.WithClips: `<name>_clips.glb` beside `<name>.glb`; ARC
 What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   carry, carry_walk   a crate or a heavy crate's end held in front (spec D.2, B.2's 2.8 m/s)
   drag, drag_fwd      a body by its collar, walking backwards (GDD App. D.10); and forwards, hauled along behind
-  climb, shovel       crew.py's two, reworked here (Look Review notes; CreatureArt lets these win over the mesh's own):
-                      up a ladder's rungs at the ladder's pace, and the fireman's swing
+  climb, shovel,      crew.py's, reworked here (Look Review notes; CreatureArt lets these win over the mesh's own):
+  crouch_idle         up a ladder's rungs at the ladder's pace, the fireman's swing, and down on the haunches
   door                a hand on a door's handle, hauled across (the interiors, T99)
   handbrake           both hands on a brake wheel, hand over hand (spec C.4)
   hatch               a roof hatch heaved up from the feet (T99)
@@ -121,12 +121,87 @@ def elbow_out(e):
     return 0.3 if abs(e.x) < 0.14 and abs(e.y) < 0.14 else 0.0
 
 
+def seg_dist(p, a, b):
+    """How far the point `p` is from the segment `a`-`b`."""
+    ab = b - a
+    t = 0.0 if ab.length_squared < 1e-9 else max(0.0, min(1.0, (p - a).dot(ab) / ab.length_squared))
+    return (p - (a + ab * t)).length
+
+
+def clear_of_body(pose, wrist):
+    """An elbow-placing penalty that keeps the arm out of the body as this pose has it (Look Review notes: arms through
+    the chest, the hips, the knees): the elbow and the forearm's middle held off the trunk, the coat's skirt, the head
+    and the thighs, by the coat's own measure (crew.glb: about 0.2 m round the chest and hips, the skirt 0.22 m)."""
+    names = [("pelvis", "head"), ("spine_02", "head"), ("neck", "head"), ("head", "head"),
+             ("thigh_r", "head"), ("calf_r", "head"), ("thigh_l", "head"), ("calf_l", "head")]
+    pel, sp2, nk, hd, thr, knr, thl, knl = rig.pose_points(sk, pose, names)
+    down = (pel - sp2).normalized()
+    skirt_end = pel + down * 0.4
+    head_c = hd + (hd - nk).normalized() * 0.1
+    wrist = Vector(wrist)
+
+    def cost(e):
+        c = elbow_out(e) * 0.2
+        for q in (e, (e + wrist) * 0.5):
+            for a, b, r in ((pel, nk, 0.24), (pel, skirt_end, 0.26), (head_c, head_c, 0.18), (thr, knr, 0.14), (thl, knl, 0.14)):
+                d = seg_dist(q, a, b)
+                if d < r:
+                    c += (r - d) * 1.5
+        return c
+    return cost
+
+
+def look_at(pose, target, share=0.45):
+    """The head (and the neck, `share` of it) turned so the face is on `target` (armature space). On this rig a
+    positive neck or head pitch lifts the face (a Look Review note caught "head down" written as up); a positive yaw
+    (z) turns it to the left."""
+    target = Vector(target)
+    best, best_p = None, pose
+    base_n, base_h = pose.get("neck", (0, 0, 0)), pose.get("head", (0, 0, 0))
+    for pitch in range(-70, 41, 5):
+        for yaw in range(-60, 61, 10):
+            p = dict(pose)
+            p["neck"] = (pitch * share, base_n[1], yaw * share)
+            p["head"] = (pitch * (1 - share), base_h[1], yaw * (1 - share))
+            R = rig.world_rotation(sk, p, "head")
+            eye = rig.pose_points(sk, p, [("head", "head")])[0] + R @ Vector((0, 0.08, 0.08))
+            face = R @ Vector((0, 1, 0))
+            want = (target - eye).normalized()
+            err = 1 - face.dot(want)
+            if best is None or err < best:
+                best, best_p = err, p
+    return best_p
+
+
+TOOL_DROOP, TOOL_SIDE = 34, 1  # CreatureArt.ToolDroop (0.6 rad) and the side of hand_r_weapon it tips to
+
+
+def aim_tool(pose, direction):
+    """The right wrist turned so the tool in the fist points along `direction` (Look Review: the bar and the wrench
+    pointed at the sky, or back through the head). CreatureArt draws a held tool along hand_r_weapon's +Y tipped toward
+    its +X by ToolDroop (ToolGrip), so that's the line aimed."""
+    d = Vector(direction).normalized()
+    k = math.radians(TOOL_DROOP)
+    along = Vector((math.sin(k) * TOOL_SIDE, math.cos(k), 0))
+    best, best_p = None, pose
+    for rx in range(-180, 181, 10):
+        for rz in range(-90, 91, 10):
+            p = dict(pose)
+            p["hand_r"] = rig.hang(sk, p, "hand_r", rx, 0, rz)
+            R = rig.world_rotation(sk, p, "hand_r_weapon")
+            err = 1 - (R @ along).normalized().dot(d)
+            if best is None or err < best:
+                best, best_p = err, p
+    return best_p
+
+
 def arm_to(pose, side, wrist, fist=True, grip=80, elbow=None):
     """The arm put so its wrist is at `wrist` (armature space: x right, y forward, z up from the feet); `elbow`, a point
-    its elbow is drawn toward (for the right arm; mirrored for the left)."""
+    its elbow is drawn toward (for the right arm; mirrored for the left). The arm is kept out of the body."""
     k = 1 if side == "r" else -1
     pole = None if elbow is None else (elbow[0] * k, elbow[1], elbow[2])
-    p = rig.reach(sk, pose, f"upperarm_{side}", f"lowerarm_{side}", wrist, elbow_axis=2, bend=k, avoid=elbow_out, pole=pole)
+    p = rig.reach(sk, pose, f"upperarm_{side}", f"lowerarm_{side}", wrist, elbow_axis=2, bend=k, avoid=clear_of_body(pose, wrist),
+                  pole=pole)
     if fist:
         p[f"fingers_{side}"] = (0, grip * k, 0)
         p[f"thumb_{side}"] = (0, 30 * k, 0)
@@ -245,17 +320,33 @@ hatch.hold(26)
 hatch.close(36)
 clips.append(hatch)
 
+# --- crouch_idle (crew.py's, reworked: a Look Review pass found its forearms through the thighs): down on the haunches
+# behind cover, the forearms resting on top of the knees and the hands hanging between them, breathing hard.
+CR = over(STAND, pelvis__loc=(0, -0.12, 0), pelvis=(-10, 0, 0), spine_01=(-14, 0, 0), spine_02=(-12, 0, 0),
+          spine_03=(-8, 0, 0), thigh_r=(100, -10, 0), calf_r=(-128, 0, 0), foot_r=(30, 0, -8),
+          thigh_l=(96, 10, 0), calf_l=(-124, 0, 0), foot_l=(28, 0, 8))
+CR = look_at(CR, (0, 3, 1.0))
+crouch = Clip("crouch_idle")
+for f, (dz, turn) in ((0, (0.0, 0)), (18, (0.012, 0)), (36, (0.0, 10))):
+    crouch.key(f, hands(over(CR, spine_03=(-8 + 3 * dz / 0.012, 0, 0), head=(CR["head"][0], 0, turn)),
+                        (0.14, 0.62, 0.6 + dz), (-0.14, 0.62, 0.6 + dz), grip=30, elbow=(0.3, 0.3, 0.95)))
+crouch.close(54)
+clips.append(crouch)
+
 # --- uncouple: down on the plate, the right hand on the pin, tugging it up -----------------------------------------
-CROUCH = over(STAND, pelvis__loc=(0, -0.08, 0), pelvis=(-14, 0, 0), spine_01=(-18, 0, 0), spine_02=(-12, 0, 0),
-              spine_03=(-8, 0, 0), neck=(26, 0, 0), head=(14, 0, 0),
-              thigh_r=(100, -6, 0), calf_r=(-128, 0, 0), foot_r=(30, 0, -8),
-              thigh_l=(84, 8, 0), calf_l=(-110, 0, 0), foot_l=(24, 0, 8))
-PIN = (0.06, 0.5, 0.2)
+# Down on the left knee at the plate, the right knee up and out of the arm's way, the left hand braced on it, the right
+# on the pin between, the eyes on it (Look Review notes: the arm went through the knee; and the head looked up).
+CROUCH = over(STAND, pelvis__loc=(0, -0.06, -0.42), pelvis=(-16, 0, 0), spine_01=(-16, 0, 0), spine_02=(-12, 0, 0),
+              spine_03=(-8, 0, 0), thigh_r=(92, -16, 0), calf_r=(-98, 0, 0), foot_r=(10, 0, -6),
+              thigh_l=(-10, 4, 0), calf_l=(-112, 0, 0), foot_l=(-52, 0, 6))
+PIN = (-0.04, 0.52, 0.2)
+KNEE_R = (-0.22, 0.48, 0.3)  # the left hand on the coupler's knuckle beside the pin, steadying (not across to the knee)
+CROUCH = look_at(CROUCH, PIN)
 uncouple = Clip("uncouple")
-uncouple.key(0, arm_to(arm_to(CROUCH, "r", PIN), "l", (-0.2, 0.32, 0.55), grip=20))
-uncouple.key(6, arm_to(arm_to(over(CROUCH, spine_02=(-10, 0, 0)), "r", at(PIN, dz=0.07)), "l", (-0.2, 0.32, 0.57), grip=20), "LINEAR")
-uncouple.key(9, arm_to(arm_to(CROUCH, "r", at(PIN, dz=0.01)), "l", (-0.2, 0.32, 0.55), grip=20))
-uncouple.key(15, arm_to(arm_to(over(CROUCH, spine_02=(-9, 0, 2)), "r", at(PIN, dz=0.08)), "l", (-0.2, 0.32, 0.57), grip=20), "LINEAR")
+uncouple.key(0, arm_to(arm_to(CROUCH, "r", PIN, elbow=(0.1, 0.3, 0.8)), "l", KNEE_R, grip=20))
+uncouple.key(6, arm_to(arm_to(over(CROUCH, spine_02=(-10, 0, 0)), "r", at(PIN, dz=0.07), elbow=(0.1, 0.3, 0.8)), "l", at(KNEE_R, dz=0.01), grip=20), "LINEAR")
+uncouple.key(9, arm_to(arm_to(CROUCH, "r", at(PIN, dz=0.01), elbow=(0.1, 0.3, 0.8)), "l", KNEE_R, grip=20))
+uncouple.key(15, arm_to(arm_to(over(CROUCH, spine_02=(-9, 0, 2)), "r", at(PIN, dz=0.08), elbow=(0.1, 0.3, 0.8)), "l", at(KNEE_R, dz=0.01), grip=20), "LINEAR")
 uncouple.close(24)
 clips.append(uncouple)
 
@@ -326,17 +417,17 @@ clips.append(gunner)
 # for anything to hold, hands open and clawing, the legs running at nothing, the back arched and the head thrown back.
 FALL = over(STAND, pelvis=(10, 0, 0), spine_01=(8, 0, 0), spine_02=(8, 0, 0), spine_03=(6, 0, 0), neck=(-10, 0, 0), head=(-16, 0, 0))
 fall = Clip("fall")
-# Elbows bent (the hands kept within a forearm's reach of the shoulders, so the arm can't straighten), grabbing at the
-# air round the head and out to the sides, the fingers half-closed as if on something; never a straight-armed T.
+# Arms up and out reaching for a hold that isn't there, turning slowly over through the drop, the legs bent and pedalling
+# a little; the fingers half-closed. (Look Review notes: first not panicked enough, then "far too frantic": a fall lasts
+# a second, read as the arms going up, not as thrashing.)
 for f, (r, l, tr, cr, tl, cl, twist) in enumerate((
-        ((0.4, 0.22, 1.72), (-0.34, 0.3, 1.25), 60, -96, 4, -30, 10),
-        ((0.44, 0.05, 1.3), (-0.3, 0.25, 1.78), 8, -40, 58, -100, -10),
-        ((0.3, 0.36, 1.62), (-0.46, 0.06, 1.5), 50, -70, -6, -50, 8),
-        ((0.44, 0.26, 1.26), (-0.32, 0.3, 1.74), 0, -60, 52, -84, -8))):
-    body = over(FALL, spine_02=(8, 0, twist), head=(-16, 0, -twist * 1.5), thigh_r=(tr, 0, 0), calf_r=(cr, 0, 0), foot_r=(-20, 0, -6),
+        ((0.48, 0.18, 1.56), (-0.44, 0.26, 1.44), 34, -70, 14, -40, 4),
+        ((0.44, 0.26, 1.42), (-0.48, 0.18, 1.6), 18, -44, 30, -64, -4))):
+    body = over(FALL, spine_02=(8, 0, twist), head=(-16, 0, -twist), thigh_r=(tr, 0, 0), calf_r=(cr, 0, 0), foot_r=(-20, 0, -6),
                 thigh_l=(tl, 0, 0), calf_l=(cl, 0, 0), foot_l=(-20, 0, 6))
-    fall.key(f * 5, hands(body, r, l, grip=50, elbow=(0.55, -0.15, 1.2)))
-fall.close(20)
+    fall.key(f * 15, hands(body, r, l, grip=70, elbow=(0.6, -0.1, 1.2)))
+fall.close(30)
+
 clips.append(fall)
 
 # --- swing: an overhead blow, right-handed, the left hand coming off the haft ---------------------------------------
@@ -344,11 +435,13 @@ SW_BODY = over(STAND, thigh_r=(-10, 0, 0), calf_r=(-6, 0, 0), thigh_l=(18, 0, 0)
 SW_UP = over(SW_BODY, spine_01=(4, 0, -10), spine_02=(6, 0, -14), spine_03=(4, 0, -10), head=(-8, 0, 14))
 SW_DOWN = over(SW_BODY, pelvis=(-6, 0, 10), spine_01=(-14, 0, 8), spine_02=(-16, 0, 10), spine_03=(-10, 0, 6), head=(10, 0, -8))
 swing = Clip("swing", loop=False)
-swing.key(0, hands(SW_BODY, (0.24, 0.3, 1.1), (0.08, 0.3, 1.05)))
-swing.key(7, hands(SW_UP, (0.24, -0.04, 1.75), (0.1, 0.04, 1.62)))
-swing.key(11, hands(SW_DOWN, (0.1, 0.6, 1.05), (-0.18, 0.3, 1.0)), "LINEAR")
-swing.key(14, hands(SW_DOWN, (0.06, 0.56, 0.86), (-0.22, 0.28, 0.98)))
-swing.key(24, hands(SW_BODY, (0.24, 0.3, 1.1), (0.08, 0.3, 1.05)))
+# The bar aimed as the blow goes: up ready, back over the shoulder, down through the target, low after (a Look Review
+# pass: the wrist was never turned, so the bar pointed off at the sky through it all).
+swing.key(0, aim_tool(hands(SW_BODY, (0.24, 0.3, 1.1), (0.12, 0.42, 1.06)), (0.1, 0.6, 0.6)))
+swing.key(7, aim_tool(hands(SW_UP, (0.24, -0.04, 1.75), (0.1, 0.04, 1.62)), (0.05, -0.5, 0.85)))
+swing.key(11, aim_tool(hands(SW_DOWN, (0.1, 0.6, 1.05), (-0.18, 0.3, 1.0)), (-0.1, 0.85, -0.35)), "LINEAR")
+swing.key(14, aim_tool(hands(SW_DOWN, (0.06, 0.56, 0.86), (-0.22, 0.28, 0.98)), (-0.1, 0.5, -0.85)))
+swing.key(24, aim_tool(hands(SW_BODY, (0.24, 0.3, 1.1), (0.12, 0.42, 1.06)), (0.1, 0.6, 0.6)))
 clips.append(swing)
 
 # --- firedoor: the firehole's door swung open or shut (GDD §12, App. A.5 "keep it hot, keep it shut"): stooped at the
@@ -369,16 +462,21 @@ firedoor.key(21, hands(over(DOOR_BODY, spine_02=(-4, 0, 6), head=(4, 0, 12)), at
 clips.append(firedoor)
 
 # --- mend: down on one knee at the firebox, the wrench worked in short pulls, the left hand braced on the backhead ---
-MEND = over(STAND, pelvis__loc=(0, -0.02, 0), pelvis=(-10, 0, 0), spine_01=(-14, 0, 0), spine_02=(-10, 0, 0),
-            spine_03=(-6, 0, 0), neck=(18, 0, 0), head=(10, 0, 0),
-            thigh_r=(90, -4, 0), calf_r=(-96, 0, 0), foot_r=(10, 0, -6),
-            thigh_l=(-10, 4, 0), calf_l=(-110, 0, 0), foot_l=(-50, 0, 6))
-NUT, BRACE = (0.14, 0.5, 0.78), (-0.2, 0.52, 0.95)
+# Down on the right knee, the left up (it was the right up, and the wrench arm went through it: a Look Review note),
+# the eyes on the nut.
+MEND = over(STAND, pelvis__loc=(0, -0.02, -0.38), pelvis=(-10, 0, 0), spine_01=(-14, 0, 0), spine_02=(-10, 0, 0),
+            spine_03=(-6, 0, 0), thigh_l=(90, 6, 0), calf_l=(-96, 0, 0), foot_l=(10, 0, 6),
+            thigh_r=(-10, -4, 0), calf_r=(-110, 0, 0), foot_r=(-50, 0, -6))
+NUT, BRACE = (0.14, 0.52, 0.8), (-0.22, 0.52, 0.95)
+MEND = look_at(MEND, NUT)
 mend = Clip("mend")
 for f, a in ((0, 0.0), (7, 1.0), (10, 1.0), (18, 0.0)):
     # A pull down and round on the handle (the nut its pivot), then back for a fresh bite.
     r = (NUT[0] + 0.06 * a, NUT[1] - 0.02 * a, NUT[2] - 0.07 * a)
-    mend.key(f, arm_to(arm_to(over(MEND, spine_02=(-10 - 3 * a, 0, -2 * a)), "r", r), "l", BRACE, grip=20), "LINEAR" if f == 7 else "BEZIER")
+    # The fist on the wrench's handle a hand back from the nut, the wrench's head on it (the wrist turned to it).
+    fist = (r[0], r[1] - 0.2, r[2] + 0.04)
+    mend.key(f, aim_tool(arm_to(arm_to(over(MEND, spine_02=(-10 - 3 * a, 0, -2 * a)), "r", fist), "l", BRACE, grip=20),
+                         tuple(Vector(r) - Vector(fist))), "LINEAR" if f == 7 else "BEZIER")
 mend.close(24)
 clips.append(mend)
 
@@ -386,9 +484,11 @@ clips.append(mend)
 GAP = over(STAND, pelvis__loc=(0, 0, -0.06), pelvis=(-6, 0, 0), spine_01=(-6, 0, 0), spine_02=(-4, 0, 0), neck=(16, 0, 0),
            head=(10, 0, 0), thigh_r=(-18, -12, 0), calf_r=(-20, 0, 0), foot_r=(12, 0, -10),
            thigh_l=(26, 12, 0), calf_l=(-26, 0, 0), foot_l=(-4, 0, 10))
+# The eyes down on the gap ahead (this rig's positive pitch lifts the face: neck 16 had them up on the horizon).
+GAP = look_at(GAP, (0, 0.9, 0.0))
 gap = Clip("gap")
 for f, lean in ((0, 0), (12, 5), (24, 0), (36, -5)):
-    gap.key(f, hands(over(GAP, spine_02=(-4, 0, lean), spine_03=(-2, 0, lean * 0.6), head=(10, 0, -lean)),
+    gap.key(f, hands(over(GAP, spine_02=(-4, 0, lean), spine_03=(-2, 0, lean * 0.6), head=(GAP["head"][0], 0, -lean)),
                      (0.5, 0.22, 0.98 - lean * 0.01), (-0.5, 0.24, 0.98 + lean * 0.01), fist=False))
 gap.close(48)
 clips.append(gap)
@@ -398,7 +498,7 @@ clips.append(gap)
 # on the nozzle.)
 EXT_BODY = over(STAND, pelvis=(-4, 0, 6), spine_01=(-6, 0, 4), spine_02=(-6, 0, 0), spine_03=(-4, 0, 0), neck=(14, 0, 0),
                 head=(8, 0, 0), thigh_r=(16, 0, 0), calf_r=(-12, 0, 0), thigh_l=(-8, 0, 0), calf_l=(-6, 0, 0))
-EXT_HANDLE, EXT_NOZZLE = (-0.04, 0.42, 1.34), (0.26, 0.62, 0.9)
+EXT_HANDLE, EXT_NOZZLE = (-0.1, 0.44, 1.32), (0.26, 0.62, 0.9)
 extinguish = Clip("extinguish")
 for f, (dx, dz) in ((0, (0.0, 0.0)), (8, (0.06, -0.03)), (16, (0.0, -0.05)), (24, (-0.06, -0.02))):
     extinguish.key(f, hands(EXT_BODY, at(EXT_NOZZLE, dx=dx, dz=dz), EXT_HANDLE, grip=70))
@@ -470,7 +570,7 @@ clips.append(haul_up)
 # --- gap_step: across the coupling plate, a short wide careful step, arms out, eyes down at the gap (GDD §32) ----------
 def gap_upper(f, side):
     lean = 4 if side == "r" else -4
-    return hands(over(GAP, spine_02=(-6, 0, lean), spine_03=(-4, 0, lean * 0.6), neck=(22, 0, 0), head=(14, 0, -lean)),
+    return hands(over(GAP, spine_02=(-6, 0, lean), spine_03=(-4, 0, lean * 0.6), head=(GAP["head"][0], 0, -lean)),
                  (0.48, 0.26, 1.0 - lean * 0.01), (-0.48, 0.28, 1.0 + lean * 0.01), fist=False)
 
 
@@ -496,7 +596,8 @@ drive.close(100)
 clips.append(drive)
 
 # --- whistle: the left hand up on the cord's handle and hauled down, the right on the brake, a blast ----------------------
-CORD_UP, CORD_DOWN = (-0.12, 0.22, 1.9), (-0.12, 0.24, 1.72)
+# Out to the left and forward of the head (a Look Review note: the arm went up through the head).
+CORD_UP, CORD_DOWN = (-0.3, 0.34, 1.88), (-0.3, 0.36, 1.7)
 whistle = Clip("whistle")
 whistle.key(0, hands(over(DRIVE, head=(-8, 0, 4)), DRIVE_BRAKE, CORD_UP, grip=90))
 whistle.key(5, hands(over(DRIVE, head=(-6, 0, 4), spine_03=(-1, 0, -4)), DRIVE_BRAKE, CORD_DOWN, grip=90), "LINEAR")
@@ -515,10 +616,12 @@ smash = Clip("smash")
 WIND = over(SMASH_BODY, spine_01=(6, 0, -8), spine_02=(8, 0, -14), spine_03=(6, 0, -10), neck=(-4, 0, 0), head=(-10, 0, 12))
 STRIKE = over(SMASH_BODY, pelvis__loc=(0, 0.02, -0.06), pelvis=(-10, 0, 8), spine_01=(-18, 0, 6), spine_02=(-20, 0, 8),
               spine_03=(-10, 0, 4), neck=(16, 0, 0), head=(12, 0, -6), thigh_l=(30, 0, 0), calf_l=(-30, 0, 0))
-smash.key(0, hands(WIND, (0.22, -0.08, 1.92), (0.12, -0.02, 1.84)))
-smash.key(9, hands(STRIKE, at(LOCK, dx=0.04, dy=-0.04, dz=0.0), at(LOCK, dx=-0.1, dy=-0.1, dz=-0.02)), "LINEAR")
-smash.key(12, hands(over(STRIKE, spine_02=(-17, 0, 7)), at(LOCK, dx=0.04, dy=-0.08, dz=0.1), at(LOCK, dx=-0.1, dy=-0.14, dz=0.08)))
-smash.key(24, hands(WIND, (0.22, -0.08, 1.92), (0.12, -0.02, 1.84)))
+# The bar over the shoulder, then driven down onto the hasp: its head at the lock, the hands a bar's length back from it.
+SMASH_WIND = aim_tool(hands(WIND, (0.22, 0.0, 1.92), (0.12, 0.1, 1.84)), (0.1, -0.5, 0.85))
+smash.key(0, SMASH_WIND)
+smash.key(9, aim_tool(hands(STRIKE, (0.14, 0.5, 1.12), (0.02, 0.44, 1.08)), (-0.05, 0.4, -0.45)), "LINEAR")
+smash.key(12, aim_tool(hands(over(STRIKE, spine_02=(-17, 0, 7)), (0.14, 0.46, 1.2), (0.02, 0.4, 1.16)), (-0.04, 0.4, -0.2)))
+smash.key(24, SMASH_WIND)
 clips.append(smash)
 
 # Pry: the bar's end bitten in behind a board at the chest, both hands on it, the whole weight hung back off it, heaving.
@@ -529,10 +632,18 @@ PRY_BACK = over(PRY_BODY, pelvis__loc=(0, -0.2, -0.1), pelvis=(6, 0, 0), spine_0
                 spine_03=(6, 0, -4), neck=(-4, 0, 0), head=(-12, 0, 0), thigh_r=(44, 0, 0), calf_r=(-60, 0, 0), foot_r=(16, 0, -6),
                 thigh_l=(-24, 0, 0), calf_l=(-8, 0, 0))
 pry = Clip("pry")
-pry.key(0, hands(PRY_BODY, (0.14, 0.52, 1.32), (-0.02, 0.56, 1.42), grip=90))
-pry.key(14, hands(PRY_BACK, (0.14, 0.3, 1.16), (-0.02, 0.36, 1.24), grip=90), "LINEAR")
-pry.key(22, hands(over(PRY_BACK, spine_02=(12, 0, 4), spine_03=(8, 0, 4)), (0.16, 0.28, 1.12), (0.0, 0.34, 1.2), grip=90))
-pry.key(32, hands(PRY_BODY, (0.14, 0.5, 1.3), (-0.02, 0.54, 1.4), grip=90))
+# The bar run forward from the fists to its claw behind the board (at the chest, 0.75 m ahead), hauled back on.
+BOARD = Vector((0.06, 0.78, 1.36))
+
+
+def pry_key(body, r, l):
+    return aim_tool(hands(body, r, l, grip=90), tuple(BOARD - Vector(r)))
+
+
+pry.key(0, pry_key(PRY_BODY, (0.14, 0.4, 1.3), (0.04, 0.5, 1.33)))
+pry.key(14, pry_key(PRY_BACK, (0.14, 0.24, 1.18), (0.04, 0.32, 1.22)), "LINEAR")
+pry.key(22, pry_key(over(PRY_BACK, spine_02=(12, 0, 4), spine_03=(8, 0, 4)), (0.16, 0.22, 1.14), (0.06, 0.3, 1.18)))
+pry.key(32, pry_key(PRY_BODY, (0.14, 0.38, 1.28), (0.04, 0.48, 1.31)))
 pry.close(40)
 clips.append(pry)
 
@@ -542,9 +653,11 @@ PICK_BODY = over(STAND, pelvis__loc=(0, -0.02, -0.34), pelvis=(-4, 0, 0), spine_
                  spine_03=(-6, 0, 0), neck=(34, 0, 0), head=(24, 0, 0),
                  thigh_r=(-10, -4, 0), calf_r=(-108, 0, 0), foot_r=(-50, 0, -6), thigh_l=(86, 4, 0), calf_l=(-92, 0, 0), foot_l=(8, 0, 6))
 PADLOCK = (0.04, 0.5, 0.96)
+# The eyes on the lock (a Look Review note: "looking more up, not down" — this rig's positive pitch lifts the face).
+PICK_BODY = look_at(PICK_BODY, at(PADLOCK, dz=-0.02))
 pick = Clip("pick")
 for f, (twist, dz) in ((0, (0.0, 0.0)), (6, (0.014, 0.006)), (11, (-0.008, 0.0)), (17, (0.016, -0.006)), (24, (0.0, 0.003))):
-    pick.key(f, hands(over(PICK_BODY, head=(24, 0, twist * 300)), at(PADLOCK, dx=0.07 + twist, dy=-0.04, dz=dz),
+    pick.key(f, hands(over(PICK_BODY, head=(PICK_BODY["head"][0], 0, PICK_BODY["head"][2] + twist * 300)), at(PADLOCK, dx=0.07 + twist, dy=-0.04, dz=dz),
                       at(PADLOCK, dx=-0.06, dy=0.0, dz=-0.03), grip=60))
 pick.close(30)
 clips.append(pick)
@@ -626,7 +739,8 @@ def hurry_upper(f, side):
     # close in by the body (a Look Review note: the arms read wrong, flung out); pitched into it, rocking with the step.
     a = math.cos(2 * math.pi * f / 18)  # +1 at the right heel's strike: the right arm back
     def hand(k):
-        return (0.18, 0.04 - 0.22 * k, 1.08 + 0.1 * max(0.0, -k) - 0.04 * max(0.0, k))
+        # Driven back, the fist goes out past the coat's skirt (0.22 m), not into it (a Look Review note).
+        return (0.26 + 0.04 * max(0.0, k), 0.06 - 0.22 * k, 1.12 + 0.1 * max(0.0, -k))
     body = over(STAND, spine_01=(-12, 0, 0), spine_02=(-10, 0, 3 * a), spine_03=(-8, 0, 0), neck=(18, 0, 0), head=(4, 0, 0))
     r = hand(a)
     l = hand(-a)
@@ -634,7 +748,7 @@ def hurry_upper(f, side):
     return arm_to(p, "l", (-l[0], l[1], l[2]), grip=80, elbow=(0.3, -0.35, 0.95))
 
 
-clips.append(walking("hurry", hurry_upper, cycle=18, short=1.35))
+clips.append(walking("hurry", hurry_upper, cycle=18, short=1.0))
 
 # --- stagger: a blow taken (App. C.2 "hit and stagger"): rocked back a step, arms flung up, and back on the feet ----------
 STAG = over(STAND, pelvis__loc=(0, -0.08, -0.04), pelvis=(10, 0, -6), spine_01=(12, 0, -4), spine_02=(10, 0, -6),
@@ -678,7 +792,7 @@ SPOUT = over(STAND, spine_01=(4, 0, 0), spine_02=(4, 0, 0), neck=(-16, 0, 0), he
 spout = Clip("spout")
 for f, turn in ((0, 0), (20, 1), (40, 0), (60, -1)):
     spout.key(f, hands(over(SPOUT, pelvis=(0, 0, 8 * turn), spine_02=(4, 0, 10 * turn), spine_03=(2, 0, 8 * turn)),
-                       (0.14 + 0.22 * turn, 0.42, 1.78), (-0.14 + 0.22 * turn, 0.42, 1.76), grip=85))
+                       (0.16 + 0.14 * turn, 0.44, 1.78), (-0.16 + 0.14 * turn, 0.44, 1.76), grip=85))
 spout.close(80)
 clips.append(spout)
 
@@ -688,7 +802,7 @@ clips.append(spout)
 # dropped under it, the steps short and heavy.
 SHOULDER_BODY = over(STAND, spine_01=(-8, 0, 3), spine_02=(-8, 0, 5), spine_03=(-6, 0, 4), neck=(10, 0, -4), head=(0, 0, -6),
                      clavicle_l=(0, 0, -8))
-HUG = (0.02, 0.3, 1.22)
+HUG = (-0.08, 0.34, 1.28)
 shoulder = Clip("shoulder")
 shoulder.key(0, hands(SHOULDER_BODY, (0.26, 0.06, 0.86), HUG, grip=85))
 shoulder.key(30, hands(over(SHOULDER_BODY, spine_02=(-9, 0, 6), head=(2, 0, -4)), (0.26, 0.06, 0.85), at(HUG, dz=-0.01), grip=85))
@@ -759,18 +873,21 @@ def climb_pose(f, carry=False):
         if carry and side == "l":
             continue
         hold = 0.65 if carry else 0.5
-        z, lift = limb_height(1.94 if not carry else 1.86, f, off, hold)
+        z, lift = limb_height(1.94, f, off, hold)
         # One-handed, the hand goes up out at the side and well forward, clear of the head and the load.
-        x, y = (0.2, 0.3 - 0.06 * lift) if not carry else (0.34, 0.36)
+        x, y = (0.2, 0.3 - 0.06 * lift) if not carry else (0.22, 0.36 - 0.04 * lift)
         hands_.append((side, (k * x, y, z + 0.03 * lift)))
     for side, wrist in hands_:
         p = arm_to(p, side, wrist, grip=90 if wrist[1] > 0.27 or carry else 30, elbow=(0.6, 0.05, 1.2) if carry else (0.5, 0.05, 1.15))
     if carry:
         p = arm_to(p, "l", HUG, grip=85)
     for side, k, off in (("l", -1, 0), ("r", 1, CLIMB_CYCLE // 2)):
-        z, lift = limb_height(0.56, f, off)
-        p = leg_to(p, side, (k * 0.12, 0.2 - 0.08 * lift, z + 0.04 * lift), knee=(0.2, 0.7, 0.7))
+        # The feet on rungs a whole number of pitches under the hands' (1.5 m: five rungs).
+        z, lift = limb_height(0.44, f, off)
+        p = leg_to(p, side, (k * 0.16, 0.2 - 0.08 * lift, z + 0.04 * lift), knee=(0.32, 0.7, 0.7))
         p[f"foot_{side}"] = (6 - 10 * lift, 0, 0)
+    if carry:
+        p = dict(p, neck=CC_LOOK["neck"], head=CC_LOOK["head"])
     # The weight goes onto the side whose hand has just taken a rung.
     sway = math.sin(2 * math.pi * f / CLIMB_CYCLE)
     p["spine_02"] = (p.get("spine_02", (0, 0, 0))[0], 0, 3 * sway)
@@ -787,6 +904,7 @@ clips.append(climb)
 # right hand alone on the rungs, out to the side clear of the head and the load, holding longer (one hand to pull on).
 CC = over(STAND, spine_01=(-6, 0, 0), spine_02=(-8, 0, 4), spine_03=(-6, 0, 6), neck=(-4, 0, 0), head=(-6, 0, 0),
           clavicle_l=(0, 0, -8))
+CC_LOOK = look_at(CC, (0.1, 0.45, 2.2))
 climb_carry = Clip("climb_carry")
 for f in range(0, CLIMB_CYCLE, 4):
     climb_carry.key(f, climb_pose(f, carry=True), "LINEAR")
@@ -814,20 +932,31 @@ def with_shovel(pose, wrist, direction):
     return arm_to(p, "l", grip_end - (grip_end - w).normalized() * 0.05, elbow=(0.3, -0.1, 0.9))
 
 
-SH_LOW = over(STAND, pelvis__loc=(0, -0.08, -0.14), pelvis=(-12, 0, -16), spine_01=(-16, 0, -8), spine_02=(-14, 0, -6),
-              spine_03=(-8, 0, -4), neck=(16, 0, 0), head=(14, 0, -6),
-              thigh_r=(52, -8, 0), calf_r=(-80, 0, 0), foot_r=(26, 0, -10),
-              thigh_l=(26, 10, 0), calf_l=(-56, 0, 0), foot_l=(24, 0, 10))
-SH_LIFT = over(SH_LOW, pelvis__loc=(0, -0.04, -0.06), pelvis=(-6, 0, -8), spine_01=(-8, 0, -4), spine_02=(-8, 0, -2), spine_03=(-4, 0, 0),
-               neck=(10, 0, 0), head=(8, 0, 0), thigh_r=(28, -8, 0), calf_r=(-40, 0, 0), foot_r=(10, 0, -10),
-               thigh_l=(16, 10, 0), calf_l=(-30, 0, 0), foot_l=(12, 0, 10))
-SH_THROW = over(SH_LIFT, pelvis=(-6, 0, 14), spine_01=(-8, 0, 10), spine_02=(-10, 0, 10), spine_03=(-8, 0, 8), head=(6, 0, 8),
-                thigh_l=(34, 10, 0), calf_l=(-40, 0, 0), thigh_r=(8, -8, 0), calf_r=(-24, 0, 0))
+# Down into the scoop: the knees deep, the back flat over them, so the lower hand reaches the shaft near the blade.
+SH_LOW = over(STAND, pelvis__loc=(0, -0.12, -0.24), pelvis=(-22, 0, -14), spine_01=(-18, 0, -6), spine_02=(-14, 0, -4),
+              spine_03=(-8, 0, -2), thigh_r=(70, -10, 0), calf_r=(-100, 0, 0), foot_r=(30, 0, -10),
+              thigh_l=(50, 12, 0), calf_l=(-80, 0, 0), foot_l=(30, 0, 10))
+SH_LOW = look_at(SH_LOW, (0.3, 1.0, 0.0))
+SH_LIFT = over(SH_LOW, pelvis__loc=(0, -0.06, -0.1), pelvis=(-10, 0, -8), spine_01=(-10, 0, -4), spine_02=(-8, 0, -2), spine_03=(-4, 0, 0),
+               thigh_r=(34, -10, 0), calf_r=(-46, 0, 0), foot_r=(12, 0, -10),
+               thigh_l=(20, 12, 0), calf_l=(-34, 0, 0), foot_l=(14, 0, 10))
+SH_LIFT = look_at(SH_LIFT, (0.1, 1.5, 0.9))
+SH_THROW = over(SH_LIFT, pelvis=(-8, 0, 14), spine_01=(-8, 0, 10), spine_02=(-10, 0, 10), spine_03=(-8, 0, 8),
+                thigh_l=(36, 12, 0), calf_l=(-42, 0, 0), thigh_r=(10, -10, 0), calf_r=(-26, 0, 0))
+SH_THROW = look_at(SH_THROW, (0.0, 1.5, 0.9))
 shovel_clip = Clip("shovel")
-shovel_clip.key(0, with_shovel(SH_LOW, (0.28, 0.46, 0.46), (0.25, 0.6, -0.5)))
-shovel_clip.key(7, with_shovel(over(SH_LOW, pelvis__loc=(0, -0.04, -0.15)), (0.3, 0.56, 0.4), (0.22, 0.75, -0.3)), "LINEAR")
-shovel_clip.key(18, with_shovel(SH_LIFT, (0.2, 0.42, 0.84), (0.12, 0.98, -0.12)))
-shovel_clip.key(26, with_shovel(SH_THROW, (0.02, 0.6, 0.92), (-0.12, 0.98, 0.06)), "LINEAR")
+# The shaft runs across the body as a fireman holds it: the D-grip by the left hip, the right hand down it toward the
+# blade, out ahead and to the right (Look Review notes: with the shaft straight ahead the D-grip was behind the right hip
+# and the left arm went across the body and through the legs to it). Each key puts the right fist where the arm reaches
+# and the D-grip by the left hip; the shaft runs between them (0.62 m apart, crew.py's shovel) and on to the blade.
+def shovel_key(body, fist, d_grip):
+    return with_shovel(body, fist, tuple(Vector(fist) - Vector(d_grip)))
+
+
+shovel_clip.key(0, shovel_key(SH_LOW, (0.22, 0.54, 0.58), (-0.28, 0.24, 0.82)))
+shovel_clip.key(7, shovel_key(over(SH_LOW, pelvis__loc=(0, -0.08, -0.25)), (0.24, 0.6, 0.54), (-0.24, 0.3, 0.78)), "LINEAR")
+shovel_clip.key(18, shovel_key(SH_LIFT, (0.2, 0.52, 0.88), (-0.3, 0.22, 0.98)))
+shovel_clip.key(26, shovel_key(SH_THROW, (0.04, 0.7, 0.98), (-0.3, 0.24, 0.92)), "LINEAR")
 shovel_clip.hold(31)
 shovel_clip.close(48)
 clips.append(shovel_clip)
@@ -923,9 +1052,9 @@ reload_.key(30, hands(over(LEAN, spine_02=(-16, 0, 0)), (0.18, 0.76, PAN + 0.4),
 reload_.key(45, hands(SEATED, (0.24, 0.3, PAN + 0.5), (-0.06, 0.3, PAN + 0.52), grip=90))
 # (The ram at the chest, the staff run out under the chin: at the face, the rammer went back through the head. A Look
 # Review note.)
-reload_.key(58, hands(LEAN, (0.2, 0.44, PAN + 0.36), (0.0, 0.36, PAN + 0.34), grip=90))
-reload_.key(70, hands(over(LEAN, spine_01=(-20, 0, 0)), (0.2, 0.82, PAN + 0.38), (0.0, 0.74, PAN + 0.36), grip=90), "LINEAR")
-reload_.key(80, hands(LEAN, (0.2, 0.44, PAN + 0.36), (0.0, 0.36, PAN + 0.34), grip=90))
+reload_.key(58, hands(LEAN, (0.2, 0.56, PAN + 0.42), (0.04, 0.5, PAN + 0.4), grip=90))
+reload_.key(70, hands(over(LEAN, spine_01=(-20, 0, 0)), (0.2, 0.86, PAN + 0.42), (0.04, 0.8, PAN + 0.4), grip=90), "LINEAR")
+reload_.key(80, hands(LEAN, (0.2, 0.56, PAN + 0.42), (0.04, 0.5, PAN + 0.4), grip=90))
 reload_.key(90, hands(SEATED, WHEEL_KNOB, TILLER))
 reload_.key(102, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.42, PAN + 0.62), TILLER, grip=40))
 reload_.key(112, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.4, PAN + 0.58), TILLER, grip=40), "LINEAR")

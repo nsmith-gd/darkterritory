@@ -144,6 +144,19 @@ public class CreatureArtTests
         Assert.Equal(8, colours.Distinct().Count());
     }
 
+    /// <summary>
+    /// No crew clip puts an arm or a leg through the body, the coat, the head or the other limbs (Look Review notes: arms
+    /// through the chest, the hips and a knee, an arm through the head; note 256). Contact within the coat's slop
+    /// (Clearance.Touching) reads as touching; the two-handed swing's forearms meet on the haft, and a forearm rests on a
+    /// knee, a little deeper.
+    /// </summary>
+    [Fact]
+    public void TheCrewsLimbsStayOutOfTheirBodies()
+    {
+        var through = Clearance.Check(Art, "crew").Where(o => o.Depth > 0.1f).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
     [Theory]
     [MemberData(nameof(Models))]
     public void ClipsAre30FpsAndLoopsCloseCleanly(string name)

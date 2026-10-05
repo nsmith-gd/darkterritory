@@ -20,6 +20,7 @@ dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a cre
 dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir]   # a real night with enemies (solo, or a bot crew working the stops), every encounter photographed as it happens -> out/playthrough (note 200)
 dotnet run --project src/DarkTerritory.Cli -- film [--crew 8] [--fps 24] [--speed 20] [--route frontier:7] [--cars 6]   # the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it: frames, the mixer's WAV, an MP4 and a contact sheet -> out/film (ffmpeg: `pip install imageio-ffmpeg`; note 251)
 dotnet run --project src/DarkTerritory.Cli -- art reel [--only gaunt,sheep] [--clips a,b]   # every clip of every model, framed on its own movement: strips + reel.json in out/reel/ (the Look Review's animations)
+dotnet run --project src/DarkTerritory.Cli -- art clearance [--only crew]   # every clip checked for limbs through the body, coat, head and other limbs (CreatureArtTests pins the crew)
 python3 tools/art/textures.py                                         # rebuild content/art/textures (CC0 sources: tools/art/fetch_sources.sh)
 tools/art/store/screens.sh                                            # store screenshots, capsules and the icon -> out/store (icon also content/art/ui)
 tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
