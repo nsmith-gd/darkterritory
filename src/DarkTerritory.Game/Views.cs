@@ -106,6 +106,9 @@ public static class Views
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
+            // (Not one of Names.) Out on the ground off the last car of a cut train, behind it and to its left, at its end
+            // and the train it's fallen behind (and what's riding it off: dt screenshot --cut n --hugger ride).
+            "cutoff" => CutOffCamera(train),
             // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
             // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
             "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
@@ -268,6 +271,13 @@ public static class Views
         var f = train.Frames[rake.Consist.Vehicles[^1].Id];
         double l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(0.9, 1.35, l + 1.5)), f.ToWorld(new Double3(0.05, 0.9, l + 0.45)), 45);
+    }
+
+    static Camera CutOffCamera(TrainOnLine train)
+    {
+        var gone = train.Frames[^1];
+        double l = gone.Shape.HalfLength;
+        return Camera.LookAt(gone.ToWorld(new Double3(-5.5, 1.7, l + 7.5)), gone.ToWorld(new Double3(0, 1.3, l - 2.5)), 50);
     }
 
     static Camera KitCamera(TrainOnLine train)

@@ -1359,6 +1359,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--dispersing", 1) * SimConstants.TickRate);
     }
+    // --hugger ride (with --threats and --cut n): the staged Car Hugger on the last car, cut loose with it as the train was
+    // (the sim's done with it then), riding it off into the dark, feeding (GreyboxScene.Riding).
+    if (Str(args, "--hugger", "") == "ride" && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> cutLoose
+        && cutLoose.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault(h => h.Attached >= 0) is { } rider)
+    {
+        int last = train.Vehicles.Count - 1;
+        rider.Restore(rider.Phase, rider.PhaseSeconds, rider.Health, last, new Double3(0, 1.0, train.Frames[last].Shape.HalfLength + 0.4), 0, 0, 0, rider.Extra, rider.Extra2);
+        cutLoose.Remove(rider);
+        scene.Rode(rider, Staging.StrikeTick);
+        scene.Tick = Staging.StrikeTick + SimConstants.TickRate;
+    }
     // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
     // and crumbling (GreyboxScene.Deaths).
     if (Str(args, "--killed", "") is { Length: > 0 } killed && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> living)

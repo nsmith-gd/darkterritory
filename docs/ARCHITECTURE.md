@@ -3248,7 +3248,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 220. **The Ribbits creep in and devour (the checklist's ribbits-anim "still to do").** With its catch frozen (App. A.6 GRAB), the sim hops the pack's leader in on them at a quarter of its speed, stopping 0.8 m short, and the art played its `tongue` clip all the way: it slid in sitting up with its tongue out, and stayed so on them.
     - **Two new clips** (tools/blender/ribbit.py):
       - `creep`: flattened low, ears laid back, a slow belly-down crawl with the tongue still out.
-      - `devour`: reared over them on its forelegs, jaw working and head shaking, the throat sac swelling as it swallows.
+      - `devour`: reared up on its haunches against them, its front half leant in over them, its forelegs up on them, its head bent down into them, the jaw working and the head shaking, the throat sac swelling as it swallows. (The Look Review found the first cut, leant forward, read as a hunch at their legs.)
     - **The choice** (`CreatureArt.RibbitClip`): COMMIT is `tongue`. GRAB and PUNISH are `creep` while the leader is more than `RibbitDevourReach` (1.2 m) from them, and `devour` inside it. Devouring, its own tongue isn't drawn out to them (it's in them); the rest of the pack's still are.
     - **Staging:** `dt screenshot --threats --crew --ribbits devour --view packside` (a new view, low along the car, side on). It puts the leader where the hop stops. `--ribbits tongue|devour` also draws crewmate 4 in the game's `held_frozen`.
     - **Tests:** `CreatureArtTests.TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem`; the ribbit's clip budget lists both.
@@ -3296,3 +3296,25 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Seen:** `dt screenshot --view crew --vr-body --greybox`. The left figure leans out over the roof, its head forward of its hips, reaching down. The middle one is crouched right down, knees bent forward and both hands low by the roof. The right one stands with its coat turned off its head. `crewside` shows the third from the front, its head turned away from its coat.
     - Test: `VrBodyTests.TheBoxFigureLeansAndCrouchesToo`, a greybox scene with no art pass. An upright headset's figure is as tall as a keyboard player's, a crouch brings its head down more than 0.3 m, and a lean takes the head more than 0.3 m forward.
     - **Not yet:** the head box doesn't nod to the headset's pitch, and the boots turn with the hips, not to each foot's own yaw.
+224. **The Car Hugger rides its cut car off (the checklist's "rides the cut car away").** Cut loose (A.3: "it goes with its car into the dark"), the sim's done with it: the tick its car's off the train, uncoupled, or eaten through so it drops away (`CarHugger.Tick`), it's Gone. But the car's still there, rolling free and falling behind, and the hugger blinked out from its end.
+    - **Now** `GreyboxScene.Riding` remembers a Car Hugger that was clamped on a car that's now off the engine's train (`Adrift`: a coupling cut between it and the engine, from `Cut`).
+      - It's drawn still clamped on that car's end, feeding and grinding (its sparks), its arms on the bitten edge, as the car goes.
+      - It stops when the car's out of sight, or coupled up again. A hugger gone off a car still in the train (killed) isn't kept.
+    - **Presentation only:** the sim isn't changed, and nothing goes back to it.
+    - **Staging:** `dt screenshot --threats --cut 3 --hugger ride --view cutoff`. `cutoff` is a new view, on the ground behind and off the last car of a cut train.
+    - **Tests:** `CreatureArtTests.TheCarHuggerCutLooseRidesItsCarOffNotBlinkingOut`.
+225. **The Tippy Toesie recoils when it's pulled off (the checklist's tippy-anim "recoil beat").** A.5: "any friend hits or pulls it → it flees". Pulled off, or seen, the sim hides it again at once (`TippyToesie.Flee`: BreakOff then Dormant in one tick), and the art went straight into its scuttle.
+    - **Now there's a new `recoil` clip** (tools/blender/tippy_toesie.py), 0.4 s, once. It's jerked up and back off them all at once onto its points, the head snapped back, the long arms flung up and out with the fingers splayed. It holds there a beat, dead still, then drops into the flee's crouch.
+    - **Order:** `CreatureArt` plays the recoil where it was (`TippyRecoil`, the clip's length), and only then the flee, moving off. It's seen for the recoil plus the old half second of scuttle.
+    - **Staging:** `dt screenshot --threats --crew --tippy recoil[:s] --view crew` (s seconds since it was pulled off, 0.15 by default).
+    - **Tests:** `CreatureArtTests.TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles`; the Tippy's clip budget lists `recoil`.
+226. **The extinguisher sprayed braced, and hung back on its bracket (the checklist's crew-extinguisher "recoil while spraying, and a distinct hang-back").** Carried, the crewmate stood with it on the hip, aimed, whether or not a fire was going down under it. At the bracket the sim says `TakeDown` either way, so hanging it back played it being lifted off, and the drop snapped them back to stood.
+    - **Two new crew clips** (tools/blender/crew_clips.py):
+      - `spray`: braced lower into the jet, the weight forward, the nozzle kicking back and up with each pulse of it and dragged back down onto the fire's foot, the head turned a little from the heat.
+      - `hang_up`: lifted up off the hip to the bracket, pushed home onto it, the hands let go and come away, stood back up (1.3 s, once).
+    - **Spraying:** `GreyboxScene.Extinguishing` already draws the spray where a fire's going down with an extinguisher in reach; it now records whose (`SceneArt.Spraying`), and `SceneArt.Crewmate` plays `spray` for them instead of `extinguish`.
+    - **Hanging back:** at the mount, a crewmate who came to it carrying (their last pose `Extinguish`, `Spray` or `HangUp`) is hanging it up, not taking it down. `hang_up` plays on through the sim's drop until it's done, then they stand.
+    - **Presentation only.** **Test:** `CrewActsTests.TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain`. **Looked at:** the clips' contact sheets (`dt art clip crew spray`, `hang_up`).
+227. **The backhead is boiler plate and the firehole firebrick (the checklist's firebox "the firebox texture").** Around the firebox door the backhead was `iron_smokebox`, whose crazed pattern read as flagstones at that size, and the firehole's sides the same.
+    - **Now** (`TrainKit` cab): the backhead is `iron_plate`, sooted, its seam straps and rivet rows on it; the firehole is lined with `brick_soot`, firebrick black with soot and lit by the fire.
+    - **Looked at:** `dt screenshot --firedoor --view firebox` and `--view fireman`.

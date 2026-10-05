@@ -20,7 +20,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   firedoor            the firehole's door hauled open or shut, off the heat (GDD §12)
   mend                down at the firebox with the repair kit's wrench, ratcheting (T109, note 150)
   gap                 on the coupling plate between cars, feet wide, arms out for balance (GDD §32)
-  extinguish          the extinguisher on the hip, its nozzle aimed at the fire's foot (App. C.5)
+  extinguish, spray   the extinguisher on the hip, its nozzle aimed at the fire's foot; at work, braced, kicking (App. C.5)
   lantern, _walk      the hand lamp held out low, swinging with the step
   haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
   haul_up             stood at the edge, leant back, hauling a friend up over it hand over hand (the Draggers, App. A.4)
@@ -28,7 +28,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   drive, whistle      at the controls, the hands on the regulator and brake; the left up on the whistle cord (GDD §12)
   smash, pry, pick    breaching a Holdout (App. D.7): the lock smashed, the barricade pried, the lock picked with the kit
   getup               freed, up off the Holdout's floor (App. D.8)
-  take_down           the extinguisher lifted off its bracket into the hands (App. C.5)
+  take_down, hang_up  the extinguisher lifted off its bracket into the hands, and hung back on it (App. C.5)
   hurry               running under stress: hunched, arms pumping (GDD §31)
   stagger             a blow taken: rocked back a step, and back (App. C.2)
   throw, chute, spout a ground switch lever heaved over; the coaling chute's lever hauled down; a spout swung round (C.6, D.3)
@@ -376,6 +376,19 @@ for f, (dx, dz) in ((0, (0.0, 0.0)), (8, (0.06, -0.03)), (16, (0.0, -0.05)), (24
 extinguish.close(32)
 clips.append(extinguish)
 
+# --- spray: the same, at work on a fire (GreyboxScene sees it going down under them): braced lower, the weight forward
+# into the jet, the nozzle kicking back and up with each pulse of it and dragged back down onto the fire's foot; the head
+# turned a little away from the heat.
+SPRAY_BODY = over(EXT_BODY, pelvis__loc=(0, 0.02, -0.04), spine_01=(-10, 0, 4), spine_02=(-8, 0, 0), neck=(16, 0, 0),
+                  head=(6, -10, 0), thigh_r=(26, 0, 0), calf_r=(-24, 0, 0), thigh_l=(-14, 0, 0), calf_l=(-16, 0, 0))
+spray = Clip("spray")
+for f, kick in ((0, 0.0), (2, 1.0), (6, 0.35), (9, 0.0), (11, 0.9), (15, 0.3), (18, 0.0)):
+    body = over(SPRAY_BODY, spine_02=(-8 + 4 * kick, 0, 0), spine_03=(-4 + 3 * kick, 0, 0))
+    spray.key(f, hands(body, at(EXT_NOZZLE, dy=-0.06 * kick, dz=0.05 * kick), at(EXT_HANDLE, dy=-0.03 * kick, dz=0.02 * kick), grip=85),
+              "LINEAR")
+spray.close(18)
+clips.append(spray)
+
 # --- lantern: the hand lamp held out low in the right hand, swinging with the step, the left arm free --------------
 LAMP_AT = (0.2, 0.34, 0.98)
 
@@ -531,6 +544,15 @@ take.key(10, hands(over(STAND, spine_01=(-16, 0, 0), spine_02=(-12, 0, 0), neck=
 take.key(22, hands(EXT_BODY, EXT_NOZZLE, EXT_HANDLE, grip=70))
 take.close(40)
 clips.append(take)
+# Hung back (come to the bracket already carrying it): lifted up off the hip to the bracket, pushed home onto it, the hands
+# let go and come away, and stood back up off it (1.3 s, once; it plays on through the sim's drop, CreatureArt.Crewmate).
+hang = Clip("hang_up")
+hang.key(0, hands(EXT_BODY, EXT_NOZZLE, EXT_HANDLE, grip=70))
+hang.key(12, hands(over(STAND, spine_01=(-14, 0, 0), spine_02=(-10, 0, 0), neck=(18, 0, 0)), at(MOUNT_AT, dx=0.1, dz=0.34), at(MOUNT_AT, dx=-0.1, dz=0.16), grip=80))
+hang.key(20, hands(over(STAND, spine_01=(-12, 0, 0), spine_02=(-10, 0, 0), neck=(16, 0, 0)), at(MOUNT_AT, dx=0.1, dz=0.18), at(MOUNT_AT, dx=-0.1, dz=0.0), grip=60))
+hang.key(27, hands(over(STAND, spine_01=(-8, 0, 0), spine_02=(-6, 0, 0), neck=(12, 0, 0)), at(MOUNT_AT, dx=0.16, dy=-0.1, dz=0.12), at(MOUNT_AT, dx=-0.16, dy=-0.1, dz=0.0), fist=False))
+hang.key(40, STAND)
+clips.append(hang)
 
 # --- first person: only the forearms and hands are drawn (CreatureArt.OwnArms), from the eye --------------------
 # The eye: over the head bone's root, a little forward (the mask's eyepieces). Hands placed from it: the right low and
@@ -775,8 +797,8 @@ clips.append(reload_)
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
-                                                        "gap", "extinguish", "lantern", "lantern_walk", "haul",
-                                                        "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down",
+                                                        "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
+                                                        "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",
                                                         "stagger", "throw", "chute", "spout", "shoulder", "cradle", "firedoor", "held_cover", "held_frozen",
                                                         "held_seized", "held_mouth"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)

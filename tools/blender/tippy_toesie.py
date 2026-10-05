@@ -12,8 +12,9 @@ from behind. The eyes are small, black and wet, deep in the sockets. A few long 
 SK_Human (rig.human) in its proportions: long legs, very long arms, a long neck. Faces +Y (the engine's -Z).
 Clips (GDD §31: unnaturally still when observed, then too-fast corrections): stalk (tiptoeing up behind someone: a
 high step, placed, and a long hold, the finger to its face), wait (stood on its points, dead still but for a hand),
-flee (seen: scuttling off on its points, too fast, arms up), smother (behind its victim, leaning over them, one hand
-over their mouth, rocking them; CreatureArt puts the hand on the mouth), hit (struck, once).
+recoil (pulled off or seen: jerked up and back, arms flung up, held a beat), flee (scuttling off on its points, too
+fast, arms up), smother (behind its victim, leaning over them, one hand over their mouth, rocking them; CreatureArt puts
+the hand on the mouth), hit (struck, once).
 
     tools/models/build.sh tippy_toesie        # this, its high copy and the bake -> content/art/models/tippy_toesie.glb
 """
@@ -474,6 +475,19 @@ for f, k in ((0, 0.0), (15, 1.0), (30, 0.0), (45, -1.0)):
     duck.key(f, p, "BEZIER")
 duck.close(60)
 
+# Recoil (0.4 s, once): pulled off its victim, or seen (App. A.5 "any friend hits or pulls it -> it flees"): it jerks up
+# and back off them all at once, thrown upright onto its points, the head snapped back, the long arms flung up and out
+# with the fingers splayed; held there a beat, dead still, too still; then it drops into the flee's crouch.
+RC = over(BASE, spine_01=(14, 0, 0), spine_02=(10, 0, 0), spine_03=(8, 0, 0), neck=(12, 0, 0), head=(26, 0, 0),
+          upperarm_r=(-30, 14, 24), upperarm_l=(-30, -14, -24), lowerarm_r=(0, 30, 0), lowerarm_l=(0, -30, 0),
+          fingers_r=(0, -20, 0), fingers_l=(0, 20, 0), thumb_r=(0, -10, 0), thumb_l=(0, 10, 0),
+          thigh_r=(-8, 0, 0), thigh_l=(14, 0, 0), calf_l=(-24, 0, 0))
+recoil = Clip("recoil", loop=False)
+recoil.key(0, RC, "CONSTANT")
+recoil.key(7, over(RC, head=(26, 0, 12)), "CONSTANT")
+recoil.key(9, over(RC, head=(26, 0, 12)), "LINEAR")
+recoil.key(12, FL, "CONSTANT")
+
 # Hit: struck, it folds away from the blow with a jerk and comes back up too fast.
 hit = Clip("hit", loop=False)
 hit.key(0, W, "CONSTANT")
@@ -482,6 +496,6 @@ hit.key(8, over(W, spine_02=(-6, 0, -4), head=(-6, 0, -6)), "LINEAR")
 hit.key(12, W, "CONSTANT")
 
 kit.build()
-rig.bake(sk, [stalk, wait, flee, smother, hit, stoop, stalk_stoop, duck], plant=rig.feet_planter(sk, bones=("ball_l", "ball_r"), lowest=0.004))
+rig.bake(sk, [stalk, wait, flee, recoil, smother, hit, stoop, stalk_stoop, duck], plant=rig.feet_planter(sk, bones=("ball_l", "ball_r"), lowest=0.004))
 print("[dt] tippy_toesie", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "tippy_toesie.glb", kit)
