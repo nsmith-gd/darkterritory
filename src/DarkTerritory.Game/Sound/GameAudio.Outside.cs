@@ -198,7 +198,7 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The wind on a roof's footing heard (GDD §22, spec B.2; note 201's push, note 222): up on a roof, the gust that's
+    /// The wind on a roof's footing heard (GDD §22, spec B.2; note 201's push, note 231): up on a roof, the gust that's
     /// pushing you is a gale's roar on the side it blows from, as loud as it pushes (PlayerMotor.WindPush, the sim's own
     /// sum, so it's the gust you're in), so you hear it build before it walks you to the edge, and hear it ease off.
     /// </summary>
@@ -362,7 +362,7 @@ public sealed partial class GameAudio
         if (train.Line.Conditions is not null && PlayerTuning is { } pt && !double.IsNaN(earMain))
         {
             // The line's own gusts (note 201: the same field the sim pushes roof standers with), each heard as it rises,
-            // from the side it blows from: a gust from the left comes off the train's left (note 222).
+            // from the side it blows from: a gust from the left comes off the train's left (note 231).
             double gust = PlayerMotor.Gust(earMain, pt.Wind.GustMetres);
             if (wind > 0.15 && Math.Abs(gust) > GustRises && Math.Abs(_gustWas) <= GustRises)
                 Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, 0, (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));

@@ -69,7 +69,7 @@ public class RadioReadingTests
     [Fact]
     public void SpokenEachLineTakesAsLongAsItsSaidThenThePause()
     {
-        // Note 221: with the yard's voice, a line's turn is what saying it takes and the pause after, never under lineSeconds,
+        // Note 230: with the yard's voice, a line's turn is what saying it takes and the pause after, never under lineSeconds,
         // and the card's typed as it's said.
         var t = new RadioTuning(LineSeconds: 1.6, PauseSeconds: 0.5);
         string[] lines = ["short", "a much longer line", "end"];

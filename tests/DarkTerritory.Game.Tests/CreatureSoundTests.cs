@@ -249,7 +249,7 @@ public class CreatureSoundTests
     [Fact]
     public void AKilledCreatureCrumblesAsItsSeenToAndOneThatGoesOtherwiseDoesnt()
     {
-        // Note 225: killed is the host's word (HitConfirm.Killed), and a creature that stands on something goes over and
+        // Note 234: killed is the host's word (HitConfirm.Killed), and a creature that stands on something goes over and
         // crumbles from halfway through Effects.DeathSeconds (note 208): the crumble's heard then, once.
         using var scene = new Scene(2, "creature-crumble", "cs-ribbits.hit");
         var at = scene.Train.Frames[2].ToWorld(new Double3(-4, 0, 0));

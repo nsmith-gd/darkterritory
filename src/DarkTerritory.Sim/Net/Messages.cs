@@ -31,7 +31,7 @@ public static class Protocol
     // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
     // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
     // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 210).
-    // 25: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 214).
+    // 25: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 223).
     public const int Version = 25;
 }
 
