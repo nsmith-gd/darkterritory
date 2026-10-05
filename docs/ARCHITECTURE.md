@@ -376,7 +376,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - It needs Valve's `steam_api64.dll` from the SDK in `external/steam/` (README there), and a running Steam client. Without them the game says so and carries on over UDP.
       - It uses app id 480 (Valve's test app) until the game has its own.
       - **Not yet run against real Steam:** the CI containers have no Steam client. The first two-account test on real machines is the next step for it.
-    - **Not yet:** EOS for itch.io; rich presence; closing the lobby when the crew is full; a lobby browser; reconnecting to a host after a drop.
+    - **Not yet:** EOS for itch.io; rich presence; closing the lobby when the crew is full; a lobby browser. (Reconnecting to a host after a drop: note 253.)
 25. **VR foundation: OpenXR sessions, stereo, and a headset in CI (T21).**
     - **`Ballast.Xr`.** `XrHeadset` finds the runtime and the headset, and makes the game's Vulkan instance and device through `XR_KHR_vulkan_enable2`. `GpuContext` takes an `IVulkanFactory` for this, so the runtime adds what its compositor needs and picks the GPU the headset is on.
       - `XrStereoSession` runs the session's lifecycle (ready → begin, stopping → end, exiting), the stereo swapchains, and the frame loop: wait, begin, locate the views, draw both eyes, end.
@@ -3620,3 +3620,44 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - Bot behaviour only. No tuning, enemy rule or protocol changed. The new constants are how the driver reads the tuning's thresholds, as note 231's are.
     - **Verified:** `SteamAgainstTheBrakeTests.ADriverAloneLetsTheBrakeOffToSandUpAGreasedClimbAndIsBackInOnceItsGoing`, about 1 s for both cases. It runs 10 cars on a 2 % greased climb, standing on the brake or slowing at 5.5 m/s. The driver goes out, comes back in with the train moving at over 3 m/s and over 20 m on, out for under 40 s, and rolls back under 5 m. Without the fix, both cases are still out after 59 s at a stand with the brake on.
       - `SandTests` pass, among them T107's out-only-while-slow and the door test. So do `NetcodeTests` and the rest of `DarkTerritory.Sim.Tests` (806).
+253. **Rejoining a night after a drop (note 24's "not yet"; after note 199's dropped joiner).** A joiner whose link went was told so (note 199), and that was the end of its night. Its crewmate left an inert body (spec E), and a second connection from the same player was a stranger with a new id.
+    - **The slot's token.** The Welcome now carries a random 64-bit token for the player's slot (`HostSession.Tokens`, the crypto RNG; host-only, not sim state). The returning player is known by the token, never by address or account. So a new UDP socket, another connection through the lobby, or any `ITransport` all work the same way.
+    - **Hello first (protocol 26).** A joiner says Hello (its name, and its token or 0) as soon as its transport connects. The host welcomes nobody until they have.
+      - Why: on `Connected` the host can't tell a returning player from a new one. Welcoming first and swapping later would show everyone else a phantom crewmate for a round trip.
+      - The greeting line is first come, first served in connect order, so the first aboard still takes the cab. One that says nothing stops holding up the line after `player.json rejoin.greetSeconds` (1 s), and is welcomed whenever it does say hello, never before.
+      - Why never silent: a redial the client gave up on before it spoke (its socket closed, the host's Accept unheard) is a connection nobody is behind. Welcomed after greetSeconds, it was a third crewmate in a crew of two. CI's Windows runners hit it every time, as did a loaded machine here. The link's timeout takes it instead (`RejoinTests.ARedialGivenUpOnBeforeItSpokeIsNoOne`).
+      - It costs a joiner one one-way trip. `NetPlaySession.Connect` sends the Hello while it waits for the Welcome.
+      - The harness has every bot connect and say hello before the night's first tick, so its timeline is unchanged. `OnAPerfectLinkPredictionMatchesTheHostExactly` depends on that: shifted by one tick, four roof walkers mid-jump caught the conductor's brake and corrected by 0.1 mm.
+    - **While they're gone, the crewmate goes limp.** It's the inert body spec E and GDD v1.4 App. D.2 name in as many words. No bot takes over, because a bot would play someone's character for them, and nothing on the train stands frozen for the enemies.
+      - The host holds the place: the id, the name, the token, the state at the drop and the last input applied. It holds it for `rejoin.reserveSeconds` (180), counted in host ticks.
+    - **Coming back** (`HostSession.Return`). The token of a held place gets that id back: a fresh Welcome, then what the player missed (names, looks, commendations, the film and the report if they've gone out, as E.8 asks, and their ballot offered again).
+      - **Alive at the drop:** they stand up where their body lies now (`PlayerMotor.StandUp`). That's the highest walkable surface under it within a step (a floor, a roof, a coupler plate), or the ground if it's off the train or between cars.
+        - They keep the health, the cold and the facing they had. Their kit is whatever is still on the body: a crewmate who lifted it took its tools.
+        - The body leaves the world. `Placed` is bumped, so their client adopts the new state as a placement, not a correction.
+      - **Dead at the drop:** still dead, of the same cause, on the dead channel with their ballot. The Holdout queue takes them back at the back, as D.6's Disconnect row says, though as a dead entry and not a lobbied one.
+      - **Still live on another connection** (the client gave up on its link before the host saw it go): the new link takes over the crewmate where it stands. The old link is closed, the delta baselines reset, and no body is left.
+    - **The ambiguity, and its flag.** D.2 says "a player who rejoins enters the queue as a lobbied player". Taken literally, a five-second wifi blip would cost a living player their night.
+      - The reading here: inside the reserve, a dropped link that comes back is the same player getting up. D.2's letter still holds past the reserve, where a returning player is a new joiner and is lobbied at once under Holdouts.
+      - `rejoin.reclaimBody` (true) is the switch. With it off, the body stays and the player comes back in their slot as a joiner: lobbied with Holdouts, otherwise a drop-in at `BoardAt`.
+      - A body that's gone (the Gaunt walking off with it, `TakenBy`) always goes by D.2's letter.
+    - **Past the reserve** the slot frees: its token is no good any more and the body stays (D.2). `HostSession.Reserved`, `IsReserved`, `Rejoins` and `ReservesExpired` report it, and `HostSession.Drop(id)` cuts a player's link from the host's end (tests, the screenshot).
+    - **On the client.**
+      - `ClientSession.Reconnect(transport)` keeps the world and the input sequence (the host carries on from the last input it applied), and drops the snapshot baselines. It also keeps `Token` and counts `Reconnects`.
+      - `NetPlaySession`, when it's lost, dials the host again the way it first came (the address, or the lobby's owner). It tries `rejoin.retries` (5) times, `rejoin.retrySeconds` (3) apart. Each try lasts until the player is back aboard or the link fails (the transport's connect timeout). After that, F5 (`Reconnect`) starts another round.
+      - Not for a host's own player, and not once the host has left its lobby: spec E's host disconnect ends the session.
+    - **The HUD** (`dt screenshot --hud --lost`):
+      - "RECONNECTING: TRY 1 OF 5" in amber under the red NO LINK.
+      - In the middle of the screen, "RECONNECTING / TRY 1 OF 5: YOUR BODY LIES WHERE YOU STOOD TILL YOU'RE BACK".
+      - Out of tries, "CONNECTION LOST: [F5] RECONNECT".
+      - The yard's lobby panel is hidden while lost, because who's aboard is stale.
+    - **Determinism.** The return happens on the host at the start of a tick, through its receive. The player's own state arrives as a placement. The other clients only ever see the id the host has.
+      - `NetcodeTests.OnAPerfectLinkPredictionMatchesTheHostExactly` stays green, and on a perfect link a rejoined bot predicts exactly afterwards.
+    - **`dt harness --drop-rejoin bot:at:seconds`.** `bot` is a crew index or a bot's name (`roof-walker` means the first one). Its link is cut `at` seconds in, it redials `seconds` later, and the report gains a `rejoin` block: which id it was and is, how long the redial took, what it came back as, the host's counts, whether every other client sees the host's crew exactly (the bot once), and its corrections from then on.
+      - `dt harness --bots 8 --seconds 300 --route frontier:7 --enemies --drop-rejoin roof-walker:120:15` (90 ms ±20, 3% loss): bot 3 dropped at 120 s and redialled at 135 s. It was back as player 3 0.27 s later, on its feet in car 6, and every other client saw it exactly once. Its worst correction afterwards was 3.2 mm (16 small ones). For the night: 47.3 kbit/s down and 24.3 up a client, 214 B snapshots, the worst correction anyone made 0.18 m, the fewest snapshots any client got 8188 of 9000 (the rejoiner, 15 s away), and no deaths.
+    - **Tests:**
+      - `RejoinTests`: the wire, back to its own crewmate (id, health, kit, beside the body, the body gone from every world, seen once, no corrections after), the dead come back dead, the slot frees past the reserve, a takeover before the host saw the drop, reclaimBody off, and harness nights over the rough and the perfect link.
+      - `NetPlayTests.ADroppedJoinerReconnectsToItsOwnCrewmate` (real UDP, the automatic retry, a new socket) and `ABotRejoinsThroughTheLobby` (the fake Steam: a new account, the same slot).
+    - **Not yet:**
+      - Bookmarks made while a player was away aren't re-sent.
+      - A held place doesn't count toward a full lobby, because there's no crew cap yet.
+      - The token goes in the clear over UDP: enough for co-op, not a defence against someone on the path.

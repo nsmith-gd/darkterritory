@@ -130,7 +130,14 @@ public interface IPlaySession
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
 /// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
 /// <param name="Listed">Hosting a public lobby: it's in the join screen's list (a private one is joined by invite or address).</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false);
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false)
+{
+    /// <summary>Lost, and trying to get back (note 253): this try of <see cref="Attempts"/>; 0 when not trying.</summary>
+    public int Attempt { get; init; }
+    public int Attempts { get; init; }
+    /// <summary>Lost, the tries run out: RECONNECT (F5) tries again.</summary>
+    public bool CanReconnect { get; init; }
+}
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes

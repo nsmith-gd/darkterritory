@@ -69,7 +69,8 @@ public static class Hud
         Radio(o, width, s, line);
         Cold(o, width, s, line);
         Alerts(o, width, height, s, line);
-        if (s.Link is { } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
+        // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
+        if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
         // (The night over, its report has the screen: no prompts over it.)
         if (s.World.Run?.Report is null && Prompt(s) is { } written)
@@ -290,7 +291,12 @@ public static class Hud
         }
         o.TextRight(right, 5 + 2 * line, $"CREW OF {link.Aboard}", Dim);
         o.TextRight(right, 5 + 3 * line, link.Role, Dim);
-        if (link.Lost)
+        // Note 253: a joiner whose link went tries to get back, and says how it's going; out of tries, F5 tries again.
+        if (link.Lost && link.Attempt > 0)
+            o.TextRight(right, 5 + 4 * line, $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}", Amber);
+        else if (link.Lost && link.CanReconnect)
+            o.TextRight(right, 5 + 4 * line, "CONNECTION LOST: [F5] RECONNECT", Red);
+        else if (link.Lost)
             o.TextRight(right, 5 + 4 * line, "CONNECTION LOST", Red);
         else if (link.JoinAt is { } at)
             o.TextRight(right, 5 + 4 * line, $"FRIENDS JOIN AT {at}", Dim);
@@ -469,6 +475,20 @@ public static class Hud
         {
             Big("WAITING", Amber);
             Small(waiting, Ink);
+        }
+        // Note 253: the link's gone. Back in time, the crewmate's still theirs: limp where they stood till then.
+        if (s.Link is { Lost: true } lost && world.Run is not { Over: true })
+        {
+            if (lost.Attempt > 0)
+            {
+                Big("RECONNECTING", Amber);
+                Small($"TRY {lost.Attempt} OF {lost.Attempts}: YOUR BODY LIES WHERE YOU STOOD TILL YOU'RE BACK", Ink);
+            }
+            else if (lost.CanReconnect)
+            {
+                Big("CONNECTION LOST", Red);
+                Small("[F5] RECONNECT", Ink);
+            }
         }
         // The derailment's cinematic plays out first (T117): no run's end or death screen over it. Over the replay (T121),
         // what did it: "TOOK THE 45 KM/H BEND AT 68 KM/H, 23 KM/H TOO FAST".

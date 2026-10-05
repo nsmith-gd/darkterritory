@@ -295,6 +295,12 @@ public class NetcodeTests
         var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), TestLoop, 600), T, P);
         var evil = net.CreateClient();
         host.Step();
+        // Let in first (note 253: nobody is welcomed before they've said hello), then the junk.
+        var hello = new NetWriter();
+        Messages.WriteHello(hello, "evil", 0);
+        evil.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
+        net.Advance(SimConstants.TickSeconds);
+        host.Step();
         var rng = new Random(9);
         for (int i = 0; i < 500; i++)
         {

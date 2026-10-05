@@ -43,6 +43,11 @@ public sealed record HarnessOptions
     /// train at the gate, and walk and climb to their posts. False: they're put there, as before.
     /// </summary>
     public bool WalkAboard { get; init; } = true;
+    /// <summary>
+    /// Note 253: one bot's link drops partway through the night and it connects again a while later, asking for its slot back
+    /// with the host's token. Null: nobody drops.
+    /// </summary>
+    public DropRejoin? DropRejoin { get; init; }
     /// <summary>Another network to run over (the CLI's fake Steam lobby), in place of the loopback or UDP.</summary>
     public IHarnessNetwork? Network { get; init; }
     /// <summary>
@@ -75,6 +80,32 @@ public sealed record HarnessOptions
     public VoiceConditions? Voice { get; init; }
 }
 
+/// <summary>A bot's link dropped <paramref name="At"/> seconds in, and a new one made <paramref name="Away"/> seconds after (note 253).</summary>
+/// <param name="Bot">Which of the crew, by its index (0 is the driver).</param>
+public sealed record DropRejoin(int Bot, double At, double Away)
+{
+    /// <summary>"bot:at:seconds": the crew index, or a bot's name (the first of that name, e.g. roof-walker).</summary>
+    public static DropRejoin Parse(string spec, Func<string, int> byName)
+    {
+        var parts = spec.Split(':');
+        if (parts.Length != 3)
+            throw new ArgumentException($"--drop-rejoin wants bot:at:seconds, not {spec}");
+        int bot = int.TryParse(parts[0], System.Globalization.CultureInfo.InvariantCulture, out int i) ? i : byName(parts[0]);
+        return new DropRejoin(bot, double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+            double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture));
+    }
+}
+
+/// <summary>
+/// How the bot that dropped came back (note 253). <paramref name="Back"/> is the id it was welcomed back as (the same as
+/// <paramref name="Was"/> when it got its slot back), <paramref name="ReconnectSeconds"/> from its new connection to playing
+/// again, <paramref name="Came"/> what it came back as. <paramref name="OthersSeeOne"/>: every other client sees exactly the
+/// host's crew, the bot once. The correction figures are from the moment it was back to the night's end (its client's
+/// report the same).
+/// </summary>
+public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedAt, double RedialAt, double ReconnectSeconds, string Came,
+    int HostRejoins, int Reserved, int ReservesExpired, bool OthersSeeOne, double MaxCorrectionAfterM, int CorrectionsAfter);
+
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
 public interface IHarnessNetwork : IDisposable
 {
@@ -97,6 +128,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 {
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
+    /// <summary>With <see cref="HarnessOptions.DropRejoin"/>: how the bot that dropped came back (note 253).</summary>
+    public RejoinReport? Rejoin { get; init; }
     /// <summary>
     /// Seconds from boarding until each bot first reached its post (T102): the driver and fireman in the cab, the gunner on
     /// the guard gun, a walker up on the train; −1 for never. Keyed "bot#id".
@@ -230,8 +263,17 @@ public static class Harness
                 gunner.Errand = new LookErrand(looked, look);
         }
 
+        // Everyone connects and says hello (note 253) before the night's first tick: the host welcomes them on it, in order.
+        foreach (var (session, _, _) in clients)
+            session.Step(default);
+
         int ticks = (int)(o.Seconds * SimConstants.TickRate);
         var posted = new Dictionary<byte, double>();
+        // Note 253's drop and rejoin: when, who, and how it went.
+        uint dropTick = o.DropRejoin is { } drs ? (uint)Math.Round(drs.At * SimConstants.TickRate) : uint.MaxValue;
+        uint redialTick = o.DropRejoin is { } drr ? dropTick + (uint)Math.Max(1, Math.Round(drr.Away * SimConstants.TickRate)) : uint.MaxValue;
+        byte? droppedAs = null;
+        uint? backTick = null;
         var events = new List<EnemyEvent>();
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
@@ -300,6 +342,26 @@ public static class Harness
                 foreach (var c in clients)
                     c.Session.ResetStats();
             calls?.Advance(t);
+            if (o.DropRejoin is { } dr && dr.Bot >= 0 && dr.Bot < clients.Count)
+            {
+                var (session, _, transport) = clients[dr.Bot];
+                if (t == dropTick)
+                {
+                    droppedAs = session.PlayerId;
+                    transport.Cut();
+                }
+                if (t == redialTick)
+                {
+                    transport.Swap(o.Network?.Client(o.Bots + dr.Bot) ?? (udpHost is null ? net.CreateClient()
+                        : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port))));
+                    session.Reconnect(transport);
+                }
+                if (t > redialTick && backTick is null && session.Connected)
+                {
+                    backTick = t;
+                    session.ResetStats();
+                }
+            }
             foreach (var (session, bot, _) in clients)
             {
                 var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
@@ -370,9 +432,28 @@ public static class Harness
             pacing)
         {
             Voice = calls?.Voice?.Report(),
+            Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
             Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
                 c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
         };
+    }
+
+    static RejoinReport Rejoined(HostSession host, List<(ClientSession Session, IBot Bot, CountingTransport Transport)> clients, int index, byte? was,
+        uint dropTick, uint redialTick, uint? backTick)
+    {
+        var (session, bot, _) = clients[index];
+        var crew = host.Players.ToDictionary(p => p.Id, p => p.State);
+        string came = session.PlayerId is not { } id || !crew.TryGetValue(id, out var s) ? "not back"
+            : s.Death == DeathCause.Waiting ? "waiting in the queue" : !s.Alive ? $"dead ({s.Death})" : Describe(bot, s);
+        // Everyone else sees the host's crew less themselves: the bot once, nobody twice, no one who isn't there.
+        bool one = clients.Where((c, i) => i != index && c.Session.Connected).All(c =>
+        {
+            var seen = c.Session.RemoteIds.ToList();
+            return seen.Count == seen.Distinct().Count() && seen.Order().SequenceEqual(crew.Keys.Where(k => k != c.Session.PlayerId).Order());
+        });
+        return new RejoinReport(bot.Name, was ?? -1, session.PlayerId ?? -1, Math.Round(dropTick * SimConstants.TickSeconds, 2),
+            Math.Round(redialTick * SimConstants.TickSeconds, 2), backTick is { } b ? Math.Round((b - redialTick) * SimConstants.TickSeconds, 2) : -1, came,
+            host.Rejoins, host.Reserved, host.ReservesExpired, one, Math.Round(session.MaxCorrection, 4), session.Corrections);
     }
 
     static SortedDictionary<string, int> Count(IEnumerable<EnemyEvent> events) =>
@@ -454,27 +535,55 @@ public static class Harness
     static TrainOnLine NewTrain(RailLine line, TrainTuning t, HarnessOptions o, BoilerTuning? boiler) =>
         new(new TrainDynamics(Consist.Uniform(t, o.Cars, o.Run is { } r && o.Route is not null ? r.DepartureLoad : 1).Carrying(o.Cargo)), line, o.StartDistance, boiler);
 
-    /// <summary>Counts payload bytes both ways for bandwidth reporting.</summary>
+    /// <summary>
+    /// Counts payload bytes both ways for bandwidth reporting. A bot's link can be cut (note 253: the client hears it go, the
+    /// host does when the link closes) and a new one put in its place, the counts carrying on.
+    /// </summary>
     sealed class CountingTransport(ITransport inner) : ITransport
     {
         public long BytesSent, BytesReceived;
-        public PeerId LocalId => inner.LocalId;
+        ITransport? _inner = inner;
+        readonly List<ITransport> _gone = [];
+        bool _told = true;
+        public PeerId LocalId => _inner?.LocalId ?? default;
+
+        /// <summary>The link goes: closed (the host sees it go), and this end told so on its next poll.</summary>
+        public void Cut()
+        {
+            if (_inner is null)
+                return;
+            _gone.Add(_inner);
+            _inner.Dispose();
+            _inner = null;
+            _told = false;
+        }
+
+        public void Swap(ITransport next) => _inner = next;
 
         public void Send(PeerId to, ReadOnlySpan<byte> payload, Delivery delivery)
         {
+            if (_inner is null)
+                return;
             BytesSent += payload.Length;
-            inner.Send(to, payload, delivery);
+            _inner.Send(to, payload, delivery);
         }
 
         public void Poll(List<TransportEvent> into)
         {
+            if (_inner is null)
+            {
+                if (!_told)
+                    into.Add(new TransportEvent(TransportEventKind.Disconnected, PeerId.Host));
+                _told = true;
+                return;
+            }
             int start = into.Count;
-            inner.Poll(into);
+            _inner.Poll(into);
             for (int i = start; i < into.Count; i++)
                 BytesReceived += into[i].Payload?.Length ?? 0;
         }
 
-        public void Disconnect(PeerId peer) => inner.Disconnect(peer);
-        public void Dispose() => inner.Dispose();
+        public void Disconnect(PeerId peer) => _inner?.Disconnect(peer);
+        public void Dispose() => _inner?.Dispose();
     }
 }

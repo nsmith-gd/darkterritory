@@ -75,5 +75,21 @@
     "still": 0.4,
     "walking": 0.5,
     "gustMetres": 120
+  },
+  // Spec E drop-out, GDD v1.4 App. D.2 (ARCHITECTURE §8 note 253): a player whose link drops mid-night leaves an inert body
+  // (no bot takes over), and the host holds their place (id, name, a token issued at the welcome) for reserveSeconds.
+  // Back in time with the token, they get their own crewmate back. reclaimBody: true, they stand up where their body
+  // lies now, with whatever kit is still on it (it may have been carried, looted, or fallen off the train); dead when they
+  // dropped, they're dead still, on the dead channel. false is D.2's letter: the body stays and they come back as a lobbied
+  // player (the respawn queue, or with no Holdouts a drop-in). A body gone (the Gaunt has it) is always D.2's letter.
+  // Past reserveSeconds the slot frees and a returning player is a new joiner.
+  // greetSeconds: a joiner says hello (with the token, if it has one) before it's welcomed; one that says nothing in this
+  // long stops holding up the others, and is welcomed only once it does (note 253). The client retries a dropped link `retries` times, retrySeconds apart, then offers RECONNECT.
+  "rejoin": {
+    "reserveSeconds": 180,
+    "reclaimBody": true,
+    "greetSeconds": 1,
+    "retries": 5,
+    "retrySeconds": 3
   }
 }

@@ -347,6 +347,32 @@ public static class PlayerMotor
         return s;
     }
 
+    /// <summary>
+    /// Stands a player up where something of theirs lies (a returning player's body, note 253): in a car's frame, on the
+    /// highest walkable surface under it within a step (a floor, a roof, a coupler plate); off the train, or over nothing on
+    /// it (between the cars), on the ground below.
+    /// </summary>
+    public static PlayerState StandUp(TrainOnLine train, int parent, Double3 at, double lineHint, PlayerTuning p)
+    {
+        if (parent != PlayerState.World && parent < train.Frames.Count)
+        {
+            var frame = train.Frames[parent];
+            if (frame.Shape.TopAt(at.X, at.Z, at.Y + p.StepUp) is { } top)
+                return new PlayerState
+                {
+                    Parent = parent,
+                    Position = new Double3(at.X, top.Top, at.Z),
+                    Surface = ToSurface(top.Kind),
+                    Health = p.Health,
+                    LineHint = train.Cars[parent].FrontDistance,
+                    Kit = p.StartingKit,
+                };
+            at = frame.ToWorld(at);
+            lineHint = train.Cars[parent].FrontDistance;
+        }
+        return SpawnOnGround(at, train.Line, lineHint, p);
+    }
+
     /// <summary>Turns the view by this tick's look input. <see cref="World.CrewAct"/> does this first, so shots go where you look.</summary>
     public static void Look(ref PlayerState s, in PlayerIntent intent)
     {

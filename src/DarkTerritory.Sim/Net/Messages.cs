@@ -32,7 +32,9 @@ public static class Protocol
     // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
     // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 210).
     // 25: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 233).
-    public const int Version = 25;
+    // 26: rejoining after a drop (note 253): a joiner's Hello comes first, before it's welcomed, with the token from an
+    //     earlier Welcome (or 0); the Welcome carries the token the host issued for that slot.
+    public const int Version = 26;
 }
 
 public enum MessageType : byte
@@ -47,7 +49,10 @@ public enum MessageType : byte
     Voice = 4,
     /// <summary>Host → client, reliable: welcomed, but not aboard yet (spec E: drop-in at POIs only), and why.</summary>
     Wait = 5,
-    /// <summary>Client → host, reliable: the name this player goes by (the roster, the report, the clerk).</summary>
+    /// <summary>
+    /// Client → host, reliable, first thing once connected: the name this player goes by (the roster, the report, the clerk),
+    /// and the token of the slot it's coming back to after a drop, or 0 (note 253).
+    /// </summary>
     Hello = 6,
     /// <summary>Host → client, reliable: everyone's names, by player id, whenever they change.</summary>
     Names = 7,
@@ -231,13 +236,15 @@ public static class Messages
         w.Str(reason);
     }
 
-    public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")
+    /// <param name="token">The slot's token (note 253): said back in a Hello after a drop, it gets this player their crewmate back.</param>
+    public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "", ulong token = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Welcome);
         w.U8(playerId);
         w.U32(tick);
         w.Str(session);
+        w.U64(token);
     }
 
     /// <summary>A name as the session shows it: printable, trimmed, at most this long.</summary>
@@ -249,12 +256,17 @@ public static class Messages
         return s.Length > NameLength ? s[..NameLength].TrimEnd() : s;
     }
 
-    public static void WriteHello(NetWriter w, string name)
+    /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
+        w.U64(token);
     }
+
+    /// <summary>Reads a Hello after its type byte: the name, and the token (0 when it has none).</summary>
+    public static (string Name, ulong Token) ReadHello(ref NetReader r) => (CleanName(r.Str()), r.Remaining >= 8 ? r.U64() : 0);
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {
@@ -457,5 +469,11 @@ public static class Messages
     }
 
     /// <summary>Reads a Welcome after its type byte.</summary>
-    public static (byte PlayerId, uint Tick, string Session) ReadWelcome(ref NetReader r) => (r.U8(), r.U32(), r.Remaining > 0 ? r.Str() : "");
+    public static (byte PlayerId, uint Tick, string Session, ulong Token) ReadWelcome(ref NetReader r)
+    {
+        byte id = r.U8();
+        uint tick = r.U32();
+        string session = r.Remaining > 0 ? r.Str() : "";
+        return (id, tick, session, r.Remaining >= 8 ? r.U64() : 0);
+    }
 }

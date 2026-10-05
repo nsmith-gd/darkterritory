@@ -196,8 +196,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard";
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
-    readonly ITransport _clientTransport;
-    readonly IConnectionInfo _link;
+    ITransport _clientTransport;
+    IConnectionInfo _link;
     readonly List<Crewmate> _crew = new();
     readonly List<CarFrame> _frames = new();
     PlayerState _previous;
@@ -553,7 +553,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
     public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null) =>
-        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting);
+        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, () => UdpTransport.Connect(address, options));
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
     public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null)
@@ -575,7 +575,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             throw new IOException($"couldn't join: {lobby.Error}");
         try
         {
-            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting);
+            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
+                () => OnlineTransport.Connect(online, lobby.Owner, options));
         }
         catch
         {
@@ -584,7 +585,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
     }
 
-    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting)
+    /// <param name="redial">A new link to the same host, for coming back after a drop (note 253).</param>
+    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, Func<ITransport>? redial = null)
     {
         var early = new List<TransportEvent>();
         string? session = null;
@@ -596,6 +598,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             transport.Poll(poll);
             foreach (var e in poll)
             {
+                // The host welcomes nobody till they've said hello (note 253): who this is, a new joiner (no token).
+                if (e.Kind == TransportEventKind.Connected)
+                {
+                    var hello = new NetWriter();
+                    Messages.WriteHello(hello, LocalName(lobby));
+                    transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
+                }
                 if (e.Kind == TransportEventKind.Disconnected)
                 {
                     transport.Dispose();
@@ -632,7 +641,73 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
         { Name = LocalName(lobby) };
-        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
+    }
+
+    /// <summary>A new link to the host this joiner reached (by address, or through the lobby), for coming back after a drop.</summary>
+    Func<ITransport>? Redial { get; init; }
+
+    /// <summary>
+    /// Note 253: the tries at getting back to the host since the link went, this one included (0 while connected), out of
+    /// player.json rejoin.retries; then it's <see cref="CanReconnect"/>'s, by hand.
+    /// </summary>
+    public int Attempt { get; private set; }
+    public int Attempts => Client.PlayerTuning.Rejoin.Retries;
+    bool _dialing;
+    double _retryIn;
+
+    /// <summary>The link's gone, and this joiner is trying to get back (or about to try again).</summary>
+    public bool Reconnecting => Lost && Redialable && (_dialing || Attempt < Attempts);
+    /// <summary>The tries ran out: RECONNECT (the F5 key) starts them again.</summary>
+    public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
+    /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
+    bool Redialable => Redial is not null && Lobby is not { HostLeft: true };
+
+    /// <summary>RECONNECT: another round of tries, the first at once.</summary>
+    public void Reconnect()
+    {
+        if (!CanReconnect)
+            return;
+        Attempt = 0;
+        _retryIn = 0;
+    }
+
+    /// <summary>
+    /// Note 253: lost, a joiner dials the host again (a new link, the same way it came), and asks for its slot back with its
+    /// token; up to rejoin.retries times, rejoin.retrySeconds apart. Each try lasts until it's back aboard or the link fails.
+    /// </summary>
+    void StepRedial()
+    {
+        if (!Redialable)
+            return;
+        if (_dialing)
+        {
+            if (Client.Connected)
+            {
+                _dialing = false;
+                Lost = false;
+                Attempt = 0;
+                return;
+            }
+            // That try's link failed (nobody answered, or it went again): the next one in a while.
+            if (Client.Dropped)
+            {
+                _dialing = false;
+                _retryIn = Client.PlayerTuning.Rejoin.RetrySeconds;
+            }
+            return;
+        }
+        if (Attempt >= Attempts)
+            return;
+        _retryIn -= SimConstants.TickSeconds;
+        if (_retryIn > 0)
+            return;
+        Attempt++;
+        _dialing = true;
+        _clientTransport.Dispose();
+        _clientTransport = Redial!();
+        _link = (IConnectionInfo)_clientTransport;
+        Client.Reconnect(_clientTransport);
     }
 
     /// <summary>
@@ -705,6 +780,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Tick++;
         if (Client.Dropped || (!_link.IsConnected && Client.Connected))
             Lost = true;
+        if (Lost)
+            StepRedial();
     }
 
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
@@ -785,7 +862,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var d = Train.Dynamics;
         var p = Player;
-        string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
+        string link = Reconnecting ? $"RECONNECTING ({Attempt}/{Attempts})…" : CanReconnect ? "CONNECTION LOST: F5 to reconnect"
+            : Client.Waiting ? $"WAITING: {Client.WaitingReason}" : Lost ? "CONNECTION LOST" : !Client.Connected ? "connecting…"
             : Host is not null ? $"{Aboard} aboard" // the host's own ping is to itself
             : $"{Aboard} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
@@ -844,7 +922,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
+    { Attempt = Reconnecting ? Math.Max(1, Attempt) : 0, Attempts = Attempts, CanReconnect = CanReconnect };
 
     /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
     string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
