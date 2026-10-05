@@ -375,7 +375,7 @@ public sealed class GreyboxScene
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
             // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
             if (ChoirGathering > ChoirFrostFrom)
-                Look.Art.Effects.Frost(mesh, eye, Time, SmoothStep((ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)));
+                Look.Art.Effects.Frost(mesh, eye, Time, ChoirCold(ChoirGathering));
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -859,6 +859,10 @@ public sealed class GreyboxScene
 
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
+
+    /// <summary>How much of the Choir's cold is on the air at <paramref name="gathering"/> (0 to 1, eased): none before
+    /// <see cref="ChoirFrostFrom"/>, all of it once it's here. The frost in the air, and the frame's chill (Look.Chill).</summary>
+    public static float ChoirCold(float gathering) => gathering > ChoirFrostFrom ? SmoothStep((gathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)) : 0;
 
     static float SmoothStep(float x)
     {

@@ -54,6 +54,7 @@ static class PlaythroughCommands
             var lighting = Views.Lighting(train, look);
             lighting.FogDensity = (float)route.Weather.FogDensity;
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
+            lighting = look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
             new GreyboxScene
             {
                 Look = look,

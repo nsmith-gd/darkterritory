@@ -119,6 +119,14 @@
       "frostFull": 0.85,
       "breathFrom": 0.15
     },
+    // The Choir's cold, coming before it (App. A.7's arrival beat): from halfway through its gathering the night goes over
+    // to these as it nears, all of it once it's here. The air paler and colder, the moon bluer, a rime of frost on the
+    // metal, the roofs and the glass (added to the night's own cold's), under the glitter of frost in the air.
+    "choirCold": {
+      "fogColour": [0.1, 0.13, 0.17],
+      "moonColour": [0.55, 0.68, 0.95],
+      "rime": 0.8
+    },
     // The wind (the route weather's wind, 0..1): calm's breeze to full's gale in m/s, blowing away from `from` (world
     // axes; -Z is up the line), rolling through in gusts. The foliage's cards and boughs bend with it.
     "wind": {

@@ -3318,3 +3318,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 227. **The backhead is boiler plate and the firehole firebrick (the checklist's firebox "the firebox texture").** Around the firebox door the backhead was `iron_smokebox`, whose crazed pattern read as flagstones at that size, and the firehole's sides the same.
     - **Now** (`TrainKit` cab): the backhead is `iron_plate`, sooted, its seam straps and rivet rows on it; the firehole is lined with `brick_soot`, firebrick black with soot and lit by the fire.
     - **Looked at:** `dt screenshot --firedoor --view firebox` and `--view fireman`.
+228. **The Choir's cold chills the whole frame (note 219's frost; the Look Review's "the frost reads only in the crop").** At full frame, the frost glittering in the air was a pixel or two a crystal, and the Choir's coming didn't read.
+    - **Now the frame chills too** (`Look.Chill`, look.json `atmosphere.choirCold`), as the Choir gathers, from the same halfway on, eased (`GreyboxScene.ChoirCold`, shared with the glitter):
+      - the fog and the moon's light go over to a paler, colder blue;
+      - a rime of frost comes on the metal, the roofs, the ground and the glass. It's the lighting's `Frost`, the same rime a cold night's weather lays, and it's added to the night's own.
+    - **Wiring:** applied after the route's weather where the frame's lighting is made (the app, `dt screenshot`, `dt playthrough`).
+    - **Looked at:** `dt screenshot --view roof --crew --gathering 0` and `0.95`, and the same with `--view trackside`. The roof and the ground go white with rime and the air blue.
+    - **Tests:** `EffectsTests.AsTheChoirComesTheWholeFrameChills`.
