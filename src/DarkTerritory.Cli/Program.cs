@@ -166,6 +166,12 @@ object RunHarness(string[] args)
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
         Voice = Voice(args),
+        // --drop-rejoin bot:at:seconds (note 253): one bot's link drops at seconds in and it connects again that long after,
+        // asking for its slot back. bot: its index in the crew (0, the driver) or its name (roof-walker: the first).
+        DropRejoin = Str(args, "--drop-rejoin", "") is { Length: > 0 } dropRejoin
+            ? DarkTerritory.Sim.Net.DropRejoin.Parse(dropRejoin, name => Enumerable.Range(0, (int)Opt(args, "--bots", 8))
+                .First(i => DarkTerritory.Sim.Bots.BotCrew.Make(i, (int)Opt(args, "--bots", 8), null, combat, player, 1).Name == name))
+            : null,
         // The combination audit's night by hand (note 186): --insist kind,kind sends only those; --hazards a set from balance.json.
         Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(k, ignoreCase: true))] : null,
         Hazards = Str(args, "--hazards", "") is { Length: > 0 } hz
@@ -1811,7 +1817,9 @@ static object HudShot(string content, string[] args)
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
     // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot (--ballot implies it).
-    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot")) : null;
+    // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"))
+        : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars) : null;
     IPlaySession session;
     if (spectated is { } pair)
     {
@@ -2045,6 +2053,26 @@ static object FilmStill(string content, string[] args)
 }
 
 // A hosted night over loopback with one joiner, who dies once aboard and watches the host (App. D.10).
+// A joiner whose link the host has just lost (note 253): the host stops answering for a moment, so it's still trying.
+static SpectatedNight LostLink(string content, string route, int cars)
+{
+    var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: false), port: 0);
+    var joiner = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+    for (int t = 0; t < SimConstants.TickRate; t++)
+    {
+        host.Step(default);
+        joiner.Step(default);
+        Thread.Sleep(1);
+    }
+    host.Host!.Drop((byte)joiner.PlayerId);
+    for (int t = 0; t < 10; t++)
+    {
+        joiner.Step(default);
+        Thread.Sleep(1);
+    }
+    return new SpectatedNight(host, joiner);
+}
+
 static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false)
 {
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: enemies), port: 0);
@@ -2242,7 +2270,7 @@ static int Usage()
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]
                      a screen of the front end over the yard, as the game draws it
-          screenshot --hud [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
+          screenshot --hud [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
@@ -2270,6 +2298,7 @@ static int Usage()
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
                      --comms poor|awful (or --voice-loss/-latency/-jitter/-talkover): the crew's calls over a degraded voice;
                      --insist kind,kind --hazards wet --start m: one of dt balance --pairs's nights by hand (--no-look: without its look-out)
+                     --drop-rejoin bot:at:seconds: that bot's link drops at seconds in and it rejoins the given seconds later (note 253)
           balance --pairs|--triples [--wide] [--routes r,r] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n] [--seconds s] [--hazards clear,wet,cold,dark] [--only kind,kind]
                      GDD §34 combination fairness: each combination insisted on for a short bot night under each hazard set,
                      on every route with every crew size (tuning/balance.json combinations; --wide: its nightly grid); flags

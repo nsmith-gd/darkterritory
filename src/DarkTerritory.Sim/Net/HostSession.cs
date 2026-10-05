@@ -18,7 +18,8 @@ public sealed class HostSession
     sealed class Crew(byte id, PeerId peer)
     {
         public readonly byte Id = id;
-        public readonly PeerId Peer = peer;
+        /// <summary>Whose link it is: a player who comes back on a new connection (note 253) moves to it.</summary>
+        public PeerId Peer = peer;
         public readonly SortedDictionary<uint, PlayerIntent> Pending = new();
         public uint LastApplied;
         /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
@@ -104,6 +105,8 @@ public sealed class HostSession
     public void Step()
     {
         Receive();
+        Greet();
+        Expire();
         BoardWaiting();
 
         foreach (var c in _crew)
@@ -197,23 +200,48 @@ public sealed class HostSession
             switch (e.Kind)
             {
                 case TransportEventKind.Connected:
-                    Join(e.Peer);
+                    // Welcomed once it's said hello, with the token if it's coming back (note 253), or after greetSeconds.
+                    if (!_greeting.Any(g => g.Peer == e.Peer))
+                        _greeting.Add(new Greeting(e.Peer, Tick));
                     break;
                 case TransportEventKind.Disconnected:
-                    // Spec E: "Character remains as an inert body until recovered or the run ends."
-                    foreach (var gone in _crew.Where(c => c.Peer == e.Peer).ToList())
-                    {
-                        if (gone.State.Alive)
-                            World.Bodies.DropOut(Train, gone.Id, gone.State);
-                        _crew.Remove(gone);
-                    }
-                    _waiting.RemoveAll(w => w.Peer == e.Peer);
+                    Gone(e.Peer);
                     break;
                 case TransportEventKind.Data when e.Payload is { Length: > 0 } payload:
                     OnData(e.Peer, payload);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Cuts a player's link from the host's end, as if their connection had failed (a test's, or the screenshot's, stand-in
+    /// for a dropped joiner): their crewmate goes limp and their place is held, as for any drop (note 253).
+    /// </summary>
+    public void Drop(byte id)
+    {
+        PeerId? found = _crew.Find(c => c.Id == id)?.Peer ?? _waiting.Where(w => w.Id == id).Select(w => (PeerId?)w.Peer).FirstOrDefault();
+        if (found is not { } peer)
+            return;
+        _transport.Disconnect(peer);
+        Gone(peer);
+    }
+
+    void Gone(PeerId peer)
+    {
+        _greeting.RemoveAll(g => g.Peer == peer);
+        // Spec E: "Character remains as an inert body until recovered or the run ends." No bot takes over: the
+        // crewmate goes limp where they stood, and their place is held for them (note 253).
+        foreach (var gone in _crew.Where(c => c.Peer == peer).ToList())
+        {
+            if (gone.State.Alive)
+                World.Bodies.DropOut(Train, gone.Id, gone.State);
+            _crew.Remove(gone);
+            Reserve(gone.Id, gone.State, aboard: true, gone.LastApplied, gone.MissedInputs);
+        }
+        foreach (var (id, _) in _waiting.Where(w => w.Peer == peer).ToList())
+            Reserve(id, default, aboard: false, 0, 0);
+        _waiting.RemoveAll(w => w.Peer == peer);
     }
 
     /// <summary>
@@ -227,12 +255,21 @@ public sealed class HostSession
     readonly List<(byte Id, PeerId Peer)> _waiting = new();
     public int Waiting => _waiting.Count;
 
-    void Join(PeerId peer)
+    byte Join(PeerId peer)
     {
         byte id = _nextId++;
-        Messages.WriteWelcome(_writer, id, Tick, SessionInfo);
+        ulong token = NewToken();
+        _tokens[id] = token;
+        Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _namesChanged |= World.Names.Count > 0;
+        Admit(id, peer);
+        return id;
+    }
+
+    /// <summary>A welcomed player aboard, or (GDD App. D.3, spec E) told to wait for a stop.</summary>
+    void Admit(byte id, PeerId peer)
+    {
         // GDD App. D.3: with Holdouts, a mid-run joiner goes straight into the respawn queue; otherwise they wait for a stop.
         if (!Lobbying && CanBoard is { } can && !can())
         {
@@ -242,6 +279,190 @@ public sealed class HostSession
             return;
         }
         Board(id, peer);
+    }
+
+    /// <summary>A new connection, waiting to be welcomed: its Hello (the name, a token) once it's said it.</summary>
+    sealed class Greeting(PeerId peer, uint since)
+    {
+        public readonly PeerId Peer = peer;
+        public readonly uint Since = since;
+        public bool Said;
+        public string Name = "";
+        public ulong Token;
+    }
+
+    readonly List<Greeting> _greeting = [];
+
+    /// <summary>
+    /// A dropped player's place (spec E drop-out, note 253): who they were, the token that gets it back, and their state when
+    /// the link went (the dead stay dead). Held till <see cref="Until"/>, the host's tick.
+    /// </summary>
+    sealed record Seat(byte Id, ulong Token, PlayerState State, bool Aboard, uint LastApplied, int MissedInputs, uint Until);
+
+    readonly List<Seat> _reserved = [];
+    /// <summary>Every slot's token while it's someone's: in the crew, waiting to board, or held for them.</summary>
+    readonly Dictionary<byte, ulong> _tokens = [];
+
+    /// <summary>Where slot tokens come from: random, so nobody guesses another's way back in. A test can make them plain.</summary>
+    public Func<ulong> Tokens { get; set; } = () => BitConverter.ToUInt64(System.Security.Cryptography.RandomNumberGenerator.GetBytes(8));
+
+    ulong NewToken()
+    {
+        ulong t;
+        do
+            t = Tokens();
+        while (t == 0 || _tokens.ContainsValue(t));
+        return t;
+    }
+
+    /// <summary>Places held for players whose link dropped (note 253), and whether one is held for this id.</summary>
+    public int Reserved => _reserved.Count;
+    public bool IsReserved(byte id) => _reserved.Any(r => r.Id == id);
+    /// <summary>Players who came back to their own slot (a held place, or a live one from a new connection); places that ran out.</summary>
+    public int Rejoins { get; private set; }
+    public int ReservesExpired { get; private set; }
+
+    int TicksOf(double seconds) => (int)Math.Ceiling(seconds * SimConstants.TickRate);
+
+    void Reserve(byte id, PlayerState state, bool aboard, uint lastApplied, int missed)
+    {
+        if (!_tokens.TryGetValue(id, out ulong token))
+            return;
+        _reserved.RemoveAll(r => r.Id == id);
+        _reserved.Add(new Seat(id, token, state, aboard, lastApplied, missed, Tick + (uint)TicksOf(PlayerTuning.Rejoin.ReserveSeconds)));
+    }
+
+    /// <summary>Places held past reserveSeconds are let go: the slot's free, its token no good, the body stays (D.2).</summary>
+    void Expire()
+    {
+        foreach (var seat in _reserved.Where(r => Tick >= r.Until).ToList())
+        {
+            _reserved.Remove(seat);
+            _tokens.Remove(seat.Id);
+            ReservesExpired++;
+        }
+    }
+
+    /// <summary>
+    /// Lets the greeting line in, in the order they connected (first aboard takes the cab): each once it's said hello, or
+    /// after greetSeconds of saying nothing. A Hello with a held slot's token gets that slot back.
+    /// </summary>
+    void Greet()
+    {
+        int patience = TicksOf(PlayerTuning.Rejoin.GreetSeconds);
+        while (_greeting.Count > 0 && (_greeting[0].Said || Tick - _greeting[0].Since >= patience))
+        {
+            var g = _greeting[0];
+            _greeting.RemoveAt(0);
+            byte id = g.Token != 0 && Return(g.Peer, g.Token) is { } back ? back : Join(g.Peer);
+            Name(id, g.Name);
+        }
+    }
+
+    /// <summary>
+    /// Note 253: a player back with their slot's token. Held for them, they get it back; still live on another connection
+    /// (the host hadn't yet seen that link go), the new one takes over from the old. Null if the token's no one's.
+    /// </summary>
+    byte? Return(PeerId peer, ulong token)
+    {
+        if (_reserved.Find(r => r.Token == token) is { } seat)
+        {
+            _reserved.Remove(seat);
+            Rejoins++;
+            Welcome(seat.Id, peer, token);
+            if (!seat.Aboard)
+            {
+                Admit(seat.Id, peer);
+                return seat.Id;
+            }
+            var c = new Crew(seat.Id, peer) { LastApplied = seat.LastApplied, MissedInputs = seat.MissedInputs };
+            if (Back(seat) is { } state)
+            {
+                state.Placed = (byte)(seat.State.Placed + 1);
+                c.State = state;
+                int at = _crew.FindIndex(x => x.Id > seat.Id);
+                _crew.Insert(at < 0 ? _crew.Count : at, c);
+            }
+            else
+                Admit(seat.Id, peer);
+            return seat.Id;
+        }
+        if (_crew.Find(x => _tokens.GetValueOrDefault(x.Id) == token) is { } live)
+        {
+            Rejoins++;
+            var old = live.Peer;
+            live.Peer = peer;
+            live.Pending.Clear();
+            live.Sent.Clear();
+            live.AckedSnapshot = 0;
+            if (old != peer)
+                _transport.Disconnect(old);
+            Welcome(live.Id, peer, token);
+            return live.Id;
+        }
+        int waiting = _waiting.FindIndex(w => _tokens.GetValueOrDefault(w.Id) == token);
+        if (waiting >= 0)
+        {
+            var (id, old) = _waiting[waiting];
+            _waiting[waiting] = (id, peer);
+            if (old != peer)
+                _transport.Disconnect(old);
+            Rejoins++;
+            Welcome(id, peer, token);
+            Messages.WriteWait(_writer, WaitReason);
+            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+            return id;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The Welcome to a returning player, and what they'd have been sent while they were gone: everyone's names and looks,
+    /// the commendations, the film and the report if they've gone out (GDD v1.4 App. E.8: "a client that drops sees the
+    /// incident report on rejoin"), and their ballot, offered afresh.
+    /// </summary>
+    void Welcome(byte id, PeerId peer, ulong token)
+    {
+        Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
+        _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        _namesChanged = true;
+        _ballotsSent.Remove(id);
+        if (World.Commendations.Count > 0)
+        {
+            Messages.WriteCommendations(_writer, World.Commendations);
+            _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
+        }
+        if (_filmSent && World.Film is { } film)
+            foreach (var m in Messages.FilmMessages(film))
+                _transport.Send(peer, m, Delivery.ReliableOrdered);
+        if (_reportSent && World.Run?.Report is { } report)
+            foreach (var m in Messages.ReportMessages(report))
+                _transport.Send(peer, m, Delivery.ReliableOrdered);
+    }
+
+    /// <summary>
+    /// Who a returning player is (note 253). Dead when they dropped, dead still (the dead channel, their ballot, the queue).
+    /// Alive, they stand up where their body lies now, with what's left on it (player.json rejoin.reclaimBody), and the
+    /// body's gone from the world. With reclaimBody off, or their body gone (carried off by the Gaunt), it's GDD v1.4 App.
+    /// D.2's letter: the body stays, and they're a lobbied joiner (null: <see cref="Admit"/> them).
+    /// </summary>
+    PlayerState? Back(Seat seat)
+    {
+        if (!seat.State.Alive)
+            return seat.State;
+        var body = World.Bodies.All.LastOrDefault(b => b.Kind == Physics.BodyKind.Ragdoll && b.DroppedOut && b.Owner == seat.Id);
+        if (!PlayerTuning.Rejoin.ReclaimBody || body is null || body.TakenBy >= 0)
+            return null;
+        var up = PlayerMotor.StandUp(Train, body.Parent, body.Centre, body.LineHint, PlayerTuning);
+        World.Bodies.Remove(body);
+        return up with
+        {
+            Health = seat.State.Health,
+            Cold = seat.State.Cold,
+            Yaw = seat.State.Yaw,
+            Kit = body.Tools,
+            HeldSlot = seat.State.HeldSlot,
+        };
     }
 
     void Board(byte id, PeerId peer)
@@ -400,19 +621,21 @@ public sealed class HostSession
         }
         if (payload.Length > 0 && payload[0] == (byte)MessageType.Hello)
         {
-            int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
             try
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                if (id >= 0 && Messages.CleanName(hr.Str()) is { Length: > 0 } name)
+                var (name, token) = Messages.ReadHello(ref hr);
+                // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
+                // takes the cab), so it waits its turn in the greeting line.
+                if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
-                    World.Names[id] = name;
-                    _namesChanged = true;
-                    // D.8: whoever they were freed as on an earlier night, they still are.
-                    if (World.LooksByName.TryGetValue(name, out var look))
-                        World.Looks[id] = look;
+                    (greeting.Said, greeting.Name, greeting.Token) = (true, name, token);
+                    return;
                 }
+                int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
+                if (id >= 0)
+                    Name(id, name);
             }
             catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)
             {
@@ -444,6 +667,17 @@ public sealed class HostSession
         {
             // Malformed packet: drop it. Never let a client crash the host.
         }
+    }
+
+    void Name(int id, string name)
+    {
+        if (name.Length == 0)
+            return;
+        World.Names[id] = name;
+        _namesChanged = true;
+        // D.8: whoever they were freed as on an earlier night, they still are.
+        if (World.LooksByName.TryGetValue(name, out var look))
+            World.Looks[id] = look;
     }
 
     readonly NetWriter _voiceWriter = new();

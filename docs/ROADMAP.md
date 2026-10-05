@@ -13,7 +13,7 @@ off), the few pieces still greybox, and testing on real machines with real peopl
 |---|---|---|---|
 | **M0 — Foundation** | done | Solution, CI, `dt` CLI, data + hot reload, train sim pinned to spec B, loopback transport | — |
 | **M1 — Feel prototype** | done | Window, Vulkan renderer, headless screenshots, FPS controller on moving frames, a drivable train | Spec G.1/G.2 answered through four playtest rounds (T90–T121) |
-| **M2 — Crew of eight** | done on LAN | Replication, prediction, interest management, physics sync, Steam lobby code, bots, nightly 8-client rough-link soak, LAN host/join lobby | A first run on real Steam between two accounts; a real two-machine LAN night |
+| **M2 — Crew of eight** | done on LAN | Replication, prediction, interest management, physics sync, Steam lobby code, bots, nightly 8-client rough-link soak, LAN host/join lobby, rejoining after a drop (note 253) | A first run on real Steam between two accounts; a real two-machine LAN night |
 | **M3 — Voice** | done | Opus, host routing, proximity and occlusion, the radio item, the dead channel, the GRAB on the radio, the hard-cut | An eight-person voice test |
 | **M4 — VR** | in progress | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210), multiview stereo: both eyes in one pass, a pass an eye where the GPU can't (note 221) | Hands that hold what they carry, the exit test on a real Quest and SteamVR (and multiview's numbers on a real GPU, note 221) |
 | **M5 — Demo slice** | built, in review | Procedural line, fortress, facilities and their set pieces, the v1.4 roster of five plus the Choir, director, mixer, art and audio at L1 | The director's sign-off to L2 on the demo's rows; set pieces still greybox |
@@ -257,6 +257,7 @@ M3 is done but for a test with eight people.
 **Session rules (M2):**
 - Interest management for enemies and bodies (520 m, past the farthest tell), with per-client baselines.
 - Someone who drops out leaves an inert body.
+- Their place is held for 3 minutes: back with the host's token, by address or through the lobby, they get their crewmate back where the body lies (note 253).
 - Joiners with different tuning are refused, with the files named.
 - Mid-run joiners wait and board at the next stop (spec E drop-in at POIs).
 

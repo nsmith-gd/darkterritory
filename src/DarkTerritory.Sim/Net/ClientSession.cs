@@ -24,7 +24,7 @@ public sealed class ClientSession
     const int HistoryLength = 128;
     const int SnapshotBuffer = 32;
 
-    readonly ITransport _transport;
+    ITransport _transport;
     readonly List<TransportEvent> _events = new();
     readonly List<PlayerSnapshot> _players = new();
     readonly NetWriter _writer = new();
@@ -113,8 +113,42 @@ public sealed class ClientSession
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
-    /// <summary>The link to the host went after this client was welcomed: the night's over for it.</summary>
+    /// <summary>The link to the host went after this client was welcomed: the night's over for it, unless it comes back (<see cref="Reconnect"/>).</summary>
     public bool Dropped { get; private set; }
+    /// <summary>The host's token for this player's slot, from the Welcome: said back after a drop, it gets the slot back (note 253).</summary>
+    public ulong Token { get; private set; }
+    /// <summary>How many times this client has come back after a drop.</summary>
+    public int Reconnects { get; private set; }
+
+    /// <summary>
+    /// Note 253: after a drop, connects again on <paramref name="transport"/> (a new link to the same host: UDP, a lobby, any
+    /// transport) and asks for this player's slot back with its token. The world stays as it was; the host's next full
+    /// snapshot brings it up to date, and this player's own state with it, adopted as a placement.
+    /// </summary>
+    public void Reconnect(ITransport transport)
+    {
+        _transport = transport;
+        Dropped = false;
+        PlayerId = null;
+        _haveState = false;
+        WaitingReason = null;
+        _helloSent = false;
+        _decoded.Clear();
+        _snapshots.Clear();
+        Reconnects++;
+    }
+
+    bool _helloSent;
+
+    /// <summary>The first word to the host (note 253): who this is, and the slot it's coming back to, if any.</summary>
+    void Hello()
+    {
+        if (_helloSent)
+            return;
+        _helloSent = true;
+        Messages.WriteHello(_writer, Name, Token);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
     /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
     byte? _was;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
@@ -191,6 +225,13 @@ public sealed class ClientSession
         uint newestAcked = 0;
         foreach (var e in _events)
         {
+            if (e.Kind == TransportEventKind.Connected)
+            {
+                // Said before the host welcomes it: the host lets nobody in till they've said hello (or greetSeconds pass).
+                if (PlayerId is null)
+                    Hello();
+                continue;
+            }
             if (e.Kind == TransportEventKind.Disconnected)
             {
                 // Once aboard, a drop is the night lost to this client, said as much (the 4 Oct rehearsal: a joiner whose
@@ -217,14 +258,15 @@ public sealed class ClientSession
                     WaitingReason = r.Str();
                     break;
                 case MessageType.Welcome:
-                    (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
-                    _was = PlayerId;
-                    if (Name.Length > 0)
                     {
-                        Messages.WriteHello(_writer, Name);
-                        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+                        (PlayerId, _, SessionInfo, ulong token) = Messages.ReadWelcome(ref r);
+                        _was = PlayerId;
+                        if (token != 0)
+                            Token = token;
+                        // Welcomed by a host whose Hello went before it was connected to: say it now (the name), once.
+                        Hello();
+                        break;
                     }
-                    break;
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
                     break;

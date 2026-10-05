@@ -24,6 +24,9 @@ public sealed record PlayerTuning(
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
+    /// <summary>A dropped player's place on the host, and the client's retries (spec E drop-out, GDD v1.4 App. D.2; note 253).</summary>
+    public RejoinTuning Rejoin { get; init; } = new();
+
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
     /// <summary>
@@ -42,6 +45,10 @@ public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double
 /// either side. Field docs live in player.json <c>wind</c>.
 /// </summary>
 public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);
+/// <summary>
+/// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
+/// </summary>
+public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody = true, double GreetSeconds = 1, int Retries = 5, double RetrySeconds = 3);
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0);

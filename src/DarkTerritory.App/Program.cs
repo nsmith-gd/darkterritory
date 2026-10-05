@@ -741,6 +741,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Chase)) chase = !chase;
         if (input.Pressed(Key.F1)) showHud = !showHud;
         if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+        // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
+        if (input.Pressed(Key.F5)) net?.Reconnect();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
         if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
         if (input.Pressed(Key.F3)) showPlan = !showPlan;
