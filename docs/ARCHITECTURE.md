@@ -3143,3 +3143,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `dt screenshot --threats --killed kind:s` stages one, `GreyboxScene.Killed`.
       - `CreatureArtTests.AKilledCreatureGoesOverThenIsGone` (drawn going over and crumbling, not after) and `EffectsTests.AKilledCreatureCrumblesToAshThenIsGone`.
     - **Not yet:** the scene's memory is per scene, so `dt playthrough`'s fresh scene a shot doesn't carry it.
+209. **The Cinder Hounds board the rear car (the checklist's "not yet": a distinct boarding leap, not the lunge).**
+    - **Before:** a hound's COMMIT aboard (Sim's `CinderHound.Board`: on the rear car's roof, 2.5 m in from its end) began with the lunge, a leap from roof level. On the roof from nowhere.
+    - **Now it has its own `board` clip** (tools/blender/cinder_hound.py, 1.1 s, `CreatureArt.HoundBoardSeconds`). The root starts a car's roof-height below and behind where the sim puts it:
+      - a bound off the ballast onto the car's end;
+      - the body reared up it, the forelegs hooked over the roof's lip, the hind legs scrabbling at the planks out of step;
+      - a heave up and over, landing in the pack fight's crouch, which the crouch-lunge loop takes on from.
+    - **At night it reads by its embers** climbing the car's end. The black body is lost on the end in shadow, which is how the hounds read anyway (GDD §21: "in the rear lamp").
+    - **Staging:** `dt screenshot --threats --board s --view board`. The `board` view is behind the rear car, a little over its roof; `--board` takes the staged Car Hugger off that end.
+    - **Tests:** `CreatureArtTests` budgets now list `board` among the hound's clips.
