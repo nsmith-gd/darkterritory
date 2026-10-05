@@ -2535,7 +2535,9 @@ public sealed class GreyboxScene
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
             {
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+                // (Open, with the art pass's fire, the bed is its heap of coals: Art.Effects.Furnace.)
+                if (!FireDoorOpen || Look?.Art.Effects is not { HasFlames: true })
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
             // A Stoker in the fire: soot coming down in the cab (Art.Effects.SootFall).

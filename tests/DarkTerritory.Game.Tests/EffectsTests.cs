@@ -84,6 +84,20 @@ public class EffectsTests
     }
 
     [Fact]
+    public void TheBedIsAHeapOfCoalsNotABand()
+    {
+        // The firebox through its hole (Effects.Coals): lumps of coal across the grate, mounded and banked, not a flat bright
+        // band along its foot.
+        var mesh = Mesh();
+        Fx.Furnace(mesh, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, 0.7f, Palette.FurnaceOrange, 3);
+        var v = mesh.Flattened();
+        Assert.True(v.Length / 3 >= 60 * 12, $"{v.Length / 3} triangles of coal");
+        Assert.True(v.Max(p => p.Position.X) - v.Min(p => p.Position.X) > 0.5f, "across the grate");
+        Assert.True(v.Max(p => p.Position.Y) - v.Min(p => p.Position.Y) > 0.05f, "mounded, not flat");
+        Assert.True(v.Max(p => p.Position.Z) - v.Min(p => p.Position.Z) > 0.08f, "back into the box");
+    }
+
+    [Fact]
     public void AShovelfulFlaresTheFireThenItSettles()
     {
         // §31 "furnace flare": just after the coal lands the fire roars up, throws sparks out into the cab and its light jumps;

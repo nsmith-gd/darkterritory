@@ -3213,3 +3213,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Appeased,** a toy body gone the same tick goes with it: in the flicker it's clutched under its chin in both hands (its giggle's), drawn as `SceneArt.Toy` draws that toy (`CreatureArt.DollHolding`).
     - **Staging:** `dt screenshot --threats --vanish s[:toy] --view inside` (the haunting doll moved into car 2 over its cargo and gone s seconds ago; s < 0, still there).
     - **Tests:** `CreatureArtTests.TheTrackDollFlickersOutWhereItWasNotWalkingOff`.
+216. **The firebox's bed is a heap of coals (the 5 October audit; the checklist's firebox).** Through the open firehole, what the fireman sees all night was a flat bright band along the grate (an emissive box) under a row of flame cards rooted on one line.
+    - **Now `Effects.Coals` draws the bed** as 72 lumps across the grate, mounded in the middle and banked at the back, each turned its own way.
+      - The dark ones are coal, lit by the fire's own light.
+      - The ones in the heart of the bed glow, more of them the hotter the fire, each breathing on its own slow beat. They keep the Stoker's green.
+    - **The flames lick up off the heap:** each tongue's root follows the mound and sits in or out over the bed, shallow enough not to be cut by the back wall.
+    - **The glows are toned down:** the coals' glow is a soft low blob, not a sheet, and the roaring white heart is smaller, so the coals still show at full heat.
+    - **The scene's flat band** (`GreyboxScene`) is drawn only without the art pass's fire, or with the door shut.
+    - **Tests:** `EffectsTests.TheBedIsAHeapOfCoalsNotABand`. Looked at: `dt screenshot --firedoor --view firebox` (at `--coal` 1, the default and 9), and `--view fireman --flare 0.15`.
