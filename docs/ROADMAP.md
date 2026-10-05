@@ -318,8 +318,8 @@ Remaining for M4:
 
 ## Priority orders (4 Oct audit)
 
-1. **P0, correctness:** protocol 21 for #149's body record (#152). Land or close the open PRs from other sessions (#150 the CC0 opera, #151 the Dragger).
-2. **P1, nothing bought that does nothing:** lamp armour, gun cooling, repair kit charges, radio range and the powered switch thrower, modelled (note 184's "not yet").
+1. **P0, correctness:** ~~protocol 21 for #149's body record~~ (done, #152). Land or close the open PRs from other sessions (#150 the CC0 opera, #151 the Dragger).
+2. **P1, nothing bought that does nothing:** (done, note 196) lamp armour, gun cooling, repair kit charges, radio range and the powered switch thrower, modelled (note 184's "not yet").
 3. **P1, what a crewmate sees:** remote crewmates' tool swings replicated (note 146).
 4. **P1, the set pieces heard:** the spout's pour, the herd, the hose's leak, the wreck yard's heaps groaning (notes 185, 187); their models are the art pass's.
 5. **P2, real machines:** a two-machine LAN night and a two-account Steam night from the CI packages, then the eight-person voice test.
