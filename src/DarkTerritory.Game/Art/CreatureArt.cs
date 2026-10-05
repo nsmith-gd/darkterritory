@@ -110,6 +110,23 @@ public sealed class CreatureArt
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
 
+    /// <summary>How close to its frozen catch a Ribbit is on them, devouring (m): the sim's hop stops 0.8 m short.</summary>
+    public const float RibbitDevourReach = 1.2f;
+
+    /// <summary>
+    /// The clip a Ribbit on the attack plays, <paramref name="near"/> metres from the one its pack is after: its tongue out at
+    /// them (COMMIT), then, with them frozen (GRAB), creeping in on them low on the sim's quarter-speed hop, and close to, on
+    /// them, devouring (App. A.6).
+    /// </summary>
+    public static string RibbitClip(SpinePhase phase, float near) =>
+        phase is SpinePhase.Grab or SpinePhase.Punish ? near > RibbitDevourReach ? "creep" : "devour" : "tongue";
+
+    /// <summary>The toy the Track Doll being drawn has in its hand, or null (GreyboxScene: the one it was given, as it goes).</summary>
+    public MeshAsset? DollHolding { get; set; }
+
+    /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
+    public const double ChoirLeaveSeconds = 3.0;
+
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
 
@@ -1463,7 +1480,7 @@ public sealed class CreatureArt
                         SpinePhase.Dormant => Draw(mesh, "car_hugger", "lurk", t, true, Matrix4x4.CreateTranslation(0, HuggerLurkLift, 0) * model,
                             adjust: (_, look) => look with { Colour = look.Colour * HuggerLurkMud }),
                         SpinePhase.BreakOff => Draw(mesh, "car_hugger", "release", t, false, model),
-                        SpinePhase.Grab or SpinePhase.Punish => Draw(mesh, "car_hugger", "swallow", t, true, model, regrip),
+                        SpinePhase.Grab or SpinePhase.Punish => Swallowing(Draw(mesh, "car_hugger", "swallow", t, true, model, regrip), model),
                         SpinePhase.Telegraph when t < latch => Draw(mesh, "car_hugger", "latch", t, false, model),
                         SpinePhase.Telegraph => Draw(mesh, "car_hugger", "feed", t - latch, true, model, regrip),
                         _ => Draw(mesh, "car_hugger", "feed", t, true, model, regrip),
@@ -1498,15 +1515,28 @@ public sealed class CreatureArt
                     float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
                     // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
                     var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
+                    // With the toy it was given, it's clutching it under its chin (its giggle's hands), and looking at you.
+                    if (DollHolding is not null)
+                        (clip, ct, watch) = ("giggle", 0.4, true);
                     Action<Entry>? look = null;
                     if (watch && Matrix4x4.Invert(at, out var toModel))
                     {
                         var eye = Vector3.Transform(Vector3.Zero, toModel);
                         look = e => WatchWithHead(e, eye);
                     }
-                    return Draw(mesh, "track_doll", clip, ct, true, at, look, seed: 3,
+                    bool drawn = Draw(mesh, "track_doll", clip, ct, true, at, look, seed: 3,
                         adjust: (mm, l) => mm.Name.EndsWith(".face", StringComparison.Ordinal) ? l with { Emissive = MathF.Max(l.Emissive, glow) } : l)
                         || Draw(mesh, "track_doll", "stand", ct, true, at, look, seed: 3);
+                    // Going with the toy it was given (APPEASED: GreyboxScene's vanishing): held in both hands under its chin.
+                    if (drawn && DollHolding is { } toy)
+                    {
+                        var held = at;
+                        held.Translation = (BoneAt("track_doll", "hand_r", at) + BoneAt("track_doll", "hand_l", at)) / 2
+                            - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, at)) * 0.1f
+                            - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, at)) * 0.07f;
+                        mesh.Instances.Add(new MeshInstance(toy, held));
+                    }
+                    return drawn;
                 }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
                 {
@@ -1515,15 +1545,23 @@ public sealed class CreatureArt
                     // under the bridge plate round the drawgear, breathing: there to be found by whoever looks down into
                     // the gap. Whistling (extra), it rears straight up out of the gap, hooks the cord with its forelegs
                     // and yanks it, the siphon blowing; then it watches the gap's mouth, its front lifted, turning in
-                    // jerks. Carrying someone off, it runs, snaking, its legs in waves.
+                    // jerks. Carrying someone off, it runs, snaking, its legs in waves, its front reared up with them held
+                    // in its forelegs under it (carry: where its hooks are is where they hang, Clutches); off empty, it runs.
                     string clip = phase switch
                     {
                         SpinePhase.Dormant => "fold",
                         SpinePhase.Telegraph when extra > 0.5 => "whistle",
-                        SpinePhase.Grab or SpinePhase.Punish or SpinePhase.BreakOff => "run",
+                        SpinePhase.Grab or SpinePhase.Punish => "carry",
+                        SpinePhase.BreakOff => "run",
                         _ => "watch",
                     };
-                    return Draw(mesh, "whistler", clip, t, true, model, seed: 41);
+                    if (clip == "carry" && Draw(mesh, "whistler", clip, t, true, model, seed: 41))
+                    {
+                        _clutch = ((BoneAt("whistler", "hook_r", model) + BoneAt("whistler", "hook_l", model)) / 2,
+                            Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, model)), true);
+                        return true;
+                    }
+                    return Draw(mesh, "whistler", clip == "carry" ? "run" : clip, t, true, model, seed: 41);
                 }
             case EnemyKind.Whistler:
                 {
@@ -1624,15 +1662,21 @@ public sealed class CreatureArt
                             return Draw(mesh, "ribbit", "swell", t, true, model, seed: (float)extra2);
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
+                                // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
+                                string clip = RibbitClip(phase, near);
                                 Vector3? mouth = null;
                                 var at = model;
-                                bool drawn = Draw(mesh, "ribbit", "tongue", t, true, at, e =>
+                                void Mouth(Entry e)
                                 {
                                     int jaw = e.Model.Skeleton.IndexOf("tongue_02");
                                     if (jaw >= 0)
                                         mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
-                                }, seed: (float)extra2);
-                                if (drawn && mouth is { } a && prey is { } p)
+                                }
+                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
+                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
                                     Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
                                 return drawn;
                             }
@@ -1701,18 +1745,21 @@ public sealed class CreatureArt
                     // about it is all the light it has (§26: not neon).
                     _prey = null;
                     var at = Matrix4x4.CreateTranslation(0, (float)(0.12 * Math.Sin(t * 2.3 + extra2)), 0) * model;
+                    // Driven off (BREAK OFF: GreyboxScene.Leaving carries it away), it goes in its swoop, its cold going out.
                     string clip = phase switch
                     {
                         SpinePhase.Commit when extra >= 0 => "swoop",
                         SpinePhase.Commit => "besiege",
                         SpinePhase.Grab or SpinePhase.Punish => "seize",
+                        SpinePhase.BreakOff => "swoop",
                         _ => "drift",
                     };
+                    float cold = phase == SpinePhase.BreakOff ? Math.Clamp(1 - (float)(t / ChoirLeaveSeconds), 0, 1) : 1;
                     bool drawn = Draw(mesh, "choir", clip, t, true, at, seed: 71 + (float)extra2);
                     if (drawn)
                     {
-                        mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * ChoirCold, 2.5f));
-                        if (_fx.HasFlames)
+                        mesh.PointLights.Add(new PointLight(model.Translation + new Vector3(0, 0.8f, 0), Palette.BlueGrey * (ChoirCold * cold), 2.5f));
+                        if (_fx.HasFlames && cold > 0.4f)
                             _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
                     }
                     return drawn;
@@ -1835,6 +1882,39 @@ public sealed class CreatureArt
     // How long since the creature being drawn was struck (s), or −1: Draw plays its hit clip over its own while it runs.
     double _hit = -1;
 
+    /// <summary>
+    /// Who each creature drawn this frame has hold of (the player's id), and where: a Whistler carrying them off, its
+    /// forelegs' hooks and the way it's running (tools/blender/whistler.py carry, its sockets hook_r and hook_l: Hung, by the
+    /// armpits, <see cref="CarriedUnderarm"/> over their feet); a Car Hugger swallowing them, its mouth and the way into it
+    /// (stood <see cref="SwallowReach"/> back from it on their own floor, bent into it). Camera-relative. GreyboxScene puts
+    /// them there, and clears it each frame.
+    /// </summary>
+    public Dictionary<int, (Vector3 At, Vector3 Forward, bool Hung)> Clutches { get; } = new();
+
+    /// <summary>How far in front of the Car Hugger's mouth someone it's swallowing stands: their head in it
+    /// (crew_clips.py held_mouth, bent double, the head 0.62-0.82 m ahead of their feet).</summary>
+    public const float SwallowReach = 0.72f;
+
+    // The Car Hugger just drawn swallowing: its mouth bone (over the end door's line), and the way into the mouth is its
+    // back (it faces the car).
+    bool Swallowing(bool drawn, in Matrix4x4 model)
+    {
+        if (drawn)
+        {
+            var into = Vector3.TransformNormal(Vector3.UnitZ, model) with { Y = 0 };
+            if (into.LengthSquared() > 1e-8f)
+                _clutch = (BoneAt("car_hugger", "mouth", model), Vector3.Normalize(into), false);
+        }
+        return drawn;
+    }
+
+    /// <summary>How far over their feet someone carried off by the Whistler is held: under the arms (whistler.py
+    /// CARRY_UNDERARM; crew_clips.py held_carried lifts them 0.1 m to it).</summary>
+    public const float CarriedUnderarm = 1.42f;
+
+    // The clutch of the Whistler just drawn in its carry, for Clutches.
+    (Vector3 At, Vector3 Forward, bool Hung)? _clutch;
+
     bool EnemyIn(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite, Prey? prey, Room? room, float pace)
     {
         var m = model;
@@ -1842,8 +1922,11 @@ public sealed class CreatureArt
         {
             case EnemyKind.Choir when _models.ContainsKey("choir"):
                 {
-                    // Swooping, it faces who it's after (the loose basis faces the train: at the doors, it faces them).
-                    if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab)
+                    // Swooping, it faces who it's after (the loose basis faces the train: at the doors, it faces them);
+                    // driven off, away from the train.
+                    if (e.Phase == SpinePhase.BreakOff)
+                        m = Matrix4x4.CreateRotationY(MathF.PI) * model;
+                    else if (prey is { } p && e.Phase is SpinePhase.Commit or SpinePhase.Grab)
                     {
                         var (r, _, b) = Basis(model);
                         var to = p.Feet - model.Translation;
@@ -2010,8 +2093,13 @@ public sealed class CreatureArt
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
         }
-        return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
+        _clutch = null;
+        bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
             extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+        if (_clutch is { } clutch && e.Holding >= 0)
+            Clutches[e.Holding] = clutch;
+        _clutch = null;
+        return drawn;
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>

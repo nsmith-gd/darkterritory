@@ -77,6 +77,7 @@ static class PlaythroughCommands
                 Derailed = world.Derailed,
                 FireDoorOpen = train.Boiler.FireDoorOpen,
                 SinceShovel = train.Boiler.SinceShovel,
+                ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build,
                 FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f,
                 StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince,
                 StokerDownAt = world.Enemies?.Stoker.LowPressureSeconds ?? 45,

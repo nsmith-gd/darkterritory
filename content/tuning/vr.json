@@ -26,6 +26,11 @@
     "fallSeconds": 0.35
   },
 
+  // How the eyes are drawn (ARCHITECTURE §8 note 221). "multiview": both in one pass (VK_KHR_multiview), each draw recorded
+  // once and rasterised into both eyes' layers; used wherever the GPU has the feature (every PCVR card, and lavapipe),
+  // and the per-eye path otherwise. "perEye": each eye its own renderer and pass, always (the fallback, for comparison).
+  "stereo": "multiview",
+
   // The HUD and the menus in the headset (T36): the flat screen's own drawing, on a panel floating `distance` metres
   // ahead of the head, `width` metres across and `drop` below the eyes. It moves with the head, but only turns once
   // the head's looked `followDegrees` off it, then eases round over about `followSeconds`: a panel pinned to the face

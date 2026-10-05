@@ -62,7 +62,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 |---|---|---|
 | Windowing, input, gamepad | **SDL3** (`SDL3-CS`) | Also used for audio device I/O fallback |
 | Graphics API | **Vulkan 1.3** (`Vortice.Vulkan`) | Dynamic rendering, no render-pass boilerplate. It is the API with universal OpenXR support (Meta PC runtime, SteamVR, standalone Quest if ever wanted) and it runs headless on Linux via lavapipe for agent screenshots. D3D11 would not run in the Linux containers. OpenGL's OpenXR support is uneven. |
-| VR | **OpenXR** (`Silk.NET.OpenXR`), `XR_KHR_vulkan_enable2`, stereo (a pass per eye now, multiview later) | PCVR first (Link / Air Link / Virtual Desktop / SteamVR). Standalone Quest (Android) is a post-launch option that this stack does not rule out. Tested headless on Monado's simulated headset (§8 note 25). |
+| VR | **OpenXR** (`Silk.NET.OpenXR`), `XR_KHR_vulkan_enable2`, stereo (multiview: both eyes in one pass, a pass an eye where the GPU lacks it; §8 note 221) | PCVR first (Link / Air Link / Virtual Desktop / SteamVR). Standalone Quest (Android) is a post-launch option that this stack does not rule out. Tested headless on Monado's simulated headset (§8 note 25). |
 | Physics | **Custom PBD** (`Ballast.Physics`), Jolt held in reserve | Loose bodies and ragdolls as position-based particles and constraints, living in car frames like players do (§8 note 21). Jolt (`JoltPhysicsSharp`, verified to restore and run on Linux) stays the option if we need true rigid-body stacking. |
 | Train | **Custom 1D rail sim** (`DarkTerritory.Sim/Train`) | Cars live on the rail spline, driven by longitudinal dynamics, and appear to Jolt as kinematic bodies. Already implemented and pinned to the spec. |
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
@@ -163,7 +163,7 @@ Forward+ renderer, deliberately limited:
 - Offscreen capture path for agents: `dt screenshot --scene … --camera … --out shot.png`.
 - VR: multiview single-pass stereo, 90 Hz target. The PS2-level poly budget makes this easy.
 
-**Status (art pass v2, §8 note 48).** The renderer draws the art pipeline plan's look: a sky pass (gradient, hazy moon, clouds, a 360° backdrop band of far silhouettes), the scene in a float target (point-sampled texture arrays with box-filtered mips and a positive bias, two-layer terrain blend, alpha test, per-pixel practical lights, Blinn-Phong speculars from spec maps, exponential height fog), a blended effects pass (flipbook smoke and steam, additive sparks and glows), then half-res bloom, a 16³ LUT grade, vignette, grain and the ordered dither into reduced colour depth. The kits (`DarkTerritory.Game/Art`) build the train over the sim's own collision, and the track, lineside and structures along the line; textures come from `tools/art/textures.py` (CC0 photo sources through a PBR-to-legacy converter, plus procedural ones). `dt art check` holds every piece to its budget; `dt art show <piece>` turns one on a turntable. Not yet: the lamp's shadow map, multiview, normal maps on the cab.
+**Status (art pass v2, §8 note 48).** The renderer draws the art pipeline plan's look: a sky pass (gradient, hazy moon, clouds, a 360° backdrop band of far silhouettes), the scene in a float target (point-sampled texture arrays with box-filtered mips and a positive bias, two-layer terrain blend, alpha test, per-pixel practical lights, Blinn-Phong speculars from spec maps, exponential height fog), a blended effects pass (flipbook smoke and steam, additive sparks and glows), then half-res bloom, a 16³ LUT grade, vignette, grain and the ordered dither into reduced colour depth. The kits (`DarkTerritory.Game/Art`) build the train over the sim's own collision, and the track, lineside and structures along the line; textures come from `tools/art/textures.py` (CC0 photo sources through a PBR-to-legacy converter, plus procedural ones). `dt art check` holds every piece to its budget; `dt art show <piece>` turns one on a turntable. Not yet: the lamp's shadow map, normal maps on the cab. (Multiview: note 221.)
 
 ### 6.6 Level editor
 The world is mostly **generated** (GDD §22: the line is generated per run; spec D: POIs are assembled from modules). So the designer mainly authors **pieces and rules**:
@@ -3168,7 +3168,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - a bound off the ballast onto the car's end;
       - the body reared up it, the forelegs hooked over the roof's lip, the hind legs scrabbling at the planks out of step;
       - a heave up and over, landing in the pack fight's crouch, which the crouch-lunge loop takes on from.
-    - **At night it reads by its embers** climbing the car's end. The black body is lost on the end in shadow, which is how the hounds read anyway (GDD §21: "in the rear lamp").
+    - **Not yet: at night it doesn't read.** Climbing the car's end in shadow, only its ember slashes show. The pack on the ground behind is lost from the chase camera too (the Look Review round of 5 October). Their need is "read at range in the rear lamp, and as a pack": more glow, and a light of their own (launch scope; the hounds aren't in the demo).
     - **Staging:** `dt screenshot --threats --board s --view board`. The `board` view is behind the rear car, a little over its roof; `--board` takes the staged Car Hugger off that end.
     - **Tests:** `CreatureArtTests` budgets now list `board` among the hound's clips.
 210. **The body under a headset (T82, roadmap M4 "VR body IK"; note 51's "not yet").** T47 gave the crew a headset player's arms, reaching from shoulders that never moved: a crewmate crouched for a crate stood bolt upright with their arms down through the roof, and turned their head round with their hips nailed in place.
@@ -3202,6 +3202,99 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **What it found:** the sweep now judges these kinds, and it fails on them. With one look-out who steps back from the lip and outruns the tongues, a Dragger or a Ribbit pack lands nothing in 90 s. That's the trivial verdict doing its job; it's left for balance, not hidden.
     - **Not yet:** a look-out in a crew of two (the gunner's legs are a walker's, but its gun is its post); looking more than once at the same thing; the Grumbler's crane out on the line (still unplaced without `--at-stops`).
     - Harness and bots only; protocol and enemy rules unchanged. Test: `AuditTests.TheLookOutGoesAndLooksAtWhatLiesInWait`: a 30 s insisted Gaunt+Dragger night, four bots. Without the look-out, both are placed and neither comes on; with it, both do.
+213. **The Whistler carries its victim (the checklist's "not yet": "the victim carried during the run").**
+    - **Before:** carrying someone off (App. A.4 GRAB), it played its run, laid flat on the ground. The one it had was drawn where the sim has them, at its middle, upright in `held_carried`, a pose made for the old upright Whistler. So the victim stood inside a flat coil.
+    - **Now it has a `carry` clip** (tools/blender/whistler.py, the run's 0.6 s loop):
+      - the back half runs flat and snaking (seg_05 takes back the snake's turn, so the front heads straight on);
+      - the front half rears two metres in a column, the head curled forward over them, the siphon out over their head;
+      - the forelegs wrap round from behind (solved with `rig.reach`), the hooks under their arms at `CARRY_UNDERARM`, 1.42 m.
+    - **Sockets `hook_r` and `hook_l`** at the forelegs' tips say where that is. `CreatureArt.Clutches` records them, by the held player's id, for each Whistler drawn this frame.
+    - **`GreyboxScene.Hung` draws the victim there,** by the armpits (`CreatureArt.CarriedUnderarm` over their feet), facing the way it runs. The sim still has them at its middle; this is presentation only.
+    - **`held_carried` is redone for it:** lifted 0.1 m to the hooks, the shoulders forced up, the hands clawing back at the forelegs, the legs swept back off the ground and kicking.
+    - **Put down at the nest,** out of its forelegs, they're drawn on their back (`held_pinned`), not hung in the air.
+    - **Facing:** carrying, it faces square off the line, the way its nest is from the gap (Sim `Whistler`), not off the nearest car's middle; a gap is at a car's end, which put it 45 degrees out.
+    - **Staging:** `dt screenshot --threats --whistler carry --view carry` (a second into the run, 7 m out, `Staging.CarryOut`). `--whistler nest` now has its catch too.
+    - **Tests:** `WhistlerTests.CarryingSomeoneOffItHoldsThemUpUnderTheArmsInFrontOfItsRearedFront`; `CreatureArtTests` budgets list `carry`.
+214. **The Choir disperses (the checklist's "not yet": "a disperse when the crew hushes (it just leaves)").**
+    - **Before:** driven off (World: its quiet held, enemies.json `choir.disperseQuietSeconds`, or its one taken), the swarm is dismissed the same tick (`Enemy.Dismiss`: BreakOff, then Gone), and every ghost blinked out.
+    - **Now the scene sees it go** (`GreyboxScene.Leaving`, presentation only, the scene's own memory like note 208's deaths). A ghost it drew last frame that's gone without being killed is drawn going for `CreatureArt.ChoirLeaveSeconds` (3 s):
+      - turned away from the train, in its swoop (tipped mouth first, tendrils streamed back);
+      - swept up 14 m and out 10 m from the train, faster and faster (the square of the time);
+      - its cold light going out, the cold mist off it gone at 60%.
+    - **`DrawEnemy`'s flinch push now applies with or without a tip** (going is all push). Every existing push came with a tip, so nothing else moves.
+    - **Staging:** `dt screenshot --threats --dispersing s --view choir` (the staged ghosts driven off s seconds ago).
+    - **Tests:** `CreatureArtTests.TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone`.
+    - **Not yet:** like the deaths, `dt playthrough`'s fresh scene per shot doesn't carry it.
+215. **The Track Doll vanishes, and takes a toy and goes (the checklist's "not yet": "vanish with no walk-off (it just stops being drawn); takes a toy and goes").**
+    - **Before:** the sim moves it from one tick to the next. Come at in its car, it hops to another; stopped short of on the rail, or appeased with a toy, it leaves the run. It simply stopped being drawn.
+    - **Now the scene sees it vanish** (`GreyboxScene.Vanishing`, presentation only, the scene's own memory as in notes 208 and 214). It copies each doll it drew (the sim moves its own). A doll that's gone, or moved car or more than a metre, is drawn where it was for a flicker (0.3 s, on and off at 15 Hz), held stock still in its last pose. It's never seen to walk.
+    - **Where it was,** `Effects.Vanish` leaves a puff of pale porcelain dust and a few white chips of glaze, for `Effects.VanishSeconds`.
+    - **Appeased,** a toy body gone the same tick goes with it: in the flicker it's clutched under its chin in both hands (its giggle's), drawn as `SceneArt.Toy` draws that toy (`CreatureArt.DollHolding`).
+    - **Staging:** `dt screenshot --threats --vanish s[:toy] --view inside` (the haunting doll moved into car 2 over its cargo and gone s seconds ago; s < 0, still there).
+    - **Tests:** `CreatureArtTests.TheTrackDollFlickersOutWhereItWasNotWalkingOff`.
+216. **The firebox's bed is a heap of coals (the 5 October audit; the checklist's firebox).** Through the open firehole, what the fireman sees all night was a flat bright band along the grate (an emissive box) under a row of flame cards rooted on one line.
+    - **Now `Effects.Coals` draws the bed** as 72 lumps across the grate, mounded in the middle and banked at the back, each turned its own way.
+      - The dark ones are coal, lit by the fire's own light.
+      - The ones in the heart of the bed glow, more of them the hotter the fire, each breathing on its own slow beat. They keep the Stoker's green.
+    - **The flames lick up off the heap:** each tongue's root follows the mound and sits in or out over the bed, shallow enough not to be cut by the back wall.
+    - **The glows are toned down:** the coals' glow is a soft low blob, not a sheet, and the roaring white heart is smaller, so the coals still show at full heat.
+    - **The scene's flat band** (`GreyboxScene`) is drawn only without the art pass's fire, or with the door shut.
+    - **Tests:** `EffectsTests.TheBedIsAHeapOfCoalsNotABand`. Looked at: `dt screenshot --firedoor --view firebox` (at `--coal` 1, the default and 9), and `--view fireman --flare 0.15`.
+217. **The spruce near the line is modelled, and the pines fill out (the 5 October audit's "pines from above": narrow stacked columns).**
+    - **What the chase camera found:**
+      - Along a Maritime-planned forest (PlanArt), every spruce was `NovaKit.Conifer`'s three crossed narrow cards; from above they read as a column of separate dark clumps with a stick on top.
+      - The modelled pine (`WorldKit.Pine`) showed sky between its 14 whorls, and its trunk poked out above the leader.
+    - **The fix:**
+      - `WorldKit.Pine` and the new `WorldKit.Spruce` share one bough builder. The pine now has 18 whorls, and both have a slim core of crossed foliage cards inside the boughs, so the gaps between whorls are foliage. The trunk stops in the leader.
+      - The spruce has short boughs in 24 whorls, a narrow spire as black spruce is, a club of dense short boughs at the top, and is tinted bluer like the far cards.
+      - PlanArt uses it within `NearSpruce` (40 m, as WorldArt's `NearTrees`) of the line; out in the fog, the cards stay.
+    - **Cost:** near-line forest frames on frontier:7 at km 15.9 go from about 260k to 410k triangles (chase and trackside), inside `perf.json`'s 1.5M.
+    - **Tests:** `LinesideArtTests.TheNearSpruceIsModelledNarrowAndMassed`. Looked at: `--route frontier:7 --at 15930 --view chase` and `--view trackside`, and `--at 4000 --view chase`.
+218. **The one the Car Hugger swallows is drawn in its mouth (the checklist's "nothing draws a player held in its mouth").**
+    - **Before:** the sim holds its catch wherever in `mouthReach` they were caught. Drawn there in `held_mouth` (bent double, the head 0.62 to 0.82 m ahead of the feet), they could be bent into thin air or a wall.
+    - **Now** the swallowing Car Hugger records its `mouth` bone, which sits over the end door's line and not at the model's origin, and the way into the mouth, in `CreatureArt.Clutches`. Clutches now say which kind of hold it is (`Hung` for the Whistler's).
+    - **`GreyboxScene.Hung` stands the victim** `CreatureArt.SwallowReach` (0.72 m) in front of the mouth on their own floor, facing into it, so their head is in it. Presentation only.
+    - **Staging:** `dt screenshot --threats --hugger swallow --doors-open --view swallow`. The swallow view is inside the rear car, looking at its end door. The staged catch is caught off to one side, 1.4 m in, and is seen in the mouth.
+    - **Tests:** `CreatureArtTests.TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught`.
+219. **The Choir's arrival beat: the frost before it's seen (the checklist's choir-fx "still to do").** Its gathering was all audio and the HUD's meter, and the first thing seen was a ghost.
+    - **Now, from halfway through its gathering** (`GreyboxScene.ChoirGathering`, the world's `Choir.Build`, 1 while the swarm's here; past `ChoirFrostFrom`), `Effects.Frost` puts a glitter of frost in the air round the train.
+      - It is pale blue crystals falling slowly and twinkling. They're anchored to the world in cells, as the corruption's motes are, so the train runs through them.
+      - It thickens as the Choir nears, over a thin frost haze low on the roofs and ground.
+    - **The crew's breath shows** at the same pace (`SceneArt.Breath`: the cold comes with it).
+    - **Wiring:** the app and `dt playthrough` set it from the world each frame; it's presentation only.
+    - **Staging:** `dt screenshot --gathering g` (e.g. `--view roof --crew --gathering 0.95`).
+    - **Tests:** `EffectsTests.AsTheChoirComesTheAirGoesToFrost`.
+220. **The Ribbits creep in and devour (the checklist's ribbits-anim "still to do").** With its catch frozen (App. A.6 GRAB), the sim hops the pack's leader in on them at a quarter of its speed, stopping 0.8 m short, and the art played its `tongue` clip all the way: it slid in sitting up with its tongue out, and stayed so on them.
+    - **Two new clips** (tools/blender/ribbit.py):
+      - `creep`: flattened low, ears laid back, a slow belly-down crawl with the tongue still out.
+      - `devour`: reared over them on its forelegs, jaw working and head shaking, the throat sac swelling as it swallows.
+    - **The choice** (`CreatureArt.RibbitClip`): COMMIT is `tongue`. GRAB and PUNISH are `creep` while the leader is more than `RibbitDevourReach` (1.2 m) from them, and `devour` inside it. Devouring, its own tongue isn't drawn out to them (it's in them); the rest of the pack's still are.
+    - **Staging:** `dt screenshot --threats --crew --ribbits devour --view packside` (a new view, low along the car, side on). It puts the leader where the hop stops. `--ribbits tongue|devour` also draws crewmate 4 in the game's `held_frozen`.
+    - **Tests:** `CreatureArtTests.TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem`; the ribbit's clip budget lists both.
+221. **Multiview: both eyes in one pass (roadmap M4; the "multiview later" of §3's VR row and note 25's "not yet").** A headset frame drew each eye with its own renderer: every scene, post and overlay pass twice, two command buffers and two submits a frame, the right eye sampling the left's shadow maps (note 86).
+    - **Support.** VK_KHR_multiview is core in Vulkan 1.1, but its `multiview` feature is optional. This machine's lavapipe (Mesa 25.2.8, llvmpipe on LLVM 20) has it (`vulkaninfo`: `multiview = true`, `maxMultiviewViewCount = 6`), and so does every PCVR-class desktop driver. `GpuContext` reads `VkPhysicalDeviceVulkan11Features` and `VkPhysicalDeviceMultiviewProperties`, enables the feature where it's there with room for two views, and says so (`GpuContext.Multiview`). It does the same on the OpenXR path, whose runtime creates the device from our create info.
+    - **The flag.** `tuning/vr.json` `"stereo"`: `"multiview"` (the default) or `"perEye"`. `VrView.Choose` takes multiview only when the device has it, so a GPU without it falls back to the old path. `dt vr check` and `dt perf` take `--stereo multiview|per-eye` to force either. Our choice, not the GDD's or the spec's.
+    - **The renderer** (`GreyboxRenderer(..., views: 2)`):
+      - Every per-eye target is a two-layer array image with an array view: colour, scene, depth, occlusion, both bloom pairs, and the LDR frame. Each scene and post pass begins rendering with `viewMask` 0b11, and its pipeline is built with the same mask.
+      - The shaders are the same source compiled with `MULTIVIEW` defined and `GL_EXT_multiview` enabled (`Shaders/view.glsl`). `scene.vert`, `fx.vert` and `sky.frag` take their eye's view-projection and inverse by `gl_ViewIndex` (`frame.viewProj1`, `invViewProj1` at the end of the frame block). The post shaders sample their eye's layer of the per-eye targets (`EYE_SAMPLER`, `EYE_UV`). SSAO rebuilds view positions with each eye's own focal lengths (`c.yz` the right eye's; near and far, so M33 and M43, are shared).
+      - The overlay (HUD panel, vignette: a projection per eye) is both eyes' vertices in one buffer, left first. `overlay.vert` pushes each eye's vertices out of the other's clip volume.
+      - Culling is against the union of the eyes' frusta: an instance either eye sees is recorded once and drawn into both. The effects' far-to-near sort is from the body's eye point, as before, so both paths sort the same.
+      - **Kept to one view, legitimately:** the lamp's and the moon's shadow maps. They're the body's views, not an eye's (note 86), so they're drawn once a frame either way. They're single-layer targets with mask-0 pipelines, placed by the left eye's camera exactly as the per-eye path's left renderer places them. The desktop mirror is a blit of layer 0, not a third view.
+      - `Record(cmd, cameras, ...)` takes both eyes. `RenderEyes` reads both layers back; `Prepare(mesh, left, right)` takes each eye's overlay. `FrameStats.Views` says the scene pass's triangles go through the GPU twice.
+    - **OpenXR.** `XrStereoSession.FrameBoth` acquires both eyes' swapchain images and records both eyes into the one renderer in one submit, then copies layer 0 and layer 1 to them. `EyeSubmits` counts the submits. The two swapchains are kept (a single array swapchain would change nothing: the frame is copied either way, note 25).
+    - **Two lavapipe traps, both found by a crash.**
+      - **Timestamps.** A timestamp taken after a multiview pass writes a query per view on lavapipe, as if still inside the pass. The last pass mark's second write ran off the end of the pool, and the process segfaulted. The pool now has one spare slot per extra view. Each mark's spare write is overwritten by the next mark, so every time read is still right (`TimestampSlots`).
+      - **glslang.** A `§` in `view.glsl`'s opening comment made glslang report "unexpected end of file" for the shaders that include it, though the same character is harmless further down `sky.frag`. The file is ASCII only.
+    - **Before / after** (`dt perf --only vr --frames 6`, 1032x1104 an eye at 72 fps; lavapipe, so the GPU times are software and are judged by counts, not ms):
+      - Draw calls a frame, every pass and eye: 538 → 372 trackside, 460 → 343 roof, 347 → 271 cab, 517 → 348 chase, 474 → 354 gap, 306 → 237 gun. That's 22–33 % fewer. The scene pass is recorded once instead of twice; the shadow passes were already drawn once.
+      - Eye submits a frame: 2 → 1. Triangles through the GPU and the busiest pass's draws are unchanged (1.38 M and 166 trackside): the union cull keeps exactly what each eye's own did.
+      - Main-thread CPU: prepare halves (0.94 → 0.51 ms trackside, 1.32 → 0.58 cab; one upload instead of two), record is about a third less (0.74 → 0.50, 0.59 → 0.42). The worst view's CPU is 7.54 ms before and 6.92 ms after against the 8.33 ms budget. (Build times are the scene's, the same either way, and noisy on a shared machine. The per-eye path measured again alongside: 9.29 ms worst, its build noise.)
+      - GPU, software: the scene pass's two layers cost about what two single-layer passes did (lavapipe rasterises each view in turn), 640 → 579 ms trackside, 815 → 822 ms cab. Real hardware's win is the vertex work and the state changes shared between the eyes, and that wants measuring on a card.
+    - **Verified:**
+      - `MultiviewTests.BothEyesInOnePassMatchEachEyeDrawnAlone` (roof, cab: the crew, threats, effects and lights, eyes an IPD apart with off-centre frustums, a different overlay in each). Each multiview eye matches the per-eye renderer's to within 2 levels a channel; 0 of 245,760 channels are further off in either view. The eyes differ from each other, and each overlay shows in its own eye only. Scene draws are 77 (cab) and 119 (roof) for both eyes at once, against 77+77 and 119+119, and the shadow passes draw the same once.
+      - `MultiviewTests.ARendererWithoutTheFeatureIsRefusedAndThePerEyePathIsChosen`.
+      - `tools/xr-sim.sh && dt vr check` on Monado's simulated HMD, both ways. Multiview: 30 frames, one eye submit a frame, the session walked down to Exiting. `--stereo per-eye`: the same, with two. `--hud`: 12,462 overlay vertices in each eye from the shared buffer. The side-by-side PNGs (`out/shots/vr-multiview-hud.png`, `vr-pereye-hud.png`) show sky, moon, backdrop, wires, the train, the gloves and each eye's own HUD panel. The eyes are 62 mm apart, and nothing drawn in the per-eye path is missing. (The two runs aren't pixel-comparable: the simulated head drifts between sessions.)
+    - **Not yet:** numbers from a real GPU and headset (the exit test's run); multiview for the flat view's other uses (none needs it).
 222. **Breaches (the breach decided 1 Oct; spec B.9), and the fouled gun's sounds.** The breach was approved but missing from the sim, so its checklist sounds (state-breach, crew-repair's boarding) had no state to play from. (Fouling is note 183's.)
     - **A breach is `Vehicle.Breached` and `BreachAt`** (the hole, car frame), replicated in the vehicle record. The host sets it two ways. The Car Hugger sets it every `carHugger.breachEaten` (0.1, 25 s of feeding) of shell it eats, boarded up or not. That's past the guard van's platform into the end wall as `BiteTuning` draws it (its platform share is 0.08), so the hole is there when it's heard. Climbers set it when they get into a car that's shut (every door and the hatch) and unlit, through the roof (the hatch, on a cargo car).
       - **Reading:** the decision names "Climbers getting into an unlit car", while App. A.4's ENTER is "unlit or has nobody in it". A lit, empty car they get into isn't breached unless `climbers.breachLitCars` is set. A car with a door or its hatch open is got into that way, and nothing's forced.

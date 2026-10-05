@@ -57,9 +57,9 @@ public class CreatureArtTests
         // A character (App. A.5), SK_Human stretched: over two metres on its points, so it stoops indoors and ducks through doors.
         ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
-        ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run"], ["hit"]),
+        ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run", "carry"], ["hit"]),
         // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
-        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue"], ["hit"]),
+        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue", "creep", "devour"], ["hit"]),
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
@@ -317,6 +317,116 @@ public class CreatureArtTests
         Assert.True(Drawn(0.6, kill: true) > 0, "going over");
         Assert.True(Drawn(Effects.DeathSeconds * 0.8, kill: true) > 0, "crumbling");
         Assert.Equal(0, Drawn(Effects.DeathSeconds + 0.1, kill: true));
+    }
+
+    [Fact]
+    public void TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone()
+    {
+        // GreyboxScene.Leaving: the sim dismisses the swarm the tick it's driven off (World: quiet held); the scene that saw
+        // its ghosts last frame draws them going, higher and higher, until CreatureArt.ChoirLeaveSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var ghosts = threats.Where(e => e.Kind == EnemyKind.Choir).ToList();
+        Assert.NotEmpty(ghosts);
+        var eye = ghosts[0].WorldPosition(train) + new Double3(6, -1, 4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Tick = Staging.StrikeTick };
+        float[] Heights(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("choir", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation.Y)];
+        }
+        var there = Heights(-1.0 / Sim.SimConstants.TickRate);
+        Assert.NotEmpty(there);
+        scene.Enemies = [.. threats.Except(ghosts)];
+        var going = Heights(0.1);
+        var gone = Heights(CreatureArt.ChoirLeaveSeconds * 0.8);
+        Assert.Equal(there.Length, going.Length);
+        Assert.Equal(there.Length, gone.Length);
+        Assert.True(gone.Max() > there.Max() + 4, $"going up: from {there.Max()} to {gone.Max()}");
+        // (Going from the frame that first missed them, 0.1 s in.)
+        Assert.Empty(Heights(0.1 + CreatureArt.ChoirLeaveSeconds + 0.1));
+    }
+
+    [Fact]
+    public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
+    {
+        // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
+        // front of the mouth on their own floor, facing into it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Hugger(Staging.Threats(train), "swallow");
+        var caught = Staging.Swallowed(train);
+        var eye = caught.Feet + new Double3(1, 1.5, -3);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [caught], Tick = Staging.StrikeTick };
+        scene.Build(new MeshBuilder(), train, eye);
+        Assert.True(Look.Art.Creatures!.Clutches.TryGetValue(caught.Id, out var mouth));
+        Assert.False(mouth.Hung);
+        var at = eye + new Double3(mouth.At.X, mouth.At.Y, mouth.At.Z);
+        // Where the scene stands them: in front of the mouth, along the way into it, not where the sim caught them.
+        var feet = (at - new Double3(mouth.Forward.X, 0, mouth.Forward.Z) * CreatureArt.SwallowReach) with { Y = caught.Feet.Y };
+        Assert.True((feet - caught.Feet).Length > 0.5, "moved from where they were caught");
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        var local = rear.ToLocal(feet);
+        Assert.InRange(local.X, -0.9, 0.1);
+        Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    [Fact]
+    public void TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem()
+    {
+        // App. A.6 GRAB: the tongues hold them and the leader hops in at a quarter speed, stopping 0.8 m short. Out in the
+        // pack's line it creeps; on them it devours (and its own tongue's in them, not drawn out to them).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var them = Staging.Lone(train).Feet;
+        float Leader(string mode)
+        {
+            var leader = Staging.Ribbits(Staging.Threats(train), mode, train).OfType<Ribbit>().MinBy(r => r.Id)!;
+            var off = (leader.Local - them) with { Y = 0 };
+            return (float)off.Length;
+        }
+        Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // Where the sim's hop stops is close enough to be on them.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
+    }
+
+    [Fact]
+    public void TheTrackDollFlickersOutWhereItWasNotWalkingOff()
+    {
+        // GreyboxScene.Vanishing: come at, the sim moves it to another car from one tick to the next; the scene that saw it
+        // last frame draws it where it was for a flicker (and its dust), then only where it is.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var doll = threats.OfType<Sim.Enemies.TrackDoll>().First(d => d.Attached == 0);
+        threats.RemoveAll(e => e is Sim.Enemies.TrackDoll && e != doll);
+        var room = train.Frames[2].Shape.Interior!.Value;
+        doll.Restore(SpinePhase.Punish, 3, 1, 2, room.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        var eye = doll.WorldPosition(train) + new Double3(0.5, 1.4, -4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats };
+        int Dolls(double at)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(at * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("track_doll", StringComparison.OrdinalIgnoreCase));
+        }
+        int one = Dolls(0);
+        Assert.True(one > 0);
+        // Come at: it's in car 3 now.
+        doll.Restore(SpinePhase.Punish, 3, 1, 3, train.Frames[3].Shape.Interior!.Value.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        Assert.Equal(2 * one, Dolls(1.0 / Sim.SimConstants.TickRate));
+        Assert.Equal(one, Dolls(0.5));
+        Assert.Equal(one, Dolls(Effects.VanishSeconds + 0.2));
     }
 
     [Fact]

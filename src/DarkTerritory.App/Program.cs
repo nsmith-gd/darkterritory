@@ -150,8 +150,10 @@ VrView? StartVr()
 {
     try
     {
-        var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface);
-        Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye");
+        // Both eyes in one pass where the GPU can (tuning/vr.json "stereo", ARCHITECTURE §8 note 221).
+        var stereo = DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Stereo;
+        var view = VrView.Start("Dark Territory", double.Parse(Arg("--vr-scale", "0.5")), Window.VulkanInstanceExtensions(), window.CreateSurface, stereo);
+        Console.WriteLine($"vr: {view.Headset.System} on {view.Headset.Runtime}, {view.Session.EyeWidth}x{view.Session.EyeHeight} per eye, {view.Stereo}");
         return view;
     }
     catch (XrUnavailableException e)
@@ -968,6 +970,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
+        scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;

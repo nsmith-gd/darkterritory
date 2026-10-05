@@ -265,7 +265,14 @@ static object VrCheck(TrainTuning t, string content, string[] args)
     DarkTerritory.Game.VrView vr;
     try
     {
-        vr = DarkTerritory.Game.VrView.Start("dt vr check", Opt(args, "--scale", 0.5));
+        // How the eyes are drawn: tuning/vr.json's way (multiview where the GPU has it), or --stereo multiview|per-eye.
+        var stereo = Str(args, "--stereo", "") switch
+        {
+            "per-eye" => StereoPath.PerEye,
+            "multiview" => StereoPath.Multiview,
+            _ => DataFile.Load<DarkTerritory.Game.VrTuning>(Path.Combine(content, DarkTerritory.Game.VrTuning.File)).Stereo,
+        };
+        vr = DarkTerritory.Game.VrView.Start("dt vr check", Opt(args, "--scale", 0.5), stereo: stereo);
     }
     catch (Ballast.Xr.XrUnavailableException e)
     {
@@ -355,6 +362,10 @@ static object VrCheck(TrainTuning t, string content, string[] args)
             recommended = new[] { vr.Headset.EyeWidth, vr.Headset.EyeHeight },
             eyeRender = new[] { vr.Session.EyeWidth, vr.Session.EyeHeight },
             swapchainFormat = vr.Session.SwapchainFormat.ToString(),
+            // Multiview: both eyes in one pass and one submit a frame; per-eye: a renderer, a pass and a submit an eye.
+            stereo = vr.Stereo.ToString(),
+            multiviewDevice = vr.Gpu.Multiview,
+            eyeSubmitsPerFrame = vr.Session.FramesRendered > 0 ? Math.Round((double)vr.Session.EyeSubmits / vr.Session.FramesRendered, 2) : 0,
             framesRendered = vr.Session.FramesRendered,
             fps = Math.Round(vr.Session.FramesRendered / seconds, 1),
             outcomes,
@@ -1210,7 +1221,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
         Time = 0.37,
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", "")), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
@@ -1239,6 +1250,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker") || args.Contains("--flare"),
         // --flare s: s seconds after a shovelful landed (default 0.15), the firebox flaring (§31).
         SinceShovel = args.Contains("--flare") ? Opt(args, "--flare", 0.15) : double.PositiveInfinity,
+        // --gathering g: the Choir that far through its gathering (0-1), its frost in the air and the crew's breath (A.7).
+        ChoirGathering = (float)Opt(args, "--gathering", 0),
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
@@ -1271,6 +1284,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --phase s: how far through a timed act the staged crew are (the cannon's reload: 1.5 s a beat; Crewmate.Phase).
     if (args.Contains("--phase") && scene.Crew is { } phased)
         scene.Crew = [.. phased.Select(c => c with { Phase = Opt(args, "--phase", 0) })];
+    // --tippy grab: crewmate 1, the one it has, as the game draws them (CrewActs: held_cover, its hand over their mouth).
+    if (Str(args, "--tippy", "") == "grab" && scene.Crew is { } held)
+        scene.Crew = [.. held.Select(c => c.Id == 1 ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldCover } : c)];
+    // --ribbits tongue|devour: crewmate 4, the one the tongue has, frozen where they stand as the game draws them (held_frozen).
+    if (Str(args, "--ribbits", "") is "tongue" or "devour" && scene.Crew is { } frozen)
+        scene.Crew = [.. frozen.Select(c => c.Id == Staging.LoneId ? c with { Act = DarkTerritory.Game.Art.CrewPose.HeldFrozen } : c)];
+    // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
+    if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
+        scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train)];
+    // --whistler carry|nest: the one it's carrying off, or has at its nest, as well as anyone else staged (App. A.4; Staging.Carried).
+    if (Str(args, "--whistler", "") is "carry" or "nest" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Whistler>().FirstOrDefault() is { Holding: >= 0 } carrying)
+        scene.Crew = [.. scene.Crew ?? [], Staging.Carried(carrying)];
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
         scene.Bodies = Staging.GauntLoad(train, content, leaving).All;
@@ -1306,6 +1331,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         pack.RemoveAll(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.CarHugger);
         boarding.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Commit, Opt(args, "--board", 0.5), boarding.Health, boarding.Attached, boarding.Local, 0, 0, 0,
             boarding.Extra, boarding.Extra2);
+    }
+    // --vanish s[:toy] (with --threats): the staged haunting Track Doll moved into car 2, over its cargo, and gone from there
+    // s seconds ago (come at, or with ":toy", given one and taking it: GreyboxScene.Vanishing); s < 0, still there. The
+    // inside view looks down that car's aisle at it.
+    if (Str(args, "--vanish", "") is { Length: > 0 } vanish && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> dolls
+        && dolls.FirstOrDefault(e => e is DarkTerritory.Sim.Enemies.TrackDoll { Attached: 0 }) is { } gone
+        && train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.Interior is { } room)
+    {
+        var parts = vanish.Split(':');
+        double ago = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
+        gone.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Punish, 3, gone.Health, Math.Min(2, train.Frames.Count - 1), room.Centre with { Y = room.Min.Y, Z = room.Centre.Z + 1.5 },
+            0, 0, 0, 0, 0);
+        if (ago >= 0)
+        {
+            dolls.Remove(gone);
+            scene.Vanished(gone, Staging.StrikeTick, parts.Length > 1 && parts[1] == "toy" ? 1 : -1);
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
+        }
+    }
+    // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
+    if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
+    {
+        foreach (var ghost in swarm.Where(e => e.Kind == DarkTerritory.Sim.Enemies.EnemyKind.Choir).ToList())
+        {
+            swarm.Remove(ghost);
+            scene.Dispersed(ghost, Staging.StrikeTick);
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--dispersing", 1) * SimConstants.TickRate);
     }
     // --killed kind:s (with --threats): that staged creature killed s seconds ago by a blow from the camera's side, going over
     // and crumbling (GreyboxScene.Deaths).
@@ -2209,7 +2262,7 @@ static int Usage()
           facility drill [--route tier:seed] [--facility i] [--cars n] [--load-seconds s]
           facility drill <kind> [--route tier:seed] [--cars n] [--hands n] [--seconds s]   a bot crew works a facility of that kind (GDD §18 set pieces)
                      GDD §17's set piece scripted: cut, spur in, load, back out, recouple, switch back, go; the timeline
-          vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--out out/shots/vr.png]
+          vr check [--frames n] [--view roof|cab|…] [--scale 0.5] [--stereo multiview|per-eye] [--out out/shots/vr.png]
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled

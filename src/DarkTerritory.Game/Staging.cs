@@ -230,9 +230,10 @@ public static class Staging
     /// <summary>
     /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
     /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
-    /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.
+    /// (GRAB) and creeping in, <c>devour</c> the leader on them (GRAB, where the hop stops 0.8 m short). Without a mode,
+    /// they're as <see cref="Threats"/> has them.
     /// </summary>
-    public static List<Enemy> Ribbits(List<Enemy> threats, string mode)
+    public static List<Enemy> Ribbits(List<Enemy> threats, string mode, TrainOnLine train)
     {
         if (mode.Length == 0)
             return threats;
@@ -240,11 +241,20 @@ public static class Staging
         {
             "hop" => SpinePhase.Dormant,
             "swell" => SpinePhase.Telegraph,
-            "tongue" => SpinePhase.Grab,
-            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell or tongue"),
+            "tongue" or "devour" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell, tongue or devour"),
         };
-        foreach (var r in threats.OfType<Ribbit>())
-            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, r.Local, 0, 0, 0, LoneId, 0);
+        var pack = threats.OfType<Ribbit>().ToList();
+        foreach (var r in pack)
+        {
+            var at = r.Local;
+            if (mode == "devour" && r == pack.MinBy(m => m.Id))
+            {
+                var them = Lone(train).Feet;
+                at = them + ((at - them) with { Y = 0 }).Normalized * 0.8;
+            }
+            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, at, 0, 0, 0, LoneId, 0);
+        }
         return threats;
     }
 
@@ -275,21 +285,34 @@ public static class Staging
     /// <summary>How far out from its gap the staged Whistler's nest is (a camera on the trail: <c>--whistler nest --view trail</c>).</summary>
     public const double NestOut = 24;
 
+    /// <summary>How far out from its gap the staged Whistler is on its run, carrying its catch (<c>--whistler carry</c>).</summary>
+    public const double CarryOut = 7;
+
     /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
+    /// <c>carry</c>: on its run out to its nest with crewmate <see cref="LoneId"/> (<see cref="Carried"/>), the <c>carry</c> view
+    /// off its side.
     /// </summary>
     public static List<Enemy> Whistler(List<Enemy> threats, string mode, TrainOnLine? train = null)
     {
         if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
             return threats;
+        if (mode == "carry" && train is not null && w.Attached >= 0)
+        {
+            // Carrying its catch off (App. A.4 GRAB): loose, off the train's left, a second into the run out from its gap.
+            var f = train.Frames[w.Attached];
+            var at = f.ToWorld(w.Local + new Double3(-CarryOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 1.0, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
+            return threats;
+        }
         if (mode == "nest" && train is not null && w.Attached >= 0)
         {
             // At its nest with its catch (App. A.4): loose, off the train's left, the run out from its gap done (GreyboxScene
             // sets it on the land, its trail behind it).
             var f = train.Frames[w.Attached];
             var at = f.ToWorld(w.Local + new Double3(-NestOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
-            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0);
+            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
             return threats;
         }
         var (phase, extra) = mode switch
@@ -297,7 +320,7 @@ public static class Staging
             "fold" => (SpinePhase.Dormant, 0.0),
             "whistle" => (SpinePhase.Telegraph, 1.0),
             "watch" => (SpinePhase.Commit, 0.0),
-            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch or nest"),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch, carry or nest"),
         };
         w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
         return threats;
@@ -555,6 +578,33 @@ public static class Staging
         "drag" => (float)new PassengerTuning().DragSpeed,
         _ => 0,
     };
+
+    /// <summary>The one the staged Whistler's carrying off (<c>--whistler carry</c>) or has at its nest (<c>nest</c>): where the
+    /// sim has them, at its middle (the scene hangs them in its forelegs, or lays them in the nest: GreyboxScene.Hung).</summary>
+    public static Crewmate Carried(Whistler w) => new(LoneId, w.Local, 0, true, Act: Art.CrewPose.HeldCarried);
+
+    /// <summary>
+    /// The staged Car Hugger swallowing (<c>dt screenshot --hugger swallow</c>, App. A.3 GRAB): crewmate <see cref="LoneId"/>
+    /// (<see cref="Swallowed"/>) caught at the rear car's end door in front of its mouth. The <c>swallow</c> view looks at it.
+    /// </summary>
+    public static List<Enemy> Hugger(List<Enemy> threats, string mode)
+    {
+        if (mode != "swallow" || threats.OfType<CarHugger>().FirstOrDefault(h => h.Attached >= 0) is not { } h)
+            return threats;
+        h.Restore(SpinePhase.Grab, 1.2, h.Health, h.Attached, h.Local, 0, 0, 0, 0, 0, holding: LoneId);
+        return threats;
+    }
+
+    /// <summary>The one the staged Car Hugger has (<c>--hugger swallow</c>): where the sim caught and holds them, in reach
+    /// of its mouth on the rear car's floor, off to one side (the scene stands them bent into the mouth: GreyboxScene.Hung).</summary>
+    public static Crewmate Swallowed(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        var at = rear.ToWorld(new Double3(0.3, floor, rear.Shape.HalfLength - 1.4));
+        var facing = rear.DirToWorld(new Double3(0, 0, 1));
+        return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
+    }
 
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)

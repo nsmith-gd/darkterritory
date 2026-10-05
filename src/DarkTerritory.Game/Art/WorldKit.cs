@@ -14,46 +14,77 @@ public static class WorldKit
     /// A black-forest spruce as the 2008-2012 benchmarks built their trees, not the old crossed pictures of one: a tapered
     /// trunk carrying whorls of boughs from low on it to the leader, each bough a card of one spruce branch (pine_bough)
     /// bent in two, rising off the trunk and drooping to its tip, longest at the bottom, packed close enough to overlap into a
-    /// mass. Alternate boughs roll either way about their length so none is ever seen edge-on. About 1500 triangles; the
+    /// mass. Alternate boughs roll either way about their length so none is ever seen edge-on. About 2000 triangles; the
     /// lineside keeps <see cref="PineCard"/> for the far field. <paramref name="variant"/> turns the whorls and jitters the boughs so a stand isn't one tree repeated.
     /// </summary>
-    public static MeshAsset Pine(Look? look, int variant, float height)
+    public static MeshAsset Pine(Look? look, int variant, float height) =>
+        Boughs(look, variant, height, reach: 0.34f, whorls: 18, core: "pine_card", tint: null, club: false, name: $"pine-{variant}-{height:0}");
+
+    /// <summary>
+    /// A black spruce near the line (maritime-rules.md §5: narrow, ragged, clubbed), modelled as <see cref="Pine"/> is: short
+    /// boughs in many whorls close up the trunk, so it stands a narrow spire with a mass, not crossed cards that read from
+    /// above as a column of separate clumps (the 5 October audit, the chase camera), and a club of dense growth at the top.
+    /// Bluer and darker than the pines, like the far field's cards (NovaKit.Conifer).
+    /// </summary>
+    public static MeshAsset Spruce(Look? look, int variant, float height) =>
+        Boughs(look, variant, height, reach: 0.15f, whorls: 24, core: look?.Layer("spruce_card") >= 0 ? "spruce_card" : "pine_card",
+            tint: new Vector3(0.75f, 0.85f, 0.85f), club: true, name: $"spruce3d-{variant}-{height:0}");
+
+    static MeshAsset Boughs(Look? look, int variant, float height, float reach, int whorls, string core, Vector3? tint, bool club, string name)
     {
         var k = new Kit(look, 200 + variant);
         k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
-        k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.96f, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.003f);
+        // (The trunk stops in the leader: it never shows above it as a bare stick.)
+        k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.88f, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.004f);
+        // A slim core of the far field's crossed cards inside the boughs: from above, or with the sky behind, the gaps
+        // between the whorls are foliage, not a stack of separate discs (the 5 October audit, the chase camera).
+        k.Use(core, Palette.PineDark, 0.3f, 0, tile: 1);
+        k.Baked = 0;
+        if (tint is { } t)
+            k.Tint = t;
+        for (int i = 0; i < 2; i++)
+        {
+            float a = variant * 0.7f + i * MathF.PI / 2;
+            k.Panel(new Vector3(0, height * 0.52f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, height * Math.Min(0.3f, reach * 1.6f), height * 0.86f,
+                Vector2.Zero, Vector2.One, twoSided: true);
+        }
         k.Use("pine_bough", Palette.PineDark, 0.3f, 0, tile: 1);
         k.Baked = 0;
+        if (tint is { } t2)
+            k.Tint = t2;
         float Jit(int i, float scale) => (Frac(MathF.Sin(i * 12.9898f + variant * 78.233f) * 43758.5f) - 0.5f) * scale;
-        const int Whorls = 14;
         int n = 0;
-        for (int w = 0; w < Whorls; w++)
+        void Bough(float y, float length, float droop, float a)
         {
-            float f = w / (float)(Whorls - 1);
+            var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
+            float l = length * (0.85f + Jit(n + 90, 0.3f));
+            var p0 = new Vector3(0, y, 0) + dir * height * 0.012f;
+            var p1 = p0 + dir * l * 0.55f + Vector3.UnitY * l * 0.06f;
+            var p2 = p1 + Vector3.Normalize(dir - Vector3.UnitY * droop) * l * 0.47f;
+            // The card's width, rolled about the bough (alternately), so from the side it still has breadth.
+            float roll = (n % 2 == 0 ? 1 : -1) * 0.55f;
+            var flat = Vector3.Cross(Vector3.UnitY, dir);
+            var across = Vector3.Normalize(flat * MathF.Cos(roll) + Vector3.UnitY * MathF.Sin(roll)) * MathF.Max(l * 0.34f, height * 0.035f);
+            k.Quad(p0 - across * 0.7f, p0 + across * 0.7f, p1 + across, p1 - across,
+                new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.55f, 1), new Vector2(0.55f, 0), twoSided: true);
+            k.Quad(p1 - across, p1 + across, p2 + across * 0.8f, p2 - across * 0.8f,
+                new Vector2(0.55f, 0), new Vector2(0.55f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
+        }
+        for (int w = 0; w < whorls; w++)
+        {
+            float f = w / (float)(whorls - 1);
             float y = height * (0.1f + 0.82f * f) + Jit(n, 0.25f);
             // Longest at the bottom, a spike of short ones at the top; the lower ones droop more, weighed down.
-            float length = height * 0.34f * MathF.Pow(1 - f, 0.75f) + height * 0.05f;
+            float length = height * reach * MathF.Pow(1 - f, 0.75f) + height * 0.05f;
             int count = f > 0.85f ? 5 : 9;
             float turn = variant * 0.9f + w * 0.73f;
             for (int b = 0; b < count; b++, n++)
-            {
-                float a = turn + b * MathF.Tau / count + Jit(n + 50, 0.5f);
-                var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
-                float l = length * (0.85f + Jit(n + 90, 0.3f));
-                float droop = 0.3f + 0.35f * (1 - f);
-                var p0 = new Vector3(0, y, 0) + dir * height * 0.012f;
-                var p1 = p0 + dir * l * 0.55f + Vector3.UnitY * l * 0.06f;
-                var p2 = p1 + Vector3.Normalize(dir - Vector3.UnitY * droop) * l * 0.47f;
-                // The card's width, rolled about the bough (alternately), so from the side it still has breadth.
-                float roll = (b % 2 == 0 ? 1 : -1) * 0.55f;
-                var flat = Vector3.Cross(Vector3.UnitY, dir);
-                var across = Vector3.Normalize(flat * MathF.Cos(roll) + Vector3.UnitY * MathF.Sin(roll)) * l * 0.34f;
-                k.Quad(p0 - across * 0.7f, p0 + across * 0.7f, p1 + across, p1 - across,
-                    new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.55f, 1), new Vector2(0.55f, 0), twoSided: true);
-                k.Quad(p1 - across, p1 + across, p2 + across * 0.8f, p2 - across * 0.8f,
-                    new Vector2(0.55f, 0), new Vector2(0.55f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
-            }
+                Bough(y, length, 0.3f + 0.35f * (1 - f), turn + b * MathF.Tau / count + Jit(n + 50, 0.5f));
         }
+        // Black spruce's club: a knot of short dense boughs at the very top, stood out round the leader.
+        if (club)
+            for (int b = 0; b < 10; b++, n++)
+                Bough(height * (0.82f + 0.012f * b), height * 0.07f, 0.15f, variant * 1.3f + b * 2.4f);
         // The leader: two short crossed boughs pointing up out of the top whorl.
         for (int i = 0; i < 2; i++)
         {
@@ -63,7 +94,7 @@ public static class WorldKit
             k.Quad(b0 - side * 0.35f, b0 + side * 0.35f, b1 + side * 0.12f, b1 - side * 0.12f,
                 new Vector2(0.2f, 0), new Vector2(0.2f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
         }
-        return k.Build($"pine-{variant}-{height:0}");
+        return k.Build(name);
     }
 
     /// <summary>
