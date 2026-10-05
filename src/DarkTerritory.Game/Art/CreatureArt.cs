@@ -826,34 +826,42 @@ public sealed class CreatureArt
 
     static MeshAsset[] BuildMarks(Look look)
     {
-        // The armband: a band round the upper arm (its bone runs down the arm, +Y), white for the crew colour to tint.
+        // The armband: a band of wool round the upper arm (its bone runs down the arm, +Y), pale for the crew colour to
+        // tint. Lit only a breath (Emissive) so it's found by lamplight without glowing like a lamp of its own.
         var band = new Kit(look, 3100);
-        band.Use("none", new Vector3(0.9f), 0.2f, 0.1f);
-        band.Emissive = 0.35f;
+        band.Use("wool", new Vector3(0.9f), 0.35f, 0.05f, tile: 4f);
+        band.Tint = new Vector3(0.85f);
+        band.Emissive = 0.12f;
         band.Cylinder(new Vector3(0, 0.05f, 0), new Vector3(0, 0.19f, 0), 0.09f, 12, caps: false);
         band.Cylinder(new Vector3(0, 0.19f, 0), new Vector3(0, 0.05f, 0), 0.088f, 12, caps: false);
-        // The kits, in the back's frame (spine_03: +X right, +Y up, +Z behind) or, for the satchel, the hips'.
-        var canvas = new Vector3(0.36f, 0.33f, 0.24f);
+        // The kits, in the back's frame (spine_03: +X right, +Y up, +Z behind) or, for the satchel, the hips': worn
+        // leather, a blanket rolled and strapped, hemp rope, an oilskin pack, all as dirty as the coats.
         var leather = new Vector3(0.24f, 0.15f, 0.09f);
         var satchel = new Kit(look, 3101);
-        satchel.Use("none", leather, 0.6f, 0.2f);
+        satchel.Use("leather", leather, 0.7f, 0.2f, tile: 3f);
+        satchel.Tint = new Vector3(0.7f, 0.6f, 0.5f);
         satchel.BevelBox(new Vector3(0.17f, -0.2f, -0.12f), new Vector3(0.27f, 0.02f, 0.14f), 0.02f);
         satchel.Rod(new Vector3(0.2f, 0.02f, 0.1f), new Vector3(-0.12f, 0.55f, 0.16f), 0.018f);
         var bedroll = new Kit(look, 3102);
-        bedroll.Use("none", canvas, 0.6f, 0.05f);
-        bedroll.Cylinder(new Vector3(-0.26f, 0.16f, 0.2f), new Vector3(0.26f, 0.16f, 0.2f), 0.09f, 9);
-        bedroll.Use("none", leather, 0.6f, 0.2f);
-        bedroll.Cylinder(new Vector3(-0.15f, 0.16f, 0.2f), new Vector3(-0.12f, 0.16f, 0.2f), 0.095f, 9);
-        bedroll.Cylinder(new Vector3(0.12f, 0.16f, 0.2f), new Vector3(0.15f, 0.16f, 0.2f), 0.095f, 9);
+        bedroll.Use("wool", new Vector3(0.36f, 0.33f, 0.24f), 0.7f, 0.03f, tile: 3f);
+        bedroll.Tint = new Vector3(0.55f, 0.5f, 0.4f);
+        bedroll.Cylinder(new Vector3(-0.26f, 0.16f, 0.2f), new Vector3(0.26f, 0.16f, 0.2f), 0.085f, 12);
+        bedroll.Use("leather", leather, 0.7f, 0.2f, tile: 3f);
+        bedroll.Tint = new Vector3(0.6f, 0.5f, 0.42f);
+        bedroll.Cylinder(new Vector3(-0.17f, 0.16f, 0.2f), new Vector3(-0.14f, 0.16f, 0.2f), 0.092f, 12);
+        bedroll.Cylinder(new Vector3(0.14f, 0.16f, 0.2f), new Vector3(0.17f, 0.16f, 0.2f), 0.092f, 12);
         var rope = new Kit(look, 3103);
-        rope.Use("none", new Vector3(0.45f, 0.38f, 0.25f), 0.7f, 0.05f);
+        rope.Use("wool", new Vector3(0.45f, 0.38f, 0.25f), 0.7f, 0.03f, tile: 6f);
+        rope.Tint = new Vector3(0.75f, 0.62f, 0.42f);
         for (int i = 0; i < 3; i++)
             rope.Cylinder(new Vector3(0.02f * i, -0.02f, 0.16f + 0.025f * i), new Vector3(0.02f * i, -0.02f, 0.19f + 0.025f * i), 0.17f - 0.02f * i, 14, caps: false);
         rope.Rod(new Vector3(-0.15f, 0.1f, 0.18f), new Vector3(0.12f, 0.3f, -0.12f), 0.02f);
         var pack = new Kit(look, 3104);
-        pack.Use("none", canvas * 0.8f, 0.6f, 0.05f);
+        pack.Use("coat_oilskin", new Vector3(0.29f, 0.26f, 0.19f), 0.7f, 0.15f, tile: 3f);
+        pack.Tint = new Vector3(0.7f, 0.66f, 0.55f);
         pack.BevelBox(new Vector3(-0.15f, -0.32f, 0.14f), new Vector3(0.15f, 0.2f, 0.3f), 0.03f);
-        pack.Use("none", leather, 0.6f, 0.2f);
+        pack.Use("leather", leather, 0.7f, 0.2f, tile: 3f);
+        pack.Tint = new Vector3(0.6f, 0.5f, 0.42f);
         pack.BoxAt(new Vector3(0, 0.08f, 0.31f), new Vector3(0.12f, 0.08f, 0.015f));
         return [band.Build("crew-armband"), satchel.Build("crew-satchel"), bedroll.Build("crew-bedroll"), rope.Build("crew-rope"), pack.Build("crew-pack")];
     }
