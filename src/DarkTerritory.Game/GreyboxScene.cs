@@ -375,7 +375,7 @@ public sealed class GreyboxScene
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
             // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
             if (ChoirGathering > ChoirFrostFrom)
-                Look.Art.Effects.Frost(mesh, eye, Time, SmoothStep((ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)));
+                Look.Art.Effects.Frost(mesh, eye, Time, ChoirCold(ChoirGathering));
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -623,6 +623,11 @@ public sealed class GreyboxScene
     readonly List<(Enemy Was, uint Tick, int Toy)> _vanished = new();
     // The Car Huggers cut loose with their cars since (with the tick): the sim's done with one once its car is off the train.
     readonly Dictionary<int, (Enemy Body, uint Tick)> _riding = new();
+    readonly List<(string Beat, Enemy Body)> _newBeats = new();
+
+    /// <summary>What began in the last <see cref="Remember"/>, each as it was last seen: "killed", "dispersed" (a Choir
+    /// ghost), "cut-loose" (a Car Hugger, its car off the train), "vanished" (a Track Doll). For dt playthrough's shots.</summary>
+    public IReadOnlyList<(string Beat, Enemy Body)> NewBeats => _newBeats;
 
     /// <summary>
     /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
@@ -634,24 +639,7 @@ public sealed class GreyboxScene
     {
         if (Tick < 0)
             return;
-        if (Hits is not null)
-            foreach (var h in Hits)
-                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
-                    _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
-        // The Choir driven off (A.7: its quiet held, or its one taken): every ghost the sim's dismissed this tick, not killed.
-        foreach (var (id, was) in _seen)
-            if (was.Kind == EnemyKind.Choir && !_dying.ContainsKey(id) && !_leaving.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
-                _leaving[id] = (was, (uint)Tick);
-        // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
-        // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
-        foreach (var (id, was) in _seen)
-            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frames.Count && Adrift(was.Attached)
-                && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
-                _riding[id] = (was, (uint)Tick);
-        _seen.Clear();
-        foreach (var e in Enemies ?? [])
-            if (!e.Gone)
-                _seen[e.Id] = e;
+        Remember(frames.Count);
         Leaving(mesh, line, frames, eye, from, to);
         Vanishing(mesh, line, frames, eye, from, to);
         Riding(mesh, line, frames, eye, from, to);
@@ -671,6 +659,66 @@ public sealed class GreyboxScene
             if (fx is not null && BodyAt(body, line, frames) is var at && (at - eye).Length < DrawDistance)
                 fx.Crumble(mesh, V(at, eye), (float)age, id);
         }
+    }
+
+    /// <summary>
+    /// What this frame's world has done since the last that the scene's seen (presentation only: the sim's done with it in
+    /// a tick, the scene's own memory draws it going): the killed, the Choir driven off, a Car Hugger cut loose, a Track
+    /// Doll gone from where it stood. Drawing the scene does this; something that photographs a night now and then (dt
+    /// playthrough) calls it every tick between, so what it shows is what a crew watching all along would see.
+    /// </summary>
+    public void Remember(int frameCount)
+    {
+        _newBeats.Clear();
+        if (Tick < 0)
+            return;
+        if (Hits is not null)
+            foreach (var h in Hits)
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                {
+                    _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
+                    _newBeats.Add(("killed", body));
+                }
+        // The Choir driven off (A.7: its quiet held, or its one taken): every ghost the sim's dismissed this tick, not killed.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.Choir && !_dying.ContainsKey(id) && !_leaving.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                _leaving[id] = (was, (uint)Tick);
+                _newBeats.Add(("dispersed", was));
+            }
+        // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
+        // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
+                && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                _riding[id] = (was, (uint)Tick);
+                _newBeats.Add(("cut-loose", was));
+            }
+        _seen.Clear();
+        foreach (var e in Enemies ?? [])
+            if (!e.Gone)
+                _seen[e.Id] = e;
+        var toys = (Bodies ?? []).Where(b => b.Kind == Sim.Physics.BodyKind.Toy).Select(b => b.Id).ToHashSet();
+        foreach (var (id, was) in _dollWas)
+        {
+            var now = Enemies?.FirstOrDefault(e => e.Id == id && !e.Gone);
+            if (_dying.ContainsKey(id) || now is not null && now.Attached == was.Attached && (now.Local - was.Local).Length < 1)
+                continue;
+            int toy = now is null ? _toysWas.Where(t => !toys.Contains(t)).DefaultIfEmpty(-1).Min() : -1;
+            _vanished.Add((was, (uint)Tick, toy));
+            _newBeats.Add(("vanished", was));
+        }
+        _dollWas.Clear();
+        foreach (var e in Enemies ?? [])
+            if (e.Kind == EnemyKind.TrackDoll && !e.Gone)
+            {
+                var copy = new Sim.Enemies.TrackDoll(e.Id);
+                copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+                _dollWas[e.Id] = copy;
+            }
+        _toysWas.Clear();
+        _toysWas.UnionWith(toys);
     }
 
     /// <summary>
@@ -710,25 +758,6 @@ public sealed class GreyboxScene
     /// </summary>
     void Vanishing(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
     {
-        var toys = (Bodies ?? []).Where(b => b.Kind == Sim.Physics.BodyKind.Toy).Select(b => b.Id).ToHashSet();
-        foreach (var (id, was) in _dollWas)
-        {
-            var now = Enemies?.FirstOrDefault(e => e.Id == id && !e.Gone);
-            if (_dying.ContainsKey(id) || now is not null && now.Attached == was.Attached && (now.Local - was.Local).Length < 1)
-                continue;
-            int toy = now is null ? _toysWas.Where(t => !toys.Contains(t)).DefaultIfEmpty(-1).Min() : -1;
-            _vanished.Add((was, (uint)Tick, toy));
-        }
-        _dollWas.Clear();
-        foreach (var e in Enemies ?? [])
-            if (e.Kind == EnemyKind.TrackDoll && !e.Gone)
-            {
-                var copy = new Sim.Enemies.TrackDoll(e.Id);
-                copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
-                _dollWas[e.Id] = copy;
-            }
-        _toysWas.Clear();
-        _toysWas.UnionWith(toys);
         var creatures = Look?.Art.Creatures;
         for (int i = _vanished.Count - 1; i >= 0; i--)
         {
@@ -859,6 +888,10 @@ public sealed class GreyboxScene
 
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
+
+    /// <summary>How much of the Choir's cold is on the air at <paramref name="gathering"/> (0 to 1, eased): none before
+    /// <see cref="ChoirFrostFrom"/>, all of it once it's here. The frost in the air, and the frame's chill (Look.Chill).</summary>
+    public static float ChoirCold(float gathering) => gathering > ChoirFrostFrom ? SmoothStep((gathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)) : 0;
 
     static float SmoothStep(float x)
     {

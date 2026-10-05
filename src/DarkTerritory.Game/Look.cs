@@ -37,6 +37,8 @@ public sealed record AtmosphereTuning
     public DawnTuning? Dawn { get; init; }
     /// <summary>What the night's cold does to how things look: frost, and breath.</summary>
     public ColdTuning Cold { get; init; } = new();
+    /// <summary>What the Choir's cold does to the night as it gathers (App. A.7's arrival beat): the frame chills.</summary>
+    public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
 }
@@ -90,6 +92,20 @@ public sealed record DawnTuning
     public float Ambient { get; init; } = 0.3f;
     /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
     public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
+}
+
+/// <summary>
+/// The Choir's cold coming before it (GDD v1.2 App. A.7; the Look Review's "the frost reads only in the crop"): as it
+/// gathers, the night's air goes over to a paler, colder blue and the moon's light with it, and a rime of frost comes on
+/// the metal, the roofs and the glass, whatever the night's own cold, so the whole frame says it's coming, not just the
+/// glitter in the air.
+/// </summary>
+public sealed record ChoirColdTuning
+{
+    public Vector3 FogColour { get; init; } = new(0.1f, 0.13f, 0.17f);
+    public Vector3 MoonColour { get; init; } = new(0.55f, 0.68f, 0.95f);
+    /// <summary>How much rime it brings on, at its full (0..1, the same frost the night's cold does).</summary>
+    public float Rime { get; init; } = 0.8f;
 }
 
 /// <summary>
@@ -348,6 +364,22 @@ public sealed class Look
         light.Ambient = float.Lerp(light.Ambient, d.Ambient, t);
         light.Dawn = t;
         light.DawnGlow = d.HorizonGlow;
+        return light;
+    }
+
+    /// <summary>
+    /// <paramref name="light"/> with the Choir's cold <paramref name="t"/> of the way on (0..1, GreyboxScene.ChoirCold): the
+    /// fog and the moon going over to its cold blue, its rime on whatever frost the night already has. Applied after the
+    /// route's weather, so the rime adds to the night's own.
+    /// </summary>
+    public FrameLighting Chill(FrameLighting light, float t)
+    {
+        if (Tuning.Atmosphere.ChoirCold is not { } c || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        light.FogColor = Vector3.Lerp(light.FogColor, c.FogColour, t);
+        light.MoonColour = Vector3.Lerp(light.MoonColour, c.MoonColour, t);
+        light.Frost = MathF.Max(light.Frost, c.Rime * t);
         return light;
     }
 
