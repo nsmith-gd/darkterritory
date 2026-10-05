@@ -239,9 +239,10 @@ public static class ModelLoader
     /// <summary>
     /// <paramref name="model"/> with the clips of <paramref name="extra"/> added (a companion <c>name_clips.glb</c>: clips
     /// authored on the same skeleton without re-baking the model's mesh). Bones are matched by name; a bone the extra
-    /// file doesn't have holds the model's rest. A clip already in the model keeps the model's.
+    /// file doesn't have holds the model's rest. A clip already in the model keeps the model's, unless
+    /// <paramref name="replace"/>: then the extra file's wins (a clip reworked after the model was baked).
     /// </summary>
-    public static Model WithClips(Model model, Model extra)
+    public static Model WithClips(Model model, Model extra, bool replace = false)
     {
         var target = model.Skeleton;
         int bones = target.Count;
@@ -252,7 +253,8 @@ public static class ModelLoader
         var names = new List<string>(model.ClipNames);
         foreach (var name in extra.ClipNames)
         {
-            if (clips.ContainsKey(name))
+            bool had = clips.ContainsKey(name);
+            if (had && !replace)
                 continue;
             var c = extra.Clips[name];
             var T = new Vector3[c.Frames * bones];
@@ -267,7 +269,8 @@ public static class ModelLoader
                         : (c.Translation[f * c.Bones + src], c.Rotation[f * c.Bones + src], c.Scale[f * c.Bones + src]);
                 }
             clips[name] = new AnimationClip { Name = name, Frames = c.Frames, Fps = c.Fps, Bones = bones, Translation = T, Rotation = R, Scale = S };
-            names.Add(name);
+            if (!had)
+                names.Add(name);
         }
         return new Model
         {

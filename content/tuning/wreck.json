@@ -70,7 +70,7 @@
   // every car gets nothing) and cuts it the same way: one shot each (shotSeconds, shrinking to fit shotCap, never under
   // shotMin) at baseSlow easing to peakSlow at their peak, the biggest flight last, then the settle and the cause card.
   // (freezeSeconds and establishingSeconds are E.5's first beats, which the first person and the replay stand in for.)
-  // The director's calls of 5 Oct 2026 (notes 255, 256), inside E.10's ranges: a bigger fling (x1.0-2.0), kick (0-6 m/s)
+  // The director's calls of 5 Oct 2026 (notes 256, 257), inside E.10's ranges: a bigger fling (x1.0-2.0), kick (0-6 m/s)
   // and spin (0-8 rad/s; drawn from spinMin to spin), so nobody's upright at their peak unless something holds them; the
   // gunner in the gun's seat is thrown out of it with seatKick (m/s up, E.10's top kick), head over heels at the full spin,
   // from seatClear m back off the gun.

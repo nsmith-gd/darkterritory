@@ -317,13 +317,15 @@ public sealed class CreatureArt
                 continue;
             var model = ModelLoader.Load(path);
             // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
+            // They win over the mesh's own clips of the same name: a clip reworked there (the crew's climb and shovel,
+            // Look Review notes) needn't re-bake the mesh.
             var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
             if (File.Exists(extra))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(extra));
+                model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
             // The survivors are the crew figure redressed: the crew's actions are theirs too.
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
             if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips));
+                model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, WearOf.GetValueOrDefault(name, 0.5f)))]);
         }
     }
@@ -826,13 +828,14 @@ public sealed class CreatureArt
         var k = new Kit(Look, mesh);
         if (beat == 1)
         {
-            // The staff through both fists, forward and a little down to the muzzle; the rammer's head at its far end.
+            // The staff through both fists, forward and a little down to the muzzle; the rammer's head at its far end. Its
+            // butt just past the back fist: any longer and it ran back through the gunner's own head (a Look Review note).
             var grip = (right + left) * 0.5f;
             var along = Vector3.Normalize(forward - Vector3.UnitY * 0.12f);
             k.Use("wood_crate", new Vector3(0.36f, 0.27f, 0.17f), 0.5f, 0.1f, tile: 0.6f);
-            k.Cylinder(grip - along * 0.45f, grip + along * 1.25f, 0.022f, 6);
+            k.Cylinder(grip - along * 0.14f, grip + along * 1.45f, 0.022f, 6);
             k.Use("iron_plate", Palette.IronGrey, 0.5f, 0.3f);
-            k.Cylinder(grip + along * 1.25f, grip + along * 1.42f, 0.06f, 8);
+            k.Cylinder(grip + along * 1.45f, grip + along * 1.62f, 0.06f, 8);
             return;
         }
         if (beat == 2)

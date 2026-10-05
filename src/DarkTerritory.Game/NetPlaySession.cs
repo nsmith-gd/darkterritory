@@ -422,7 +422,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
         hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
-        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 256): compiled now, off the
+        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 257): compiled now, off the
         // frame loop, so that tick isn't held up by the JIT as well (a second, the first time).
         var warmTuning = hostWorld.WreckTuning;
         _ = Task.Run(() => WreckFilm.Warm(warmTuning));

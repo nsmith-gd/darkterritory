@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The director's calls of 5 Oct 2026 on the derailment film (ARCHITECTURE §8 note 256): the cars hit the bodies, the gunner
+/// The director's calls of 5 Oct 2026 on the derailment film (ARCHITECTURE §8 note 257): the cars hit the bodies, the gunner
 /// is thrown out of the gun's seat and never through the gun, each body's landings are recorded, and each player dies on
 /// their own first hard hit in the wreck, not on the derail tick (GDD v1.4 App. E.2 step 1), the same on every machine.
 /// </summary>

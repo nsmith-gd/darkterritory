@@ -94,7 +94,7 @@ public class WreckSessionTests
     [Fact]
     public void TheCrewRideTheWreckToTheirOwnDeathAndTheFirstPersonEndsOnIt()
     {
-        // GDD v1.4 App. E.2 step 1 (the director's decision of 5 Oct 2026; note 256): nobody dies on the derail tick. The
+        // GDD v1.4 App. E.2 step 1 (the director's decision of 5 Oct 2026; note 257): nobody dies on the derail tick. The
         // player rides the wreck, alive and unable to move, till the hit that kills them lands in their first person; the
         // first person ends on it, and the run is already over, settled on the derail tick.
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
