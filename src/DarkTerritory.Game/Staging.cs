@@ -230,9 +230,10 @@ public static class Staging
     /// <summary>
     /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
     /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
-    /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.
+    /// (GRAB) and creeping in, <c>devour</c> the leader on them (GRAB, where the hop stops 0.8 m short). Without a mode,
+    /// they're as <see cref="Threats"/> has them.
     /// </summary>
-    public static List<Enemy> Ribbits(List<Enemy> threats, string mode)
+    public static List<Enemy> Ribbits(List<Enemy> threats, string mode, TrainOnLine train)
     {
         if (mode.Length == 0)
             return threats;
@@ -240,11 +241,20 @@ public static class Staging
         {
             "hop" => SpinePhase.Dormant,
             "swell" => SpinePhase.Telegraph,
-            "tongue" => SpinePhase.Grab,
-            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell or tongue"),
+            "tongue" or "devour" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell, tongue or devour"),
         };
-        foreach (var r in threats.OfType<Ribbit>())
-            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, r.Local, 0, 0, 0, LoneId, 0);
+        var pack = threats.OfType<Ribbit>().ToList();
+        foreach (var r in pack)
+        {
+            var at = r.Local;
+            if (mode == "devour" && r == pack.MinBy(m => m.Id))
+            {
+                var them = Lone(train).Feet;
+                at = them + ((at - them) with { Y = 0 }).Normalized * 0.8;
+            }
+            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, at, 0, 0, 0, LoneId, 0);
+        }
         return threats;
     }
 

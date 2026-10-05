@@ -59,7 +59,7 @@ public class CreatureArtTests
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
         ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run", "carry"], ["hit"]),
         // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
-        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue"], ["hit"]),
+        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue", "creep", "devour"], ["hit"]),
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
@@ -374,6 +374,28 @@ public class CreatureArtTests
         var local = rear.ToLocal(feet);
         Assert.InRange(local.X, -0.9, 0.1);
         Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    [Fact]
+    public void TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem()
+    {
+        // App. A.6 GRAB: the tongues hold them and the leader hops in at a quarter speed, stopping 0.8 m short. Out in the
+        // pack's line it creeps; on them it devours (and its own tongue's in them, not drawn out to them).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var them = Staging.Lone(train).Feet;
+        float Leader(string mode)
+        {
+            var leader = Staging.Ribbits(Staging.Threats(train), mode, train).OfType<Ribbit>().MinBy(r => r.Id)!;
+            var off = (leader.Local - them) with { Y = 0 };
+            return (float)off.Length;
+        }
+        Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // Where the sim's hop stops is close enough to be on them.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
     }
 
     [Fact]
