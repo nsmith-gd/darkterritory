@@ -41,7 +41,7 @@ public sealed partial class GameAudio
     }
 
     public SoundBank Bank { get; }
-    /// <summary>The yard's voice on the radio (note 218): what it can say, and how long a line takes it.</summary>
+    /// <summary>The yard's voice on the radio (note 221): what it can say, and how long a line takes it.</summary>
     public ClerkVoice Clerk { get; }
     public Mixer Mixer { get; }
     /// <summary>The derailment's music (GDD v1.4 App. E.6): every track loaded now, at startup.</summary>
@@ -131,7 +131,7 @@ public sealed partial class GameAudio
     const double WheezeBelow = 0.5;
 
     /// <summary>
-    /// The fortress reading over the radio (GDD §9; notes 178, 218): the set's static for as long as it's on the air, and
+    /// The fortress reading over the radio (GDD §9; notes 178, 221): the set's static for as long as it's on the air, and
     /// each of <paramref name="reading"/>'s lines said as it comes on (<paramref name="onAir"/> of them so far, from
     /// Sim.Run.Radio.Reading at the voice's own pace), in the clerk's voice through the set. Null, nobody's on the air.
     /// </summary>
@@ -169,7 +169,7 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The clerk's one line over a moment (notes 218, 220): the derail film's cause card (GDD v1.4 App. E.5) and the Stranded
+    /// The clerk's one line over a moment (notes 221, 223): the derail film's cause card (GDD v1.4 App. E.5) and the Stranded
     /// pull-back's report (E.9), said once in the yard's voice through the set as it comes on, with the channel's static
     /// under it till it's done. Null, or the same line again, says nothing new.
     /// </summary>
