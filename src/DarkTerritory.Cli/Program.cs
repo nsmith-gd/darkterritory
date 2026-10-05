@@ -1236,6 +1236,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker") || args.Contains("--flare"),
         // --flare s: s seconds after a shovelful landed (default 0.15), the firebox flaring (§31).
         SinceShovel = args.Contains("--flare") ? Opt(args, "--flare", 0.15) : double.PositiveInfinity,
+        // --gathering g: the Choir that far through its gathering (0-1), its frost in the air and the crew's breath (A.7).
+        ChoirGathering = (float)Opt(args, "--gathering", 0),
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,

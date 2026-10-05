@@ -934,6 +934,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Wreck = replay is { Off: false } || filmShot is not null ? null : session.Train.Wreck;
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
+        scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;

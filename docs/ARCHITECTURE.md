@@ -3237,3 +3237,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **`GreyboxScene.Hung` stands the victim** `CreatureArt.SwallowReach` (0.72 m) in front of the mouth on their own floor, facing into it, so their head is in it. Presentation only.
     - **Staging:** `dt screenshot --threats --hugger swallow --doors-open --view swallow`. The swallow view is inside the rear car, looking at its end door. The staged catch is caught off to one side, 1.4 m in, and is seen in the mouth.
     - **Tests:** `CreatureArtTests.TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught`.
+219. **The Choir's arrival beat: the frost before it's seen (the checklist's choir-fx "still to do").** Its gathering was all audio and the HUD's meter, and the first thing seen was a ghost.
+    - **Now, from halfway through its gathering** (`GreyboxScene.ChoirGathering`, the world's `Choir.Build`, 1 while the swarm's here; past `ChoirFrostFrom`), `Effects.Frost` puts a glitter of frost in the air round the train.
+      - It is pale blue crystals falling slowly and twinkling. They're anchored to the world in cells, as the corruption's motes are, so the train runs through them.
+      - It thickens as the Choir nears, over a thin frost haze low on the roofs and ground.
+    - **The crew's breath shows** at the same pace (`SceneArt.Breath`: the cold comes with it).
+    - **Wiring:** the app and `dt playthrough` set it from the world each frame; it's presentation only.
+    - **Staging:** `dt screenshot --gathering g` (e.g. `--view roof --crew --gathering 0.95`).
+    - **Tests:** `EffectsTests.AsTheChoirComesTheAirGoesToFrost`.

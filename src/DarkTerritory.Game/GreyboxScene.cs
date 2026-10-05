@@ -210,8 +210,10 @@ public sealed class GreyboxScene
         if (_wheelClock is { } then && Time > then && Time - then < 1)
             _travelled += _speed * (Time - then);
         _wheelClock = Time;
+        // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
         if (Look is not null)
-            Look.Art.Breath = Look.Tuning.Atmosphere.Cold.Breath(Cold);
+            Look.Art.Breath = Math.Max(Look.Tuning.Atmosphere.Cold.Breath(Cold),
+                ChoirGathering > ChoirFrostFrom ? (ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom) : 0);
         Fires(frames.Count);
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
@@ -365,6 +367,9 @@ public sealed class GreyboxScene
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
+            // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
+            if (ChoirGathering > ChoirFrostFrom)
+                Look.Art.Effects.Frost(mesh, eye, Time, SmoothStep((ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)));
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -793,6 +798,21 @@ public sealed class GreyboxScene
 
     /// <summary>Staged: the air to draw whatever the biome (dt screenshot --air ash|spores).</summary>
     public Art.Effects.Air? StagedAir { get; set; }
+
+    /// <summary>
+    /// How far the Choir's come (World.Choir: its gathering, 0 to 1, and 1 while the swarm's here): from
+    /// <see cref="ChoirFrostFrom"/> on, the frost in the air and everyone's breath showing (App. A.7's arrival beat).
+    /// </summary>
+    public float ChoirGathering { get; set; }
+
+    // From how far through its gathering the Choir's cold is felt.
+    const float ChoirFrostFrom = 0.5f;
+
+    static float SmoothStep(float x)
+    {
+        x = Math.Clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+    }
 
     /// <summary>The train's come off the rails (World.Derailed): its sparks, dust and burst boiler (Art/Effects.Derailment).</summary>
     public bool Derailed { get; set; }
