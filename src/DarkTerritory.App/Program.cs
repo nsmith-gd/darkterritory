@@ -959,6 +959,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (look?.Tuning.Atmosphere.Wind is { } wind)
                 (lighting.Wind, lighting.Gusts) = (wind.Of(r.Weather.Wind), wind.Gusts);
         }
+        // The Choir's cold, coming before it (App. A.7): the frame chills as it gathers (Look.Chill, over the weather's frost).
+        if (look is not null)
+            lighting = look.Chill(lighting, GreyboxScene.ChoirCold(session.World.Choir.Present ? 1 : (float)session.World.Choir.Build));
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;

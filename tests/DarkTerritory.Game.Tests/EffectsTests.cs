@@ -84,6 +84,26 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AsTheChoirComesTheWholeFrameChills()
+    {
+        // Look.Chill (App. A.7; the Look Review's "the frost reads only in the crop"): nothing before it's coming; as it
+        // gathers the fog and the moon go over to its cold blue and a rime comes on, added to the night's own frost.
+        var night = Look.Apply(Ballast.Render.FrameLighting.Night) with { Frost = 0.3f };
+        Assert.Equal(night, Look.Chill(night, GreyboxScene.ChoirCold(0.4f)));
+        Assert.Equal(0, GreyboxScene.ChoirCold(0.5f));
+        Assert.Equal(1, GreyboxScene.ChoirCold(1));
+        var cold = Look.Tuning.Atmosphere.ChoirCold!;
+        var here = Look.Chill(night, GreyboxScene.ChoirCold(1));
+        Assert.Equal(cold.FogColour, here.FogColor);
+        Assert.Equal(cold.MoonColour, here.MoonColour);
+        Assert.Equal(cold.Rime, here.Frost);
+        // Half on, half of the way there; a colder night's own frost isn't taken away.
+        var half = Look.Chill(night, 0.5f);
+        Assert.InRange(half.FogColor.Z, MathF.Min(night.FogColor.Z, cold.FogColour.Z), MathF.Max(night.FogColor.Z, cold.FogColour.Z));
+        Assert.Equal(0.95f, Look.Chill(night with { Frost = 0.95f }, 1).Frost);
+    }
+
+    [Fact]
     public void AsTheChoirComesTheAirGoesToFrost()
     {
         // Effects.Frost (App. A.7's arrival beat): nothing until it's coming, a glitter of frost when it is, thicker nearer.
