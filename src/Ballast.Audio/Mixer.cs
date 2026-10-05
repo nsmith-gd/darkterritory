@@ -110,6 +110,12 @@ public sealed class Mixer
     readonly float[] _tellSend = new float[Audio.Block], _tellLeft = new float[Audio.Block], _tellRight = new float[Audio.Block];
     // A voice through the head, each ear.
     readonly float[] _earLeft = new float[Audio.Block], _earRight = new float[Audio.Block];
+    // The tape's tiers summed (interleaved), its delay line, and where its wow and flutter are.
+    readonly float[] _tapeBus = new float[Audio.Block * 2];
+    readonly float[] _tapeLine = new float[TapeLine * 2];
+    int _tapeWrite;
+    double _wowPhase, _flutterPhase;
+    const int TapeLine = 128;
     Smoothed _musicGain = new(1), _gameLowpass = new(0);
 
     public Mixer(SoundBank bank, MixDef mix)
@@ -302,6 +308,8 @@ public sealed class Mixer
 
         float master = Audio.DbToGain(Mix.MasterDb);
         var tap = Tap;
+        var tape = Mix.Tape is { Tiers.Length: > 0 } onTape ? onTape : null;
+        Array.Clear(_tapeBus);
         for (int i = 0; i < _selected.Count; i++)
         {
             var v = _selected[i];
@@ -321,13 +329,15 @@ public sealed class Mixer
                 (earLeft, earRight) = (_earLeft, _earRight);
             }
             float[]? stem = tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length ? tap.Stem(v.Name) : null;
+            // The tape's tiers go to its bus, and through it into the mix after (spec A.6); the rest straight in.
+            var into = tape is not null && Array.IndexOf(tape.Tiers!, v.Def.Tier) >= 0 ? _tapeBus.AsSpan() : output;
             for (int s = 0; s < Audio.Block; s++)
             {
                 // Ramp across the block so gain changes never click.
                 float u = (s + 1f) / Audio.Block;
                 float l = earLeft[s] * (l0 + (l1 - l0) * u), r = earRight[s] * (r0 + (r1 - r0) * u);
-                output[s * 2] += l;
-                output[s * 2 + 1] += r;
+                into[s * 2] += l;
+                into[s * 2 + 1] += r;
                 if (stem is not null)
                 {
                     stem[tap!.Written + s * 2] += l;
@@ -349,6 +359,8 @@ public sealed class Mixer
                 }
             }
         }
+        if (tape is not null)
+            Tape(tape, output);
         Reverberate(output, tap);
         if (tap is not null && tap.Written + Audio.Block * 2 <= tap.Total.Length)
         {
@@ -361,6 +373,37 @@ public sealed class Mixer
         // Soft clip rather than wrap: a swarm plus a derailment shouldn't crackle.
         for (int s = 0; s < output.Length; s++)
             output[s] = MathF.Tanh(output[s]);
+    }
+
+    /// <summary>
+    /// The tape (spec A.6, <see cref="TapeDef"/>): the tape bus through a delay that wanders, so its pitch does by the wow's
+    /// and the flutter's depths, then a soft saturation, and into the mix. With a tape, the meter's total is the stems
+    /// through it, not their plain sum.
+    /// </summary>
+    void Tape(TapeDef tape, Span<float> output)
+    {
+        // A delay swinging by A samples at f Hz moves the pitch by 2πfA/rate: so A from the depth.
+        double wow = tape.WowDepth * Audio.SampleRate / (2 * Math.PI * Math.Max(0.01, tape.WowHz));
+        double flutter = tape.FlutterDepth * Audio.SampleRate / (2 * Math.PI * Math.Max(0.01, tape.FlutterHz));
+        double centre = Math.Min(TapeLine - 4, wow + flutter + 2);
+        double drive = Math.Max(1e-3, tape.Drive);
+        for (int s = 0; s < Audio.Block; s++)
+        {
+            _tapeLine[_tapeWrite * 2] = _tapeBus[s * 2];
+            _tapeLine[_tapeWrite * 2 + 1] = _tapeBus[s * 2 + 1];
+            _wowPhase = (_wowPhase + tape.WowHz / Audio.SampleRate) % 1;
+            _flutterPhase = (_flutterPhase + tape.FlutterHz / Audio.SampleRate) % 1;
+            double delay = Math.Clamp(centre + wow * Math.Sin(2 * Math.PI * _wowPhase) + flutter * Math.Sin(2 * Math.PI * _flutterPhase), 1, TapeLine - 2);
+            int whole = (int)delay;
+            float frac = (float)(delay - whole);
+            int a = (_tapeWrite - whole + TapeLine) % TapeLine, b = (a - 1 + TapeLine) % TapeLine;
+            for (int c = 0; c < 2; c++)
+            {
+                float x = _tapeLine[a * 2 + c] + (_tapeLine[b * 2 + c] - _tapeLine[a * 2 + c]) * frac;
+                output[s * 2 + c] += (float)(Math.Tanh(drive * x) / drive);
+            }
+            _tapeWrite = (_tapeWrite + 1) % TapeLine;
+        }
     }
 
     /// <summary>The listener's moved to another space: its reverb starts empty, the last one's rings out (two at most).</summary>

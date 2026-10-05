@@ -1327,6 +1327,10 @@ public sealed partial class GameAudio
             Cue(name, centre, occlusion);
         else if (name is not null)
             Cue(name, mat, centre, occlusion);
+        // A noisy toy jostled as it lands sounds its own noise a moment (the checklist's crew-noisy-toys "while carried
+        // or jostled"; note 250): the squeaker squeaks, the music box plinks, the drummer rattles.
+        if (b.Kind == BodyKind.Toy && b.Noise != Sim.Physics.ToyNoise.None)
+            _jostled[b.Id] = _time + JostleSeconds;
         if (b.Kind is BodyKind.Ragdoll or BodyKind.Child && Surfaced("crew-mishaps.body-boot", mat) is { } boot)
             CrewAfter(BootAfterBody, boot, centre, occlusion);
     }

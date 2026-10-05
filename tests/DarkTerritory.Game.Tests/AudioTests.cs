@@ -190,6 +190,48 @@ public class AudioTests
     }
 
     [Fact]
+    public void EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices()
+    {
+        // Spec A.4 rule 4 and A.6 (note 250): no looping tell plays the same twice round, and the tape's wow and flutter are
+        // on the bed and the world, never on a tell or a voice.
+        var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        var loops = bank.Names.Where(n => bank.Get(n) is { Tier: 1, Loop: true }).ToList();
+        Assert.NotEmpty(loops);
+        Assert.All(loops, n => Assert.True(bank.Get(n)!.Drift is { Semitones: > 0 }, $"{n} loops the same every time"));
+        var mix = DataFile.Load<MixDef>(Path.Combine(Content, MixDef.File));
+        Assert.NotNull(mix.Tape);
+        Assert.DoesNotContain(1, mix.Tape!.Tiers!);
+        Assert.DoesNotContain(2, mix.Tape.Tiers!);
+        Assert.Contains(5, mix.Tape.Tiers!);
+    }
+
+    [Fact]
+    public void DownTheMineSpurTheSpaceClosesIn()
+    {
+        // The checklist's place-mine, "the space closing in" (note 250): down the spur the listener's in the mine's space,
+        // its outside shut out; back on the main line, outside again.
+        const double toe = 5_200;
+        var J = DarkTerritory.Sim.Route.RouteTuning.Load(Content).Junctions;
+        var route = new DarkTerritory.Sim.Route.Route("t", DarkTerritory.Sim.Route.RouteTier.DeadLines, 1, new LineDefinition("t", [new TrackSegment(20_000)]),
+            [new DarkTerritory.Sim.Route.RouteFeature(DarkTerritory.Sim.Route.FeatureKind.Facility, 5_000, 5_700, Facility: DarkTerritory.Sim.Route.FacilityKind.MineHead)],
+            new DarkTerritory.Sim.Route.RouteWeather(0, false, 0, 0), 3600)
+        {
+            Branches = [new BranchDefinition(BranchKind.Spur, toe, +1,
+                [new TrackSegment(J.DivergeLength, -J.DivergeRadius), new TrackSegment(J.DivergeLength, J.DivergeRadius), new TrackSegment(400)])],
+        };
+        var line = route.Build();
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 3, 1)), line, 1_000));
+        world.EnableRun(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.RunTuning.File)), route, 600, authority: true);
+        double hint = double.NaN;
+        Assert.Equal("mine", GameAudio.SpaceOf(world, line.Sample(0, toe + 150).Position + Double3.Up * 1.6, ref hint));
+        hint = double.NaN;
+        Assert.Equal("outside", GameAudio.SpaceOf(world, line.Sample(8_000).Position + Double3.Up * 1.6, ref hint));
+        var spaces = DataFile.Load<SpacesDef>(Path.Combine(Content, SpacesDef.File));
+        Assert.True(spaces.Spaces["mine"].Mutes("world-night.night"));
+    }
+
+    [Fact]
     public void TheMimicIsACrewmatesVoiceThroughASmallerThroatAtOneLoudness()
     {
         // Spec A.5-A.6 (T40, note 247): no falloff, and the crewmate's voice formant-shifted up, not pitched.

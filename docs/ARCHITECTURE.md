@@ -147,7 +147,7 @@ FMOD's power lives in FMOD Studio, a GUI authoring tool whose projects an agent 
   - Every number can be a curve over a live parameter.
 - **Buses:** seven tier buses (spec A.3's six, and the work's drone under them), with the ducking rules and each tier's fader in `content/audio/mix.json`; and the opera's music bus apart from them (note 174).
 - **Spaces:** the listener's space (the cab, a car, a tunnel, a facility's yard, outside; `content/audio/spaces.json`) convolves everything positioned with a synthetic impulse response, shuts out what it shuts out, and compresses voice in a tunnel (note 192).
-- **Spatialisation:** distance rolloff and a spherical head (note 246: the far ear's delay and shadow, the pinna's front-and-back and height cues), plus occlusion by the cars' own walls (note 248). Tells are floored at −6 dB and keep their band through a wall.
+- **Spatialisation:** distance rolloff and a spherical head (note 246: the far ear's delay and shadow, the pinna's front-and-back and height cues), plus occlusion by the cars' own walls (note 248). Tells are floored at −6 dB and keep their band through a wall. The bed and the world go through a tape's wow, flutter and saturation; the tells and the crew's voices don't (note 250).
 - **Voices:** per-sound instance limits with stealing, and a 64-voice budget. Past the budget, voices virtualise, but tells always render.
 - **Game hookup (`DarkTerritory.Game.Sound.GameAudio`)** drives it all from world state, so clients hear what the host does:
   - the bed follows speed, pressure, fire, throttle and brake;
@@ -3555,3 +3555,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The microphone (`Settings.MicDevice`, `AudioIn.Devices`, `AudioIn.Open(..., device)`):** the default or one by name, round the ones SDL lists. A name that's gone opens the default. It applies from the next night, when the mic opens.
     - **Its level (`Settings.MicLevel`, `VoiceChat.MicLevel`):** 0–300%, before anything hears the mic, the voice activity included, so a quiet mic turned up opens it. It's clipped at full scale.
     - **Tests:** `MixerTests.ThePlayersVolumesScaleTheirBuses`, `FrontEndTests.TheSoundSettingsAreSavedAndAreTheMixersVolumes`, `VoiceTests.TheMicLevelIsWhatTheCrewHearAndTurnedRightDownNothingGoes`. `dt screenshot --menu settings` shows the screen.
+250. **A loop that wanders, the tape, the mine closing in, a toy jostled (spec A.4 rule 4, A.6; the audio checklist's mix-repeat, mix-degrade, place-mine and crew-noisy-toys).**
+    - **No looping tell the same twice round (`SoundDef.Drift`, `DriftDef`).** Spec A.4: "non-repeating at short intervals. Repetition trains players to ignore it." The one-shot tells re-fire at jittered intervals with their takes jittered, but a loop played the same pass every time.
+      - Now a loop's pitch and level wander on a smooth random walk, seeded per instance: a new point every 2.5 s, eased between, ±0.4 semitone and ±1.5 dB. That keeps every tell in its band.
+      - Every looping tell has it. For a tell taken from a synth definition, the drift is in `tools/audio/synth-defs`. For one made from the checklist's cues, `install.py`'s `TELL_DRIFT` adds it to each tier-1 loop.
+    - **The tape (`MixDef.Tape`, `TapeDef`, mix.json "tape").** Spec A.6: "tape saturation, light wow and flutter: it matches the art direction, it hides cheap sources."
+      - Tiers 3–7 are summed onto a tape bus. That's train state, actions, the bed, the world and the drone; not the tells, the crew's voices, or the opera.
+      - The bus goes through a delay that wanders: a 0.55 Hz wow of ±0.12% and an 8.5 Hz flutter of ±0.03% on the pitch. Then a soft saturation (tanh(1.3x)/1.3), unity for a quiet sound and rounding a loud one.
+      - The tells hold still, so the meter's stems (which the tell audit reads) are as before. With a tape, the meter's total is the stems through it rather than their plain sum.
+    - **The mine closing in (`spaces.json` "mine").** Down a mine spur (`Run.Underground`), the listener's space is the mine.
+      - It's a timbered adit narrower than a tunnel: reflections every 9 ms, a 1.7 s dark tail.
+      - Like a tunnel, it shuts out the outside and brings the crew's voices close.
+      - Its own sounds (the sound package's underground loop, drips and timbers, note 193) went on before; the space they're heard in is new.
+    - **A toy jostled.** The checklist has noisy toys sounding "while carried or jostled". Dropped or thrown, a noisy toy gives its own noise for 0.7 s as it lands, as well as the drop.
+    - **Tests:**
+      - `TapeTests`: a drifting loop isn't the same twice round, and two of it aren't alike; through the tape the bed wanders and a tell holds still; a quiet sound is as loud, a loud one rounded.
+      - `AudioTests.EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices`, `AudioTests.DownTheMineSpurTheSpaceClosesIn`, `MixTests.EverySpaceSoundsLikeItself` (the mine), `CrewAudioTests.ANoisyToyJostledAsItLandsSoundsAMomentThenGoesQuiet`.
+      - The tell audit still holds every tell over the bed.

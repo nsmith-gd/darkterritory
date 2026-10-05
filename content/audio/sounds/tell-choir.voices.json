@@ -1,5 +1,7 @@
 // The Choir: voices multiplying: Voices multiplying (the code adds layers as they gather). Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
 {
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
  "tier": 1,
  "loop": true,
  "maxInstances": 8,
