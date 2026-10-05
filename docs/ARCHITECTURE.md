@@ -3315,3 +3315,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Spraying:** `GreyboxScene.Extinguishing` already draws the spray where a fire's going down with an extinguisher in reach; it now records whose (`SceneArt.Spraying`), and `SceneArt.Crewmate` plays `spray` for them instead of `extinguish`.
     - **Hanging back:** at the mount, a crewmate who came to it carrying (their last pose `Extinguish`, `Spray` or `HangUp`) is hanging it up, not taking it down. `hang_up` plays on through the sim's drop until it's done, then they stand.
     - **Presentation only.** **Test:** `CrewActsTests.TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain`. **Looked at:** the clips' contact sheets (`dt art clip crew spray`, `hang_up`).
+227. **The backhead is boiler plate and the firehole firebrick (the checklist's firebox "the firebox texture").** Around the firebox door the backhead was `iron_smokebox`, whose crazed pattern read as flagstones at that size, and the firehole's sides the same.
+    - **Now** (`TrainKit` cab): the backhead is `iron_plate`, sooted, its seam straps and rivet rows on it; the firehole is lined with `brick_soot`, firebrick black with soot and lit by the fire.
+    - **Looked at:** `dt screenshot --firedoor --view firebox` and `--view fireman`.
