@@ -113,6 +113,10 @@ public static class AudioBench
         bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
+        // "sound:<name>": one sound, 6 m off the listener's right, over the train (stopped, with --speed 0, for a quiet bed):
+        // any sound file auditioned headless (note 198's set pieces).
+        string? single = scenario.StartsWith("sound:", StringComparison.Ordinal) ? scenario["sound:".Length..] : null;
+        bool started = false;
         // "toys" (note 175): the squeaker, the music box and the wind-up drummer, each in a crewmate's hands on the listener's
         // roof, a few metres apart: what the meter's being fed, heard over the train.
         if (scenario == "toys")
@@ -197,6 +201,11 @@ public static class AudioBench
                 var frame = train.Frames[player.Parent];
                 var ear = trackside ?? frame.ToWorld(player.Position + Double3.Up * 1.65);
                 audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: listenerCar != 0 || trackside is not null, SimConstants.TickSeconds);
+                if (single is not null && !started && simClock >= 0.25)
+                {
+                    audio.Play(single, ear + frame.Right * 6);
+                    started = true;
+                }
                 if (chaos && (int)(simClock * 3) != (int)((simClock - SimConstants.TickSeconds) * 3))
                 {
                     int guard = train.Dynamics.Consist.Vehicles[^1].Id;

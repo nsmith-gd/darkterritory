@@ -1,0 +1,12 @@
+// The chemical works' hose leaking (GDD §18; App. A's gas, note 185; note 198): fluid jetting from a burst hose under
+// pressure, a hard high hiss that spits and gutters, with the gas's wet spatter under it. At the fluid gantry's stand.
+{
+  "tier": 2, "loop": true, "maxInstances": 2, "minDistance": 3, "maxDistance": 90, "gainDb": -1,
+  "layers": [
+    { "source": "noise", "gain": 1.0, "filters": [{ "type": "highPass", "frequency": 3500, "q": 0.7 }, { "type": "peak", "frequency": 5200, "q": 2, "gainDb": 5 }],
+      "tremolo": { "rate": 9, "depth": 0.3, "jitter": 0.8 } },
+    { "source": "impulse", "frequency": 16, "gain": 0.4,
+      "filters": [{ "type": "bandPass", "frequency": 1100, "q": 2 }],
+      "tremolo": { "rate": 3, "depth": 0.7, "jitter": 0.9 } }
+  ]
+}

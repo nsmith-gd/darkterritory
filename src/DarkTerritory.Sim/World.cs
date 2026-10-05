@@ -76,6 +76,8 @@ public sealed class World
     /// and replicated, so every client sees the flinch, hears the thud, and its striker gets the marker.
     /// </summary>
     public List<HitConfirm> Hits { get; } = new();
+    /// <summary>Crewmates' swings lately, landed or not (note 197): the host's, kept as long as hits are, and replicated.</summary>
+    public List<SwingEvent> Swings { get; } = new();
     /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
     public List<CannonImpact> Impacts { get; } = new();
     int _nextFx = 1;
@@ -852,6 +854,9 @@ public sealed class World
         if (_swingReady.TryGetValue(playerId, out uint ready) && Tick < ready)
             return;
         _swingReady[playerId] = Tick + (uint)Math.Round(t.SwingSeconds * SimConstants.TickRate);
+        // Seen by everyone, whatever it hits (note 197).
+        Swings.Add(new SwingEvent(_nextFx, Tick, playerId));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
         var eye = PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.3;
         double yaw = PlayerMotor.WorldYaw(s, Train);
         var facing = new Ballast.Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
@@ -909,6 +914,7 @@ public sealed class World
         {
             var keep = Combat?.Hits ?? new HitTuning();
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
+            Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
         }
         Shots.Clear();
@@ -1272,10 +1278,13 @@ public sealed class World
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
-    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts)
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null)
     {
         Hits.Clear();
         Hits.AddRange(hits);
+        Swings.Clear();
+        if (swings is not null)
+            Swings.AddRange(swings);
         Impacts.Clear();
         Impacts.AddRange(impacts);
     }

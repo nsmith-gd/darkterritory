@@ -81,6 +81,9 @@ public static class Views
             // engineering kit's rack on the right.
             "vent" => SideCamera(engine, InteractableKind.Vent, 1),
             "rack" => SideCamera(engine, InteractableKind.ToolRack, -1),
+            // (Not one of Names.) From the fireman's side across to the powered switch thrower's lever behind the rack (note
+            // 196; dt screenshot --upgrades poweredSwitchThrower --view points).
+            "points" => SideCamera(engine, InteractableKind.Points, -1),
             "chase" => ChaseCamera(train),
             // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),

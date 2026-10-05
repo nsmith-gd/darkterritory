@@ -125,21 +125,24 @@ public sealed partial class Run
     /// Down a mine head's spur, where the radio dies (spec A.5 "dies in tunnels and mine spurs"; GDD §17 "the spur
     /// descends underground. Radio blackout in and out"): aboard a rake standing on it, or on the ground beside it.
     /// </summary>
-    public bool Underground(in PlayerState s, TrainOnLine train)
+    /// <param name="reach">How far down the spur from its points a radio still carries (train.json kit.radioReach; F.3's
+    /// radio range, note 196). With none, anywhere on the mine head's spur's path.</param>
+    public bool Underground(in PlayerState s, TrainOnLine train, double reach = 0)
     {
         int path;
+        double along;
         if (s.Parent != PlayerState.World && s.Parent < train.Vehicles.Count)
-            path = train.RakeOf(s.Parent).Path;
+            (path, along) = (train.RakeOf(s.Parent).Path, train.Cars[s.Parent].FrontDistance);
         else
         {
             double hint = s.LineHint;
-            path = train.Line.Nearest(s.Position, ref hint).Path;
+            (path, along) = train.Line.Nearest(s.Position, ref hint);
         }
         if (path == RailLine.MainPath)
             return false;
         for (int i = 0; i < _facilities.Count; i++)
             if (_spurs[i] == path && _facilities[i].Facility == FacilityKind.MineHead)
-                return true;
+                return reach <= 0 || along - train.Line.Branches[path].Toe >= reach;
         return false;
     }
 
