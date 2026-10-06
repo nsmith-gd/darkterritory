@@ -92,6 +92,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// same loss, remembered as eaten rather than battered, so the car is drawn gnawed away from its rear end (and stays
     /// so once the thing is killed) rather than dented.
     /// </summary>
+    /// <summary>
+    /// How charred each of its <see cref="Enemies.FireGrid"/> cells is, 0..15 (App. F.1: "burnt cells char the textures";
+    /// note 267). Empty until it first burns; it never comes back the same night, and a fire there again has less to burn.
+    /// </summary>
+    public byte[] Char { get; set; } = [];
     public double Eaten { get; set; }
     /// <summary>
     /// The Territory has it (GDD v1.4 §23.2): a car the Car Hugger finished, or a caboose the Passenger rolled away. Gone,
