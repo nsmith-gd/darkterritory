@@ -121,4 +121,4 @@ base = paint(base, (0.26, 0.28, 0.3), mk[..., 1] * 0.35)      # paler panels
 base = paint(base, (0.05, 0.045, 0.08), mk[..., 0] * 0.7)     # veins
 base = paint(base, (0.09, 0.09, 0.11), mk[..., 2] * 0.4)      # the tendrils' bands
 rough = atlas.maps["gloss"][..., 0]
-atlas.finish(base, kit, arm, made=make.provenance("choir", "the Choir, modelled over tools/blender/choir.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("choir", "the Choir, modelled over tools/blender/choir.py"), rough=rough, lod=0.4)

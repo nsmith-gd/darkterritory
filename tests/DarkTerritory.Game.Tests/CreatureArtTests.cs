@@ -157,6 +157,47 @@ public class CreatureArtTests
         Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
     }
 
+    /// <summary>
+    /// The demo's creatures, from their own meshes (Clearance.Mesh: a capsule fitted to each bone's share of the skin):
+    /// no part of one goes through another in any clip deeper than reads as touching, beyond how they sit at rest (a
+    /// Car Hugger's folded arm through its mouth, a Track Doll's fingers through its head; note 262).
+    /// </summary>
+    [Theory]
+    [InlineData("ribbit")]
+    [InlineData("track_doll")]
+    [InlineData("car_hugger")]
+    [InlineData("whistler")]
+    [InlineData("tippy_toesie")]
+    [InlineData("choir")]
+    public void TheDemoCreaturesStayOutOfThemselves(string name)
+    {
+        var through = Clearance.Mesh(Get(name)).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    /// <summary>
+    /// At their full budgets the demo's creatures would put a headset's frame over tuning/perf.json's triangles (each is
+    /// drawn for two eyes and the shadows), so each has a distance copy, drawn past look.json's creatureLodMetres: two
+    /// fifths of it or so, on the same bones (note 262).
+    /// </summary>
+    [Theory]
+    [InlineData("ribbit")]
+    [InlineData("track_doll")]
+    [InlineData("car_hugger")]
+    [InlineData("whistler")]
+    [InlineData("tippy_toesie")]
+    [InlineData("choir")]
+    public void TheDemoCreaturesHaveADistanceCopy(string name)
+    {
+        var full = Get(name);
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 4, a * 6 / 10);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+        Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+    }
+
     [Theory]
     [MemberData(nameof(Models))]
     public void ClipsAre30FpsAndLoopsCloseCleanly(string name)
