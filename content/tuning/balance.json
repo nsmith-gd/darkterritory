@@ -8,9 +8,10 @@
   // "...non-trivial at 8": an eight-crew's night sees at least this many punishes (a threat landing) on average.
   "nonTrivialCrew": 8,
   "nonTrivialPunishes": 5,
-  // The pace (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"): no night quiet out on
-  // the line longer than this, and quiet stretches no longer than this on average.
-  "maxQuietSeconds": 30,
+  // The pace: no night quiet out on the line longer than this, and quiet stretches no longer than meanQuietSeconds on
+  // average. The 100-night playtest's "a reward or a problem every 30 s at most, ideally 20" gave way to the director's
+  // decision of 6 Oct 2026 (note 266): a quiet spell is 20–90 s (enemies.json director.graceMaxSeconds).
+  "maxQuietSeconds": 90,
   "meanQuietSeconds": 20,
 
   // GDD §34 "Combination fairness: every pair and triple in the roster against every hazard set. Flag unwinnable or

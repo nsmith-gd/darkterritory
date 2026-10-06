@@ -28,7 +28,7 @@ public class FiremanTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, 2_000, boiler ? Tuning.Boiler : null);
             train.Dynamics.Velocity = 12;
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
             Driver = new ConductorBot(Calls, 0);
             Fireman = new ConductorBot(Calls, 1) { Fireman = true };

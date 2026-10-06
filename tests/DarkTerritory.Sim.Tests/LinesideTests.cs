@@ -498,8 +498,10 @@ public class DropAndPacingTests
     }
 
     [Fact]
-    public void ANightOutOnTheLineIsNeverQuietForMoreThanThirtySeconds()
+    public void ANightOutOnTheLineIsNeverQuietForLongerThanTheLongestQuietSpell()
     {
+        // The director's decision of 6 Oct 2026 (note 266): a quiet spell runs 20–90 s, not the 100-night playtest's 30 s at
+        // most; something still happens a couple of times a minute.
         var content = DataFile.FindContentRoot();
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Local, 3);
         var report = Net.Harness.Run(route.Build(), T, P, new Net.HarnessOptions
@@ -519,7 +521,7 @@ public class DropAndPacingTests
             Holdouts = Tuning.Holdouts,
         }, Tuning.Boiler);
         var pace = report.Pacing!;
-        Assert.True(pace.LongestQuietSeconds <= 30, $"quiet for {pace.LongestQuietSeconds} s ({string.Join(", ", pace.Kinds.Select(k => $"{k.Key} {k.Value}"))})");
+        Assert.True(pace.LongestQuietSeconds <= Tuning.Enemies.Director.GraceMaxSeconds, $"quiet for {pace.LongestQuietSeconds} s ({string.Join(", ", pace.Kinds.Select(k => $"{k.Key} {k.Value}"))})");
         Assert.True(pace.BeatsPerMinute >= 2, $"{pace.BeatsPerMinute} a minute");
     }
 }

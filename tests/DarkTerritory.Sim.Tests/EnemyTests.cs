@@ -17,13 +17,13 @@ sealed class Night
     public readonly List<GunShot> Shots = new();
     public TrainControls Controls = new() { Reverser = 1 };
 
-    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1)
+    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null)
     {
         var line = route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, route is null ? 2_000 : 400, boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);
-        World.EnableEnemies(Tuning.Enemies, route, seed, crew: 4, authority: true);
+        World.EnableEnemies(enemies ?? Tuning.Enemies, route, seed, crew: 4, authority: true);
     }
 
     public TrainOnLine Train => World.Train;
@@ -372,16 +372,17 @@ public class EnemyTests
             Assert.NotEmpty(d.Log);
             // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
             // minding the fire.
-            // Paced spawns (quiet too long) come when they must, cooldown or not.
+            // Nothing of the director's own before the night's grace, pressed or not (note 266).
+            Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker), l => Assert.True(l.Tick * SimConstants.TickSeconds >= d.Grace, $"spawn at {l.Tick / 30} s"));
+            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not.
             var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
-            Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5).
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
                 l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));
-            // The budget holds for what's spent on its curve; a paced spawn may overdraw it (a quiet night's worse).
+            // The budget holds for what's spent on its curve; a pressed spawn may overdraw it (a quiet night's worse).
             Assert.True(d.Log.Where(l => !l.Paced).Sum(l => l.Cost) <= d.Budget + 1e-9);
             n.AssertFair();
         }

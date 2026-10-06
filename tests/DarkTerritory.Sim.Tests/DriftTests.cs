@@ -34,7 +34,7 @@ public class DriftTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), Line, at);
             train.Dynamics.Velocity = Speed;
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(enemies ?? quiet, route ?? Marsh(0, 80_000), 1, crew: 3, authority: true);
         }
 

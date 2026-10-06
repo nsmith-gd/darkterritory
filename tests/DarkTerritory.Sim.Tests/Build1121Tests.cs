@@ -184,20 +184,20 @@ public class Build1121Tests
         (Night N, CarFire Fire) Blaze()
         {
             var n = new Night(5, speed: 8);
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, E.CarFire));
-            fire.Extra = 1;
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, E.CarFire).Ablaze(1, 1.5));
             n.Train.Vehicles[car].Cargo = CargoKind.None;
             n.Run(3); // alight (past its telegraph), with nobody in the car yet
             return (n, fire);
         }
         var room = Blaze().N.Train.Frames[car].Shape.Interior!.Value;
-        PlayerState In(CarFire f) => new() { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, f.Local.Z + 1.5), Surface = Surface.Deck, Health = P.Health };
+        PlayerState In(CarFire f) => new() { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, f.Local.Z + 0.5), Surface = Surface.Deck, Health = P.Health };
 
         // A brush: half a second in it, then out of reach down the car.
         var (a, fa) = Blaze();
         a.Crew[1] = In(fa);
         a.Run(0.5);
-        a.Crew[1] = a.Crew[1] with { Position = a.Crew[1].Position with { Z = fa.Local.Z + E.CarFire.BurnReach + 2 } };
+        // Out of it: past the burning cells (note 267: 1.5 m either side of it) and out of reach of them.
+        a.Crew[1] = a.Crew[1] with { Position = a.Crew[1].Position with { Z = fa.Local.Z - 1.5 - E.CarFire.CellSize - E.CarFire.BurnReach - 0.5 } };
         a.Run(5);
         int brushed = P.Health - a.Crew[1].Health;
         Assert.InRange(brushed, 1, 6);

@@ -79,7 +79,9 @@ public static class WorldRecords
                     // Its crew lockers' doors (note 173).
                     v.LockersOpen,
                     // Its shell breached, and where (decided 1 Oct: it shuts nobody in until it's boarded up).
-                    v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos)]));
+                    v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos),
+                    // How charred its fire cells are (note 267: every client draws the burnt boards).
+                    .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
@@ -95,6 +97,8 @@ public static class WorldRecords
                 (long)e.Kind, (long)e.Phase, Q(e.PhaseSeconds, 1e3), Q(e.Health, 1e3), e.Attached,
                 Q(e.Local.X, Pos), Q(e.Local.Y, Pos), Q(e.Local.Z, Pos), Q(e.LineDistance, Pos), Q(e.Lateral, Pos), Q(e.Height, Pos),
                 Q(e.Extra, 1e3), Q(e.Extra2, 1e3), e.Holding, Q(e.GrabWindow, 1e3),
+                // A fire's cells (note 267): it's drawn cell by cell.
+                .. e is CarFire fire ? CarFire.Pack(fire.Heat) : [],
             ]));
         // What landed lately (T121): blows and balls on creatures, and where balls came down, for every client's flinch,
         // thud, marker and explosion. Each goes for as long as it's kept, so one dropped snapshot doesn't lose it.
@@ -306,7 +310,8 @@ public static class WorldRecords
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
-                        f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default));
+                        f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
+                        [.. CarFire.Unpack(f, 23).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))]));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -495,6 +500,8 @@ public static class WorldRecords
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
             D(f[8], Pos), D(f[9], Pos), D(f[10], Pos), D(f[11], 1e3), D(f[12], 1e3),
             f.Length > 13 ? (int)f[13] : -1, f.Length > 14 ? D(f[14], 1e3) : 0);
+        if (e is CarFire fire)
+            fire.RestoreHeat(CarFire.Unpack(f, 15));
         return e;
     }
 

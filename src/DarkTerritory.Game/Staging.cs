@@ -824,7 +824,16 @@ public static class Staging
     {
         foreach (var e in threats)
             if (e is CarFire fire)
+            {
                 fire.Restore(SpinePhase.Telegraph, 8, 1, fire.Attached, fire.Local, 0, 0, 0, 0.15, 0);
+                if (fire.Heat.Length > 0)
+                {
+                    // One cell of the floor going, where it was set.
+                    var heat = new double[fire.Heat.Length];
+                    heat[Array.IndexOf(fire.Heat, fire.Heat.Max())] = 0.25;
+                    fire.RestoreHeat(heat);
+                }
+            }
         return threats;
     }
 
@@ -838,6 +847,28 @@ public static class Staging
             if (e is CarFire fire)
                 fire.Restore(fire.Phase, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, fire.Extra, fraction * spreadSeconds);
         return threats;
+    }
+
+    /// <summary>
+    /// A staged fire's cells (GDD App. F.1; note 267), as one left a while burns: hottest where it was set, the walls and roof
+    /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
+    /// char under the worst of it.
+    /// </summary>
+    public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread)
+    {
+        if (FireGrid.Of(train, fire.Attached, new CarFireTuning().CellSize) is not { } grid)
+            return;
+        var heat = new double[grid.Count];
+        var burnt = new byte[grid.Count];
+        double reach = 1.5 + 2.5 * extra + 4 * spread;
+        for (int i = 0; i < grid.Count; i++)
+        {
+            double d = Math.Abs(grid.Centre[i].Z - fire.Local.Z) + (grid.Face[i] == FireFace.Floor ? 0 : 0.6) + 0.15 * (i * 7 % 5);
+            heat[i] = Math.Clamp(1.1 * (1 - d / reach), 0, 1);
+            burnt[i] = (byte)Math.Clamp((int)(heat[i] * 18) - 3, 0, 15);
+        }
+        fire.RestoreHeat(heat);
+        train.Vehicles[fire.Attached].Char = burnt;
     }
 
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
@@ -876,6 +907,7 @@ public static class Staging
         // The first cargo car alight, and Fire Flies swarming the lamp in the middle car (A.5, C.5).
         var fire = CarFire.In(24, train, cargo, 1.5, new CarFireTuning());
         fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
+        Cells(train, fire, 0.7, 0);
         threats.Add(fire);
         if (train.Frames[middle].Shape.Interior is { } room)
         {

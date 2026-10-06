@@ -496,12 +496,51 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             }
             return at ? new PlayerIntent { Buttons = tap ? PlayerButtons.Use : PlayerButtons.None, LookPitch = (float)(-0.6 - self.Pitch) } : walk;
         }
-        var aisle = new Double3(train.Dynamics.Tuning.Geometry.Interior!.DoorX, 0, trouble.Local.Z + (self.Position.Z > trouble.Local.Z ? 1.2 : -1.2));
-        double yaw = self.Position.Z > trouble.Local.Z ? 0 : Math.PI;
-        var (step, there) = WarmUp.Steer(self, aisle, yaw);
+        // The fire's cells (note 267): the extinguisher puts out the cell it's aimed at, so the burning cell nearest, from the
+        // aisle a little short of it, looked at. Working in from the near edge, the walker's never stood in what it's left.
+        var target = new Double3(Interior(train).DoorX, 0, trouble.Local.Z);
+        if (trouble is CarFire { Heat.Length: > 0 } fire && FireGrid.Of(train, trouble.Attached, world.Enemies?.CarFire.CellSize ?? 1.5) is { } grid
+            && grid.Count == fire.Heat.Length)
+        {
+            int near = -1;
+            double best = double.MaxValue;
+            for (int i = 0; i < grid.Count; i++)
+            {
+                double d = Math.Abs(grid.Centre[i].Z - self.Position.Z) - fire.Heat[i] * 0.5;
+                if (fire.Heat[i] > 0 && d < best)
+                {
+                    best = d;
+                    near = i;
+                }
+            }
+            if (near >= 0)
+                target = grid.Centre[near];
+        }
+        double side = self.Position.Z > target.Z ? 1 : -1;
+        double standZ = target.Z + side * 1.2;
+        if (train.Frames[self.Parent].Shape.Interior is { } rm)
+            standZ = Math.Clamp(standZ, rm.Min.Z + 0.4, rm.Max.Z - 0.4);
+        var aisle = new Double3(Interior(train).DoorX, 0, standZ);
+        double yaw = side > 0 ? 0 : Math.PI;
+        // There once it's near the spot, whichever way it faces: it turns to the cell, not along the car.
+        var (step, _) = WarmUp.Steer(self, aisle, yaw);
+        double ox = aisle.X - self.Position.X, oz = aisle.Z - self.Position.Z;
+        bool there = ox * ox + oz * oz < 0.4 * 0.4;
         TendStep = there ? "spraying" : "to the fire";
-        return there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
+        if (!there)
+            return step;
+        // Look at it: the spray goes from the eye along the look (Bookmarks.Forward).
+        var d3 = target - (self.Position + Double3.Up * train.Dynamics.Tuning.Pick.EyeHeight);
+        double wantYaw = DMath.Atan2(-d3.X, -d3.Z), wantPitch = DMath.Atan2(d3.Y, Math.Sqrt(d3.X * d3.X + d3.Z * d3.Z));
+        return new PlayerIntent
+        {
+            Buttons = PlayerButtons.Fire,
+            LookYaw = (float)Math.Clamp(Math.IEEERemainder(wantYaw - self.Yaw, 2 * Math.PI), -0.5, 0.5),
+            LookPitch = (float)Math.Clamp(wantPitch - self.Pitch, -0.5, 0.5),
+        };
     }
+
+    static InteriorLayout Interior(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior!;
 
     /// <summary>Room a walker wants round where it stands (m): about a crewmate's radius (player.json 0.3).</summary>
     const double Clearance = 0.3;

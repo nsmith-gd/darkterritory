@@ -270,6 +270,23 @@ public sealed record CarFireTuning
     public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
+    /// <summary>Note 267: the fire grid's cell size (m; App. F.1 "large cells of 1–2 m").</summary>
+    public double CellSize { get; init; } = 1.5;
+    /// <summary>Note 267: a cell this hot heats the cells round it, at <see cref="CatchPerSecond"/> x its heat, upward x <see cref="Climb"/>.</summary>
+    public double CatchFrom { get; init; } = 0.5;
+    public double CatchPerSecond { get; init; } = 0.04;
+    public double Climb { get; init; } = 2;
+    /// <summary>Note 267: what a cell burns of itself a second at full heat (1: all of it); it chars as it goes.</summary>
+    public double CharPerSecond { get; init; } = 0.01;
+    /// <summary>Note 267: of the spray on a cell, the share the cells round it get; and how long a sprayed cell stays wet (s).</summary>
+    public double SprayShare { get; init; } = 0.4;
+    public double DampSeconds { get; init; } = 3;
+    /// <summary>Note 267: the roof's burn on whoever's under it, of a floor or wall cell's as near.</summary>
+    public double CeilingBurnShare { get; init; } = 0.5;
+    /// <summary>Note 267: how tall a crewmate is to the fire (m): what of them a burning cell can reach.</summary>
+    public double BodyHeight { get; init; } = 1.8;
+    /// <summary>Note 267: a cell cooler than this doesn't burn on its own, and goes out unless a cell round it heats it.</summary>
+    public double OutBelow { get; init; } = 0.05;
 }
 
 /// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -442,7 +459,7 @@ public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);
 
 public sealed record DirectorTuning(
     Dictionary<string, double> BaseBudget, double LengthPerCarBeyondThird, double CrewBase, double CrewPerPlayer, double CrewCap,
-    double GraceSeconds, double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
+    double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
     double HoundsLivestockWeight, double HoundsHotBoilerWeight)
 {
@@ -460,11 +477,17 @@ public sealed record DirectorTuning(
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
     public double LingerRadius { get; init; } = 12;
-    /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
-    public double PaceSeconds { get; init; } = 18;
+    /// <summary>
+    /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
+    /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).
+    /// </summary>
+    public double GraceMinSeconds { get; init; } = 20;
+    public double GraceMaxSeconds { get; init; } = 90;
+    /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
+    public PressureTuning Pressure { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
-    /// <summary>A paced spawn may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
+    /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
     public double IncidentWeight { get; init; } = 0.5;
@@ -480,8 +503,9 @@ public sealed record DirectorTuning(
     public string[] SaveFor { get; init; } = [];
     public double SaveFrom { get; init; } = 0.2;
     /// <summary>
-    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run; after, the director's own
-    /// grace (after the playtest, "out of the gate in 20 s") is the rule. Negative: the whole stretch, as the plan has it.
+    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run, or to the end of the night's own
+    /// grace (<see cref="GraceMinSeconds"/>..<see cref="GraceMaxSeconds"/>) if that's later. Negative: the whole stretch, as the
+    /// plan has it.
     /// </summary>
     public double LineGraceSeconds { get; init; } = 20;
     /// <summary>
@@ -495,6 +519,42 @@ public sealed record DirectorTuning(
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
     public VoteTuning Vote { get; init; } = new();
+}
+
+/// <summary>
+/// The director's pressure (GDD App. B.1, design decision 2026-10; note 266): once a second after the grace it builds by
+/// <c>tier × conditions × crew relief × busy × escalation × (base + quiet + loudness + cargo)</c>, banks to at most
+/// <see cref="Max"/>, and past <see cref="Threshold"/> the director spends on what its weights pick, each spawn taking
+/// <see cref="ReliefPerCost"/> × its cost off. Mirror of enemies.json <c>director.pressure</c>; field docs live there.
+/// </summary>
+public sealed record PressureTuning
+{
+    public double Threshold { get; init; } = 10;
+    public double Start { get; init; } = 4;
+    public double Max { get; init; } = 18;
+    public double PressAt { get; init; } = 16;
+    public double ReliefPerCost { get; init; } = 3;
+    public double BasePerSecond { get; init; } = 0.03;
+    public double Escalation { get; init; } = 3;
+    public int EscalationPower { get; init; } = 1;
+    public double QuietPerSecond { get; init; } = 0.1;
+    public double QuietRampSeconds { get; init; } = 90;
+    public double LoudPerSecond { get; init; } = 0.1;
+    public double LoudCap { get; init; } = 1.5;
+    public double CargoPerLoad { get; init; } = 0.01;
+    public Dictionary<string, double> CargoValue { get; init; } = new();
+    public Dictionary<string, double> Tier { get; init; } = new();
+    public Dictionary<string, double> GraceTierScale { get; init; } = new();
+    public double Dark { get; init; } = 0.15;
+    public double Cold { get; init; } = 0.1;
+    public double ColdPerStep { get; init; } = 0.05;
+    public double Wet { get; init; } = 0.05;
+    public double Wind { get; init; } = 0.05;
+    public int DownPower { get; init; } = 2;
+    public int HurtBelow { get; init; } = 35;
+    public double HurtRelief { get; init; } = 0.25;
+    public double Busy { get; init; } = 0.5;
+    public double BusyFade { get; init; } = 1;
 }
 
 /// <summary>
