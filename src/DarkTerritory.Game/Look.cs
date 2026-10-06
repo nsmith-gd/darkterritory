@@ -159,6 +159,12 @@ public sealed record LookTuning
     public int LayerSize { get; init; } = 512;
     /// <summary>The characters' and creatures' baked atlases (authored bigger than <see cref="LayerSize"/>) keep up to this.</summary>
     public int HeroLayerSize { get; init; } = 1024;
+    /// <summary>The largest creatures' atlases (authored over <see cref="HeroLayerSize"/>) keep up to this, in arrays of
+    /// their own (look.json bigHeroLayerSize; GDD §27's density on a monster spread over a car).</summary>
+    public int BigHeroLayerSize { get; init; } = 2048;
+    /// <summary>Past this far from the eye (m) a creature with a distance copy (content/art/models/&lt;name&gt;.lod1.glb) draws
+    /// that instead (look.json creatureLodMetres; 0: never).</summary>
+    public float CreatureLodMetres { get; init; }
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
@@ -316,7 +322,7 @@ public sealed class Look
                 if (t.Family == "sky")
                     backdrop = diffuse;
             }
-        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
+        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
     /// <summary>The night's lighting with the look's atmosphere over it.</summary>

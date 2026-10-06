@@ -1767,7 +1767,10 @@ static object ArtClearance(string content, string[] args)
     var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
     float limit = (float)Opt(args, "--limit", DarkTerritory.Game.Art.Clearance.Touching);
     var allow = Str(args, "--allow", "") is { Length: > 0 } al ? al.Split(',').ToHashSet() : [];
-    var rows = DarkTerritory.Game.Art.Clearance.Check(look.Art.Creatures, name, clipsOnly);
+    // The crew's figures by their measured sizes; anything else (or --mesh) by capsules fitted to its own mesh.
+    var rows = name is "crew" or "husk" && !args.Contains("--mesh")
+        ? DarkTerritory.Game.Art.Clearance.Check(look.Art.Creatures, name, clipsOnly)
+        : DarkTerritory.Game.Art.Clearance.Mesh(look.Art.Creatures.Get(name) ?? throw new ArgumentException($"no model {name}"), clipsOnly);
     var failing = rows.Where(r => r.Depth > limit && !allow.Contains($"{r.Clip}:{r.Pair}")).ToList();
     return new
     {

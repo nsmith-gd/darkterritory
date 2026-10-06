@@ -1150,7 +1150,7 @@
     "diffuse": "models/car_hugger_0.png",
     "spec": "models/car_hugger_0_s.png",
     "normal": "models/car_hugger_0_n.png",
-    "size": 1024,
+    "size": 2048,
     "tileMetres": null,
     "tiling": false,
     "family": "creature",

@@ -293,6 +293,8 @@ public sealed class CreatureArt
         public MaterialLook[] Looks { get; } = looks;
         public MaterialLook[] Scratch { get; } = new MaterialLook[looks.Length];
         public Pose Pose { get; } = new(model.Skeleton.Count);
+        /// <summary>The distance copy (&lt;name&gt;.lod1.glb), its joints renumbered to this model's: posed by this one's palette.</summary>
+        public Entry? Lod { get; init; }
     }
 
     readonly Dictionary<string, Entry> _models = new();
@@ -326,12 +328,37 @@ public sealed class CreatureArt
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
             if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
-            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, WearOf.GetValueOrDefault(name, 0.5f)))]);
+            float wear = WearOf.GetValueOrDefault(name, 0.5f);
+            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
+            {
+                Lod = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model) is { } lod
+                    ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
+            };
         }
     }
 
     public Look Look { get; }
     public string ContentRoot { get; }
+
+    /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
+    /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
+    static Model? LoadLod(string path, Model full)
+    {
+        if (!File.Exists(path))
+            return null;
+        var lod = ModelLoader.Load(path);
+        var map = new int[lod.Skeleton.Count];
+        for (int b = 0; b < map.Length; b++)
+            if ((map[b] = full.Skeleton.IndexOf(lod.Skeleton.Names[b])) < 0)
+                return null;
+        foreach (var part in lod.Parts)
+            for (int i = 0; i < part.Joints.Length; i++)
+                part.Joints[i] = map[part.Joints[i]];
+        return lod;
+    }
+
+    /// <summary>The distance copy of a loaded model, or null (what the far draw is).</summary>
+    public Model? LodOf(string name) => _models.TryGetValue(name, out var m) ? m.Lod?.Model : null;
 
     /// <summary>A Cinder Hound's board onto the rear car (tools/blender/cinder_hound.py "board", 33 frames at 30).</summary>
     const double HoundBoardSeconds = 1.1;
@@ -432,7 +459,10 @@ public sealed class CreatureArt
                 : (clip, c, 0, false);
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
-        Emit(mesh, m, clip, at, variant, glow, seed, adjust);
+        // Far from the eye (the scene is built about it: `at`'s origin is the distance), its distance copy, on this pose.
+        float lod = Look.Tuning.CreatureLodMetres;
+        var drawn = m.Lod is { } far && lod > 0 && at.Translation.LengthSquared() > lod * lod ? far : m;
+        Emit(mesh, drawn, clip, at, variant, glow, seed, adjust, skin: m.Pose.Skin);
         return true;
     }
 
@@ -442,14 +472,14 @@ public sealed class CreatureArt
     /// by it), so a pulsing ember doesn't need an asset a frame.
     /// </summary>
     void Emit(MeshBuilder mesh, Entry m, string? clip, in Matrix4x4 at, int variant, float glow, float seed,
-        Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null, bool arms = false)
+        Func<ModelMaterial, MaterialLook, MaterialLook>? adjust = null, bool arms = false, Matrix4x4[]? skin = null)
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
             m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
-        mesh.Skinned(Bound(m, settings, arms), at, m.Pose.Skin, glow, seedOffset * _texels);
+        mesh.Skinned(Bound(m, settings, arms), at, skin ?? m.Pose.Skin, glow, seedOffset * _texels);
     }
 
     // The bind-pose assets, by model, the parts drawn and the looks (keyed to 1/128th: a hull heating as it's drilled
