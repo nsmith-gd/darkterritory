@@ -277,6 +277,7 @@ for k, (y, r, count, length) in enumerate(TEETH):
 # ----------------------------------------------------------------------------------------------------------------
 # The arms: long, thin for their length, the elbows standing out, the hands broad with long fingers dug into the steel.
 arms = kit.part("arms")
+hands = kit.part("hands")   # the hands and their long fingers, kept out of the fused hide (rig.fuse)
 for n, s, e, w, g in ARMS:
     s, e, w, g = Vector(s), Vector(e), Vector(w), Vector(g).normalized()
     chain = [f"arm_{n}_01", f"arm_{n}_02", f"hand_{n}"]
@@ -294,7 +295,7 @@ for n, s, e, w, g in ARMS:
     wall = Vector((-math.copysign(1, s.x), 0, 0))
     k = w + g * 0.24
     across = g.cross(wall).normalized()
-    arms.tube([w, w.lerp(k, 0.45), k], [(0.075, 0.05), (0.11, 0.05), (0.11, 0.042)], 10, PALE, [f"hand_{n}"], ref=tuple(wall), square=0.9)
+    hands.tube([w, w.lerp(k, 0.45), k], [(0.075, 0.05), (0.11, 0.05), (0.11, 0.042)], 10, PALE, [f"hand_{n}"], ref=tuple(wall), square=0.9)
     for f in range(4):
         o = across * (f - 1.5) * 0.062
         a0 = k + o
@@ -306,9 +307,9 @@ for n, s, e, w, g in ARMS:
         else:
             a2 = a1 + (g * 0.9 + wall * 0.3).normalized() * 0.15
             a3 = a2 + (g * 0.4 + wall * 0.9).normalized() * 0.1
-        arms.tube([a0, a1, a2, a3], [0.036, 0.031, 0.025, 0.01], 6, PALE, ([f"hand_{n}", f"grip_{n}"], 6.0), ref=tuple(wall), cap1="point")
+        hands.tube([a0, a1, a2, a3], [0.036, 0.031, 0.025, 0.01], 6, PALE, ([f"hand_{n}", f"grip_{n}"], 6.0), ref=tuple(wall), cap1="point")
     th = w + g * 0.08 - across * 0.14
-    arms.tube([th, th + (g - across * 0.6).normalized() * 0.14, th + (g - across * 0.4 + wall * 0.4).normalized() * 0.25],
+    hands.tube([th, th + (g - across * 0.6).normalized() * 0.14, th + (g - across * 0.4 + wall * 0.4).normalized() * 0.25],
               [0.036, 0.026, 0.009], 6, PALE, f"grip_{n}", ref=(0, 0, 1), cap1="point")
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -466,7 +467,9 @@ for f in range(0, 19, 2):
 # Lurk (2.7 s, loop): down in the low ground by the line, off any car: the body lying flat, the arms folded under
 # it, the mouth shut, breathing in slow swells from the tail forward; now and then a hand opens and closes.
 DOWN = Vector((0, 0.3, -0.62))
-FOLD = {n: v + DOWN for n, v in {"a": Vector((0.9, 0.2, 0.25)), "b": Vector((-0.9, 0.2, 0.25)), "c": Vector((1.0, -0.6, -0.35)),
+# (The mouth is over to the door's side, -x: the left upper hand is folded down beside it, as far out from it as the right
+# one is, not across it: dt art clearance.)
+FOLD = {n: v + DOWN for n, v in {"a": Vector((0.9, 0.2, 0.25)), "b": Vector((-1.4, 0.05, 0.25)), "c": Vector((1.0, -0.6, -0.35)),
                                  "d": Vector((-1.0, -0.6, -0.35))}.items()}
 flat = over(REST, root__loc=tuple(DOWN), body_01=(-10, 0, 0), body_03=(22, 0, 0), body_04=(-14, 0, 0))
 flat["mouth@scale"] = (0.55, 0.9, 0.55)
@@ -479,6 +482,11 @@ for f in range(0, LURK + 1, 4):
     pose |= fingers(0.4) | (fingers(-0.3, only="c") if twitch else {})
     lurk.key(f, held(pose, FOLD), "CONSTANT" if u == 56 else "BEZIER")
 
+# One hide, the arms grown out of the body and the hands out of the arms rather than pushed into them (rig.fuse); then up
+# toward GDD §27's budget (a large monster's, 8-16k): rig.densify rounds the mouth and the iron out (Look Review asks).
+kit.fuse("body", ["body", "arms"], voxel=0.008, faces=4200,
+         cut=lambda p: p.y > 0.05 and math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < MOUTH_R - 0.03)   # the mouth, open
+kit.target_tris = 13500
 kit.build()
 rig.bake(sk, [lurk, latch, feed, swallow, release, hit])
 print("[dt] car_hugger", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(bones))

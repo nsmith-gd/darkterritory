@@ -374,4 +374,4 @@ rough[atlas.masks["hair"]] = 0.65
 rough = np.where(worn[..., 0] > 0.3, 0.85, rough)
 rough = np.where(worn[..., 1] > 0.4, np.maximum(rough, 0.5), rough)
 atlas.finish(base, kit, arm, made=make.provenance("track_doll", "the Track Doll, modelled over tools/blender/track_doll.py"),
-             split={FACE: "face", EYE: "face"}, rough=rough)
+             split={FACE: "face", EYE: "face"}, rough=rough, lod=0.4)

@@ -127,4 +127,4 @@ base = paint(base, (0.3, 0.26, 0.16), mk[..., 1] * 0.35)      # the plates yello
 base = paint(base, (0.2, 0.08, 0.07), mk[..., 2] * 0.45)      # veins in the flesh
 base = paint(base, (0.01, 0.009, 0.008), mk[..., 0] * 0.85)   # grease
 rough = np.clip(atlas.maps["gloss"][..., 0] - 0.15 * mk[..., 0], 0.05, 1)
-atlas.finish(base, kit, arm, made=make.provenance("whistler", "the Whistler, modelled over tools/blender/whistler.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("whistler", "the Whistler, modelled over tools/blender/whistler.py"), rough=rough, lod=0.4)

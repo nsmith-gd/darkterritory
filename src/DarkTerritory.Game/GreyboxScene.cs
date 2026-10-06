@@ -52,6 +52,8 @@ public sealed class GreyboxScene
     public IReadOnlyList<(Double3 At, Vector3 Colour, float Radius)>? Lights { get; set; }
     /// <summary>The firebox door's open (the boiler's FireDoorOpen): a Stoker in the fire is seen through it.</summary>
     public bool FireDoorOpen { get; set; }
+    /// <summary>Seconds since the last shovelful (the boiler's <c>SinceShovel</c>): the firebox flares just after one (§31).</summary>
+    public double SinceShovel { get; set; } = double.PositiveInfinity;
     /// <summary>Emergency lighting (`dt screenshot --emergency`): the cars' lamps go to a dim red, the headlamp dark.</summary>
     public bool Emergency { get; set; }
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
@@ -84,6 +86,8 @@ public sealed class GreyboxScene
     public IReadOnlyList<Enemy>? Enemies { get; set; }
     /// <summary>Blows and balls that landed on creatures lately (World.Hits, T121): each one's flinch and flash, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.HitConfirm>? Hits { get; set; }
+    /// <summary>Crewmates' swings, landed or not (note 197): the world's, for their swing clip.</summary>
+    public IReadOnlyList<Sim.Combat.SwingEvent>? Swings { get; set; }
     /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.CannonImpact>? Impacts { get; set; }
 
@@ -130,6 +134,8 @@ public sealed class GreyboxScene
     public Func<int, bool>? Utility { get; set; }
     /// <summary>The train has roof handrails (spec F.3, train.json <c>composition.handrails</c>; note 184).</summary>
     public bool Handrails { get; set; }
+    /// <summary>The cab has the powered switch thrower's lever (spec F.3, train.json <c>composition.switchThrower</c>; note 196).</summary>
+    public bool SwitchThrower { get; set; }
     /// <summary>How cold the night is (0..1): the route weather's, or a still frame's (<c>dt screenshot --cold c</c>).</summary>
     public double Cold => StagedCold ?? Route?.Weather.Cold ?? 0;
     public double? StagedCold { get; set; }
@@ -163,6 +169,12 @@ public sealed class GreyboxScene
     public bool SafetyValve { get; set; }
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
+    /// <summary>
+    /// vr.json's body (T82) for the box figure's headset crewmates when there's no art pass (with one, <see cref="Look"/>'s):
+    /// unset, the mirror's own numbers (note 223).
+    /// </summary>
+    public VrBodyTuning? VrBody { get; set; }
+    readonly VrStrides _bodies = new();
 
     /// <summary>
     /// When set, what each part of <see cref="Build"/> cost (milliseconds, and the triangles it added to the frame's soup),
@@ -190,6 +202,7 @@ public sealed class GreyboxScene
         Vehicles ??= train.Vehicles;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
+        SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -203,8 +216,10 @@ public sealed class GreyboxScene
         if (_wheelClock is { } then && Time > then && Time - then < 1)
             _travelled += _speed * (Time - then);
         _wheelClock = Time;
+        // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
         if (Look is not null)
-            Look.Art.Breath = Look.Tuning.Atmosphere.Cold.Breath(Cold);
+            Look.Art.Breath = Math.Max(Look.Tuning.Atmosphere.Cold.Breath(Cold),
+                ChoirGathering > ChoirFrostFrom ? (ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom) : 0);
         Fires(frames.Count);
         mesh.Style = Look?.Style;
         mesh.Seed = 0;
@@ -333,6 +348,8 @@ public sealed class GreyboxScene
         foreach (var frame in frames)
             if (CutAway?.Contains(frame.Index) != true)
                 Car(mesh, frame, eye);
+            else
+                CutFloor(mesh, frame, eye);
         Lap(mesh, "cars");
         if (Look is not null)
         {
@@ -358,8 +375,12 @@ public sealed class GreyboxScene
             Look.Art.Effects.Fog(mesh, line, eye, centre, Time, fog, (float)(Route?.Weather.FogDensity ?? 0.016));
             if (Route?.Weather is { Wet: true } weather)
                 Look.Art.Effects.Rain(mesh, eye, Time, (float)weather.Wind, fog);
-            // The air of a corrupted stretch: ash, spores (GDD §30).
-            Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir ?? Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre)));
+            // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
+            if (ChoirGathering > ChoirFrostFrom)
+                Look.Art.Effects.Frost(mesh, eye, Time, ChoirCold(ChoirGathering));
+            // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
+            Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
+                ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
             Strikes(mesh, Look.Art.Effects, frames, eye);
         }
         Lap(mesh, "effects");
@@ -393,6 +414,7 @@ public sealed class GreyboxScene
             if (down < 0 || !perching.Draw(mesh, "stoker", "descend", down, false, basis))
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
+        Look?.Art.Creatures?.Clutches.Clear();
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -438,6 +460,7 @@ public sealed class GreyboxScene
                         : null;
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e), HitAge(e));
                 }
+        Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
         if (Bodies is not null)
         {
@@ -469,9 +492,14 @@ public sealed class GreyboxScene
         }
         Extinguishing(mesh, frames, eye);
         if (Crew is not null)
-            foreach (var c in Crew)
+            foreach (var held in Crew)
+            {
+                var c = Hung(held, eye);
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
-                    DrawCrewmate(mesh, c, eye);
+                    // A headset crewmate's body leans, crouches and turns under the head on the box figure too (note 223);
+                    // without the clips there's no gait to give way to, so only an act does.
+                    DrawCrewmate(mesh, c, eye, _bodies.Pose(c, c.Act is null, Time, Look?.VrBody ?? VrBody ?? new VrBodyTuning()));
+            }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
         Lap(mesh, "bodies and crew");
@@ -529,19 +557,27 @@ public sealed class GreyboxScene
         return at + near.Right * (across >= 0 ? 5 : -5);
     }
 
-    /// <summary>Seconds since crewmate <paramref name="id"/>'s latest melee blow landed (its HitConfirm, T121), or −1.</summary>
+    /// <summary>
+    /// Seconds since crewmate <paramref name="id"/>'s latest swing: one that landed (its HitConfirm, T121) or one at nothing
+    /// (its SwingEvent, note 197; the blow is decided on the tick the swing starts, so both time the clip alike), or −1.
+    /// </summary>
     double Swung(int id)
     {
-        if (Hits is null || Tick < 0)
+        if (Tick < 0)
             return -1;
         double best = -1;
-        foreach (var h in Hits)
+        void Consider(uint tick)
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age >= 0 && (best < 0 || age < best))
+                best = age;
+        }
+        foreach (var h in Hits ?? [])
             if (h.By == id && h.Source == Sim.Combat.HitSource.Melee)
-            {
-                double age = (Tick - h.Tick) * Sim.SimConstants.TickSeconds;
-                if (age >= 0 && (best < 0 || age < best))
-                    best = age;
-            }
+                Consider(h.Tick);
+        foreach (var w in Swings ?? [])
+            if (w.By == id)
+                Consider(w.Tick);
         return best;
     }
 
@@ -575,6 +611,258 @@ public sealed class GreyboxScene
         return (flat * (FlinchPush * k), Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(Vector3.UnitY, flat)), FlinchTip * k));
     }
 
+    // What was drawn last frame, by id, and the ones killed since (with the tick of the blow): a kill takes the creature
+    // out of the sim at once (it's Gone, then removed), and its hit lasts a second on the wire, so the death is the scene's
+    // own memory of it (presentation only; nothing here goes back to the sim).
+    readonly Dictionary<int, Enemy> _seen = new();
+    readonly Dictionary<int, (Enemy Body, uint Tick, Vector3 From)> _dying = new();
+    // The Choir's ghosts driven off since (with the tick they went): the sim dismisses the swarm at once.
+    readonly Dictionary<int, (Enemy Body, uint Tick)> _leaving = new();
+    // The Track Dolls as they stood last frame (copies: the sim moves its own), the toys about then, and where a doll's
+    // vanished from since (with the tick, and the toy it took or −1).
+    readonly Dictionary<int, Enemy> _dollWas = new();
+    readonly HashSet<int> _toysWas = new();
+    readonly List<(Enemy Was, uint Tick, int Toy)> _vanished = new();
+    // The Car Huggers cut loose with their cars since (with the tick): the sim's done with one once its car is off the train.
+    readonly Dictionary<int, (Enemy Body, uint Tick)> _riding = new();
+    readonly List<(string Beat, Enemy Body)> _newBeats = new();
+
+    /// <summary>What began in the last <see cref="Remember"/>, each as it was last seen: "killed", "dispersed" (a Choir
+    /// ghost), "cut-loose" (a Car Hugger, its car off the train), "vanished" (a Track Doll). For dt playthrough's shots.</summary>
+    public IReadOnlyList<(string Beat, Enemy Body)> NewBeats => _newBeats;
+
+    /// <summary>
+    /// The killed (T121's "hit confirm", the checklist's "shot or clubbed", "killed"): a creature that dies doesn't blink out.
+    /// It keels over away from the blow about its feet, held in its hit pose, lies a moment, then crumbles into ash and soot
+    /// and is gone (<see cref="Art.Effects.DeathSeconds"/>): every creature that stands on something; what floats, swarms,
+    /// burns or is the train's own (the Choir, the Fire Flies, a car fire, the Stoker in its box, the Car Hugger) has its own.
+    /// </summary>
+    void Deaths(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        if (Tick < 0)
+            return;
+        Remember(frames.Count);
+        Leaving(mesh, line, frames, eye, from, to);
+        Vanishing(mesh, line, frames, eye, from, to);
+        Riding(mesh, line, frames, eye, from, to);
+        if (_dying.Count == 0)
+            return;
+        var fx = Look?.Art.Effects;
+        foreach (var (id, (body, tick, blow)) in _dying.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.Effects.DeathSeconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _dying.Remove(id);
+                continue;
+            }
+            var (push, roll) = Fallen(blow, (float)age);
+            DrawEnemy(mesh, line, frames, body, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
+            if (fx is not null && BodyAt(body, line, frames) is var at && (at - eye).Length < DrawDistance)
+                fx.Crumble(mesh, V(at, eye), (float)age, id);
+        }
+    }
+
+    /// <summary>
+    /// What this frame's world has done since the last that the scene's seen (presentation only: the sim's done with it in
+    /// a tick, the scene's own memory draws it going): the killed, the Choir driven off, a Car Hugger cut loose, a Track
+    /// Doll gone from where it stood. Drawing the scene does this; something that photographs a night now and then (dt
+    /// playthrough) calls it every tick between, so what it shows is what a crew watching all along would see.
+    /// </summary>
+    public void Remember(int frameCount)
+    {
+        _newBeats.Clear();
+        if (Tick < 0)
+            return;
+        if (Hits is not null)
+            foreach (var h in Hits)
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                {
+                    _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
+                    _newBeats.Add(("killed", body));
+                }
+        // The Choir driven off (A.7: its quiet held, or its one taken): every ghost the sim's dismissed this tick, not killed.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.Choir && !_dying.ContainsKey(id) && !_leaving.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                _leaving[id] = (was, (uint)Tick);
+                _newBeats.Add(("dispersed", was));
+            }
+        // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
+        // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
+        foreach (var (id, was) in _seen)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
+                && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                _riding[id] = (was, (uint)Tick);
+                _newBeats.Add(("cut-loose", was));
+            }
+        _seen.Clear();
+        foreach (var e in Enemies ?? [])
+            if (!e.Gone)
+                _seen[e.Id] = e;
+        var toys = (Bodies ?? []).Where(b => b.Kind == Sim.Physics.BodyKind.Toy).Select(b => b.Id).ToHashSet();
+        foreach (var (id, was) in _dollWas)
+        {
+            var now = Enemies?.FirstOrDefault(e => e.Id == id && !e.Gone);
+            if (_dying.ContainsKey(id) || now is not null && now.Attached == was.Attached && (now.Local - was.Local).Length < 1)
+                continue;
+            int toy = now is null ? _toysWas.Where(t => !toys.Contains(t)).DefaultIfEmpty(-1).Min() : -1;
+            _vanished.Add((was, (uint)Tick, toy));
+            _newBeats.Add(("vanished", was));
+        }
+        _dollWas.Clear();
+        foreach (var e in Enemies ?? [])
+            if (e.Kind == EnemyKind.TrackDoll && !e.Gone)
+            {
+                var copy = new Sim.Enemies.TrackDoll(e.Id);
+                copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+                _dollWas[e.Id] = copy;
+            }
+        _toysWas.Clear();
+        _toysWas.UnionWith(toys);
+    }
+
+    /// <summary>
+    /// The Choir dispersing (GDD v1.2 App. A.7, the checklist's "a disperse when the crew hushes"): the sim takes the swarm
+    /// out the tick it's driven off; here each ghost is seen going (<see cref="Art.CreatureArt.ChoirLeaveSeconds"/>): turned
+    /// away from the train mouth first in its swoop, swept up and out into the dark faster and faster, its cold going out.
+    /// </summary>
+    void Leaving(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, (body, tick)) in _leaving.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.CreatureArt.ChoirLeaveSeconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _leaving.Remove(id);
+                continue;
+            }
+            var at = BodyAt(body, line, frames);
+            var near = frames.Count == 0 ? at : frames.MinBy(f => (f.ToWorld(default) - at).Length)!.ToWorld(default);
+            var off = new Double3(at.X - near.X, 0, at.Z - near.Z);
+            off = off.Length > 1e-6 ? off.Normalized : new Double3(1, 0, 0);
+            float go = (float)(age / Art.CreatureArt.ChoirLeaveSeconds);
+            go *= go;
+            var push = new Vector3((float)off.X, 0, (float)off.Z) * (LeaveOut * go) + Vector3.UnitY * (LeaveUp * go);
+            var ghost = new Sim.Enemies.ChoirGhost(body.Id);
+            ghost.Restore(SpinePhase.BreakOff, age, body.Health, body.Attached, body.Local, body.LineDistance, body.Lateral, body.Height, -1, body.Extra2);
+            DrawEnemy(mesh, line, frames, ghost, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity));
+        }
+    }
+
+    /// <summary>
+    /// The Track Doll vanishing (GDD v1.2 App. A.2, the checklist's "vanish with no walk-off"; "takes a toy and goes"): the
+    /// sim moves it to another car when it's come at, or takes it out of the run (stopped short of, appeased), from one tick
+    /// to the next. It's never seen to walk. Where it was, it flickers out in its last pose, held stock still, and leaves a
+    /// puff of porcelain dust and a few chips of glaze (<see cref="Art.Effects.Vanish"/>); given a toy, the toy goes with it,
+    /// in its hand (the toy body gone the same tick).
+    /// </summary>
+    void Vanishing(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        var creatures = Look?.Art.Creatures;
+        for (int i = _vanished.Count - 1; i >= 0; i--)
+        {
+            var (was, tick, toy) = _vanished[i];
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            if (age > Art.Effects.VanishSeconds || age < 0)
+            {
+                _vanished.RemoveAt(i);
+                continue;
+            }
+            // A few frames of it, on and off, then nothing: there, and not.
+            if (age < DollFlicker && (int)(age * 30) % 2 == 0)
+            {
+                if (creatures is not null)
+                    creatures.DollHolding = toy >= 0 ? Look?.Art.Toy(toy) : null;
+                DrawEnemy(mesh, line, frames, was, eye, from, to, creatures);
+                if (creatures is not null)
+                    creatures.DollHolding = null;
+            }
+            if (Look?.Art.Effects is { } fx && BodyAt(was, line, frames) is var at && (at - eye).Length < DrawDistance)
+                fx.Vanish(mesh, V(at, eye), (float)age, was.Id);
+        }
+    }
+
+    /// <summary>
+    /// The Car Hugger cut loose (GDD v1.2 App. A.3, "cut loose, it goes with its car into the dark"; the checklist's "rides the
+    /// cut car away"): uncoupled from the train, or eaten through so the car drops away, the sim takes it out that tick, but
+    /// the car's still there, rolling free and falling behind. It doesn't let go: here it's seen still clamped on that car's
+    /// end, feeding, grinding, as the car goes off into the dark (until it's out of sight, or the car's coupled up again).
+    /// </summary>
+    void Riding(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, (body, tick)) in _riding.ToArray())
+        {
+            double age = (Tick - tick) * Sim.SimConstants.TickSeconds;
+            int car = body.Attached;
+            if (age < 0 || _seen.ContainsKey(id) || car >= frames.Count || !Adrift(car)
+                || (frames[car].ToWorld(default) - eye).Length > DrawDistance)
+            {
+                _riding.Remove(id);
+                continue;
+            }
+            var hugger = new Sim.Enemies.CarHugger(id);
+            hugger.Restore(SpinePhase.Commit, body.PhaseSeconds + age, body.Health, car, body.Local, 0, 0, 0, body.Extra, body.Extra2);
+            var bite = Look is { } look
+                ? Art.Bite.For(look.Tuning.Bite, frames[car].Shape, Vehicles is { } vs && car < vs.Count ? vs[car] : null, car)
+                : default;
+            DrawEnemy(mesh, line, frames, hugger, eye, from, to, Look?.Art.Creatures, bite);
+        }
+    }
+
+    /// <summary>Whether <paramref name="car"/> is off the engine's train: a coupling's cut somewhere between it and the engine
+    /// (<see cref="Cut"/>, a car's front end open where the car ahead of it is in another rake).</summary>
+    bool Adrift(int car) => Cut is { } cut && cut.Any(end => end % 2 == 0 && end / 2 >= 1 && end / 2 <= car);
+
+    /// <summary>Staged (<c>dt screenshot --cut n --hugger ride</c>): the Car Hugger <paramref name="e"/>, its car cut from the
+    /// train at <paramref name="tick"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Rode(Enemy e, uint tick) => _riding[e.Id] = (e, tick);
+
+    // How long the Track Doll is seen flickering out where it was (s).
+    const double DollFlicker = 0.3;
+
+    /// <summary>Staged (<c>dt screenshot --vanish s[:toy]</c>): the Track Doll <paramref name="e"/> gone at <paramref name="tick"/>
+    /// (out of <see cref="Enemies"/>), with the toy body <paramref name="toy"/> if it was given one.</summary>
+    public void Vanished(Enemy e, uint tick, int toy = -1) => _vanished.Add((e, tick, toy));
+
+    // How far a dispersing ghost has gone at the end of its going: out from the train and up (m).
+    const float LeaveOut = 10, LeaveUp = 14;
+
+    /// <summary>Staged (<c>dt screenshot --dispersing s</c>): the Choir's ghost <paramref name="e"/> driven off at
+    /// <paramref name="tick"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Dispersed(Enemy e, uint tick) => _leaving[e.Id] = (e, tick);
+
+    /// <summary>
+    /// Staged (<c>dt screenshot --killed kind:s</c>): <paramref name="e"/> killed at <paramref name="tick"/> by a blow going
+    /// <paramref name="blow"/> (it's not in <see cref="Enemies"/> any more: the sim's taken it out).
+    /// </summary>
+    public void Killed(Enemy e, uint tick, Vector3 blow) => _dying[e.Id] = (e, tick, blow);
+
+    /// <summary>Where a creature stands, as DrawEnemy places it: in its car, loose in the world, or at its place on the line.</summary>
+    static Double3 BodyAt(Enemy e, RailLine line, IReadOnlyList<CarFrame> frames)
+    {
+        if (e.Attached >= 0 || e.Attached == Enemy.Loose)
+            return EnemyWorld(e, frames);
+        var t = line.Sample(Math.Clamp(e.LineDistance, 0, line.Length));
+        return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * e.Height;
+    }
+
+    internal static bool Falls(EnemyKind k) => k is not (EnemyKind.Choir or EnemyKind.FireFlies or EnemyKind.CarFire or EnemyKind.Stoker or EnemyKind.CarHugger
+        or EnemyKind.Sleepers or EnemyKind.Drift);
+
+    /// <summary>How far over a killed creature has gone, <paramref name="age"/> seconds after the blow: pushed along it and
+    /// rolled over onto its side (eased in, as dead weight goes; DrawEnemy rolls it about its own length), then sinking as it
+    /// crumbles.</summary>
+    static (Vector3 Push, float Roll) Fallen(Vector3 blow, float age)
+    {
+        var flat = blow.LengthSquared() > 1e-6f ? Vector3.Normalize(blow) : Vector3.UnitX;
+        float over = Math.Clamp(age / 0.5f, 0, 1);
+        over = over * over * (3 - 2 * over);
+        float sink = Math.Clamp((age - (float)Art.Effects.DeathSeconds * 0.55f) / ((float)Art.Effects.DeathSeconds * 0.4f), 0, 1);
+        return (flat * (0.25f * over) - Vector3.UnitY * (0.45f * sink), 1.35f * over + 1e-4f);
+    }
+
     /// <summary>Seconds since a blow or a ball last landed on <paramref name="e"/>, or −1 when none has in the last second.</summary>
     double HitAge(Enemy e)
     {
@@ -594,6 +882,25 @@ public sealed class GreyboxScene
     /// <summary>Staged: the air to draw whatever the biome (dt screenshot --air ash|spores).</summary>
     public Art.Effects.Air? StagedAir { get; set; }
 
+    /// <summary>
+    /// How far the Choir's come (World.Choir: its gathering, 0 to 1, and 1 while the swarm's here): from
+    /// <see cref="ChoirFrostFrom"/> on, the frost in the air and everyone's breath showing (App. A.7's arrival beat).
+    /// </summary>
+    public float ChoirGathering { get; set; }
+
+    // From how far through its gathering the Choir's cold is felt.
+    const float ChoirFrostFrom = 0.5f;
+
+    /// <summary>How much of the Choir's cold is on the air at <paramref name="gathering"/> (0 to 1, eased): none before
+    /// <see cref="ChoirFrostFrom"/>, all of it once it's here. The frost in the air, and the frame's chill (Look.Chill).</summary>
+    public static float ChoirCold(float gathering) => gathering > ChoirFrostFrom ? SmoothStep((gathering - ChoirFrostFrom) / (1 - ChoirFrostFrom)) : 0;
+
+    static float SmoothStep(float x)
+    {
+        x = Math.Clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+    }
+
     /// <summary>The train's come off the rails (World.Derailed): its sparks, dust and burst boiler (Art/Effects.Derailment).</summary>
     public bool Derailed { get; set; }
 
@@ -608,10 +915,16 @@ public sealed class GreyboxScene
     // Each fire's intensity and when it last fell: an extinguisher's charge isn't replicated, but a fire going down with
     // an extinguisher held near it is being sprayed (presentation only, held a moment so it doesn't blink between ticks).
     readonly Dictionary<int, (double Extra, double Fell)> _fires = new();
+    readonly HashSet<int> _spraying = new();
 
     /// <summary>Extinguishers at work (App. C.5), from what's replicated: a fire going down, an extinguisher carried within reach of it.</summary>
     void Extinguishing(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
+        // Who's spraying, for their pose (SceneArt.Spraying: braced and kicking, not stood with it); the crew are drawn
+        // after this.
+        _spraying.Clear();
+        if (Look is not null)
+            Look.Art.Spraying = _spraying;
         if (Look?.Art.Effects is not { HasFlames: true } fx || Enemies is null)
             return;
         foreach (var e in Enemies)
@@ -634,7 +947,10 @@ public sealed class GreyboxScene
                     : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
                 var nozzle = held.RelativeTo(eye);
                 if ((nozzle - foot).Length() < 3.2f)
+                {
                     fx.Spray(mesh, nozzle, foot, Time);
+                    _spraying.Add(b.Carrier);
+                }
             }
         }
     }
@@ -643,13 +959,36 @@ public sealed class GreyboxScene
     /// The Passenger as the crewmate whose face it wears: their look, walking as they would. Its id is theirs offset by 200,
     /// so the gait each figure is smoothed by is its own and not the one it copies.
     /// </summary>
+    /// <summary>
+    /// Someone the Whistler's carrying off (App. A.4 GRAB), hung in its forelegs as it was drawn this frame (Art/CreatureArt
+    /// Clutches): by the armpits from its hooks, facing the way it runs. The sim has them at its middle; this is where
+    /// they're seen. Someone a Car Hugger's swallowing (A.3) stands bent into its mouth wherever in reach the sim caught them. Put down at its nest (no longer in its forelegs), they're on their back in it,
+    /// paralysed (App. A.4).
+    /// </summary>
+    Crewmate Hung(Crewmate c, Double3 eye)
+    {
+        if (Look?.Art.Creatures?.Clutches.TryGetValue(c.Id, out var clutch) != true)
+            return c.Act == Art.CrewPose.HeldCarried ? c with { Act = Art.CrewPose.HeldPinned } : c;
+        var yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z);
+        if (!clutch.Hung)
+        {
+            // In the Car Hugger's mouth: stood in front of it on their own floor, facing it, bent into it.
+            var mouth = eye + new Double3(clutch.At.X, clutch.At.Y, clutch.At.Z);
+            var back = new Double3(clutch.Forward.X, 0, clutch.Forward.Z) * Art.CreatureArt.SwallowReach;
+            return c with { Feet = (mouth - back) with { Y = c.Feet.Y }, Yaw = yaw };
+        }
+        var at = eye + new Double3(clutch.At.X, clutch.At.Y - Art.CreatureArt.CarriedUnderarm, clutch.At.Z);
+        return c with { Feet = at, Yaw = yaw };
+    }
+
     public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
     {
         if (p.Attached < 0 || p.Attached >= frames.Count)
             return null;
         var frame = frames[p.Attached];
         var forward = frame.DirToWorld(new Double3(-Math.Sin(p.Extra2), 0, -Math.Cos(p.Extra2)));
-        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: p.Looks);
+        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: p.Looks,
+            Car: p.Attached, Local: p.Local);
     }
 
     static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>
@@ -735,8 +1074,13 @@ public sealed class GreyboxScene
         }
     }
 
-    /// <summary>A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down.</summary>
-    static void DrawCrewmate(MeshBuilder mesh, Crewmate c, Double3 eye)
+    /// <summary>
+    /// A crewmate: coat, head and a lamp at the chest so you can find each other in the dark. Dead ones lie down. A headset
+    /// crewmate's <paramref name="body"/> (T82, note 223), when there is one: the coat leans over from the hips and twists
+    /// towards the head, the hips go down in a crouch and turn to their own yaw, the legs bend to the feet where they're
+    /// planted, and the arms reach from where the shoulders have gone.
+    /// </summary>
+    static void DrawCrewmate(MeshBuilder mesh, Crewmate c, Double3 eye, VrBodyPose? body = null)
     {
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
@@ -746,10 +1090,7 @@ public sealed class GreyboxScene
             mesh.Box(o + Vector3.UnitY * 0.15f, right, Vector3.UnitY, back, new Vector3(0.25f, 0.15f, 0.9f), Palette.DeepBrown);
             return;
         }
-        mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
-        mesh.Box(o + Vector3.UnitY * 1.2f, right, Vector3.UnitY, back, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
-        mesh.Box(o + Vector3.UnitY * 1.68f, right, Vector3.UnitY, back, new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
-        // Arms (T47): to a headset player's hands where they are, hanging for everyone else.
+        // In the frame they face, from the feet (x right, y up, z behind): Arms' frame, and VrBodyPose's.
         Vector3 At(Double3 local) => o + right * (float)local.X + Vector3.UnitY * (float)local.Y + back * (float)local.Z;
         void Segment(Double3 a, Double3 b, float r, Vector3 colour)
         {
@@ -761,10 +1102,44 @@ public sealed class GreyboxScene
             var side = Vector3.Normalize(Vector3.Cross(dir, MathF.Abs(dir.Y) > 0.9f ? Vector3.UnitX : Vector3.UnitY));
             mesh.Box((At(a) + At(b)) * 0.5f, side, dir, Vector3.Cross(side, dir), new Vector3(r, len * 0.5f + r * 0.5f, r), colour);
         }
-        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
-        foreach (var (armSide, target) in new[] { (-1, left), (1, rightHand) })
+        // A box turned with a frame (its axes in the facing frame), centred at a point in it.
+        void Turned(Double3 at, Double3 x, Double3 y, Double3 z, Vector3 half, Vector3 colour) =>
+            mesh.Box(At(at), At(x) - o, At(y) - o, At(z) - o, half, colour);
+        var b = body ?? default;
+        // The torso's frame: leant forward about its own right by the lean, then turned to the hips' yaw and twisted back
+        // toward the head by the torso's share. The hips' own frame is the yaw alone; the hips go down by the crouch.
+        double torsoYaw = b.Hips + b.Twist;
+        Double3 Torso(Double3 v) => Yawed(Leant(v, b.Lean), torsoYaw);
+        var hips = new Double3(0, Hips - b.Crouch, 0);
+        Double3 Body(Double3 standing) => hips + Torso(standing - new Double3(0, Hips, 0));
+        if (body is null)
+            mesh.Box(o + Vector3.UnitY * 0.45f, right, Vector3.UnitY, back, new Vector3(0.16f, 0.45f, 0.12f), Palette.Charcoal);
+        else
         {
-            var shoulder = Arms.Shoulder(armSide);
+            // Two legs, hip to knee to the ankle over each foot, the knee bent forward of the hips by what the crouch takes up.
+            var forward = Yawed(new Double3(0, 0, -1), b.Hips);
+            foreach (var (side, foot) in new[] { (-1, b.LeftFoot), (1, b.RightFoot) })
+            {
+                var hip = hips + Yawed(new Double3(side * 0.09, 0, 0), b.Hips);
+                var ankle = new Double3(foot.X, foot.Y + 0.06, foot.Z);
+                double half = (Hips - 0.06) / 2, d = (hip - ankle).Length;
+                var knee = (hip + ankle) * 0.5 + forward * Math.Sqrt(Math.Max(0, half * half - d * d / 4));
+                Segment(hip, knee, 0.08f, Palette.Charcoal);
+                Segment(knee, ankle, 0.07f, Palette.Charcoal);
+                Turned(ankle with { Y = foot.Y + 0.04 } + forward * 0.05, Yawed(new Double3(1, 0, 0), b.Hips), new Double3(0, 1, 0),
+                    Yawed(new Double3(0, 0, 1), b.Hips), new Vector3(0.06f, 0.04f, 0.12f), Palette.Charcoal);
+            }
+        }
+        var (xT, yT, zT) = (Torso(new Double3(1, 0, 0)), Torso(new Double3(0, 1, 0)), Torso(new Double3(0, 0, 1)));
+        Turned(Body(new Double3(0, 1.2, 0)), xT, yT, zT, new Vector3(0.24f, 0.33f, 0.15f), Palette.DeepBrown);
+        // The head on the neck, turned the head's way (the figure's own facing) whatever the torso does.
+        Turned(Body(new Double3(0, 1.68, 0)), new Double3(1, 0, 0), new Double3(0, 1, 0), new Double3(0, 0, 1), new Vector3(0.12f, 0.13f, 0.12f), Palette.Corrupted);
+        // Arms (T47): to a headset player's hands where they are, hanging for everyone else (from the shoulders, as they've gone).
+        var (left, rightHand) = Arms.Hands(c.Hand, c.Other);
+        foreach (var (armSide, reported) in new[] { (-1, left), (1, rightHand) })
+        {
+            var shoulder = Body(Arms.Shoulder(armSide));
+            var target = reported == Arms.Hanging(armSide) ? Body(reported) : reported;
             var (elbow, hand) = Arms.Solve(shoulder, target, Arms.Pole(armSide));
             Segment(shoulder, elbow, 0.06f, Palette.DeepBrown);
             Segment(elbow, hand, 0.05f, Palette.DeepBrown);
@@ -772,9 +1147,20 @@ public sealed class GreyboxScene
             mesh.Box(At(hand), right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.05f), Palette.Corrupted * 0.8f);
         }
         mesh.Emissive = 1;
-        mesh.Box(o + Vector3.UnitY * 1.3f - back * 0.16f, right, Vector3.UnitY, back, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
+        Turned(Body(new Double3(0, 1.3, -0.16)), xT, yT, zT, new Vector3(0.05f, 0.05f, 0.02f), Palette.LampAmber);
         mesh.Emissive = 0;
     }
+
+    /// <summary>The box figure's hips over its feet, standing (m): the top of its legs.</summary>
+    const double Hips = 0.9;
+
+    /// <summary>A facing-frame vector leant forward (toward −z) about x by <paramref name="lean"/> radians.</summary>
+    static Double3 Leant(Double3 v, double lean) =>
+        new(v.X, v.Y * Math.Cos(lean) + v.Z * Math.Sin(lean), -v.Y * Math.Sin(lean) + v.Z * Math.Cos(lean));
+
+    /// <summary>A facing-frame vector turned about y by <paramref name="yaw"/> radians (positive left, as a player's yaw).</summary>
+    static Double3 Yawed(Double3 v, double yaw) =>
+        new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
     static Double3 EnemyWorld(Enemy e, IReadOnlyList<CarFrame> frames) =>
@@ -897,7 +1283,7 @@ public sealed class GreyboxScene
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
-        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1)
+        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -933,6 +1319,19 @@ public sealed class GreyboxScene
                 double hint = e.LineDistance;
                 origin = origin with { Y = Sim.Player.PlayerMotor.GroundAt(origin, line, ref hint) };
                 DragTrail(mesh, line, origin, eye, e.Id);
+                // Its nest is straight out from the gap it took them at (Sim.Enemies.Whistler): it faces square off the line,
+                // not off the nearest car's middle (a gap's at a car's end).
+                if (frames.Count > 0)
+                {
+                    var car = frames.MinBy(f => (f.ToWorld(default) - origin).Length)!;
+                    var side = car.DirToWorld(new Double3(1, 0, 0)) with { Y = 0 };
+                    if (side.Length > 1e-6)
+                    {
+                        side = side.Normalized;
+                        back = Double3.Dot(away, side) >= 0 ? side : side * -1;
+                        right = Double3.Cross(Double3.Up, back).Normalized;
+                    }
+                }
             }
         }
         else
@@ -948,14 +1347,22 @@ public sealed class GreyboxScene
         }
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
-        // Flinching from a blow (T121): knocked back and tipped away from it, about its feet.
-        if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
+        // Killed (Deaths): rolled over onto its side about its own length, away from the blow (a biped falls sideways, a
+        // crawler goes over on its back's edge), and pushed along it.
+        if (dying && roll != 0)
         {
-            o += flinch.Push;
-            (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
+            float away = Vector3.Dot(new Vector3(flinch.Push.X, 0, flinch.Push.Z), r) >= 0 ? -1 : 1;
+            flinch = (flinch.Push, Quaternion.CreateFromAxisAngle(Vector3.Normalize(b), roll * away));
         }
+        // Flinching from a blow (T121): knocked back and tipped away from it, about its feet. (Going, Deaths: carried off.)
+        o += flinch.Push;
+        if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
+            (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge, dying))
+            return;
+        // The dead are the art pass's (Deaths): the greybox's boxes don't fall over.
+        if (dying)
             return;
         Vector3 L(double x, double y, double z) => o + r * (float)x + u * (float)y + b * (float)z;
         void Draw(double x, double y, double z, double hx, double hy, double hz, Vector3 colour) =>
@@ -1091,6 +1498,26 @@ public sealed class GreyboxScene
     }
 
     static Vector3 V(Double3 p, Double3 eye) => p.RelativeTo(eye);
+
+    /// <summary>
+    /// A car the film cuts away (E.4 O2) keeps its floor: someone tumbling inside it is seen lying in a car with its shell
+    /// lifted off, not on the track under nothing (note 251's "a cutaway that keeps the floor").
+    /// </summary>
+    static void CutFloor(MeshBuilder mesh, in CarFrame frame, Double3 eye)
+    {
+        var shape = frame.Shape;
+        // The film's floor for it (World.Derail): a walk-in car's, or the engine's cab's.
+        double floor = (shape.Interior ?? shape.Cab)?.Min.Y ?? 0;
+        if (floor <= 0.05)
+            return;
+        var (right, up, back) = (ToF(frame.Right), ToF(frame.Up), ToF(frame.Back));
+        mesh.Box(V(frame.ToWorld(new Double3(0, floor / 2, 0)), eye), right, up, back,
+            new Vector3((float)shape.HalfWidth, (float)floor / 2, (float)shape.HalfLength), Palette.DeepBrown);
+        // A sill along each side, so it reads as a car's floor and not a plank.
+        foreach (int side in new[] { -1, 1 })
+            mesh.Box(V(frame.ToWorld(new Double3(side * (shape.HalfWidth - 0.05), floor + 0.1, 0)), eye), right, up, back,
+                new Vector3(0.05f, 0.1f, (float)shape.HalfLength), Palette.RustRed);
+    }
 
     void Track(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double centre)
     {
@@ -1949,8 +2376,14 @@ public sealed class GreyboxScene
                 : new Vector3((float)frame.Shape.HalfWidth - 0.35f, (float)frame.Shape.RoofHeight + 0.9f, -(float)frame.Shape.HalfLength + 2.6f);
             Look.Art.Effects.StoveSmoke(mesh, o + right * pipe.X + up * pipe.Y + back * pipe.Z, up, back, (float)_speed, Time, frame.Index);
         }
+        // Note 267: the lockers with something on their shelves, tagged.
+        uint tagged = 0;
+        if (frame.Shape.Lockers.Count > 0 && Bodies is { } stowed)
+            foreach (var b in stowed)
+                if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
+                    tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut)))
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);
@@ -2133,14 +2566,21 @@ public sealed class GreyboxScene
         // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
         // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
         // would print over each other the slower one wins: it's the one that derails you.
+        // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
+        // derailment point with its limit"): those (a bend, a weak bridge) in red, with a key; a limit that only costs the
+        // engine (brass) in the map's ink, with what it is.
         var labelled = new List<(double X, double Y)>();
-        foreach (var (s0, s1, kmh) in PostedBends(line, length).OrderBy(b => b.Kmh))
+        bool anyDerails = false;
+        foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
         {
+            bool derails = why != "BRASS";
+            anyDerails |= derails;
+            var ink = derails ? MapLimit : MapInk;
             int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
             for (int i = 0; i <= steps; i++)
             {
                 var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
-                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), MapLimit);
+                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
             }
             var a = line.Sample(RailLine.MainPath, s0).Position;
             var b = line.Sample(RailLine.MainPath, s1).Position;
@@ -2150,7 +2590,7 @@ public sealed class GreyboxScene
             var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
             var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
             outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
-            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture) + (why is null ? "" : " " + why);
             var font = BitmapFont.Default;
             const double px = 0.0045;
             double w = font.Measure(figure) * px, h = font.Height * px;
@@ -2160,7 +2600,13 @@ public sealed class GreyboxScene
             if (labelled.Any(l => Math.Abs(l.X - cx) < w + 0.01 && Math.Abs(l.Y - cy) < h + 0.008))
                 continue;
             labelled.Add((cx, cy));
-            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px);
+            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px, ink);
+        }
+        if (anyDerails)
+        {
+            // Top right, under the title: the bottom edge is behind the valve wheels from the driver's seat.
+            const string key = "IN RED: KM/H OR OFF THE RAILS";
+            MapFigure(draw, key, x0 + W - 0.024 - BitmapFont.Default.Measure(key) * 0.0035, y0 + H - 0.064, z + 0.011, 0.0035, MapLimit);
         }
         // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
         double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
@@ -2217,14 +2663,14 @@ public sealed class GreyboxScene
 
     LinePlan? _bendsFor;
     Route? _bendsForRoute;
-    List<(double S0, double S1, int Kmh)> _bends = [];
+    List<(double S0, double S1, int Kmh, string? Why)> _bends = [];
 
     /// <summary>
     /// The main line's posted stretches, for the run map: a generated line's speed boards (LineBuilder.Signage: every bend
     /// that would derail the engine at full steam, and each demand's), its figure and the bend it stands before; a
     /// prototype route's own boards (Lineside) where there's no plan.
     /// </summary>
-    List<(double S0, double S1, int Kmh)> PostedBends(RailLine line, double length)
+    List<(double S0, double S1, int Kmh, string? Why)> PostedBends(RailLine line, double length)
     {
         if (ReferenceEquals(_bendsForRoute, Route) && ReferenceEquals(_bendsFor, Route?.Plan))
             return _bends;
@@ -2235,6 +2681,19 @@ public sealed class GreyboxScene
         {
             foreach (var b in plan.Signage.Where(b => b is { Type: "speedBoard", Edge: "main", Required: true, Value: > 0 }))
             {
+                // Note 266 (build 1121, "a maximum speed ... not on curves"): a board for something that isn't a bend (brass,
+                // a weak bridge) is inked over its own stretch, with what it's for; it was put on the nearest curve, however gentle.
+                var demand = b.For is null ? null : plan.Authority.Demands.FirstOrDefault(d => d.Id == b.For);
+                if (demand is { Type: DemandType.Brass or DemandType.WeakBridge })
+                {
+                    var limit = plan.Authority.Limits.FirstOrDefault(l => l.Edge == "main" && Math.Abs(l.S0 - demand.SReq) < 1);
+                    if (limit is null)
+                        continue;
+                    int posted = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int p0) ? p0 : (int)(b.Value!.Value * 3.6);
+                    _bends.Add((Math.Clamp(limit.S0, 0, length), Math.Clamp(Math.Max(limit.S1, limit.S0 + 10), 0, length), posted,
+                        demand.Type == DemandType.Brass ? "BRASS" : "BRIDGE"));
+                    continue;
+                }
                 // The bend it stands before: the sharpest curve in the next 600 m, and as far either side as it's nearly as sharp.
                 double kMax = 0, sMax = b.S;
                 for (double s = b.S; s <= Math.Min(length, b.S + 600); s += 5)
@@ -2243,7 +2702,8 @@ public sealed class GreyboxScene
                     if (k > kMax)
                         (kMax, sMax) = (k, s);
                 }
-                if (kMax < 1e-6)
+                // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
+                if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
                     continue;
                 double s0 = sMax, s1 = sMax;
                 while (s0 > b.S && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
@@ -2252,13 +2712,13 @@ public sealed class GreyboxScene
                     s1 += 5;
                 // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
                 int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
-                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh));
+                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh, null));
             }
         }
         else
             foreach (var sign in BoardList().Where(b => b.Kind == SignKind.SpeedLimit && b.Limit > 0))
                 if (Math.Clamp(sign.End, 0, length) > Math.Clamp(sign.Start, 0, length))
-                    _bends.Add((Math.Clamp(sign.Start, 0, length), Math.Clamp(sign.End, 0, length), sign.LimitKmh));
+                    _bends.Add((Math.Clamp(sign.Start, 0, length), Math.Clamp(sign.End, 0, length), sign.LimitKmh, sign.Bridge ? "BRIDGE" : null));
         return _bends;
     }
 
@@ -2299,7 +2759,9 @@ public sealed class GreyboxScene
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
             {
                 draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+                // (Open, with the art pass's fire, the bed is its heap of coals: Art.Effects.Furnace.)
+                if (!FireDoorOpen || Look?.Art.Effects is not { HasFlames: true })
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
             // A Stoker in the fire: soot coming down in the cab (Art.Effects.SootFall).
@@ -2318,7 +2780,7 @@ public sealed class GreyboxScene
                 foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
                 {
                     var bed = frame.ToWorld(i.Position + new Double3(0, 0.6, -0.17)).RelativeTo(eye);
-                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time);
+                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time, SinceShovel);
                 }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
@@ -2337,6 +2799,16 @@ public sealed class GreyboxScene
                 Lever(levers.BrakeAt(Controls.Brake), 0.2);
                 Lever(levers.ReverserAt(Controls.Reverser), 0.9);
             }
+            // The powered switch thrower's lever (note 196), fitted: an iron stand from the floor and its handle in signal
+            // red, the colour a lineside lever frame paints its points levers.
+            if (SwitchThrower)
+                foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Points))
+                {
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.45, 0), new Double3(0.05, 0.45, 0.05)), Palette.IronGrey);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 0.95, 0), new Double3(0.02, 0.07, 0.16)), Palette.IronGrey);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 1.25, -0.06), new Double3(0.018, 0.28, 0.018)), Palette.SignalRed);
+                    draw(Box.FromCentre(i.Position + new Double3(0, 1.55, -0.06), new Double3(0.03, 0.05, 0.03)), Palette.TarnishedBrass);
+                }
         }
         if (shape.Interior is not null && Look is not null)
         {

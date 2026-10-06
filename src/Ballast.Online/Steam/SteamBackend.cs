@@ -116,6 +116,7 @@ public sealed class SteamBackend : IOnlineBackend
     public string LobbyData(LobbyId lobby, string key) => SteamMatchmaking.GetLobbyData(Steam(lobby), key) ?? "";
     public void SetLobbyData(LobbyId lobby, string key, string value) => SteamMatchmaking.SetLobbyData(Steam(lobby), key, value);
     public void SetJoinable(LobbyId lobby, bool joinable) => SteamMatchmaking.SetLobbyJoinable(Steam(lobby), joinable);
+    public void SetMemberLimit(LobbyId lobby, int max) => SteamMatchmaking.SetLobbyMemberLimit(Steam(lobby), max);
     /// <summary>
     /// Steam's lobby search: filters are added just before the request and apply to it alone. Worldwide, since a
     /// co-op game's friends-of-friends are anywhere and the ping column says who's near; Steam lists only public,

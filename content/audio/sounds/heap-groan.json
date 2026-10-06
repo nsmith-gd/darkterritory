@@ -1,0 +1,19 @@
+// Tell (tier 1), a wreck-yard heap about to shift (GDD §18; level-design I.4; note 187's warnSeconds; note 198): bent steel
+// taking weight it can't, a slow deep creak sliding down in pitch with a shriek of metal on metal over it. It sounds for
+// the whole warning, so whoever's beside the heap has the 3 s to get clear. Only ever at a standstill, at a facility, so
+// it isn't in the moving train's chaos audit.
+{
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 4, "maxDistance": 80, "gainDb": 2,
+  "layers": [
+    { "source": "saw", "frequency": 62, "gain": 0.9,
+      "filters": [{ "type": "lowPass", "frequency": 500, "q": 1.2 }, { "type": "peak", "frequency": 180, "q": 3, "gainDb": 8 }],
+      "vibrato": { "rate": 0.6, "depth": 0.18 },
+      "tremolo": { "rate": 2.5, "depth": 0.6, "jitter": 0.7 } },
+    { "source": "saw", "frequency": 860, "gain": 0.35,
+      "filters": [{ "type": "bandPass", "frequency": 1800, "q": 6 }],
+      "vibrato": { "rate": 0.9, "depth": 0.06 },
+      "tremolo": { "rate": 0.8, "depth": 1, "duty": 0.4, "jitter": 0.9 } }
+  ]
+}

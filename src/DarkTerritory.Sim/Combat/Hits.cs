@@ -19,6 +19,16 @@ public enum HitSource : byte { Melee = 1, Cannon = 2 }
 /// <param name="Killed">That blow finished it (or sent it off for good).</param>
 public readonly record struct HitConfirm(int Id, uint Tick, int EnemyId, EnemyKind Kind, int By, HitSource Source, Double3 At, Double3 From, bool Killed);
 
+/// <summary>
+/// A crewmate's swing (App. C.2), landed or not: the host decides blows from intent, so without this a swing at nothing
+/// was never seen by anyone else (note 146's "the swing has a clip but no reader"). The blow is decided on the tick the
+/// swing starts, so a landed one's <see cref="HitConfirm"/> has the same tick.
+/// </summary>
+/// <param name="Id">Unique for the night (the record's key, shared with hits and impacts).</param>
+/// <param name="Tick">The host tick it started on.</param>
+/// <param name="By">Who swung (player id).</param>
+public readonly record struct SwingEvent(int Id, uint Tick, int By);
+
 /// <summary>What a cannonball came down on (T121 playtest: "every cannonball should have an impact explosion").</summary>
 public enum ImpactSurface : byte { Ground = 1, Water = 2, Structure = 3, Train = 4, Creature = 5 }
 

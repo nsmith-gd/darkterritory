@@ -49,20 +49,32 @@
   // The consist's (ARCHITECTURE §8 note 184) add to train.json "composition" instead: utilityCars (a crew car: stores and a
   // stove), guardCars (another guard car and its gun), armouredCars (a car plated), handrails (fitted to every roof: what
   // they do is composition.rails). A car converted costs a cargo slot (F.3, of the second guard car).
-  // Upgrades with no effect listed are bought and saved but not modelled yet.
+  // And (note 196): lampOut (how long a smashed forward lamp stays out: enemies.json climbers.lampOutSeconds), foul (the
+  // chance a shot fouls a gun: combat.json guns.foulChance), repair (how long the repair kit takes to mend a ruptured boiler:
+  // boiler.json repairSeconds), radioReach (metres added to how far into a tunnel or a mine spur the radio still carries:
+  // train.json kit.radioReach) and switchThrower (fitted to the cab: train.json composition.thrower says what it does).
+  // Every upgrade here does something; an effect name nothing models would change nothing, so give each one an effect.
   "upgrades": [
     { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 } },
-    { "id": "lampArmour", "name": "Lamp armour", "size": "small", "costShare": 0.2, "effect": {} },
-    { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": {} },
+    // F.3 "lamp armour": the Climbers still smash the forward lamp coming into the cab (§23 "lights fail"), but the guard
+    // takes the worst of it and it's lit again in half the time (22.5 s, not 45).
+    { "id": "lampArmour", "name": "Lamp armour", "size": "small", "costShare": 0.2, "effect": { "lampOut": 0.5 } },
+    // F.3 "gun cooling" (GDD §23 "gun jams", note 183): a cooler bore fouls half as often (2% a shot, 5% in the wet).
+    { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": { "foul": 0.5 } },
     { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 } },
-    { "id": "repairKit", "name": "Repair kit charges", "size": "small", "costShare": 0.15, "effect": {} },
+    // F.3 "repair kit charges". A kit is never used up (it mends the boiler and opens a lock and is still in hand), so a
+    // charge has nothing to count; read as a better-stocked kit that works faster: a ruptured boiler is mended in 15 s,
+    // not 25 (note 196). Losing every kit is still Stranded (GDD v1.4).
+    { "id": "repairKit", "name": "Repair kit charges", "size": "small", "costShare": 0.15, "effect": { "repair": 0.6 } },
     { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 } },
     // A coupling-up knock at 1.5 m/s (the most that couples, couplings.coupleMaxSpeed) does no damage; and the Passenger
     // takes half again as long unhooking the caboose: 6 s, two more to kill it in.
     { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": { "contactSafe": 1.5, "unhook": 1.5 } },
     // F.3 "Dragger resistance": on every roof (train.json composition.rails says what holding them does).
     { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": { "handrails": 1 } },
-    { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": {} },
+    // F.3 "radio range" (spec A.5's radio already covers the whole run, and "dies in tunnels and mine spurs"): it carries
+    // 150 m into one before it dies, from a tunnel's mouth or a mine spur's points.
+    { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": { "radioReach": 150 } },
     // F.3 "car insulation (cold)": in a car without heat (a door open, or the steam gone), the cold comes on half as fast.
     { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": { "insulation": 0.5 } },
     // GDD §26 "reinforced plating, heavier mass": one car, the guard van (composition.armourTonnes, armourDamage).
@@ -74,7 +86,8 @@
     { "id": "crewCar", "name": "Crew car", "size": "major", "costShare": 1.0, "effect": { "utilityCars": 1 } },
     { "id": "improvedBrakes", "name": "Improved brakes", "size": "major", "costShare": 1.0, "effect": { "brakes": 1.2 } },
     { "id": "boilerUpgrade", "name": "Boiler upgrade", "size": "major", "costShare": 1.4, "effect": { "burn": 0.85 } },
-    { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": {} },
+    // F.3 "removes the ground excursion at junctions": points thrown from the cab (train.json composition.thrower).
+    { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 } },
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
     { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
   ],

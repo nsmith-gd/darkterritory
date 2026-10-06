@@ -141,18 +141,42 @@ public class ChoirShareTests
     }
 
     [Fact]
-    public void TheGuardVansToysAreStockedWithTheirNoisesAndTheWireCarriesThem()
+    public void ToysAreFoundAtTheStopsWithTheirNoisesAndTheWireCarriesThem()
     {
+        // Note 267 (the director's notes on build 1121: the guard van's toys "are things that we should definitely find out in
+        // the world"): none ride from the fortress; the stops' village containers have them (loot.json "toys").
         var n = new Night(6, speed: 0);
         n.World.EnableBodies();
         n.World.Stock();
-        var toys = n.World.Bodies.All.Where(b => b.Kind == BodyKind.Toy).ToList();
-        Assert.Equal(Tuning.Train.Kit.Toys, toys.Count);
-        Assert.Equal(Tuning.Train.Kit.ToyNoises, toys.Take(Tuning.Train.Kit.ToyNoises.Count).Select(b => b.Noise));
-        Assert.Contains(toys, b => b.Noise == ToyNoise.None);
+        Assert.Equal(0, Tuning.Train.Kit.Toys);
+        Assert.DoesNotContain(n.World.Bodies.All, b => b.Kind == BodyKind.Toy);
+
+        var loot = Ballast.DataFile.Load<Stops.LootTuning>(System.IO.Path.Combine(Ballast.DataFile.FindContentRoot(), Stops.LootTuning.File));
+        Assert.NotNull(loot.Toys);
+        var noises = new List<ToyNoise>();
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            var route = Route.RouteGenerator.Generate(Tuning.Route, Route.RouteTier.Frontier, seed);
+            foreach (var (f, i) in route.Features.Select((f, i) => (f, i)).Where(x => x.f.Stop is not null))
+            {
+                var toys = Stops.StopLoot.Toys(loot, f.Stop!, route.Seed, i);
+                // In the village's cupboards, cellars, haylofts and under floors only; the same from the seed every time.
+                Assert.All(toys, t => Assert.Equal(Stops.StopZone.Village, f.Stop!.Containers.Single(c => c.Index == t.Container).Zone));
+                Assert.Equal(toys, Stops.StopLoot.Toys(loot, f.Stop!, route.Seed, i));
+                noises.AddRange(toys.Select(t => t.Noise));
+            }
+        }
+        // Enough of them for the Track Doll, and App. C item 4's mix: quiet ones and noisy ones.
+        Assert.True(noises.Count >= 6, $"{noises.Count} toys on six frontier nights");
+        Assert.Contains(ToyNoise.None, noises);
+        Assert.Contains(noises, x => x != ToyNoise.None);
+
+        // A found toy's noise rides the wire.
+        var drummer = n.World.Bodies.SpawnItem(n.Train.Frames[0].ToWorld(new Ballast.Double3(0, 0, -20)), n.Train.Dynamics.Distance, BodyKind.Toy);
+        drummer.Noise = ToyNoise.Drummer;
         var mirrored = new World(n.Train);
         var controls = new TrainControls();
         Net.WorldRecords.Apply(Net.WorldRecords.Capture(n.World, controls, []), mirrored, ref controls, []);
-        Assert.Equal(toys.Select(b => b.Noise), mirrored.Bodies.All.Where(b => b.Kind == BodyKind.Toy).Select(b => b.Noise));
+        Assert.Equal(ToyNoise.Drummer, mirrored.Bodies.All.Single(b => b.Kind == BodyKind.Toy).Noise);
     }
 }

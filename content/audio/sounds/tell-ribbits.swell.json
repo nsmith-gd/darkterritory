@@ -1,0 +1,22 @@
+// Ribbits: throats swelling: Throats swelling. Written by tools/audio/install.py from the audio checklist (kept); edit the cue, not this.
+{
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
+ "tier": 1,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 4,
+ "maxDistance": 250,
+ "rolloff": 0.8,
+ "gainDb": 8,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-ribbits/swell",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

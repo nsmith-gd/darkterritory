@@ -66,7 +66,7 @@ public class DerailSequenceTests
         Assert.InRange(first.Frames[0].Origin.Z, -150 + T.ReplayLeadSeconds * 15 - 1, -150 + T.ReplayLeadSeconds * 15 + 1);
         var later = seq.ReplayAt(T.FirstPersonSeconds + T.ReplayLeadSeconds + 2, T)!.Value;
         Assert.True(later.Off);
-        var cam = seq.ReplayCamera(later.Frames);
+        var cam = seq.ReplayCamera(later.Frames, _ => false);
         Assert.True(cam.Position.Y > 5, "the chase view is up over the train");
     }
 }

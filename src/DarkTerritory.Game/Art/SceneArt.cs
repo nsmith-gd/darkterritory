@@ -20,29 +20,37 @@ public sealed partial class SceneArt(Look look)
     public WorldArt World { get; } = new(look);
 
     CreatureArt? _creatures;
-    readonly Dictionary<byte, (Double3 Feet, double Time, float Speed)> _crewMotion = new();
+    readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
 
     /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
     public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
 
     /// <summary>
     /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
-    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
+    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). On a car that's over the car,
+    /// in its frame (note 211): stood still on a train at speed is stood still. False without the model.
     /// </summary>
     /// <param name="swung">Seconds since a blow of theirs landed (a HitConfirm by them, App. C.2), or negative: their swing
     /// is played round it, so another crewmate's blow is seen as well as felt.</param>
     public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time, double swung = -1)
     {
         float speed = 0;
+        // Measured in the frame they stand in: the car's, or the ground's (World). The step they change frames on (a car to
+        // the next, off onto the ballast) has its two samples in different frames, so it keeps the pace they had.
+        var at = c.Car != Sim.Player.PlayerState.World ? c.Local : c.Feet;
         if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
         {
-            var d = c.Feet - last.Feet;
-            float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
-            float now = moved / (float)(time - last.Time);
-            // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
-            speed = float.Lerp(last.Speed, now, 0.35f);
+            speed = last.Speed;
+            if (last.Car == c.Car)
+            {
+                var d = at - last.At;
+                float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
+                float now = moved / (float)(time - last.Time);
+                // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
+                speed = float.Lerp(last.Speed, now, 0.35f);
+            }
         }
-        _crewMotion[c.Id] = (c.Feet, time, speed);
+        _crewMotion[c.Id] = (at, c.Car, time, speed);
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
@@ -55,6 +63,18 @@ public sealed partial class SceneArt(Look look)
             // Running with something waking close by, hunched and hurried (GDD §31).
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
+        // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
+        // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
+        // the drop, until it's done, rather than snapping back to stood (App. C.5; the checklist's "a distinct hang-back").
+        if (pose == CrewPose.Extinguish && Spraying?.Contains(c.Id) == true)
+            pose = CrewPose.Spray;
+        var before = _crewActSince.TryGetValue(c.Id, out var wasDoing) ? wasDoing : default;
+        if (pose == CrewPose.TakeDown && before.Pose is CrewPose.Extinguish or CrewPose.Spray or CrewPose.HangUp)
+            pose = CrewPose.HangUp;
+        else if (before.Pose == CrewPose.HangUp && pose is CrewPose.Idle or CrewPose.Walk && time - before.Time < HangUpSeconds)
+            pose = CrewPose.HangUp;
+        LastPose = pose;
         // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
             _staggered[c.Id] = time;
@@ -74,12 +94,15 @@ public sealed partial class SceneArt(Look look)
             _crewActSince[c.Id] = since = (pose, time);
         double clipTime = pose switch
         {
-            CrewPose.GetUp or CrewPose.TakeDown => time - since.Time,
+            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             CrewPose.Swing => swung + SwingHitAt,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
+            // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
+            // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
+            CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
@@ -105,7 +128,7 @@ public sealed partial class SceneArt(Look look)
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor));
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
         if (drawn && Breath > 0 && c.Alive)
@@ -125,6 +148,19 @@ public sealed partial class SceneArt(Look look)
         return drawn;
     }
 
+    /// <summary>
+    /// A headset crewmate's body under their head (T82, <see cref="VrBody"/>), stood still: walking and running are the
+    /// clips', and so is any act (the lever, the shovel, a hold). Their feet are kept planted from frame to frame in the
+    /// frame they stand in, and planted afresh when they start, stop or move frames.
+    /// </summary>
+    VrBodyPose? HeadsetBody(in Crewmate c, CrewPose pose, double time) =>
+        _strides.Pose(c, c.Alive && c.Act is null && pose == CrewPose.Idle, time, Look.VrBody);
+
+    readonly VrStrides _strides = new();
+
+    /// <summary>The pace-chosen pose of the crewmate last drawn (before a stagger, a swing or the fire door take over).</summary>
+    public CrewPose LastPose { get; private set; }
+
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
     readonly Dictionary<byte, int> _crewHealth = new();
     readonly Dictionary<byte, double> _staggered = new();
@@ -135,6 +171,9 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>crew_clips.py's firedoor clip (21 frames); how near the door's foot someone stands to be the one at it (m).</summary>
     const double FireDoorSeconds = 21 / 30.0, FireDoorReach = 1.3;
+
+    /// <summary>crew_clips.py's climb and climb_carry: one 40-frame cycle per two rungs (TrainKit.RungPitch) climbed.</summary>
+    const double ClimbCycleSeconds = 40 / 30.0, ClimbCycleRise = 2 * TrainKit.RungPitch;
 
     /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
     const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;
@@ -211,6 +250,12 @@ public sealed partial class SceneArt(Look look)
         _lampHands.TryGetValue(carrier, out var h) && time - h.Time < 0.5 ? h.At : null;
 
     readonly Dictionary<byte, (CrewPose Pose, double Time)> _crewActSince = new();
+
+    /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
+    public IReadOnlySet<int>? Spraying { get; set; }
+
+    // How long hanging the extinguisher back on its bracket takes (s): crew_clips.py's hang_up, 40 frames at 30.
+    const double HangUpSeconds = 40 / 30.0;
 
     /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
     public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>
@@ -350,6 +395,9 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
     static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
+
+    /// <summary>The toy a toy body is drawn as (by its id, as <see cref="Body"/> draws it), or null.</summary>
+    public MeshAsset? Toy(int bodyId) => PropArt.Of(Look).Get(Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)]);
 
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
@@ -854,9 +902,10 @@ public sealed partial class SceneArt(Look look)
     /// blackened toward soot, the scars of the burn the mask draws.</param>
     /// <param name="openLockers">Crew lockers drawn open whatever their doors are doing (the Stranded outro's empty locker).</param>
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
+    /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
@@ -984,6 +1033,10 @@ public sealed partial class SceneArt(Look look)
                 bool open = (vehicle?.LockerOpen(bay.Index) ?? false) || (openLockers & (1u << bay.Index)) != 0;
                 var leaf = Piece($"locker-door:{bay.Name}:{w:0.###}x{h:0.###}:{px:0.#####}", () => LockerKit.Door(Look, bay.Name, w, h, px));
                 mesh.Instances.Add(new MeshInstance(leaf, LockerKit.DoorAt(bay, open) * m, emergency ? 0.06f : 1, Scar: scar));
+                // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): something on its shelves,
+                // a stores tag hangs off the shut door's handle; the prompt at the door names what.
+                if (!open && (taggedLockers & (1u << bay.Index)) != 0)
+                    mesh.Instances.Add(new MeshInstance(Piece($"locker-tag:{w:0.###}x{h:0.###}", () => LockerKit.Tag(Look, w, h)), LockerKit.DoorAt(bay, false) * m, emergency ? 0.06f : 1));
             }
         }
         // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up

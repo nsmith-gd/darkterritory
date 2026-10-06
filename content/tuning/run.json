@@ -12,9 +12,20 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // The director's decision of 6 Oct 2026 (GDD §9, ARCHITECTURE §8 note 263): until the run begins (the train through the
+  // gate, above), the fortress yard is a safe space, like the ship in Lethal Company. The crew wait for friends, try on
+  // outfits, walk away from the keyboard; nothing of consequence happens. Nothing spawns, the boiler and its fire hold (no
+  // overheating, no rupture, no running out), the cold doesn't bite, and the train only moves off when someone in the cab
+  // lets the brake off and drives it out.
+  "yardIsSafe": true,
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
-  // lineSeconds over the radio.
-  "radio": { "lineSeconds": 1.6 },
+  // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
+  // bored pace), never less than lineSeconds.
+  // Note 267 (the director's notes on build 1121: the opening reading is "a bit long... a pain for localization... a bit
+  // cheesy"): `manifest` false drops the dispatcher's manifest at the gate, voice and card both. What it read (the crew,
+  // the coal, powder and shot, the cars, the freight) is all on the roster, the gauges and the board already. The clerk's
+  // tally at the terminus stays.
+  "radio": { "lineSeconds": 1.6, "pauseSeconds": 0.5, "manifest": false },
 
   // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
   "stranded": {

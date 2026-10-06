@@ -87,12 +87,16 @@ public class EnemyTests
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
         SleepersAhead(n, 400);
+        // Note 266: braced (and heard) as far out as six cars at 20 m/s need to brake under them, past the lamp's 120 m.
+        double brace = Sleepers.BraceAt(E.Sleepers, n.Train.Dynamics);
         n.Run(25);
         var telegraph = n.Events.First(e => e.To == SpinePhase.Telegraph);
         var commit = n.Events.First(e => e.To == SpinePhase.Commit);
-        // The lamp found them 120 m out: six seconds at 20 m/s.
-        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, 5.5, 6.5);
+        Assert.True(brace > E.Sleepers.LampRevealDistance);
+        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, brace / 20 - 0.5, brace / 20 + 0.5);
         Assert.True(n.World.Derailed);
+        // Each dies on their own hit in the wreck (GDD v1.4 App. E.2 step 1; note 258), inside their first person's window.
+        n.Run(n.World.WreckTuning.Film.FirstPersonMax + 1);
         Assert.All(n.Crew.Values, s => Assert.Equal(DeathCause.Derailed, s.Death));
         n.AssertFair();
     }
@@ -123,17 +127,48 @@ public class EnemyTests
     }
 
     [Fact]
-    public void WithTheLampDownYouOnlyHearThemAtSixtyMetres()
+    public void WithTheLampDownTheyStillBraceAsFarOutAsTheTrainNeedsToStop()
     {
+        // Note 266 (build 1121: "ran onto the Sleepers at 43 km/h ... I didn't see the threat"): lamps down they were heard
+        // only at 60 m, three seconds at 20 m/s. Now they brace as far out as the train needs, lamp or no lamp.
         var n = new Night(6, speed: 20);
         n.World.LampLit = false;
-        SleepersAhead(n, 300);
-        n.Run(20);
+        SleepersAhead(n, 600);
+        n.Run(35);
         var telegraph = n.Events.First(e => e.To == SpinePhase.Telegraph);
         var commit = n.Events.First(e => e.To == SpinePhase.Commit);
-        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, 2.8, 3.3);
+        double lead = (commit.Tick - telegraph.Tick) * SimConstants.TickSeconds;
+        Assert.True(lead >= E.Sleepers.DerailLeadSeconds, $"{lead:0.0} s");
+        Assert.True(lead * 20 >= Tuning.Train.Overspeed.WarnDistance(20, E.Sleepers.DerailAbove - 0.5, n.Train.Dynamics.RatedBrakeDecel, E.Sleepers.BraceLeadSeconds) - 1);
         Assert.True(n.World.Derailed);
         n.AssertFair();
+    }
+
+    [Theory]
+    [InlineData(6, 17.0)]
+    [InlineData(6, 22.0)]
+    [InlineData(20, 17.0)]
+    [InlineData(20, 22.0)]
+    public void AtCruiseWithTheLampDownADriverWhoBrakesOnTheirTelegraphGetsUnderTheirSpeed(int cars, double cruise)
+    {
+        // Note 266, App. A.1's lead measured: lamps down, at the frontier's line speed (17 m/s) and flat out, the driver
+        // brakes a reaction window (4 s) after the writhe starts, regulator shut, and is under 40 km/h when the engine
+        // reaches them. (Off by default since 2026-10-06; this is for a mod that brings them back.)
+        var n = new Night(cars, speed: cruise);
+        n.World.LampLit = false;
+        var sleepers = SleepersAhead(n, 1500);
+        double braced = double.NaN;
+        for (int i = 0; i < 200 * SimConstants.TickRate && !sleepers.Gone && !n.World.Derailed; i++)
+        {
+            bool held = double.IsNaN(braced) || n.World.ElapsedSeconds < braced + 4;
+            if (sleepers.Phase == SpinePhase.Telegraph && double.IsNaN(braced))
+                braced = n.World.ElapsedSeconds;
+            if (!held)
+                n.Controls = new TrainControls { Brake = 1, Reverser = 1 };
+            n.Run(SimConstants.TickSeconds, holdSpeed: held);
+        }
+        Assert.False(double.IsNaN(braced));
+        Assert.False(n.World.Derailed, n.World.DerailCause);
     }
 
     static List<CinderHound> Pack(Night n, int size = 3)

@@ -15,14 +15,55 @@ public sealed record TrainTuning
     public required CouplingTuning Couplings { get; init; }
     /// <summary>What the train carries from the fortress (T41). Unset, nothing.</summary>
     public KitTuning Kit { get; init; } = new();
+    /// <summary>A car's shell given way, and boarding it up (train.json <c>breach</c>, spec B.9).</summary>
+    public BreachTuning Breach { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
     /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
     public CompositionTuning Composition { get; init; } = new();
     /// <summary>GDD §19's fragile medicine (train.json <c>fragile</c>; note 182). Unset, medicine rides like anything else.</summary>
     public FragileTuning? Fragile { get; init; }
+    /// <summary>Which of the things in reach a look picks (train.json <c>pick</c>; note 264).</summary>
+    public PickTuning Pick { get; init; } = new();
+    /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
+    public OverspeedTuning Overspeed { get; init; } = new();
 
     public const string File = "tuning/train.json";
+}
+
+/// <summary>
+/// Picking what Use works by where you look (note 264, the director's notes on build 1121: neighbouring lockers, and the
+/// whistle cord over the firebox, fought over one press). Field docs live in train.json <c>pick</c>.
+/// </summary>
+/// <param name="EyeHeight">The eye over the feet (m), where the look is taken from.</param>
+/// <param name="LookDegrees">A thing in reach within this of the view's centre is looked at; the nearest to it wins.</param>
+public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30);
+/// <summary>A bend taken too fast (note 265). Field docs live in train.json <c>overspeed</c>.</summary>
+public sealed record OverspeedTuning
+{
+    public double LeadSeconds { get; init; } = 4;
+    public double BrakeShare { get; init; } = 0.6;
+    public double MarginM { get; init; } = 30;
+    public double LurchAt { get; init; } = 0.5;
+    public double RepeatSeconds { get; init; } = 1.5;
+    public string WarningSound { get; init; } = "warn-overspeed";
+
+    /// <summary>
+    /// How far ahead a demand at <paramref name="safe"/> must be told of to a train at <paramref name="speed"/> braking at
+    /// <paramref name="rated"/> (the consist's rated deceleration, spec B.5): the lead at the speed now, a service stop down
+    /// to it at <see cref="BrakeShare"/> of the rated brake, and the margin. Used for bends and for the Sleepers alike.
+    /// </summary>
+    public double WarnDistance(double speed, double safe, double rated, double leadSeconds) =>
+        speed * leadSeconds + Math.Max(0, speed * speed - safe * safe) / (2 * Math.Max(0.05, rated * BrakeShare)) + MarginM;
+}
+
+/// <summary>Boarding up a breached car (decided 1 Oct; spec B.9). Field docs live in train.json <c>breach</c>.</summary>
+public sealed record BreachTuning
+{
+    public double BoardSeconds { get; init; } = 8;
+    public double BoardReach { get; init; } = 1.5;
+    /// <summary>Boarding up wants the repair kit in hand (note 150: it's an item someone carries).</summary>
+    public bool NeedsKit { get; init; }
 }
 
 /// <summary>
@@ -51,7 +92,19 @@ public sealed record CompositionTuning
     public bool Handrails { get; init; }
     /// <summary>What holding them does.</summary>
     public HandrailTuning Rails { get; init; } = new();
+    /// <summary>The powered switch thrower (spec F.3 "removes the ground excursion at junctions"; note 196), its lever in the cab.</summary>
+    public bool SwitchThrower { get; init; }
+    /// <summary>How far ahead it reaches, and how slow the train has to be.</summary>
+    public ThrowerTuning Thrower { get; init; } = new();
 }
+
+/// <summary>
+/// The powered switch thrower (spec F.3; note 196): held at its lever in the cab for route.json's <c>throwSeconds</c>, it
+/// throws the next points ahead of the engine, as the stand beside them would.
+/// </summary>
+/// <param name="Reach">How far ahead of the engine's front the points can be (m).</param>
+/// <param name="MaxSpeed">The train no faster than this (m/s), either way.</param>
+public sealed record ThrowerTuning(double Reach = 200, double MaxSpeed = 5);
 
 /// <summary>
 /// Roof handrails (spec F.3 "Dragger resistance"; note 184). A hand on the rail: a Dragger has to reach further in for you,
@@ -61,16 +114,28 @@ public sealed record CompositionTuning
 /// <param name="DraggerGrab">The Draggers' grab range, times this.</param>
 /// <param name="DraggerHang">How long one hangs on to you before it has you, times this.</param>
 /// <param name="ThrowOver">How far over a bend's limit throws you off the roof (sight.json <c>throwOver</c>), times this.</param>
-public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5);
+/// <param name="Wind">The wind's push on the roofs (GDD §22, player.json <c>wind</c>; note 201), times this.</param>
+public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang = 1.5, double ThrowOver = 1.5, double Wind = 0.4);
 
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>Note 266: the forward lamp a Climber smashed comes back lit once its glass is in (train.json kit).</summary>
+    public bool RelightSmashedLamp { get; init; } = true;
     /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
     public double RadioBreakPerDamage { get; init; } = 0.006;
     /// <summary>... and when something grabs you.</summary>
     public double RadioBreakOnGrab { get; init; } = 0.25;
+    /// <summary>
+    /// Note 200: how long Use is held with the repair kit in hand to mend a broken radio, worn or in reach (s).
+    /// </summary>
+    public double RadioMendSeconds { get; init; } = 8;
+    /// <summary>
+    /// Spec A.5 "dies in tunnels and mine spurs": how far into one, from a tunnel's mouth or a mine spur's points, a radio
+    /// still carries (m). Spec F.3's radio range adds to it (note 196).
+    /// </summary>
+    public double RadioReach { get; init; }
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>
@@ -112,6 +177,11 @@ public sealed record LockerTuning
     public double Height { get; init; } = 1.9;
     public double FromFront { get; init; } = 0.7;
     public double DoorSeconds { get; init; } = 0.4;
+    /// <summary>
+    /// What each locker starts the night with besides the repair kit (note 264), by its name. Looked up locker by locker in
+    /// the row's order, never iterated.
+    /// </summary>
+    public Dictionary<string, Physics.BodyKind[]> Stock { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record GeometryTuning(

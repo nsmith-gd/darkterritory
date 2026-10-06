@@ -23,6 +23,10 @@ public sealed record VrTuning
     public VrPanelTuning Hud { get; init; } = new();
     /// <summary>The menus' panel in the front end (T36).</summary>
     public VrPanelTuning Menu { get; init; } = new() { Distance = 2.0, Width = 2.0, Drop = 0, FollowDegrees = 35, FollowSeconds = 0.6 };
+    /// <summary>A headset player's body as the rest of the crew see it (T82).</summary>
+    public VrBodyTuning Body { get; init; } = new();
+    /// <summary>How the eyes are drawn: both in one pass where the GPU can (multiview), or each alone (note 221).</summary>
+    public StereoPath Stereo { get; init; } = StereoPath.Multiview;
 }
 
 public sealed record VignetteTuning
@@ -63,6 +67,9 @@ public sealed class VrLocomotion(VrTuning tuning)
     /// <summary>The head in the tracking space, as of the last display frame.</summary>
     public Quaternion Head { get; private set; } = Quaternion.Identity;
 
+    /// <summary>Where the head is in the tracking space (its origin is the eye point, <see cref="Eyes.Height"/> over the feet).</summary>
+    public Vector3 HeadPosition { get; private set; }
+
     /// <summary>How far the comfort vignette has closed in, 0..1.</summary>
     public float Vignette { get; private set; }
 
@@ -77,9 +84,11 @@ public sealed class VrLocomotion(VrTuning tuning)
 
     /// <summary>Once per display frame: the stick turns the body, and the vignette follows what the sticks are doing.</summary>
     /// <param name="head">The head (either eye will do: they share an orientation) in the tracking space.</param>
-    public void Frame(in XrControllerState c, Quaternion head, double dt)
+    /// <param name="headPosition">And where it is there (T82: its height goes out with the hands).</param>
+    public void Frame(in XrControllerState c, Quaternion head, double dt, Vector3 headPosition = default)
     {
         Head = head;
+        HeadPosition = headPosition;
         float turn = Deadzone(c.Turn.X);
         float target = 0;
         if (Tuning.Turn == VrTurn.Smooth)
@@ -180,7 +189,8 @@ public sealed class VrLocomotion(VrTuning tuning)
         {
             // The other hand goes too (T43): a heavy crate's end takes both.
             double turn = BodyYaw - (self.Yaw + intent.LookYaw);
-            intent.Reach(Reach(hand.Position, turn), other.Tracked ? Reach(other.Position, turn) : null);
+            // And the head's height over the feet (T82), so the crew see the body under it lean and crouch.
+            intent.Reach(Reach(hand.Position, turn), other.Tracked ? Reach(other.Position, turn) : null, HeadPosition.Y + Eyes.Height);
             if (self.Surface == Surface.Ladder && hand.Grip && ladderClimb > 0)
             {
                 // Hand over hand: the hand stays on its rung while the body goes up past it. Pushing the hand up

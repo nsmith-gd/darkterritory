@@ -47,6 +47,26 @@ public class MixerTests
     }
 
     [Fact]
+    public void ThePlayersVolumesScaleTheirBuses()
+    {
+        // The settings' volumes: effects (here tier 4) halved is 6 dB down, voice (tier 2) untouched; the master over both.
+        double Db(MixVolumes volumes, string sound)
+        {
+            var (m, _) = Make(("hands", Tone(4, 400)), ("talk", Tone(2, 900)));
+            m.Volumes = volumes;
+            m.Tap = new MeterTap(Audio.SampleRate / Audio.Block * Audio.Block);
+            m.Play("hands", new Double3(0, 0, -2));
+            m.Play("talk", new Double3(0, 0, -2));
+            Render(m, 1);
+            return Meter.Db(m.Tap.Stems[sound].AsSpan(Audio.SampleRate / 2));
+        }
+        Assert.InRange(Db(new(), "hands") - Db(new() { Effects = 0.5f }, "hands"), 5.5, 6.5);
+        Assert.InRange(Db(new(), "talk") - Db(new() { Effects = 0.5f }, "talk"), -0.2, 0.2);
+        Assert.InRange(Db(new(), "talk") - Db(new() { Master = 0.5f }, "talk"), 5.5, 6.5);
+        Assert.True(Db(new() { Voice = 0 }, "talk") < -100);
+    }
+
+    [Fact]
     public void ATellDucksEverythingBelowItByNineDecibels()
     {
         // Spec A.3: tier 1 "ducks all else -9 dB".

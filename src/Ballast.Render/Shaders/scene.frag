@@ -16,6 +16,10 @@ layout(set = 0, binding = 6) uniform sampler2DShadow moonShadow;
 layout(set = 0, binding = 7) uniform sampler2DArray heroDiffuse;
 layout(set = 0, binding = 8) uniform sampler2DArray heroSpec;
 layout(set = 0, binding = 9) uniform sampler2DArray heroNormal;
+// ...and the big ones (RenderAssets.BigHeroSize): a slot from 64 up (GreyboxRenderer.BigHero) is in these.
+layout(set = 0, binding = 11) uniform sampler2DArray bigDiffuse;
+layout(set = 0, binding = 12) uniform sampler2DArray bigSpec;
+layout(set = 0, binding = 13) uniform sampler2DArray bigNormal;
 
 float heroSlot(float layer) {
     int l = int(layer + 0.5);
@@ -260,14 +264,14 @@ void main() {
         }
     } else if (textured) {
         float hero = ps2 ? -1.0 : heroSlot(vLayer);
-        tex = hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
+        tex = hero >= 64.0 ? texture(bigDiffuse, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
         if (tex.a < 0.5)
             discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
-        specMap = (hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
+        specMap = (hero >= 64.0 ? texture(bigSpec, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
         else
-            n = perturb(n, vPos, vUv, normalize((hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
+            n = perturb(n, vPos, vUv, normalize((hero >= 64.0 ? texture(bigNormal, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)

@@ -74,3 +74,12 @@ copyright restrictions"), which can't be re-read from the build machines (the si
 
 Compressed sources (meshopt, Draco) are decoded to a plain `.plain.glb` beside the original with gltf-transform
 (`npm install @gltf-transform/cli@4.1.1` into `intake/_sources/tools/`), since Blender's packaged build can't read them.
+
+## Music
+
+The derailment's opera (GDD v1.4 App. E.6; ARCHITECTURE §8 note 194) comes in through `intake/_sources/music/`:
+`tools/audio/fetch_music.py` downloads each CC0 recording from Wikimedia Commons there, beside its evidence (licence
+metadata, wikitext, the rendered file page, SHA-256s) and the run's `report.json`. Commons is unreachable from the cloud
+sessions, so it runs in `.github/workflows/music-intake.yml`, which uploads this folder as artifacts and commits only
+what we made from it (`content/audio/music`: the cut, normalised Opus windows, the manifest, the credits and the
+evidence records). E.6's rule is stricter than rule 4 above: the file's own page must dedicate the recording under CC0 1.0.

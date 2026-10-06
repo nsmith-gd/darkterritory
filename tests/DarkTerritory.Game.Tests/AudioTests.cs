@@ -29,11 +29,16 @@ public class AudioTests
     public void AWreckIsHeardCrashingAndGrinding()
     {
         // T117: "loud, spectacular" (GDD §23). The train comes off half a second in; beside the line you hear the cars
-        // hit (wreck-crash) and the steel dragged through the earth (wreck-grind), each well over the train's own sounds.
+        // hit (state-derail's collide and impact, or the synth's wreck-crash) and the steel dragged along the rails and
+        // through the earth (rail-scrape and grind, or wreck-grind), each well over the train's own sounds.
         var (report, _) = AudioBench.Render(Content, "wreck", cars: 8, speed: 22, listenerCar: 3, seconds: 6);
-        Assert.True(report.StemsDb.GetValueOrDefault("wreck-crash", double.NegativeInfinity) > -30, $"crash at {report.StemsDb.GetValueOrDefault("wreck-crash")} dB");
-        Assert.True(report.StemsDb.GetValueOrDefault("wreck-grind", double.NegativeInfinity) > -30, $"grind at {report.StemsDb.GetValueOrDefault("wreck-grind")} dB");
-        Assert.True(report.StemsDb["wreck-grind"] > report.StemsDb.GetValueOrDefault("wheel-rail", double.NegativeInfinity) + 10);
+        double Loudest(params string[] prefixes) => report.StemsDb.Where(s => prefixes.Any(p => s.Key.StartsWith(p, StringComparison.Ordinal)))
+            .Select(s => s.Value).DefaultIfEmpty(double.NegativeInfinity).Max();
+        double crash = Loudest("wreck-crash", "state-derail.collide", "state-derail.impact");
+        double grind = Loudest("wreck-grind", "state-derail.grind", "state-derail.rail-scrape");
+        Assert.True(crash > -30, $"crash at {crash} dB");
+        Assert.True(grind > -30, $"grind at {grind} dB");
+        Assert.True(grind > report.StemsDb.GetValueOrDefault("wheel-rail", double.NegativeInfinity) + 10);
     }
 
     [Fact]
@@ -52,11 +57,31 @@ public class AudioTests
         Assert.InRange(music.DuckDb, -6.1, -5.5);
         Assert.Equal(1, music.GameLowpass, 2);
         // Heard: the opera over the wreck, and the laughing over the opera.
-        Assert.True(music.MusicDb > report.StemsDb["wreck-grind"], $"music {music.MusicDb} dB, grind {report.StemsDb["wreck-grind"]} dB");
+        double grind = report.StemsDb.Where(s => s.Key is "wreck-grind" or "state-derail.grind" or "state-derail.rail-scrape").Select(s => s.Value).DefaultIfEmpty(double.NegativeInfinity).Max();
+        Assert.True(music.MusicDb > grind, $"music {music.MusicDb} dB, grind {grind} dB");
         Assert.True(report.StemsDb["voice-dead"] > -40);
         // Faded to nothing by the end of the sequence.
         int end = (int)(music.FadedBy * Audio.SampleRate) * 2;
         Assert.True(Meter.Db(mix.AsSpan(end - 4800, 4800)) < Meter.Db(mix.AsSpan(end - 2 * Audio.SampleRate * 2, 4800)) - 12);
+    }
+
+    [Theory]
+    [InlineData("place-grain.grain-pour", 4)]
+    [InlineData("world-livestock.cattle", 6)]
+    [InlineData("place-chemical.leak", 6)]
+    [InlineData("heap-groan", 1)]
+    public void TheSetPiecesAreHeard(string sound, int tier)
+    {
+        // Note 198: the facilities' set pieces had no sound of their own (notes 185, 187). Each is a loop at its tier (the
+        // spout, herd and hose the checklist's recorded ones, note 233), heard 6 m off beside a standing train well over the
+        // train's own idle.
+        var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        Assert.Equal(tier, bank.Get(sound)!.Tier);
+        var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 4, speed: 0, listenerCar: 1, seconds: 2);
+        double level = report.StemsDb.GetValueOrDefault(sound, double.NegativeInfinity);
+        // Measured at the ears (Meter, note 246): off to one side that's 3 dB over the mono sum it once was.
+        Assert.InRange(level, -22, 0);
+        Assert.True(level > report.StemsDb.GetValueOrDefault("boiler-roar", double.NegativeInfinity) + 20, $"{sound} at {level} dB");
     }
 
     [Fact]
@@ -68,6 +93,17 @@ public class AudioTests
             "cannon-impact", "cannon-splash", "hit-confirm", "doll-shatter", "toy-squeaker", "toy-musicbox", "toy-drummer", "radio-clerk", "holdout-shout", "holdout-bang"]))
             Assert.NotNull(bank.Get(name));
         Assert.All(AudioBench.TellBands.Keys, t => Assert.Equal(1, bank.Get(t)!.Tier));
+    }
+
+    [Fact]
+    public void OneSoundRendersAloneToItsEnd()
+    {
+        // `dt audio render --sound`: a one-shot plays to its end and a tenth of a second on, and is heard.
+        var (report, mix) = AudioBench.RenderSound(Content, "gunshot");
+        Assert.NotNull(report.EndedAt);
+        Assert.InRange(report.Seconds, report.EndedAt.Value + 0.1, report.EndedAt.Value + 0.11);
+        Assert.Equal(report.Seconds, mix.Length / 2.0 / Audio.SampleRate, 3);
+        Assert.True(report.MixDb > -40);
     }
 
     [Fact]
@@ -145,9 +181,63 @@ public class AudioTests
         // sit within a few dB of each other (the drummer is the loudest by the meter, not by the speakers).
         var (report, _) = AudioBench.Render(Content, "toys", cars: 6, speed: 15, listenerCar: 3, seconds: 4);
         string[] toys = ["toy-squeaker", "toy-musicbox", "toy-drummer"];
+        // The wind as it's played: the synth's, or the recorded bed-wind and world-wind takes in its place (note 193), summed.
+        double wind = 10 * Math.Log10(report.StemsDb.Where(s => s.Key == "wind" || s.Key.StartsWith("bed-wind.", StringComparison.Ordinal)
+            || s.Key.StartsWith("world-wind.", StringComparison.Ordinal)).Sum(s => Math.Pow(10, s.Value / 10)) + 1e-30);
         foreach (var toy in toys)
-            Assert.True(report.StemsDb[toy] > report.StemsDb["wind"] + 6, $"{toy} at {report.StemsDb[toy]} dB, wind {report.StemsDb["wind"]}");
+            Assert.True(report.StemsDb[toy] > wind + 6, $"{toy} at {report.StemsDb[toy]} dB, wind {wind:0.0}");
         Assert.InRange(toys.Max(t => report.StemsDb[t]) - toys.Min(t => report.StemsDb[t]), 0, 4);
+    }
+
+    [Fact]
+    public void EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices()
+    {
+        // Spec A.4 rule 4 and A.6 (note 250): no looping tell plays the same twice round, and the tape's wow and flutter are
+        // on the bed and the world, never on a tell or a voice.
+        var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        var loops = bank.Names.Where(n => bank.Get(n) is { Tier: 1, Loop: true }).ToList();
+        Assert.NotEmpty(loops);
+        Assert.All(loops, n => Assert.True(bank.Get(n)!.Drift is { Semitones: > 0 }, $"{n} loops the same every time"));
+        var mix = DataFile.Load<MixDef>(Path.Combine(Content, MixDef.File));
+        Assert.NotNull(mix.Tape);
+        Assert.DoesNotContain(1, mix.Tape!.Tiers!);
+        Assert.DoesNotContain(2, mix.Tape.Tiers!);
+        Assert.Contains(5, mix.Tape.Tiers!);
+    }
+
+    [Fact]
+    public void DownTheMineSpurTheSpaceClosesIn()
+    {
+        // The checklist's place-mine, "the space closing in" (note 250): down the spur the listener's in the mine's space,
+        // its outside shut out; back on the main line, outside again.
+        const double toe = 5_200;
+        var J = DarkTerritory.Sim.Route.RouteTuning.Load(Content).Junctions;
+        var route = new DarkTerritory.Sim.Route.Route("t", DarkTerritory.Sim.Route.RouteTier.DeadLines, 1, new LineDefinition("t", [new TrackSegment(20_000)]),
+            [new DarkTerritory.Sim.Route.RouteFeature(DarkTerritory.Sim.Route.FeatureKind.Facility, 5_000, 5_700, Facility: DarkTerritory.Sim.Route.FacilityKind.MineHead)],
+            new DarkTerritory.Sim.Route.RouteWeather(0, false, 0, 0), 3600)
+        {
+            Branches = [new BranchDefinition(BranchKind.Spur, toe, +1,
+                [new TrackSegment(J.DivergeLength, -J.DivergeRadius), new TrackSegment(J.DivergeLength, J.DivergeRadius), new TrackSegment(400)])],
+        };
+        var line = route.Build();
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 3, 1)), line, 1_000));
+        world.EnableRun(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.RunTuning.File)), route, 600, authority: true);
+        double hint = double.NaN;
+        Assert.Equal("mine", GameAudio.SpaceOf(world, line.Sample(0, toe + 150).Position + Double3.Up * 1.6, ref hint));
+        hint = double.NaN;
+        Assert.Equal("outside", GameAudio.SpaceOf(world, line.Sample(8_000).Position + Double3.Up * 1.6, ref hint));
+        var spaces = DataFile.Load<SpacesDef>(Path.Combine(Content, SpacesDef.File));
+        Assert.True(spaces.Spaces["mine"].Mutes("world-night.night"));
+    }
+
+    [Fact]
+    public void TheMimicIsACrewmatesVoiceThroughASmallerThroatAtOneLoudness()
+    {
+        // Spec A.5-A.6 (T40, note 247): no falloff, and the crewmate's voice formant-shifted up, not pitched.
+        var mimic = new SoundBank(Path.Combine(Content, "audio", "sounds")).Get("voice-mimic")!;
+        Assert.Equal(0, mimic.Rolloff);
+        Assert.InRange(mimic.Formant!.Shift, 1.05, 1.4);
     }
 
     [Fact]
@@ -182,13 +272,16 @@ public class AudioTests
         var ear = Listener.At(train.Frames[4].Origin, train.Frames[4].Heading);
         var clunks = new List<(double At, Double3 Where)>();
         var seen = new HashSet<int>();
+        // Pulling away stretches every coupling: the recorded run-out where it's installed, the synth's clunk where it isn't.
+        string clunk = audio.HasCue("bed-slack.run-out") ? "bed-slack.run-out" : "slack-clunk";
         for (int tick = 0; tick < SimConstants.TickRate * 3; tick++)
         {
             controls.Throttle = tick >= 15 ? 1 : 0;
             world.BeginTick();
             world.Step(controls);
             audio.Update(world, controls, ear, exposed: true, SimConstants.TickSeconds);
-            foreach (var v in audio.Mixer.Voices.Where(v => v.Name == "slack-clunk" && seen.Add(v.Id)))
+            Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name == "bed-slack.run-in");
+            foreach (var v in audio.Mixer.Voices.Where(v => v.Name == clunk && seen.Add(v.Id)))
                 clunks.Add((tick * SimConstants.TickSeconds, v.Position));
         }
         Assert.Equal(train.Vehicles.Count - 1, clunks.Count);

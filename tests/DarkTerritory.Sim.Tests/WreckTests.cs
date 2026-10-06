@@ -9,7 +9,7 @@ public class WreckTests
 {
     static World Derailed(double speed, int cars = 6)
     {
-        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, 2250);
         train.Dynamics.Velocity = speed;
         var world = new World(train, Tuning.Combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(DataFile.FindContentRoot(), WreckTuning.File)) };

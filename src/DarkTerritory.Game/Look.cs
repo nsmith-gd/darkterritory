@@ -37,6 +37,8 @@ public sealed record AtmosphereTuning
     public DawnTuning? Dawn { get; init; }
     /// <summary>What the night's cold does to how things look: frost, and breath.</summary>
     public ColdTuning Cold { get; init; } = new();
+    /// <summary>What the Choir's cold does to the night as it gathers (App. A.7's arrival beat): the frame chills.</summary>
+    public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
 }
@@ -93,6 +95,20 @@ public sealed record DawnTuning
 }
 
 /// <summary>
+/// The Choir's cold coming before it (GDD v1.2 App. A.7; the Look Review's "the frost reads only in the crop"): as it
+/// gathers, the night's air goes over to a paler, colder blue and the moon's light with it, and a rime of frost comes on
+/// the metal, the roofs and the glass, whatever the night's own cold, so the whole frame says it's coming, not just the
+/// glitter in the air.
+/// </summary>
+public sealed record ChoirColdTuning
+{
+    public Vector3 FogColour { get; init; } = new(0.1f, 0.13f, 0.17f);
+    public Vector3 MoonColour { get; init; } = new(0.55f, 0.68f, 0.95f);
+    /// <summary>How much rime it brings on, at its full (0..1, the same frost the night's cold does).</summary>
+    public float Rime { get; init; } = 0.8f;
+}
+
+/// <summary>
 /// A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; Art/BiteKit, Shaders/bite.glsl), read off how
 /// much of what was left of it has been eaten: <see cref="DarkTerritory.Sim.Train.Vehicle.Eaten"/> over eaten plus
 /// integrity, so it's eaten through, the whole way, just as the sim drops it.
@@ -143,6 +159,12 @@ public sealed record LookTuning
     public int LayerSize { get; init; } = 512;
     /// <summary>The characters' and creatures' baked atlases (authored bigger than <see cref="LayerSize"/>) keep up to this.</summary>
     public int HeroLayerSize { get; init; } = 1024;
+    /// <summary>The largest creatures' atlases (authored over <see cref="HeroLayerSize"/>) keep up to this, in arrays of
+    /// their own (look.json bigHeroLayerSize; GDD §27's density on a monster spread over a car).</summary>
+    public int BigHeroLayerSize { get; init; } = 2048;
+    /// <summary>Past this far from the eye (m) a creature with a distance copy (content/art/models/&lt;name&gt;.lod1.glb) draws
+    /// that instead (look.json creatureLodMetres; 0: never).</summary>
+    public float CreatureLodMetres { get; init; }
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
@@ -214,6 +236,8 @@ public sealed class Look
     /// door the art draws, on the train or off it, is this tall (<see cref="Art.Kit.Doorway"/>).
     /// </summary>
     public DoorwayTuning Doorway { get; init; } = new();
+    /// <summary>A headset crewmate's body (vr.json <c>body</c>, T82): everyone draws it, headset or not.</summary>
+    public VrBodyTuning VrBody { get; init; } = new();
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -232,10 +256,12 @@ public sealed class Look
         var tuning = DataFile.Load<LookTuning>(Path.Combine(content, LookTuning.File));
         string trainFile = Path.Combine(content, TrainTuning.File);
         var doorway = System.IO.File.Exists(trainFile) ? DataFile.Load<TrainTuning>(trainFile).Geometry.Doorway : new DoorwayTuning();
+        string vrFile = Path.Combine(content, VrTuning.File);
+        var body = System.IO.File.Exists(vrFile) ? DataFile.Load<VrTuning>(vrFile).Body : new VrBodyTuning();
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning) { Doorway = doorway };
+            return new Look(tuning) { Doorway = doorway, VrBody = body };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -244,7 +270,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>
@@ -296,7 +322,7 @@ public sealed class Look
                 if (t.Family == "sky")
                     backdrop = diffuse;
             }
-        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
+        return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
     /// <summary>The night's lighting with the look's atmosphere over it.</summary>
@@ -344,6 +370,22 @@ public sealed class Look
         light.Ambient = float.Lerp(light.Ambient, d.Ambient, t);
         light.Dawn = t;
         light.DawnGlow = d.HorizonGlow;
+        return light;
+    }
+
+    /// <summary>
+    /// <paramref name="light"/> with the Choir's cold <paramref name="t"/> of the way on (0..1, GreyboxScene.ChoirCold): the
+    /// fog and the moon going over to its cold blue, its rime on whatever frost the night already has. Applied after the
+    /// route's weather, so the rime adds to the night's own.
+    /// </summary>
+    public FrameLighting Chill(FrameLighting light, float t)
+    {
+        if (Tuning.Atmosphere.ChoirCold is not { } c || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        light.FogColor = Vector3.Lerp(light.FogColor, c.FogColour, t);
+        light.MoonColour = Vector3.Lerp(light.MoonColour, c.MoonColour, t);
+        light.Frost = MathF.Max(light.Frost, c.Rime * t);
         return light;
     }
 

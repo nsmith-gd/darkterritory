@@ -22,12 +22,27 @@ namespace DarkTerritory.Game;
 /// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
 /// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
+/// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
+/// under it. Null for a keyboard or a bot.</param>
+/// <param name="Car">The car whose frame they stand in (their replicated <see cref="PlayerState.Parent"/>), or
+/// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 211).</param>
+/// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
-    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None)
+    bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
+    Double3 Local = default, HeadsetBody? Headset = null)
 {
     public int Variant => Looks ?? Id;
 }
+
+/// <summary>
+/// What the snapshot says of a headset player's head (T82): its height over their feet (<see cref="PlayerState.Head"/>),
+/// the look's pitch, and where they stand and face in the frame they're in (<paramref name="Parent"/>, a car or the
+/// world), which the feet are planted in so the train moving under them moves nothing.
+/// </summary>
+/// <param name="Staged">A stride to draw instead of the one this machine has kept (a staged screenshot is one frame, so
+/// a step under way is given, not lived).</param>
+public readonly record struct HeadsetBody(double Head, double Pitch, int Parent, Double3 Local, double Yaw, VrStride? Staged = null);
 
 /// <summary>You, for your own arms in view (X3, <see cref="CreatureArt.OwnArms"/>): which way you face and look, what you're
 /// doing (<see cref="CrewActs.Of"/>), whether you're walking, how far into a swing you are (negative: not swinging), whose
@@ -52,6 +67,12 @@ public interface IPlaySession
     double WreckSeconds => 0;
     /// <summary>The derailment film (GDD v1.4 App. E), once this machine has shot it from the host's start; null till then.</summary>
     WreckFilm? Film => null;
+    /// <summary>
+    /// The derailment sequence's timing as this player sees it: the wreck's tuning, with the first-person beat this player's
+    /// own (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026: up to and through their own death in the film,
+    /// <see cref="WreckFilm.FirstPersonOf"/>), so the replay, the cut and the opera follow on from it.
+    /// </summary>
+    WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
     /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
     bool Skippable => false;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
@@ -65,10 +86,14 @@ public interface IPlaySession
     /// </summary>
     IReadOnlyList<string>? RadioReading => null;
     double RadioSeconds => 0;
+    /// <summary>Each of <see cref="RadioReading"/>'s lines' turn when it's spoken (note 240); null, a line every lineSeconds.</summary>
+    IReadOnlyList<double>? RadioTimes => null;
     /// <summary>The clerk's still reading the tally: the run's end screen waits for it.</summary>
     bool ClerkTally => false;
     /// <summary>This dead player's creature vote (GDD v1.4 App. D.11; note 180): the ballot offered and what they cast; null if none.</summary>
     (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => null;
+    /// <summary>The ballot's picking on this machine (note 202): what's picked, and whether it's cast and on its way to the host.</summary>
+    BallotPicker? Picker => null;
     /// <summary>The dead's cue showing now (D.11): "THE DEAD CALLED THE CAR HUGGER: PRIYA, SAM"; null when none is.</summary>
     string? VoteCue => null;
     /// <summary>The run-end commendation picker (D.12): who and which is picked, and whether it's given; null when there's none to give.</summary>
@@ -100,13 +125,33 @@ public interface IPlaySession
     int Watching => -1;
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
+    /// <summary>
+    /// Everyone aboard as their states (your own as predicted, the rest as drawn, <paramref name="alpha"/> into the tick),
+    /// for what's heard of them: footsteps, hands at work (GameAudio.CrewStates).
+    /// </summary>
+    IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha) => [(PlayerId, Player)];
 }
 
 /// <summary>What the HUD shows about the connection (spec E: ping to host "shown prominently", non-optional).</summary>
 /// <param name="PingMs">Round trip to the host; null for the host itself.</param>
 /// <param name="JoinAt">Hosting for friends on the network: the address they type to join (T114 playtest: "how is she supposed to join if we're on the same wifi?").</param>
 /// <param name="Listed">Hosting a public lobby: it's in the join screen's list (a private one is joined by invite or address).</param>
-public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false);
+public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, string? Waiting, bool Lost, string? JoinAt = null, bool Listed = false)
+{
+    /// <summary>Lost, and trying to get back (note 253): this try of <see cref="Attempts"/>; 0 when not trying.</summary>
+    public int Attempt { get; init; }
+    public int Attempts { get; init; }
+    /// <summary>Lost, the tries run out: RECONNECT (F5) tries again.</summary>
+    public bool CanReconnect { get; init; }
+    /// <summary>The crew cap (player.json crew.cap, note 254); 0 when there's none to speak of.</summary>
+    public int Cap { get; init; }
+    /// <summary>Hosting: the places taken against <see cref="Cap"/> (the crew, the waiting, the held); 0 for a joiner.</summary>
+    public int Places { get; init; }
+    /// <summary>Hosting, with no room: the lobby's shut and joiners are turned away.</summary>
+    public bool Full => Cap > 0 && Places >= Cap;
+    /// <summary>Lost, and turned away on the way back (note 254): what the host said, "CREW FULL (8/8)".</summary>
+    public string? Refused { get; init; }
+}
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>
 public static class Eyes

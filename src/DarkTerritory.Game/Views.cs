@@ -36,11 +36,25 @@ public static class Views
             "gapside" => GapSideCamera(train, car),
             // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
             "trail" => TrailCamera(train),
+            // Behind the rear car and off its side, a little over its roof, looking at the roof's end and down the car's end: where
+            // the Cinder Hounds come up (their board, --board s).
+            "board" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-(train.Frames[^1].Shape.HalfWidth + 3.5), train.Frames[^1].Shape.RoofHeight + 1.4, train.Frames[^1].Shape.HalfLength + 7)),
+                train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight - 0.8, train.Frames[^1].Shape.HalfLength - 1.5)), 55),
             // Close on the nest at the trail's end, the Whistler crouched over its catch.
             "nest" => NestCamera(train),
+            // Off the staged Whistler's side on its run and a little ahead, at a chaser's eye, looking at it going with
+            // its catch (--whistler carry).
+            "carry" => CarryCamera(train),
+            // Inside the rear car, a few steps from its end door, looking at it: what the Car Hugger's mouth is over, and
+            // whoever it has there (--hugger swallow).
+            "swallow" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.7, Floor(train) + 1.6, train.Frames[^1].Shape.HalfLength - 3.6)),
+                train.Frames[^1].ToWorld(new Double3(-0.45, Floor(train) + 1.0, train.Frames[^1].Shape.HalfLength)), 60),
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
+            // Low along the second car's left, side on to crewmate 4 and what's on them (the Ribbits' devour, --ribbits devour).
+            "packside" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.6), 1.1, 3.4)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.8), 0.6, -1.5)), 50),
             // Off the second car's left, over crewmate 4's shoulder, up at what's stood in front of them (the staged Gaunt).
             "gaunt" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.2), 1.75, 0.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.4), 1.9, -1.5)), 55),
@@ -81,6 +95,9 @@ public static class Views
             // engineering kit's rack on the right.
             "vent" => SideCamera(engine, InteractableKind.Vent, 1),
             "rack" => SideCamera(engine, InteractableKind.ToolRack, -1),
+            // (Not one of Names.) From the fireman's side across to the powered switch thrower's lever behind the rack (note
+            // 196; dt screenshot --upgrades poweredSwitchThrower --view points).
+            "points" => SideCamera(engine, InteractableKind.Points, -1),
             "chase" => ChaseCamera(train),
             // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
@@ -89,6 +106,9 @@ public static class Views
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
+            // (Not one of Names.) Out on the ground off the last car of a cut train, behind it and to its left, at its end
+            // and the train it's fallen behind (and what's riding it off: dt screenshot --cut n --hugger ride).
+            "cutoff" => CutOffCamera(train),
             // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
             // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
             "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
@@ -205,6 +225,13 @@ public static class Views
         return Camera.LookAt(at.ToWorld(new Double3(-Staging.NestOut + 4.2, 2.4, z - 3.4)), at.ToWorld(new Double3(-Staging.NestOut, 0.0, z)), 55);
     }
 
+    static Camera CarryCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Math.Max(0, (train.Frames.Count - 1) / 2)];
+        double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2;
+        return Camera.LookAt(at.ToWorld(new Double3(-Staging.CarryOut - 1.8, 1.4, z - 5)), at.ToWorld(new Double3(-Staging.CarryOut - 0.2, 1.05, z)), 55);
+    }
+
     static double Floor(TrainOnLine train) => train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
 
     static Camera DoorCamera(TrainOnLine train, int car)
@@ -244,6 +271,13 @@ public static class Views
         var f = train.Frames[rake.Consist.Vehicles[^1].Id];
         double l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(0.9, 1.35, l + 1.5)), f.ToWorld(new Double3(0.05, 0.9, l + 0.45)), 45);
+    }
+
+    static Camera CutOffCamera(TrainOnLine train)
+    {
+        var gone = train.Frames[^1];
+        double l = gone.Shape.HalfLength;
+        return Camera.LookAt(gone.ToWorld(new Double3(-5.5, 1.7, l + 7.5)), gone.ToWorld(new Double3(0, 1.3, l - 2.5)), 50);
     }
 
     static Camera KitCamera(TrainOnLine train)
@@ -374,9 +408,15 @@ public static class Views
     public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
         seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
 
-    static Camera ChaseCamera(TrainOnLine train) => Chase([.. train.Frames]);
+    static Camera ChaseCamera(TrainOnLine train) => Chase(Train(train.Frames, train.StandingCar));
 
-    /// <summary>The chase view over these frames: up and back off the last car, on the middle of the train.</summary>
+    /// <summary>
+    /// The train's own frames: not a switchyard's cars standing on their sidings (note 187), which sit at the end of the
+    /// frames kilometres off, where a "last car" would put the camera.
+    /// </summary>
+    public static CarFrame[] Train(IEnumerable<CarFrame> frames, Func<int, bool> standing) => [.. frames.Where(f => !standing(f.Index))];
+
+    /// <summary>The chase view over these frames (the train's own: <see cref="Train"/>): up and back off the last car, on the middle of the train.</summary>
     public static Camera Chase(IReadOnlyList<CarFrame> frames)
     {
         var last = frames[^1];

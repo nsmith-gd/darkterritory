@@ -14,6 +14,7 @@ public sealed class FakeLobbyNetwork : IHarnessNetwork
     readonly FakeOnline _cloud = new();
     readonly List<Lobby> _lobbies = new();
     Lobby? _host;
+    const int RoomForBots = 64;
 
     public string Name => "fake Steam lobby";
     public FakeOnline Cloud => _cloud;
@@ -23,7 +24,9 @@ public sealed class FakeLobbyNetwork : IHarnessNetwork
     public ITransport Host()
     {
         var owner = _cloud.SignIn("host");
-        _host = Open(Lobby.Host(owner, "darkterritory", Protocol.Version, NetPlaySession.MaxCrew));
+        // The harness's host isn't aboard (the bots are the whole crew), so the room is roomier than any cap: past the cap
+        // it's the host session that turns a bot away, with its reason (note 254), as it would one come by address.
+        _host = Open(Lobby.Host(owner, "darkterritory", Protocol.Version, RoomForBots));
         return OnlineTransport.Host(owner);
     }
 

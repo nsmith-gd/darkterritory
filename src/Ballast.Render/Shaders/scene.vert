@@ -75,5 +75,5 @@ void main() {
     vObj = inPos;
     vBite = draw.bite;
     vBiteFloor = draw.scar.z;
-    gl_Position = frame.viewProj * p;
+    gl_Position = eyeViewProj() * p;
 }

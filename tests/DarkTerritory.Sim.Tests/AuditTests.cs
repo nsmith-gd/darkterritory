@@ -106,6 +106,65 @@ public class AuditTests
         Assert.Single(report.Unwinnable);
     }
 
+    static CombinationRun In(string route, int crew, int seed, bool lost, int grabs = 0) =>
+        Night(lost: lost, grabs: grabs, engaged: ["Dragger", "Climber"]) with { Route = route, Crew = crew, Seed = seed };
+
+    [Fact]
+    public void TheGridRunsEveryCombinationOnEveryRouteWithEveryCrew()
+    {
+        // Note 204: combination by combination, then route, crew and seed; the hazard sets in turn down the combinations,
+        // or every one of them.
+        var pairs = Combinations.Of([EnemyKind.Dragger, EnemyKind.Climber, EnemyKind.Stoker], 2);
+        var hazards = Balance.Combinations.HazardSets;
+        var grid = new CombinationGrid(["frontier:7", "deadLines:2"], [2, 4, 8], 2);
+        var nights = Combinations.Nights(pairs, hazards, everyHazard: false, grid);
+        Assert.Equal(3 * 2 * 3 * 2, nights.Count);
+        Assert.Equal(nights.Count, nights.Distinct().Count());
+        Assert.All(Enumerable.Range(0, pairs.Count), i => Assert.All(nights.Where(n => n.Kinds == pairs[i]), n => Assert.Equal(hazards[i], n.Hazards)));
+        Assert.Equal(("frontier:7", 2, 1), (nights[0].Route, nights[0].Crew, nights[0].Seed));
+        Assert.Equal(("deadLines:2", 8, 2), (nights[11].Route, nights[11].Crew, nights[11].Seed));
+        Assert.Equal(pairs[1], nights[12].Kinds);
+        Assert.Equal(3 * hazards.Count * 2 * 3 * 2, Combinations.Nights(pairs, hazards, everyHazard: true, grid).Count);
+        // The tuning's grids: the default one quick, the nightly's wider in routes, crews and seeds.
+        var t = Balance.Combinations;
+        Assert.NotEmpty(t.Routes);
+        Assert.NotEmpty(t.Crews);
+        Assert.True(t.Wide.Routes.Count > t.Routes.Count && t.Wide.Crews.Count > t.Crews.Count && t.Wide.Seeds >= 2);
+        Assert.Equal(new CombinationGrid(t.Routes, t.Crews, t.Seeds), t.Grid);
+    }
+
+    [Fact]
+    public void UnwinnableIsLostEveryNightInSomeCell()
+    {
+        var t = Balance.Combinations;
+        EnemyKind[] pair = [EnemyKind.Dragger, EnemyKind.Climber];
+        var clear = HazardSet.Clear;
+        // Lost both seeds with a crew of two on dead lines, won elsewhere: unwinnable there, and the detail says where.
+        var row = Combinations.Judge(pair, clear,
+            [In("frontier:7", 2, 1, false, grabs: 1), In("frontier:7", 2, 2, false), In("deadLines:2", 2, 1, true), In("deadLines:2", 2, 2, true),
+             In("frontier:7", 8, 1, false), In("frontier:7", 8, 2, true)], [], t);
+        Assert.Equal("unwinnable", row.Verdict);
+        Assert.Contains("deadLines:2 crew 2", row.Detail);
+        Assert.Contains("2 of 3 cells", row.Detail);
+        Assert.Equal([("frontier:7", 2), ("deadLines:2", 2), ("frontier:7", 8)], row.Cells.Select(c => (c.Route, c.Crew)));
+        Assert.Equal([false, true, false], row.Cells.Select(c => c.Unwinnable));
+        Assert.Equal([0, 2, 1], row.Cells.Select(c => c.Lost));
+        // A night lost in every cell, but never every night in one: not unwinnable. Something landed: fair.
+        var split = Combinations.Judge(pair, clear,
+            [In("frontier:7", 2, 1, true), In("frontier:7", 2, 2, false, grabs: 1), In("deadLines:2", 2, 1, false), In("deadLines:2", 2, 2, true)], [], t);
+        Assert.Equal("fair", split.Verdict);
+        Assert.All(split.Cells, c => Assert.False(c.Unwinnable));
+        // Trivial is nothing landed anywhere: one grab in one cell makes it fair.
+        Assert.Equal("trivial", Combinations.Judge(pair, clear, [In("frontier:7", 2, 1, false), In("deadLines:2", 8, 1, false)], [], t).Verdict);
+        Assert.Equal("fair", Combinations.Judge(pair, clear, [In("frontier:7", 2, 1, false), In("deadLines:2", 8, 1, false, grabs: 1)], [], t).Verdict);
+        // The report's cells: every night of every row by (route, crew), and what was unwinnable in each.
+        var report = Combinations.Report(2, [row, split]);
+        Assert.Equal([("frontier:7", 2, 4, 1), ("deadLines:2", 2, 4, 3), ("frontier:7", 8, 2, 1)], report.ByCell.Select(c => (c.Route, c.Crew, c.Nights, c.Lost)));
+        Assert.Equal(["Dragger+Climber / clear"], report.ByCell[1].Unwinnable);
+        Assert.Empty(report.ByCell[0].Unwinnable);
+        Assert.Equal(["Dragger+Climber / clear"], report.Unwinnable);
+    }
+
     [Fact]
     public void AHazardSetTakesAwayButNeverGives()
     {
@@ -153,6 +212,74 @@ public class AuditTests
         Assert.All(report.Threats!.Spawned.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
         Assert.All(report.Threats.Engaged.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
         Assert.Contains("FireFlies", report.Threats.Spawned.Keys);
+    }
+
+    [Fact]
+    public void TheLookOutGoesAndLooksAtWhatLiesInWait()
+    {
+        // Note 209: without the look-out, the Gaunt asleep out on the ballast and a Dragger under a roof's lip lay there all
+        // night (note 186's "dormant"); with it, both come on, by their own rules, at a crewmate's feet.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
+        var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 4,
+            Cars = 6,
+            Seconds = 30,
+            Seed = 1,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = stage.StartM,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Run = Tuning.Run,
+            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            YardLength = route.GateOr(Tuning.Route.YardLength),
+            Insist = kinds,
+            Look = look,
+        }, Tuning.Boiler);
+        var without = Night(null).Threats!;
+        Assert.Equal(["Dragger", "Gaunt"], without.Spawned.Keys.Order());
+        Assert.Empty(without.Engaged);
+        var with = Night(Balance.Combinations.Look).Threats!;
+        Assert.Equal(["Dragger", "Gaunt"], with.Engaged.Keys.Order());
+    }
+
+    [Fact]
+    public void ACrewOfTwosGunnerIsTheLookOut()
+    {
+        // Note 220: a crew of two is the driver and the gunner, no walker to send, so the Gaunt and a Dragger lay there all
+        // night; the gunner goes and looks, off its gun while the gun can spare it, and both come on.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
+        var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 2,
+            Cars = 6,
+            Seconds = 30,
+            Seed = 1,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = stage.StartM,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Run = Tuning.Run,
+            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            YardLength = route.GateOr(Tuning.Route.YardLength),
+            Insist = kinds,
+            Look = look,
+        }, Tuning.Boiler);
+        var without = Night(null);
+        Assert.Equal(["Dragger", "Gaunt"], without.Threats!.Spawned.Keys.Order());
+        Assert.Empty(without.Threats.Engaged);
+        var with = Night(Balance.Combinations.Look);
+        Assert.Equal(["Dragger", "Gaunt"], with.Threats!.Engaged.Keys.Order());
     }
 
     [Fact]

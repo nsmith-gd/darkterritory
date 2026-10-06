@@ -1,0 +1,62 @@
+{
+  "title": "File:Strauss, An der schönen blauen Donau.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/9/91/Strauss%2C_An_der_sch%C3%B6nen_blauen_Donau.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Strauss,_An_der_sch%C3%B6nen_blauen_Donau.ogg",
+  "sha1": "19b20e4c8d04fc9e2a4980bf555b3520e0516ea4",
+  "size": 2448274,
+  "mime": "application/ogg",
+  "artist": "European Archive",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/43943-klange-im-walzertakt-mit/ The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "\"The Blue Danube\" by Strauss",
+  "date": "",
+  "revision": 1164932512,
+  "revisionTimestamp": "2026-02-13T16:22:00Z",
+  "user": "Morn",
+  "refused": [],
+  "id": "swagger-blue-danube",
+  "work": "\"The Blue Danube\"",
+  "composer": "Johann Strauss II",
+  "sourceSha256": "1124cd59575947d9adaaf731f3e2071d412049e6be443bd2d546f25b33007ce3",
+  "fetched": "2026-10-03T17:55:58Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of An der schönen blauen Donau]]\n[[Category:DDBstudio Der Donauraum]]",
+  "information": "{{Information\n|Description    ={{en|1=\"The Blue Danube\" by Strauss}}\n|Source         ={{Musopen|https://musopen.org/music/43943-klange-im-walzertakt-mit/}}\n|Author         =European Archive\n|Date           =\n|Permission     =\n|other_versions =\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=\"The Blue Danube\" by Strauss}}\n|Source         ={{Musopen|https://musopen.org/music/43943-klange-im-walzertakt-mit/}}\n|Author         =European Archive\n|Date           =\n|Permission     =\n|other_versions =\n}}\n{{Media of the day|2014|10|25}}\n\n== {{int:license-header}} ==\n{{Cc-zero}}\n\n[[Category:Audio files of An der schönen blauen Donau]]\n[[Category:DDBstudio Der Donauraum]]",
+  "performers": "European Archive",
+  "hitNote": "the first waltz's tutti swing",
+  "hitClock": "1:14.0",
+  "file": "swagger-blue-danube.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 177.533,
+  "window": [
+    50.013,
+    95.013
+  ],
+  "hitInSource": 74.013,
+  "analysis": {
+    "score": 22.02,
+    "range": [
+      17.75,
+      79.89
+    ]
+  },
+  "inputLufs": -19.44,
+  "inputTruePeak": -1.59,
+  "normalization": "dynamic",
+  "outputLufs": -15.9,
+  "limiterGainDb": null,
+  "limitDb": -2.0,
+  "decodedPeakDb": -1.61,
+  "hitCheck": {
+    "jumpDb": 2.6,
+    "loudnessRank": 0.24,
+    "weak": false
+  }
+}

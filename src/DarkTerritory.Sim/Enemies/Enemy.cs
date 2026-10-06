@@ -108,6 +108,12 @@ public abstract class Enemy
     /// anyone. A blow that's picked lands, and every client is told it did (T121's hit confirm).
     /// </summary>
     public virtual bool Strikable(int by) => MeleeRadius > 0;
+
+    /// <summary>
+    /// Whether a swing can get at it where it is now (the Stoker: only through the open firebox door, App. A.5; note 263).
+    /// From replicated state, so a client's prompt and whiff agree with the host.
+    /// </summary>
+    public virtual bool Reachable(World world) => true;
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
 

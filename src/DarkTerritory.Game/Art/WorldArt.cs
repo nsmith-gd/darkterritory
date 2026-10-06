@@ -163,12 +163,22 @@ public sealed partial class WorldArt(Look look)
     /// </summary>
     (int A, int B, int Band) GroundLayers(float lateral)
     {
+        var (a, b, band) = GroundBand(lateral);
+        return (_look.Layer(a), _look.Layer(b), band);
+    }
+
+    /// <summary>
+    /// <see cref="GroundLayers"/> by texture name: the band of the cross-section <paramref name="lateral"/> is in, and the
+    /// two textures it blends between (also what's underfoot there, <see cref="GroundTexture"/>).
+    /// </summary>
+    static (string A, string B, int Band) GroundBand(float lateral)
+    {
         float a = MathF.Abs(lateral);
         if (a < 2.95f)
-            return (_look.Layer("ballast"), _look.Layer("ground_mud"), 0);
+            return ("ballast", "ground_mud", 0);
         if (a < 12f)
-            return (_look.Layer("ground_mud"), _look.Layer("ground_grass"), 1);
-        return (_look.Layer("ground_grass"), _look.Layer("ground_forest"), 2);
+            return ("ground_mud", "ground_grass", 1);
+        return ("ground_grass", "ground_forest", 2);
     }
 
     static float GroundBlend(int band, float lateral, double s)

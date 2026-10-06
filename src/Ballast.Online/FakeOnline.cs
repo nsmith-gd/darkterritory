@@ -25,6 +25,9 @@ public sealed class FakeOnline
     public int Delivered { get; private set; }
     public int Lobbies => _lobbies.Count;
 
+    /// <summary>A lobby's member limit and whether it's joinable, as its owner last set them (a test's look behind the search); null if gone.</summary>
+    public (int Max, bool Joinable)? Doors(LobbyId lobby) => _lobbies.TryGetValue(lobby, out var r) ? (r.Max, r.Joinable) : null;
+
     /// <param name="where">Where the account's machine is, for ping estimates: a point in milliseconds from anywhere.</param>
     public IOnlineBackend SignIn(string name, (double X, double Y) where = default)
     {
@@ -39,7 +42,7 @@ public sealed class FakeOnline
         public UserId Owner = owner;
         public readonly List<UserId> Members = [owner];
         public readonly Dictionary<string, string> Data = new();
-        public readonly int Max = max;
+        public int Max = max;
         public bool Joinable = true;
     }
 
@@ -125,6 +128,12 @@ public sealed class FakeOnline
         {
             if (cloud._lobbies.TryGetValue(lobby, out var r) && r.Owner == me)
                 r.Joinable = joinable;
+        }
+
+        public void SetMemberLimit(LobbyId lobby, int max)
+        {
+            if (cloud._lobbies.TryGetValue(lobby, out var r) && r.Owner == me)
+                r.Max = max;
         }
 
         public void RequestLobbyList(LobbyFilter filter)

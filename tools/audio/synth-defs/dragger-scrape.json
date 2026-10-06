@@ -1,0 +1,11 @@
+// Tell (tier 1), Draggers: "single scrape at the edge lip", 2-4 kHz (spec A.4). Claws dragging over the roof sheet's
+// edge while the limb comes up, a grating rasp that holds for the telegraph's second: dry, close, and on one side.
+{
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 30, "gainDb": 0,
+  "layers": [
+    { "source": "noise", "gain": 1.0, "filters": [{ "type": "bandPass", "frequency": 2600, "q": 3.5 }, { "type": "peak", "frequency": 3000, "q": 6, "gainDb": 6 }],
+      "tremolo": { "rate": 23, "depth": 0.8, "duty": 0.55, "jitter": 0.5 } },
+    { "source": "impulse", "gain": 0.7, "frequency": 17,
+      "filters": [{ "type": "bandPass", "frequency": 2400, "q": 5 }] }
+  ]
+}

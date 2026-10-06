@@ -1,0 +1,20 @@
+// Cannon reload 3: ram home: Rammer strokes, for the 1.5 s hold. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 40,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-cannon-ram/ram",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

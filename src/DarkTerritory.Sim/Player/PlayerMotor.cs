@@ -43,6 +43,11 @@ public enum PlayerActions : byte
     /// which is also every door's and ladder's, so couplings came apart by accident.
     /// </summary>
     Uncouple = 8,
+    /// <summary>
+    /// The blow-off held open from anywhere in the cab (note 264, the director's notes on build 1121: one key, held). The
+    /// same bit as <see cref="Uncouple"/>: that's only on a coupler plate, and the cab never is one.
+    /// </summary>
+    Vent = 8,
     /// <summary>Take hold of the nearest ladder in reach, whichever way you face (T94 playtest): its own key.</summary>
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>
@@ -108,16 +113,24 @@ public struct PlayerIntent
     /// </summary>
     public float OtherX, OtherY, OtherZ;
     public bool Other;
+    /// <summary>
+    /// With a reaching hand: the headset's height over the feet (m), on the centimetre grid; 0 when it isn't reported (a
+    /// keyboard, a bot). Nothing in the sim acts on it: it goes out with the hands so the rest of the crew see the body
+    /// under the head lean and crouch (T82, roadmap M4 "VR body IK").
+    /// </summary>
+    public float Head;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
 
     /// <summary>
     /// Reports a hand, on the centimetre grid the wire carries (<see cref="Net.Messages"/>), so a predicting client
-    /// uses the hand the host will. The other hand too, when it's tracked.
+    /// uses the hand the host will. The other hand too, when it's tracked; and the head's height over the feet (T82), when
+    /// there's a headset to say (0: none).
     /// </summary>
-    public void Reach(Double3 hand, Double3? other = null)
+    public void Reach(Double3 hand, Double3? other = null, double head = 0)
     {
+        Head = head > 0 ? Centimetres(head) : 0;
         HandX = Centimetres(hand.X);
         HandY = Centimetres(hand.Y);
         HandZ = Centimetres(hand.Z);
@@ -235,6 +248,11 @@ public struct PlayerState
     /// <summary>The VR player's other hand, the same way (T43); zero when it isn't reported.</summary>
     public Double3 OtherHand;
     /// <summary>
+    /// The VR player's head height over their feet (T82, <see cref="PlayerIntent.Head"/>), taken with the hands; zero when
+    /// it isn't reported. Presentation only: what the crew see their body do under it.
+    /// </summary>
+    public double Head;
+    /// <summary>
     /// Counts the host's authoritative moves (respawns, revivals, a harness shift change). A client that sees it change
     /// adopts the new state as a placement, not as a misprediction to correct.
     /// </summary>
@@ -298,7 +316,8 @@ public static class PlayerMotor
     /// <summary>
     /// The enclosed space a player is in: <see cref="Outside"/>, the engine cab (vehicle 0), or a car's
     /// interior with every door shut (that car's id). A car with a door open is part of the outside: sound,
-    /// voice and the Choir come in through it (GDD §26: protected versus exposed).
+    /// voice and the Choir come in through it (GDD §26: protected versus exposed). So is a breached car until it's boarded
+    /// up (decided 1 Oct: "a breached car no longer counts as behind a closed door"; <see cref="Vehicle.Breached"/>).
     /// </summary>
     public static int Space(in PlayerState s, TrainOnLine train)
     {
@@ -307,7 +326,7 @@ public static class PlayerMotor
         if (InCab(s, train))
             return 0;
         var shape = train.Frames[s.Parent].Shape;
-        if (shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck && train.Vehicles[s.Parent].DoorsOpen == 0)
+        if (shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck && train.Vehicles[s.Parent] is { DoorsOpen: 0, Breached: false })
             return s.Parent;
         return Outside;
     }
@@ -333,6 +352,32 @@ public static class PlayerMotor
         return s;
     }
 
+    /// <summary>
+    /// Stands a player up where something of theirs lies (a returning player's body, note 253): in a car's frame, on the
+    /// highest walkable surface under it within a step (a floor, a roof, a coupler plate); off the train, or over nothing on
+    /// it (between the cars), on the ground below.
+    /// </summary>
+    public static PlayerState StandUp(TrainOnLine train, int parent, Double3 at, double lineHint, PlayerTuning p)
+    {
+        if (parent != PlayerState.World && parent < train.Frames.Count)
+        {
+            var frame = train.Frames[parent];
+            if (frame.Shape.TopAt(at.X, at.Z, at.Y + p.StepUp) is { } top)
+                return new PlayerState
+                {
+                    Parent = parent,
+                    Position = new Double3(at.X, top.Top, at.Z),
+                    Surface = ToSurface(top.Kind),
+                    Health = p.Health,
+                    LineHint = train.Cars[parent].FrontDistance,
+                    Kit = p.StartingKit,
+                };
+            at = frame.ToWorld(at);
+            lineHint = train.Cars[parent].FrontDistance;
+        }
+        return SpawnOnGround(at, train.Line, lineHint, p);
+    }
+
     /// <summary>Turns the view by this tick's look input. <see cref="World.CrewAct"/> does this first, so shots go where you look.</summary>
     public static void Look(ref PlayerState s, in PlayerIntent intent)
     {
@@ -351,12 +396,19 @@ public static class PlayerMotor
     public static void TakeHand(ref PlayerState s, in PlayerIntent intent, HandTuning? hand)
     {
         s.Hand = s.OtherHand = default;
+        s.Head = 0;
         if (hand is null || !s.Alive || !intent.Has(PlayerButtons.Hand))
             return;
         s.Hand = Held(intent.HandX, intent.HandY, intent.HandZ, hand);
         if (s.Hand != default && intent.Other)
             s.OtherHand = Held(intent.OtherX, intent.OtherY, intent.OtherZ, hand);
+        // The head (T82): somewhere between a deep crouch and on tiptoe, as far as the hands can go overhead.
+        if (s.Hand != default && float.IsFinite(intent.Head) && intent.Head > 0)
+            s.Head = Math.Round(Math.Clamp(intent.Head, MinHead, hand.Overhead) * 100) / 100;
     }
+
+    /// <summary>The lowest a reported head is taken to be over the feet (m): kneeling, near enough.</summary>
+    public const double MinHead = 0.5;
 
     static Double3 Held(float hx, float hy, float hz, HandTuning hand)
     {
@@ -432,7 +484,8 @@ public static class PlayerMotor
             if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
-            s.Velocity = new Double3(wish.X, 0, wish.Z);
+            // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
+            s.Velocity = new Double3(wish.X + WindPush(s, intent, train, p, t), 0, wish.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
             {
@@ -505,6 +558,9 @@ public static class PlayerMotor
     /// </summary>
     static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
     {
+        // The fortress yard before the run begins is a safe space (note 263): the cold doesn't bite there.
+        if (train.HeldInYard)
+            return;
         var c = p.Cold;
         if (NearHeat(s, train))
         {
@@ -514,13 +570,64 @@ public static class PlayerMotor
         // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2), and slower still in insulated cars
         // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
         // the colder it is where they are (the night's cold, high ground, exposed track).
-        double deep = 1 + c.PerColdStep * Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+        double deep = 1 + c.PerColdStep * ColdStep(s, train);
         s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
             s.Health = 0;
             s.Death = DeathCause.Cold;
         }
+    }
+
+    /// <summary>GDD §22 deep cold where a player is (note 183): the route's cold step there, 0 on a line without conditions.</summary>
+    public static int ColdStep(in PlayerState s, TrainOnLine train) =>
+        Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
+
+    /// <summary>
+    /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 201): how hard the wind pushes someone on a roof
+    /// across their car (m/s along the car's +X, its right), or 0 off one. The route's wind there (the night's, ×1.5 on
+    /// exposed track), harder the faster the train goes and at a run, in gusts from either side along the line; a hand
+    /// on the roof handrails takes most of it, and a gun's seat is behind its shield. The same on every machine: the
+    /// conditions are built from the night's seed, and the gusts are a hash of where along the line you are.
+    /// </summary>
+    public static double WindPush(in PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t)
+    {
+        var w = p.Wind;
+        if (s.Surface != Surface.Roof || s.Parent == PlayerState.World || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Held) || w.Drift <= 0)
+            return 0;
+        double wind = train.Line.Conditions?.Wind(RailLine.MainPath, s.LineHint) ?? 0;
+        if (wind <= 0)
+            return 0;
+        double speed = t.MaxSpeed > 0 ? Math.Min(1, Math.Abs(train.RakeOf(s.Parent).Speed) / t.MaxSpeed) : 1;
+        double push = wind * w.Drift * (w.Still + (1 - w.Still) * speed) * Gust(s.LineHint, w.GustMetres);
+        if (!intent.Has(PlayerButtons.Run))
+            push *= w.Walking;
+        if (t.Composition is { Handrails: true } fit)
+            push *= fit.Rails.Wind;
+        return push;
+    }
+
+    /// <summary>
+    /// The wind's gusts along the line (note 201): −1 (from the right) to +1 (from the left), a hash of each
+    /// <paramref name="metres"/> of line, eased from one to the next. No trig and no dice, so a predicting client agrees.
+    /// </summary>
+    public static double Gust(double along, double metres)
+    {
+        if (metres <= 0)
+            return 1;
+        double x = along / metres, k = Math.Floor(x), f = x - k;
+        f = f * f * (3 - 2 * f);
+        double a = GustAt((long)k), b = GustAt((long)k + 1);
+        return a + (b - a) * f;
+    }
+
+    static double GustAt(long k)
+    {
+        ulong h = unchecked((ulong)k * 0x9E3779B97F4A7C15UL);
+        h ^= h >> 31;
+        h = unchecked(h * 0xBF58476D1CE4E5B9UL);
+        h ^= h >> 29;
+        return (h >> 11) * (2.0 / (1UL << 53)) - 1;
     }
 
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
@@ -544,7 +651,8 @@ public static class PlayerMotor
     {
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count || train.Frames[s.Parent].Shape.Stove is not { } stove || !Indoors(s, train))
             return false;
-        if (train.Vehicles[s.Parent].DoorsOpen == 0)
+        // A breached car lets the cold in as an open door does (decided 1 Oct).
+        if (train.Vehicles[s.Parent] is { DoorsOpen: 0, Breached: false })
             return true;
         double dx = s.Position.X - Math.Clamp(s.Position.X, stove.Min.X, stove.Max.X), dz = s.Position.Z - Math.Clamp(s.Position.Z, stove.Min.Z, stove.Max.Z);
         double reach = train.Dynamics.Tuning.Composition.StoveReach;

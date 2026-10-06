@@ -27,6 +27,11 @@ public sealed record EnemyTuning(
     public RibbitTuning Ribbits { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    /// <summary>
+    /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
+    /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
+    /// </summary>
+    public bool TamperReleasesStandingBrake { get; init; }
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -82,6 +87,8 @@ public sealed record CarHuggerTuning
     public double LowSpeed { get; init; } = 8;
     public double LowSpeedWeight { get; init; } = 2;
     public int MinCars { get; init; } = 2;
+    /// <summary>Every this much of the shell eaten, it's through the end wall again: the car breached (decided 1 Oct).</summary>
+    public double BreachEaten { get; init; } = 0.1;
 }
 
 /// <summary>The Whistler (v1.1 App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -237,9 +244,13 @@ public sealed record CarFireTuning
     public double SprayPerSecond { get; init; } = 0.035;
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
-    public int BurnDamage { get; init; } = 10;
     public double BurnReach { get; init; } = 4;
-    public double BurnEverySeconds { get; init; } = 2;
+    /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
+    public double BurnPerSecond { get; init; } = 10;
+    /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
+    public double BurnBrushShare { get; init; } = 0.5;
+    /// <summary>Note 265: how long in it before it burns at the full rate (s).</summary>
+    public double BurnRampSeconds { get; init; } = 3;
     public double CargoPerSecond { get; init; } = 0.003;
     public double IntegrityPerSecond { get; init; } = 0.0015;
     public double SpreadFrom { get; init; } = 0.8;
@@ -312,22 +323,29 @@ public sealed record ClimberTuning
     public int[] PackSize { get; init; } = [2, 3];
     public double CountRadius { get; init; } = 8;
     public double TakeSeconds { get; init; } = 10;
+    /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>
+    public bool BreachLitCars { get; init; }
 }
 
 /// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
 public sealed record StokerTuning
 {
-    public double FeedRate { get; init; } = 1.5;
-    public double StoppedBelow { get; init; } = 0.5;
-    public double LowPressure { get; init; } = 40;
-    public double LowPressureSeconds { get; init; } = 45;
-    public double DoorOpenSeconds { get; init; } = 10;
+    // Note 265, the director's decision of 6 Oct 2026: drawn by heat, boards at the tender, worse once in, a break once beaten.
+    public double HeatFirebox { get; init; } = 4.5;
+    public double HeatSeconds { get; init; } = 20;
+    public double BoardSeconds { get; init; } = 8;
+    public double TenderBlowScale { get; init; } = 4;
+    public double FeedRate { get; init; } = 4;
+    public double Swing { get; init; } = 3;
+    public double SwingSeconds { get; init; } = 3;
+    public double EatPerSecond { get; init; } = 0.2;
     public double FireDoorShutSeconds { get; init; } = 6;
     public double SootSeconds { get; init; } = 4;
-    public double RunawayRampSeconds { get; init; } = 40;
+    public double RunawayRampSeconds { get; init; } = 20;
     public double Health { get; init; } = 4;
     public int BurnPerBlow { get; init; } = 12;
-    public double OpenDoorWeight { get; init; } = 3;
+    /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
+    public double BreakSeconds { get; init; } = 150;
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
@@ -392,7 +410,12 @@ public sealed record SwitchmanTuning
     public double DeadLineWeight { get; init; } = 1.5;
 }
 
-public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage);
+/// <summary>enemies.json <c>sleepers</c> (track debris, GDD §22). Field docs live in that file.</summary>
+/// <param name="Enabled">Placed on generated lines and run at all: off since the director's decision of 2026-10-06 (note 265); a mod can bring them back.</param>
+/// <param name="BraceLeadSeconds">Note 266: they brace (and are heard) as far out as a train at its speed needs to brake under them: this long at its speed, then a service stop (train.json overspeed).</param>
+/// <param name="DerailLeadSeconds">Note 266: they derail a train only once their telegraph has been up this long; short of it, they're the heavy damage.</param>
+public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage,
+    bool Enabled = false, double BraceLeadSeconds = 4, double DerailLeadSeconds = 4);
 
 public sealed record HoundTuning(int[] PackSize, double Health, double Radius, double MaxSpeed, double ClosingSpeed, double SpawnBehind,
     double HowlSeconds, double LeapDistance, int BiteDamage, double BiteEverySeconds, double Reach, double BoredSeconds, double MinTrainSpeed,
@@ -464,5 +487,6 @@ public sealed record DirectorTuning(
 /// <summary>
 /// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
 /// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
-public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3);
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);

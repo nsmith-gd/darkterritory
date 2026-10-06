@@ -134,8 +134,47 @@ public sealed partial class Effects
         }
     }
 
+    /// <summary>
+    /// The Choir coming (GDD v1.2 App. A.7, the checklist's "an arrival beat: the frost before they're seen"): as it
+    /// gathers, the air round the train goes to frost before a ghost is in sight, a glitter of it falling slow through the
+    /// lamp, more of it the nearer they are (<paramref name="amount"/> 0 to 1). Anchored to the world in cells, as the
+    /// corruption's motes are, so the train runs through it; pale blue, each crystal twinkling as it turns.
+    /// </summary>
+    public void Frost(MeshBuilder mesh, Ballast.Double3 eye, double t, float amount)
+    {
+        if (amount <= 0)
+            return;
+        const float cell = 5;
+        const int reach = 4;
+        int per = (int)MathF.Ceiling(12 * amount);
+        long cx0 = (long)Math.Floor(eye.X / cell), cz0 = (long)Math.Floor(eye.Z / cell);
+        for (long i = cx0 - reach; i <= cx0 + reach; i++)
+            for (long j = cz0 - reach; j <= cz0 + reach; j++)
+                for (int m = 0; m < per; m++)
+                {
+                    float h = Hash(i * 17.31f + j * 61.7f + m * 2.9f), h2 = Hash(i * 29.1f + j * 13.7f + m * 8.3f), h3 = Hash(i * 5.7f + j * 3.9f + m * 1.9f);
+                    // Down 0.3 m/s from 3 m over the eye, swaying, then round again.
+                    float fall = (float)((t * (0.22 + 0.12 * h3) + h3 * 7) % 7);
+                    double wx = (i + h) * cell + Math.Sin(t * 0.6 + h * 6.28) * 0.35, wz = (j + h2) * cell + Math.Cos(t * 0.5 + h2 * 6.28) * 0.35;
+                    var p = new Vector3((float)(wx - eye.X), 3 - fall, (float)(wz - eye.Z));
+                    float d = new Vector2(p.X, p.Z).Length();
+                    float twinkle = MathF.Pow(0.5f + 0.5f * MathF.Sin((float)t * (5 + 4 * h2) + h * 30), 3);
+                    float a = amount * MathF.Min(1, MathF.Min(fall, 7 - fall)) * MathF.Max(0, 1 - d / (cell * reach)) * (0.25f + 0.75f * twinkle);
+                    // (The plain soft blob, filling its quad, as the corruption's motes: a flipbook's dot is a pixel at this size.)
+                    mesh.Billboard(p, 0.04f + 0.04f * h3, 0, new Vector4(0.7f, 0.82f, 1.0f, MathF.Min(1, a * 1.3f)), -1, FxBlend.Additive);
+                }
+        // And the cold itself: a thin frost haze low on the ground and the roofs round the eye, drifting.
+        for (int k = 0; k < 10; k++)
+        {
+            float h = Hash(k * 4.37f + 0.3f), h2 = Hash(k * 2.11f + 6.1f);
+            float a0 = (float)(t * 0.05) + h * 6.28f;
+            var p = new Vector3(MathF.Cos(a0) * (3 + 9 * h2), -1.4f + 0.5f * h, MathF.Sin(a0) * (3 + 9 * h2));
+            mesh.Billboard(p, 2.2f + 2.5f * h2, h * 6.28f, new Vector4(0.62f, 0.72f, 0.82f, 0.18f * amount), _steam, FxBlend.Alpha, (int)(h * 15.99f), 4);
+        }
+    }
+
     /// <summary>What hangs in the air of a corrupted stretch (GDD §30, plan §13.2), by the biome it is.</summary>
-    public enum Air { Clean, Ash, Spores }
+    public enum Air { Clean, Ash, Spores, Brass }
 
     /// <summary>The air a biome has (linegen biomes.json): ash over the colliery towns, sick spores over the tar ponds.</summary>
     public static Air AirOf(string? biome) => biome switch
@@ -148,7 +187,9 @@ public sealed partial class Effects
     /// <summary>
     /// Corruption particulate (GDD §30's corrupted country; the checklist's "corruption particulate"): motes in the air
     /// round the eye, anchored to the world in 6 m cells (so the train runs through them, they don't ride along), ash
-    /// drifting down grey and slow, or spores rising, pale and sickly, catching the lamp. Faint: it's the air, not snow.
+    /// drifting down grey and slow, or spores rising, pale and sickly, catching the lamp; or, over a brass field (§30's
+    /// contamination, the same brass as the crystals), a fine dust of it hanging, turning slowly, each grain glinting now and
+    /// then as it catches the light. Faint: it's the air, not snow.
     /// </summary>
     public void Corruption(MeshBuilder mesh, Ballast.Double3 eye, double t, Air air)
     {
@@ -159,7 +200,7 @@ public sealed partial class Effects
         long cx0 = (long)Math.Floor(eye.X / cell), cz0 = (long)Math.Floor(eye.Z / cell);
         for (long i = cx0 - reach; i <= cx0 + reach; i++)
             for (long j = cz0 - reach; j <= cz0 + reach; j++)
-                for (int m = 0; m < 3; m++)
+                for (int m = 0; m < (air == Air.Brass ? 7 : 3); m++)
                 {
                     float h = Hash(i * 12.9898f + j * 78.233f + m * 3.1f), h2 = Hash(i * 39.35f + j * 11.13f + m * 7.7f), h3 = Hash(i * 3.3f + j * 9.1f + m * 1.3f);
                     double wx = (i + h) * cell, wz = (j + h2) * cell;
@@ -173,6 +214,17 @@ public sealed partial class Effects
                         wx += Math.Sin(t * 0.7 + h * 6.28) * 0.4;
                         size = 0.07f + 0.06f * h3;
                         colour = new Vector4(0.42f, 0.41f, 0.39f, 0.75f * MathF.Min(1, MathF.Min(fall, 6 - fall)));
+                    }
+                    else if (air == Air.Brass)
+                    {
+                        // Hanging, not falling: a slow drift round its own spot, rising and settling, and a glint.
+                        float a0 = (float)(t * (0.25 + 0.2 * h3)) + h * 6.28f;
+                        wx += Math.Cos(a0) * 0.6;
+                        wz += Math.Sin(a0 * 0.8f) * 0.6;
+                        y = 0.2f + 2.6f * h3 * h3 + 0.3f * MathF.Sin(a0 * 0.6f);
+                        size = 0.05f + 0.04f * h;
+                        float glint = MathF.Pow(0.5f + 0.5f * MathF.Sin((float)t * (2.1f + 1.7f * h2) + h * 40), 6);
+                        colour = new Vector4(0.95f, 0.72f, 0.36f, 0.35f + 0.9f * glint);
                     }
                     else
                     {
@@ -188,6 +240,8 @@ public sealed partial class Effects
                     // (The plain soft blob, filling its quad: a flipbook's dot would be a pixel at this size.)
                     if (air == Air.Ash)
                         mesh.Billboard(p, size, 0, colour, -1, FxBlend.Alpha);
+                    else if (air == Air.Brass)
+                        mesh.Billboard(p, size, 0, colour * new Vector4(0.8f, 0.8f, 0.8f, 1), -1, FxBlend.Additive);
                     else
                         mesh.Billboard(p, size, 0, colour * new Vector4(0.5f, 0.5f, 0.5f, 1), -1, FxBlend.Additive);
                 }
