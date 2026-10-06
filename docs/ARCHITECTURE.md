@@ -3958,7 +3958,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The headlamp is on the cab's nose under the windows: `World.LampHeight` is 2.0, where it was 2.8 high on the smokebox door.
         - The whistle and safety valves stand on the boiler just behind the cab (`WhistleZ`, `SafetyValveZ`; `Effects` plumes there).
         - The Stoker perches on the stack at the rear, facing forward along the boiler at the cab.
-    - **Bots.** `ConductorBot.FiringSpot` is in front of the fire door, facing it (`FacingFire`). The way out to car 1 (`Route`) runs through the left doorway, along the left board, over the rear deck and onto the plate. `SandWay`, `CabDoorZ` and the kit run read `EnginePlan`.
+    - **Knock-ons in the sim.**
+        - `PlayerMotor.SpawnInCab` used to put a crewmate at the cab's middle, which is now the bunker. A second crewmate spawned to the left (the harness's, the tests') was shoved out through the wall onto the ballast. `CabFloorZ` puts them on the open floor between the driver's console and the bunker, clear across the cab.
+        - A ground switch stand's lever no longer counts from inside the cab (`SwitchStands.AtStand`). Cab forward, the cab can stand right over a toe, and getting down to the lever is the excursion the powered thrower saves (spec F.3).
+        - The bots' loading give-up is 360 s; it was 300 (`StopDriver.LoadingGiveUp`, a bot's patience, in no spec table). The warm a cold hand goes back to is now 10 m further from the cars. A lone bot's crate stop already ran to the give-up on main (311 s) and now left a door open at it.
+    - **Bots.** `ConductorBot.FiringSpot` is in front of the fire door, facing it (`FacingFire`). On the bunker's side, the way out of the cab goes down the middle of the cab past the bunker before turning out (`Route`, `StopDriver.GetDown`). The way out to car 1 (`Route`) runs through the left doorway, along the left board, over the rear deck and onto the plate. `SandWay`, `CabDoorZ` and the kit run read `EnginePlan`.
     - **Views.**
         - `fireman` looks back across the footplate at the fire door and the bunker.
         - `coaling` looks up at the bunker's hatch.

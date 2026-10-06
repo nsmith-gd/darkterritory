@@ -41,7 +41,9 @@ public sealed class SwitchStands(JunctionTuning tuning)
     /// <summary>The stand whose lever a player has their hands on.</summary>
     int? AtStand(in PlayerState s, TrainOnLine train, HandTuning? hand)
     {
-        if (!s.Alive || train.Line.Branches.Count == 0)
+        // Not from the cab: cab forward (note 267) it can stand right over a toe, but its walls are between the crew and the
+        // lever, and getting down to it is the ground excursion the powered thrower saves (spec F.3).
+        if (!s.Alive || train.Line.Branches.Count == 0 || PlayerMotor.InCab(s, train))
             return null;
         var at = PlayerMotor.WorldPosition(s, train);
         foreach (var b in train.Line.Branches)

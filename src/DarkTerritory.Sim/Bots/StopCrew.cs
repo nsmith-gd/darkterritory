@@ -591,8 +591,10 @@ public sealed class StopDriver(CrewCalls calls)
 {
     public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting }
 
-    // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night.
-    const double HeldGiveUp = 240, LoadingGiveUp = 300, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
+    // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
+    // loading's was 300; cab forward, note 267, the warm a cold hand goes back to is 10 m further from the cars, and a lone
+    // bot's crates ran up to it with a door still to shut.)
+    const double HeldGiveUp = 240, LoadingGiveUp = 360, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
@@ -2326,7 +2328,13 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (self.Parent == 0 && self.Surface == Surface.Deck)
         {
             Doing = "out of the cab";
-            return Edge(self, new Double3(side * (train.Frames[0].Shape.Bounds.Max.X + 1), self.Position.Y, CabDoorZ(train)), facing);
+            double door = CabDoorZ(train);
+            // Cab forward (note 267), the coal bunker stands along the left wall ahead of its doorway: on that side, down the
+            // aisle beside it to the doorway's height first, then out.
+            var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
+            if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
+                return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);
+            return Edge(self, new Double3(side * (train.Frames[0].Shape.Bounds.Max.X + 1), self.Position.Y, door), facing);
         }
         if (self.Surface is Surface.Roof or Surface.Coupler && self.Parent >= 0)
         {
