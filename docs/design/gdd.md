@@ -2097,6 +2097,12 @@ Further decisions (the director, 6 Oct 2026):
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
 
+**Direction** (the director, 6 Oct 2026; proposals in T133):
+- *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
+- *Procedural, with people in them.* Each town has its own odd culture, different from the last.
+- *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
+- *Much more in the towns is interactable.*
+
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
