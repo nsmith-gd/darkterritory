@@ -46,7 +46,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | # | Item | Owner | Branch / PR | Note | Status |
 |---|---|---|---|---|---|
 | 1 | **Pacing by pressure:** a quiet spell of 20–90 s picked per night; spawns driven by escalating pressure | A1 | `wp31-pacing`, [#189](https://github.com/nsmith-gd/darkterritory/pull/189) | 266 | done |
-| 2 | **Stoker v3, the firebox half:** the territorial door (a heavy burn, the second kills), vent and starve it out, the hose kills it (an extinguisher for now), no chip damage | A1 | `stoker-v3`, [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 | in review |
+| 2 | **Stoker v3, the firebox half:** the territorial door (a heavy burn, the second kills), vent and starve it out, the hose kills it (an extinguisher for now), no chip damage | A1 | `stoker-v3`, [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 | done |
 | 3 | **Track Doll escalation:** harmless at first; ignored, she moves to the controls, and in the end lets a standing train off its brake | A1.1 | `track-doll-escalation` | 268 | pushed; PR next |
 | 4 | **Damage model, Lethal Company style:** a few big hits, never chip damage; healing items rare loot; an edge flash and a sound; creatures driven off by their rules, mostly not damaged | A1.4 | `damage-model` | 272 | claimed |
 | 5 | **Boarding rules per creature:** Cinder Hounds that board stay aboard; Fire Flies only while the train is stopped | A1.2 | `boarding-rules` | 269 | pushed; PR next |
@@ -57,8 +57,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 10 | **Towns (T133):** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople) | — | — | — | open |
 | 11 | **The cab redesign** | — | — | — | waiting on the director's sketch |
 
-Also queued for A: republish the GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) from docs/design/gdd.md once
-items 1 and 2 are merged.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
+23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
@@ -71,6 +71,7 @@ The next free number is **276**. Reserved: 266 (pacing), 268 (Track Doll), 269 (
 |---|---|---|
 | Fire is a grid: cells on the floor, walls and roof; spray the cell you aim at; burnt cells char | [#188](https://github.com/nsmith-gd/darkterritory/pull/188) | 267 |
 | Director pacing by pressure; a 20–90 s quiet spell per night | [#189](https://github.com/nsmith-gd/darkterritory/pull/189) | 266 |
+| Stoker v3, the firebox half: territorial door, vent and starve, the hose | [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 |
 | The derailment opera: CC0 and public-domain recordings, hits at the climax | [#150](https://github.com/nsmith-gd/darkterritory/pull/150) | — |
 
 ## Waiting on the director
