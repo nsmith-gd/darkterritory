@@ -319,7 +319,7 @@ The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack 
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
 
-At the gate with nothing about, the pressure reaches the threshold in about a minute; near the terminus in about forty seconds. No stretch of a night goes much past a minute and a half without the director sending something, short of the caps, a ban or the final approach.
+Early in a night the pressure takes about a minute after a spawn to reach the threshold again; near the end about twenty seconds, and the cooldown sets the pace. In the harness (8 bots, 1,800 s, ARCHITECTURE §8 note 195) that is 4–5 of the director's spawns in the first five minutes against 11–12 in the last, and no quiet over about 30 s.
 
 ---
 
