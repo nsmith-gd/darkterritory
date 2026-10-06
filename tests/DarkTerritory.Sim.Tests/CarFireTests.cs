@@ -27,8 +27,8 @@ public class CarFireTests
         n.Run(0.2, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
         n.Run(0.2);
         Assert.Equal(1, ext.Carrier);
-        // Beside the fire, facing it, Fire held: it's knocked back until it's out.
-        n.Crew[1] = n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, fire.Local.Z + 1.2), Yaw = 0 };
+        // Beside the fire, looking at it, Fire held: the cell it's aimed at is knocked back until it's out (note 267).
+        n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, fire.Local.Z + 1.2) }, Cell(n, fire));
         n.Run(Tuning.Enemies.CarFire.ChargeSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}");
         Assert.True(ext.Charge < 1);
@@ -192,7 +192,7 @@ public class CarFireTests
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, fire.Local.Z + 1), Surface = Surface.Deck, Health = P.Health };
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, car + 3 > 6 ? 0 : car + 3, 0, P);
         n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, -4, P);
-        fire.Extra = 0.97;
+        fire.Ablaze(0.97);
         for (int s = 0; s < 60 && n.Train.Vehicles[car].Integrity > 0; s++)
             n.Run(1);
         Assert.Equal(0, n.Train.Vehicles[car].Integrity);
@@ -217,9 +217,125 @@ public class CarFireTests
     {
         var n = new Night(6, speed: 8);
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
-        fire.Extra = 0.97;
+        fire.Ablaze(0.97);
         n.Run(20);
         Assert.True(n.Train.Vehicles[3].Integrity > 0);
         Assert.DoesNotContain(n.World.Impacts, i => i.Shooter == -1);
+    }
+
+    /// <summary>Where a fire not yet lit on its cells starts: the floor cell under it (note 267).</summary>
+    static Double3 Cell(Night n, CarFire fire) =>
+        FireGrid.Of(n.Train, fire.Attached, Tuning.Enemies.CarFire.CellSize)!.Centre[FireGrid.Of(n.Train, fire.Attached, Tuning.Enemies.CarFire.CellSize)!.FloorAt(fire.Local)];
+
+    /// <summary>A crewmate turned to look at a point in their car (the spray goes from the eye along the look).</summary>
+    static PlayerState Aim(PlayerState s, Double3 at)
+    {
+        var d = at - (s.Position + Double3.Up * Tuning.Train.Pick.EyeHeight);
+        return s with { Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Atan2(d.Y, Math.Sqrt(d.X * d.X + d.Z * d.Z)) };
+    }
+
+    /// <summary>A crewmate in car 2 with its extinguisher in hand, and a fire on its floor.</summary>
+    static (Night N, CarFire Fire, Body Ext, Box Room) Armed()
+    {
+        var n = new Night(4, speed: 8);
+        n.World.MountExtinguishers();
+        int car = 2;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var ext = Assert.Single(n.World.Bodies.All, b => b.Kind == BodyKind.Extinguisher && b.Parent == car);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        n.Crew[1] = new PlayerState { Parent = car, Position = ext.Centre with { Y = room.Min.Y, Z = ext.Centre.Z + 0.5 }, Surface = Surface.Deck, Health = P.Health, Pitch = -0.6 };
+        n.Run(0.2, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+        n.Run(0.2);
+        Assert.Equal(1, ext.Carrier);
+        return (n, fire, ext, room);
+    }
+
+    [Fact]
+    public void TheSprayPutsOutTheCellItsAimedAtAndNotTheFireBehindYou()
+    {
+        // App. F.1 (the director's decision of 6 Oct 2026): "the extinguisher puts out the cell you aim at". Beside the fire,
+        // looking down the car away from it, the charge goes on boards that aren't burning, and the fire's still there.
+        var (n, fire, ext, room) = Armed();
+        var at = Cell(n, fire);
+        n.Crew[1] = n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 1.2) };
+        n.Crew[1] = Aim(n.Crew[1], new Double3(at.X, room.Min.Y, at.Z - 4));
+        n.Run(Tuning.Enemies.CarFire.ChargeSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+        Assert.False(fire.Gone);
+        Assert.True(ext.Charge < 0.05, $"charge {ext.Charge:0.00}");
+        Assert.All(fire.Sprayed, c => Assert.NotEqual(FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!.FloorAt(fire.Local), c));
+    }
+
+    [Fact]
+    public void LeftAloneAFireClimbsTheWallsAndRunsAlongTheRoof()
+    {
+        // App. F.1: cells on the floor, walls and roof, never mid-air; fire climbs, so the roof's cells catch before the far
+        // end of the floor does.
+        var n = new Night(5, speed: 8);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 0, Tuning.Enemies.CarFire));
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        n.Run(1);
+        Assert.Single(fire.Heat, h => h > 0); // one cell, on the floor, where it was set
+        Assert.Equal(FireFace.Floor, grid.Face[Array.FindIndex(fire.Heat, h => h > 0)]);
+        n.Run(60);
+        Assert.Contains(Enumerable.Range(0, grid.Count), i => grid.Face[i] is FireFace.Left or FireFace.Right && fire.Heat[i] > 0.3);
+        Assert.Contains(Enumerable.Range(0, grid.Count), i => grid.Face[i] == FireFace.Ceiling && fire.Heat[i] > 0.3);
+        Assert.True(fire.Extra < 1, $"the whole car at {fire.Extra:0.00} after a minute");
+        // Every burning cell's on a surface of the room: never mid-air.
+        var room = grid.Room;
+        Assert.All(Enumerable.Range(0, grid.Count).Where(i => fire.Heat[i] > 0), i =>
+        {
+            var c = grid.Centre[i];
+            Assert.True(Math.Abs(c.Y - room.Min.Y - FireGrid.FloorPad) < 1e-6 || Math.Abs(c.Y - room.Max.Y) < 1e-6 || Math.Abs(c.X - room.Min.X) < 1e-6 || Math.Abs(c.X - room.Max.X) < 1e-6);
+        });
+    }
+
+    [Fact]
+    public void WhatBurnsChars()
+    {
+        // App. F.1: "burnt cells char the textures". The car keeps its char after the fire, and every client is told.
+        var n = new Night(5, speed: 8);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, -3, Tuning.Enemies.CarFire).Ablaze(1, 1));
+        n.Run(30);
+        var car = n.Train.Vehicles[2];
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        Assert.Equal(grid.Count, car.Char.Length);
+        Assert.Contains(car.Char, c => c > 0);
+        int far = grid.FloorAt(new Double3(0, 0, grid.Room.Max.Z - 0.1));
+        Assert.Equal(0, car.Char[far]);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 5, 1)), n.Train.Line, 2_000), Tuning.Combat);
+        client.EnableEnemies(Tuning.Enemies, route: null, 1, crew: 4, authority: false);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        Assert.Equal(car.Char, client.Train.Vehicles[2].Char);
+        var seen = Assert.Single(client.ActiveEnemies.OfType<CarFire>());
+        Assert.Equal(fire.Heat.Length, seen.Heat.Length);
+        for (int i = 0; i < fire.Heat.Length; i++)
+            Assert.Equal(fire.Heat[i] > 0, seen.Heat[i] > 0);
+    }
+
+    [Fact]
+    public void ItJumpsTheCouplingFromAnEndWallIntoTheNextCarsNearEnd()
+    {
+        // Its way out of a car is through its ends (note 267): alight against car 2's rear wall, it takes car 3, at its front.
+        var n = new Night(5, speed: 8);
+        var t = Tuning.Enemies.CarFire;
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 99, t).Ablaze(1, 1.5));
+        n.Run(t.SpreadSeconds + 2);
+        var next = Assert.Single(n.World.ActiveEnemies.OfType<CarFire>(), e => e.Attached != 2 && !e.Gone);
+        Assert.Equal(n.Train.VehicleBehind(2), next.Attached);
+        Assert.True(next.Local.Z < 0, $"caught at {next.Local.Z:0.0}: the near end is the front, -Z");
+    }
+
+    [Fact]
+    public void CellsPackForTheWire()
+    {
+        double[] cells = [0, 0.01, 0.5, 1, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.99, 0.3];
+        var back = CarFire.Unpack(CarFire.Pack(cells), 0);
+        Assert.Equal(cells.Length, back.Length);
+        for (int i = 0; i < cells.Length; i++)
+        {
+            Assert.Equal(cells[i] > 0, back[i] > 0); // alight shows alight
+            Assert.InRange(back[i] - cells[i], 0, 1.0 / ((1 << CarFire.Bits) - 1) + 1e-9);
+        }
     }
 }
