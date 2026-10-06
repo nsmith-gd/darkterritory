@@ -25,7 +25,7 @@ public class TrackDollEscalationTests
     static (Night Night, TrackDoll Doll, double At) StruckAndStanding()
     {
         var n = new Night(4, speed: 10);
-        n.World.EnableEnemies(E with { Director = E.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 4, authority: true);
+        n.World.EnableEnemies(E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 4, authority: true);
         var doll = n.World.AddEnemy(id => TrackDoll.Ahead(id, n.Train, 60, T));
         n.Run(8);
         Assert.True(doll.Haunting);
@@ -153,7 +153,7 @@ public class TrackDollEscalationTests
         var (n, doll, at) = StruckAndStanding();
         n.World.EnableEnemies(E with
         {
-            Director = E.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 },
+            Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 },
             TrackDoll = T with { FinalStageReleasesBrake = false },
         }, null, 1, crew: 4, authority: true);
         var w = new Watch();
