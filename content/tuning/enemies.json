@@ -109,7 +109,13 @@
   // Two players within spotReach of the gap and it flees. B.4: stopWeight: it's weighted toward routes with stops.
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
-    "runSpeed": 4.5, "nestDistance": 60, "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
+    "runSpeed": 4.5, "nestDistance": 40, "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2,
+    // The director's note of 2026-10-06 (GDD App. F.1, "he's taking me to a spot in a mountain"; ARCHITECTURE §8 note 266):
+    // the nest is a den a rescuer can run to, over the ground. Up to nestDistance out (cut from 60: linegen keeps the land
+    // walkable 40 m out, §12.6) and no nearer than nestMin, the victim's side first, where the way is never steeper than
+    // nestGrade (rise over run, every 5 m) and it ends within nestClimb m of the rail; if nowhere fits, the ditch beside the
+    // track. Never inside a fort.
+    "nestMin": 15, "nestGrade": 0.35, "nestClimb": 4
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -274,6 +280,38 @@
     "chemicalSpread": 2, "chemicalGrowth": 1.3, "powderGrowth": 1.6, "fuelGrowth": 1.4, "fuelSpread": 2,
     "explodeAt": 1, "explodeRadius": 14, "explodeKillRadius": 5, "explodeDamage": 150,
     "burnOutPerSecond": 0.05, "maxActive": 3
+  },
+
+  // THE FORTS ARE SAFE (the director's decision of 2026-10-06, GDD App. F.1 and §9: "we're not letting monsters in the home
+  // bases in any of the forts ... it should be a safe space"; ARCHITECTURE §8 note 266). The home fortress (the back of its
+  // yard to the outer gate) and the terminus (its gate to the end of the line), halfWidth m either side of the track (the
+  // walls stand 14.8 m out). Nothing is sent or drawn out of the stack while the engine's inside one, nobody inside one is
+  // seen or hunted, anything inside is put back out over the walls, and anything within turnBackWithin m of them stands there
+  // loseInterestSeconds and goes. On a car the train takes in, or free on the line, it drops off at the walls. A silent
+  // settlement terminus has walls and no people (note 107); silentTerminus: it counts as a fort too.
+  "forts": { "on": true, "halfWidth": 16.5, "turnBackWithin": 15, "loseInterestSeconds": 4, "silentTerminus": true },
+
+  // A PLAYER LEFT BEHIND (the director's decision of 2026-10-06, GDD App. F.1 and §23 "getting left behind: cold and
+  // distance do the rest"; ARCHITECTURE §8 note 266): "the world should basically close in on them ... the difficulty should
+  // spike for that particular person right away". Alive, on the ground and outside a fort, with the train strandBeyond m
+  // off (nearest car, edge to edge) and pulling away faster than awayAbove m/s, or goneBeyond m off whatever it's doing
+  // (§23.2's 400 m: gone into the Territory). From then, the clock: the dark closes in at once (sounds near them), figures
+  // stand at the edge of their lamp from figuresFrom s (up to `figures` of them, from figuresFar in to figuresNear m by
+  // deadlyAt, each somewhere new every shiftSeconds), their hand lamp goes out at lampOutAt, and the cold comes on faster:
+  // coldExtra more seconds of exposure a second by deadlyAt (spec B.2's 1200 s clock: frozen about 4 minutes in, if nothing
+  // else has them). At huntAt a pack of `hunters` (huntPack, at least two: a lone player is always outnumbered) comes at
+  // them from huntOut m on the side away from the train, through its own TELEGRAPH and GRAB (App. A.1: the tongue, 8 s to
+  // struggle or be pulled free); it follows them up to huntRange m. Past deadlyAt it hops deadlyHop times as fast (outruns
+  // a run), and another pack comes huntEvery s after the last is gone. 45 s to run back, signal or be fetched (T96: the bot
+  // driver sets back up to 1500 m), then it's hunting; by 90 s it's deadly.
+  // Let go, and the clock's back to nothing and the hunters lose them: aboard again, inside a fort, or the train back within
+  // releaseWithin m. While the train's closing on them (setting back for them) the clock holds. None of it is the crew's:
+  // no budget, no caps, no pacing, dice of its own.
+  "abandoned": {
+    "on": true, "strandBeyond": 60, "goneBeyond": 400, "awayAbove": 0.5, "releaseWithin": 25,
+    "figuresFrom": 10, "lampOutAt": 30, "huntAt": 45, "deadlyAt": 90, "coldExtra": 5,
+    "hunters": "ribbits", "huntPack": [2, 3], "huntOut": 30, "huntRange": 150, "huntEvery": 20, "deadlyHop": 1.5,
+    "figures": 5, "figuresFar": 18, "figuresNear": 9, "shiftSeconds": 2.5
   },
 
   "choirSwarm": {

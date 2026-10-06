@@ -32,6 +32,10 @@ public sealed record EnemyTuning(
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
     /// </summary>
     public bool TamperReleasesStandingBrake { get; init; }
+    /// <summary>The forts are safe ground (the director's decision of 2026-10-06; note 266).</summary>
+    public Run.FortTuning Forts { get; init; } = new();
+    /// <summary>A player the train has left behind: the world closes in on them (the director's decision of 2026-10-06; note 266).</summary>
+    public AbandonedTuning Abandoned { get; init; } = new();
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -101,8 +105,14 @@ public sealed record WhistlerTuning
     public double PairRadius { get; init; } = 3;
     public double SpotReach { get; init; } = 2.5;
     public double RunSpeed { get; init; } = 4.5;
-    public double NestDistance { get; init; } = 60;
+    public double NestDistance { get; init; } = 40;
     public double NestSeconds { get; init; } = 20;
+    /// <summary>The nest no nearer than this (m): short of it, the ditch beside the line (note 266).</summary>
+    public double NestMin { get; init; } = 15;
+    /// <summary>The steepest the way to the nest may be (rise over run, sampled every 5 m), so a rescuer can follow on foot.</summary>
+    public double NestGrade { get; init; } = 0.35;
+    /// <summary>The nest at most this far above or below the rail (m): a den, a ditch, the treeline, not up a hillside.</summary>
+    public double NestClimb { get; init; } = 4;
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
     public int MinCars { get; init; } = 2;

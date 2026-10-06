@@ -507,16 +507,27 @@ public static class PlayerMotor
         }
 
         // Integrate in the parent frame: a car parent carries the player with it for free.
-        var prevWorld = ToWorld(s, train, s.Position);
         int pushedOn = s.Has(PlayerFlags.Pushing) && s.Grounded ? s.Parent : PlayerState.World;
         double pushedFrom = s.Position.Z;
-        s.Position += s.Velocity * dt;
-        var world = ToWorld(s, train, s.Position);
-
-        world = Collide(world, train, p, out bool ceiling);
-        if (ceiling && s.Velocity.Y > 0)
-            s.Velocity = s.Velocity with { Y = 0 };
-        UpdateSupport(ref s, world, prevWorld, train, p, t);
+        var start = s;
+        Integrate(ref s, train, p, t, dt);
+        // The director's decision of 2026-10-06 (GDD App. F.1, "way too easy to fall off the train"): walking on a moving
+        // car never takes you off it. A step that would leaves you at the edge, sliding along it; off you go only by a jump,
+        // a hit, a grab, or walking off a side you're facing (player.json edge).
+        if (EdgeHolds(start, s, intent, train, p))
+        {
+            s = start with { Velocity = default };
+            foreach (var along in (ReadOnlySpan<Double3>)[start.Velocity with { X = 0 }, start.Velocity with { Z = 0 }])
+            {
+                var slide = start with { Velocity = along };
+                Integrate(ref slide, train, p, t, dt);
+                if (!LeftTheCar(start, slide))
+                {
+                    s = slide;
+                    break;
+                }
+            }
+        }
         // The gun you're pushing goes along its rail as far as you went along the car (T93).
         if (pushedOn != PlayerState.World && s.Parent == pushedOn)
             Combat.Guns.Slide(train, pushedOn, s.Position.Z - pushedFrom);
@@ -536,6 +547,66 @@ public static class PlayerMotor
             else if (!pushing && intent.MoveZ > 0.5 && s.Grounded)
                 TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
         }
+    }
+
+    /// <summary>One tick's move in the parent frame: integrate, push out of the train's solids, then find what's underfoot.</summary>
+    static void Integrate(ref PlayerState s, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
+    {
+        var prevWorld = ToWorld(s, train, s.Position);
+        s.Position += s.Velocity * dt;
+        var world = ToWorld(s, train, s.Position);
+        world = Collide(world, train, p, out bool ceiling);
+        if (ceiling && s.Velocity.Y > 0)
+            s.Velocity = s.Velocity with { Y = 0 };
+        UpdateSupport(ref s, world, prevWorld, train, p, t);
+    }
+
+    /// <summary>Stood on a car before the move, and over the side of it into the air or down on the ground after.</summary>
+    static bool LeftTheCar(in PlayerState before, in PlayerState after) =>
+        before.Grounded && before.Parent != PlayerState.World && (after.Parent == PlayerState.World || after.Surface == Surface.Air);
+
+    /// <summary>
+    /// The edge holds (player.json edge; the director's decision of 2026-10-06): a walk that would take someone off a car
+    /// moving faster than <see cref="EdgeTuning.GuardAbove"/>, not held, and not a deliberate step: off a side (a roof's
+    /// edge, an open door) they're facing, pushing forward. The wind on a roof and a sidestep never do it, and a car's end
+    /// (the coupling gap) is crossed by a jump or a ladder, never walked off. From the state and intent alone, so a client
+    /// predicts it exactly as the host has it.
+    /// </summary>
+    static bool EdgeHolds(in PlayerState before, in PlayerState after, in PlayerIntent intent, TrainOnLine train, PlayerTuning p)
+    {
+        var e = p.Edge;
+        if (!e.On || !LeftTheCar(before, after) || before.Has(PlayerFlags.Held) || before.Parent >= train.Frames.Count
+            || Math.Abs(train.RakeOf(before.Parent).Speed) <= e.GuardAbove)
+            return false;
+        var frame = train.Frames[before.Parent];
+        var world = ToWorld(after, train, after.Position);
+        var local = frame.ToLocal(world);
+        bool side = Math.Abs(local.X) / Math.Max(0.1, frame.Shape.HalfWidth) > Math.Abs(local.Z) / Math.Max(0.1, frame.Shape.HalfLength);
+        // Off an end down onto more of the train (a roof's end onto the coupler plate, a guard van's onto its platform):
+        // still aboard, not falling off it.
+        if (!side)
+            return !TrainBelow(world, train);
+        if (intent.MoveZ <= 0.5)
+            return true;
+        var forward = new Double3(-DMath.Sin(before.Yaw), 0, -DMath.Cos(before.Yaw));
+        return forward.X * Math.Sign(local.X) < DMath.Cos(e.FacingDegrees * Math.PI / 180);
+    }
+
+    /// <summary>Something of the train to stand on straight below a point (within a fall of it): a plate, a deck, a roof.</summary>
+    static bool TrainBelow(Double3 world, TrainOnLine train)
+    {
+        const double Drop = 4.5;
+        foreach (var frame in train.Frames)
+        {
+            if ((frame.Origin - world).Length > NearbyCar)
+                continue;
+            var local = frame.ToLocal(world);
+            var vehicle = train.Vehicles[frame.Index];
+            foreach (var solid in frame.Shape.Solids)
+                if (solid.Present(vehicle) && solid.Box.ContainsXZ(local) && solid.Box.Max.Y <= local.Y + 0.05 && solid.Box.Max.Y >= local.Y - Drop)
+                    return true;
+        }
+        return false;
     }
 
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
@@ -677,7 +748,19 @@ public static class PlayerMotor
     /// Pushes the player's cylinder out of every car body, wall, shut door and coupler plate nearby. A head
     /// that rises into something overhead (a car's ceiling) stops there instead of being shoved sideways.
     /// </summary>
-    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling)
+    static Double3 Collide(Double3 world, TrainOnLine train, PlayerTuning p, out bool ceiling) =>
+        Collide(world, train, new Cylinder(p.Radius, p.Height, p.StepUp), out ceiling);
+
+    /// <summary>An upright body's cylinder: its radius, height, and the step it can take up onto something.</summary>
+    public readonly record struct Cylinder(double Radius, double Height, double StepUp);
+
+    /// <summary>
+    /// Something on foot in the world (a creature, note 266) pushed out of the train's bodies, its shut doors and the stops'
+    /// walls, as a player is: the same solids, the same rule. Its height is kept; the ground is the caller's.
+    /// </summary>
+    public static Double3 Clear(Double3 world, TrainOnLine train, Cylinder body) => Collide(world, train, body, out _);
+
+    static Double3 Collide(Double3 world, TrainOnLine train, Cylinder p, out bool ceiling)
     {
         ceiling = false;
         foreach (var frame in train.Frames)
@@ -711,7 +794,7 @@ public static class PlayerMotor
     }
 
     /// <summary>Head up into the underside of a box whose footprint we're under: stop at it.</summary>
-    static Double3 Ceiling(Double3 feet, Box box, PlayerTuning p, ref bool hit)
+    static Double3 Ceiling(Double3 feet, Box box, Cylinder p, ref bool hit)
     {
         double head = feet.Y + p.Height;
         if (head <= box.Min.Y || feet.Y >= box.Min.Y || head - box.Min.Y > 0.5 || !box.ContainsXZ(feet))
@@ -720,7 +803,7 @@ public static class PlayerMotor
         return feet with { Y = box.Min.Y - p.Height };
     }
 
-    static Double3 PushOut(Double3 feet, Box box, PlayerTuning p)
+    static Double3 PushOut(Double3 feet, Box box, Cylinder p)
     {
         if (feet.Y >= box.Max.Y || feet.Y + p.Height <= box.Min.Y)
             return feet;

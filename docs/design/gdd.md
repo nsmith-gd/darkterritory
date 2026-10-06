@@ -184,6 +184,9 @@ The run, and every consequence in it, begins as the train goes through the gate 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
+### The forts are safe
+*Decided by the director, 6 Oct 2026 (Appendix F.1).* Inside a fort's walls, the home fortress and the fort at the terminus, nothing hunts you. Nothing is sent there and nothing follows you in: a creature chasing someone stops at the walls, loses interest and goes back into the dark, and one riding the train drops off at the gate. The director spends nothing while the train is inside. Players are free to explore a fort. (`tuning/enemies.json` "forts"; ARCHITECTURE.md note 266.)
+
 **Everything still attached to the locomotive counts.** Cargo is unloaded and paid into the crew's shared wallet. Bodies brought home earn back most of their crew-loss fee. Lost cars, powder, equipment and unrecovered crew become the cost of the run (Appendix D.9).
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
@@ -525,7 +528,7 @@ Nothing there is a mystery. It's still a disaster.
 **Three things kill outright:**
 
 - **Jumping at speed** — above 16.5 m/s. Below it, landing is a knock. The train is a trap by design
-- **Getting left behind** — cold and distance do the rest
+- **Getting left behind** — cold and distance do the rest, and the world closes in (below)
 - **Derailment** — kills the entire crew at once, in slow motion, to opera (Appendix E)
 
 **Everything else cascades:**
@@ -552,6 +555,19 @@ Nothing there is a mystery. It's still a disaster.
 | **Crew lost** | No living crew remain |
 | **Dawn missed** | Still out when the line goes live (§8) |
 | **Stranded** | The boiler is ruptured and the engineering kit is lost (§23.2) |
+
+### Left behind
+*Decided by the director, 6 Oct 2026 (Appendix F.1).* A player the train abandons doesn't die at once: the world closes in on them, and the difficulty spikes for that one player. Once they are on the ground outside a fort and the train is pulling away beyond 60 m, or is 400 m off, the director turns on them alone:
+
+| From | What closes in |
+|---|---|
+| At once | Footsteps and movement out in the dark, closer as it goes on. The cold comes on faster and faster |
+| 10 s | Figures at the edge of their lamp, more of them and nearer, never where they were a moment ago |
+| 30 s | Their hand lamp gutters out |
+| 45 s | A pack hunts them, through its own telegraph and grab (Appendix A.1) |
+| 90 s | Deadly: the pack outruns a run, another comes when one's gone, and the cold freezes them within minutes |
+
+That's the window to run back, signal, or be fetched (the crew sets back for them). They are let go, and the clock resets, the moment they're aboard again, inside a fort, or the train is back beside them; while it is coming back for them the clock holds. None of it is the crew's: it spends nothing from the director's budget and leaves the rest of the night as the tier has it. (`tuning/enemies.json` "abandoned"; ARCHITECTURE.md note 266.)
 
 ### Boiler rupture
 
@@ -1315,6 +1331,8 @@ Enforced regardless of budget:
 
 **Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
 
+**Forts.** Nothing is spent, sent or followed inside a fort's walls (§9, decided 6 Oct 2026). **Left behind.** A player the train abandons is hunted outside the budget, the caps and the pacing (§23, decided 6 Oct 2026).
+
 ### Contradiction seeding
 
 The director draws pairs from a **conflict table** rather than spawning independently. This is the design spine expressed as a spawn rule.
@@ -2025,6 +2043,49 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.3 2026-10-06 — the build from #186 (T126)
+
+**Played:** the director, solo host, a frontier seed with the default cars; then seed 6, three cars, solo. Built before #187 (T127), so the Sleepers were still on.
+
+**Driving and the train**
+- Hitting debris on the line gave too little warning. If debris stays, it should only cost speed, a kind of speed check; anything more doesn't make sense. *Sleepers off since #187; the speed-check version is open (§22).*
+- After missing a stop and reversing, the train wouldn't move with a full firebox and the brake off. The fire has to be kept fed, and nothing said so. *Open: feedback.*
+- "A wheel is on the switch, you can't throw it" is realism nobody needs. Respect the player's intent and throw it. *Design change, open (§17).*
+- The boiler went wrong and nothing said why. *Open: feedback.*
+- On seed 6 the switch was thrown (twice) and the train rolled straight past it. *Bug, open.*
+- The front of the engine needs a ladder on both sides, to get back aboard. *Open (front-of-train redesign).*
+- The player needs some light of their own at the front, whatever else is lit. *Open.*
+
+**Fire**
+- Fire spread to every car, twice. A minute of holding the extinguisher in the second car did nothing visible; the back cars may have gone out on their own. *Severe bug, open (T134 replaces the fire with the grid).*
+- Most of the first run was driving and fighting fire: one house of one village searched, the yard never reached. *Design problem, open: fire must not own the night.*
+- Getting near the fire killed. *Open (T137: no chip damage).*
+
+**Creatures**
+- Caught by a crawler, holding E until it let go: no skill, no challenge. *Open (grab counters; T137).*
+- A creature stood in the fire, untouched by it, and didn't acknowledge the player on seeing them. *Open: creatures should react to fire and to being seen.*
+- "Grabbed by the climber in car one", with no sight of it first and no idea what the counter was. *Open (T131 boarding-first: telegraph and counter).*
+- The Choir: don't tell players "go quiet"; let the audio teach the rule. When it arrived it was scary (good), then cut out abruptly. It should fade as the crew goes quiet and stay, a nuisance, if they keep making noise. *Open.*
+- Inside a car felt safe from the Choir. Staying in is fine, but if there's any way in they should try for it and try to hurt you. *Open (T131).*
+- The Soot Child was terrifying. *Keep.*
+
+**Repair and kit**
+- How the wrench and the repair kit mend the boiler isn't shown: the UI never offered it. *Open.*
+- A repair kit thrown went into the firebox and was burnt. That makes no sense. *Bug, open.*
+
+**Carrying**
+- Carrying slows you far too much. Make it about 80% of run speed. *Tuning, open.*
+- No jumping while carrying: right in spirit, but it doesn't feel good. *Open.*
+- Carrying out in the open felt exposed and dangerous. *Keep.*
+
+**Villages and the yard**
+- At least the village is 3D, but most houses can't be entered. Model full interiors, so they can be searched. *Open (T123).*
+- A statue on a table floats off it; another is cut through by a wall. *Bug, open (T123).*
+- A well can be walked through without falling in. *Open.*
+- Porches run up against other houses; the layout looks procedural, not grown. The houses do read as East Coast. *Open (level-design rules).*
+- A creepy room model was found in the yard. Only usable if its licence allows (CC0/CC-BY). *Check provenance.*
+- No collision on the yard's warehouse, the crane buildings or even the boxes. *Open (T124).*
+
 ## F.1 2026-10-06 — build 1121
 
 **Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
@@ -2064,7 +2125,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **The fort**
 - Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
-- Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
+- Forts must be safe spaces that monsters never enter (§9). *Design change → §9 "The forts are safe", App. B.1; ARCHITECTURE.md note 266 (T128).*
 
 **Bugs**
 - The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
@@ -2072,7 +2133,11 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
 
 **Abandoned player**
-- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Open (T128).*
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Design change → §23 "Left behind", App. B.1; ARCHITECTURE.md note 266 (T128).*
+
+**Grabs and falls**
+- A grab carried the director off to a spot up a mountainside (the Whistler, A.4). Carries should go somewhere that makes sense, that a rescuer can follow. *Fixed: ARCHITECTURE.md note 266 (T128).*
+- Way too easy to fall off the train. *Fixed: walking never takes you off a moving car; a jump, a hit, a grab or walking off a side you face does. ARCHITECTURE.md note 266 (T128).*
 
 **Line and derailment**
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
@@ -2132,6 +2197,7 @@ Further decisions (the director, 6 Oct 2026):
 - **Stoker v3.** It's drawn by heat and boards at the tender with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures.
+**Decided** (the director, 6 Oct 2026): the forts are safe spaces (§9) and a player the train abandons is hunted, alone, on a ramp (§23 "Left behind"); App. B.1 marked.
 
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
 

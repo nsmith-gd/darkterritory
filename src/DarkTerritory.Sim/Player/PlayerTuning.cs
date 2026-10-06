@@ -24,6 +24,9 @@ public sealed record PlayerTuning(
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
+    /// <summary>The edge of a moving car holds a walker (the director's decision of 2026-10-06, GDD App. F.1).</summary>
+    public EdgeTuning Edge { get; init; } = new();
+
     /// <summary>A dropped player's place on the host, and the client's retries (spec E drop-out, GDD v1.4 App. D.2; note 253).</summary>
     public RejoinTuning Rejoin { get; init; } = new();
 
@@ -47,6 +50,11 @@ public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double
 /// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.
 /// </summary>
+/// <summary>
+/// A moving car's edge holds whoever walks on it (the director's decision of 2026-10-06, GDD App. F.1: "way too easy to fall
+/// off the train"; note 266). Field docs live in player.json <c>edge</c>.
+/// </summary>
+public sealed record EdgeTuning(bool On = true, double GuardAbove = 1.0, double FacingDegrees = 60);
 public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);
 /// <summary>
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.

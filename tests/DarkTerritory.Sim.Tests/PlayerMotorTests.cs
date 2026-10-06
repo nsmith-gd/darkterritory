@@ -76,10 +76,22 @@ public class PlayerMotorTests
     }
 
     [Fact]
+    public void SidesteppingOffTheSideAtSpeedHoldsAtTheEdge()
+    {
+        // The director's decision of 2026-10-06 (note 266): walking never takes you off a moving car by accident.
+        var rig = OnRoof(6, 12, car: 2);
+        rig.Run(4, Move(1, 0));
+        Assert.Equal(2, rig.Player.Parent);
+        Assert.Equal(Surface.Roof, rig.Player.Surface);
+    }
+
+    [Fact]
     public void WalkingOffTheSideAtMaxSpeedKills()
     {
         var rig = OnRoof(6, T.MaxSpeed, car: 2);
-        rig.Run(4, Move(1, 0));
+        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
+        rig.Player.Yaw = -Math.PI / 2;
+        rig.Run(4, Move(0, 1));
         Assert.Equal(DeathCause.JumpedAtSpeed, rig.Player.Death);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
     }
@@ -89,7 +101,9 @@ public class PlayerMotorTests
     {
         // T90 (playtest): only three times run speed kills; the working band is a hard landing, and the train goes on.
         var rig = OnRoof(6, 12, car: 2);
-        rig.Run(4, Move(1, 0));
+        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
+        rig.Player.Yaw = -Math.PI / 2;
+        rig.Run(4, Move(0, 1));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
         Assert.InRange(rig.Player.Health, P.Health - P.Landing.DamageAtLethal, P.Health - P.Landing.RollDamage - 1);
@@ -99,7 +113,9 @@ public class PlayerMotorTests
     public void SteppingOffAtYardSpeedIsARoll()
     {
         var rig = OnRoof(6, 2, car: 2);
-        rig.Run(4, Move(1, 0));
+        // Facing the side and walking off it (note 266: a sidestep holds at the edge; walking off a side you face doesn't).
+        rig.Player.Yaw = -Math.PI / 2;
+        rig.Run(4, Move(0, 1));
         Assert.True(rig.Player.Alive);
         Assert.Equal(Surface.Ground, rig.Player.Surface);
         Assert.InRange(rig.Player.Health, P.Health - P.Landing.RollDamage - 10, P.Health - P.Landing.RollDamage);

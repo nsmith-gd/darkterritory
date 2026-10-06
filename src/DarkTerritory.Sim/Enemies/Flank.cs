@@ -160,6 +160,9 @@ public sealed class Whistler(int id) : Enemy(id)
     Double3 _nest;
 
     public override EnemyKind Kind => EnemyKind.Whistler;
+    /// <summary>On its feet on the ground off the train (note 266).</summary>
+    public override bool OnFoot => true;
+    protected override PlayerMotor.Cylinder Body => new(0.4, 1.4, 0.35);
     public override PressureZone Zone => PressureZone.Flank;
     public override Sense Sense => Sense.Absence;
     public override Want Want => Want.Kill;
@@ -236,11 +239,12 @@ public sealed class Whistler(int id) : Enemy(id)
                         if (ctx.LivingCrew().Any(o => o.Player.Id != p.Id && (o.World - w).Length <= t.PairRadius))
                             continue;
                         var away = train.Frames[Attached].DirToWorld(new Double3(train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1, 0, 0)) with { Y = 0 };
-                        _nest = gap + away.Normalized * t.NestDistance;
+                        _nest = Nest(ctx.World, gap, away.Normalized, t);
                         var victim = p.Id;
                         Local = w;
                         Attached = Loose;
-                        Grab(ctx, victim, t.NestDistance / t.RunSpeed + t.NestSeconds);
+                        LineDistance = train.Dynamics.Distance;
+                        Grab(ctx, victim, ((_nest - w) with { Y = 0 }).Length / t.RunSpeed + t.NestSeconds);
                         return;
                     }
                     return;
@@ -248,10 +252,13 @@ public sealed class Whistler(int id) : Enemy(id)
             case SpinePhase.Grab:
                 {
                     // Carried off at a run to the nest; there, paralysed.
-                    var to = _nest - Local;
+                    // Over the ground, not through it: on its surface every step of the way.
+                    var to = (_nest - Local) with { Y = 0 };
                     double step = t.RunSpeed * SimConstants.TickSeconds;
-                    if (to.Length > step)
-                        Local += to.Normalized * step;
+                    var next = to.Length > step ? Local + to.Normalized * step : _nest;
+                    double hint = LineDistance;
+                    Local = next with { Y = PlayerMotor.GroundAt(next, train.Line, ref hint) };
+                    LineDistance = hint;
                     ctx.Carry(Holding, Local);
                     return;
                 }
@@ -259,6 +266,43 @@ public sealed class Whistler(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>
+    /// Where it carries its victim (the director's note of 2026-10-06, GDD App. F.1: "he's taking me to a spot in a mountain";
+    /// note 266): a den out from the gap, on the victim's side first, as far as <see cref="WhistlerTuning.NestDistance"/>, where
+    /// the way there is never steeper than <see cref="WhistlerTuning.NestGrade"/> and it ends within
+    /// <see cref="WhistlerTuning.NestClimb"/> of the rail: the ditch, the treeline, the flat beside the line, somewhere a
+    /// rescuer can run after it. Never inside a fort's walls. If nowhere out from the line will do (a cutting's walls both
+    /// sides), it's the ditch beside the track. The same from the same ground on every machine.
+    /// </summary>
+    public static Double3 Nest(World world, Double3 gap, Double3 side, WhistlerTuning t)
+    {
+        var line = world.Train.Line;
+        double start = world.Train.Dynamics.Distance;
+        double rail = PlayerMotor.GroundAt(gap, line, ref start);
+        Double3 Ground(Double3 at)
+        {
+            double h = start;
+            return at with { Y = PlayerMotor.GroundAt(at, line, ref h) };
+        }
+        const double Step = 5;
+        foreach (var dir in (ReadOnlySpan<Double3>)[side, side * -1])
+            for (double d = t.NestDistance; d >= t.NestMin - 1e-9; d -= Step)
+            {
+                bool fits = true;
+                var prev = Ground(gap);
+                for (double r = Math.Min(Step, d); r <= d + 1e-9 && fits; r += Step)
+                {
+                    var here = Ground(gap + dir * r);
+                    fits = Math.Abs(here.Y - prev.Y) <= t.NestGrade * Step && Math.Abs(here.Y - rail) <= t.NestClimb
+                        && world.Forts?.Inside(here) != true;
+                    prev = here;
+                }
+                if (fits)
+                    return Ground(gap + dir * d);
+            }
+        return Ground(gap + side * 4);
     }
 
     protected override void Punish(EnemyContext ctx, int victim)

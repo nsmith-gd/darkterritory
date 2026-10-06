@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Abandoned = 18 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -89,6 +89,12 @@ public static class WorldRecords
                 world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of,
                 // Whose hand's on the whistle cord (note 264): the HUD names them; the Whistler's whistle has no hand (−1).
                 world.WhistleBy]));
+        // Whoever the train's left behind (note 266): the ramp's clock, where they are, and whether it's held, so every client
+        // hears the dark close in and sees the same figures at the edge of their lamp.
+        if (world.Abandonment is { } left)
+            foreach (var a in left.All)
+                list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Abandoned, a.Player),
+                    [Q(a.Seconds, Fine), Q(a.At.X, Pos), Q(a.At.Y, Pos), Q(a.At.Z, Pos), a.Held ? 1 : 0]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -267,6 +273,7 @@ public static class WorldRecords
         var hits = new List<HitConfirm>();
         var swings = new List<SwingEvent>();
         var impacts = new List<CannonImpact>();
+        var abandoned = new List<Abandoned>();
         foreach (var r in records)
         {
             var f = r.Fields;
@@ -328,6 +335,9 @@ public static class WorldRecords
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
+                    break;
+                case RecordKind.Abandoned:
+                    abandoned.Add(new Abandoned(r.Id, D(f[0], Fine), new Ballast.Double3(D(f[1], Pos), D(f[2], Pos), D(f[3], Pos)), f.Length > 4 && f[4] != 0));
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -427,6 +437,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
+            world.Abandonment?.Mirror(abandoned);
             world.MirrorHits(hits, impacts, swings);
             world.Bodies.Mirror(bodies);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.

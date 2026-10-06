@@ -24,10 +24,23 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
     public override Sense Sense => Sense.Sight;
     public override Want Want => Want.Kill;
     public override double MeleeRadius => 0.7;
+    public override bool OnFoot => true;
+    protected override PlayerMotor.Cylinder Body => new(0.45, 0.9, 0.4);
     public int Pack { get; } = pack;
     public int? Target => Extra >= 0 ? (int)Extra : null;
 
     public static Ribbit At(int id, int pack, Double3 world, RibbitTuning t) => new(id, pack) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
+
+    /// <summary>A pack the director's sent after one player the train left behind (<see cref="Abandonment"/>, note 266).</summary>
+    public static Ribbit Hunting(int id, int pack, Double3 world, int quarry, RibbitTuning t) =>
+        new(id, pack) { Attached = Loose, Local = world, Extra = -1, Extra2 = quarry + 1, Health = t.Health };
+
+    /// <summary>Who it's hunting (<see cref="Enemy.Extra2"/> − 1, replicated), or −1 for a pack after whoever's outnumbered.</summary>
+    public override int Quarry => Extra2 >= 1 ? (int)Math.Round(Extra2) - 1 : -1;
+
+    /// <summary>Its hop: past the abandonment's deadly mark, its quarry can't outrun it (enemies.json abandoned.deadlyHop).</summary>
+    double HopSpeed(EnemyContext ctx) =>
+        ctx.Tuning.Ribbits.HopSpeed * (Quarry >= 0 && ctx.World.Abandonment is { } a && a.DreadOf(Quarry) == Dread.Deadly ? a.Tuning.DeadlyHop : 1);
 
     List<Ribbit> Members(EnemyContext ctx) => [.. ctx.World.ActiveEnemies.OfType<Ribbit>().Where(r => r.Pack == Pack && !r.Gone)];
 
@@ -55,7 +68,7 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         switch (Phase)
         {
             case SpinePhase.Dormant:
-                Hop(to, t.HopSpeed);
+                Hop(to, HopSpeed(ctx));
                 // TONGUE: the pack outnumbers them and the leader's within reach: halt, line up, throats swell.
                 if (leader == this && d <= t.TongueReach)
                     foreach (var m in members)
@@ -82,11 +95,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                     Rescued(ctx, -1);
                     return;
                 }
-                Hop(to, t.HopSpeed * 0.25);
+                Hop(to, HopSpeed(ctx) * 0.25);
                 return;
             default:
                 // The pack's slow hop in on a frozen target.
-                Hop(to, leader.Phase == SpinePhase.Grab ? t.HopSpeed * 0.25 : t.HopSpeed);
+                Hop(to, leader.Phase == SpinePhase.Grab ? HopSpeed(ctx) * 0.25 : HopSpeed(ctx));
                 return;
         }
     }
@@ -103,6 +116,14 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         double best = double.MaxValue;
         foreach (var (p, w) in ctx.LivingCrew())
         {
+            // Sent after one of them (note 266): them, as long as they're out there alone and in its range, and nobody else.
+            if (Quarry >= 0 && (p.Id != Quarry || ((w - centre) with { Y = 0 }).Length > (ctx.World.Abandonment?.Tuning.HuntRange ?? t.GiveUpBeyond)))
+                continue;
+            if (Quarry >= 0 && CrewSense.OnGround(p.State) && CrewSense.Group(ctx, p.Id, t.GroupRadius).Count < size)
+            {
+                pick = p.Id;
+                break;
+            }
             if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
             double d = ((w - centre) with { Y = 0 }).Length;
@@ -160,6 +181,9 @@ public sealed class Gaunt(int id) : Enemy(id)
     double _silence, _hit;
 
     public override EnemyKind Kind => EnemyKind.Gaunt;
+    /// <summary>On its feet on the ground off the train (note 266).</summary>
+    public override bool OnFoot => true;
+    protected override PlayerMotor.Cylinder Body => new(0.5, 2.2, 0.4);
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Split;
@@ -436,6 +460,9 @@ public sealed class Follower(int id) : Enemy(id)
     int _carriedBy = -1;
 
     public override EnemyKind Kind => EnemyKind.Follower;
+    /// <summary>Off its carrier's back and crawling to its car (note 266): on the ground, and up the car's side.</summary>
+    public override bool OnFoot => Carrier < 0;
+    protected override bool Solid => false;
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Scent;
     public override Want Want => Want.Trust;
@@ -606,6 +633,9 @@ public sealed class Follower(int id) : Enemy(id)
 public sealed class SootChildren(int id) : Enemy(id)
 {
     public override EnemyKind Kind => EnemyKind.SootChildren;
+    /// <summary>On its feet on the ground off the train (note 266).</summary>
+    public override bool OnFoot => true;
+    protected override PlayerMotor.Cylinder Body => new(0.3, 1.1, 0.35);
     public override PressureZone Zone => PressureZone.Outside;
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Trust;

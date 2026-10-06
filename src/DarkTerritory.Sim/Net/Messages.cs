@@ -40,7 +40,9 @@ public static class Protocol
     //     different one (cars hit bodies, landings, a death per crewmate); the living ride the wreck to their own hit, not
     //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 258).
     // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
-    public const int Version = 29;
+    // 30: whoever the train's left behind (RecordKind.Abandoned: the ramp's clock, where they are, held), and a Ribbit's
+    //     quarry on its Extra2 (the director's decision of 2026-10-06; note 266).
+    public const int Version = 30;
 }
 
 public enum MessageType : byte

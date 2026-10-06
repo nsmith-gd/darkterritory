@@ -16,6 +16,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     double _biteTimer, _boredTimer;
 
     public override EnemyKind Kind => EnemyKind.CinderHound;
+    /// <summary>Running beside the line after the train: at the ground's height there (note 266).</summary>
+    public override bool OnFoot => true;
+    protected override double GroundOffset => 0.6;
     public override PressureZone Zone => PressureZone.Rear;
     public override Sense Sense => Sense.Heat;
     public override double HitRadius => Attached < 0 ? 0.8 : 0;

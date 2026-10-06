@@ -41,6 +41,8 @@ public sealed class Director
     }
 
     public double Budget { get; }
+    /// <summary>The night's seed: what's sent after someone left behind (note 266) draws on dice of its own made from it.</summary>
+    public ulong Seed => _seed;
     public double Spent => _spent;
     /// <summary>
     /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
@@ -95,7 +97,7 @@ public sealed class Director
                         return true;
                 return false;
             default:
-                return active.Any(e => !e.Gone && Key(e.Kind) == side);
+                return active.Any(e => !e.Gone && e.Quarry < 0 && Key(e.Kind) == side);
         }
     }
 
@@ -175,6 +177,12 @@ public sealed class Director
         return Budget * Math.Clamp(share, 0, 1);
     }
 
+    /// <summary>
+    /// What counts against App. B.1's caps: engaged, and not hunting someone the train left behind (note 266), which is
+    /// theirs alone and leaves the crew's night as the tier has it.
+    /// </summary>
+    public static bool Counted(Enemy e) => Engaged(e) && e.Quarry < 0;
+
     int MaxConcurrent => Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew;
 
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
@@ -203,7 +211,10 @@ public sealed class Director
             return Held(elapsed < _t.GraceSeconds ? "grace" : "cooldown");
         if (_route is not null && s > _route.Length - noSpawnFinal)
             return Held("final stretch");
-        int total = active.Count(Engaged);
+        // The forts are safe (the director's decision of 2026-10-06; note 266): nothing's spent while the train's inside one.
+        if (world.EngineInFort)
+            return Held("fort");
+        int total = active.Count(Counted);
         if (total >= MaxConcurrent)
             return Held("at the cap");
         double available = Allowance(s) - _spent;
@@ -326,7 +337,7 @@ public sealed class Director
     bool Room(EnemyKind kind, IReadOnlyList<Enemy> active)
     {
         var (zone, sense) = Profile(kind);
-        var engaged = active.Where(Engaged).ToList();
+        var engaged = active.Where(Counted).ToList();
         int cap = zone == PressureZone.Corrupted ? _t.MaxCorrupted : _t.MaxConcurrentZone;
         if (engaged.Count(e => e.Zone == zone) >= cap)
             return false;
@@ -388,7 +399,7 @@ public sealed class Director
             Pairs.Add(pair);
         var zone = Profile(kind).Zone;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
-            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
+            active.Count(e => Counted(e) && e.Zone == zone) + 1, active.Count(Counted) + 1, paced));
     }
 
     // GDD v1.4 App. D.11, the creature vote (note 180): host-side, by player id in order, so every choice is deterministic.

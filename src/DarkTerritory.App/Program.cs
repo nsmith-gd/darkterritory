@@ -1002,6 +1002,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
+        scene.Abandoned = session.World.Abandonment;
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Controls = session.Controls;

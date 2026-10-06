@@ -63,6 +63,12 @@
     // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
     "perColdStep": 0.25
   },
+  // The director's decision of 2026-10-06 (GDD App. F.1, "way too easy to fall off the train"; ARCHITECTURE §8 note 266):
+  // on a car moving faster than guardAbove m/s, a walk never takes you off it. A step that would stops you at the edge and
+  // slides you along it; the wind on a roof and a sidestep never do it. Off you go by a jump, a hit, a grab, or walking
+  // forward off a side (a roof's edge, an open door) you're facing within facingDegrees; a car's end, the coupling gap, is
+  // jumped or climbed down, never walked off. on: false is the old free edge.
+  "edge": { "on": true, "guardAbove": 1.0, "facingDegrees": 60 },
   // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one

@@ -324,6 +324,8 @@ public sealed class Grumbler(int id) : Enemy(id)
     double _bite;
 
     public override EnemyKind Kind => EnemyKind.Grumbler;
+    /// <summary>On its feet on the ground off the train (note 266).</summary>
+    public override bool OnFoot => Feral;
     public override PressureZone Zone => PressureZone.Corrupted;
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Cargo;

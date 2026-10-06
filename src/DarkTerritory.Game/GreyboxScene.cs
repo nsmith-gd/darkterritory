@@ -84,6 +84,11 @@ public sealed class GreyboxScene
     public IReadOnlyList<Sign>? Signs { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
     public IReadOnlyList<Enemy>? Enemies { get; set; }
+    /// <summary>
+    /// Whoever the train's left behind (World.Abandonment, note 266): the figures at the edge of their lamp, and their hand
+    /// lamp gone out. From the replicated clock, so every machine draws the same.
+    /// </summary>
+    public Sim.Enemies.Abandonment? Abandoned { get; set; }
     /// <summary>Blows and balls that landed on creatures lately (World.Hits, T121): each one's flinch and flash, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.HitConfirm>? Hits { get; set; }
     /// <summary>Crewmates' swings, landed or not (note 197): the world's, for their swing clip.</summary>
@@ -311,8 +316,9 @@ public sealed class GreyboxScene
         // and any hand lamp lying about or being carried.
         if (Bodies is not null)
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
-                // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
-                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
+                // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.) Left behind long enough, the lamp
+                // in their hand has gone out (note 266).
+                if (!(b.Carrier >= 0 && Abandoned?.LampOut(b.Carrier) == true) && ((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
                     mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
         if (Lights is not null)
             foreach (var (at, colour, radius) in Lights)
@@ -415,6 +421,7 @@ public sealed class GreyboxScene
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
         Look?.Art.Creatures?.Clutches.Clear();
+        AbandonedFigures(mesh, line, eye);
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -1945,6 +1952,32 @@ public sealed class GreyboxScene
                     if (f.Facility == FacilityKind.CoalingTower && Run is { } run)
                         Chute(mesh, line, eye, f, run);
                     break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The figures at the edge of a left-behind player's lamp (note 266, Sim.Enemies.Abandonment.FiguresOf): people who
+    /// aren't, standing still in the dark and facing them, somewhere new each time they look. The crew's own model in black,
+    /// no lamp on them; the fog does the rest.
+    /// </summary>
+    void AbandonedFigures(MeshBuilder mesh, RailLine line, Double3 eye)
+    {
+        if (Abandoned is not { } left || Look?.Art.Creatures is not { } creatures)
+            return;
+        foreach (var a in left.All)
+        {
+            if ((a.At - eye).Length > 80)
+                continue;
+            int i = 0;
+            foreach (var (feet, facing) in Sim.Enemies.Abandonment.FiguresOf(a, left.Tuning, line))
+            {
+                var back = -ToF(facing);
+                var right = Vector3.Cross(Vector3.UnitY, back);
+                var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
+                int variant = a.Player * 7 + i++;
+                creatures.Draw(mesh, "crew", "idle", Time * 0.25 + variant * 0.61, true, m, variant, seed: variant * 31,
+                    adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.035f, 0.035f, 0.04f) });
             }
         }
     }

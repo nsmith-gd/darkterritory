@@ -160,6 +160,9 @@ public sealed class TippyToesie(int id) : Enemy(id)
     int _flees;
 
     public override EnemyKind Kind => EnemyKind.TippyToesie;
+    /// <summary>On its feet on the ground off the train (note 266).</summary>
+    public override bool OnFoot => true;
+    protected override PlayerMotor.Cylinder Body => new(0.3, 1.2, 0.35);
     public override PressureZone Zone => PressureZone.Interior;
     public override Sense Sense => Sense.Absence;
     public override Want Want => Want.Kill;

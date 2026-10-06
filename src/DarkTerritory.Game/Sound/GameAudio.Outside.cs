@@ -56,6 +56,7 @@ public sealed partial class GameAudio
 
     partial void EndNightOutside()
     {
+        _abandonedHeard.Clear();
         _sleepersSeen.Clear();
         _smashAt.Clear();
         _startledUntil.Clear();
@@ -112,6 +113,7 @@ public sealed partial class GameAudio
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
         }
         HoldoutCalls(world, _places, primed);
+        AbandonedSounds(world, ear);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
         _engineFrontWas = engine.Distance;
@@ -241,6 +243,50 @@ public sealed partial class GameAudio
                 (float)(0.5 + 0.5 * OutsideOdds()));
         }
         _nextFar = _time + 10 + 20 * OutsideOdds();
+    }
+
+    // Who's been left behind, as heard: the beat of their clock last heard, and whether their lamp's out.
+    readonly Dictionary<int, (long Beat, bool LampOut)> _abandonedHeard = [];
+
+    /// <summary>
+    /// The dark closing in on someone the train's left (note 266, Sim.Enemies.Abandonment), heard by whoever's near them
+    /// (them, and anyone come back for them): footsteps out in the dark twice a figure's shift, from where the figures
+    /// stand once there are any, and something far off coming nearer every other one; louder and closer as the clock
+    /// runs; their lamp guttering out at its mark. All from the replicated clock and where they are, so every machine
+    /// hears the same steps from the same places.
+    /// </summary>
+    void AbandonedSounds(World world, Double3 ear)
+    {
+        if (world.Abandonment is not { } left)
+        {
+            _abandonedHeard.Clear();
+            return;
+        }
+        var t = left.Tuning;
+        var line = world.Train.Line;
+        float occ = Occlusion(PlayerMotor.Outside);
+        foreach (var a in left.All)
+        {
+            if ((a.At - ear).Length > 60)
+                continue;
+            var was = _abandonedHeard.TryGetValue(a.Player, out var w) ? w : (Beat: -1L, LampOut: false);
+            long beat = (long)(a.Seconds / Math.Max(0.1, t.ShiftSeconds / 2));
+            double level = Abandonment.Level(a.Seconds, t);
+            if (beat != was.Beat && !a.Held)
+            {
+                var figures = Abandonment.FiguresOf(a, t, line);
+                double angle = beat * 2.39996;
+                var round = new Double3(Math.Cos(angle), 0, Math.Sin(angle));
+                var step = figures.Count > 0 ? figures[(int)(beat % figures.Count)].Feet : a.At + round * (t.FiguresFar + 10);
+                Cue("crew-footsteps.walk.dirt", step, occ, (float)(0.35 + 0.65 * level));
+                if (beat % 2 == 0)
+                    Cue("world-night.far", a.At + round * -(60 - 45 * level) + Double3.Up * 2, occ, (float)(0.6 + 0.4 * level));
+            }
+            bool lampOut = left.LampOut(a.Player);
+            if (lampOut && !was.LampOut)
+                Cue("lamp-out", a.At + Double3.Up * 1.2, 0, 1);
+            _abandonedHeard[a.Player] = (beat, lampOut);
+        }
     }
 
     /// <summary>world-tunnels: the engine going in at one portal and out of the other, the bore around you, and water dripping in it.</summary>

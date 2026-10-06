@@ -247,12 +247,45 @@ public sealed class World
     public List<EnemyEvent> EnemyEvents { get; } = new();
     public List<DamageEvent> Damage { get; } = new();
 
+    Run.Forts? _forts;
+    (Route.Route? Route, double Yard, double Terminus) _fortsFor;
+
+    /// <summary>
+    /// The forts, the home fortress and the terminus (note 266): safe ground nothing enters. From the route and the run's
+    /// yard, alike on every machine; null without a route or the enemies' tuning.
+    /// </summary>
+    public Run.Forts? Forts
+    {
+        get
+        {
+            if (Route is not { } route || Enemies is not { } t)
+                return null;
+            var key = (route, Run?.YardLength ?? route.GateOr(600), Run?.Tuning.TerminusZone ?? 400);
+            if (_forts is null || _fortsFor != key)
+            {
+                _forts = Sim.Run.Forts.Of(route, Train.Line, key.Item2, key.Item3, t.Forts);
+                _fortsFor = key;
+            }
+            return _forts;
+        }
+    }
+
+    /// <summary>
+    /// Who the world's closing in on, left behind by the train (note 266): the host's, and every client's mirror of it, for
+    /// the sounds and the figures at the edge of the lamp.
+    /// </summary>
+    public Abandonment? Abandonment { get; private set; }
+
+    /// <summary>Inside a fort's walls (note 266).</summary>
+    public bool InFort(Ballast.Double3 at) => Forts?.Inside(at) == true;
+
     /// <summary>Hands this world the enemies: the host gets the director and the route's Sleepers.</summary>
     public void EnableEnemies(EnemyTuning tuning, Route.Route? route, ulong seed, int crew, bool authority)
     {
         Enemies = tuning;
         Route = route;
         Authority = authority;
+        Abandonment = new Abandonment(tuning.Abandoned);
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
@@ -1097,7 +1130,7 @@ public sealed class World
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
                     _choirShares.Clear();
-                if (swarm && Enemies is { } et && _context is not null && Insist?.Contains(EnemyKind.Choir) != false)
+                if (swarm && Enemies is { } et && _context is not null && Insist?.Contains(EnemyKind.Choir) != false && !EngineInFort)
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
                         double a = i * 2 * Math.PI / et.Choir.Ghosts;
@@ -1157,7 +1190,7 @@ public sealed class World
     void Pace()
     {
         foreach (var e in EnemyEvents)
-            if (e.To == SpinePhase.Telegraph && e.From is SpinePhase.Dormant or SpinePhase.Alert || e.To == SpinePhase.Punish)
+            if ((e.To == SpinePhase.Telegraph && e.From is SpinePhase.Dormant or SpinePhase.Alert || e.To == SpinePhase.Punish) && !Hunting(e.EnemyId))
                 Beats.Add($"{e.Kind}:{e.To}");
         if (Lineside is { } lineside)
         {
@@ -1178,12 +1211,16 @@ public sealed class World
         double front = Train.Dynamics.Distance;
         bool home = Route is { } r && (front > r.Length - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
-        bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
+        // What hunts someone the train's left (note 266) is theirs, not the night's: it's no beat of the crew's.
+        bool active = _enemies.Any(e => !e.Gone && e.Quarry < 0 && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
             // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
             || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
         QuietSeconds = !out_ || Beats.Count > 0 || active ? 0 : QuietSeconds + SimConstants.TickSeconds;
     }
+
+    /// <summary>Hunting someone the train left (note 266).</summary>
+    bool Hunting(int enemyId) => _enemies.FirstOrDefault(x => x.Id == enemyId)?.Quarry >= 0;
 
     /// <summary>
     /// This tick's loudness (App. C.7): every voice on the channel (the level each player's microphone reports in their
@@ -1288,11 +1325,29 @@ public sealed class World
             StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
         _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
+        // The forts are safe (note 266): nobody inside one is seen by anything, sent for or hunted, this tick. The whole crew
+        // is back on the list after (the director's count of the crew, the loudness meter and the bots go by everyone).
+        // And whoever the train's left behind (note 266) is the abandonment's, not the director's: it neither spends the
+        // crew's budget on them nor weighs what it sends by them; they're out of the crew it plans for (but not out of sight
+        // of what's about: that's the point).
+        int everyone = ctx.Crew.Count;
+        List<(PlayerSnapshot Player, PlayerIntent Intent)>? full = null, seen = null;
+        if (Forts is { } forts && ctx.Crew.Any(c => c.Player.State.Alive && forts.Inside(PlayerMotor.WorldPosition(c.Player.State, Train))))
+        {
+            full = [.. ctx.Crew];
+            ctx.Crew.RemoveAll(c => c.Player.State.Alive && forts.Inside(PlayerMotor.WorldPosition(c.Player.State, Train)));
+        }
+        if (Abandonment is { All.Count: > 0 } left && ctx.Crew.Any(c => left.SecondsOf(c.Player.Id) > 0))
+        {
+            full ??= [.. ctx.Crew];
+            seen = [.. ctx.Crew];
+            ctx.Crew.RemoveAll(c => left.SecondsOf(c.Player.Id) > 0);
+        }
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
         // Not in the safe yard (note 263): nothing comes before the run begins.
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
-            d.Present(_context?.Crew.Count ?? 0);
+            d.Present(everyone);
             Unmet(ctx, t.Director);
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
@@ -1301,7 +1356,7 @@ public sealed class World
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
-            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
+            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null && !EngineInFort
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
@@ -1309,7 +1364,7 @@ public sealed class World
                 _hotFor = 0;
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
-            if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
+            if (d.Allows(EnemyKind.Drift) && !EngineInFort && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift))
             {
                 _driftMarsh = marsh.Start;
@@ -1317,9 +1372,23 @@ public sealed class World
             }
         }
 
+        if (seen is not null)
+        {
+            ctx.Crew.Clear();
+            ctx.Crew.AddRange(seen);
+        }
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        KeepOutOfForts();
+        if (full is not null)
+        {
+            ctx.Crew.Clear();
+            ctx.Crew.AddRange(full);
+        }
+        // Whoever the train's left behind (note 266), after the enemies have had their tick.
+        if (Abandonment is { } abandonment && !Derailed)
+            abandonment.Step(this, [.. ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State))], Director?.Seed ?? 0);
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
@@ -1329,6 +1398,49 @@ public sealed class World
         _carries.Clear();
         foreach (var (id, at) in ctx.Carries)
             _carries[id] = at;
+    }
+
+    /// <summary>The engine inside a fort's walls (note 266): the director sends nothing, nothing's drawn out of the stack.</summary>
+    public bool EngineInFort => InFort(Train.Frames[0].Origin);
+
+    readonly Dictionary<int, double> _turnedBack = [];
+
+    /// <summary>
+    /// The forts are safe (the director's decision of 2026-10-06; note 266). Anything inside one's walls is put back out over
+    /// them (out at the gate, or over the side), and anything at the walls, in or just out, has lost interest: it stands
+    /// there <see cref="Run.FortTuning.LoseInterestSeconds"/> and goes. On a car the train takes in (the terminus), or free on
+    /// the line (hounds after it), it drops off into the dark at the walls. A car fire isn't a creature, and burns on.
+    /// Whoever's inside is out of every creature's sight already (<see cref="StepEnemies"/>), so a grab that reaches the
+    /// gate lets go.
+    /// </summary>
+    void KeepOutOfForts()
+    {
+        if (Forts is not { } forts || forts.All.Count == 0)
+            return;
+        var ft = forts.Tuning;
+        foreach (var e in _enemies)
+        {
+            if (e.Gone || e.Kind == EnemyKind.CarFire)
+                continue;
+            var at = e.WorldPosition(Train);
+            bool inside = forts.Inside(at);
+            if (inside && e.Attached != Enemy.Loose)
+            {
+                e.Dismiss();
+                continue;
+            }
+            if (inside)
+                e.Local = forts.Outside(at);
+            if (inside || forts.Inside(at, ft.TurnBackWithin) && e.Holding < 0 && !e.Hazard)
+            {
+                double held = _turnedBack.GetValueOrDefault(e.Id) + SimConstants.TickSeconds;
+                _turnedBack[e.Id] = held;
+                if (held >= ft.LoseInterestSeconds)
+                    e.Dismiss();
+            }
+        }
+        foreach (var id in _turnedBack.Keys.Where(id => !_enemies.Any(e => e.Id == id && !e.Gone)).ToList())
+            _turnedBack.Remove(id);
     }
 
     /// <summary>The Choir insisted on comes this many seconds after the meter's held up (note 186).</summary>
@@ -1448,6 +1560,12 @@ public sealed class World
             }
             set(d.PlayerId, s);
         }
+        // Left behind (note 266): the cold comes on faster and faster, on top of the night's (spec B.2's clock; it kills
+        // at its death mark on their next step, as the night's own cold does). Host only, as damage is.
+        if (Authority && Abandonment is { } left)
+            foreach (var a in left.All)
+                if (get(a.Player) is { Alive: true } c && !a.Held)
+                    set(a.Player, c with { Cold = c.Cold + left.ExtraCold(a.Player) * SimConstants.TickSeconds });
         // Held this tick (App. A.1 GRAB): their feet are the thing's; carried off, they go where it goes.
         if (Authority)
             foreach (int id in crew)

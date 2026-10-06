@@ -21,8 +21,9 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
-    public bool Once(EnemyKind kind) => !Director.Log.Any(l => l.Kind == kind) && !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
-    public bool None(EnemyKind kind) => !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
+    // What hunts someone the train's left (note 266) isn't the crew's: the director's own of that kind may still come.
+    public bool Once(EnemyKind kind) => !Director.Log.Any(l => l.Kind == kind) && !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind && e.Quarry < 0);
+    public bool None(EnemyKind kind) => !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind && e.Quarry < 0);
     /// <summary>The ground crew's middle, for what comes at them out of a yard.</summary>
     public Double3? GroundCentre()
     {
@@ -38,6 +39,9 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
         double along = Director.NextRange(-0.6, 0.6);
         var dir = (right * side + t.Tangent * along).Normalized;
         var at = centre + dir * distance;
+        // Never out of a fort's walls (note 266): just outside them instead.
+        if (World.Forts is { } forts && forts.Inside(at))
+            at = forts.Outside(at);
         return at with { Y = centre.Y };
     }
     public int NextId => World.NextEnemyId;
@@ -76,6 +80,9 @@ public static class Spawns
         {
             var h = c.Tuning.CinderHounds;
             if (c.Train.Dynamics.Speed < h.MinTrainSpeed || c.Train.Dynamics.Consist.CarCount < 1 || !c.None(EnemyKind.CinderHound))
+                return null;
+            // Not out of the home fortress's yard behind a train just through its gate (note 266: the forts are safe).
+            if (c.World.InFort(c.Train.Line.Sample(c.Train.Dynamics.Path, c.Train.Dynamics.RearDistance - h.SpawnBehind).Position))
                 return null;
             return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
         }, c =>

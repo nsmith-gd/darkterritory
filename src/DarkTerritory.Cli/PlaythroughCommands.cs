@@ -18,6 +18,11 @@ using DarkTerritory.Sim.Train;
 /// the app builds it: when each enemy is first there, and as it telegraphs, grabs and punishes, from beside it (or down
 /// the aisle, if it's in a car). A chase shot every --every seconds shows the line between. Frames go to
 /// out/playthrough with index.json (what, when, where), for the Look Review and the audit.
+/// <para>
+/// --strand km (solo): the player steps off the back of the train at that km past the gate and is left there (note 266),
+/// and the world closing in on them is photographed from their own eyes every --strand-every seconds (the figures at the
+/// edge of the lamp, the lamp going out, the pack), as well as each beat of the hunt.
+/// </para>
 /// </summary>
 static class PlaythroughCommands
 {
@@ -88,6 +93,7 @@ static class PlaythroughCommands
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
             scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
             scene.LampLit = world.LampShining;
+            scene.Abandoned = world.Abandonment;
             scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train);
             // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.
             scene.Crew = [.. crew.Select((s, i) => CrewActs.Crewmate((byte)(i + 1), s, world, train.Frames, crew))];
@@ -240,6 +246,7 @@ static class PlaythroughCommands
         }
 
         World last;
+        object? strandReport = null;
         if (bots > 0)
             last = Crewed(content, route, cars, bots, minutes, args, Watch);
         else
@@ -249,8 +256,40 @@ static class PlaythroughCommands
             var session = new PrototypeSession(content, route, cars, enemies: true, crew: (int)Opt(args, "--crew", 1));
             var train = session.Train;
             int ticks = (int)(minutes * 60 * SimConstants.TickRate);
+            double strandKm = Opt(args, "--strand", -1), strandEvery = Opt(args, "--strand-every", 8), strandShot = 0;
+            double gate = route.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength);
+            bool left = false;
+            double leftAt = -1;
+            var dreadSeen = DarkTerritory.Sim.Enemies.Dread.None;
+            bool lampSeen = false;
             for (int t = 0; t < ticks && session.World.Run?.Over != true; t++)
             {
+                // Note 266: stepped off the back as the train ran on, and left.
+                if (strandKm >= 0 && !left && train.Dynamics.RearDistance >= gate + strandKm * 1000)
+                {
+                    left = true;
+                    double at = train.Dynamics.RearDistance - 4;
+                    leftAt = Math.Round(session.World.Tick * SimConstants.TickSeconds, 1);
+                    var ts = train.Line.Sample(at);
+                    var kit = session.Player.Kit;
+                    var beside = ts.Position + Double3.Cross(ts.Tangent, Double3.Up).Normalized * 3;
+                    session.Player = PlayerMotor.SpawnOnGround(beside, train.Line, at, session.PlayerTuning) with { Kit = kit };
+                }
+                if (left && session.World.Abandonment is { } abandonment && session.Player.Alive)
+                {
+                    double s = abandonment.SecondsOf(1);
+                    var dread = abandonment.DreadOf(1);
+                    bool lamp = abandonment.LampOut(1);
+                    bool due = s > 0 && (s - strandShot >= strandEvery || dread != dreadSeen || lamp != lampSeen);
+                    if (due)
+                    {
+                        strandShot = s;
+                        dreadSeen = dread;
+                        lampSeen = lamp;
+                        Shoot(session.World, [], $"abandoned-{dread}-{s:000}".ToLowerInvariant(), Abandoned(session, abandonment),
+                            $"left behind {s:0} s: {dread}{(lamp ? ", lamp out" : "")}, {abandonment.All.Count} figure set(s), hunters {session.World.ActiveEnemies.Count(e => !e.Gone && e.Quarry == 1)}");
+                    }
+                }
                 if (route.Plan is { } plan)
                     DarkTerritory.Game.LineGen.Ride.Drive(train, plan, ref session.Controls);
                 if (train.Dynamics.Speed > cap)
@@ -263,6 +302,7 @@ static class PlaythroughCommands
                 Watch(session.World, [session.Player]);
             }
             last = session.World;
+            strandReport = new { gate = Math.Round(gate), left, at = leftAt, abandoned = Math.Round(session.World.Abandonment?.SecondsOf(1) ?? -1, 1), alive = session.Player.Alive, parent = session.Player.Parent, phase = session.World.Run?.Phase.ToString(), gap = Math.Round(DarkTerritory.Sim.Enemies.Abandonment.GapTo(train, PlayerMotor.WorldPosition(session.Player, train))) };
         }
         string index = Path.Combine(dir, "index.json");
         File.WriteAllText(index, System.Text.Json.JsonSerializer.Serialize(shots, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
@@ -294,6 +334,8 @@ static class PlaythroughCommands
                 carsLitAtEnd = last.Train.Dynamics.Consist.Vehicles.Count(v => v.LampLit && v.Id > 0),
                 cars = last.Train.Dynamics.Consist.Vehicles.Count - 1,
             },
+            // --strand (note 266): where the gate is, and when the player was left.
+            strand = strandReport,
             // Note 260: the line's own kills against their warning (sight.json roofWarning.leadSeconds).
             roofWarning = new
             {
@@ -348,6 +390,26 @@ static class PlaythroughCommands
             Until = world => world.Run?.Over == true,
         }, c.Boiler);
         return last ?? throw new InvalidOperationException("the night never started");
+    }
+
+    /// <summary>
+    /// Note 266: through the left-behind player's own eyes, at whatever's nearest out there (a hunter, else a figure at the
+    /// edge of the lamp, else back down the line after the train).
+    /// </summary>
+    static Camera Abandoned(PrototypeSession session, DarkTerritory.Sim.Enemies.Abandonment abandonment)
+    {
+        var train = session.Train;
+        var eye = PlayerMotor.WorldPosition(session.Player, train) + Double3.Up * 1.6;
+        var hunter = session.World.ActiveEnemies.Where(e => !e.Gone && e.Quarry == 1).Select(e => e.WorldPosition(train)).OrderBy(p => (p - eye).Length).FirstOrDefault();
+        Double3 target;
+        if (hunter != default)
+            target = hunter + Double3.Up * 0.6;
+        else if (abandonment.All.FirstOrDefault(a => a.Player == 1) is { Player: 1 } a
+            && DarkTerritory.Sim.Enemies.Abandonment.FiguresOf(a, abandonment.Tuning, train.Line) is { Count: > 0 } figures)
+            target = figures[0].Feet + Double3.Up * 1.0;
+        else
+            target = train.Frames[^1].Origin + Double3.Up * 1.5;
+        return Camera.LookAt(eye, target, 70);
     }
 
     /// <summary>

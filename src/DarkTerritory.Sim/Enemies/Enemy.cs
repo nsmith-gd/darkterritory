@@ -114,6 +114,12 @@ public abstract class Enemy
     /// From replicated state, so a client's prompt and whiff agree with the host.
     /// </summary>
     public virtual bool Reachable(World world) => true;
+    /// <summary>
+    /// The one player it's hunting for the director's abandonment of them (note 266), or −1: sent for nobody in particular.
+    /// What hunts a player the train left is theirs alone: not the crew's budget, caps or pacing.
+    /// </summary>
+    public virtual int Quarry => -1;
+
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
 
@@ -144,8 +150,70 @@ public abstract class Enemy
         return t.Position + right * Lateral + Double3.Up * Height;
     }
 
+    /// <summary>
+    /// On foot in the world (the director's decision of 2026-10-06, GDD App. F.1: "in the world we're always going to have to
+    /// be able to interact with basically everything"; note 266): loose off the train (or, free on the line, beside it), it
+    /// walks on the ground and is stopped by what's solid, never through a hill, a cutting's bank, a building or a car.
+    /// </summary>
+    public virtual bool OnFoot => false;
+    /// <summary>On foot, whether the train's bodies and the stops' walls stop it too (a crawler going up a car's side: no).</summary>
+    protected virtual bool Solid => true;
+    /// <summary>On foot, its body for the solids: radius, height, the step it takes up onto something.</summary>
+    protected virtual PlayerMotor.Cylinder Body => new(0.4, 1.6, 0.35);
+    /// <summary>On foot, how far over the ground its <see cref="Height"/> or <see cref="Local"/> stands (where it's drawn from).</summary>
+    protected virtual double GroundOffset => 0;
+
+    double _groundHint = double.NaN;
+
+    /// <summary>
+    /// Where it is on its feet (note 266): the ground under it, pushed out of the solids, on the ground again. The same rule
+    /// as a player's footing (PlayerMotor), from the route and the train alone, so the host has it the same every time.
+    /// </summary>
+    public static Double3 Settle(TrainOnLine train, Double3 at, PlayerMotor.Cylinder body, bool solid, ref double hint)
+    {
+        if (double.IsNaN(hint))
+            hint = train.Dynamics.Distance;
+        var p = at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) };
+        if (!solid)
+            return p;
+        p = PlayerMotor.Clear(p, train, body);
+        return p with { Y = PlayerMotor.GroundAt(p, train.Line, ref hint) };
+    }
+
+    /// <summary>After its tick: on its feet on the ground (<see cref="OnFoot"/>), and whoever it carries with it.</summary>
+    void Footing(EnemyContext ctx)
+    {
+        if (!OnFoot || Gone)
+            return;
+        var train = ctx.Train;
+        if (Attached == Loose)
+        {
+            Local = Settle(train, Local, Body, Solid, ref _groundHint) + Double3.Up * GroundOffset;
+            // A carry goes where it goes, on the ground with it.
+            for (int i = 0; i < ctx.Carries.Count; i++)
+                if (ctx.Carries[i].Player == Holding)
+                    ctx.Carries[i] = (Holding, Local - Double3.Up * GroundOffset);
+        }
+        else if (Attached == -1 && !OnMainLine)
+        {
+            // Free on the line beside it (the hounds running after the train): its height over the rail is the ground's there.
+            var t = train.Line.Sample(train.Dynamics.Path, LineDistance);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var at = t.Position + right * Lateral;
+            if (double.IsNaN(_groundHint))
+                _groundHint = LineDistance;
+            Height = PlayerMotor.GroundAt(at, train.Line, ref _groundHint) - t.Position.Y + GroundOffset;
+        }
+    }
+
     /// <summary>Advances the enemy one tick. A grab's rescue and its end are the spine's, the same for every enemy (App. A.9).</summary>
     public void Step(EnemyContext ctx)
+    {
+        StepSpine(ctx);
+        Footing(ctx);
+    }
+
+    void StepSpine(EnemyContext ctx)
     {
         PhaseSeconds += SimConstants.TickSeconds;
         if (Phase == SpinePhase.Grab)
