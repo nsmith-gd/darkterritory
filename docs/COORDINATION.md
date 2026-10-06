@@ -51,9 +51,9 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 4 | **Damage model, Lethal Company style:** a few big hits, never chip damage; healing items rare loot; an edge flash and a sound; creatures driven off by their rules, mostly not damaged | A1.4 | `damage-model` | 272 | claimed |
 | 5 | **Boarding rules per creature:** Cinder Hounds that board stay aboard; Fire Flies only while the train is stopped | A1.2 | `boarding-rules` | 269 | claimed |
 | 6 | **One run length for every tier:** difficulty from monsters and density of challenges, not time; quiet stretches in km (GDD §11, spec B.8; T125) | A1.3 | `run-length` | 270 | claimed |
-| 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind | — | — | — | open |
-| 8 | **T124:** fort collision, and the guns hitting at the forts | — | — | — | open |
-| 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | — | — | — | open |
+| 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind; forts safe from creatures | A1.5 | `t128` | 273 | claimed |
+| 8 | **T124:** fort collision, and the guns hitting at the forts | A1.6 | `t124` | 274 | claimed |
+| 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools` | 275 | claimed |
 | 10 | **Towns (T133):** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople) | — | — | — | open |
 | 11 | **The cab redesign** | — | — | — | waiting on the director's sketch |
 
@@ -62,8 +62,8 @@ items 1 and 2 are merged.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **273**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
-(Stoker v3), 272 (damage model). Take a number by adding it here and to your queue row.
+The next free number is **276**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+(Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
