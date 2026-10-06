@@ -192,9 +192,21 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Engaged { get; init; } = new Dictionary<string, int>();
     /// <summary>GRABs a crewmate broke (the grab ended in a break-off, not a punish), by kind.</summary>
     public IReadOnlyDictionary<string, int> Rescues { get; init; } = new Dictionary<string, int>();
+    /// <summary>The director's pressure over the night (note 266), beside its per-second tally (<see cref="Director"/>).</summary>
+    public PressureReport? Pressure { get; init; }
     /// <summary>The dead's votes cast (GDD v1.4 App. D.11; the bots' too, note 202), by creature.</summary>
     public IReadOnlyDictionary<string, int> Votes { get; init; } = new Dictionary<string, int>();
 }
+
+/// <summary>
+/// The director's pressure (design decision 2026-10, note 266): the night's grace and threshold, its spawns (the director's
+/// own, not the condition-triggered) in each five minutes out on the line, and a sample every <see cref="EverySeconds"/>.
+/// </summary>
+public sealed record PressureReport(double Grace, double Threshold, double EverySeconds, IReadOnlyList<int> SpawnsPer5Min, IReadOnlyList<PressureSample> Trace);
+
+/// <summary>One sample of the director's pressure: when (s), where (km), the pressure, and what built it (<see cref="Enemies.PressureTerms"/>).</summary>
+public sealed record PressureSample(double T, double Km, double Pressure, double Rate, double Escalation, double Quiet, double Loud, double Cargo,
+    double Relief, double Conditions, string Held);
 
 /// <summary>
 /// Host plus N bot clients in one process over a <see cref="LoopbackNetwork"/> with simulated lag and loss,
@@ -306,6 +318,11 @@ public static class Harness
         double choirPeak = 0;
         var held = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var capped = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        // The director's pressure, sampled (note 266), and its own spawns by five minutes out on the line.
+        const double PressureEvery = 30;
+        var pressureTrace = new List<PressureSample>();
+        var per5Min = new List<int>();
+        int logged = 0, outSeconds = 0;
         int rounds = 0;
         var quiet = new List<double>();
         var beatKinds = new Dictionary<string, int>();
@@ -389,6 +406,18 @@ public static class Harness
             {
                 string what = host.World.Derailed ? "derailed" : dir.HeldBecause ?? "sent";
                 held[what] = held.GetValueOrDefault(what) + 1;
+                if (outSeconds % 300 == 0)
+                    per5Min.Add(0);
+                per5Min[^1] += dir.Log.Skip(logged).Count(l => l.Kind is not (DarkTerritory.Sim.Enemies.EnemyKind.Stoker or DarkTerritory.Sim.Enemies.EnemyKind.Drift));
+                logged = dir.Log.Count;
+                if (outSeconds % (int)PressureEvery == 0)
+                {
+                    var pt = dir.Terms;
+                    pressureTrace.Add(new PressureSample(Math.Round(t * SimConstants.TickSeconds), Math.Round(host.Train.Dynamics.Distance / 1000, 2),
+                        Math.Round(dir.Pressure, 2), Math.Round(pt.Rate, 3), Math.Round(pt.Escalation, 2), pt.Quiet, Math.Round(pt.Loud, 3),
+                        Math.Round(pt.Cargo, 3), Math.Round(pt.Relief, 2), Math.Round(pt.Conditions, 2), what));
+                }
+                outSeconds++;
                 if (what == "at the cap")
                     foreach (var e in host.World.ActiveEnemies.Where(DarkTerritory.Sim.Enemies.Director.Engaged))
                         capped[$"{e.Kind}:{e.Phase}"] = capped.GetValueOrDefault($"{e.Kind}:{e.Phase}") + 1;
@@ -473,6 +502,7 @@ public static class Harness
                 Grabs = Count(events.Where(e => e.To == SpinePhase.Grab)),
                 Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
+                Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
             };
         }

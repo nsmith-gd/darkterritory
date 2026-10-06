@@ -48,7 +48,9 @@ public class ConflictSeedingTests
     {
         var d = Tuning.Enemies.Director with
         {
-            GraceSeconds = 0,
+            GraceMinSeconds = 0,
+            GraceMaxSeconds = 0,
+            Pressure = Tuning.Eager,
             CooldownSeconds = [1, 1],
             Costs = Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         };
@@ -123,7 +125,7 @@ public class ConflictSeedingTests
     public void ADraggerNobodyWalksOverLetsGoAndFreesItsPlaceInTheFlank()
     {
         // Under the lip all night, two Draggers held the flank's two places for the whole run (T64): no Climbers, no Gaunt.
-        var world = Night(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } }, Frontier(), at: 40_000, speed: 12);
+        var world = Night(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, Frontier(), at: 40_000, speed: 12);
         var dragger = world.AddEnemy(id => Dragger.Under(id, world.Train, 2, 1, 0));
         Run(world, Tuning.Enemies.Draggers.LingerSeconds - 5, 12);
         Assert.False(dragger.Gone);

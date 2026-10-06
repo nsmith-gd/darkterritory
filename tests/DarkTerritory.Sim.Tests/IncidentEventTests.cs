@@ -101,7 +101,7 @@ public class IncidentEventTests
     {
         var stop = new FacilityTests.Stop(ModuleKind.Crane);
         var world = stop.World;
-        var quiet = E with { Director = E.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } };
+        var quiet = E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
         world.EnableEnemies(quiet, world.Route, 1, crew: 1, authority: true);
         var crane = stop.Site.Crane!;
         var grumbler = world.AddEnemy(id => Grumbler.OnCrates(id, crane.Castings[0].At, 0, quiet.Grumbler));
