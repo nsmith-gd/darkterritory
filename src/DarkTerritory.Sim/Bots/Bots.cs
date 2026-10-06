@@ -1767,7 +1767,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             return null;
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
         var (step, there) = WarmUp.Steer(self, new Double3((Fireman ? -1 : 1) * FiringSide, 0, firebox.Z + FiringBack), 0);
-        var intent = there ? new PlayerIntent { Actions = PlayerActions.Swing } : step;
+        // App. A.5: open the firebox, then club it (note 263: through a shut door a blow doesn't reach it). A shovelful opens it.
+        // On its way in from the tender (note 263) it's in the open: club it there.
+        bool reach = train.Boiler.FireDoorOpen || world.ActiveEnemies.OfType<Stoker>().Any(st => st.Boarding);
+        var intent = !there ? step : reach ? new PlayerIntent { Actions = PlayerActions.Swing } : new PlayerIntent { Buttons = PlayerButtons.Use };
         intent.Buttons |= PlayerButtons.Brake;
         intent.ThrottleNotch = -4;
         return intent;

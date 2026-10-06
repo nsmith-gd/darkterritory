@@ -553,6 +553,9 @@ public static class PlayerMotor
     /// </summary>
     static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
     {
+        // The fortress yard before the run begins is a safe space (note 263): the cold doesn't bite there.
+        if (train.HeldInYard)
+            return;
         var c = p.Cold;
         if (NearHeat(s, train))
         {

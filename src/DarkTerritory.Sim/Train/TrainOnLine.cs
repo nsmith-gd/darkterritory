@@ -347,6 +347,12 @@ public sealed class TrainOnLine
         UpdatePoses();
     }
 
+    /// <summary>
+    /// Set by the world each tick from the run's (replicated) phase: the train's in the fortress yard and the run hasn't begun
+    /// (run.json yardIsSafe, note 263). The boiler and its fire hold: no pressure gained or lost, no coal burned, no rupture.
+    /// </summary>
+    public bool HeldInYard { get; set; }
+
     public void Step(double dt, in TrainControls controls)
     {
         RupturedThisTick = false;
@@ -372,12 +378,12 @@ public sealed class TrainOnLine
                         // No regulator (T97): the engine pulls as hard as it takes to make the speed its steam allows.
                         effective.Throttle = Math.Clamp((Boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - rake.Speed) / bt.DriveSpeedBand, 0, 1);
                         // Held on its brake, it isn't working: no exhaust beats to draw the fire, no steam through the cylinders.
-                        RupturedThisTick = Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed);
+                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed);
                     }
                     else
                     {
                         effective.Throttle *= Boiler.PowerFactor(bt);
-                        RupturedThisTick = Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
+                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, controls.Throttle, rake.Consist.CarCount);
                     }
                 }
                 double before = rake.Speed;

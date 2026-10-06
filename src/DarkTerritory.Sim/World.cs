@@ -175,7 +175,14 @@ public sealed class World
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
     bool _choirTook;
-    double _lowPressure, _doorOpenAtStop;
+    double _hotFor;
+    bool _stokerWasIn;
+
+    /// <summary>
+    /// Host: how long before a Stoker may come again (the director's decision of 6 Oct 2026, note 263): one gone leaves
+    /// <see cref="StokerTuning.BreakSeconds"/> of quiet, its clocks stopped meanwhile.
+    /// </summary>
+    public double StokerBreakSeconds { get; private set; }
     readonly Dictionary<int, uint> _swingReady = new();
 
     /// <summary>True on the host: enemies and the director run. False on clients, which mirror them.</summary>
@@ -183,11 +190,12 @@ public sealed class World
     public EnemyTuning? Enemies { get; private set; }
 
     /// <summary>
-    /// The fire's burned low enough for the Stoker (App. A.5: pressure under <see cref="StokerTuning.LowPressure"/>) and it
-    /// isn't in yet: it waits on the smokestack, and is drawn there. Read-only, from replicated state, for the presentation.
+    /// The fire's running hot enough to draw the Stoker (note 263: <see cref="StokerTuning.HeatFirebox"/>) and it isn't
+    /// aboard yet: it waits on the smokestack, watching the heat, and is drawn there. Read-only, from replicated state, for
+    /// the presentation.
     /// </summary>
-    public bool StokerWaiting => Enemies is { } t && Train.BoilerTuning is not null && !Train.Boiler.Ruptured
-        && Train.Boiler.Pressure < t.Stoker.LowPressure && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
+    public bool StokerWaiting => Enemies is { } t && Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !SafeYard
+        && Train.Boiler.Firebox >= t.Stoker.HeatFirebox && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
 
@@ -907,7 +915,7 @@ public sealed class World
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
         {
-            if (e.Gone || !e.Strikable(playerId))
+            if (e.Gone || !e.Strikable(playerId) || !e.Reachable(this))
                 continue;
             var to = e.WorldPosition(Train) + Ballast.Double3.Up * 0.8 - eye;
             double d = to.Length;
@@ -971,15 +979,27 @@ public sealed class World
     }
 
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
+    /// <summary>
+    /// The fortress yard before the run begins, a safe space (run.json yardIsSafe; the director's decision of 6 Oct 2026, note
+    /// 265): nothing spawns, the boiler and fire hold, the cold doesn't bite. From the run's phase, which clients mirror.
+    /// </summary>
+    public bool SafeYard => Run is { Phase: Sim.Run.RunPhase.Yard, Tuning.YardIsSafe: true };
+
     public void Step(in TrainControls controls)
     {
         Controls = controls;
+        Train.HeldInYard = SafeYard;
         var applied = controls;
         // Something at the controls (v1.1 App. A.2, the Track Doll playing with an empty cab's throttle and brake). On the
         // clients too, from their mirror of it, so prediction drives as the host does.
         foreach (var e in _enemies)
             if (!e.Gone)
                 e.Tamper(this, ref applied);
+        // Build 1121 (note 263): a train standing on the brake it was left on stays on it, whatever's at the controls. With
+        // steam driving (T97) a standing engine off its brake pulls away, so a Stoker's runaway took a train held in the yard
+        // off with nobody in the cab. (Clients alike, from the same replicated state: prediction holds the brake as the host does.)
+        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow)
+            applied.Brake = Math.Max(applied.Brake, controls.Brake);
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
         // Something clamped on a car and holding the train back past a speed (v1.1 App. A.3, the Car Hugger's cap on top
@@ -1022,7 +1042,8 @@ public sealed class World
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
                 }
-                bool swarm = Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather.
+                bool swarm = !SafeYard && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
@@ -1158,7 +1179,9 @@ public sealed class World
         {
             // What lies in wait (a Dragger under a car's edge) doesn't count against the caps, so it may wait all night.
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0)
+            // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
+            // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
             {
                 _unmet.Remove(e.Id);
                 continue;
@@ -1197,31 +1220,44 @@ public sealed class World
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
         if (CabEmptySeconds >= t.TrackDoll.TamperAfterEmpty)
             CabWasLeftEmpty = true;
-        // The Stoker's conditions (App. B.5): pressure under 40 for 45 s (down the stack), or the firebox door left open at a
-        // stop (through the door, ×3 by the director's weighing: here, sooner).
-        if (Train.BoilerTuning is not null && !Train.Boiler.Ruptured)
+        // The Stoker's condition (the director's decision of 6 Oct 2026, note 263, in place of App. B.5's low fire and open
+        // door): a firebox run hot, heatFirebox or more for heatSeconds. The clock only runs with no Stoker about, once the
+        // break after the last one's over, and not in the safe yard (the run hasn't begun).
+        bool stokerIn = _enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
+        if (stokerIn)
+            _stokerWasIn = true;
+        else if (_stokerWasIn)
         {
-            _lowPressure = Train.Boiler.Pressure < t.Stoker.LowPressure ? _lowPressure + SimConstants.TickSeconds : 0;
-            // "Left open" (App. B.5): open at a stop with nobody in the cab. A fireman at the door, shovelling, isn't leaving it.
-            _doorOpenAtStop = Train.Boiler.FireDoorOpen && Train.Dynamics.Speed < t.Stoker.StoppedBelow && CabEmptySeconds > 0 ? _doorOpenAtStop + SimConstants.TickSeconds : 0;
+            _stokerWasIn = false;
+            StokerBreakSeconds = t.Stoker.BreakSeconds;
+            // However it went (clubbed out, or sent away by the director's linger rule, which skips its Leave): it's stopped
+            // feeding the fire and holding the valve.
+            Train.Boiler.ExternalHeat = 0;
+            Train.Boiler.SafetyValveJammed = false;
         }
+        else
+            StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
+        _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
+            && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
-        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
+        // Not in the safe yard (note 263): nothing comes before the run begins.
+        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
             Unmet(ctx, t.Director);
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
-            else if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
+            // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
+            // haven't been out in the Territory for it.
+            else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
-            // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).
-            bool door = _doorOpenAtStop >= t.Stoker.DoorOpenSeconds;
-            if (d.Allows(EnemyKind.Stoker) && (door || _lowPressure >= t.Stoker.LowPressureSeconds) && Train.BoilerTuning is not null
+            // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
+            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
-                _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train, door, t.Stoker));
-                _lowPressure = _doorOpenAtStop = 0;
+                _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
+                _hotFor = 0;
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
             if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1

@@ -164,6 +164,16 @@ The transition should be a major tonal moment. Inside: workers, lights, machiner
 
 **This is where the run actually begins.**
 
+### The fortress is a safe space *(the director's decision, 2026-10-06)*
+Until the train passes the outer gate, the fortress yard and the lobby are a safe space, like the ship in *Lethal Company*. The crew wait for friends, hang out, dance, try on outfits, walk away for a cigarette, and come back when they're ready. Nothing of consequence happens there:
+
+- nothing spawns, and the Choir's meter doesn't gather;
+- the boiler and its fire hold: no overheating, no rupture, no running out of steam or coal;
+- the cold doesn't bite;
+- the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
+
+The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`).
+
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
@@ -393,9 +403,9 @@ Only strikes when the train is stopped. It carries its victim off to a nest, and
 ### INTERIOR — already aboard
 
 **STOKER** · *the firebox*
-Gets into the firebox when the fire burns low or the door is left open. Pressure climbs, and so does speed.
-> **RULE: keep it hot, keep it shut.**
-Vent to slow down. Open the firebox and club it to kill it, and get burned doing it. Ignored, the train runs away and derails.
+Looks for heat *(the director's decision, 2026-10-06)*. A firebox run hot draws it: it boards at the tender, scraping and glowing on the coal, and crosses the footplate to the fire door. A fireman at the fire can catch it there. Once in, it eats the fire and drives the pressure up in lurches, and the speed with it. Beaten, it stays away a couple of minutes.
+> **RULE: run cool, or watch the coal.**
+Running hot is fast and draws it; running cool is safe and slow. Catch it on the way in. Once it's in, vent to buy time, open the firebox and club it, and get burned doing it. Ignored, the boiler goes or the train runs away and derails.
 
 **TIPPY TOESIE** · *behind anyone standing still*
 Tiptoes up behind idle players. Runs if you see it coming.
@@ -1033,19 +1043,23 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 
 ## A.5 Interior
 
-### STOKER · heat
+### STOKER · heat *(the director's decision, 2026-10-06; replaces the low-fire and open-door entry)*
 ```
-PERCH     on the smokestack
-ENTER     pressure below 40 for 45s → down the stack
-          OR firebox door open at a stop → through the door
-          └ TELEGRAPH: soot falls into the cab
-FEED      pressure climbs without fuel; speed climbs with it
-          └ TELEGRAPH: gauge rising, wrong-coloured glow, train accelerating
-RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL
+DRAWN     the firebox run hot (above a tuned heat) for a while; a low fire never draws it
+          └ PERCH: on the smokestack, watching the heat
+BOARD     at the tender: onto the coal, then across the footplate to the fire door
+          └ TELEGRAPH: scraping on the coal, a sick glow there, the hiss (the fireman hears it)
+CATCH     a blow on the way in drives it off, and doesn't burn
+FEED      in the firebox: it eats the fire, and the pressure lurches up toward rupture, the
+          safety valve held shut; the brake comes off and the speed climbs with it
+          └ TELEGRAPH: the gauge swinging, wrong-coloured glow, train accelerating
+RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL (or the boiler ruptures first)
 COUNTER   vent: pressure and speed drop, time is lost (buys time only)
-KILL      open the firebox and bludgeon it; each swing burns the attacker
+KILL      open the firebox (a shovelful) and bludgeon it; each swing burns the attacker;
+          a swing at the shut door only rings on the iron
+BREAK     beaten, no Stoker returns for two to three minutes
 ```
-Fully preventable. **The counter has a clock cost**, and killing it has a health cost.
+Fully preventable. **The trade-off is the fire**: running hot is fast and draws it; running cool is safe and slow. Once it's in, it's urgent: someone must drop what they're doing. The counter has a clock cost, and killing it has a health cost. Numbers in enemies.json `stoker`.
 
 ### TIPPY TOESIE · absence (a player standing still)
 ```
@@ -1205,7 +1219,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 **Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All five sit on the voice layer, so it is a gameplay system, not just comms.
 
-**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (keep it hot, keep it shut) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
+**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (run cool, or catch it on the way in) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
 
 **Cost-only enemies.** The Track Doll and the Switchman's routing throws cost time and control rather than lives. Keep this category small.
 
@@ -1343,7 +1357,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
-| **Stoker** | **Condition-triggered, not placed.** Down the stack or through an open firebox door | Pressure below 40 for 45s, or firebox left open at a stop | ×3 if the firebox was left open at a facility |
+| **Stoker** | **Condition-triggered, not placed.** Boards at the tender, crosses to the firebox *(2026-10-06)* | The firebox run above a tuned heat for a while; never within a few minutes of the last one's defeat, nor in the fortress | None |
 | **Tippy Toesie** | Any car, or the ground near the train | Crew ≥2 · any tier (first pass) | Weight up per player idle and alone |
 | **Fire Flies** | Lineside in dark forest and open sections | ≥1 lamp lit inside a car | ×2 at night depth · ×0 if every car lamp is out |
 
@@ -1994,6 +2008,138 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
 5. **Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+
+---
+
+# APPENDIX F — BUILD REVIEWS
+
+*Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
+
+## F.1 2026-10-06 — build 1121
+
+**Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
+
+**Front end**
+- The updated menu looks good, and so do the menu sound effects. *Keep.*
+- The mouse should work in the menus. *In progress (T126).*
+- The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *In progress (T126).*
+
+**Audio**
+- Turning on the spot shouldn't make a sound; only walking should. *Open.*
+- Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
+- The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
+- The gun's traverse sound is bad. *Open.*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The Choir was heard behind the train (A.7). *Noted.*
+
+**Cab**
+- Far too much UI for what's on screen. *In progress (T126).*
+- The hold-to-vent control feels off. *In progress (T126).*
+- There's no whistle cord, and people will want one. *In progress (T126).*
+- The coal shovel is fun. *Keep.*
+- The firebox door shutting by itself is OK. *Keep.*
+
+**Lockers (§12)**
+- The lockers are cute, but neighbouring lockers block each other. *In progress (T126).*
+- Stowing a held item in a locker doesn't work well. *In progress (T126).*
+- The lockers are mostly empty; only the fitter's had the engineering kit. *In progress (T126).*
+- A locker with something in it should say so. *In progress (T126).*
+- It isn't clear how to hold the kit in the inventory. *In progress (T126).*
+
+**Train and world**
+- It's good that every car has an extinguisher (C.5). *Keep.*
+- The toys in the guard van at spawn should be found in the world instead (C.4). *In progress (T126).*
+- There's a walkie-talkie aboard. *Noted.*
+
+**The fort**
+- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
+
+**Bugs**
+- The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
+- The rupture message said the train had no engineering kit, though it had been dropped in the front car (§23.2: a kit in a reachable car is never lost). *In progress (T129).*
+- The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
+
+**Abandoned player**
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Open (T128).*
+
+**Line and derailment**
+- The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
+- The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *In progress (T127: telegraph the debris and over-speed).*
+- The train's lights and lanterns were all off. *In progress (T127).*
+
+**Second session (same build, continued)**
+- *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
+- *Cab:* a redesign of the front of the train is coming (the director's sketch to follow), for a lone driver's view of track hazards. Every function stays. *Open (awaiting sketch).*
+- *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
+- *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
+- *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
+- *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *In progress (T129).*
+- *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *In progress (T129: a cooldown after it's driven off).*
+- *Falling:* far too easy to fall off the train. *In progress (T128).*
+- *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
+- *Overall:* the director hasn't finished a run yet.
+
+**Direction** (the director, 6 Oct 2026; proposal in T131, not yet decided):
+- *Boarding-first enemies:* "things shouldn't be able to get on the train unless they board it." Enemy design centres on boarding. A train that's just hauling is safer, but runs the risk of derailment, and that becomes the core fear.
+- *Solo like Lethal Company:* a solo player can explore and get a few runs in to learn the game, and won't get far. Friends let you go further.
+
+**Decided** (the director, 6 Oct 2026, on the boarding-first proposal, T131):
+- **Nothing acts inside the train unless it boarded.** Players must be able to understand or learn the rule for how each creature gets on; they needn't see it happen. A player's action opens a pathway by invoking or negating a rule.
+- **Each creature has its own boarding rule** at a specific, known point, with a telegraph and a counter.
+- **Boarding speeds are per creature.** Some board faster than a human can; the Cinder Hounds are the example. Outrunning them means going fast, which risks derailing on curves the conductor can clearly identify on the map. That makes a choice: run up to the curve and brake hard, or deal with them now. A savvy, experienced player should be able to outsmart the situation.
+- **A hauling train is safe from most monsters, not all.** A fast, flying class may come later to answer the top-speed strategy.
+- **Slowing opens the doors.** Stops, facilities and tight curves are where things board or the yards attack. These are the heightened scares; the train between them is a relative break. Loot and progress pull players into them.
+- **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
+- **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map.
+- **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them.
+- **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
+- **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
+- **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+
+Further decisions (the director, 6 Oct 2026):
+- **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
+- **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule.
+- **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off.
+- **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped.
+- **Run length** is to be set by simulation sweeps (T125).
+- **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later.
+
+- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
+
+**Direction** (the director, 6 Oct 2026; proposals in T133):
+- *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
+- *Procedural, with people in them.* Each town has its own odd culture, different from the last.
+- *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
+- *Much more in the towns is interactable.*
+
+**Decided** (the director, 6 Oct 2026, later the same day):
+- **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden.
+- **Stoker v3.** It's drawn by heat and boards at the tender with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
+- **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
+- **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures.
+
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
+
+## F.2 2026-10-05/06 — derailment film, takes 3–5
+
+**Played:** the director watching `dt film`, the derailment cinematic (Appendix E). Film page: [claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw](https://claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw).
+
+**The film**
+- Take 3 was much better, but people should be alive and colliding before they go limp. Each third-person death shot gets 2s more, and the first person 3s more. *Design change → E.2 step 1, E.5, E.10; ARCHITECTURE.md note 258.*
+- Take 4: the timing and the first person are better, but the third-person poses are arms-up and awkward, not people mid-task. *Design change → E.3; ARCHITECTURE.md note 257.*
+- Hits should bounce more, on derailments only. *Design change → E.3, E.10; ARCHITECTURE.md note 257.*
+
+**Decided** (the director, 5 Oct 2026; marked in E.2, E.3, E.5 and E.10):
+- Each player dies on their own first fatal hit, not on the derail tick (E.2 step 1).
+- Until then they are an alive, active ragdoll (E.3).
+- Death shots run 4s (E.5, E.10).
+- The first person runs 3.8s past the death (E.5, E.10).
+- The extra bounce applies to derailments only (E.3, E.10).
 
 ---
 

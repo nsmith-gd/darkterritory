@@ -86,7 +86,7 @@ static class PlaythroughCommands
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
             scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
-            scene.StokerDownAt = world.Enemies?.Stoker.LowPressureSeconds ?? 45;
+            scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
             scene.LampLit = world.LampShining;
             scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(train);
             // Each as the app draws them, doing what they're doing (CrewActs): ids in join order, as the host gave them.

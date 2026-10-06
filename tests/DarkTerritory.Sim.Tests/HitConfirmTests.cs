@@ -174,7 +174,8 @@ public class HitConfirmTests
             _ => SpinePhase.Telegraph,
         };
         double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie => -1, _ => 0 };
-        double extra2 = kind == EnemyKind.SootChildren ? 1 : 0;
+        // A Stoker on its way in from the tender (note 263): in the open, where a blow lands (in the fire, only with the door open).
+        double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         var e = n.World.AddEnemy(id =>
         {
             var made = Make(kind, id);

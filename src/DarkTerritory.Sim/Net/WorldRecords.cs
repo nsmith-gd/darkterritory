@@ -41,7 +41,7 @@ public static class WorldRecords
     const int BodyParticles = 11;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane (or wreck heap) record's id for
     // each of a site's cranes (heaps).
-    const int RunHead = 6, CranesPerSite = 16;
+    const int RunHead = 9, CranesPerSite = 16;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
@@ -143,6 +143,11 @@ public static class WorldRecords
             f[3] = run.Facility;
             f[4] = run.ChuteOpen ? 1 : 0;
             f[5] = Q(run.Scavenged, Fine);
+            // Where the repair kit is, as the host reckons it (§23.2; note 263): a client only has the bodies within its interest
+            // radius, so left behind by the train it saw none, and said the train had none.
+            f[6] = (long)run.Kit.Place;
+            f[7] = run.Kit.Vehicle;
+            f[8] = (long)run.Kit.Loss;
             for (int i = 0; i < run.FacilityCount; i++)
             {
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
@@ -394,7 +399,7 @@ public static class WorldRecords
                             Pouring = (f[Head + 1 + i * Each] & 8) != 0, Herding = (f[Head + 1 + i * Each] & 16) != 0,
                             Bin = D(f[Head + 7 + i * Each], Fine), Head = (int)f[Head + 8 + i * Each], Herd = D(f[Head + 9 + i * Each], Fine),
                             HoseCar = (int)f[Head + 10 + i * Each], Pressure = D(f[Head + 11 + i * Each], Fine), Leak = D(f[Head + 12 + i * Each], Fine),
-                        })], D(f[5], Fine));
+                        })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;
             }
         }
