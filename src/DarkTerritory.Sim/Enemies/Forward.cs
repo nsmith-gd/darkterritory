@@ -107,7 +107,11 @@ public sealed class TrackDoll(int id) : Enemy(id)
                         if (Enter(ctx, SpinePhase.Commit) && Enter(ctx, SpinePhase.Punish))
                             Haunt(ctx);
                         else
+                        {
+                            // C.9 "Track Doll struck" all the same: the throttle, and the speed.
+                            ctx.World.Attribution.Add(Run.IncidentLog.Struck(ctx.World, "Struck the Track Doll before she could be seen"));
                             Enter(ctx, SpinePhase.Gone);
+                        }
                     }
                     return;
                 }
@@ -119,6 +123,9 @@ public sealed class TrackDoll(int id) : Enemy(id)
                 return;
         }
     }
+
+    /// <summary>C.9's Track Doll row (note 190): struck, with who was on the throttle and the speed at impact.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => Run.IncidentLog.Struck(ctx.World, "Struck the Track Doll");
 
     /// <summary>Aboard: into a car with a room, the one farthest from anyone.</summary>
     void Haunt(EnemyContext ctx)

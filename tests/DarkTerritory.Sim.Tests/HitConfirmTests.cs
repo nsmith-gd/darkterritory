@@ -174,7 +174,8 @@ public class HitConfirmTests
             _ => SpinePhase.Telegraph,
         };
         double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie => -1, _ => 0 };
-        double extra2 = kind == EnemyKind.SootChildren ? 1 : 0;
+        // A Stoker on its way in from the tender (note 263): in the open, where a blow lands (in the fire, only with the door open).
+        double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         var e = n.World.AddEnemy(id =>
         {
             var made = Make(kind, id);
@@ -214,6 +215,28 @@ public class HitConfirmTests
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         n.Run(0.5, id => new PlayerIntent { Actions = PlayerActions.Swing });
         Assert.Empty(n.World.Hits);
+    }
+
+    [Fact]
+    public void ASwingAtNothingIsStillSeenByEveryClient()
+    {
+        // Note 146's "the swing has a clip but no reader" (note 197): a blow that lands has its HitConfirm, but one at
+        // nothing was never sent, so nobody else saw the crewmate swing. Every swing is its own record now, one per
+        // recovery while Swing is held, landed or not.
+        var n = new Night(4, speed: 0);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        // (Just past the second: swings are kept on the wire as long as hits are, combat.json hits.keepSeconds.)
+        n.Run(E.Melee.SwingSeconds + 0.1, id => new PlayerIntent { Actions = PlayerActions.Swing });
+        Assert.Empty(n.World.Hits);
+        Assert.Equal(2, n.World.Swings.Count);
+        Assert.All(n.World.Swings, w => Assert.Equal(1, w.By));
+        var gap = n.World.Swings[1].Tick - n.World.Swings[0].Tick;
+        Assert.Equal((uint)Math.Round(E.Melee.SwingSeconds * SimConstants.TickRate), gap);
+        var client = new World(n.Train);
+        var controls = new TrainControls();
+        client.EnableEnemies(E, null, 1, 1, authority: false);
+        WorldRecords.Apply(WorldRecords.Capture(n.World, controls, []), client, ref controls, []);
+        Assert.Equal(n.World.Swings, client.Swings);
     }
 
     [Fact]

@@ -76,8 +76,8 @@ public sealed class World
     /// and replicated, so every client sees the flinch, hears the thud, and its striker gets the marker.
     /// </summary>
     public List<HitConfirm> Hits { get; } = new();
-    /// <summary>Tools swung lately (App. C.2; note 191), landed or not: the host's, mirrored on clients, for the swinger's figure.</summary>
-    public List<MeleeSwing> Swings { get; } = new();
+    /// <summary>Crewmates' swings lately, landed or not (note 197): the host's, kept as long as hits are, and replicated.</summary>
+    public List<SwingEvent> Swings { get; } = new();
     /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
     public List<CannonImpact> Impacts { get; } = new();
     int _nextFx = 1;
@@ -102,7 +102,21 @@ public sealed class World
     {
         LampLit = false;
         LampOutSeconds = Math.Max(LampOutSeconds, seconds);
+        _relight = !Derailed;
     }
+
+    // Note 266 (build 1121: "the lights are completely off"): a lamp smashed comes back lit once its glass is in (the
+    // spare fitted, T52), as the driver had it; one the driver switched off stays off. Host only (LampLit is sent).
+    bool _relight;
+    /// <summary>
+    /// Host: how long running a bend's overspeed warning has been up (LineGen.TrackRules.Assess, note 265); a bend derails
+    /// the train only once it's been up train.json overspeed.leadSeconds.
+    /// </summary>
+    public double BendWarnSeconds { get; set; }
+    /// <summary>Host: ticks a bend would have derailed the train but its warning hadn't been up long enough (should be 0).</summary>
+    public int BendsSpared { get; set; }
+    /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
+    public List<double> BendCommits { get; } = new();
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
     /// <summary>Host: the crew has braked hard for a Long Whistle's horn, a train that wasn't there (App. B.2's "false positive").</summary>
@@ -130,13 +144,17 @@ public sealed class World
     /// </summary>
     public double WhistleSeconds { get; set; }
     /// <summary>Who's blowing it (the last to pull the cord), or −1: the Whistler's whistle belongs to nobody (App. C.7).</summary>
-    public int WhistleBy { get; private set; } = -1;
+    public int WhistleBy { get; internal set; } = -1;
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
         WhistleSeconds = Math.Max(WhistleSeconds, seconds);
         WhistleBy = by;
     }
+
+    /// <summary>Use held at the whistle cord's handle, looking at it (note 264): a hand on the cord.</summary>
+    public bool OnTheCord(in PlayerState s, in PlayerIntent intent) =>
+        s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && CrewActions.Nearest(s, Train, Hand) == InteractableKind.Whistle;
 
     readonly SortedDictionary<int, double> _choirShares = [];
 
@@ -175,12 +193,27 @@ public sealed class World
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
     bool _choirTook;
-    double _lowPressure, _doorOpenAtStop;
+    double _hotFor;
+    bool _stokerWasIn;
+
+    /// <summary>
+    /// Host: how long before a Stoker may come again (the director's decision of 6 Oct 2026, note 263): one gone leaves
+    /// <see cref="StokerTuning.BreakSeconds"/> of quiet, its clocks stopped meanwhile.
+    /// </summary>
+    public double StokerBreakSeconds { get; private set; }
     readonly Dictionary<int, uint> _swingReady = new();
 
     /// <summary>True on the host: enemies and the director run. False on clients, which mirror them.</summary>
     public bool Authority { get; private set; }
     public EnemyTuning? Enemies { get; private set; }
+
+    /// <summary>
+    /// The fire's running hot enough to draw the Stoker (note 263: <see cref="StokerTuning.HeatFirebox"/>) and it isn't
+    /// aboard yet: it waits on the smokestack, watching the heat, and is drawn there. Read-only, from replicated state, for
+    /// the presentation.
+    /// </summary>
+    public bool StokerWaiting => Enemies is { } t && Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !SafeYard
+        && Train.Boiler.Firebox >= t.Stoker.HeatFirebox && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
 
@@ -223,7 +256,8 @@ public sealed class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        if (route is not null && Director.Allows(EnemyKind.Sleepers))
+        // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
+        if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
@@ -242,7 +276,7 @@ public sealed class World
         LastCrew = [.. crew];
         // App. C.9: every death in the log, the tick its body goes down, with the contributing action its failure names.
         foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
-            if (Run is not null)
+            if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         Recover();
@@ -369,6 +403,26 @@ public sealed class World
                 b.Pbd.Particles[0].Position = b.Pbd.Particles[0].Previous = RepairKitStowage(shape, shape.Interior!.Value, i, floor: true) + Ballast.Double3.Up * 0.1;
         }
         KitStocked |= kits > 0;
+        StockLockers(car, shape);
+    }
+
+    /// <summary>
+    /// The rest of the lockers' stock (note 264, the director's notes on build 1121: "all of these seem empty"): train.json
+    /// kit.lockers.stock, each locker's things on its shelves, along the row front to back. What doesn't fit (a shelf the
+    /// spare kits took) isn't stocked.
+    /// </summary>
+    void StockLockers(int car, CarShape shape)
+    {
+        if (Lockers.Tuning(Train) is not { } t)
+            return;
+        foreach (var bay in shape.Lockers)
+            if (t.Stock.TryGetValue(bay.Name, out var things))
+                foreach (var kind in things)
+                {
+                    var b = Bodies.SpawnCrate(Train, car, Lockers.SlotAt(bay, 0, 1, 0), kind);
+                    if (!Bodies.Stow(b, Train, car, bay.Index))
+                        Bodies.Remove(b);
+                }
     }
 
     /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
@@ -461,6 +515,13 @@ public sealed class World
     /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
     public double DerailSpeed { get; private set; }
     public int DerailDriver { get; private set; } = -1;
+    /// <summary>
+    /// The derail's contributing action (App. C.9), as the cause card and the report read it: who made it (−1 for nobody)
+    /// and the clerk's words, with <c>{actor}</c> where their name goes. The throttle for the track's dangers and the
+    /// debris; the forward cannon for the Switchman; the firebox for a Stoker's runaway (note 190).
+    /// </summary>
+    public int DerailActor { get; private set; } = -1;
+    public string DerailAction { get; private set; } = "";
 
     /// <summary>
     /// The host's music rotation (GDD v1.4 App. E.6): the manifest's tracks and the shuffle bag from the campaign save (or
@@ -565,13 +626,36 @@ public sealed class World
         return e;
     }
 
-    public void Derail(string? why = null)
+    /// <summary>Off the rails, for a cause whose contributing action is the throttle (App. C.9: the track, the debris).</summary>
+    public void Derail(string? why = null) =>
+        Derail(why, Attribution.Driver, Attribution.Driver >= 0 ? "Throttle: {actor}." : "Nobody on the throttle.");
+
+    /// <summary>
+    /// Off the rails for going too fast (a bend, the Sleepers). With a Stoker feeding the fire, it's the Stoker's runaway
+    /// (App. A.5 "past the next curve's limit, the train derails"), and C.9's row for it is the firebox, not the throttle:
+    /// who last fuelled or tended it, and how long it had gone unattended (note 190).
+    /// </summary>
+    public void Overspeed(string why)
+    {
+        if (_enemies.Any(e => e is Stoker { Feeding: true }))
+        {
+            var (actor, action) = Sim.Run.IncidentLog.Firebox(this);
+            Derail($"the Stoker ran away with it: {why}", actor, action);
+        }
+        else
+            Derail(why);
+    }
+
+    /// <summary>Off the rails, with the contributing action C.9 names for this cause (<see cref="DerailAction"/>).</summary>
+    public void Derail(string? why, int actor, string action)
     {
         if (!Derailed)
         {
             DerailCause = why;
             DerailSpeed = Train.Dynamics.Speed;
             DerailDriver = Attribution.Driver;
+            DerailActor = actor;
+            DerailAction = action;
             // E.6: the host draws tonight's opera from the bag, weighted by the speed it came off at, from the same seed
             // as the wreck's (deterministic); clients are sent the key.
             if (Music?.Draw(DerailSpeed, (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0) ^ 0xE6UL) is { } track)
@@ -585,7 +669,20 @@ public sealed class World
                 Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first: Train.Dynamics.Consist.Vehicles[0].Id, outward: k > 1e-6 ? -1 : k < -1e-6 ? 1 : 0);
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
-                Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance);
+                Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
+                    v => v >= 0 && v < Train.Frames.Count && (Train.Frames[v].Shape.Interior ?? Train.Frames[v].Shape.Cab) is { } room ? room.Min.Y : 0,
+                    v => v >= 0 && v < Train.Vehicles.Count && Train.Vehicles[v].HasGun && Sim.Combat.Guns.Mount(Train, v) is { } mount
+                        ? (mount.Position, Sim.Combat.Guns.FacingYaw(mount) + Train.Vehicles[v].Gun.Traverse) : null,
+                    v => v >= 0 && v < Train.Frames.Count ? [.. Train.Frames[v].Shape.DoorList.Select(d => d.Box)] : []);
+                // App. E.2 step 1 (the director's decision of 5 Oct 2026): nobody dies on the derail tick. The film's own
+                // physics, recorded now, says when each of the crew takes the hit that kills them; they die then, as it lands
+                // in their own first person (FilmTuning.DeathDelay), and every client's first person ends on its own.
+                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film));
+                _filmRecorded = Film;
+                _derailTick = Tick;
+                _doomedAt.Clear();
+                foreach (var (id, death) in _recording.Deaths)
+                    _doomedAt[id] = Tick + (uint)Math.Ceiling(WreckTuning.Film.DeathDelay(death.At) * SimConstants.TickRate - 1e-9);
             }
         }
         Derailed = true;
@@ -610,10 +707,41 @@ public sealed class World
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
         }
         return crew;
     }
+
+    FilmRecording? _recording;
+    FilmStart? _filmRecorded;
+    uint _derailTick;
+    readonly Dictionary<int, uint> _doomedAt = [];
+    readonly HashSet<int> _countedAhead = [];
+    bool _doomed;
+
+    /// <summary>
+    /// Host, after a derailment (App. E.2 step 1, the director's decision of 5 Oct 2026): the tick each of the crew dies on,
+    /// their first hard hit in the film's physics as it lands in their first person. Empty before, and on a client.
+    /// </summary>
+    public IReadOnlyDictionary<int, uint> DoomedAt => _doomedAt;
+
+    /// <summary>The tick the train came off (host).</summary>
+    public uint DerailTick => _derailTick;
+
+    /// <summary>
+    /// Off the rails, the living are the wreck's, not their own (host and a predicting client alike): nothing they press
+    /// moves them; they ride where they were till the hit that kills them. Only the skip vote still counts (E.5).
+    /// </summary>
+    public bool Wrecked(in PlayerState s) => Derailed && s.Alive;
+
+    /// <summary>What's left of an intent once the wreck has you (<see cref="Wrecked"/>): the skip vote.</summary>
+    public static PlayerIntent WreckedIntent(in PlayerIntent i) => new() { Actions = i.Actions & PlayerActions.Skip };
+
+    Func<double, double, double> FilmGround(FilmStart start) => (x, z) =>
+    {
+        double hint = start.Along;
+        return PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref hint);
+    };
 
     /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
     public WreckTuning WreckTuning { get; set; } = new();
@@ -631,11 +759,9 @@ public sealed class World
     {
         if (Film is not { } start)
             return null;
-        return WreckFilm.Shoot(WreckTuning, start, (x, z) =>
-        {
-            double hint = start.Along;
-            return PlayerMotor.GroundAt(new Ballast.Double3(x, 0, z), Train.Line, ref hint);
-        });
+        // The host recorded it on the derail tick (for the deaths); a client records the same from the start it's sent.
+        var recorded = _recording;
+        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null);
     }
 
     /// <summary>
@@ -649,7 +775,10 @@ public sealed class World
         PlayerMotor.TakeHand(ref s, intent, Hand);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
+        {
             LampLit = intent.Lamp == LampSwitch.On && LampOutSeconds <= 0;
+            _relight &= intent.Lamp == LampSwitch.On;
+        }
         if (Authority && Run is { } run)
         {
             run.CrewAct(s, intent, playerId, Train, Hand);
@@ -664,7 +793,7 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
-        // Smash and pry are a melee tool's (D.7; note 191): with empty hands only the kit opens a lock.
+        // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
@@ -695,12 +824,14 @@ public sealed class World
             // App. C.9's contributing actions, as the host sees them made: who fired or vented, who pulled a coupler.
             // (Wherever the crew act is worked: the host's log is the one that's read, and a client's only ever says "last".)
             double firebox = Train.Boiler.Firebox;
-            bool venting = Train.Boiler.Venting;
+            bool venting = Train.Boiler.Venting, door = Train.Boiler.FireDoorOpen;
             int cars = Train.Dynamics.Consist.Vehicles.Count;
             var attached = Train.Dynamics.Consist.Vehicles.Select(v => v.Id).ToArray();
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
             if (Train.Boiler.Firebox > firebox + 1e-9 || Train.Boiler.Venting && !venting)
                 Attribution.Fired(playerId, Run?.Seconds ?? 0);
+            else if (Train.Boiler.FireDoorOpen && !door)
+                Attribution.Tended(playerId, Run?.Seconds ?? 0); // a shovelful into a full firebox still opens its door
             if (Train.Dynamics.Consist.Vehicles.Count < cars)
                 foreach (int v in attached)
                     if (Train.Dynamics.Consist.IndexOf(v) < 0)
@@ -730,7 +861,9 @@ public sealed class World
         bool pushing = Combat is { } cp && Guns.Pushing(s, intent, Train, cp.Guns);
         s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
-        if (intent.Has(PlayerActions.Whistle) && Net.CabControls.CanDrive(s, Train))
+        // Note 267: or Use held on the cord's handle, looked at (CrewActions picks it only so). Either way it's in the puller's
+        // name: their share of the loudness meter, and the HUD's "on the cord" (the Whistler's blows with no name, App. A.4).
+        if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
             Whistled(1.0, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
@@ -816,9 +949,8 @@ public sealed class World
         if (_swingReady.TryGetValue(playerId, out uint ready) && Tick < ready)
             return;
         _swingReady[playerId] = Tick + (uint)Math.Round(t.SwingSeconds * SimConstants.TickRate);
-        // Everyone sees it swung, landed or not (note 191).
-        var tool = Player.Kit.Held(s);
-        Swings.Add(new MeleeSwing(_nextFx, Tick, playerId, tool));
+        // Seen by everyone, whatever it hits (note 197).
+        Swings.Add(new SwingEvent(_nextFx, Tick, playerId));
         _nextFx = _nextFx % 0xFFFFFF + 1;
         var eye = PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.3;
         double yaw = PlayerMotor.WorldYaw(s, Train);
@@ -828,7 +960,7 @@ public sealed class World
         double bestD = double.MaxValue;
         foreach (var e in _enemies)
         {
-            if (e.Gone || !e.Strikable(playerId))
+            if (e.Gone || !e.Strikable(playerId) || !e.Reachable(this))
                 continue;
             var to = e.WorldPosition(Train) + Ballast.Double3.Up * 0.8 - eye;
             double d = to.Length;
@@ -843,12 +975,12 @@ public sealed class World
                 best = e;
             }
         }
-        // By the tool in hand (App. C.2; note 191): the shovel the best club, the crowbar a blow, the wrench less, and
+        // By the tool in hand (App. C.2; note 275): the shovel the best club, the crowbar a blow, the wrench less, and
         // empty-handed (a slot picked with nothing in it) a fraction of one (T108).
         if (best is null)
             return;
         var at = best.WorldPosition(Train) + Ballast.Double3.Up * 0.8;
-        best.Struck(ctx, playerId, t.Blow(tool));
+        best.Struck(ctx, playerId, t.Blow(Player.Kit.Held(s)));
         // It landed: everyone's told (T121), at the point of it, the way the blow went.
         Confirm(best, playerId, HitSource.Melee, at, (at - eye).Length > 1e-6 ? (at - eye).Normalized : facing);
     }
@@ -893,15 +1025,27 @@ public sealed class World
     }
 
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
+    /// <summary>
+    /// The fortress yard before the run begins, a safe space (run.json yardIsSafe; the director's decision of 6 Oct 2026, note
+    /// 265): nothing spawns, the boiler and fire hold, the cold doesn't bite. From the run's phase, which clients mirror.
+    /// </summary>
+    public bool SafeYard => Run is { Phase: Sim.Run.RunPhase.Yard, Tuning.YardIsSafe: true };
+
     public void Step(in TrainControls controls)
     {
         Controls = controls;
+        Train.HeldInYard = SafeYard;
         var applied = controls;
         // Something at the controls (v1.1 App. A.2, the Track Doll playing with an empty cab's throttle and brake). On the
         // clients too, from their mirror of it, so prediction drives as the host does.
         foreach (var e in _enemies)
             if (!e.Gone)
                 e.Tamper(this, ref applied);
+        // Build 1121 (note 263): a train standing on the brake it was left on stays on it, whatever's at the controls. With
+        // steam driving (T97) a standing engine off its brake pulls away, so a Stoker's runaway took a train held in the yard
+        // off with nobody in the cab. (Clients alike, from the same replicated state: prediction holds the brake as the host does.)
+        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow)
+            applied.Brake = Math.Max(applied.Brake, controls.Brake);
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
         // Something clamped on a car and holding the train back past a speed (v1.1 App. A.3, the Car Hugger's cap on top
@@ -922,12 +1066,17 @@ public sealed class World
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
-        // The shovel nobody has is back on its rack (note 191): its carrier gone from the session, or its body taken off
+        // The shovel nobody has is back on its rack (note 275): its carrier gone from the session, or its body taken off
         // the line with the car it lay in. Out with a crewmate (living or dead) or on a body, it's out.
         if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
             && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
             Train.Boiler.ShovelOut = false;
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
+        {
+            _relight = false;
+            LampLit = true;
+        }
         // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
@@ -949,7 +1098,8 @@ public sealed class World
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
                 }
-                bool swarm = Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather.
+                bool swarm = !SafeYard && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
@@ -1085,7 +1235,9 @@ public sealed class World
         {
             // What lies in wait (a Dragger under a car's edge) doesn't count against the caps, so it may wait all night.
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0)
+            // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
+            // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
             {
                 _unmet.Remove(e.Id);
                 continue;
@@ -1124,31 +1276,44 @@ public sealed class World
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
         if (CabEmptySeconds >= t.TrackDoll.TamperAfterEmpty)
             CabWasLeftEmpty = true;
-        // The Stoker's conditions (App. B.5): pressure under 40 for 45 s (down the stack), or the firebox door left open at a
-        // stop (through the door, ×3 by the director's weighing: here, sooner).
-        if (Train.BoilerTuning is not null && !Train.Boiler.Ruptured)
+        // The Stoker's condition (the director's decision of 6 Oct 2026, note 263, in place of App. B.5's low fire and open
+        // door): a firebox run hot, heatFirebox or more for heatSeconds. The clock only runs with no Stoker about, once the
+        // break after the last one's over, and not in the safe yard (the run hasn't begun).
+        bool stokerIn = _enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
+        if (stokerIn)
+            _stokerWasIn = true;
+        else if (_stokerWasIn)
         {
-            _lowPressure = Train.Boiler.Pressure < t.Stoker.LowPressure ? _lowPressure + SimConstants.TickSeconds : 0;
-            // "Left open" (App. B.5): open at a stop with nobody in the cab. A fireman at the door, shovelling, isn't leaving it.
-            _doorOpenAtStop = Train.Boiler.FireDoorOpen && Train.Dynamics.Speed < t.Stoker.StoppedBelow && CabEmptySeconds > 0 ? _doorOpenAtStop + SimConstants.TickSeconds : 0;
+            _stokerWasIn = false;
+            StokerBreakSeconds = t.Stoker.BreakSeconds;
+            // However it went (clubbed out, or sent away by the director's linger rule, which skips its Leave): it's stopped
+            // feeding the fire and holding the valve.
+            Train.Boiler.ExternalHeat = 0;
+            Train.Boiler.SafetyValveJammed = false;
         }
+        else
+            StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
+        _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
+            && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
-        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed)
+        // Not in the safe yard (note 263): nothing comes before the run begins.
+        if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
             Unmet(ctx, t.Director);
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
-            else if (d.Decide(this, ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
+            // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
+            // haven't been out in the Territory for it.
+            else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
-            // App. B.5: the door left open at a stop this long (it swings shut by itself with someone in the cab to see to it).
-            bool door = _doorOpenAtStop >= t.Stoker.DoorOpenSeconds;
-            if (d.Allows(EnemyKind.Stoker) && (door || _lowPressure >= t.Stoker.LowPressureSeconds) && Train.BoilerTuning is not null
+            // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
+            if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
-                _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train, door, t.Stoker));
-                _lowPressure = _doorOpenAtStop = 0;
+                _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
+                _hotFor = 0;
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
             if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
@@ -1247,12 +1412,15 @@ public sealed class World
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
-    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<MeleeSwing>? swings = null)
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null)
     {
         Swings.Clear();
         Swings.AddRange(swings ?? []);
         Hits.Clear();
         Hits.AddRange(hits);
+        Swings.Clear();
+        if (swings is not null)
+            Swings.AddRange(swings);
         Impacts.Clear();
         Impacts.AddRange(impacts);
     }
@@ -1268,6 +1436,9 @@ public sealed class World
         foreach (var d in Damage)
         {
             if (get(d.PlayerId) is not { Alive: true } s)
+                continue;
+            // The wreck has them: what kills them is its hit (App. E.2 step 1), already in the log.
+            if (Derailed && _doomedAt.ContainsKey(d.PlayerId))
                 continue;
             if (d.Pull is { } outward)
             {
@@ -1300,8 +1471,24 @@ public sealed class World
                 }
         if (!Derailed)
             return;
+        // App. E.2 step 1 (the director's decision of 5 Oct 2026): the run ends on the derail tick and the settlement is fixed
+        // there (E.7), so every death the wreck will cause is counted and logged on it; each player's body goes down on the
+        // tick of their own hit (DoomedAt), and that death isn't counted or logged again (Bodies.OnDeaths, StepBodies).
+        if (!_doomed)
+        {
+            _doomed = true;
+            var all = crew.Select(id => (Id: id, State: get(id))).Where(c => c.State is not null).Select(c => (c.Id, c.State!.Value)).ToList();
+            foreach (var (id, s) in all)
+                if (s.Alive && _doomedAt.ContainsKey(id))
+                {
+                    Bodies.CountAhead(id);
+                    _countedAhead.Add(id);
+                    if (Run is not null)
+                        Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s with { Health = 0, Death = DeathCause.Derailed }, null, all));
+                }
+        }
         foreach (int id in crew)
-            if (get(id) is { Alive: true } s)
+            if (get(id) is { Alive: true } s && (!_doomedAt.TryGetValue(id, out uint at) || Tick >= at))
                 set(id, s with { Health = 0, Death = DeathCause.Derailed });
     }
 }

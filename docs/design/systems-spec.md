@@ -39,16 +39,17 @@ The bed is fully parameterised and drives from sim state:
 
 ## A.3 Mix hierarchy
 
-Strict ducking priority. Higher tiers duck everything below.
+Strict ducking priority. Higher tiers duck everything below, except voice: nothing ducks tier 2 (*decided 2 Oct*).
 
 | Tier | Content | Behaviour |
 |---|---|---|
-| **1** | Enemy telegraphs | Ducks all else −9dB. Never masked. Never occluded beyond −6dB. |
+| **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
 | **2** | Proximity voice | Ducks bed −6dB while active |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
 | **6** | Ambient world | Wind, distant, weather |
+| **7** | Music | *Added 1 Oct.* A low drone under the night. Every other tier ducks it; it ducks nothing, never voice |
 
 **Tier 1 is inviolable.** A telegraph that can be drowned out is a bug, and the agent harness should test it by generating maximum-chaos states and verifying tell audibility.
 
@@ -70,7 +71,7 @@ whoever has to hear it.
 
 | Enemy | Signature | Band | Sound |
 |---|---|---|---|
-| Track debris *(hazard, formerly the Sleepers)* | Wet writhe, brief | 400Hz–2k | sleepers-writhe |
+| Track debris *(hazard, formerly the Sleepers; retired 6 Oct 2026, the director's decision, GDD §22: off unless a mod brings it back)* | Wet writhe, brief | 400Hz–2k | sleepers-writhe |
 | Track Doll | A glassy giggle, in the car it haunts or the cab it's taken | 3–6k | doll-giggle |
 | Cinder Hounds | Distant howl, closing | 500Hz–3k | hound-howl |
 | Car Hugger | Heavy grinding at the rear, in heaves | 60–300Hz | hugger-grind |
@@ -90,9 +91,15 @@ whoever has to hear it.
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
+| Low clearance *(the line's roof warning, a tunnel's mouth ahead; added 5 Oct, note 260)* | The telltales: a run of cord slaps over the roof | 4–7k | warn-low-clearance |
+| Bend too fast *(the line's roof warning, riders up over a posted speed; added 5 Oct, note 260)* | The roof irons chattering, rocking in and out | 2.5–4.5k | warn-curve |
+| Bend too fast, the cab *(tier 3, not a tell: a bend ahead or under the train that the speed now would derail it on; added 6 Oct, note 265)* | The communication bell over the driver, struck twice, every 1.5 s while it's up | 1.2k strike, partials 2.6k and 4.1k | warn-overspeed |
 
 Overlapping bands (Draggers and Climbers, Tippy Toesie and the Stoker) are either never staged together or are told apart by
 rhythm: the Dragger's scrape is one rasp, the Climbers' scrabble a clatter; the tiptoe ticks slowly, the hiss is continuous.
+The two roof warnings sit in shared bands the same way: the telltales are a quick run of slaps, not the doll's giggle or the
+fire's crackle; the roof irons' chatter rocks in and out, not one rasp or a clatter at a gap. They are heard by whoever is up
+top (`sight.json` `roofWarning.roofOnly`), as the warning goes up and every 4 s while it's up.
 Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for.
 
 ## A.5 Proximity voice
@@ -280,8 +287,12 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
 | Choir aggro | +1.5 per round fired, decay 45s |
+| **Foul** | **1 shot in 25 fouls the bore (4%), ×2.5 on wet rail.** The shot goes; the gun's out until it's cleared, and a pull on it is a dead click (GDD §23 "Cannon fouls") |
+| Clearing a foul | 4s of Use held at the gun, standing still, by hand; let go and it starts over |
 
 **The dead zone is what makes the flank uncoverable regardless of train length.** Guns face outward from the engine and guard car; the consist's own body is definitionally out of arc. This is a geometry fact, not a balance number, which means it can't be accidentally tuned away.
+
+**A foul is a cascade, not a chore.** At 4% a shot, a gun that fires all 24 of its night's shot fouls at least once about three nights in five (1 − 0.96²⁴ = 62%), and a night's usual dozen shots or so foul one time in three; in the wet, far more often. It lands mid-fight, because the gun's only fired when something is there to shoot. Clearing it (4 s) is about a reload's time (3 × 1.5 s), under fire, and far less than mending the boiler (25 s). Which shot fouls is a hash of the tick and the gun, the same on every machine (combat.json, ARCHITECTURE §8 note 183).
 
 ## B.8 Run length
 
@@ -295,6 +306,36 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+
+## B.9 Breaches
+
+A breach is a car's shell giving way to the outside (decided 1 Oct): a door forced, a hatch torn off, the Car Hugger chewing through the end wall, Climbers getting into an unlit car. Until it is boarded up, the car shuts nobody in, whatever its doors. The cold, the night's sound, voices and the Choir come in as through an open door, so it is no longer "behind a closed door" for the Choir. The change in the train's sound is the alarm: there is no klaxon.
+
+| Parameter | Value |
+|---|---|
+| Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
+| Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
+| Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
+| Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
+
+## B.11 Fire grid
+
+A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). Each car's floor, side walls and roof are cut into cells of about 1.5 m, never mid-air; the end walls aren't cells, and a fire's way out of a car is through its ends. Each cell has its own heat (0 to 1) and its own fuel, and a cell that burns chars for the rest of the night. The extinguisher puts out the cell you aim at. The numbers live in enemies.json `carFire`.
+
+| Parameter | Value |
+|---|---|
+| Cell size | 1.5 m (`cellSize`): 72 cells in a cargo car |
+| A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
+| Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
+| Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
+| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 0.35/s, the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Alight | When any cell reaches 0.35 (the commit, after the smoke) |
+| The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
+| Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
+| Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
+| Left alone (goods) | Alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min |
+| One extinguisher | Puts out a fire found in its first 40 s; not one left a minute (about 60% of the car alight) |
 
 ---
 

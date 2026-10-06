@@ -20,7 +20,10 @@ public struct Particle(Double3 position, double inverseMass, double radius)
 public readonly record struct DistanceConstraint(int A, int B, double Length, double Stiffness = 1);
 
 /// <summary>Where a particle hits something solid: the corrected position and the surface normal.</summary>
-public readonly record struct Contact(Double3 Position, Double3 Normal);
+/// <param name="Motion">How far the surface itself moved over this step (a moving car's floor or side): friction and
+/// bounce act on the particle's velocity relative to it, so whatever it's touching carries or throws it. Zero for the
+/// still world.</param>
+public readonly record struct Contact(Double3 Position, Double3 Normal, Double3 Motion = default);
 
 /// <summary>
 /// A body's particles and constraints, stepped by position-based dynamics (Müller et al. 2007): predict
@@ -95,15 +98,23 @@ public sealed class PbdBody
                 ref var p = ref ps[i];
                 if (collide(p.Position, p.Radius) is not { } hit)
                     continue;
+                var predicted = p.Position;
                 p.Position = hit.Position;
                 p.Contact = true;
-                // Friction and restitution act on the implicit velocity, via Previous.
-                var v = p.Position - p.Previous;
+                // Friction and restitution act on the implicit velocity, via Previous, relative to the surface's own motion.
+                var v = p.Position - p.Previous - hit.Motion;
                 double vn = Double3.Dot(v, hit.Normal);
                 var normal = hit.Normal * vn;
                 var tangent = v - normal;
                 var reflected = vn < 0 ? normal * -Bounce : normal;
-                p.Previous = p.Position - (tangent * Friction + reflected);
+                // A moving surface strikes what it meets: bounced off at the speed they closed at, not just pushed out of it.
+                if (hit.Motion.X != 0 || hit.Motion.Y != 0 || hit.Motion.Z != 0)
+                {
+                    double approach = Double3.Dot(predicted - p.Previous - hit.Motion, hit.Normal);
+                    if (approach < 0 && -approach * Bounce > Double3.Dot(reflected, hit.Normal))
+                        reflected = hit.Normal * (-approach * Bounce);
+                }
+                p.Previous = p.Position - (hit.Motion + tangent * Friction + reflected);
             }
         }
 

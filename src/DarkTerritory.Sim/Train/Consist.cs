@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>
@@ -90,6 +92,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// same loss, remembered as eaten rather than battered, so the car is drawn gnawed away from its rear end (and stays
     /// so once the thing is killed) rather than dented.
     /// </summary>
+    /// <summary>
+    /// How charred each of its <see cref="Enemies.FireGrid"/> cells is, 0..15 (App. F.1: "burnt cells char the textures";
+    /// note 267). Empty until it first burns; it never comes back the same night, and a fire there again has less to burn.
+    /// </summary>
+    public byte[] Char { get; set; } = [];
     public double Eaten { get; set; }
     /// <summary>
     /// The Territory has it (GDD v1.4 §23.2): a car the Car Hugger finished, or a caboose the Passenger rolled away. Gone,
@@ -130,6 +137,25 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// </summary>
     public bool LampLit { get; set; } = true;
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
+
+    /// <summary>
+    /// The car's shell has given way to the outside (the breach, decided 1 Oct): the Car Hugger through its end wall, Climbers
+    /// in through its roof. Until it's boarded up it doesn't shut anyone in, whatever its doors (<see cref="Player.PlayerMotor.Space"/>):
+    /// not the cold, not the night's sound, not the Choir.
+    /// </summary>
+    public bool Breached { get; set; }
+    /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
+    public Double3 BreachAt { get; set; }
+
+    /// <summary>The shell gives way at <paramref name="at"/> (host). Already breached, it's the hole there is: false.</summary>
+    public bool Breach(Double3 at)
+    {
+        if (Breached)
+            return false;
+        Breached = true;
+        BreachAt = at;
+        return true;
+    }
 
     /// <summary>
     /// Opens a shut door or shuts an open one. Two hands on one door the same tick move it once: two crew pulling it shut

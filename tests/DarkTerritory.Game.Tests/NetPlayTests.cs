@@ -141,7 +141,7 @@ public class NetPlayTests
         Assert.Single(joiner.Crew(joiner.InterpolatedFrames(1), 1));
         Assert.Contains("joined alice on Fake", joiner.Status());
         Assert.Contains("ping", joiner.Status());
-        Assert.Contains("Fake lobby 2/12", host.Status());
+        Assert.Contains("Fake lobby, crew 2/8, F2 invites", host.Status());
     }
 
     [Fact]
@@ -167,6 +167,109 @@ public class NetPlayTests
         Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.01, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
         Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
         Assert.Equal(0, online.Cloud.Refused);
+    }
+
+    [Fact]
+    public void ADroppedJoinerReconnectsToItsOwnCrewmate()
+    {
+        // Note 253 over real UDP: the joiner's link goes, it says so, dials the host again on its own, and is back in its
+        // slot (by its token, from a new socket: a new address to the host).
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        using var joiner = NetPlaySession.Join(Content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
+        void Step(int ticks, bool hosting = true)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                if (hosting)
+                    host.Step(default);
+                joiner.Step(default);
+                Thread.Sleep(1);
+            }
+        }
+        Step(SimConstants.TickRate);
+        byte id = (byte)joiner.PlayerId;
+        Assert.True(joiner.Client.Connected);
+
+        host.Host!.Drop(id);
+        // The host busy elsewhere for a moment: the joiner's lost, and on its first try.
+        Step(10, hosting: false);
+        Assert.True(joiner.Lost);
+        Assert.True(joiner.Reconnecting);
+        Assert.Equal(1, joiner.Link?.Attempt);
+        Assert.Contains("RECONNECTING (1/", joiner.Status());
+        Assert.True(host.Host.IsReserved(id));
+
+        for (int t = 0; t < SimConstants.TickRate * 5 && (joiner.Lost || !joiner.Client.Connected); t++)
+            Step(1);
+        Assert.False(joiner.Lost);
+        Assert.Equal(id, joiner.PlayerId);
+        Assert.Equal(1, host.Host.Rejoins);
+        Assert.Equal(2, host.Host.PlayerCount);
+        Step(SimConstants.TickRate / 2);
+        Assert.Single(host.Crew(host.InterpolatedFrames(1), 1));
+        Assert.Contains("ping", joiner.Status());
+    }
+
+    [Fact]
+    public void BackTooLateToAFullCrewTheJoinerIsToldCrewFull()
+    {
+        // Note 254 over real UDP: the joiner's place is held a second (a tuning made short), runs out, and a newcomer takes
+        // it. The joiner dials back, is turned away, and its HUD says why instead of trying on: CREW FULL (2/2), F5 to try again.
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        host.Host!.PlayerTuning = host.Host.PlayerTuning with
+        {
+            Crew = host.Host.PlayerTuning.Crew with { Cap = 2 },
+            Rejoin = host.Host.PlayerTuning.Rejoin with { ReserveSeconds = 1 },
+        };
+        var at = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port);
+        using var joiner = NetPlaySession.Join(Content, at, () => host.Step(default));
+        for (int t = 0; t < SimConstants.TickRate; t++)
+        {
+            host.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        Assert.True(joiner.Client.Connected);
+        Assert.True(host.Host.Full);
+        Assert.Contains("crew 2/2", host.Status());
+
+        host.Host.Drop((byte)joiner.PlayerId);
+        for (int t = 0; t < SimConstants.TickRate * 3 / 2; t++)
+            host.Step(default);
+        Assert.False(host.Host.Full);
+        using var newcomer = NetPlaySession.Join(Content, at, () => host.Step(default));
+
+        for (int t = 0; t < SimConstants.TickRate * 2 && joiner.Link?.Refused is null; t++)
+        {
+            host.Step(default);
+            newcomer.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        var link = joiner.Link!.Value;
+        Assert.True(link.Lost);
+        Assert.Equal("CREW FULL (2/2)", link.Refused);
+        Assert.True(link.CanReconnect);
+        Assert.False(joiner.Reconnecting);
+        Assert.Equal(0, link.Attempt);
+        Assert.True(newcomer.Client.Connected);
+    }
+
+    [Fact]
+    public void ABotRejoinsThroughTheLobby()
+    {
+        // The same over the Steam path (the fake platform): back as another connection to the lobby's owner, its slot found
+        // by the token, not by who or where it is.
+        using var online = new FakeLobbyNetwork();
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
+        var r = Sim.Net.Harness.Run(line, DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)),
+            DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)),
+            new Sim.Net.HarnessOptions { Bots = 4, Seconds = 20, Network = online, DropRejoin = new Sim.Net.DropRejoin(2, 8, 3) });
+        var back = Assert.IsType<Sim.Net.RejoinReport>(r.Rejoin);
+        Assert.Equal(back.Was, back.Back);
+        Assert.Equal(1, back.HostRejoins);
+        Assert.True(back.OthersSeeOne);
+        Assert.True(back.MaxCorrectionAfterM < 0.01, $"corrected by {back.MaxCorrectionAfterM} m after coming back");
     }
 
     [Fact]

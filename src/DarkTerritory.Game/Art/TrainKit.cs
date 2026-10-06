@@ -74,6 +74,21 @@ public static class TrainKit
     }
 
     /// <summary>A modelled piece (tools/models car_gear) appended at <paramref name="at"/>, when the look has it.</summary>
+    /// <summary>
+    /// The engine's main rod, a unit of it: from its big end at the origin back along +Z to its little end
+    /// <paramref name="length"/> away (SceneArt.Gear lays it from the crank pin to the crosshead each frame).
+    /// </summary>
+    public static MeshAsset MainRod(Look? look, float length)
+    {
+        var k = new Kit(look, 141);
+        k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+        k.Rod(Vector3.Zero, new Vector3(0, 0, length), 0.045f);
+        // The big end's strap round the pin, and the little end's eye at the crosshead.
+        k.Cylinder(new Vector3(-0.05f, 0, 0), new Vector3(0.05f, 0, 0), 0.075f, 10);
+        k.Cylinder(new Vector3(-0.04f, 0, length), new Vector3(0.04f, 0, length), 0.06f, 8);
+        return k.Build("engine-main-rod");
+    }
+
     static bool Prop(Kit k, string name, Matrix4x4 at)
     {
         if (k.Look is not { } look || PropArt.Of(look).Get(name) is not { } piece)
@@ -126,6 +141,9 @@ public static class TrainKit
         k.Rod(new Vector3(0.35f, height - 0.05f, z + dir * 0.05f), new Vector3(0.38f, height - 0.45f, z + dir * 0.25f), 0.025f, 6);
     }
 
+    /// <summary>How far apart a ladder's rungs are (also a climber's hand-over-hand: GameAudio's rung cues).</summary>
+    public const float RungPitch = 0.3f;
+
     /// <summary>
     /// Where a vehicle's two couplers stand (its frame, 0.9 m up): the front's and the rear's along it, and the way each
     /// points (±1, the modelled one pointing −Z, turned for the rear). The engine's front one stands a little proud of the
@@ -138,7 +156,7 @@ public static class TrainKit
         return (Matrix4x4.CreateTranslation(0, 0, front), Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, l));
     }
 
-    /// <summary>An iron ladder up a face: two stiles and rungs every 0.3 m, standing off it by a hand's depth.</summary>
+    /// <summary>An iron ladder up a face: two stiles and rungs every <see cref="RungPitch"/>, standing off it by a hand's depth.</summary>
     public static void RungLadder(Kit k, Vector3 foot, float top, Vector3 inward, float from = 0.2f)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, inward));
@@ -146,7 +164,7 @@ public static class TrainKit
         float half = 0.2f;
         foreach (int s in new[] { -1, 1 })
             k.Box(foot + across * (s * half) - new Vector3(0.022f, -from, 0.022f), foot + across * (s * half) + new Vector3(0.022f, top, 0.022f));
-        for (float y = from + 0.25f; y < top - 0.05f; y += 0.3f)
+        for (float y = from + 0.25f; y < top - 0.05f; y += RungPitch)
             k.Rod(foot + across * -half + new Vector3(0, y, 0), foot + across * half + new Vector3(0, y, 0), 0.016f);
         // Brackets back to the face.
         foreach (float y in new[] { from + 0.3f, top - 0.1f })
@@ -169,7 +187,37 @@ public static class TrainKit
     /// so it reads as heavy and hand-made), the lamp sits in an armoured box at the front like an eye, the stack is a
     /// tapered funnel, and behind the cab the tender's coal is heaped under a flared coal board.
     /// </summary>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant)
+    /// <summary>The drivers' radius (m), and their places along the engine (its frame's Z), front to back.</summary>
+    public const float DriverRadius = 0.7f;
+    public static float[] Drivers(CarShape shape)
+    {
+        float l = (float)shape.HalfLength;
+        return [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
+    }
+
+    /// <summary>A side's crank angle at rest (rad): the pins a quarter turn apart side to side, so it never stops on a dead centre.</summary>
+    public static float CrankPhase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
+
+    /// <summary>
+    /// A modelled driver (tools/models engine_parts, its pin towards +Z) turned to its side's crank at <paramref name="turn"/>
+    /// (rad, the wheels' roll: distance over <see cref="DriverRadius"/>), at <paramref name="at"/> (and, on the left, round to face out).
+    /// </summary>
+    public static Matrix4x4 DriverAt(int side, Vector3 at, float turn) => side > 0
+        ? Matrix4x4.CreateRotationX(-(CrankPhase(side) + turn)) * Kit.At(at)
+        : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - (CrankPhase(side) + turn)) * Kit.At(at);
+
+    /// <summary>A side's crank pin off its driver's centre at <paramref name="turn"/> (rad).</summary>
+    public static Vector3 CrankPin(int side, float turn) =>
+        new Vector3(0, MathF.Sin(CrankPhase(side) + turn), MathF.Cos(CrankPhase(side) + turn)) * 0.3f;
+
+    /// <summary>Where a side's rods run (x), and the crosshead's height and its place at the rest crank (frame Z).</summary>
+    public static float RodX(int side) => side * (HalfGauge + 0.2f) + side * 0.06f;
+    public const float CrossheadY = 0.95f;
+    public static float CrossheadRestZ(CarShape shape) => -(float)shape.HalfLength + 3.0f;
+
+    /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
+    /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true)
     {
         var k = new Kit(look, 101 + variant);
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
@@ -184,20 +232,15 @@ public static class TrainKit
         float roofLow = (float)roof.Min.Y, roofTop = (float)roof.Max.Y;
 
         // Running gear: pilot truck, four drivers, the steam cylinders ahead of them, and the tender's two axles.
-        const float driverR = 0.7f;
-        float[] drivers = [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
-        // The crank pins are a quarter turn apart side to side, so the train never stops on a dead centre.
-        static float Phase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
-        // A modelled driver (tools/models engine_parts) has its pin towards +Z: turned to its side's phase (and, on the
-        // left, round to face out first).
-        static Matrix4x4 Turned(int side, Vector3 at) => side > 0
-            ? Matrix4x4.CreateRotationX(-Phase(side)) * Kit.At(at)
-            : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - Phase(side)) * Kit.At(at);
+        const float driverR = DriverRadius;
+        float[] drivers = Drivers(shape);
+        static float Phase(int side) => CrankPhase(side);
         foreach (float z in drivers)
         {
             bool modelled = true;
             foreach (int side in new[] { -1, 1 })
-                modelled &= Prop(k, "driver_wheel", Turned(side, new Vector3(side * HalfGauge, driverR, z)));
+                modelled &= gear ? Prop(k, "driver_wheel", DriverAt(side, new Vector3(side * HalfGauge, driverR, z), 0))
+                    : k.Look is { } lk && PropArt.Of(lk).Get("driver_wheel") is not null;
             if (!modelled)
                 Axle(k, z, driverR, 12, driver: true);
             else
@@ -233,11 +276,14 @@ public static class TrainKit
             var pin = new Vector3(0, MathF.Sin(phase), MathF.Cos(phase)) * 0.3f;
             float x = side * (HalfGauge + 0.2f);
             var rodAt = new Vector3(x, driverR + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
-            if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
-                k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
-            k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
-            var crosshead = new Vector3(x + side * 0.06f, 0.95f, -l + 3.0f);
-            k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            if (gear)
+            {
+                if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
+                    k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
+                k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+                var crosshead = new Vector3(x + side * 0.06f, CrossheadY, CrossheadRestZ(shape));
+                k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            }
             // Crosshead guides and the cylinder, with its drain cocks.
             if (Prop(k, side > 0 ? "cylinder_r" : "cylinder_l", Kit.At(side * 1.12f, 0.98f, -l + 1.65f)))
                 continue;
@@ -455,14 +501,16 @@ public static class TrainKit
         float face = cabFront + BackheadDepth;
         float fy = FireDoor(shape).Y;
         // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
-        // glow by the scene, and a Stoker if one's in there).
-        k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.3f);
+        // glow by the scene, and a Stoker if one's in there): riveted boiler plate, sooted, its seams and rivet rows on it
+        // (the crazed smokebox iron read as cobbles at this size, the checklist's "the firebox texture").
+        k.Use("iron_plate", Palette.SootBlack * 1.6f, 0.8f, 0.35f, tile: 0.9f);
         float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
         k.Box(new Vector3(-bw, deck, cabFront), new Vector3(-ox, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(ox, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, deck, cabFront), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, fy + oy, cabFront), new Vector3(ox, top, face), Kit.Faces.PosZ);
-        // The firehole's sides, back to the fire.
+        // The firehole's sides, back to the fire: the firebox's lining of firebrick, black with soot, lit by the fire.
+        k.Use("brick_soot", Palette.SootBlack * 2.2f, 0.9f, 0.1f, tile: 2.2f);
         k.Box(new Vector3(-ox - 0.02f, fy - oy, cabFront - 0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
         k.Box(new Vector3(ox, fy - oy, cabFront - 0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
         k.Box(new Vector3(-ox, fy - oy - 0.02f, cabFront - 0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);
@@ -550,23 +598,31 @@ public static class TrainKit
 
     /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
     /// <summary>
-    /// Where the whistle cord's handle hangs in the cab (car frame): over the driver's head, a little back of the regulator
-    /// (GDD §12: the real whistle has a hand on it; the Whistler's has none, App. A.4). Hauled down 0.18 m while it blows.
+    /// Where the whistle cord's handle hangs in the cab (car frame): the sim's whistle interactable (note 264), in the
+    /// driver's front corner over the brake valve, at its height (GDD §12: the real whistle has a hand on it; the Whistler's
+    /// has none, App. A.4). Hauled down 0.2 m while it blows.
     /// </summary>
     public static Ballast.Double3 WhistleCordHandle(CarShape engine, bool pulled)
     {
+        foreach (var i in engine.Interactables)
+            if (i.Kind == InteractableKind.Whistle)
+                return i.Position + Ballast.Double3.Up * (i.Aim - (pulled ? 0.2 : 0));
         var reg = engine.Levers?.Regulator ?? default;
         return new Ballast.Double3(reg.X - 0.12, reg.Y + (pulled ? 0.22 : 0.4), reg.Z + 0.4);
     }
 
-    /// <summary>The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a turned wooden handle, its origin at the handle.</summary>
+    /// <summary>
+    /// The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a T-handle painted signal red (note
+    /// 267: "I don't see a switch for a whistle"), so it reads at a glance as the brake's grip does; its origin at the handle.
+    /// </summary>
     public static MeshAsset WhistleCord(Look? look, float length)
     {
         var k = new Kit(look, 63);
-        k.Use("wood_grey", new Vector3(0.42f, 0.36f, 0.26f), 0.85f, 0.05f, tile: 0.3f);
-        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.006f, 5);
-        k.Use("wood_crate", new Vector3(0.36f, 0.24f, 0.14f), 0.7f, 0.1f, tile: 0.2f);
-        k.Cylinder(new Vector3(-0.07f, 0, 0), new Vector3(0.07f, 0, 0), 0.016f, 6);
+        k.Use("wood_grey", new Vector3(0.62f, 0.56f, 0.42f), 0.85f, 0.05f, tile: 0.3f);
+        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.009f, 5);
+        k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
+        k.Cylinder(new Vector3(-0.1f, 0, 0), new Vector3(0.1f, 0, 0), 0.022f, 6);
+        k.Cylinder(new Vector3(0, -0.01f, 0), new Vector3(0, 0.06f, 0), 0.012f, 5);
         return k.Build("whistle-cord");
     }
 

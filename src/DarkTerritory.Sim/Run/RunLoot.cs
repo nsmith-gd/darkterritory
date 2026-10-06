@@ -16,7 +16,8 @@ public sealed partial class Run
 {
     LootTuning? _loot;
     RailLine? _lootLine;
-    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds, IReadOnlyList<int> Kits)> _stopLoot = [];
+    readonly List<(RouteFeature Feature, int Index, StopLayout Stop, IReadOnlyList<LootFind> Finds, IReadOnlyList<int> Kits,
+        IReadOnlyList<(int Container, Physics.ToyNoise Noise)> Toys)> _stopLoot = [];
     bool[] _stocked = [];
     readonly Dictionary<int, double> _lootSettling = new();
     readonly List<LootFind> _stowed = [];
@@ -44,7 +45,8 @@ public sealed partial class Run
         double perCar = Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700);
         for (int i = 0; i < _route.Features.Count; i++)
             if (_route.Features[i].Stop is { } stop)
-                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i)));
+                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i),
+                    StopLoot.Toys(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
@@ -151,11 +153,14 @@ public sealed partial class Run
     /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
     public IReadOnlyList<int> KitsAt(int stop) => stop >= 0 && stop < _stopLoot.Count ? _stopLoot[stop].Kits : [];
 
+    /// <summary>The containers at stop <paramref name="stop"/> with a toy in them, and its noise (note 264), for tools and tests.</summary>
+    public IReadOnlyList<(int Container, Physics.ToyNoise Noise)> ToysAt(int stop) => stop >= 0 && stop < _stopLoot.Count ? _stopLoot[stop].Toys : [];
+
     /// <summary>A stop's loot comes out: the yard's crate stacks and strongroom, the village's finds, and a repair kit now and then.</summary>
     void Stock(Physics.Bodies bodies, RailLine line, LootTuning t, int k)
     {
         _stocked[k] = true;
-        var (f, index, stop, finds, kits) = _stopLoot[k];
+        var (f, index, stop, finds, kits, toys) = _stopLoot[k];
         double heavy = _facilityTuning?.Crates.Heavy.Radius ?? 0.55;
         foreach (var c in stop.Containers)
         {
@@ -186,6 +191,10 @@ public sealed partial class Run
                         ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
                     if (finds.Any(x => x.Container == c.Index))
                         bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
+                    // A toy with it (note 264), beside the find: GDD §19's hand loot, for the Track Doll or the meter.
+                    foreach (var toy in toys)
+                        if (toy.Container == c.Index)
+                            bodies.SpawnItem(StopWorld(line, f, put + new Pt(-0.4, 0.3)), f.Start + put.S, Physics.BodyKind.Toy).Noise = toy.Noise;
                     break;
             }
         }

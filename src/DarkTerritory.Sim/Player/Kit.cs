@@ -53,7 +53,7 @@ public static class Kit
 
     /// <summary>
     /// The number key that puts a tool in empty hands (the first slot with one), or 0: there's one in hand already, or none
-    /// to take. What a bot presses before a melee tool's work (D.7's breach; note 191).
+    /// to take. What a bot presses before a melee tool's work (D.7's breach; note 275).
     /// </summary>
     public static byte ToolToHand(in PlayerState s)
     {

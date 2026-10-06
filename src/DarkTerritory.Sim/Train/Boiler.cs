@@ -36,7 +36,7 @@ public sealed record BoilerTuning(
     public double RuptureDecel { get; init; } = 1.5;
     public double RuptureCoastBelow { get; init; } = 4;
     /// <summary>
-    /// App. C.2, GDD §12 (note 191): coal goes on with the shovel in hand, the one off the cab's tool rack. Off, by hand as
+    /// App. C.2, GDD §12 (note 275): coal goes on with the shovel in hand, the one off the cab's tool rack. Off, by hand as
     /// before (T29's stroke and the keyboard's hold alike).
     /// </summary>
     public bool ShovelInHand { get; init; } = true;
@@ -85,7 +85,7 @@ public struct Boiler
     /// <summary>T109: the wrench is out of its rack in the cab, in someone's hands.</summary>
     public bool WrenchOut;
     /// <summary>
-    /// The fireman's shovel is off its rack in the cab, in someone's kit or on a body (App. C.2, GDD §12; note 191): there's
+    /// The fireman's shovel is off its rack in the cab, in someone's kit or on a body (App. C.2, GDD §12; note 275): there's
     /// the one, and coal goes on with it in hand.
     /// </summary>
     public bool ShovelOut;

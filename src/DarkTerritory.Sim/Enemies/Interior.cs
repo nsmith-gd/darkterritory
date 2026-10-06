@@ -5,32 +5,60 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>
-/// STOKER · heat · interior (GDD v1.1 §21, App. A.5; the Hollow merged into it). It perches on the smokestack, and gets into
-/// the firebox when the fire's burned low (pressure under 40 for 45 s: down the stack) or the firebox door is left open at a
-/// stop (through the door). Soot falls into the cab (the telegraph). Then it feeds: pressure climbs with no fuel going in,
-/// and the speed with it (the gauge rising, the wrong-coloured glow, the train accelerating); past the next curve's or
-/// grade's limit, the train derails. Counters: vent (pressure and speed drop, time's lost: it only buys time), or open the
-/// firebox and club it, and every blow burns whoever swings. Rule: keep it hot, keep it shut. Fully preventable.
+/// STOKER · heat · interior (GDD v1.1 §21, App. A.5; the Hollow merged into it). The director's decision of 6 Oct 2026 (build
+/// 1121, ARCHITECTURE §8 note 263): it looks for heat. A firebox run above <see cref="StokerTuning.HeatFirebox"/> for
+/// <see cref="StokerTuning.HeatSeconds"/> draws it; a low fire never does. It boards at the tender, at the coal (the
+/// telegraph: a scraping on the coal and a sick glow there, for <see cref="StokerTuning.BoardSeconds"/>), and crosses the
+/// footplate to the firebox: a fireman at the fire can club it on the way in, where a blow tells far more and doesn't burn.
+/// Once in, it's urgent: it eats the fire, drives the gauge up in lurches (heat that swings) with the safety valve held shut,
+/// and the speed with it; past the next curve's or grade's limit the train derails, or the boiler goes first. Counters:
+/// vent (it only buys time), or open the firebox (a shovelful) and club it, and every blow burns whoever swings. Driven off,
+/// none comes back for <see cref="StokerTuning.BreakSeconds"/> (World). Running hot is fast and draws it; running cool is
+/// safe and slow.
 /// </summary>
-/// <remarks><see cref="Enemy.Extra"/> is 1 when it came through the door (the director weighs it ×3 then).</remarks>
+/// <remarks><see cref="Enemy.Extra2"/> is 1 while it's boarding, out on the tender and the footplate (replicated: the
+/// scene draws it there, and its blows land there).</remarks>
 public sealed class Stoker(int id) : Enemy(id)
 {
     public override EnemyKind Kind => EnemyKind.Stoker;
     public override PressureZone Zone => PressureZone.Interior;
     public override Sense Sense => Sense.Heat;
     public override Want Want => Want.Kill;
-    /// <summary>In the firebox, it's clubbed through the open door.</summary>
+    /// <summary>On its way in from the tender, or in the firebox (clubbed through the open door).</summary>
     public override double MeleeRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.8 : 0;
     /// <summary>Feeding the fire: the train's running away with it.</summary>
     public bool Feeding => Phase == SpinePhase.Commit;
+    /// <summary>Out on the tender and the footplate, not in the fire yet (note 263).</summary>
+    public bool Boarding => Extra2 > 0.5 && !Gone;
 
-    /// <summary>In the engine's firebox.</summary>
+    /// <summary>
+    /// App. A.5 KILL: "open the firebox and bludgeon it". Shut in, a crowbar at the door only rings on the iron (build 1121:
+    /// the director killed one swinging at a shut door; note 263). A shovelful opens the door. On its way in it's in the open.
+    /// </summary>
+    public override bool Reachable(World world) => Boarding || world.Train.Boiler.FireDoorOpen;
+
+    static Double3 FireboxAt(TrainOnLine train) => train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+
+    /// <summary>Where it boards: the tender's coal face (the fireman's own back), or the firebox if the engine has none.</summary>
+    static Double3 TenderAt(TrainOnLine train) =>
+        train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Coal) is { } coal ? coal.Position : FireboxAt(train);
+
+    /// <summary>In the engine's firebox already (tests, audits, a director's insist): soot falls, then it feeds.</summary>
     public static Stoker InFirebox(int id, TrainOnLine train, bool door, StokerTuning t) => new(id)
     {
         Attached = 0,
-        Local = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position,
+        Local = FireboxAt(train),
         Health = t.Health,
         Extra = door ? 1 : 0,
+    };
+
+    /// <summary>Drawn by the heat (note 263): on the tender's coal, to cross to the firebox.</summary>
+    public static Stoker AtTender(int id, TrainOnLine train, StokerTuning t) => new(id)
+    {
+        Attached = 0,
+        Local = TenderAt(train),
+        Health = t.Health,
+        Extra2 = 1,
     };
 
     protected override void Tick(EnemyContext ctx)
@@ -43,14 +71,36 @@ public sealed class Stoker(int id) : Enemy(id)
             return;
         }
         if (Phase == SpinePhase.Dormant)
-            Enter(ctx, SpinePhase.Telegraph); // soot falls into the cab
-        if (Phase == SpinePhase.Telegraph && PhaseSeconds >= Math.Max(t.SootSeconds, ctx.Tuning.MinReactionSeconds))
-            Enter(ctx, SpinePhase.Commit);
+            Enter(ctx, SpinePhase.Telegraph); // the scrape on the coal and the glow (boarding), or soot falling into the cab
+        if (Phase == SpinePhase.Telegraph)
+        {
+            double wait = Boarding ? Math.Max(t.BoardSeconds, ctx.Tuning.MinReactionSeconds) : Math.Max(t.SootSeconds, ctx.Tuning.MinReactionSeconds);
+            if (Boarding)
+            {
+                // Across the footplate from the coal to the fire door, at an even creep.
+                double k = Math.Clamp(PhaseSeconds / wait, 0, 1);
+                var from = TenderAt(train);
+                Local = from + (FireboxAt(train) - from) * k;
+            }
+            if (PhaseSeconds >= wait && Enter(ctx, SpinePhase.Commit))
+            {
+                string how = Boarding ? "from the tender" : Extra > 0.5 ? "through the open door" : "down the stack";
+                Extra2 = 0;
+                Local = FireboxAt(train);
+                // C.9's Stoker row (note 190): the runaway begins. Who last fuelled or tended the firebox, and for how long not.
+                var (actor, action) = Run.IncidentLog.Firebox(ctx.World);
+                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Runaway, $"Stoker got into the firebox {how}", actor, action));
+            }
+        }
         if (Phase != SpinePhase.Commit)
             return;
-        // FEED: pressure without fuel, and the valve held shut. The train's boiler is a struct it holds: written through.
-        train.Boiler.ExternalHeat = t.FeedRate;
+        // FEED, and worse (note 263): it eats the fire, and the heat it gives the boiler lurches (the gauge swings, and climbs)
+        // with the valve held shut. The train's boiler is a struct it holds: written through. Replicated (the boiler record),
+        // so every gauge swings alike.
+        double swing = t.SwingSeconds > 0 ? DMath.Sin(2 * Math.PI * PhaseSeconds / t.SwingSeconds) : 0;
+        train.Boiler.ExternalHeat = t.FeedRate + t.Swing * swing;
         train.Boiler.SafetyValveJammed = true;
+        train.Boiler.Firebox = Math.Max(0, train.Boiler.Firebox - t.EatPerSecond * SimConstants.TickSeconds);
     }
 
     /// <summary>
@@ -66,10 +116,17 @@ public sealed class Stoker(int id) : Enemy(id)
         controls.Brake = Math.Min(controls.Brake, 1 - ramp);
     }
 
-    /// <summary>Clubbed through the open firebox door: it's hurt, and it burns whoever swings.</summary>
+    /// <summary>
+    /// Clubbed through the open firebox door: it's hurt, and it burns whoever swings. Caught on its way in from the tender
+    /// (note 263), it isn't in the fire yet: no burn, and each blow tells <see cref="StokerTuning.TenderBlowScale"/> times over.
+    /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        ctx.Bite(by, ctx.Tuning.Stoker.BurnPerBlow, DeathCause.Stoker);
+        if (Boarding)
+            damage *= ctx.Tuning.Stoker.TenderBlowScale;
+        else
+            ctx.Bite(by, ctx.Tuning.Stoker.BurnPerBlow, DeathCause.Stoker);
+        ctx.World.Attribution.Tended(by, ctx.World.Run?.Seconds ?? 0); // tending the firebox, the hard way
         base.Struck(ctx, by, damage);
         if (Gone)
             Leave(ctx, ctx.Train);
@@ -77,8 +134,11 @@ public sealed class Stoker(int id) : Enemy(id)
 
     void Leave(EnemyContext ctx, TrainOnLine train)
     {
-        train.Boiler.ExternalHeat = 0;
-        train.Boiler.SafetyValveJammed = false;
+        if (!Boarding)
+        {
+            train.Boiler.ExternalHeat = 0;
+            train.Boiler.SafetyValveJammed = false;
+        }
         Enter(ctx, SpinePhase.Gone);
     }
 }
@@ -287,6 +347,10 @@ public sealed class FireFlies(int id) : Enemy(id)
                 int into = Attached;
                 double along = Local.Z;
                 ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+                // C.9's Fire Flies row (note 190): who last lit that car's lamp.
+                int lit = ctx.World.Attribution.LampLitBy(into);
+                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit,
+                    lit >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.", into));
             }
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);

@@ -132,6 +132,38 @@ public sealed partial class WorldArt
             }
             if (stop.Halt is { } halt && f.Start + halt.S >= from && f.Start + halt.S < to)
                 Halt(k, line, f, halt, stop.HaltLength, eye);
+            OpenRooms(mesh, line, route, f, stop, eye, from, to, valleyDepth);
+        }
+    }
+
+    /// <summary>
+    /// A village's houses open to the line (the checklist's dead towns: "readable from a moving train"; a hand-laid
+    /// route's villages have them too, WorldArt.Settlements): beside the house nearest the line, a cottage with its front
+    /// wall gone and the child's room in it, the bedside lamp on; beside the next, the parlour laid out for a wake; beside
+    /// a third, the photographer's. Each stands on the village's levelled ground, facing the line, its lamp lit.
+    /// </summary>
+    void OpenRooms(MeshBuilder mesh, RailLine line, Route route, RouteFeature f, StopLayout stop, Double3 eye, double from, double to, float valleyDepth)
+    {
+        if (stop.Kind == StopKind.Yard)
+            return;
+        var houses = stop.Buildings.Where(b => b.Kind == BuildingKind.House).OrderBy(b => Math.Abs(b.D) - b.Width / 2).Take(3).ToList();
+        string[] rooms = ["boy_room", "wake_room", "portrait_room"];
+        float[] glow = [1.6f, 0.9f, 0.9f], reach = [6.5f, 4.5f, 4.0f];
+        for (int i = 0; i < houses.Count; i++)
+        {
+            var b = houses[i];
+            // Out in front of it toward the line, where the train passes close: its open front to the rails, between
+            // the house and the track (clear of the main line's verge and of a road between, by the layout's own clear).
+            double along = b.S + (i - 1) * 9;
+            double across = Math.Sign(b.D) * Math.Clamp(Math.Abs(b.D) - b.Width / 2 - 8, 14, 22);
+            if (f.Start + along < from || f.Start + along >= to || _props.Get(rooms[i]) is not { } room)
+                continue;
+            var t = line.Sample(Math.Clamp(f.Start + along, 0, line.Length));
+            var at = Sim.Run.Run.StopWorld(line, f, new Pt(along, across), Ground(route, f.Start + along, (float)across, valleyDepth) - 0.1);
+            var m = Basis(t.Tangent, at, eye, across > 0 ? MathF.PI / 2 : -MathF.PI / 2);
+            mesh.Instances.Add(new MeshInstance(room, m));
+            if (_props.Socket(rooms[i], "lamp") is { } lamp)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.72f, 0.42f) * glow[i], reach[i]));
         }
     }
 
@@ -300,7 +332,7 @@ public sealed partial class WorldArt
         Vector3 At(Pt p, double lift) => Sim.Run.Run.StopWorld(line, f, p, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) + lift).RelativeTo(eye);
         foreach (var road in stop.Roads)
         {
-            float half = road.Kind switch { RoadKind.Through => 3f, RoadKind.Street => 2.8f, RoadKind.Lane => 1.9f, _ => 1.6f };
+            float half = RoadHalfWidth(road.Kind);
             bool street = road.Kind == RoadKind.Street;
             int a = street && cobbles >= 0 ? cobbles : mud, b = street ? mud : grass;
             var pts = Dense(road.Points, 4);
@@ -342,11 +374,17 @@ public sealed partial class WorldArt
             k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.3f);
             k.With(Basis(t.Tangent, t.Position, eye, 0), () =>
             {
-                for (float z = -2.6f; z < 2.6f; z += 0.4f)
-                    k.Box(new Vector3(-2.6f, 0.02f, z), new Vector3(2.6f, 0.13f, z + 0.36f), Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ);
+                for (float z = -CrossingHalf; z < CrossingHalf; z += 0.4f)
+                    k.Box(new Vector3(-CrossingHalf, 0.02f, z), new Vector3(CrossingHalf, 0.13f, z + 0.36f), Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ);
             });
         }
     }
+
+    /// <summary>Half a road's width by its kind, its verges aside (P10's through road down to a stub).</summary>
+    static float RoadHalfWidth(RoadKind kind) => kind switch { RoadKind.Through => 3f, RoadKind.Street => 2.8f, RoadKind.Lane => 1.9f, _ => 1.6f };
+
+    /// <summary>A stop's level crossing's boards: this far either way along the line and across it.</summary>
+    const float CrossingHalf = 2.6f;
 
     /// <summary>A polyline resampled so no piece is longer than <paramref name="step"/> (the ground under it isn't flat).</summary>
     static List<Pt> Dense(IReadOnlyList<Pt> points, double step)

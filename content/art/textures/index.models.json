@@ -1150,7 +1150,7 @@
     "diffuse": "models/car_hugger_0.png",
     "spec": "models/car_hugger_0_s.png",
     "normal": "models/car_hugger_0_n.png",
-    "size": 1024,
+    "size": 2048,
     "tileMetres": null,
     "tiling": false,
     "family": "creature",
@@ -3199,6 +3199,26 @@
         "path": "mini_texture/textures/Asphalt033_displacement.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's wheel_iron"
+      }
+    ]
+  },
+  {
+    "name": "dragger_0",
+    "diffuse": "models/dragger_0.png",
+    "spec": "models/dragger_0_s.png",
+    "normal": "models/dragger_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dragger.py",
+        "what": "the Dragger's limb, modelled over tools/blender/dragger.py",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

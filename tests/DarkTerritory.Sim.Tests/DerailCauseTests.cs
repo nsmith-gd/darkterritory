@@ -1,5 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -25,14 +27,17 @@ public class DerailCauseTests
         return (world, train, branch);
     }
 
-    static void RunPast(World world, TrainOnLine train, int branch, double speed)
+    static void RunPast(World world, TrainOnLine train, int branch, double speed, PlayerState? gunner = null)
     {
         double toe = train.Line.Branches[branch].Toe;
+        var g = gunner ?? default;
         for (int i = 0; i < 200 * SimConstants.TickRate && !world.Derailed && train.Dynamics.RearDistance < toe + 5; i++)
         {
             if (train.Dynamics.Velocity > 0.01)
                 train.Dynamics.Velocity = speed;
             world.BeginTick();
+            if (gunner is not null)
+                world.CrewAct(ref g, default, 1);
             world.Step(new TrainControls { Reverser = 1 });
             if (train.Dynamics.Velocity < 0.01 && train.Dynamics.Distance > toe)
                 break;
@@ -58,5 +63,56 @@ public class DerailCauseTests
         RunPast(world, train, branch, fast);
         Assert.True(world.Derailed);
         Assert.Matches(@"^the Switchman threw the points under it at \d+ km/h \(over \d+ km/h they throw a train off\)$", world.DerailCause);
+    }
+
+    /// <summary>Stood at the engine's forward cannon, facing the way it faces (T112).</summary>
+    static PlayerState AtTheForwardGun(TrainOnLine train)
+    {
+        var mount = train.Frames[0].Shape.Gun!.Value;
+        var s = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, Tuning.Player);
+        s.Yaw = mount.Facing.Z < 0 ? 0 : Math.PI;
+        return s;
+    }
+
+    [Fact]
+    public void ASwitchmanDerailmentNamesTheForwardGunnerNotTheThrottle()
+    {
+        // GDD v1.4 App. C.9's Switchman row (note 190): whether the forward cannon was crewed, and by whom.
+        double fast = Tuning.Enemies.Switchman.DerailAbove + 4;
+        var (world, train, branch) = AtBlackwellJunction(fast);
+        world.Attribution.Drove(2);
+        var gunner = AtTheForwardGun(train);
+        Assert.Equal(0, Combat.Guns.MannedGun(gunner, train, Tuning.Combat.Guns));
+        RunPast(world, train, branch, fast, gunner);
+        Assert.True(world.Derailed);
+        Assert.Equal(1, world.DerailActor);
+        Assert.Equal("Forward cannon crewed by {actor}.", world.DerailAction);
+        Assert.Contains("they throw a train off). Forward cannon crewed by Crew 1. Recovery not scheduled.", IncidentLog.CauseCard(world));
+    }
+
+    [Fact]
+    public void ASwitchmanDerailmentWithNobodyOnTheForwardGunSaysSo()
+    {
+        double fast = Tuning.Enemies.Switchman.DerailAbove + 4;
+        var (world, train, branch) = AtBlackwellJunction(fast);
+        world.Attribution.Drove(2);
+        RunPast(world, train, branch, fast);
+        Assert.True(world.Derailed);
+        Assert.Equal(-1, world.DerailActor);
+        Assert.Equal("Forward cannon not crewed.", world.DerailAction);
+        Assert.DoesNotContain("Throttle", IncidentLog.CauseCard(world));
+        // The derailment's record is the run's; the Switchman's PUNISH writes no second one.
+        Assert.Empty(world.Attribution.Of(IncidentKind.Points));
+    }
+
+    [Fact]
+    public void PointsSplitUnderACrawlingTrainAreRecordedWithTheForwardGun()
+    {
+        double crawl = Tuning.Enemies.Switchman.DerailAbove - 1.5;
+        var (world, train, branch) = AtBlackwellJunction(crawl);
+        RunPast(world, train, branch, crawl);
+        var points = Assert.Single(world.Attribution.Of(IncidentKind.Points));
+        Assert.Equal("Split the Switchman's points under the engine", points.What);
+        Assert.Equal("Forward cannon not crewed.", points.Action);
     }
 }

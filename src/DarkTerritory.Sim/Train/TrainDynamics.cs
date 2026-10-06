@@ -72,6 +72,9 @@ public sealed class TrainDynamics
         ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount)
         : Handbrake ? Tuning.Couplings.HandbrakeDecel * Consist.MassTonnes : 0;
 
+    /// <summary>Spec B.5's brake column for this length (m/s², before fade): what a warning reckons a stop on (note 265).</summary>
+    public double RatedBrakeDecel => Consist.HasEngine ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) : 0;
+
     /// <summary>Handbrakes wound on across a rake without an engine (parked cars, GDD §17).</summary>
     public bool Handbrake { get; set; }
     /// <summary>Front-of-rake distance at the start of the current tick, for render interpolation.</summary>

@@ -18,6 +18,7 @@ public sealed record SightTuning
     public double BoardAhead { get; init; } = 450;
     public double CurveLateral { get; init; } = 0.4;
     public double PostBelow { get; init; } = 15;
+    public double PlanPostBelow { get; init; } = 22;
     public double WeakBridgeLimit { get; init; } = 7;
     public double LurchOver { get; init; } = 1.5;
     public double ThrowOver { get; init; } = 3.5;
@@ -42,7 +43,29 @@ public sealed record SightTuning
     public double TerminusBoard { get; init; } = 1400;
     public double HomeSignal { get; init; } = 600;
     public double PlatformBoard { get; init; } = 100;
+    public RoofWarningTuning RoofWarning { get; init; } = new();
 }
+
+/// <summary>Mirror of sight.json's <c>roofWarning</c> (GDD App. A.1's fairness contract, note 260). Field docs live in that file.</summary>
+public sealed record RoofWarningTuning
+{
+    public double LeadSeconds { get; init; } = 10;
+    public double LeadMargin { get; init; } = 30;
+    public double MinSpeed { get; init; } = 3;
+    public double CurveHeadroom { get; init; } = 1.5;
+    public bool RoofOnly { get; init; } = true;
+    public double RepeatSeconds { get; init; } = 4;
+    public bool CrouchClearsMouth { get; init; }
+    public double CrouchHead { get; init; } = 1.0;
+    public string LowClearanceSound { get; init; } = "warn-low-clearance";
+    public string CurveSound { get; init; } = "warn-curve";
+}
+
+/// <summary>
+/// A lineside hazard that will take whoever's up on the roofs, coming (note 260): which board's stretch, how far off the
+/// leading car it still is (0 once it's in it) and, at the speed now, in how long.
+/// </summary>
+public readonly record struct RoofWarning(SignKind Kind, int Sign, double Metres, double Seconds, int LimitKmh, bool Bridge = false);
 
 /// <summary>What hangs on a lineside mail crane (the playtest's rewards): pay, coal, rounds, or spares for the worst car.</summary>
 public enum DropKind : byte { Mail, Coal, Ammo, Spares }
@@ -71,6 +94,8 @@ public sealed record Sign(int Id, SignKind Kind, double Board, double Start, dou
 {
     /// <summary>A drop board's drop.</summary>
     public Drop? Drop { get; init; }
+    /// <summary>A speed board for a weak bridge, not a bend.</summary>
+    public bool Bridge { get; init; }
     /// <summary>A board's figure, as it's painted: km/h, in fives.</summary>
     public int LimitKmh => (int)(Math.Floor(Limit * 3.6 / 5) * 5);
 }
@@ -88,6 +113,9 @@ public sealed class Lineside
     readonly bool[] _read;
     readonly Route _route;
     readonly HashSet<(int Sign, int Player)> _thrown = [];
+    // Note 260: how many ticks running each board's roof warning has been up (0: it isn't), on every machine.
+    readonly int[] _warnTicks;
+    readonly HashSet<(int Sign, int Player)> _spared = [];
     readonly List<Drop> _drops;
     readonly byte[] _dropped;
 
@@ -99,6 +127,7 @@ public sealed class Lineside
         _dropped = new byte[_drops.Count];
         _signs = [.. Boards(tuning, route, _drops)];
         _read = new bool[_signs.Count];
+        _warnTicks = new int[_signs.Count];
     }
 
     /// <summary>Tonight's mail cranes, in order along the line.</summary>
@@ -170,12 +199,18 @@ public sealed class Lineside
 
     public static IEnumerable<Sign> Boards(SightTuning t, Route route, IReadOnlyList<Drop> drops)
     {
-        var zones = new List<(SignKind Kind, double Start, double End, double Limit)>();
+        var zones = new List<(SignKind Kind, double Start, double End, double Limit, bool Bridge)>();
         double s = 0, curveStart = -1, curveLimit = double.MaxValue;
+        // Note 266: a generated line's bends are boarded by the plan (§8.5, LineBuilder.Signage: posted at √(aPost R), every bend
+        // that derails under planPostBelow), and these boards carry the same figure, so the roof warning, the HUD and the
+        // board by the line agree. A hand-laid route keeps this file's own reckoning.
+        var plan = route.Plan;
         foreach (var seg in route.Line.Segments)
         {
-            double limit = seg.Radius == 0 ? double.MaxValue : Math.Sqrt(t.CurveLateral * Math.Abs(seg.Radius));
-            if (limit < t.PostBelow)
+            double r = Math.Abs(seg.Radius);
+            double limit = seg.Radius == 0 ? double.MaxValue : plan is null ? Math.Sqrt(t.CurveLateral * r) : Math.Floor(Math.Sqrt(plan.Rules.APost * r));
+            bool posted = plan is null ? limit < t.PostBelow : seg.Radius != 0 && Math.Sqrt(plan.Rules.ADerail * r) < t.PlanPostBelow;
+            if (posted)
             {
                 if (curveStart < 0)
                     curveStart = s;
@@ -183,19 +218,19 @@ public sealed class Lineside
             }
             else if (curveStart >= 0)
             {
-                zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit));
+                zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false));
                 curveStart = -1;
                 curveLimit = double.MaxValue;
             }
             s += seg.Length;
         }
         if (curveStart >= 0)
-            zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit));
+            zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false));
         foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.MaxCars > 0))
-            zones.Add((SignKind.SpeedLimit, b.Start, b.End, t.WeakBridgeLimit));
+            zones.Add((SignKind.SpeedLimit, b.Start, b.End, t.WeakBridgeLimit, true));
         foreach (var tunnel in route.Of(FeatureKind.Tunnel))
-            zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0));
-        var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit))
+            zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
+        var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At) { Drop = d }))
             .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.Length - t.TerminusBoard), route.Length, route.Length))
             // And the home signal and the platform's board, close in: the last run in has its moments too.
@@ -222,6 +257,9 @@ public sealed class Lineside
                 _read[i] = true;
                 ReadThisTick.Add(_signs[i]);
             }
+        // The roof warnings (note 260), lamp or no lamp: how long each has been up is what the host's hazards ask.
+        for (int i = 0; i < _signs.Count; i++)
+            _warnTicks[i] = Warns(_signs[i], train) ? _warnTicks[i] + 1 : 0;
         // Sanding from the running boards (App. A.2: "restores traction over ~8s"): the grip comes back while sand's going
         // down, and goes again once it stops (the wheels roll on off what's been laid).
         double dt = SimConstants.TickSeconds;
@@ -230,6 +268,88 @@ public sealed class Lineside
         bool greased = main && _route.Features.Any(f => f.Kind == FeatureKind.Grease && f.Contains(front));
         train.Traction = greased ? Tuning.GreaseTraction + (1 - Tuning.GreaseTraction) * train.Sand : 1;
     }
+
+    /// <summary>
+    /// The speed over which a posted stretch throws whoever's up on the roofs over the side (sight.json <c>throwOver</c>; with
+    /// roof handrails, spec F.3 and note 184, it takes a harder lean).
+    /// </summary>
+    public double ThrowsAbove(Sign sign, TrainOnLine train)
+    {
+        var fit = train.Dynamics.Tuning.Composition;
+        return sign.Limit + Tuning.ThrowOver * (fit.Handrails ? fit.Rails.ThrowOver : 1);
+    }
+
+    /// <summary>
+    /// Note 260 (GDD App. A.1: "TELEGRAPH always precedes COMMIT"): a board's stretch will take whoever's up on the roofs, and
+    /// it's near enough to say so. A tunnel's mouth within <see cref="RoofWarningTuning.LeadSeconds"/> of the leading car at
+    /// the speed now (plus <see cref="RoofWarningTuning.LeadMargin"/>, for a train gathering speed), or a posted stretch as
+    /// near with the train within <see cref="RoofWarningTuning.CurveHeadroom"/> of throwing them off it; until the last car's
+    /// through. From the route and the train alone, lamp or no lamp: running dark costs the driver the boards, not the roof
+    /// riders their warning. Every machine works it out the same, so nothing's sent.
+    /// </summary>
+    public bool Warns(Sign sign, TrainOnLine train)
+    {
+        var engine = train.Dynamics;
+        if (engine.Path != RailLine.MainPath || sign.Kind is not (SignKind.LowClearance or SignKind.SpeedLimit))
+            return false;
+        var w = Tuning.RoofWarning;
+        double speed = engine.Speed;
+        if (sign.End < engine.RearDistance || sign.Start - engine.Distance > Math.Max(speed, w.MinSpeed) * w.LeadSeconds + w.LeadMargin)
+            return false;
+        return sign.Kind == SignKind.LowClearance || speed > ThrowsAbove(sign, train) - w.CurveHeadroom;
+    }
+
+    /// <summary>The most pressing roof warning now (the nearest; a tunnel before a bend at the same spot), or null.</summary>
+    public RoofWarning? Warning(TrainOnLine train)
+    {
+        RoofWarning? best = null;
+        double front = train.Dynamics.Distance, speed = train.Dynamics.Speed;
+        foreach (var sign in _signs)
+        {
+            if (!Warns(sign, train))
+                continue;
+            double metres = Math.Max(0, sign.Start - front);
+            if (best is { } b && (b.Metres < metres || b.Metres == metres && b.Kind == SignKind.LowClearance))
+                continue;
+            best = new RoofWarning(sign.Kind, sign.Id, metres, speed > 0.1 ? metres / speed : double.PositiveInfinity, sign.LimitKmh, sign.Bridge);
+        }
+        return best;
+    }
+
+    /// <summary>How long a board's roof warning has been up, running (0: it isn't).</summary>
+    public double WarnedSeconds(int sign) => _warnTicks[sign] * SimConstants.TickSeconds;
+
+    /// <summary>
+    /// Whether a board's warning has been up its full lead: only then may its hazard take anyone (App. A.1). As shown: this is
+    /// counted before the train steps, and the HUD has it after, a tick on, so a full lead on screen is a tick more here.
+    /// </summary>
+    public bool WarnedInTime(int sign) => WarnedSeconds(sign) >= Tuning.RoofWarning.LeadSeconds + SimConstants.TickSeconds / 2;
+
+    /// <summary>
+    /// Who a roof warning is for: up on a roof, or on an end ladder (on the way up, or down), and not a gun's crew down behind
+    /// its shield (clear of both hazards). With <see cref="RoofWarningTuning.RoofOnly"/> off, anyone alive aboard.
+    /// </summary>
+    public bool For(in PlayerState s, World world)
+    {
+        if (!s.Alive || s.Parent < 0)
+            return false;
+        if (!Tuning.RoofWarning.RoofOnly)
+            return true;
+        return s.Surface is Surface.Roof or Surface.Ladder
+            && !(world.Combat is { } c && Combat.Guns.MannedGun(s, world.Train, c.Guns) is not null);
+    }
+
+    /// <summary>
+    /// Host: a hazard that would have taken someone with its warning not up its full lead, and didn't (once a board and
+    /// player). The fairness contract held structurally; a night's count of these should be zero (note 260).
+    /// </summary>
+    public int Spared => _spared.Count;
+
+    /// <summary>
+    /// Host: each time a hazard took someone up top, on what tick, whom, and which board's (the mouth's blow, the throw):
+    /// what `dt playthrough` audits against the warning it watched go up (note 260).
+    /// </summary>
+    public List<(uint Tick, int Player, int Sign, SignKind Kind)> Commits { get; } = new();
 
     /// <summary>The engine's on greased rail now (what the drivers feel: they slip).</summary>
     public bool OnGrease(TrainOnLine train) =>
@@ -268,8 +388,9 @@ public sealed class Lineside
                 if (sign.Kind == SignKind.SpeedLimit)
                 {
                     double over = rake.Speed - sign.Limit;
-                    if (rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
-                        world.Derail($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
+                    // On a generated line the bend's derailment is TrackRules' (plan §8.5, warned: note 265), not this.
+                    if (world.TrackPlan is null && rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
+                        world.Overspeed($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
                     if (over > Tuning.LurchOver)
                     {
                         // The frames strain (repairs, spec F.1) and the loads shift about.
@@ -278,10 +399,10 @@ public sealed class Lineside
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
                     // Roof handrails (spec F.3, note 184): there's something to hold, so it takes a harder lean to throw you.
-                    var fit = train.Dynamics.Tuning.Composition;
-                    if (over <= Tuning.ThrowOver * (fit.Handrails ? fit.Rails.ThrowOver : 1))
+                    if (rake.Speed <= ThrowsAbove(sign, train))
                         continue;
                 }
+                var w = Tuning.RoofWarning;
                 foreach (var (id, s, _) in crew)
                 {
                     if (!s.Alive || s.Parent != v.Id || s.Surface != Surface.Roof || world.Combat is { } c && Combat.Guns.MannedGun(s, train, c.Guns) is not null)
@@ -290,9 +411,23 @@ public sealed class Lineside
                     {
                         // Where along the line they stand: a car's −Z is its front.
                         double along = carFront - (s.Position.Z + train.Frames[v.Id].Shape.HalfLength);
-                        if (along >= sign.Start && along <= sign.End)
-                            damage.Add(new DamageEvent(id, Tuning.StruckDamage, DeathCause.Struck, Lethal: true)); // the line itself, not an enemy (App. A.1)
+                        if (along < sign.Start || along > sign.End)
+                            continue;
+                        // Note 260: whether a crouch gets you under the mouth isn't in the spec. Reading kept: it doesn't, unless
+                        // tuned to (a headset rider down under crouchHead; the keyboard's body has no crouch).
+                        if (w.CrouchClearsMouth && s.Head > 0 && s.Head <= w.CrouchHead)
+                            continue;
+                        // App. A.1: no commit without its telegraph, the warning up its whole lead.
+                        if (!WarnedInTime(sign.Id))
+                        {
+                            _spared.Add((sign.Id, id));
+                            continue;
+                        }
+                        damage.Add(new DamageEvent(id, Tuning.StruckDamage, DeathCause.Struck, Lethal: true)); // the line itself, not an enemy (App. A.1)
+                        Commits.Add((world.Tick, id, sign.Id, sign.Kind));
                     }
+                    else if (!WarnedInTime(sign.Id))
+                        _spared.Add((sign.Id, id));
                     else if (_thrown.Add((sign.Id, id)))
                     {
                         // Out, away from the curve's centre: the side the train leans away from.
@@ -300,6 +435,7 @@ public sealed class Lineside
                         var frame = train.Frames[v.Id];
                         var outward = frame.DirToWorld(new Double3(curvature >= 0 ? 1 : -1, 0, 0));
                         damage.Add(new DamageEvent(id, 0, DeathCause.Thrown, outward * Tuning.ThrowSpeed));
+                        Commits.Add((world.Tick, id, sign.Id, sign.Kind));
                     }
                 }
             }

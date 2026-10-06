@@ -1,0 +1,20 @@
+// Boiler straining in the red: The boiler groaning in the red. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 4,
+ "maxDistance": 300,
+ "rolloff": 0.8,
+ "gainDb": -5,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "state-strain/groan",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

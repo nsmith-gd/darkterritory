@@ -6,11 +6,18 @@ namespace DarkTerritory.Sim.Net;
 /// <summary>Mirror of content/tuning/balance.json <c>combinations</c>: GDD §34's combination fairness sweep. Field docs live there.</summary>
 public sealed record CombinationTuning
 {
-    public string Route { get; init; } = "frontier:7";
-    public int Crew { get; init; } = 4;
+    /// <summary>The default grid's routes (tier:seed): each combination is run on every one.</summary>
+    public IReadOnlyList<string> Routes { get; init; } = ["frontier:7"];
+    /// <summary>The default grid's crew sizes: each combination is run with every one, on every route.</summary>
+    public IReadOnlyList<int> Crews { get; init; } = [4];
     public int Cars { get; init; } = 6;
     public double Seconds { get; init; } = 90;
+    /// <summary>Seeds per (route, crew) cell by default.</summary>
     public int Seeds { get; init; } = 1;
+    /// <summary>The nightly's grid (<c>--wide</c>): more routes, crew sizes and seeds.</summary>
+    public CombinationGrid Wide { get; init; } = new(["frontier:7"], [2, 8], 2);
+    /// <summary>The default grid, as a <see cref="CombinationGrid"/>.</summary>
+    public CombinationGrid Grid => new(Routes, Crews, Seeds);
     public int TripleSample { get; init; } = 136;
     public double InsistEvery { get; init; } = 10;
     public double LeadM { get; init; } = 20;
@@ -19,10 +26,17 @@ public sealed record CombinationTuning
     public double UnwinnableLost { get; init; } = 0.5;
     public double TrivialCargoLoss { get; init; } = 0.02;
     public IReadOnlyList<HazardSet> HazardSets { get; init; } = [HazardSet.Clear];
+    /// <summary>The look-out's errand on the sweep's nights (note 212).</summary>
+    public Bots.LookTuning Look { get; init; } = new();
 }
 
-/// <summary>One night of the sweep: the kinds insisted on, what the line takes away, the seed, and where the train starts.</summary>
-public sealed record CombinationNight(IReadOnlyList<EnemyKind> Kinds, HazardSet Hazards, int Seed, double StartM, IReadOnlyList<string> Unstaged);
+/// <summary>Which routes, crew sizes and seeds a sweep runs each combination over (note 204). A (route, crew) pair is a cell.</summary>
+public sealed record CombinationGrid(IReadOnlyList<string> Routes, IReadOnlyList<int> Crews, int Seeds);
+
+/// <summary>One night of the sweep: the kinds insisted on, what the line takes away, the seed, and where the train starts,
+/// on which route (tier:seed).</summary>
+public sealed record CombinationNight(IReadOnlyList<EnemyKind> Kinds, HazardSet Hazards, int Seed, double StartM, IReadOnlyList<string> Unstaged,
+    string Route = "");
 
 /// <summary>Where a combination's nights start: out on the line, or short of a facility the crew stop and work at.</summary>
 public sealed record CombinationStage(double StartM, bool AtStop, IReadOnlyList<string> Unstaged);
@@ -35,19 +49,33 @@ public sealed record CombinationRun(int Seed, double StartM, string End, int Dea
     double CargoLoss, IReadOnlyList<string> Engaged)
 {
     public IReadOnlyList<string> Placed { get; init; } = [];
+    /// <summary>The route (tier:seed) and crew size of the night's cell (note 204).</summary>
+    public string Route { get; init; } = "";
+    public int Crew { get; init; }
 }
 
-/// <summary>A combination against one hazard set, over its seeds, and the verdict.</summary>
-/// <param name="Verdict">"unwinnable" (lost every seed), "trivial" (everything came on and nothing landed, every seed),
+/// <summary>A combination's nights in one (route, crew) cell under one hazard set (note 204).</summary>
+/// <param name="Unwinnable">Lost every night in the cell.</param>
+public sealed record CombinationCell(string Route, int Crew, int Nights, int Lost, bool Unwinnable, int Grabs, int Punishes, int Deaths,
+    IReadOnlyList<string> Engaged);
+
+/// <summary>One (route, crew) cell over the whole sweep: its nights, how many were lost, and the combinations unwinnable there.</summary>
+public sealed record CombinationGridCell(string Route, int Crew, int Nights, int Lost, IReadOnlyList<string> Unwinnable);
+
+/// <summary>A combination against one hazard set, over its routes, crews and seeds, and the verdict.</summary>
+/// <param name="Verdict">"unwinnable" (lost every night in some (route, crew) cell), "trivial" (everything came on and
+/// nothing landed, every night in every cell),
 /// "unplaced" (something's spawn never found anywhere to put it: no crane, no marsh ahead), "dormant" (something was put
 /// there and never came on: lay in wait all night, the crew never giving it its chance), or "fair". Unplaced and dormant
 /// aren't judged: the two never met.</param>
+/// <param name="Cells">The nights by (route, crew), in the order they were run.</param>
 public sealed record CombinationRow(IReadOnlyList<string> Kinds, string Hazards, string Verdict, string Detail, IReadOnlyList<string> Unexercised,
-    IReadOnlyList<string> Unstaged, IReadOnlyList<CombinationRun> Runs);
+    IReadOnlyList<string> Unstaged, IReadOnlyList<CombinationCell> Cells, IReadOnlyList<CombinationRun> Runs);
 
+/// <param name="ByCell">Each (route, crew) cell over every combination: nights, lost, and what was unwinnable there.</param>
 public sealed record CombinationReport(int Size, int Combinations, int Nights, IReadOnlyDictionary<string, int> Verdicts,
     IReadOnlyList<string> Unwinnable, IReadOnlyList<string> Trivial, IReadOnlyDictionary<string, int> NeverExercised,
-    IReadOnlyList<CombinationRow> Rows, bool Pass);
+    IReadOnlyList<CombinationGridCell> ByCell, IReadOnlyList<CombinationRow> Rows, bool Pass);
 
 /// <summary>
 /// GDD §34 "Combination fairness: every pair and triple in the roster against every hazard set. Flag unwinnable or
@@ -192,20 +220,49 @@ public static class Combinations
         return new CombinationRun(n.Seed, Math.Round(n.StartM), end, r.Deaths, derailed, lost,
             threats?.Grabs.Values.Sum() ?? 0, threats?.Punishes.Values.Sum() ?? 0, threats?.Rescues.Values.Sum() ?? 0,
             Math.Round(1 - (threats?.MeanCargoIntegrity ?? 1), 3), engaged)
-        { Placed = placed };
+        { Placed = placed, Route = n.Route, Crew = crew };
     }
 
-    /// <summary>A combination under one hazard set, over its seeds: unwinnable, trivial, unexercised, or fair.</summary>
+    /// <summary>
+    /// Every night of a sweep, in a fixed order: combination by combination, then route, crew and seed (note 204). Each
+    /// combination meets every hazard set (<paramref name="everyHazard"/>), or one, the sets taken in turn down the list.
+    /// </summary>
+    public static IReadOnlyList<(IReadOnlyList<EnemyKind> Kinds, HazardSet Hazards, string Route, int Crew, int Seed)> Nights(
+        IReadOnlyList<IReadOnlyList<EnemyKind>> combos, IReadOnlyList<HazardSet> hazards, bool everyHazard, CombinationGrid grid) =>
+        [.. from i in Enumerable.Range(0, combos.Count)
+            from hz in everyHazard ? hazards : [hazards[i % hazards.Count]]
+            from route in grid.Routes
+            from crew in grid.Crews
+            from s in Enumerable.Range(1, grid.Seeds)
+            select (combos[i], hz, route, crew, s)];
+
+    /// <summary>A combination's nights by (route, crew), in the order the cells first come up.</summary>
+    public static IReadOnlyList<CombinationCell> Cells(IReadOnlyList<CombinationRun> runs) =>
+        [.. runs.GroupBy(r => (r.Route, r.Crew)).Select(g => new CombinationCell(g.Key.Route, g.Key.Crew, g.Count(), g.Count(r => r.Lost),
+            g.All(r => r.Lost), g.Sum(r => r.Grabs), g.Sum(r => r.Punishes), g.Sum(r => r.Deaths), [.. g.SelectMany(r => r.Engaged).Distinct()]))];
+
+    static string CellName(string route, int crew) => route.Length == 0 ? $"crew {crew}" : $"{route} crew {crew}";
+
+    /// <summary>
+    /// A combination under one hazard set, over its routes, crews and seeds (note 204): unwinnable (lost every night in some
+    /// (route, crew) cell), unexercised (a kind that came on in no night anywhere), trivial (everything came on and nothing
+    /// landed in any night anywhere), or fair.
+    /// </summary>
     public static CombinationRow Judge(IReadOnlyList<EnemyKind> kinds, HazardSet hazards, IReadOnlyList<CombinationRun> runs,
         IReadOnlyList<string> unstaged, CombinationTuning t)
     {
         var names = kinds.Select(k => k.ToString()).ToList();
         var unexercised = names.Where(k => runs.All(r => !r.Engaged.Contains(k))).ToList();
+        var cells = Cells(runs);
         string verdict, detail;
-        if (runs.Count > 0 && runs.All(r => r.Lost))
+        if (cells.Where(c => c.Unwinnable).ToList() is { Count: > 0 } lost)
         {
             verdict = "unwinnable";
-            detail = string.Join("; ", runs.Select(r => $"seed {r.Seed}: {r.End}, {r.Deaths} dead{(r.Derailed ? ", derailed" : "")}"));
+            detail = string.Join("; ", lost.Select(c => $"{CellName(c.Route, c.Crew)}: " + string.Join(", ", runs.Where(r => r.Route == c.Route && r.Crew == c.Crew)
+                .Select(r => $"seed {r.Seed} {r.End}, {r.Deaths} dead{(r.Derailed ? ", derailed" : "")}"))));
+            // Lost in some cells and not others: say how many it got through.
+            if (lost.Count < cells.Count)
+                detail += $" (won a night in {cells.Count - lost.Count} of {cells.Count} cells)";
         }
         else if (unexercised.Where(k => runs.All(r => !r.Placed.Contains(k))).ToList() is { Count: > 0 } unplaced)
         {
@@ -227,7 +284,7 @@ public static class Combinations
             verdict = "fair";
             detail = $"{runs.Sum(r => r.Grabs)} grabs ({runs.Sum(r => r.Rescues)} broken), {runs.Sum(r => r.Punishes)} punishes, {runs.Sum(r => r.Deaths)} dead over {runs.Count} nights";
         }
-        return new CombinationRow(names, hazards.Name, verdict, detail, unexercised, unstaged, runs);
+        return new CombinationRow(names, hazards.Name, verdict, detail, unexercised, unstaged, cells, runs);
     }
 
     public static CombinationReport Report(int size, IReadOnlyList<CombinationRow> rows)
@@ -240,7 +297,12 @@ public static class Combinations
         var verdicts = new SortedDictionary<string, int>(rows.GroupBy(r => r.Verdict).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal);
         var unwinnable = rows.Where(r => r.Verdict == "unwinnable").Select(Name).ToList();
         var trivial = rows.Where(r => r.Verdict == "trivial").Select(Name).ToList();
+        // Each cell over the whole sweep, in the order the cells first come up.
+        var byCell = rows.SelectMany(r => r.Cells.Select(c => (Row: r, Cell: c))).GroupBy(x => (x.Cell.Route, x.Cell.Crew))
+            .Select(g => new CombinationGridCell(g.Key.Route, g.Key.Crew, g.Sum(x => x.Cell.Nights), g.Sum(x => x.Cell.Lost),
+                [.. g.Where(x => x.Cell.Unwinnable).Select(x => Name(x.Row))]))
+            .ToList();
         return new CombinationReport(size, rows.Select(r => string.Join("+", r.Kinds)).Distinct().Count(), rows.Sum(r => r.Runs.Count), verdicts,
-            unwinnable, trivial, never, rows, unwinnable.Count == 0 && trivial.Count == 0);
+            unwinnable, trivial, never, byCell, rows, unwinnable.Count == 0 && trivial.Count == 0);
     }
 }

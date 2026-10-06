@@ -189,15 +189,19 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 public sealed class NetPlaySession : IPlaySession, IDisposable
 {
     public const int DefaultPort = 27450;
-    /// <summary>Lobby size: GDD §3, "2–8+" players.</summary>
-    public const int MaxCrew = 12;
     public const string Game = "darkterritory";
-    /// <summary>A hosted game's values in its platform lobby, for the browser (the engine's own are on <see cref="Lobby"/>).</summary>
-    public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard";
+    /// <summary>
+    /// A hosted game's values in its platform lobby, for the browser (the engine's own are on <see cref="Lobby"/>). Aboard
+    /// is the places taken against the crew cap (note 254), max the cap, full "1" while there's no room.
+    /// </summary>
+    public const string NameKey = "name", TierKey = "tier", RunKey = "run", AboardKey = "aboard", MaxKey = "max", FullKey = "full";
+
+    /// <summary>The crew cap the content sets (player.json crew.cap, GDD §1 "2–8"; a mod can raise it: note 254).</summary>
+    public static int CrewCap(string content) => DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Crew.Places;
     readonly ITransport? _hostTransport;
     readonly UdpTransport? _udp;
-    readonly ITransport _clientTransport;
-    readonly IConnectionInfo _link;
+    ITransport _clientTransport;
+    IConnectionInfo _link;
     readonly List<Crewmate> _crew = new();
     readonly List<CarFrame> _frames = new();
     PlayerState _previous;
@@ -234,7 +238,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>The host's shuffle bag as it stands (E.6), to keep with the campaign save or the app's data; null on a joiner.</summary>
     public Sim.Music.MusicBag? MusicBag => Host?.World.Music?.Bag;
 
-    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < DerailSequence.Length(World.WreckTuning, Film);
+    public bool WreckCinematic => Train.Wreck is not null && WreckSeconds < DerailSequence.Length(SequenceTuning, Film);
+
+    /// <summary>The sequence's timing with this player's own first person (<see cref="IPlaySession.SequenceTuning"/>).</summary>
+    public WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
 
     Task<WreckFilm?>? _shooting;
 
@@ -245,13 +252,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public WreckFilm? Film => _shooting is { IsCompletedSuccessfully: true } done ? done.Result : null;
 
     public bool Skippable =>
-        Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) >= film.SkippableFrom
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt
+        Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) >= film.SkippableFrom
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
     public double OutroSeconds { get; private set; }
 
     public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
+
+    public BallotPicker Picker { get; } = new();
+
+    /// <summary>Dead with a ballot still to cast (D.11): the number keys (or the headset's stick) are the ballot's, not the hotbar's.</summary>
+    public bool Voting => !Player.Alive && Ballot is { Cast: null, Options.Count: > 0 } && World.Run is not { Over: true };
 
     string? _cue;
     double _cueSeconds;
@@ -321,16 +333,27 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     List<string>? _manifest, _tally;
+    List<double>? _manifestTimes, _tallyTimes;
     double _manifestSeconds = -1, _tallySeconds = -1;
+
+    /// <summary>
+    /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 240), so the reading goes at its pace: the card
+    /// typed as it's said, the end screen waiting for the last word. Null (no voice), a line every lineSeconds.
+    /// </summary>
+    public Func<string, double>? RadioPace { get; set; }
 
     public IReadOnlyList<string>? RadioReading =>
         _tally is not null && _tallySeconds >= 0 ? _tally
-        : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning) ? _manifest
+        : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning, _manifestTimes) ? _manifest
         : null;
 
     public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
 
-    public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning);
+    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : _manifestTimes;
+
+    public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning, _tallyTimes);
+
+    List<double>? RadioTimesOf(List<string> lines) => RadioPace is { } pace ? Sim.Run.Radio.Times(lines, RadioTuning, pace) : null;
 
     Sim.Run.RadioTuning RadioTuning => World.Run?.Tuning.Radio ?? new();
 
@@ -342,10 +365,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         if (World.Run is not { } run)
             return;
-        if (_manifest is null && run.Phase != Sim.Run.RunPhase.Yard && !run.Over)
+        // Note 267: unless the run's tuning has dropped it (the director's call on build 1121).
+        if (_manifest is null && RadioTuning.Manifest && run.Phase != Sim.Run.RunPhase.Yard && !run.Over)
         {
             var crew = Client.RemoteIds.Select(id => (int)id).Append(PlayerId).Distinct().Order();
             _manifest = Sim.Run.Radio.Manifest(World, crew);
+            _manifestTimes = RadioTimesOf(_manifest);
             _manifestSeconds = 0;
         }
         else if (_manifestSeconds >= 0)
@@ -353,6 +378,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report);
+            _tallyTimes = RadioTimesOf(_tally);
             _tallySeconds = 0;
         }
         else if (_tallySeconds >= 0)
@@ -382,6 +408,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null)
     {
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+        // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
+        int cap = playerTuning.Crew.Places;
+        bots = Math.Clamp(bots, 0, cap - 1);
         setup = setup with
         {
             Content = SessionSetup.HashContent(content),
@@ -394,6 +423,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var (hostWorld, route) = setup.Build(content, authority: true);
         // E.6: the host's world draws the derailment's track from the bag it brought (clients' worlds have no rotation).
         hostWorld.Music = Sim.Music.MusicRotation.Load(content, hostWorld.WreckTuning.Music, setup.MusicBag);
+        // The host records the film on the derail tick, for the deaths (App. E.2 step 1; note 258): compiled now, off the
+        // frame loop, so that tick isn't held up by the JIT as well (a second, the first time).
+        var warmTuning = hostWorld.WreckTuning;
+        _ = Task.Run(() => WreckFilm.Warm(warmTuning));
         // D.8: who each of the crew is, from the campaign, matched up as their names arrive.
         if (setup.Identities is { } identities)
             hostWorld.LooksByName = identities;
@@ -406,8 +439,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         ITransport hostTransport = online is null ? udp : new HostGroup(udp, OnlineTransport.Host(online));
         string tier = setup.Route is { } spec ? Sim.Route.Route.ParseSpec(spec).Tier.ToString() : "";
         string name = lobbyName is { Length: > 0 } n ? n : $"{(Messages.CleanName(PlayerName) is { Length: > 0 } set ? set : online?.NameOf(online.Me) ?? LocalName(null))}'s run";
-        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, MaxCrew, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
-            new Dictionary<string, string> { [NameKey] = name, [TierKey] = tier, [RunKey] = Describe(setup, inYard: true), [AboardKey] = "1" });
+        var lobby = online is null ? null : Lobby.Host(online, Game, Protocol.Version, cap, listed ? LobbyVisibility.Public : LobbyVisibility.FriendsOnly,
+            new Dictionary<string, string>
+            {
+                [NameKey] = name,
+                [TierKey] = tier,
+                [RunKey] = Describe(setup, inYard: true),
+                [AboardKey] = Invariant(1 + bots),
+                [MaxKey] = Invariant(cap),
+                [FullKey] = 1 + bots >= cap ? "1" : "0",
+            });
         var host = new HostSession(hostTransport, hostWorld, trainTuning, playerTuning) { SessionInfo = setup.Encode() };
         hostWorld.EnableBodies();
         hostWorld.Stock();
@@ -477,7 +518,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>What the browser calls this game.</summary>
     public string LobbyName { get; private init; } = "";
     string Tier { get; init; } = "";
-    int _advertisedAboard = 1;
+
+    static string Invariant(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Note 254: the crew as the platform lobby says it, the places taken (<see cref="AboardKey"/>) of the cap
+    /// (<see cref="MaxKey"/>), and at the cap closed: <see cref="FullKey"/> set, not joinable (so it drops out of the
+    /// platform's search, and an invite or "Join Game" can't get in), its member limit the cap. A place freeing (a held one
+    /// running out, a player leaving) opens it again. Each value is only written when it changes.
+    /// </summary>
+    public static void Advertise(Lobby lobby, int occupied, int cap)
+    {
+        bool full = occupied >= cap;
+        lobby.SetData(AboardKey, Invariant(occupied));
+        lobby.SetData(MaxKey, Invariant(cap));
+        lobby.SetData(FullKey, full ? "1" : "0");
+        lobby.SetMemberLimit(cap);
+        lobby.SetJoinable(!full);
+    }
 
     /// <summary>The bot crewmates this host is running, if any (T89).</summary>
     public BotCrew? BotCrew { get; private init; }
@@ -535,7 +593,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>Connects to a host over UDP and waits (up to the transport's connect timeout) for its Welcome.</summary>
     /// <param name="whileWaiting">Called each time round the wait (a test steps its in-process host here).</param>
     public static NetPlaySession Join(string content, IPEndPoint address, Action? whileWaiting = null, DatagramOptions? options = null) =>
-        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting);
+        Connect(content, UdpTransport.Connect(address, options), address.ToString(), null, whileWaiting, () => UdpTransport.Connect(address, options));
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
     public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null)
@@ -554,10 +612,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Thread.Sleep(5);
         }
         if (lobby.Status != Lobby.State.Open)
+        {
+            // Note 254: a full crew's lobby is shut; where the platform still shows us its values, say why as the host would.
+            if (online.LobbyData(id, FullKey) == "1" && int.TryParse(online.LobbyData(id, AboardKey), System.Globalization.CultureInfo.InvariantCulture, out int aboard)
+                && int.TryParse(online.LobbyData(id, MaxKey), System.Globalization.CultureInfo.InvariantCulture, out int max))
+                throw new IOException(new Refusal(RefusalReason.CrewFull, aboard, max).ToString());
             throw new IOException($"couldn't join: {lobby.Error}");
+        }
         try
         {
-            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting);
+            return Connect(content, OnlineTransport.Connect(online, lobby.Owner, options), $"{online.NameOf(lobby.Owner)}'s game", lobby, whileWaiting,
+                () => OnlineTransport.Connect(online, lobby.Owner, options));
         }
         catch
         {
@@ -566,7 +631,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
     }
 
-    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting)
+    /// <param name="redial">A new link to the same host, for coming back after a drop (note 253).</param>
+    static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, Func<ITransport>? redial = null)
     {
         var early = new List<TransportEvent>();
         string? session = null;
@@ -578,10 +644,26 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             transport.Poll(poll);
             foreach (var e in poll)
             {
+                // The host welcomes nobody till they've said hello (note 253): who this is, a new joiner (no token).
+                if (e.Kind == TransportEventKind.Connected)
+                {
+                    var hello = new NetWriter();
+                    Messages.WriteHello(hello, LocalName(lobby));
+                    transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
+                }
                 if (e.Kind == TransportEventKind.Disconnected)
                 {
                     transport.Dispose();
                     throw new IOException($"no answer from {describe}");
+                }
+                // Note 254: turned away (a full crew). Said on the join screen, "CREW FULL (8/8)", rather than waiting on.
+                if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } no } && no[0] == (byte)MessageType.Refused)
+                {
+                    var r = new NetReader(no);
+                    r.U8();
+                    var refusal = Messages.ReadRefused(ref r);
+                    transport.Dispose();
+                    throw new IOException(refusal.ToString());
                 }
                 if (e is { Kind: TransportEventKind.Data, Payload: { Length: > 0 } p } && p[0] == (byte)MessageType.Welcome)
                 {
@@ -614,7 +696,81 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
         { Name = LocalName(lobby) };
-        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby);
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
+    }
+
+    /// <summary>A new link to the host this joiner reached (by address, or through the lobby), for coming back after a drop.</summary>
+    Func<ITransport>? Redial { get; init; }
+
+    /// <summary>
+    /// Note 253: the tries at getting back to the host since the link went, this one included (0 while connected), out of
+    /// player.json rejoin.retries; then it's <see cref="CanReconnect"/>'s, by hand.
+    /// </summary>
+    public int Attempt { get; private set; }
+    public int Attempts => Client.PlayerTuning.Rejoin.Retries;
+    bool _dialing;
+    double _retryIn;
+
+    /// <summary>The link's gone, and this joiner is trying to get back (or about to try again).</summary>
+    public bool Reconnecting => Lost && Redialable && (_dialing || Attempt < Attempts);
+    /// <summary>The tries ran out: RECONNECT (the F5 key) starts them again.</summary>
+    public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
+    /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
+    bool Redialable => Redial is not null && Lobby is not { HostLeft: true };
+
+    /// <summary>RECONNECT: another round of tries, the first at once.</summary>
+    public void Reconnect()
+    {
+        if (!CanReconnect)
+            return;
+        Attempt = 0;
+        _retryIn = 0;
+    }
+
+    /// <summary>
+    /// Note 253: lost, a joiner dials the host again (a new link, the same way it came), and asks for its slot back with its
+    /// token; up to rejoin.retries times, rejoin.retrySeconds apart. Each try lasts until it's back aboard or the link fails.
+    /// </summary>
+    void StepRedial()
+    {
+        if (!Redialable)
+            return;
+        if (_dialing)
+        {
+            if (Client.Connected)
+            {
+                _dialing = false;
+                Lost = false;
+                Attempt = 0;
+                return;
+            }
+            // Note 254: turned away (the place ran out and the crew's full again). No use trying again at once: it's said,
+            // and F5 tries when the player likes.
+            if (Client.Refused is not null)
+            {
+                _dialing = false;
+                Attempt = Attempts;
+                return;
+            }
+            // That try's link failed (nobody answered, or it went again): the next one in a while.
+            if (Client.Dropped)
+            {
+                _dialing = false;
+                _retryIn = Client.PlayerTuning.Rejoin.RetrySeconds;
+            }
+            return;
+        }
+        if (Attempt >= Attempts)
+            return;
+        _retryIn -= SimConstants.TickSeconds;
+        if (_retryIn > 0)
+            return;
+        Attempt++;
+        _dialing = true;
+        _clientTransport.Dispose();
+        _clientTransport = Redial!();
+        _link = (IConnectionInfo)_clientTransport;
+        Client.Reconnect(_clientTransport);
     }
 
     /// <summary>
@@ -629,25 +785,23 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         Lobby?.Poll();
         Host?.Step();
-        int humans = Aboard - (BotCrew?.Bots.Count ?? 0);
         // Hosting a public game: it says where it is on the local network (T116), so the join screen lists it, and answers
         // the browsers' pings. A private one stays quiet (the user's playtest: "If it's a private lobby its not listed").
-        if (Host is not null && Listed && _udp is { LocalLoopbackOnly: false } udp)
+        // What it says of the crew is the places taken against the cap (note 254), bots and held places too: what decides
+        // whether the next joiner gets in. (Not the HUD's head count, which counts a Passenger: that would give it away.)
+        if (Host is { } hosting && Listed && _udp is { LocalLoopbackOnly: false } udp)
         {
             _beacon ??= new LanBeacon();
-            _beacon.Tick(_clock.Elapsed.TotalSeconds, new LanAdvert(Game, Protocol.Version, udp.Port, HostName, Describe(Setup, World.Run is { Phase: Sim.Run.RunPhase.Yard }), humans)
+            _beacon.Tick(_clock.Elapsed.TotalSeconds, new LanAdvert(Game, Protocol.Version, udp.Port, HostName, Describe(Setup, World.Run is { Phase: Sim.Run.RunPhase.Yard }), hosting.Occupied)
             {
                 Name = LobbyName,
-                Max = MaxCrew,
+                Max = hosting.Cap,
                 Tier = Tier,
                 Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
             });
         }
-        if (Host is not null && humans != _advertisedAboard)
-        {
-            _advertisedAboard = humans;
-            Lobby?.SetData(AboardKey, humans.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
+        if (Host is { } served && Lobby is { } meeting)
+            Advertise(meeting, served.Occupied, served.Cap);
         BotCrew?.Step();
         // Spec E: the night autosaves on leaving a POI: the engine out past the end of its zone, whatever shunting it
         // took there (GDD §17), so the save is the train going on.
@@ -664,7 +818,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // Hosting, this machine's own player is the host whose vote alone skips the film (E.5).
         if (Host is { HostPlayer: < 0 } host && Client.PlayerId is { } me)
             host.HostPlayer = me;
-        Client.Step(Spectate(intent));
+        // D.11 (note 202): a cast vote goes as the option's number, the hotbar choice, till the host's ballot says it's locked.
+        var sent = intent;
+        if (Picker.Select(Ballot) is > 0 and var vote && !Player.Alive)
+            sent.Select = vote;
+        Client.Step(Spectate(sent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
         StepRadio();
@@ -675,14 +833,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _shooting = Task.Run(() => (WreckFilm?)world.ShootFilm());
         }
         // E.5: voted off, the film cuts to the cause card (never past it); E.9: the outro to its end.
-        if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(World.WreckTuning, WreckSeconds, film) == DerailBeat.Film
-            && DerailSequence.FilmSeconds(World.WreckTuning, WreckSeconds) < film.CauseAt)
-            WreckSeconds = World.WreckTuning.FirstPersonSeconds + World.WreckTuning.ReplaySeconds + film.CauseAt;
+        if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt;
         if (World.FilmSkipped && StrandedOutro)
             OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;
-        if (!_link.IsConnected && Client.Connected)
+        if (Client.Dropped || (!_link.IsConnected && Client.Connected))
             Lost = true;
+        if (Lost)
+            StepRedial();
     }
 
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
@@ -733,6 +893,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerState Viewpoint => Watching >= 0 && Client.TryGetRemote((byte)Watching, 1, out var s) ? s : Player;
 
     readonly List<PlayerState> _states = [];
+    readonly List<(int, PlayerState)> _crewStates = [];
+
+    public IReadOnlyList<(int Id, PlayerState State)> CrewStates(double alpha)
+    {
+        _crewStates.Clear();
+        _crewStates.Add((PlayerId, Player));
+        foreach (byte id in Client.RemoteIds)
+            if (Client.TryGetRemote(id, alpha, out var s))
+                _crewStates.Add((id, s));
+        return _crewStates;
+    }
 
     public IReadOnlyList<Crewmate> Crew(IReadOnlyList<CarFrame> frames, double alpha)
     {
@@ -744,7 +915,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 _states.Add(s);
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, alpha, out var s))
-                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states, World.Authority ? null : Client.NewestSnapshotTick + alpha - 1));
+                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states));
         return _crew;
     }
 
@@ -752,7 +923,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var d = Train.Dynamics;
         var p = Player;
-        string link = Client.Waiting ? $"WAITING: {Client.WaitingReason}" : !Client.Connected ? "connecting…" : Lost ? "CONNECTION LOST"
+        string link = Reconnecting ? $"RECONNECTING ({Attempt}/{Attempts})…" : CanReconnect ? "CONNECTION LOST: F5 to reconnect"
+            : Client.Waiting ? $"WAITING: {Client.WaitingReason}" : Lost ? "CONNECTION LOST" : !Client.Connected ? "connecting…"
             : Host is not null ? $"{Aboard} aboard" // the host's own ping is to itself
             : $"{Aboard} aboard, ping {_link.RoundTrip(PeerId.Host) * 1000:0} ms";
         string where = PrototypeSession.Where(p, Train);
@@ -765,14 +937,16 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     string Role()
     {
         string udp = Port > 0 ? $":{Port}" : "";
+        // Hosting, the places taken of the crew cap (note 254).
+        string crew = Host is { } h ? $", crew {h.Occupied}/{h.Cap}{(h.Full ? " FULL" : "")}" : "";
         if (Lobby is not { } lobby)
-            return Host is not null ? $"hosting {udp}" : "joined";
+            return Host is not null ? $"hosting {udp}{crew}" : "joined";
         string platform = lobby.Online.Platform;
         return lobby.Status switch
         {
             Lobby.State.Creating => $"hosting {udp} · {platform} lobby…",
             Lobby.State.Failed => $"hosting {udp} · no {platform} lobby ({lobby.Error})",
-            _ when Host is not null => $"hosting {udp} · {platform} lobby {lobby.Members.Count}/{MaxCrew}, F2 invites",
+            _ when Host is not null => $"hosting {udp} · {platform} lobby{crew}{(Host.Full ? "" : ", F2 invites")}",
             _ when lobby.HostLeft => $"{platform}: the host left",
             _ => $"joined {lobby.Online.NameOf(lobby.Owner)} on {platform}",
         };
@@ -811,7 +985,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public PlayerTuning PlayerTuning => Client.PlayerTuning;
     public int PlayerId => Client.PlayerId ?? 0;
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
-        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null);
+        Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
+    {
+        Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
+        Attempts = Attempts,
+        CanReconnect = CanReconnect,
+        Cap = Host?.Cap ?? Client.PlayerTuning.Crew.Places,
+        Places = Host?.Occupied ?? 0,
+        Refused = Lost ? Client.Refused?.ToString() : null,
+    };
 
     /// <summary>This machine's address on the local network and the port, for friends to type in; null unless hosting for them.</summary>
     string? JoinAt => _joinAt ??= Host is not null && _udp is { Port: > 0, LocalLoopbackOnly: false } u ? LanAddress() is { } ip ? $"{ip}:{u.Port}" : null : null;
@@ -864,6 +1046,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         _beacon?.Dispose();
         BotCrew?.Dispose();
+        // A joiner quitting on purpose gives its place up (note 254), so a full crew has room for someone else at once.
+        if (Host is null && !Lost)
+            Client.Leave();
         _clientTransport.Dispose();
         _hostTransport?.Dispose();
         Lobby?.Dispose();

@@ -250,6 +250,8 @@ public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, doubl
 public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double BrassDamagePerSpeedSquared, double BrassDrag, bool WeakBridgeCollapses,
     double WetAdhesion, double WetBiasAdhesion, TerrainRules Terrain)
 {
+    /// <summary>Plan §8.5's posting acceleration (tiers.json curves.aPost): a bend is boarded at floor(√(aPost R)) (note 265's stress starts there).</summary>
+    public double APost { get; init; } = 0.7;
     /// <summary>How far out from the track the boards stand (signage.json sideOffsetM).</summary>
     public double SignOffsetM { get; init; } = 3.2;
     /// <summary>The biomes as their dressing reads them (biomes.json): the ground, the trees, the water.</summary>

@@ -11,6 +11,14 @@
   "layerSize": 512,
   // ...but the characters' and creatures' baked atlases, seen closest, keep up to this (in arrays of their own).
   "heroLayerSize": 1024,
+  // ...and the few authored bigger still (the Car Hugger's, spread over most of a car: GDD §27's 256 px/m needs 2048),
+  // this, in arrays of their own, so the other heroes don't grow with them.
+  "bigHeroLayerSize": 2048,
+  // Past this far from the eye (m) the creatures baked with a distance copy (tools/models overbake `lod`: the demo's six,
+  // at GDD §27's full budgets) draw it, two fifths of their triangles: a headset draws each for two eyes and the shadows
+  // (tuning/perf.json maxFrameTriangles; ARCHITECTURE §8 note 262). Inside it, as close as a creature gets to anyone, the
+  // whole model.
+  "creatureLodMetres": 14,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
   "baked": 0.35,
   // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still
@@ -118,6 +126,22 @@
       "frostFrom": 0.35,
       "frostFull": 0.85,
       "breathFrom": 0.15
+    },
+    // The Choir's cold, coming before it (App. A.7's arrival beat): from halfway through its gathering the night goes over
+    // to these as it nears, all of it once it's here. The air paler and colder, the moon bluer, a rime of frost on the
+    // metal, the roofs and the glass (added to the night's own cold's), under the glitter of frost in the air.
+    "choirCold": {
+      "fogColour": [0.1, 0.13, 0.17],
+      "moonColour": [0.55, 0.68, 0.95],
+      "rime": 0.8
+    },
+    // The wind (the route weather's wind, 0..1): calm's breeze to full's gale in m/s, blowing away from `from` (world
+    // axes; -Z is up the line), rolling through in gusts. The foliage's cards and boughs bend with it.
+    "wind": {
+      "calm": 2,
+      "full": 16,
+      "from": [-0.7, 0, -0.4],
+      "gusts": 0.7
     }
   },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").

@@ -5,8 +5,13 @@ namespace DarkTerritory.Sim.Music;
 /// <summary>GDD v1.4 App. E.6's mood tags: what kind of derailment a track suits.</summary>
 public enum MusicMood : byte { Lament, Gallop, Doom, Swagger }
 
-/// <summary>E.6 "Manifest" evidence: the file's SHA-256 as it is in the repo, and what makes the licence true.</summary>
-public sealed record MusicEvidence(string Sha256, string Note);
+/// <summary>
+/// E.6 "Manifest" evidence: the file's SHA-256 as it is in the repo, and what makes the licence true. A recording taken in
+/// from Wikimedia Commons (`tools/audio/fetch_music.py`, note 194) also has the SHA-256 of the file as downloaded, its file
+/// page (where the CC0 dedication is), and the licence metadata and wikitext as fetched, in a record beside the music
+/// (<paramref name="Record"/>, relative to content/audio/music).
+/// </summary>
+public sealed record MusicEvidence(string Sha256, string Note, string? SourceSha256 = null, string? Page = null, string? Record = null);
 
 /// <summary>
 /// One track in <c>content/audio/music/manifest.json</c>, with E.6's fields. Times are seconds into the file: the
@@ -14,14 +19,25 @@ public sealed record MusicEvidence(string Sha256, string Note);
 /// derailment; nothing past <see cref="OutPoint"/> is played.
 /// </summary>
 public sealed record MusicTrack(string Id, string File, string Work, string Composer, int Year, string Performers, string Source,
-    string Licence, MusicEvidence Evidence, MusicMood Mood, double InPoint, double Hit, double OutPoint, double LoudnessLufs, double GainDb)
+    string Licence, MusicEvidence Evidence, MusicMood Mood, double InPoint, double Hit, double OutPoint, double LoudnessLufs, double GainDb,
+    double? ShortfallDb = null)
 {
+    // ShortfallDb: how far short of -16 LUFS the gain stops, when the full gain would push the file's peak past the
+    // headroom (note 194: a piano recording's peaks); null when it reaches the target.
+
     /// <summary>
     /// Where play starts so the hit comes <paramref name="leadSeconds"/> after it (the replay's lead into the moment the
     /// train came off): never before the in-point. A hit too close to the in-point would land early; the manifest's test
     /// rules that out for every track.
     /// </summary>
     public double StartFor(double leadSeconds) => Math.Max(InPoint, Hit - leadSeconds);
+
+    /// <summary>
+    /// Someone else's recording, taken in from the web with its licence evidence (note 194): its source is the file page
+    /// it came from. Otherwise it's E.6's fallback, made in the repo (its source is the script that made it).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Recorded => Source.StartsWith("https://", StringComparison.Ordinal);
 }
 
 /// <summary>The music manifest (E.6): every track the derailment can play, each a CC0 1.0 recording of a public-domain work.</summary>

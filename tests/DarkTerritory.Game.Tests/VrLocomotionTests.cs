@@ -33,6 +33,20 @@ public class VrLocomotionTests
     }
 
     [Fact]
+    public void TheHeadsHeightGoesWithTheHands()
+    {
+        // T82: crouched 0.6 m under where the session began (the eye point), the head's height over the feet goes out with
+        // the hands; with no hand tracked, nothing does.
+        var v = new VrLocomotion(Tuning);
+        var c = new XrControllerState { Right = new XrHand(true, new Vector3(0.2f, -0.9f, -0.3f), Quaternion.Identity) };
+        v.Frame(c, Quaternion.Identity, Frame, new Vector3(0, -0.6f, 0));
+        var intent = v.Intent(new PlayerState(), c);
+        Assert.True(intent.Has(PlayerButtons.Hand));
+        Assert.Equal(PlayerIntent.Centimetres(Eyes.Height - 0.6), intent.Head);
+        Assert.Equal(0, v.Intent(new PlayerState(), default).Head);
+    }
+
+    [Fact]
     public void ASnapTurnsOncePerPush()
     {
         var v = new VrLocomotion(Tuning);

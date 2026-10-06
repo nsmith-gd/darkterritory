@@ -1,14 +1,19 @@
-// Tell (tier 1), Climbers mounting a coupling gap: "a brief scrabbling there first" (GDD v1.1 App. A.4), 2-5 kHz (the band
-// the Rattle held). Claws and boots on couplers and ladder rungs, fast and uneven, in bursts: a clatter, not a scrape's
-// rasp. Out in the gap, so a car between you and it muffles it like anything else.
+// The tell's takes from the audio checklist, kept or the first candidate under review
+// (tell-climbers/scrabble), in place of its synth definition
+// (tools/audio/synth-defs/climber-scrabble.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 2, "maxDistance": 40, "gainDb": 9,
-  "layers": [
-    { "source": "impulse", "gain": 1.1, "frequency": 38,
-      "filters": [{ "type": "bandPass", "frequency": 3300, "q": 3 }, { "type": "peak", "frequency": 2400, "q": 5, "gainDb": 5 }],
-      "tremolo": { "rate": 5.5, "depth": 1, "duty": 0.5, "jitter": 0.6 } },
-    { "source": "impulse", "gain": 0.6, "frequency": 23,
-      "filters": [{ "type": "bandPass", "frequency": 4300, "q": 4 }],
-      "tremolo": { "rate": 3.1, "depth": 1, "duty": 0.7, "jitter": 0.5 } }
-  ]
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 2,
+ "minDistance": 2,
+ "maxDistance": 40,
+ "gainDb": 9,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-climbers/scrabble",
+   "gain": 1
+  }
+ ]
 }

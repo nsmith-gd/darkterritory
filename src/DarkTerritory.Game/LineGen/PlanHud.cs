@@ -22,7 +22,9 @@ public static class PlanHud
     /// <summary>The route card, as a sheet over the middle of the screen: what to expect, in the order it comes.</summary>
     /// <param name="page">Which side of it: a long night's card runs over.</param>
     /// <returns>How many sides it has.</returns>
-    public static int RouteCard(Overlay o, int width, int height, LinePlan plan, int page = 0)
+    /// <param name="rail">The night's line: with it, the card's first side carries the line's profile under its title,
+    /// drawn as the depot would ink it (its height along the night, its stops ticked in red), the climbs read at a glance.</param>
+    public static int RouteCard(Overlay o, int width, int height, LinePlan plan, int page = 0, Sim.Rail.RailLine? rail = null)
     {
         var card = plan.RouteCard;
         int line = o.Font.LineHeight;
@@ -47,6 +49,11 @@ public static class PlanHud
             rows.Add(("KNOWN GRADES", Stamp));
             rows.AddRange(card.KnownGrades.Select(g => ($"{g.Route}: {g.RulingPct:0.0}% over {g.LengthKm:0.0} km{(g.Passable ? "" : " (NOT FOR THIS TRAIN)")}", InkDark)));
         }
+        // Room under the title for the profile (first side only).
+        const int profileH = 34;
+        bool profile = rail is not null && page == 0 && rail.Length > 100;
+        if (profile)
+            rows.InsertRange(2, Enumerable.Repeat(("", InkDark), (profileH + line - 1) / line + 1));
         // Wrapped to the sheet; what doesn't fit the screen is cut off at the foot, as a real card is folded.
         int chars = (int)((w - 12) / o.Font.Advance);
         var wrapped = rows.SelectMany(r => Wrap(r.Text, chars).Select(t => (t, r.Colour))).ToList();
@@ -64,7 +71,36 @@ public static class PlanHud
             o.Text(x + 6, ty, text, colour, shadow: false);
             ty += line;
         }
+        if (profile)
+            Profile(o, rail!, card, x + 6, y + 5 + 2 * line + 3, w - 12, profileH);
         return pages;
+    }
+
+    /// <summary>
+    /// The line's height along the night in a box (<paramref name="x"/>, <paramref name="y"/>, w by h): a column of ink per
+    /// pixel up to the ground's height there, the timetable's stops ticked in red above it, km marks along the foot.
+    /// </summary>
+    static void Profile(Overlay o, Sim.Rail.RailLine line, PlanRouteCard card, float x, float y, float w, float h)
+    {
+        int n = Math.Max(2, (int)w);
+        var heights = new double[n];
+        for (int i = 0; i < n; i++)
+            heights[i] = line.Sample(line.Length * i / (n - 1)).Position.Y;
+        double lo = heights.Min(), hi = Math.Max(lo + 10, heights.Max());
+        o.Outline(x - 1, y - 1, w + 2, h + 2, Rule);
+        for (int i = 0; i < n; i++)
+        {
+            float top = (float)((hi - heights[i]) / (hi - lo) * (h - 6)) + 4;
+            o.Rect(x + i, y + top, 1, h - top, InkDark with { W = 0.75f });
+        }
+        double km = line.Length / 1000;
+        for (int k = 5; k < km; k += 5)
+            o.Rect(x + (float)(k / km * w), y + h - 3, 1, 3, Paper);
+        foreach (var stop in card.Timetable)
+        {
+            float sx = x + (float)Math.Clamp(stop.Km / km, 0, 1) * (w - 1);
+            o.Rect(sx, y, 1, 4, Stamp);
+        }
     }
 
     static IEnumerable<string> Wrap(string text, int chars)

@@ -12,11 +12,15 @@ dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless ins
 tools/package.sh [--demo] [win-x64] [linux-x64]    # builds for players: self-contained, zipped, in out/dist/ (--demo: the demo edition beside it)
 dotnet run --project src/DarkTerritory.Cli -- --edition demo harness --route frontier:7 --bots 8 --enemies   # any dt command (or the app) on the demo edition (editions/demo)
 tools/xr-sim.sh && XDG_RUNTIME_DIR=/tmp/xr dotnet run --project src/DarkTerritory.Cli -- vr check   # VR end to end on a simulated headset
+python3 tools/audio/fetch_music.py --dry-run          # E.6's CC0 music intake: the candidate list (--offline-test the cut path); the real run is .github/workflows/music-intake.yml (Commons is blocked here)
 dotnet run --project src/DarkTerritory.Cli -- audio render --listener all   # spec A.3 tell audit; one listener → WAV + spectrogram PNG
 dotnet run --project src/DarkTerritory.Cli -- screenshot --view roof   # 1280x720 PNG to out/shots/; then Read it to look
 dotnet run --project src/DarkTerritory.Cli -- art show engine          # a kit piece on a turntable; `art check` = every piece vs its triangle budget
 dotnet run --project src/DarkTerritory.Cli -- art clip car_hugger feed   # a creature's clip as a lit contact sheet (--frames n --at x,y,z --dist --yaw)
-dotnet run --project src/DarkTerritory.Cli -- art reel [--only gaunt,sheep]   # every clip of every model, framed on its own movement: strips + reel.json in out/reel/ (the Look Review's animations)
+dotnet run --project src/DarkTerritory.Cli -- playthrough --route frontier:7 --minutes 20 [--bots 4] [--insist whistler,choir]   # a real night with enemies (solo, or a bot crew working the stops), every encounter photographed as it happens -> out/playthrough (note 200)
+dotnet run --project src/DarkTerritory.Cli -- film [--crew 8] [--fps 24] [--speed 20] [--route frontier:7] [--cars 6]   # the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it: frames, the mixer's WAV, an MP4 and a contact sheet -> out/film (ffmpeg: `pip install imageio-ffmpeg`; note 251)
+dotnet run --project src/DarkTerritory.Cli -- art reel [--only gaunt,sheep] [--clips a,b]   # every clip of every model, framed on its own movement: strips + reel.json in out/reel/ (the Look Review's animations)
+dotnet run --project src/DarkTerritory.Cli -- art clearance [--only crew|ribbit|...]   # every clip checked for limbs through the body, coat, head and other limbs; a creature by capsules fitted to its own mesh (CreatureArtTests pins the crew and the demo's creatures)
 python3 tools/art/textures.py                                         # rebuild content/art/textures (CC0 sources: tools/art/fetch_sources.sh)
 tools/art/store/screens.sh                                            # store screenshots, capsules and the icon -> out/store (icon also content/art/ui)
 tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
@@ -27,7 +31,7 @@ dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      
 dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
 ```
-**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount).
+**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff).
 Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
 
 ## Layout

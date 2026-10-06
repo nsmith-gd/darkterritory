@@ -43,17 +43,30 @@ public class DeadPhaseTests
         var h = world.Holdouts!.All[0];
         var audio = new GameAudio(Content);
         var ear = Listener.At(h.Inside + new Double3(10, 1.6, 0), 0);
-        int Playing() => audio.Mixer.Voices.Count(v => v.Name is "holdout-shout" or "holdout-bang" && !v.Finished);
-        void Update() => audio.Update(world, new TrainControls { Reverser = 1 }, ear, exposed: true, SimConstants.TickSeconds);
+        // A call in the prisoner's own voice set or a bout of banging (note 193), or note 179's synth shout and bang under them.
+        static bool IsCall(Ballast.Audio.SoundInstance v) => v.Name.StartsWith("voice-prisoner-sets.", StringComparison.Ordinal)
+            || v.Name is "voice-callout.bang" or "holdout-shout" or "holdout-bang";
+        var heard = new Dictionary<int, Double3>();
+        void Update(int ticks = 1)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                audio.Update(world, new TrainControls { Reverser = 1 }, ear, exposed: true, SimConstants.TickSeconds);
+                foreach (var v in audio.Mixer.Voices.Where(IsCall))
+                    heard.TryAdd(v.Id, v.Position);
+            }
+        }
         // Already called before this client looked: old news.
         world.Holdouts.Mirror(h.Index, HoldoutState.Occupied, 3, 0, calls: 2);
-        Update();
-        Assert.Equal(0, Playing());
+        Update(5);
+        Assert.Empty(heard);
         world.Holdouts.Mirror(h.Index, HoldoutState.Occupied, 3, 0, calls: 3);
-        Update();
-        Assert.Equal(1, Playing());
-        Assert.All(audio.Mixer.Voices.Where(v => v.Name is "holdout-shout" or "holdout-bang"), v => Assert.Equal(h.Inside, v.Position));
-        Update();
-        Assert.Equal(1, Playing());
+        Update(SimConstants.TickRate * 2);
+        Assert.NotEmpty(heard);
+        Assert.All(heard.Values, at => Assert.True((at - h.Inside).Length < 2, $"heard at {at}, the Holdout's inside is {h.Inside}"));
+        // Once a call: nothing more until the count goes up again.
+        int once = heard.Count;
+        Update(SimConstants.TickRate * 2);
+        Assert.Equal(once, heard.Count);
     }
 }

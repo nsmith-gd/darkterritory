@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// GDD §12 and App. C.2 (WP19, note 191): coal goes on with the fireman's shovel in hand, and there's the one, by the cab's
+/// GDD §12 and App. C.2 (WP19, note 275): coal goes on with the fireman's shovel in hand, and there's the one, by the cab's
 /// tool rack. Use at the firebox takes it into hand; taken off to fight with, the fire waits for whoever has it.
 /// </summary>
 public class ShovelTests

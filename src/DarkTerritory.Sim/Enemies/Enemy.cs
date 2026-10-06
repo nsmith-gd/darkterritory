@@ -108,6 +108,12 @@ public abstract class Enemy
     /// anyone. A blow that's picked lands, and every client is told it did (T121's hit confirm).
     /// </summary>
     public virtual bool Strikable(int by) => MeleeRadius > 0;
+
+    /// <summary>
+    /// Whether a swing can get at it where it is now (the Stoker: only through the open firebox door, App. A.5; note 263).
+    /// From replicated state, so a client's prompt and whiff agree with the host.
+    /// </summary>
+    public virtual bool Reachable(World world) => true;
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
 
@@ -241,6 +247,18 @@ public abstract class Enemy
         Enter(ctx, SpinePhase.BreakOff);
     }
 
+    /// <summary>
+    /// The attribution record (App. C.9) for a PUNISH that holds nobody, written the tick it begins; null for none (when
+    /// another record already says it: a derailment's, a death's). The default is C.9's last row: the nearest living
+    /// crewmate to it, and how far off they were.
+    /// </summary>
+    protected virtual Run.Incident? Punished(EnemyContext ctx)
+    {
+        var at = WorldPosition(ctx.Train);
+        var (actor, action) = Run.IncidentLog.Nearest(ctx.World, at, CrewOf(ctx));
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by the {Run.IncidentLog.Spoken(Kind.ToString())}", actor, action, at);
+    }
+
     /// <summary>The rescue window ran out (App. A.1 PUNISH): what it does to its victim. The default is death.</summary>
     protected virtual void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Taken);
 
@@ -293,6 +311,10 @@ public abstract class Enemy
         // GDD v1.4 App. D.12: every PUNISH is an auto-bookmark, of whoever it holds (else of the thing itself).
         if (next == SpinePhase.Punish && ctx.World.Run is not null)
             ctx.World.Bookmarks.Punish(ctx.World, Id, Kind.ToString(), Holding, WorldPosition(ctx.Train), CrewOf(ctx));
+        // App. A.9, C.9: every PUNISH writes an attribution record. One that holds someone is their death's (written as their
+        // body goes down); one that holds nobody writes its own (note 190).
+        if (next == SpinePhase.Punish && Holding < 0 && Punished(ctx) is { } record)
+            ctx.World.Attribution.Add(record);
         ctx.Events.Add(new EnemyEvent(ctx.Tick, Id, Kind, Phase, next, PhaseSeconds));
         Phase = next;
         PhaseSeconds = 0;

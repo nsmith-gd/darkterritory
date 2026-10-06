@@ -13,6 +13,7 @@ namespace DarkTerritory.Sim.Train;
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
 /// <item>at a cargo car's roof hatch, open or shut it (T99);</item>
 /// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2);</item>
+/// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>);</item>
 /// <item>at a crew locker, open or shut its door (a tap there is the hands': <see cref="Lockers"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
@@ -34,11 +35,28 @@ public static class CrewActions
                 train.Uncouple(s.Parent);
             return;
         }
+        // The vent's own key (note 264): held anywhere in the cab, the blow-off's open, whatever Use is doing.
+        if (VentHeld(s, intent, train))
+            train.Boiler.Venting = true;
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
             // Let go of the shovel and what's on it is spilled.
             s.ActionProgress = 0;
             s.Flags &= ~PlayerFlags.Shovelful;
+            return;
+        }
+        // A breach in the car's shell (decided 1 Oct): boarded up from inside, Use held at the hole. It's the one thing worked
+        // there (the end door is in the wall the Car Hugger ate). Done, the count's left where it got to, so a hand still
+        // held on doesn't go on to work the door beside it; still held as a fresh hole opens, it starts that one over.
+        if (Breaches.Within(s, train, hand) is { } breached)
+        {
+            double board = train.Dynamics.Tuning.Breach.BoardSeconds;
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (s.ActionProgress >= board)
+                s.ActionProgress = 0;
+            s.ActionProgress += dt;
+            if (s.ActionProgress >= board)
+                train.Vehicles[breached].Breached = false;
             return;
         }
         double before = s.ActionProgress;
@@ -90,7 +108,7 @@ public static class CrewActions
                 }
                 break;
             case InteractableKind.Firebox when train.BoilerTuning is { } bt && PlayerMotor.InCab(s, train):
-                // The shovel into hand first (note 191): no shovel, no coal.
+                // The shovel into hand first (note 275): no shovel, no coal.
                 if (bt.ShovelInHand && !TakeShovel(ref s, train))
                 {
                     s.ActionProgress = 0;
@@ -115,7 +133,7 @@ public static class CrewActions
                 break;
             // The cab's tool rack (T109): a press takes the wrench, into the first free slot and into hand; with it in hand,
             // a press puts it back. It's a tool to swing; the repair kit is what mends the boiler. The shovel in hand is hung
-            // back on it the same way (note 191).
+            // back on it the same way (note 275).
             case InteractableKind.ToolRack when PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (before < RackSeconds && s.ActionProgress >= RackSeconds)
@@ -164,6 +182,10 @@ public static class CrewActions
 
     static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
 
+    /// <summary>The vent key held in the cab (note 264): the blow-off open while it's down. Never on a coupler (that's Uncouple's).</summary>
+    public static bool VentHeld(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
+        s.Alive && intent.Has(PlayerActions.Vent) && s.Surface != Surface.Coupler && train.BoilerTuning is not null && PlayerMotor.InCab(s, train);
+
     /// <summary>At the firebox of a ruptured boiler, in the cab: where the repair kit in hand mends it (T109).</summary>
     public static bool AtTheRupture(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
         s.Alive && train.BoilerTuning is not null && train.Boiler.Ruptured && PlayerMotor.InCab(s, train)
@@ -172,7 +194,7 @@ public static class CrewActions
     /// <summary>How long Use is held at the rack to take the wrench or put it back.</summary>
     const double RackSeconds = 0.4;
 
-    /// <summary>The wrench out of its rack into hand, or back into it (T109); or the shovel in hand back onto it (note 191). There's the one of each.</summary>
+    /// <summary>The wrench out of its rack into hand, or back into it (T109); or the shovel in hand back onto it (note 275). There's the one of each.</summary>
     static void Rack(ref PlayerState s, TrainOnLine train)
     {
         if (Kit.Held(s) == Tool.Shovel)
@@ -200,7 +222,7 @@ public static class CrewActions
     }
 
     /// <summary>
-    /// The shovel into hand to fire with (App. C.2, GDD §12; note 191): already there; else out of your own kit; else off the
+    /// The shovel into hand to fire with (App. C.2, GDD §12; note 275): already there; else out of your own kit; else off the
     /// cab's tool rack into the first free slot, if it's on it. False when it's out with someone else (or your hands are
     /// full): the fire waits for whoever has it. Worked out alike everywhere, so a client predicts the take.
     /// </summary>
@@ -273,11 +295,20 @@ public static class CrewActions
         if (s.Parent == PlayerState.World)
             return null;
         var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
-        (Interactable, int)? best = null;
+        (Interactable, int)? best = null, looked = null;
         double bestD = double.MaxValue;
+        int own = s.Parent;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
         // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
+        // Note 267: where several are in reach (a row of lockers a hand wide, the firebox under the whistle cord), the one
+        // looked at is the one worked: the least angle off the view's centre, within pick.lookDegrees. Only then the nearest.
+        var pick = train.Dynamics.Tuning.Pick;
+        double cp = DMath.Cos(s.Pitch);
+        var view = new Double3(fx * cp, DMath.Sin(s.Pitch), fz * cp);
+        var eye = s.Position + Double3.Up * pick.EyeHeight;
+        // Compared as cosines (no Acos: what's picked changes the train, so it's worked out alike on every machine).
+        double bestCos = DMath.Cos(pick.LookDegrees * Math.PI / 180);
         void Search(int vehicle, Double3 at, bool doorsOnly)
         {
             foreach (var i in train.Frames[vehicle].Shape.Interactables)
@@ -289,7 +320,22 @@ public static class CrewActions
                 if (reaching is null && i.Kind is InteractableKind.Door or InteractableKind.Locker && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
                     continue;
                 bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
-                if (d <= i.Radius * i.Radius && height && d < bestD)
+                if (d > i.Radius * i.Radius || !height)
+                    continue;
+                if (reaching is null && vehicle == own)
+                {
+                    var to = i.Position + Double3.Up * i.Aim - eye;
+                    double cos = Double3.Dot(view, to.Normalized);
+                    if (cos >= bestCos)
+                    {
+                        bestCos = cos;
+                        looked = (i, vehicle);
+                    }
+                }
+                // The whistle cord is only ever the one looked at: never pulled by standing near it.
+                if (reaching is null && i.Kind == InteractableKind.Whistle)
+                    continue;
+                if (d < bestD)
                 {
                     bestD = d;
                     best = (i, vehicle);
@@ -304,6 +350,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return best;
+        return looked ?? best;
     }
 }

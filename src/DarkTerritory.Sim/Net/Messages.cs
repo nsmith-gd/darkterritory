@@ -25,9 +25,25 @@ public static class Protocol
     // 16: a broken radio on the body record; a fouled gun on the vehicle record (GDD §23; note 183).
     // 17: the facility set pieces on the run record (the spout's bin, the herd, the hose) and death causes Keg and Leak (GDD §18; note 185).
     // 18: a switchyard's standing cars (more rakes and vehicles from the start), the wreck yard's heaps, death cause Wreckage (GDD §18; note 187).
-    // 21: tools swung (RecordKind.Swing), and the shovel off its rack on the boiler record (App. C.2, GDD §12; note 191).
-    //     (19 and 20 are other packages'.)
-    public const int Version = 21;
+    // 19: reserved for the sound package (it landed after 24: see 25).
+    // 20: the report's C.9 lines that aren't deaths (incident kinds Struck, Fire, Nest, Aboard, Runaway, Points, Punished; note 190).
+    // 21: the body record's TakenBy (the Gaunt carrying its loot out, App. A.6; #149 put it on the wire without a bump; note 195).
+    // 22: crewmates' swings, landed or not (RecordKind.Swing; note 197).
+    // 23: a broken radio's body record carries how far the repair kit has got mending it (GDD §23; note 201).
+    // 24: a headset's head height rides with its hands, on the intent and the player record (T82, the VR body; note 210).
+    // 25: the sound package: a vehicle record's breach and where (spec B.9), and a report line's death cause (note 233).
+    // 26: rejoining after a drop (note 253): a joiner's Hello comes first, before it's welcomed, with the token from an
+    //     earlier Welcome (or 0); the Welcome carries the token the host issued for that slot.
+    // 27: the crew cap (note 254): a joiner past it is turned away with a Refused (why, the crew, the cap) instead of a
+    //     Welcome; a player who quits on purpose says Leave first, so their place frees at once instead of being held.
+    // 28: the film's start carries each car's mounted gun and whether a crewmate was in its seat, and the film it shoots is a
+    //     different one (cars hit bodies, landings, a death per crewmate); the living ride the wreck to their own hit, not
+    //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 258).
+    // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
+    // 30: fire is a grid (App. F.1, the director's decision of 6 Oct 2026; note 267): a car fire's record carries its cells'
+    //     heat, and a car's its cells' char, packed four bits a cell.
+    // 31: the fireman's shovel off its rack, a bit on the boiler record (App. C.2, GDD §12; WP19, note 275).
+    public const int Version = 31;
 }
 
 public enum MessageType : byte
@@ -42,7 +58,10 @@ public enum MessageType : byte
     Voice = 4,
     /// <summary>Host → client, reliable: welcomed, but not aboard yet (spec E: drop-in at POIs only), and why.</summary>
     Wait = 5,
-    /// <summary>Client → host, reliable: the name this player goes by (the roster, the report, the clerk).</summary>
+    /// <summary>
+    /// Client → host, reliable, first thing once connected: the name this player goes by (the roster, the report, the clerk),
+    /// and the token of the slot it's coming back to after a drop, or 0 (note 253).
+    /// </summary>
     Hello = 6,
     /// <summary>Host → client, reliable: everyone's names, by player id, whenever they change.</summary>
     Names = 7,
@@ -62,6 +81,35 @@ public enum MessageType : byte
     Commendations = 14,
     /// <summary>Host → client, reliable: each player's look from earlier nights (D.8), by id, whenever it changes.</summary>
     Looks = 15,
+    /// <summary>
+    /// Host → a joiner, reliable, in place of a Welcome: turned away, why (<see cref="RefusalReason"/>), and the crew and the
+    /// cap it was turned away at (note 254). The host hangs up crew.refuseLingerSeconds later, time for it to get there; a
+    /// game's join gives up on reading it.
+    /// </summary>
+    Refused = 16,
+    /// <summary>
+    /// Client → host, just before it hangs up on purpose (the player quit): their place isn't held for a rejoin (note 253),
+    /// so a full crew opens a place at once (note 254). Lost on the way, the place is held as for any drop.
+    /// </summary>
+    Leave = 17,
+}
+
+/// <summary>Why the host turned a joiner away (note 254).</summary>
+public enum RefusalReason : byte
+{
+    /// <summary>The crew's at player.json crew.cap: aboard, dead, waiting at a stop, or a dropped player's place held.</summary>
+    CrewFull = 1,
+}
+
+/// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
+public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
+{
+    /// <summary>What the joiner is shown, on the menu or the HUD: "CREW FULL (8/8)".</summary>
+    public override string ToString() => Reason switch
+    {
+        RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
+        _ => $"TURNED AWAY ({Reason})",
+    };
 }
 
 public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
@@ -123,14 +171,17 @@ public static class Messages
             w.I16(Centimetres(i.HandX));
             w.I16(Centimetres(i.HandY));
             w.I16(Centimetres(i.HandZ));
-            // And the other hand, when it's tracked (T43).
-            w.U8(i.Other ? (byte)1 : (byte)0);
+            // And the other hand, when it's tracked (T43); the second bit says the head's height follows (T82).
+            bool head = i.Head > 0 && float.IsFinite(i.Head);
+            w.U8((byte)((i.Other ? 1 : 0) | (head ? 2 : 0)));
             if (i.Other)
             {
                 w.I16(Centimetres(i.OtherX));
                 w.I16(Centimetres(i.OtherY));
                 w.I16(Centimetres(i.OtherZ));
             }
+            if (head)
+                w.I16(Centimetres(i.Head));
         }
     }
 
@@ -165,13 +216,16 @@ public static class Messages
             i.HandX = r.I16() / 100f;
             i.HandY = r.I16() / 100f;
             i.HandZ = r.I16() / 100f;
-            i.Other = r.U8() != 0;
+            byte more = r.U8();
+            i.Other = (more & 1) != 0;
             if (i.Other)
             {
                 i.OtherX = r.I16() / 100f;
                 i.OtherY = r.I16() / 100f;
                 i.OtherZ = r.I16() / 100f;
             }
+            if ((more & 2) != 0)
+                i.Head = r.I16() / 100f;
         }
         return i;
     }
@@ -213,6 +267,26 @@ public static class Messages
         w.Bytes(opus);
     }
 
+    /// <summary>A joiner turned away (note 254): why, and the crew and the cap.</summary>
+    public static void WriteRefused(NetWriter w, Refusal refusal)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Refused);
+        w.U8((byte)refusal.Reason);
+        w.U16((ushort)Math.Clamp(refusal.Crew, 0, ushort.MaxValue));
+        w.U16((ushort)Math.Clamp(refusal.Cap, 0, ushort.MaxValue));
+    }
+
+    /// <summary>Reads a Refused after its type byte.</summary>
+    public static Refusal ReadRefused(ref NetReader r) => new((RefusalReason)r.U8(), r.U16(), r.U16());
+
+    /// <summary>A player quitting on purpose (note 254): their place frees now, not held for a rejoin.</summary>
+    public static void WriteLeave(NetWriter w)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Leave);
+    }
+
     public static void WriteWait(NetWriter w, string reason)
     {
         w.Reset();
@@ -220,13 +294,15 @@ public static class Messages
         w.Str(reason);
     }
 
-    public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "")
+    /// <param name="token">The slot's token (note 253): said back in a Hello after a drop, it gets this player their crewmate back.</param>
+    public static void WriteWelcome(NetWriter w, byte playerId, uint tick, string session = "", ulong token = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Welcome);
         w.U8(playerId);
         w.U32(tick);
         w.Str(session);
+        w.U64(token);
     }
 
     /// <summary>A name as the session shows it: printable, trimmed, at most this long.</summary>
@@ -238,12 +314,17 @@ public static class Messages
         return s.Length > NameLength ? s[..NameLength].TrimEnd() : s;
     }
 
-    public static void WriteHello(NetWriter w, string name)
+    /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
+        w.U64(token);
     }
+
+    /// <summary>Reads a Hello after its type byte: the name, and the token (0 when it has none).</summary>
+    public static (string Name, ulong Token) ReadHello(ref NetReader r) => (CleanName(r.Str()), r.Remaining >= 8 ? r.U64() : 0);
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {
@@ -446,5 +527,11 @@ public static class Messages
     }
 
     /// <summary>Reads a Welcome after its type byte.</summary>
-    public static (byte PlayerId, uint Tick, string Session) ReadWelcome(ref NetReader r) => (r.U8(), r.U32(), r.Remaining > 0 ? r.Str() : "");
+    public static (byte PlayerId, uint Tick, string Session, ulong Token) ReadWelcome(ref NetReader r)
+    {
+        byte id = r.U8();
+        uint tick = r.U32();
+        string session = r.Remaining > 0 ? r.Str() : "";
+        return (id, tick, session, r.Remaining >= 8 ? r.U64() : 0);
+    }
 }

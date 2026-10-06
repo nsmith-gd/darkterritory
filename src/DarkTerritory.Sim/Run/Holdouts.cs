@@ -141,7 +141,7 @@ public sealed class Holdouts
     /// </summary>
     /// <param name="kit">They've the repair kit in their hands: a lock opens to it, quietly (D.7).</param>
     /// <param name="tool">A melee tool's in their hand (D.7: smash and pry are "any melee tool: shovel, wrench, crowbar";
-    /// note 191). Without one, only the kit at a lock does anything.</param>
+    /// note 275). Without one, only the kit at a lock does anything.</param>
     public bool CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, bool kit = false, bool tool = true)
     {
         var last = _last.GetValueOrDefault(playerId);

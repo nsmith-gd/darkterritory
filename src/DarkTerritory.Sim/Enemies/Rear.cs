@@ -229,8 +229,13 @@ public sealed class CarHugger(int id) : Enemy(id)
         Health = Math.Min(t.Health, Health + t.RegenPerSecond * SimConstants.TickSeconds);
         // FEED: shell and loot, steadily.
         var car = train.Vehicles[Attached];
+        double eaten = car.Eaten;
         // An armoured car's plate is slower eating (note 184).
         car.Eaten += car.Batter(t.ShellPerSecond * SimConstants.TickSeconds, train.Dynamics.Tuning);
+        // Through the end wall (the breach, decided 1 Oct): every breachEaten of shell, boarded up or not, it's through again.
+        if (t.BreachEaten > 0 && Math.Floor(car.Eaten / t.BreachEaten) > Math.Floor(eaten / t.BreachEaten)
+            && Breaches.EndWall(train.Frames[Attached].Shape) is { } wall)
+            car.Breach(wall);
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.LootPerSecond * SimConstants.TickSeconds);
         if (car.Integrity <= 0)
         {

@@ -50,7 +50,7 @@ public class KitTests
     [Fact]
     public void AToolIsAWholeBlowAndAFistAFractionOfOne()
     {
-        // Note 191: each tool its own blow (MeleeTests); every one of them more than a fist.
+        // Note 275: each tool its own blow (MeleeTests); every one of them more than a fist.
         var melee = Tuning.Enemies.Melee;
         foreach (var tool in new[] { Tool.Crowbar, Tool.Shovel, Tool.Wrench })
             Assert.True(melee.Blow(Tool.None) < melee.Blow(tool));

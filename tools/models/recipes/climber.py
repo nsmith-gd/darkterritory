@@ -31,7 +31,7 @@ make.LOW.clear()
 DRESS = {
     "skin.climber_belly": (lambda: make.flat("climber_belly", (0.06, 0.056, 0.052), rough=0.4), 2),
     "skin.climber_teeth": (lambda: make.flat("climber_teeth", (0.3, 0.26, 0.17), rough=0.4), 1),
-    "skin.climber": (lambda: make.flat("climber_skin", (0.016, 0.015, 0.014), rough=0.25), 2),
+    "skin.climber": (lambda: make.flat("climber_skin", (0.016, 0.015, 0.014), rough=0.45), 2),
     "tar.climber_mouth": (lambda: make.flat("climber_mouth", (0.09, 0.015, 0.012), rough=0.12), 1),
     "tar.climber_nail": (lambda: make.flat("climber_nail", (0.008, 0.007, 0.006), rough=0.2), 1),
 }
@@ -50,9 +50,12 @@ def ridged(p, seed, scale):
 
 
 def skin_shape(p, n):
-    # Rubber: smooth, but wrinkled finely in places, the wrinkles crossing.
-    w = smooth01(0.4, 0.8, cook.noise_np(p, 1701, 6.0))
-    return -0.0003 * w * smooth01(0.85, 0.97, ridged(p, 1702, 160.0)) + fine(p, 0.00004, 1200, 1703)
+    # Rubber: smooth, but wrinkled in places, the wrinkles crossing, and puckered in shallow pits (old wounds closed
+    # over); enough that the light breaks on it instead of sliding off a toy.
+    w = smooth01(0.3, 0.75, cook.noise_np(p, 1701, 6.0))
+    pits = smooth01(0.7, 0.9, cook.noise_np(p, 1706, 45.0))
+    return (-0.0007 * w * smooth01(0.82, 0.97, ridged(p, 1702, 160.0)) - 0.0006 * pits
+            + 0.00025 * cook.noise_np(p, 1707, 22.0) + fine(p, 0.00006, 1200, 1703))
 
 
 SHAPE = {"skin.climber_belly": skin_shape, "skin.climber_teeth": lambda p, n: fine(p, 0.00003, 1200, 1704), "skin.climber": skin_shape,
@@ -69,14 +72,16 @@ def marks(p, kind):
     if kind.startswith("skin.climber") and not kind.startswith("skin.climber_teeth"):
         low = smooth01(0.35, 0.05, p[:, 2])
         out[:, 0] = np.clip(low * smooth01(0.1, 0.8, cook.noise_np(p * np.array([1, 0.3, 1], np.float32), 1711, 25.0)), 0, 1)
-        out[:, 1] = smooth01(0.2, 0.8, cook.noise_np(p, 1712, 4.0))
+        out[:, 1] = smooth01(0.45, 0.85, cook.noise_np(p, 1712, 4.0))
+        # B: mottled, a dull bruise-brown in blotches under the black (not one flat colour).
+        out[:, 2] = smooth01(0.45, 0.9, cook.noise_np(p, 1713, 9.0))
     return out
 
 
 def gloss(p, kind):
     out = np.zeros((len(p), 3), np.float32)
     out[:, 0] = (0.12 if kind.startswith("tar.climber_mouth") else 0.4 if kind.startswith("skin.climber_teeth") else
-                 0.2 if kind.startswith("tar.climber_nail") else 0.4 if kind.startswith("skin.climber_belly") else 0.25)
+                 0.2 if kind.startswith("tar.climber_nail") else 0.5 if kind.startswith("skin.climber_belly") else 0.45)
     return out
 
 
@@ -101,6 +106,8 @@ def paint(base, colour, k):
     return base * (1 - k) + np.array(colour, np.float32) * k
 
 
+base = paint(base, (0.034, 0.024, 0.02), mk[..., 2] * 0.6)     # bruise-brown mottling
 base = paint(base, (0.07, 0.066, 0.062), mk[..., 0] * 0.55)    # scuffed grey
-rough = np.clip(atlas.maps["gloss"][..., 0] - 0.1 * mk[..., 1] + 0.25 * mk[..., 0], 0.05, 1)
+# Wet only in blotches (the sheen was everywhere, and under a pale sky the black read as blue plastic).
+rough = np.clip(atlas.maps["gloss"][..., 0] - 0.25 * mk[..., 1] + 0.25 * mk[..., 0], 0.05, 1)
 atlas.finish(base, kit, arm, made=make.provenance("climber", "the Climber, modelled over tools/blender/climber.py"), rough=rough)

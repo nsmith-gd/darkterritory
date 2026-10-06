@@ -9,6 +9,9 @@ namespace DarkTerritory.Game;
 /// <summary>A bookmark's still (GDD v1.4 App. D.12): RGBA8 display values, <see cref="Width"/> × <see cref="Height"/>.</summary>
 public sealed record Still(int Width, int Height, byte[] Rgba);
 
+/// <summary>A still due this frame: the bookmark, the camera, and for a derailment's, the film's peak to draw (E.5).</summary>
+public sealed record DueStill(Bookmark Mark, Camera Camera, FilmPeak? Peak);
+
 /// <summary>
 /// The stills of the night's bookmarks (GDD v1.4 App. D.12), taken on this machine. The host sends where each is to be
 /// taken from (<see cref="Bookmark"/>); this says when each is due and from what camera, the app draws the frame from there
@@ -22,6 +25,7 @@ public sealed class BookmarkStills
 
     readonly Dictionary<int, Still> _stills = [];
     readonly Dictionary<int, double> _seen = [];
+    readonly HashSet<int> _peaks = [];
 
     public IReadOnlyDictionary<int, Still> Stills => _stills;
 
@@ -30,21 +34,33 @@ public sealed class BookmarkStills
     {
         _stills.Clear();
         _seen.Clear();
+        _peaks.Clear();
     }
 
     /// <summary>
     /// The bookmarks due a still this frame, with the camera to take each from. A GRAB's, a PUNISH's and a dead player's are
-    /// due as they arrive; a derailment's at <see cref="WreckTuning.BookmarkSeconds"/> into the first-person beat (by this
-    /// machine's clock from when it heard of it), each from that crew member's eye in the car they rode as the wreck throws
-    /// it; the Stranded outro's once the outro's over, from its last frame.
+    /// due as they arrive; the Stranded outro's once the outro's over, from its last frame. A derailment's is E.5's: that
+    /// crew member's peak in the film (<see cref="DerailSequence.PeakOf"/>), from their shot's camera, as soon as this
+    /// machine has the film. Until it has (the film's shot off the frame loop, and a machine that never gets it has none),
+    /// it's the first-person beat's at <see cref="WreckTuning.BookmarkSeconds"/> (by this machine's clock from when it heard
+    /// of it), from their eye in the car they rode as the wreck throws it; the film's peak replaces that when it comes.
     /// </summary>
     /// <param name="now">This machine's seconds (smooth between ticks).</param>
-    public List<(Bookmark Mark, Camera Camera)> Due(IPlaySession s, IReadOnlyList<CarFrame> frames, double now)
+    /// <param name="film">The derailment's film; the session's own if not given.</param>
+    public List<DueStill> Due(IPlaySession s, IReadOnlyList<CarFrame> frames, double now, WreckFilm? film = null)
     {
-        var due = new List<(Bookmark, Camera)>();
+        film ??= s.Film;
+        var due = new List<DueStill>();
         var wreck = s.World.WreckTuning;
         foreach (var b in s.World.Bookmarks.All)
         {
+            if (_peaks.Contains(b.Id))
+                continue;
+            if (b.Kind == BookmarkKind.Derail && film is not null && DerailSequence.PeakOf(film, b.Victim) is { } peak)
+            {
+                due.Add(new DueStill(b, peak.Camera, peak));
+                continue;
+            }
             if (_stills.ContainsKey(b.Id))
                 continue;
             if (!_seen.TryGetValue(b.Id, out double seen))
@@ -57,10 +73,13 @@ public sealed class BookmarkStills
                 _ => Of(b, frames),
             };
             if (camera is { } c)
-                due.Add((b, c));
+                due.Add(new DueStill(b, c, null));
         }
         return due;
     }
+
+    /// <summary>Whether a bookmark's still is its crew member's peak in the film (E.5), not the first-person stand-in.</summary>
+    public bool IsPeak(int id) => _peaks.Contains(id);
 
     /// <summary>The camera a bookmark names: its eye and look in the car it rides (rolled with the car), or in the world.</summary>
     public static Camera Of(Bookmark b, IReadOnlyList<CarFrame> frames)
@@ -83,11 +102,16 @@ public sealed class BookmarkStills
         return crew;
     }
 
-    /// <summary>Keeps a frame drawn from a bookmark's camera as its still: cropped to 16:9 about its middle, averaged down.</summary>
-    public Still Keep(Bookmark b, byte[] rgba, int width, int height)
+    /// <summary>
+    /// Keeps a frame drawn from a bookmark's camera as its still: cropped to 16:9 about its middle, averaged down.
+    /// <paramref name="peak"/>: it's the film's peak (E.5), final.
+    /// </summary>
+    public Still Keep(Bookmark b, byte[] rgba, int width, int height, bool peak = false)
     {
         var still = Shrink(rgba, width, height, Width, Height);
         _stills[b.Id] = still;
+        if (peak)
+            _peaks.Add(b.Id);
         return still;
     }
 

@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
@@ -408,7 +409,7 @@ public class HoldoutTests
     [InlineData(false)]
     public void EmptyHandsSmashNoLockAndPryNoBarricade(bool lockUp)
     {
-        // D.7: smash and pry are "any melee tool: shovel, wrench, crowbar" (note 191). A slot picked with nothing in it is
+        // D.7: smash and pry are "any melee tool: shovel, wrench, crowbar" (note 275). A slot picked with nothing in it is
         // empty hands: Use at the door does nothing.
         var n = new Night(lockUp ? ALock : ABarricade, engineFrom: -300);
         int living = n.Add(alive: true);
@@ -631,6 +632,176 @@ public class HoldoutTests
         Assert.Equal(0, report.Deaths);
         Assert.Equal(0, report.BodiesHome);
         Assert.Equal(0, report.CrewLossFees);
+    }
+
+    /// <summary>
+    /// Note 258: a night's host and its bots over a loopback, coming up to a Halt with one Lockup, and someone playing who
+    /// died back up the line (an idle client, killed on the host). The bots are <see cref="Bots.BotCrew.Make"/>'s crew of
+    /// that many, thinking as the harness's do.
+    /// </summary>
+    sealed class BotNight
+    {
+        public readonly HostSession Host;
+        public readonly Route.Route Route;
+        public readonly RouteFeature Site;
+        public readonly List<(ClientSession Session, Bots.IBot Bot)> Crew = [];
+        public readonly ClientSession Player;
+        readonly Ballast.Net.LoopbackNetwork _net = new();
+        readonly Bots.CrewCalls _calls = new();
+        uint _t;
+
+        public BotNight(int bots)
+        {
+            for (ulong seed = 1; ; seed++)
+            {
+                var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
+                // A Halt with nothing just short of it to stop for first.
+                if (route.Features.FirstOrDefault(f => f.Stop is not null && AHalt(f) && f.Start > 2_000
+                        && !route.Features.Any(o => o != f && o.End > f.Start - 1_000 && o.Start < f.End)) is not { } site)
+                    continue;
+                Route = route;
+                Site = site;
+                break;
+            }
+            Host = new HostSession(_net.CreateHost(), Train(), Tuning.Train, P, Tuning.Combat);
+            for (int i = 0; i < bots; i++)
+            {
+                var session = new ClientSession(_net.CreateClient(), Train(), Tuning.Train, P, Tuning.Combat);
+                Crew.Add((session, Bots.BotCrew.Make(i, bots, _calls, Tuning.Combat, P, 1)));
+            }
+            Player = new ClientSession(_net.CreateClient(), Train(), Tuning.Train, P, Tuning.Combat) { Name = "Priya" };
+        }
+
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), Route.Build(), Site.Start - 450, Tuning.Boiler);
+
+        void Setup(World w, bool authority)
+        {
+            // The host's alone: it makes a world the authority (clients mirror theirs).
+            if (authority)
+                w.EnableBodies();
+            w.EnableRun(Tuning.Run, Route, 600, authority);
+            w.EnableHoldouts(H, Route);
+        }
+
+        public byte PlayerId => Player.PlayerId!.Value;
+        public Holdout Lockup => Host.World.Holdouts!.All.Single(h => h.Site == Site);
+        public PlayerState Of(byte id) => Host.Players.First(p => p.Id == id).State;
+
+        /// <summary>Runs the night on, each tick calling <paramref name="watch"/>; stops early once <paramref name="until"/> holds.</summary>
+        public void Run(double seconds, Func<bool>? until = null, Action? watch = null)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                _net.Advance(SimConstants.TickSeconds);
+                Host.Step();
+                _calls.Advance(_t);
+                foreach (var (session, bot) in Crew)
+                    session.Step(session.Connected ? Bots.BotCrew.Think(session, bot, _t, _calls) : default);
+                Player.Step(default);
+                _t++;
+                watch?.Invoke();
+                if (until?.Invoke() == true)
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// Everyone in (before there's a night under way: after, a joiner waits in the queue, D.3), the night under way, then
+        /// the one playing dies back up the line (D.6: not to wait where they died).
+        /// </summary>
+        public void KillThePlayer()
+        {
+            Run(1);
+            Assert.All(Crew, c => Assert.NotNull(c.Session.PlayerId));
+            Setup(Host.World, authority: true);
+            foreach (var (session, _) in Crew)
+                Setup(session.World, authority: false);
+            Setup(Player.World, authority: false);
+            Host.World.Run!.Resume(900, -1, Host.Train.Boiler.Tender, 0);
+            var line = Host.Train.Line;
+            double back = Host.Train.Dynamics.RearDistance - 200;
+            Host.SetPlayerState(PlayerId, Player.Predicted with
+            {
+                Parent = PlayerState.World,
+                Health = 0,
+                Death = DeathCause.Mauled,
+                LineHint = back,
+                Position = line.Sample(back).Position,
+            });
+        }
+    }
+
+    [Fact]
+    public void ALoneDriverStopsAtALitLockupBreachesItAndDrivesOnWithThemBack()
+    {
+        // T115's leftover (note 259): a crew of one bot and someone playing who's died. Nobody but the driver to begin the
+        // breach (D.5), and it used to stand there 180 s and go on without them.
+        var n = new BotNight(bots: 1);
+        n.KillThePlayer();
+        var driver = (Bots.ConductorBot)n.Crew[0].Bot;
+        byte driverId = n.Crew[0].Session.PlayerId!.Value;
+        bool wentOut = false;
+        double leftPressure = 0, leftFire = 0;
+        double outAt = 0;
+        int litTicks = 0;
+        n.Run(400, until: () => n.Lockup.State == HoldoutState.Freed, watch: () =>
+        {
+            var d = n.Of(driverId);
+            if (n.Lockup.Lit)
+                litTicks++;
+            if (!wentOut && !PlayerMotor.InCab(d, n.Host.Train) && n.Lockup.Lit)
+            {
+                wentOut = true;
+                outAt = n.Host.Train.Dynamics.Distance;
+                // It left the train standing on its brake, the gauge down to what it holds at a stand.
+                Assert.True(n.Host.Controls.Brake > 0, "out with the brake on");
+                Assert.True(n.Host.Train.Dynamics.Speed < 0.1);
+                leftPressure = n.Host.Train.Boiler.Pressure;
+                leftFire = n.Host.Train.Boiler.FireFraction(Tuning.Boiler);
+            }
+            // Standing all the while it's out.
+            if (wentOut && n.Lockup.Lit)
+                Assert.True(n.Host.Train.Dynamics.Speed < 0.1, $"the train moved at {n.Host.Train.Dynamics.Speed:0.00} m/s with the driver out");
+        });
+        Assert.True(wentOut, "the driver got down");
+        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway.
+        Assert.True(leftPressure <= 65, $"vented down before it went: {leftPressure:0.0}");
+        Assert.True(leftFire >= 0.75, $"fired up before it went: {leftFire:0.00}");
+        var lockup = n.Lockup;
+        Assert.Equal(HoldoutState.Freed, lockup.State);
+        var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
+        Assert.Equal(n.PlayerId, freed.PlayerId);
+        Assert.Equal(driverId, freed.By);
+        // Well inside the wait it used to give up after (ForAHoldout's 180 s standing), from lighting as the train came in.
+        Assert.True(litTicks * SimConstants.TickSeconds < 150, $"{litTicks * SimConstants.TickSeconds:0} s lit");
+        // They're back: alive, inside the Lockup.
+        var back = n.Of(n.PlayerId);
+        Assert.True(back.Alive);
+        Assert.True((back.Position - lockup.Inside).Length < 1);
+        // And the driver's back up in the cab and away (the one playing climbs aboard as they like; it waits a while for them).
+        n.Run(300, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
+        Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
+        Assert.False(driver.BreachingAlone);
+        Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");
+    }
+
+    [Fact]
+    public void WithAWalkerOrGunnerAliveTheDriverLeavesTheBreachToThem()
+    {
+        // A crew of two bots (the driver and the gunner) and the one playing dead: the gunner goes (T96); the driver holds the
+        // train on the brake from the cab.
+        var n = new BotNight(bots: 2);
+        n.KillThePlayer();
+        var driver = (Bots.ConductorBot)n.Crew[0].Bot;
+        byte driverId = n.Crew[0].Session.PlayerId!.Value, gunnerId = n.Crew[1].Session.PlayerId!.Value;
+        Assert.IsType<Bots.GunnerBot>(n.Crew[1].Bot);
+        bool driverOut = false;
+        n.Run(400, until: () => n.Lockup.State == HoldoutState.Freed, watch: () =>
+            driverOut |= driver.BreachingAlone || n.Lockup.Lit && !PlayerMotor.InCab(n.Of(driverId), n.Host.Train));
+        var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
+        Assert.Equal(gunnerId, freed.By);
+        Assert.False(driverOut, "the driver stayed at the controls");
+        Assert.True(n.Of(n.PlayerId).Alive);
     }
 
     static RunReport Deliver(Night n)

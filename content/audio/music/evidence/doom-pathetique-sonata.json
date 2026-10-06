@@ -1,0 +1,62 @@
+{
+  "title": "File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - Allegro di molto e con brio.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/2/26/Beethoven%2C_Sonata_No._8_in_C_Minor_Pathetique%2C_Op._13_-_I._Grave_-_Allegro_di_molto_e_con_brio.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Beethoven,_Sonata_No._8_in_C_Minor_Pathetique,_Op._13_-_I._Grave_-_Allegro_di_molto_e_con_brio.ogg",
+  "sha1": "805c0d3c7f4adda6cd557c0a16664930bc683846",
+  "size": 10222065,
+  "mime": "application/ogg",
+  "artist": "Ludwig van Beethoven",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: http://www.musopen.org/music/piece/33 The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - allegro di molto e con brio",
+  "date": "",
+  "revision": 820137730,
+  "revisionTimestamp": "2023-11-09T16:43:48Z",
+  "user": "Morn",
+  "refused": [],
+  "id": "doom-pathetique-sonata",
+  "work": "Piano Sonata No. 8 \"Pathétique\", first movement",
+  "composer": "Ludwig van Beethoven",
+  "sourceSha256": "43039492c574d60a23405ede80714aa026be0242014453821d2ebfaf45924ee2",
+  "fetched": "2026-10-03T17:55:58Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of Piano Sonata No. 8 (Beethoven)|#1]]\n[[Category:Allegro (music)]]\n[[Category:Fortepiano (dynamic)]]",
+  "information": "{{Information\n|Description    ={{en|1=Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - allegro di molto e con brio}}\n|Source         ={{Musopen|http://www.musopen.org/music/piece/33}}\n|Author         ={{Creator:Ludwig van Beethoven}}\n:Paul Pitman\n|Date           =\n|Permission     =\n|other_versions =movements: [[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - Allegro di molto e con brio.ogg|1st]]·[[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - II. Adagio cantabile.ogg|2nd]]·[[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - III. Rondo - Allegro.ogg|3rd]]\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - allegro di molto e con brio}}\n|Source         ={{Musopen|http://www.musopen.org/music/piece/33}}\n|Author         ={{Creator:Ludwig van Beethoven}}\n:Paul Pitman\n|Date           =\n|Permission     =\n|other_versions =movements: [[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - I. Grave - Allegro di molto e con brio.ogg|1st]]·[[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - II. Adagio cantabile.ogg|2nd]]·[[:File:Beethoven, Sonata No. 8 in C Minor Pathetique, Op. 13 - III. Rondo - Allegro.ogg|3rd]]\n}}\n\n== {{int:license-header}} ==\n{{Cc-zero}}\n\n[[Category:Audio files of Piano Sonata No. 8 (Beethoven)|#1]]\n[[Category:Allegro (music)]]\n[[Category:Fortepiano (dynamic)]]",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the Grave's fortissimo chords",
+  "hitClock": "0:19.8",
+  "file": "doom-pathetique-sonata.opus",
+  "hitGuess": 19.79,
+  "sourceSeconds": 419.775,
+  "window": [
+    0.0,
+    40.79
+  ],
+  "hitInSource": 19.79,
+  "analysis": {
+    "score": 37.65,
+    "range": [
+      4.5,
+      40
+    ]
+  },
+  "inputLufs": -26.03,
+  "inputTruePeak": -4.68,
+  "normalization": "dynamic",
+  "outputLufs": -17.6,
+  "limiterGainDb": 3.6,
+  "limitDb": -4.24,
+  "decodedPeakDb": -1.79,
+  "hitCheck": {
+    "jumpDb": 9.6,
+    "loudnessRank": 0.25,
+    "weak": false
+  }
+}

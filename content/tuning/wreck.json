@@ -42,6 +42,8 @@
   // Presentation (T121 playtest: "let people experience it first hand, then replay the moment from the third person train
   // view"): firstPersonSeconds in your own eyes riding the wreck; then replaySeconds of the chase view replaying it from
   // replayLeadSeconds before it came off; then cinematicSeconds of the camera circling the wreck. The run's end waits.
+  // With a film, the first person is each player's own, up to and through their death (film.firstPerson*, below); this is
+  // its length only while the film's still being shot, or without one.
   "firstPersonSeconds": 4,
   // GDD v1.4 App. D.12, E.5 ("each player's peak frame is captured as their auto-bookmark"): the build's per-player shot is the
   // first-person beat, so each crew member's still is taken this far into it, from their eye in the car they rode. Not in the
@@ -68,10 +70,32 @@
   // every car gets nothing) and cuts it the same way: one shot each (shotSeconds, shrinking to fit shotCap, never under
   // shotMin) at baseSlow easing to peakSlow at their peak, the biggest flight last, then the settle and the cause card.
   // (freezeSeconds and establishingSeconds are E.5's first beats, which the first person and the replay stand in for.)
+  // The director's calls of 5 Oct 2026 (notes 257, 258), inside E.10's ranges: a bigger fling (x1.0-2.0), kick (0-6 m/s)
+  // and spin (0-8 rad/s; drawn from spinMin to spin), so nobody's upright at their peak unless something holds them; the
+  // gunner in the gun's seat is thrown out of it with seatKick (m/s up, E.10's top kick), head over heels at the full spin,
+  // from seatClear m back off the gun.
+  // Each crewmate dies on their first hit of impactSpeed or more (m/s taken off their body inside one recorded frame by the
+  // ground or a car), or crushed under a car (App. E.2 step 1, the director's decision); every hit of thudSpeed or more,
+  // thudGap s apart, is a landing with a thud. Their first person plays the recording at firstPersonRate to firstPersonAfter
+  // s past that death (firstPersonMin-firstPersonMax s in all), and the host kills them as it lands there.
+  // Take 3 (the director, 5 Oct 2026): alive till the hit that kills them, braced (muscle: the brace's stiffness; reach: the
+  // hands going out to meet what's coming), they take surviveHits hits before one of impactSpeed kills them; one of
+  // certainDeathSpeed, or being crushed, kills at once; past giveUpSeconds of the recording, hits survived, any hit kills,
+  // and after mostHits survived the next one kills whatever it is (never killed, they died in their last hit).
+  // At the hit they go limp. Each player's shot is 4 s (shotSeconds and shotMin, the cap 8 of them), the throw into the
+  // death and the limp aftermath; the first person runs firstPersonAfter (3.8) s past your own death, the eyes going limp
+  // with the body (firstPersonMin-firstPersonMax: 4.5-9 s, the take-2 window plus 3), at firstPersonRate.
+  // A player's shot shows the throw into their death and a little after (baseSlow 0.4x easing to peakSlow 0.15x, inside
+  // E.10's 0.1-0.5x and 0.05-0.25x; E.5 had 0.25x and 0.1x, too little of the throw in 2 s), framed at shotFill of the
+  // frame's height (E.4 O6: 25-60%), its field of view fovMin-fovMax degrees.
   "film": {
-    "seconds": 6, "substeps": 4, "fling": 1.3, "kickMin": 2, "kickMax": 4, "spin": 4, "ejectCap": 30, "minKickSpeed": 6,
-    "bystander": 25, "baseSlow": 0.25, "peakSlow": 0.1, "freezeSeconds": 0.4, "establishingSeconds": 3, "shotSeconds": 2.5,
-    "shotMin": 2, "shotCap": 16, "settleSeconds": 3, "causeSeconds": 2, "cameraRadius": 0.3, "minDistance": 2.5,
-    "lensClearance": 1.5, "simRadius": 300
+    "seconds": 6, "substeps": 4, "fling": 1.6, "kickMin": 3, "kickMax": 5, "spin": 7, "spinMin": 3.5, "ejectCap": 30, "minKickSpeed": 6,
+    "bystander": 25, "baseSlow": 0.4, "peakSlow": 0.15, "freezeSeconds": 0.4, "establishingSeconds": 3, "shotSeconds": 4,
+    "shotMin": 4, "shotCap": 32, "settleSeconds": 3, "causeSeconds": 2, "cameraRadius": 0.3, "minDistance": 2.5,
+    "lensClearance": 1.5, "simRadius": 300,
+    "seatKick": 6, "seatClear": 0.25, "surviveHits": 2, "mostHits": 3, "certainDeathSpeed": 16, "giveUpSeconds": 2.4, "muscle": 0.25, "reach": 0.03,
+    "impactSpeed": 6, "thudSpeed": 2, "thudGap": 0.25,
+    "firstPersonRate": 0.5, "firstPersonAfter": 3.8, "firstPersonMin": 4.5, "firstPersonMax": 9,
+    "shotFill": 0.45, "fovMin": 22, "fovMax": 60
   }
 }

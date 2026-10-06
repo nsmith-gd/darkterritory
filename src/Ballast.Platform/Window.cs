@@ -35,6 +35,13 @@ public sealed class InputState
     public float MouseDY { get; internal set; }
     /// <summary>Wheel notches this frame, positive away from the player (scrolled up).</summary>
     public float Wheel { get; internal set; }
+    /// <summary>
+    /// Where the pointer is over the window, 0..1 across and down (the menus' mouse; free, not captured). Kept between frames.
+    /// </summary>
+    public float MouseX { get; internal set; }
+    public float MouseY { get; internal set; }
+    /// <summary>The pointer moved over the window since the last <see cref="EndFrame"/>.</summary>
+    public bool MouseMoved { get; internal set; }
     /// <summary>Characters typed since the last <see cref="EndFrame"/>, while the window takes text (<see cref="Window.TextInput"/>).</summary>
     public string Text => _text.ToString();
     readonly System.Text.StringBuilder _text = new();
@@ -54,6 +61,7 @@ public sealed class InputState
         _pressed.Clear();
         _text.Clear();
         MouseDX = MouseDY = Wheel = 0;
+        MouseMoved = false;
     }
 }
 
@@ -96,6 +104,12 @@ public sealed unsafe class Window : IDisposable
     }
 
     /// <summary>Takes typed text into <see cref="InputState.Text"/> (a menu's address field); off, keys are only keys.</summary>
+    /// <summary>
+    /// A click on the window takes the mouse for looking (the game's way). The menus turn it off: there a click is a click,
+    /// on what the free pointer's over.
+    /// </summary>
+    public bool CaptureOnClick { get; set; } = true;
+
     public bool TextInput
     {
         get => SDL_TextInputActive(_window);
@@ -192,15 +206,23 @@ public sealed unsafe class Window : IDisposable
                         Input.MouseDX += e.motion.xrel;
                         Input.MouseDY += e.motion.yrel;
                     }
+                    else
+                    {
+                        int ww, wh;
+                        SDL_GetWindowSize(_window, &ww, &wh);
+                        Input.MouseX = ww > 0 ? e.motion.x / ww : 0;
+                        Input.MouseY = wh > 0 ? e.motion.y / wh : 0;
+                        Input.MouseMoved = true;
+                    }
                     break;
                 case SDL_EventType.SDL_EVENT_MOUSE_WHEEL:
-                    if (MouseCaptured)
-                        Input.Wheel += e.wheel.direction == SDL_MouseWheelDirection.SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
+                    // Captured, the hotbar's; free, the menus' lists.
+                    Input.Wheel += e.wheel.direction == SDL_MouseWheelDirection.SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
                     break;
                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP:
                     bool down = (SDL_EventType)e.type == SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
-                    if (down && !MouseCaptured)
+                    if (down && !MouseCaptured && CaptureOnClick)
                     {
                         MouseCaptured = true;
                         break;

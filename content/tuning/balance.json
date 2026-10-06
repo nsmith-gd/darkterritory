@@ -24,8 +24,15 @@
   // they lay in wait all night), not judged. By default each combination meets one hazard set, the sets in turn down the
   // list (--every-hazard for the whole cross, the nightly's), and --triples runs tripleSample of the 680 (--sample 0 for
   // all of them), so a default run takes minutes.
+  // The grid (§34 "every hazard set"; B.10 "at every crew size"; note 204): each combination is run on every one of routes
+  // with every one of crews, seeds nights a (route, crew) cell. Unwinnable is lost every night in some cell; trivial is
+  // nothing landed in any night anywhere. The default is one cell, quick; wide is the nightly's (dt balance --wide): a
+  // Frontier line and a Dead Lines one (its dead lines and marsh are other places to stage from), B.10's smallest and
+  // largest crews, and two seeds, so an unwinnable verdict is two lost nights, not one. --routes, --crews, --seeds override.
   "combinations": {
-    "route": "frontier:7", "crew": 4, "cars": 6, "seconds": 90, "seeds": 1, "tripleSample": 136, "insistEvery": 10, "leadM": 20,
+    "routes": ["frontier:7"], "crews": [4], "seeds": 1,
+    "wide": { "routes": ["frontier:7", "deadLines:2"], "crews": [2, 8], "seeds": 2 },
+    "cars": 6, "seconds": 90, "tripleSample": 136, "insistEvery": 10, "leadM": 20,
     // With --at-stops (the nightly's: a stop's night costs several times a line's), a combination with something that comes
     // at a stop (the Whistler, Ribbits, the Gaunt, Followers, Soot Children, the Passenger, the Grumbler) starts approachM
     // short of the first facility's spur the crew can work (one with a crane for the Grumbler), and runs stopSeconds: time
@@ -33,6 +40,13 @@
     // ballast at the start.
     "approachM": 350, "stopSeconds": 150,
     "unwinnableLost": 0.5, "trivialCargoLoss": 0.02,
+    // GDD §34 "every pair and triple": a meeting the bots never give its chance can't be judged (note 186's "dormant"). On
+    // these nights only, the last walker is the look-out (note 212): off the ballast at the start it waits up to waitSeconds
+    // for what's sent at a crew on foot, then walks to within gauntM of a sleeping Gaunt (it wakes at enemies.json wakeAt 4)
+    // or ribbitM of a Ribbit pack (away from the others: outnumbered), if it's within seekM; up on the roofs it stays out
+    // there (not in for a bag) and stands edgeM in from the lip over a Dragger (it reaches draggers.grabRange 1.0 in). Once
+    // each, then back to its post. DESIGN-TODO: first pass; a curious player, roughly.
+    "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
     // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
     // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward

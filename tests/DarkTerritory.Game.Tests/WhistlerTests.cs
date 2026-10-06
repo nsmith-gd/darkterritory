@@ -74,4 +74,27 @@ public class WhistlerTests
         float mid = v.Average(p => p.Position.X), head = v.Where(p => p.Position.Y > 0.75f).Average(p => p.Position.X);
         Assert.True(head > mid + 0.05f, $"head at x {head}, middle {mid}");
     }
+
+    [Fact]
+    public void CarryingSomeoneOffItHoldsThemUpUnderTheArmsInFrontOfItsRearedFront()
+    {
+        // Loose on its run to the nest with player 4 (App. A.4 GRAB): its hooks are where the scene hangs them
+        // (GreyboxScene.Hung), under the arms over feet on the ground, and its reared front is behind them, not through them.
+        var mesh = new MeshBuilder();
+        var w = new Whistler(1);
+        w.Restore(SpinePhase.Grab, 1, 3, Enemy.Loose, default, 0, 0, 0, 0, 0, holding: 4);
+        Art.Clutches.Clear();
+        Assert.True(Art.Enemy(mesh, Matrix4x4.CreateTranslation(0, 0, -6), w));
+        Assert.True(Art.Clutches.TryGetValue(4, out var clutch), "carrying, it says where it holds them");
+        Assert.InRange(clutch.At.Y, CreatureArt.CarriedUnderarm - 0.08f, CreatureArt.CarriedUnderarm + 0.08f);
+        var v = mesh.Flattened();
+        var origin = new Vector3(0, 0, -6);
+        float ahead = Vector3.Dot(clutch.At - origin, clutch.Forward);
+        Assert.True(ahead > 0.4f, $"the hooks are {ahead} m ahead of its middle");
+        // Its column, at their body's height: behind their back (0.15 m behind the hooks), not where they hang.
+        var column = v.Where(p => p.Position.Y is > 0.5f and < 1.2f).Select(p => Vector3.Dot(p.Position - clutch.At, clutch.Forward)).ToList();
+        Assert.NotEmpty(column);
+        Assert.True(column.Average() < -0.2f, $"its column is {column.Average()} m from the hooks along its run");
+        Assert.True(v.Max(p => p.Position.Y) > 2.0f, "reared up over them");
+    }
 }
