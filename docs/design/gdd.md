@@ -2083,7 +2083,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
 - *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
-- *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 267): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
+- *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 268): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
 - *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
 - *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*

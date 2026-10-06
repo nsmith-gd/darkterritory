@@ -94,11 +94,11 @@ public sealed class World
     /// </summary>
     public double LampOutSeconds { get; set; }
 
-    /// <summary>Where the engine's forward lamp is (world): on the cab's nose under its front windows, at the very front (note 267).</summary>
+    /// <summary>Where the engine's forward lamp is (world): on the cab's nose under its front windows, at the very front (note 268).</summary>
     public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, LampHeight, -engine.Shape.HalfLength - 0.3));
 
     /// <summary>
-    /// The forward lamp's height over the rail (m): cab forward (note 267), on the cab's nose under the front windows, clear of
+    /// The forward lamp's height over the rail (m): cab forward (note 268), on the cab's nose under the front windows, clear of
     /// the driver's view down the line (it was 2.8, high on the smokebox door, with the boiler in front).
     /// </summary>
     public const double LampHeight = 2.0;

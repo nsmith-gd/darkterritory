@@ -235,14 +235,14 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
 }
 
 /// <summary>
-/// Greybox layout of the 20 m engine, cab forward (note 267), front to back: the pilot, the cab (the driver's controls at
+/// Greybox layout of the 20 m engine, cab forward (note 268), front to back: the pilot, the cab (the driver's controls at
 /// its front windows, the firebox in its back wall, the coal bunker beside it), the boiler with the stack at the rear.
 /// </summary>
 public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength)
 {
     /// <summary>The pilot ahead of the cab: buffer beam, plough and headlamp.</summary>
     public double PilotLength { get; init; } = 0.6;
-    /// <summary>The coal bunker in the cab (note 267): along the left wall ahead of the left doorway, this long.</summary>
+    /// <summary>The coal bunker in the cab (note 268): along the left wall ahead of the left doorway, this long.</summary>
     public double BunkerLength { get; init; } = 1.8;
     /// <summary>How far in from the cab's left wall the bunker reaches.</summary>
     public double BunkerDepth { get; init; } = 0.85;

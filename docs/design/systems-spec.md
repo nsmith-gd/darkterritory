@@ -233,7 +233,7 @@ At 20 cars, crossing the train takes a minute and a half in each direction. That
 | 15 cars | 0.27 m/s² | 0.67 m/s² | 33s / 361m |
 | **20 cars** | **0.18 m/s²** | **0.49 m/s²** | **45s / 494m** |
 
-**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: both in the cab since T109, a few steps apart (cab forward, note 267: the brake at the front windows, the vent on the left wall). At 20 cars you begin braking 500–600 m before a stop.
+**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: both in the cab since T109, a few steps apart (cab forward, note 268: the brake at the front windows, the vent on the left wall). At 20 cars you begin braking 500–600 m before a stop.
 
 ### Grade
 
@@ -282,7 +282,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Parameter | Value |
 |---|---|
 | Fire rate | 3/s |
-| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 267, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
+| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 268, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
 | Traverse | 200° |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |

@@ -30,7 +30,7 @@
     "doorway": { "height": 2.1, "width": 0.9, "bayHeight": 3.5 },
     // Ladders sit on both sides at the rear end of every car.
     "ladderInset": 0.6,
-    // The engine, cab forward (ARCHITECTURE §8 note 267, the director's sketch: "controls at the front with full vis of the
+    // The engine, cab forward (ARCHITECTURE §8 note 268, the director's sketch: "controls at the front with full vis of the
     // rail"), front to back: the pilot, the cab with the driver's controls at its front windows and the firebox in its back
     // wall, the coal in a bunker in the cab beside the firebox, then the boiler with the smokebox and stack at the rear,
     // where car 1 couples on. Heights above rail.
@@ -43,7 +43,7 @@
       "boilerTop": 3.6,
       // The cab: the driver's end at the front windows, the fireman's at the back with the firebox door and the coal.
       "cabLength": 5.0,
-      // The coal bunker (note 267, the director: "put a coal bunker in the cab"): against the cab's left wall ahead of its
+      // The coal bunker (note 268, the director: "put a coal bunker in the cab"): against the cab's left wall ahead of its
       // left doorway, this long, this deep in from the wall and this high over the floor. The fireman stands between it
       // and the fire door, a quarter turn from one to the other.
       "bunkerLength": 1.8,

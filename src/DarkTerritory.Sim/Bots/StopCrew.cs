@@ -592,7 +592,7 @@ public sealed class StopDriver(CrewCalls calls)
     public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
-    // loading's was 300; cab forward, note 267, the warm a cold hand goes back to is 10 m further from the cars, and a lone
+    // loading's was 300; cab forward, note 268, the warm a cold hand goes back to is 10 m further from the cars, and a lone
     // bot's crates ran up to it with a door still to shut.)
     const double HeldGiveUp = 240, LoadingGiveUp = 360, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
@@ -2329,7 +2329,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         {
             Doing = "out of the cab";
             double door = CabDoorZ(train);
-            // Cab forward (note 267), the coal bunker stands along the left wall ahead of its doorway: on that side, down the
+            // Cab forward (note 268), the coal bunker stands along the left wall ahead of its doorway: on that side, down the
             // aisle beside it to the doorway's height first, then out.
             var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
             if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)

@@ -114,7 +114,7 @@ public class HandTests
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var coal = shape.Interactables.First(i => i.Kind == InteractableKind.Coal);
         // Each of the two, at waist height, and the fireman between them: each is within an arm's length. (Cab
-        // forward, note 267, the coal's ahead of the fire door and to its left: along the way from one to the other.)
+        // forward, note 268, the coal's ahead of the fire door and to its left: along the way from one to the other.)
         var toFire = (firebox.Position - coal.Position) with { Y = 0 };
         toFire = toFire * (1 / toFire.Length);
         // (Their reaches overlap: the hand over each, a little towards the other.)
@@ -285,7 +285,7 @@ public class HandTests
         var coal = shape.Interactables.First(i => i.Kind == InteractableKind.Coal).Position + new Double3(0, 0.6, 0.1);
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position + new Double3(0, 0.7, 0.1);
         // A fire with room in it, so every shovelful goes in. First across the footplate to between the coal and the fire
-        // door (cab forward, note 267: they're at the fireman's end, the crew comes in at the driver's).
+        // door (cab forward, note 268: they're at the fireman's end, the crew comes in at the driver's).
         var between = ((coal + firebox) * 0.5) with { Y = 0 };
         for (int i = 0; i < SimConstants.TickRate * 4; i++)
             Step(Walk(client.Predicted, between with { Y = client.Predicted.Position.Y }));

@@ -202,7 +202,7 @@ public class PlayerMotorTests
     [Fact]
     public void FromTheFirstCarsCouplerTheRunningBoardLeadsIntoTheCab()
     {
-        // T90 (playtest): there was no way into the cab from the train. Cab forward (note 267), car 1 couples on behind the
+        // T90 (playtest): there was no way into the cab from the train. Cab forward (note 268), car 1 couples on behind the
         // smokebox: off the plate onto the footplate, out onto the left running board, forward along it beside the boiler,
         // and in at the cab's left doorway, at speed.
         var rig = OnRoof(3, 14, car: 1);
@@ -223,7 +223,7 @@ public class PlayerMotorTests
     public void UpTheCabsBackLadderFromTheBoilerToTheCabRoofAndItsGun()
     {
         // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof: cab
-        // forward (note 267), from the boiler's top up the cab's back wall.
+        // forward (note 268), from the boiler's top up the cab's back wall.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
         var ladder = engine.Shape.Ladders.Single(x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);

@@ -2022,7 +2022,7 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
-                // At the open door, looking out of it into the cab: cab forward (note 267), the firebox is in the cab's back
+                // At the open door, looking out of it into the cab: cab forward (note 268), the firebox is in the cab's back
                 // wall, so the cab's ahead of it, the way the model faces (−Z).
                 m = Matrix4x4.CreateTranslation(door) * model;
                 break;

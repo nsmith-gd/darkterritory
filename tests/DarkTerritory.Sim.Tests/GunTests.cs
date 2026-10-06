@@ -206,7 +206,7 @@ public class GunTests
     public void RoundsStopAtTheTrainsOwnBody()
     {
         // The rear gun slid to the front of its rail, laid back down along its own roof: the round hits the van before it
-        // goes anywhere. (Cab forward, note 267, the forward gun leads the train: nothing of it is ahead to aim down over.)
+        // goes anywhere. (Cab forward, note 268, the forward gun leads the train: nothing of it is ahead to aim down over.)
         var w = World();
         int last = w.Train.Frames.Count - 1;
         w.Train.Vehicles[last].Gun.Z = w.Train.Frames[last].Shape.RoofRail!.Value.Front;

@@ -1614,7 +1614,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         double w = g.RoofWidth / 2, doorFront = EnginePlan.Of(g).DoorFront;
         double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
         var box = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Sandbox && i.Position.X > 0).Position;
-        // Out at the back of the right doorway, where the board begins (note 267: the boards run back along the boiler).
+        // Out at the back of the right doorway, where the board begins (note 268: the boards run back along the boiler).
         double door = doorFront + g.Doorway.Width * 0.75;
         return
         [
@@ -1732,7 +1732,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>
     /// Its firing place, <paramref name="side"/> of the firebox door (+1 the driver's right): out from the door into the cab.
-    /// Cab forward (note 267), the firebox is in the cab's back wall, so that's forward (−Z) of it.
+    /// Cab forward (note 268), the firebox is in the cab's back wall, so that's forward (−Z) of it.
     /// </summary>
     internal static Double3 FiringSpot(Double3 firebox, int side) => new(side * FiringSide, 0, firebox.Z - FiringOut);
 
@@ -1931,7 +1931,7 @@ public static class KitRun
     }
 
     /// <summary>
-    /// Out of the engine (cab forward, note 267): back down the middle of the cab past the coal bunker on the left wall; left
+    /// Out of the engine (cab forward, note 268): back down the middle of the cab past the coal bunker on the left wall; left
     /// to the doorway at the cab's back corner; out onto the left running board; back along it beside the boiler; in onto the
     /// rear deck past the smokebox; the footplate off it; the plate at car 1's door. Each point's further back than the last
     /// (the way out takes the next one that is, more than <see cref="RouteStep"/> on).

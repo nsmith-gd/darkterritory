@@ -312,7 +312,7 @@ public static class PlayerMotor
 
     /// <summary>
     /// Where along the cab a crewmate's put in it: on the footplate's open floor, clear across the cab's width, so a spawn
-    /// to either side lands on the boards. Cab forward (note 267), that's the strip between the driver's console and the
+    /// to either side lands on the boards. Cab forward (note 268), that's the strip between the driver's console and the
     /// coal bunker, which stands along the left wall at the cab's middle; a cab without one, its middle.
     /// </summary>
     public static double CabFloorZ(CarShape shape)

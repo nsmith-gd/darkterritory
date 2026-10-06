@@ -118,7 +118,7 @@ public sealed partial class Effects(Look look)
                 }
             }
         // The whistle: a thin hard jet up off it, opening into a plume and laid back down the boiler by the train's going
-        // (cab forward, note 267: it stands on the boiler just behind the cab).
+        // (cab forward, note 268: it stands on the boiler just behind the cab).
         if (whistle && shape.Cab is not null)
         {
             var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
