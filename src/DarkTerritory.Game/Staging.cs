@@ -63,6 +63,33 @@ public static class Staging
     }
 
     /// <summary>
+    /// The cab's bend warning (note 265, `dt screenshot --hud --bend-warning [s]`): a solo night on <paramref name="route"/>
+    /// with the train <paramref name="seconds"/> short of its first bend that can derail it, a quarter over that bend's
+    /// derailing speed, the player at the controls, warned. <paramref name="seconds"/> 0: on the bend (the flanges' line).
+    /// </summary>
+    public static PrototypeSession BendWarning(string content, Sim.Route.Route route, int cars, double seconds = 6)
+    {
+        var plan = route.Plan ?? throw new InvalidOperationException($"{route.Name} isn't a generated line");
+        var line = route.Build();
+        double maxSpeed = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(content, Sim.Train.TrainTuning.File)).MaxSpeed;
+        double at = -1, k = 0;
+        for (double s = route.Gate + 2000; s < line.Length - 500 && at < 0; s += 5)
+            if (Math.Abs(line.Sample(s).Curvature) is var c and > 1e-9 && Math.Sqrt(plan.Rules.ADerail / c) < maxSpeed * 0.9)
+                (at, k) = (s, c);
+        if (at < 0)
+            throw new InvalidOperationException($"{route.Name} has no bend that can derail a train past its yard");
+        double speed = Math.Min(maxSpeed, 1.25 * Math.Sqrt(plan.Rules.ADerail / k));
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: seconds <= 0 ? at + 60 : at - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A blow landed on each staged creature (T121, `dt screenshot --hit-flash`), struck from the camera's side so its flinch
     /// is seen: the hit at its middle, a melee blow.
     /// </summary>

@@ -164,6 +164,19 @@
   // Line Plan §12.6 (note 181): a body or a repair kit at rest further than corridorM from the track, or more than dropM below
   // the rails (off a bridge, into a ravine), is put back on the formation's edge, edgeM out, the side it went off.
   "recovery": { "corridorM": 40, "dropM": 15, "edgeM": 3.5 },
+  // A bend taken too fast (ARCHITECTURE §8 note 265; build 1121: "we'll want to telegraph using sound design that the train
+  // is going under stress and it's getting close to derailment"). Linegen plan §8.5's numbers stand: a bend derails above
+  // √(aDerail R) and is boarded at √(aPost R) (linegen/tiers.json "curves"). What's here is how it's told and when it may
+  // commit (GDD App. A.1: "TELEGRAPH always precedes COMMIT"; whole-train events "carry their own telegraph").
+  // - The warning: a bend under or ahead of the train that the speed now would derail it on, within the distance to brake
+  //   below it: leadSeconds at the speed now, plus a service stop from it at brakeShare of the consist's rated brake (spec
+  //   B.5; steam pulls against the brake, T97), plus marginM.
+  // - Stress, the bend's own sound under the train: 0 at its board's speed, 1 at its derailing speed. The flanges squeal
+  //   and the couplings creak from 0, the lurch runs down the train as it crosses lurchAt, and the scream is the last half.
+  // - No commit without it: a bend derails the train only once the warning has been up leadSeconds (spared otherwise, and
+  //   counted). 4 s is App. A.1's reaction window at its longest.
+  // - The cab's cue (warningSound, the cab's bell, tier 3) every repeatSeconds while it's up, and the HUD's line.
+  "overspeed": { "leadSeconds": 4, "brakeShare": 0.6, "marginM": 30, "lurchAt": 0.5, "repeatSeconds": 1.5, "warningSound": "warn-overspeed" },
   // The consist's make-up and fittings (GDD §10, §26, spec F.3; ARCHITECTURE §8 note 184). The counts and the handrails are
   // what the fortress sells: campaign.json's upgrades add to them, and every machine builds the same train. Converted cars
   // come out of the cargo cars, never leaving fewer than minCargoCars: extra guard cars first (each with a gun, in the
@@ -211,6 +224,10 @@
   "pick": { "eyeHeight": 1.6, "lookDegrees": 30 },
   "kit": {
     "radios": 2,
+    // Note 266 (build 1121, solo: "there's no lanterns. The lights are completely off"): the forward lamp a Climber smashed
+    // (enemies.json climbers.lampOutSeconds, the spare glass going in) comes back lit as the driver had it, not dark till
+    // someone thinks to press [L]. One the driver switched off stays off.
+    "relightSmashedLamp": true,
     // Spec A.5: the radio "dies in tunnels and mine spurs". It still carries this far in, from a tunnel's mouth or a mine
     // spur's points (m): none, until the campaign's radio range adds to it (campaign.json, F.3; note 196).
     "radioReach": 0,

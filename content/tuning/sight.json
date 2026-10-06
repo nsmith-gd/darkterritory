@@ -13,6 +13,10 @@
   // A curve is posted at the speed that gives this lateral pull (m/s², v = sqrt(a R)), if that's under postBelow (m/s).
   "curveLateral": 0.4,
   "postBelow": 15,
+  // On a generated line (note 265) its boards are the plan's: at floor(√(aPost R)) (linegen/tiers.json curves), on every
+  // bend whose derailing speed √(aDerail R) is under this (the train's top speed, train.json maxSpeed, as the plan's
+  // boardDerailBelow); the bend's derailment there is the plan's (LineGen.TrackRules, warned), not derailRatio's.
+  "planPostBelow": 22,
   // A weak bridge (route.json weakBridgeChance) is posted at this.
   "weakBridgeLimit": 7,
   // Over a posted speed by this much (m/s), the cars strain (integrity lost per second per m/s over: strainPerSecond) and

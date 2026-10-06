@@ -53,20 +53,22 @@ OPUS_KBPS = 64
 # the fire buried the cab's tells with the fire door open (AudioTests' bench: a writhe at -2.4 dB, the Choir at -5.2).
 # The train bed and its alarms (GameAudio.Train), levelled to the synthesised bed they replace: as recorded they buried
 # every tell in AudioTests' chaos and tells benches (the wheels and the wind 20 dB over the synth, a hound at -13 dB).
+# Then too far down (build 1121, the director: "the train doesn't appear to be making any noise while it's on the rail"):
+# the rolling, the joints and the exhaust back up 4-6 dB (note 266), the tells still 6 dB over the bed in AudioTests.
 CUE_GAIN_DB = {
     "cs-stoker.in-fire": -10,
-    "bed-wheel-rail.roll-slow": -21,
-    "bed-wheel-rail.roll-fast": -21,
-    "bed-wheel-rail.joint": -22,
+    "bed-wheel-rail.roll-slow": -17,
+    "bed-wheel-rail.roll-fast": -17,
+    "bed-wheel-rail.joint": -16,
     "bed-wheel-rail.flange": -10,
     "bed-wind.wind-slow": -10,
     "bed-wind.wind-fast": -16,
     "bed-wind.gust": -10,
     "bed-boiler-roar.roar-low": -12,
     "bed-boiler-roar.roar-high": -12,
-    "bed-chuff.chuff": -16,
-    "bed-chuff.chuff-heavy": -16,
-    "bed-chuff.rod-clank": -24,
+    "bed-chuff.chuff": -10,
+    "bed-chuff.chuff-heavy": -10,
+    "bed-chuff.rod-clank": -18,
     "bed-brake.drag": -12,
     "bed-brake.drag-hot": -9,
     "bed-brake.apply": -10,

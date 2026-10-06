@@ -102,7 +102,21 @@ public sealed class World
     {
         LampLit = false;
         LampOutSeconds = Math.Max(LampOutSeconds, seconds);
+        _relight = !Derailed;
     }
+
+    // Note 266 (build 1121: "the lights are completely off"): a lamp smashed comes back lit once its glass is in (the
+    // spare fitted, T52), as the driver had it; one the driver switched off stays off. Host only (LampLit is sent).
+    bool _relight;
+    /// <summary>
+    /// Host: how long running a bend's overspeed warning has been up (LineGen.TrackRules.Assess, note 265); a bend derails
+    /// the train only once it's been up train.json overspeed.leadSeconds.
+    /// </summary>
+    public double BendWarnSeconds { get; set; }
+    /// <summary>Host: ticks a bend would have derailed the train but its warning hadn't been up long enough (should be 0).</summary>
+    public int BendsSpared { get; set; }
+    /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
+    public List<double> BendCommits { get; } = new();
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
     public bool Derailed { get; private set; }
     /// <summary>Host: the crew has braked hard for a Long Whistle's horn, a train that wasn't there (App. B.2's "false positive").</summary>
@@ -242,7 +256,8 @@ public sealed class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        if (route is not null && Director.Allows(EnemyKind.Sleepers))
+        // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
+        if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
@@ -760,7 +775,10 @@ public sealed class World
         PlayerMotor.TakeHand(ref s, intent, Hand);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
+        {
             LampLit = intent.Lamp == LampSwitch.On && LampOutSeconds <= 0;
+            _relight &= intent.Lamp == LampSwitch.On;
+        }
         if (Authority && Run is { } run)
         {
             run.CrewAct(s, intent, playerId, Train, Hand);
@@ -1047,6 +1065,11 @@ public sealed class World
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
+        {
+            _relight = false;
+            LampLit = true;
+        }
         // A generated line's lethal checks: a curve too fast, a weak bridge overloaded, a washout (linegen plan §7.3).
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);

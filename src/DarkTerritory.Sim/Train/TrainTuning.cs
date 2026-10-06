@@ -25,6 +25,8 @@ public sealed record TrainTuning
     public FragileTuning? Fragile { get; init; }
     /// <summary>Which of the things in reach a look picks (train.json <c>pick</c>; note 264).</summary>
     public PickTuning Pick { get; init; } = new();
+    /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
+    public OverspeedTuning Overspeed { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
@@ -36,6 +38,24 @@ public sealed record TrainTuning
 /// <param name="EyeHeight">The eye over the feet (m), where the look is taken from.</param>
 /// <param name="LookDegrees">A thing in reach within this of the view's centre is looked at; the nearest to it wins.</param>
 public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30);
+/// <summary>A bend taken too fast (note 265). Field docs live in train.json <c>overspeed</c>.</summary>
+public sealed record OverspeedTuning
+{
+    public double LeadSeconds { get; init; } = 4;
+    public double BrakeShare { get; init; } = 0.6;
+    public double MarginM { get; init; } = 30;
+    public double LurchAt { get; init; } = 0.5;
+    public double RepeatSeconds { get; init; } = 1.5;
+    public string WarningSound { get; init; } = "warn-overspeed";
+
+    /// <summary>
+    /// How far ahead a demand at <paramref name="safe"/> must be told of to a train at <paramref name="speed"/> braking at
+    /// <paramref name="rated"/> (the consist's rated deceleration, spec B.5): the lead at the speed now, a service stop down
+    /// to it at <see cref="BrakeShare"/> of the rated brake, and the margin. Used for bends and for the Sleepers alike.
+    /// </summary>
+    public double WarnDistance(double speed, double safe, double rated, double leadSeconds) =>
+        speed * leadSeconds + Math.Max(0, speed * speed - safe * safe) / (2 * Math.Max(0.05, rated * BrakeShare)) + MarginM;
+}
 
 /// <summary>Boarding up a breached car (decided 1 Oct; spec B.9). Field docs live in train.json <c>breach</c>.</summary>
 public sealed record BreachTuning
@@ -101,6 +121,8 @@ public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang
 public sealed record KitTuning
 {
     public int Radios { get; init; }
+    /// <summary>Note 266: the forward lamp a Climber smashed comes back lit once its glass is in (train.json kit).</summary>
+    public bool RelightSmashedLamp { get; init; } = true;
     /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
     public double RadioBreakPerDamage { get; init; } = 0.006;
     /// <summary>... and when something grabs you.</summary>

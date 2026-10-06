@@ -138,9 +138,10 @@ public class SandTests
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), route.Build(), 420, Tuning.Boiler);
         var world = new World(train);
         world.EnableLineside(S, route);
-        // The host's enemies: the route's Sleepers, laid where it puts them.
+        // The host's enemies: the route's Sleepers, laid where it puts them (brought back as a mod would: they're off by
+        // default since the director's decision of 2026-10-06, note 265).
         if (sleepers)
-            world.EnableEnemies(Tuning.Enemies, route, 1, 2, authority: true);
+            world.EnableEnemies(Tuning.Enemies with { Sleepers = Tuning.Enemies.Sleepers with { Enabled = true } }, route, 1, 2, authority: true);
         train.Dynamics.Velocity = 8;
         var calls = new CrewCalls();
         var driver = new ConductorBot(calls, 0);

@@ -1932,7 +1932,13 @@ static object HudShot(string content, string[] args)
         // --roof-warning tunnel|bend (note 260): up on a roof with a tunnel's mouth, or a bend taken too fast, coming
         // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
         string roofWarning = Str(args, "--roof-warning", "");
-        var solo = roofWarning.Length > 0
+        // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
+        // warned. deepTerritory:2 if no --route: frontier:7 has no such bend.
+        if (args.Contains("--bend-warning"))
+            roofWarning = "bend-cab";
+        var solo = roofWarning == "bend-cab"
+            ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         if (roofWarning.Length == 0)

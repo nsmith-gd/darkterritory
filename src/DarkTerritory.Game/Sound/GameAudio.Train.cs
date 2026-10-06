@@ -39,13 +39,18 @@ public sealed partial class GameAudio
     // Four exhaust beats to a turn of the driving wheels, 1.7 m across (chuff.json); 12 m rails (wheel-rail.json); the trucks
     // 0.2 of a car's length in from each end (TrainOnLine.UpdatePoses), their axles a metre either side.
     const double DriverWheelM = 1.7, RailM = 12, AxleOffsetM = 1.0;
+    // The roll's at its loudest from here (m/s): the top of the frontier's line speed and over (note 265).
+    const double RollFullSpeed = 18;
 
     readonly Pcg32Ish _trainRng = new(20261002);
     readonly List<(double At, string Cue, Double3 Where, float Occlusion, float Volume)> _cuesLater = new();
     readonly List<(double At, Double3 Where, float Volume, bool RunIn)> _slackQueue = new();
     readonly Dictionary<int, double> _axles = new();
     readonly Dictionary<int, double> _preDerail = new();
-    bool _exposed, _trainPrimed, _derailedSeen;
+    bool _exposed, _trainPrimed, _derailedSeen, _lurched;
+    // Note 266: the worst stress any car's bend has this tick (0 at its board, 1 at its derailing speed), and when the
+    // cab's bell rings again while the warning's up.
+    double _bendStress, _bellAgain;
     double _trainClock = double.NaN, _chuffBeats, _slackAccel, _valveLiftedAt = double.NegativeInfinity, _derailedAt;
     // The wreck as heard (Derailing): each car's state, the couplings as they were when it came off (with their gaps then),
     // the ones torn since, and the synthesised grind standing in where the recorded ones aren't installed.
@@ -133,6 +138,7 @@ public sealed partial class GameAudio
         BedBrakes(train, rake, primed, derailed);
         BedAirflow(world, train, rake, dt, derailed);
         BedLabour(train, rake, dt, derailed);
+        BendWarning(world, train, derailed);
         BoilerAlarms(train, engine, dt, primed);
         TrainDamage(train, engine, rake);
         Derailing(world, train, dt, primed);
@@ -230,10 +236,13 @@ public sealed partial class GameAudio
     /// </summary>
     void BedWheels(World world, TrainOnLine train, double dt, bool derailed)
     {
+        _bendStress = 0;
         if (derailed)
             return;
         var ear = Mixer.Listener.Position;
         double aDerail = world.TrackPlan?.Rules.ADerail ?? 1.0;
+        // Note 266: the bend's stress from its board's speed (0) to its derailing speed (1), plan §8.5's two accelerations.
+        double postShare = Math.Clamp((world.TrackPlan?.Rules.APost ?? 0.7) / aDerail, 0, 0.99);
         bool rolling = Sampled("wheel-rail");
         var near = train.Frames.OrderBy(f => (f.Origin - ear).Length).Take(4).Select(f => f.Index).ToHashSet();
         foreach (var rake in train.Rakes)
@@ -246,17 +255,22 @@ public sealed partial class GameAudio
                 double length = pose.Length, centre = pose.FrontDistance - length / 2;
                 double k = Math.Abs(train.Line.Sample(rake.Path, centre).Curvature);
                 double pull = speed * speed * k / aDerail;
-                double scream = Math.Max(Math.Clamp((pull - 0.85) / 0.25, 0, 1), BoardScream(world, train, rake, v, pose));
+                // The scream is the stress's last half (train.json overspeed: the warning's own sound under the train),
+                // full from the derailing speed (was from 0.85 of its pull: 8% of the speed short of coming off).
+                double stress = Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
+                _bendStress = Math.Max(_bendStress, stress);
+                double scream = Math.Max(Math.Clamp((stress - 0.5) / 0.5, 0, 1), BoardScream(world, train, rake, v, pose));
                 if (scream > 0)
                     HoldLevel("state-derail.flange-scream", v.Id, frame.ToWorld(new Double3(0, 0.4, 0)), Occlusion(PlayerMotor.Outside), 0.4 + 0.6 * scream);
                 if (!near.Contains(v.Id))
                     continue;
                 var under = frame.ToWorld(new Double3(0, 0.5, 0));
                 if (rolling)
+                    // Louder all the way up to full speed (was full by 12 m/s), so speed is heard as well as felt (note 265).
                     HoldCrossfade("bed-wheel-rail.roll-slow", "bed-wheel-rail.roll-fast", v.Id, (speed - 8) / 10, under, 0,
-                        Math.Pow(Math.Clamp(speed / 12, 0, 1), 0.8), "speed", speed);
+                        Math.Pow(Math.Clamp(speed / RollFullSpeed, 0, 1), 0.8), "speed", speed);
                 if (scream <= 0 && speed > 3 && pull > 0.35)
-                    HoldLevel("bed-wheel-rail.flange", v.Id, under, 0, Math.Clamp((pull - 0.35) / 0.4, 0.15, 1));
+                    HoldLevel("bed-wheel-rail.flange", v.Id, under, 0, Math.Clamp((pull - 0.35) / Math.Max(0.05, postShare - 0.35), 0.15, 1));
                 // The rail joints, axle by axle (the synth's clicks are in its own roll, while it plays).
                 for (int a = 0; a < 4; a++)
                 {
@@ -384,11 +398,52 @@ public sealed partial class GameAudio
         if (speed < 0.5)
             return;
         double k = Math.Abs(train.Line.Sample(rake.Path, rake.Distance).Curvature);
-        if (Odds(0.05 + Math.Min(0.6, speed * speed * k * 0.8) + Math.Max(0, climb - 1) * 0.1, dt))
+        // A bend over its board: the couplings and the frames creak the harder it pulls (note 265), up to three a second.
+        if (Odds(0.05 + Math.Min(0.6, speed * speed * k * 0.8) + Math.Max(0, climb - 1) * 0.1 + 2.5 * _bendStress, dt))
         {
             double z = (_trainRng.Next() * 2 - 1) * nearest.Shape.HalfLength;
             Cue("bed-groan.creak", nearest.ToWorld(new Double3(0, 1.5, z)), Occlusion(nearest.Index), (float)(0.4 + 0.6 * _trainRng.Next()));
         }
+    }
+
+    /// <summary>
+    /// A bend too fast (note 265; train.json overspeed): the cab's bell while the warning's up (a bend ahead or under the
+    /// train that the speed now would derail it on: LineGen.TrackRules.Assess, the HUD's own), every repeatSeconds; and
+    /// the lurch, the slack running in down the train, as a bend's stress first passes lurchAt. From the line and the
+    /// train as this machine has them, so nothing's sent.
+    /// </summary>
+    void BendWarning(World world, TrainOnLine train, bool derailed)
+    {
+        var t = train.Dynamics.Tuning.Overspeed;
+        if (derailed || world.TrackPlan is not { } plan)
+        {
+            _lurched = false;
+            return;
+        }
+        if (_bendStress >= t.LurchAt && !_lurched)
+        {
+            _lurched = true;
+            foreach (var rake in train.Rakes)
+                for (int i = 0; i + 1 < rake.Consist.Vehicles.Count; i++)
+                {
+                    var frame = train.Frames[rake.Consist.Vehicles[i].Id];
+                    _slackQueue.Add((_time + i * 0.11, frame.ToWorld(new Double3(0, 1.0, frame.Shape.HalfLength)), 1f, true));
+                }
+        }
+        else if (_bendStress < t.LurchAt * 0.5)
+            _lurched = false;
+        if (!Sim.LineGen.TrackRules.Assess(train, plan.Rules, t).Warning)
+        {
+            _bellAgain = 0;
+            return;
+        }
+        if (_time < _bellAgain)
+            return;
+        _bellAgain = _time + t.RepeatSeconds;
+        var engine = train.Frames[0];
+        // On the cab's roof plate, over the driver's head.
+        var bell = engine.Shape.Cab is { } cab ? engine.ToWorld(cab.Centre with { Y = cab.Max.Y - 0.2 }) : engine.ToWorld(new Double3(0, 3.6, engine.Shape.HalfLength * 0.6));
+        Mixer.Play(t.WarningSound, bell);
     }
 
     // ---- The boiler ------------------------------------------------------------------------------------------------------
