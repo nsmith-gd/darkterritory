@@ -95,8 +95,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // for it to shoot), and back to it once there's nothing left to look at from here.
         if (!hounds && _legs.Errand is { } errand && errand.Wants(self, world, tick))
             return _legs.Decide(self, world, tick, out aimed);
-        // Hounds that got aboard can't be shot from the gun they're standing next to: get clear (they drop
-        // off once nobody's near), then walk back to the guard car and take the gun again.
+        // Hounds that got aboard can't be shot from the gun they're standing next to: off it, to the pack fight with the
+        // rest (they stay aboard, note 269; or, with stayAboard off, get clear: they drop off once nobody's near), then walk
+        // back to the guard car and take the gun again.
         bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
         // The Car Hugger on the rear car (v1.1 App. A.3): the gun's no answer to it (it's below the arc). Off the gun: down to
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
@@ -629,9 +630,19 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Or the lip over a Dragger the look-out's making for, on another car (note 212).
             else if (lookAt is { } lip && lip != parent && _warm is not { Active: true } && self.Surface == Surface.Roof)
                 _direction = lip < parent ? -1 : 1;
-            // Hounds aboard: nobody goes near them, and anyone close walks away (they drop off when bored).
-            if (world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0 && e.Attached >= parent - 1))
-                _direction = -1;
+            // Hounds aboard. They stay, setting the car alight (note 269): the fit go along the roofs at them together (Heed.Hounds
+            // swings once they're close); the hurt keep clear. Where they drop off when bored (stayAboard off), nobody goes near
+            // them, and anyone close walks away.
+            if (world.ActiveEnemies.FirstOrDefault(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0) is { } aboard)
+            {
+                if (world.Enemies?.CinderHounds.StayAboard == true && self.Health >= Heed.PackFightHealth)
+                {
+                    if (aboard.Attached != parent)
+                        _direction = aboard.Attached < parent ? -1 : 1;
+                }
+                else if (aboard.Attached >= parent - 1)
+                    _direction = -1;
+            }
             // The Car Hugger on a car with no platform to club it from: off that car and the one ahead of it, toward the engine,
             // clear of its mouth. It may take the car.
             int mine = train.Dynamics.Consist.IndexOf(parent);
@@ -1697,6 +1708,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// off when they swarm. Or drive away"), where the line allows it: over their pull-away speed until they've gone. The
     /// cruise is a hair under it (enemies.json fireFlies, 15 m/s), so they were never outrun, and five swarms set five
     /// cars alight on frontier:7's crew of eight (note 188). The fireman's fire and vent go by the same, or he'd vent it away.
+    /// Since they come only to a stopped train and go once it's under way (note 269), that's no more than the cruise.
     /// </summary>
     double OpenCruise(World world)
     {
@@ -2543,7 +2555,7 @@ public static class Heed
     }
 
     /// <summary>Health a bot wants before it wades into a pack fight (a hound bites for 45).</summary>
-    const int PackFightHealth = 55;
+    public const int PackFightHealth = 55;
 
     /// <summary>
     /// Cinder Hounds aboard (v1.1 App. A.3 PACK FIGHT): "each takes several bludgeons", so everyone near enough and fit

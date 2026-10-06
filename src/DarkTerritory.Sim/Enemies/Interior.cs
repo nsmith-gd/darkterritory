@@ -293,6 +293,7 @@ public sealed class TippyToesie(int id) : Enemy(id)
 /// FIRE FLIES · light · interior (GDD v1.1 §21, App. A.5). They drift lineside in dark sections and swarm to a lit lamp
 /// inside a car: glow and buzzing around the lamp (the telegraph). Left to linger ~20 s, the car catches fire, and the fire
 /// spreads (App. C.5). Break off: the lamp turned off, or the train pulling away at speed. Rule: lamps off when they swarm.
+/// They come only to a stopped train (GDD App. F, 6 Oct 2026), so "pulling away" is getting under way (note 269).
 /// The lamps-off answer blinds you to the Track Doll: that contradiction is the point.
 /// </summary>
 /// <remarks><see cref="Enemy.Attached"/> is the car whose lamp they're on.</remarks>
@@ -330,7 +331,7 @@ public sealed class FireFlies(int id) : Enemy(id)
         }
         var car = train.Vehicles[Attached];
         _fast = train.Dynamics.Speed >= t.PullAwaySpeed ? _fast + SimConstants.TickSeconds : 0;
-        // BREAK OFF: the lamp out, or the train pulling away from them at speed.
+        // BREAK OFF: the lamp out, or the train pulling away from them: under way again (note 269).
         if (!car.LampLit || _fast >= t.PullAwaySeconds)
         {
             Enter(ctx, SpinePhase.BreakOff);
