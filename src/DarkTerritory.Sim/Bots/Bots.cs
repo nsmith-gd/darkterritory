@@ -1728,7 +1728,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     }
 
     /// <summary>Where it stands to fire (engine frame): this far to its side of the firebox door, and this far out from it into the cab.</summary>
-    const double FiringSide = 0.35, FiringOut = 0.45;
+    const double FiringSide = 0.35, FiringOut = 0.4;
 
     /// <summary>
     /// Its firing place, <paramref name="side"/> of the firebox door (+1 the driver's right): out from the door into the cab.
@@ -1919,7 +1919,7 @@ public static class KitRun
             }
             // Back along the route to the cab: the next point nearer the front than here.
             for (int i = route.Length - 1; i >= 0; i--)
-                if (route[i].Z < self.Position.Z - 0.15)
+                if (route[i].Z < self.Position.Z - RouteStep)
                     return WarmUp.Steer(self, route[i], 0).Step;
             return WarmUp.Steer(self, firing, ConductorBot.FacingFire).Step;
         }
@@ -1931,27 +1931,31 @@ public static class KitRun
     }
 
     /// <summary>
-    /// Out of the engine (cab forward, note 267): to the left doorway past the bunker; out onto the left running board; back
-    /// along it beside the boiler; in onto the rear deck past the smokebox; the footplate off it; the plate at car 1's door.
+    /// Out of the engine (cab forward, note 267): back down the middle of the cab past the coal bunker on the left wall; left
+    /// to the doorway at the cab's back corner; out onto the left running board; back along it beside the boiler; in onto the
+    /// rear deck past the smokebox; the footplate off it; the plate at car 1's door. Each point's further back than the last
+    /// (the way out takes the next one that is, more than <see cref="RouteStep"/> on).
     /// </summary>
     static Double3[] Route(TrainOnLine train)
     {
         var g = train.Dynamics.Tuning.Geometry;
         var plan = EnginePlan.Of(g);
-        // Inside the doorway at its back, then out of it, a step further back (each point further back than the last: the
-        // way out takes the next one that is), where the board begins.
-        double l = plan.Half, w = g.RoofWidth / 2, inside = plan.DoorFront + g.Doorway.Width * 0.6, outside = plan.DoorFront + g.Doorway.Width * 0.82;
+        double l = plan.Half, w = g.RoofWidth / 2, d = plan.DoorFront;
         double board = -w - Math.Min(0.3, g.Engine.RunningBoardWidth / 2);
         return
         [
-            new(-w + 0.4, 0, inside),
-            new(board, 0, outside),
+            new(0, 0, d + 0.35),
+            new(-w + 0.4, 0, d + 0.57),
+            new(board, 0, d + 0.8),
             new(board, 0, l - CarShape.BoilerToEnd - 0.4),
             new(-w + 0.35, 0, l - 0.2),
             new((-w + g.PlateX - g.CouplerWidth / 2) / 2, 0, l + g.CouplingGap * 0.25),
             new(g.PlateX, 0, l + g.CouplingGap - 0.45),
         ];
     }
+
+    /// <summary>How much further along a route the next point has to be for the way along it to take it (m).</summary>
+    const double RouteStep = 0.15;
 
     /// <summary>Off the engine and into car 1, for a crewmate whose place is back on the train (<see cref="KitCarry"/>); null off the engine.</summary>
     internal static PlayerIntent? BackToTheTrain(in PlayerState self, TrainOnLine train)
@@ -1971,10 +1975,11 @@ public static class KitRun
         var g = train.Dynamics.Tuning.Geometry;
         // In the engine, out to car 1: the next point further back than here; at the plate, its door opened, and in.
         bool inCab = PlayerMotor.InCab(self, train);
-        if (inCab && Math.Abs(self.Position.X - route[0].X) > 0.2)
+        // (Lined up with the route's first point only short of it: past it, the way turns off to the doorway.)
+        if (inCab && self.Position.Z < route[0].Z - RouteStep && Math.Abs(self.Position.X - route[0].X) > 0.2)
             return WarmUp.Steer(self, route[0], Math.PI).Step;
         foreach (var p in route)
-            if (p.Z > self.Position.Z + 0.15)
+            if (p.Z > self.Position.Z + RouteStep)
                 return WarmUp.Steer(self, p, Math.PI).Step;
         if (!train.Vehicles[car].DoorOpen(0))
         {

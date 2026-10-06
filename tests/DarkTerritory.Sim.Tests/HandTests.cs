@@ -32,6 +32,18 @@ public class HandTests
         return intent;
     }
 
+    /// <summary>Walking towards a point on the footplate (engine frame), as a keyboard does; nothing once there.</summary>
+    static PlayerIntent Walk(in PlayerState s, Double3 to)
+    {
+        var d = (to - s.Position) with { Y = 0 };
+        double len = d.Length;
+        if (len < 0.08)
+            return default;
+        double y = s.Yaw;
+        double z = (d.X * -Math.Sin(y) + d.Z * -Math.Cos(y)) / len, x = (d.X * Math.Cos(y) + d.Z * -Math.Sin(y)) / len;
+        return new PlayerIntent { MoveX = (float)(x * Math.Min(1, len)), MoveZ = (float)(z * Math.Min(1, len)) };
+    }
+
     static void Hold(World world, ref PlayerState s, Func<PlayerState, PlayerIntent> intent, double seconds)
     {
         for (int i = 0; i < seconds * SimConstants.TickRate; i++)
@@ -101,11 +113,15 @@ public class HandTests
         var s = PlayerMotor.SpawnInCab(train, P);
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var coal = shape.Interactables.First(i => i.Kind == InteractableKind.Coal);
-        // The near edges of the two, at waist height, and the fireman between them: each is within an arm's length.
-        var shovel = coal.Position + new Double3(0, 0.9, -coal.Radius + 0.1);
-        var fire = firebox.Position + new Double3(0, 0.9, firebox.Radius - 0.1);
-        s.Position = s.Position with { Z = (shovel.Z + fire.Z) / 2 };
-        Assert.True(Math.Abs(shovel.Z - s.Position.Z) < P.Hand.Arm);
+        // Each of the two, at waist height, and the fireman between them: each is within an arm's length. (Cab
+        // forward, note 267, the coal's ahead of the fire door and to its left: along the way from one to the other.)
+        var toFire = (firebox.Position - coal.Position) with { Y = 0 };
+        toFire = toFire * (1 / toFire.Length);
+        // (Their reaches overlap: the hand over each, a little towards the other.)
+        var shovel = coal.Position + toFire * 0.1 + new Double3(0, 0.9, 0);
+        var fire = firebox.Position - toFire * 0.1 + new Double3(0, 0.9, 0);
+        s.Position = ((shovel + fire) * 0.5) with { Y = s.Position.Y };
+        Assert.True(((shovel - s.Position) with { Y = 0 }).Length < P.Hand.Arm);
         train.Boiler.Firebox = 0;
         return (world, s, shovel, fire);
     }
@@ -161,8 +177,10 @@ public class HandTests
     [Fact]
     public void AKeyboardNeverFindsTheCoalFace()
     {
-        var (world, s, coal, _) = Footplate();
-        s.Position = s.Position with { Z = coal.Z - 0.1 };
+        var (world, s, _, _) = Footplate();
+        // In front of the bunker, in the coal's reach and out of the fire door's.
+        var coal = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Coal).Position;
+        s.Position = coal + new Double3(0.4, 0, -0.5);
         Assert.Null(CrewActions.Nearest(s, world.Train, H));
         Assert.Equal(InteractableKind.Coal, CrewActions.Nearest(s with { Hand = new Double3(0, 1, 0) }, world.Train, H));
     }
@@ -266,7 +284,11 @@ public class HandTests
         var shape = host.Train.Frames[0].Shape;
         var coal = shape.Interactables.First(i => i.Kind == InteractableKind.Coal).Position + new Double3(0, 0.6, 0.1);
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position + new Double3(0, 0.7, 0.1);
-        // A fire with room in it, so every shovelful goes in.
+        // A fire with room in it, so every shovelful goes in. First across the footplate to between the coal and the fire
+        // door (cab forward, note 267: they're at the fireman's end, the crew comes in at the driver's).
+        var between = ((coal + firebox) * 0.5) with { Y = 0 };
+        for (int i = 0; i < SimConstants.TickRate * 4; i++)
+            Step(Walk(client.Predicted, between with { Y = client.Predicted.Position.Y }));
         host.Train.Boiler.Firebox = 0;
         double tender = host.Train.Boiler.Tender;
         for (int i = 0; i < SimConstants.TickRate * 8; i++)

@@ -214,7 +214,7 @@ public class PlayerMotorTests
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
         rig.Run(1, r => Toward(r, new Double3(-w + 0.3, 0, l + 0.3)));
         rig.Run(1, r => Toward(r, new Double3(board, 0, l - 0.6)));
-        rig.Run(5, r => Toward(r, new Double3(board, 0, door)));
+        rig.Run(8, r => Toward(r, new Double3(board, 0, door)));
         rig.Run(2, r => Toward(r, new Double3(-w + 0.5, 0, door)));
         Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
     }

@@ -120,7 +120,8 @@ public class InteriorTests
         var lintels = engine.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > g.Engine.DeckHeight + 1.5).ToList();
         Assert.Equal(2, lintels.Count);
         Assert.All(lintels, l => Assert.Equal(g.Engine.DeckHeight + h, l.Box.Min.Y, 6));
-        Assert.All(lintels, l => Assert.Equal(g.Doorway.Width - 0.15, l.Box.Max.Z - l.Box.Min.Z, 6));
+        // The standard's width (cab forward, note 267; before, the back corner pillar took 0.15 of it).
+        Assert.All(lintels, l => Assert.Equal(g.Doorway.Width, l.Box.Max.Z - l.Box.Min.Z, 6));
     }
 
     [Fact]
