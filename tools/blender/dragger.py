@@ -12,7 +12,8 @@ out from under), arm_02 (over the lip), arm_03 (down onto the roof), hand, and f
 Clips: reach (the telegraph: up over the lip in stepped pops, then down flat on the roof, once), grip (the grab:
 fingers clenched, pulling, loop), drag (the end of the grab: yanked back across the roof and whipped down under, once).
 
-    blender -b --python tools/blender/dragger.py -- content/art/models/dragger.glb
+    blender -b --python tools/blender/dragger.py -- content/art/models/dragger.glb   (the game mesh alone; tools/models/build.sh dragger
+    bakes it, tools/models/recipes/dragger.py)
 """
 import math
 import os
@@ -67,27 +68,38 @@ path = [Vector((X0, 0, -1.0)), Vector((X0, 0, -0.5)), Vector((X0 - 0.01, 0, 0.0)
         Vector((X0 + 0.02, 0, 0.52)), Vector((0.0, 0, 0.6)), Vector((0.14, 0, 0.6)), Vector((0.26, 0, 0.52)),
         wrist]
 radii = [0.06, 0.058, 0.052, 0.05, (0.064, 0.058), 0.046, (0.056, 0.052), 0.04, (0.036, 0.042)]
-limb.tube(path, radii, 7, FLESH, (ARM, 6.0), ref=(0, 1, 0), shape=lumpy(9.0, 1.0))
+limb.tube(path, radii, 10, FLESH, (ARM, 6.0), ref=(0, 1, 0), shape=lumpy(9.0, 1.0))
 # The joints are raw where they bend: swollen, split.
 for c, r in ((path[4], 0.068), (path[6], 0.062)):
     limb.blob(c, (r, r * 0.9, r), 6, 3, RAW, (ARM, 6.0),
               shape=lambda i, j, a, th, p, c=c: c + (p - c) * (1 + 0.25 * noise3(p, 62, 30.0)))
 
-# The hand: a narrow palm laid flat, too long, then the fingers splayed on the roof sheet.
+# The hand: the palm growing out of the wrist without a step, round there and flattening as it widens to the knuckles,
+# too long; the fingers starting inside it (no gap at the knuckle line), swollen at each knuckle and tapering to the
+# nail; a thumb laid along the side, too far back. Laid flat on the roof sheet, then gripping.
 hand = kit.part("hand")
-palm = [wrist + Vector((-0.02, 0, 0.0)), wrist + Vector((0.05, 0, -0.012)), knuckle + Vector((0.01, 0, 0))]
-hand.tube(palm, [(0.052, 0.022), (0.062, 0.02), (0.068, 0.018)], 6, FLESH, ["arm_03", "hand"], ref=(0, 0, 1),
-          cap1=True, square=0.7)
+along = (knuckle - wrist).normalized()
+palm = [wrist - along * 0.09, wrist - along * 0.035, wrist, wrist.lerp(knuckle, 0.5), knuckle + along * 0.012]
+hand.tube(palm, [(0.028, 0.028), (0.036, 0.034), (0.045, 0.031), (0.06, 0.024), (0.07, 0.021)], 10, FLESH, (["arm_03", "hand"], 6.0),
+          ref=(0, 0, 1), cap1=True, shape=lumpy(14.0, 0.6))
 for k, (dy, ln) in enumerate(FINGERS):
     fa, fb = sk[f"finger_{k + 1}_a"], sk[f"finger_{k + 1}_b"]
-    pts = [fa.head, (fa.head + fa.tail) / 2, fa.tail, (fb.head + fb.tail) / 2, fb.tail]
-    hand.tube(pts, [0.016, 0.015, 0.016, 0.012, 0.007], 5, FLESH,
+    da = (fa.tail - fa.head).normalized()
+    pts = [fa.head - da * 0.014, fa.head, fa.head.lerp(fa.tail, 0.5), fa.tail, fb.head.lerp(fb.tail, 0.55), fb.tail]
+    hand.tube(pts, [0.0135, 0.0145, 0.012, 0.0138, 0.0105, 0.0065], 7, FLESH,
               ([f"finger_{k + 1}_a", f"finger_{k + 1}_b", "hand"], 6.0), ref=(0, 0, 1), cap1="point")
     # A black nail at the tip, hooked down into the roof.
     tip = fb.tail
     d = (fb.tail - fb.head).normalized()
-    hand.tube([tip - d * 0.03, tip + d * 0.012 + Vector((0, 0, -0.012))], [0.009, 0.002], 4, NAIL,
+    hand.tube([tip - d * 0.03, tip + d * 0.012 + Vector((0, 0, -0.012))], [0.009, 0.002], 5, NAIL,
               f"finger_{k + 1}_b", ref=(0, 0, 1), cap1="point")
+# The thumb: from the heel of the palm, along the near side, two joints, its nail too.
+t0 = wrist + along * 0.02 + Vector((0, -0.04, -0.004))
+t1 = t0 + along * 0.06 + Vector((0, -0.03, -0.01))
+t2 = t1 + along * 0.06 + Vector((0, -0.006, -0.012))
+hand.tube([t0 - along * 0.01, t0, t1, t2], [0.016, 0.017, 0.0135, 0.008], 7, FLESH, "hand", ref=(0, 0, 1), cap1="point")
+dt = (t2 - t1).normalized()
+hand.tube([t2 - dt * 0.026, t2 + dt * 0.01 + Vector((0, 0, -0.01))], [0.008, 0.002], 5, NAIL, "hand", ref=(0, 0, 1), cap1="point")
 
 # ----------------------------------------------------------------------------------------------------------------
 # Clips. The chain lies in the XZ plane: about Y, + tips a bone's far end down (toward -Z), - lifts it.
