@@ -18,6 +18,7 @@ public sealed record SightTuning
     public double BoardAhead { get; init; } = 450;
     public double CurveLateral { get; init; } = 0.4;
     public double PostBelow { get; init; } = 15;
+    public double PlanPostBelow { get; init; } = 22;
     public double WeakBridgeLimit { get; init; } = 7;
     public double LurchOver { get; init; } = 1.5;
     public double ThrowOver { get; init; } = 3.5;
@@ -200,10 +201,16 @@ public sealed class Lineside
     {
         var zones = new List<(SignKind Kind, double Start, double End, double Limit, bool Bridge)>();
         double s = 0, curveStart = -1, curveLimit = double.MaxValue;
+        // Note 266: a generated line's bends are boarded by the plan (§8.5, LineBuilder.Signage: posted at √(aPost R), every bend
+        // that derails under planPostBelow), and these boards carry the same figure, so the roof warning, the HUD and the
+        // board by the line agree. A hand-laid route keeps this file's own reckoning.
+        var plan = route.Plan;
         foreach (var seg in route.Line.Segments)
         {
-            double limit = seg.Radius == 0 ? double.MaxValue : Math.Sqrt(t.CurveLateral * Math.Abs(seg.Radius));
-            if (limit < t.PostBelow)
+            double r = Math.Abs(seg.Radius);
+            double limit = seg.Radius == 0 ? double.MaxValue : plan is null ? Math.Sqrt(t.CurveLateral * r) : Math.Floor(Math.Sqrt(plan.Rules.APost * r));
+            bool posted = plan is null ? limit < t.PostBelow : seg.Radius != 0 && Math.Sqrt(plan.Rules.ADerail * r) < t.PlanPostBelow;
+            if (posted)
             {
                 if (curveStart < 0)
                     curveStart = s;
@@ -381,7 +388,8 @@ public sealed class Lineside
                 if (sign.Kind == SignKind.SpeedLimit)
                 {
                     double over = rake.Speed - sign.Limit;
-                    if (rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
+                    // On a generated line the bend's derailment is TrackRules' (plan §8.5, warned: note 265), not this.
+                    if (world.TrackPlan is null && rake.Speed >= sign.Limit * Tuning.DerailRatio && !world.Derailed)
                         world.Overspeed($"took the {sign.LimitKmh} km/h bend at {rake.Speed * 3.6:0} km/h, {rake.Speed * 3.6 - sign.LimitKmh:0} km/h too fast");
                     if (over > Tuning.LurchOver)
                     {

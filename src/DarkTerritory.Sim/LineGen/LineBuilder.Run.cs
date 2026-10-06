@@ -203,6 +203,7 @@ sealed partial class LineBuilder
             Rules = new PlanRules(_t.Curves.ADerail, _t.Hazards.BrassCuttingSpeed, _t.Hazards.BrassDamagePerSpeedSquared, _t.Hazards.BrassDrag,
                 _t.Conflicts.WeakBridgeCollapses, _t.Weather.WetAdhesion, _t.Weather.WetBiasAdhesion, _t.Terrain)
             {
+                APost = _t.Curves.APost,
                 SignOffsetM = _c.Config.Signage.SideOffsetM,
                 Biomes = new SortedDictionary<string, BiomeDef>(_c.Config.Biomes.Biomes, StringComparer.Ordinal),
                 BiomeLandforms = new SortedDictionary<string, IReadOnlyDictionary<string, double>>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key,

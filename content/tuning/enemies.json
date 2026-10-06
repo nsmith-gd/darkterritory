@@ -16,9 +16,18 @@
   "interestRadius": 520,
 
   "sleepers": {
-    // Telegraph: the lamp finds them at 120 m; brace (and the wet writhe you can hear) at 60 m.
+    // The director's decision, 2026-10-06 (note 265): the Sleepers go. "A derailment needs to be clearly a mistake by the
+    // driver." Off, none are placed on a generated line (no Sleeper country, no "R" boards for it) and none run on any
+    // line. The code stays; a mod can set this true to bring them back, with the fairer telegraph below.
+    "enabled": false,
+    // Telegraph: the lamp finds them at 120 m; brace (and the wet writhe you can hear) at 60 m, or, faster, as far out as
+    // the train needs to brake under derailAbove: braceLeadSeconds at its speed plus a service stop (train.json
+    // overspeed.brakeShare of its rated brake, plus its marginM). They derail a train only once that telegraph has been
+    // up derailLeadSeconds; short of it they're the heavy damage.
     "lampRevealDistance": 120,
     "braceDistance": 60,
+    "braceLeadSeconds": 4,
+    "derailLeadSeconds": 4,
     "derailAbove": 11.1,
     "heavyDamageAbove": 5.6,
     "heavyDamage": 0.4,

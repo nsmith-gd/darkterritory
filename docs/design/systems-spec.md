@@ -71,7 +71,7 @@ whoever has to hear it.
 
 | Enemy | Signature | Band | Sound |
 |---|---|---|---|
-| Track debris *(hazard, formerly the Sleepers)* | Wet writhe, brief | 400Hz–2k | sleepers-writhe |
+| Track debris *(hazard, formerly the Sleepers; retired 6 Oct 2026, the director's decision, GDD §22: off unless a mod brings it back)* | Wet writhe, brief | 400Hz–2k | sleepers-writhe |
 | Track Doll | A glassy giggle, in the car it haunts or the cab it's taken | 3–6k | doll-giggle |
 | Cinder Hounds | Distant howl, closing | 500Hz–3k | hound-howl |
 | Car Hugger | Heavy grinding at the rear, in heaves | 60–300Hz | hugger-grind |
@@ -93,6 +93,7 @@ whoever has to hear it.
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
 | Low clearance *(the line's roof warning, a tunnel's mouth ahead; added 5 Oct, note 260)* | The telltales: a run of cord slaps over the roof | 4–7k | warn-low-clearance |
 | Bend too fast *(the line's roof warning, riders up over a posted speed; added 5 Oct, note 260)* | The roof irons chattering, rocking in and out | 2.5–4.5k | warn-curve |
+| Bend too fast, the cab *(tier 3, not a tell: a bend ahead or under the train that the speed now would derail it on; added 6 Oct, note 265)* | The communication bell over the driver, struck twice, every 1.5 s while it's up | 1.2k strike, partials 2.6k and 4.1k | warn-overspeed |
 
 Overlapping bands (Draggers and Climbers, Tippy Toesie and the Stoker) are either never staged together or are told apart by
 rhythm: the Dragger's scrape is one rasp, the Climbers' scrabble a clatter; the tiptoe ticks slowly, the hiss is continuous.

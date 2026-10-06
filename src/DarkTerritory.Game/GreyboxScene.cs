@@ -2566,14 +2566,21 @@ public sealed class GreyboxScene
         // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
         // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
         // would print over each other the slower one wins: it's the one that derails you.
+        // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
+        // derailment point with its limit"): those (a bend, a weak bridge) in red, with a key; a limit that only costs the
+        // engine (brass) in the map's ink, with what it is.
         var labelled = new List<(double X, double Y)>();
-        foreach (var (s0, s1, kmh) in PostedBends(line, length).OrderBy(b => b.Kmh))
+        bool anyDerails = false;
+        foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
         {
+            bool derails = why != "BRASS";
+            anyDerails |= derails;
+            var ink = derails ? MapLimit : MapInk;
             int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
             for (int i = 0; i <= steps; i++)
             {
                 var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
-                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), MapLimit);
+                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
             }
             var a = line.Sample(RailLine.MainPath, s0).Position;
             var b = line.Sample(RailLine.MainPath, s1).Position;
@@ -2583,7 +2590,7 @@ public sealed class GreyboxScene
             var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
             var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
             outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
-            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string figure = kmh.ToString(System.Globalization.CultureInfo.InvariantCulture) + (why is null ? "" : " " + why);
             var font = BitmapFont.Default;
             const double px = 0.0045;
             double w = font.Measure(figure) * px, h = font.Height * px;
@@ -2593,7 +2600,13 @@ public sealed class GreyboxScene
             if (labelled.Any(l => Math.Abs(l.X - cx) < w + 0.01 && Math.Abs(l.Y - cy) < h + 0.008))
                 continue;
             labelled.Add((cx, cy));
-            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px);
+            MapFigure(draw, figure, cx - w / 2, cy + h / 2, z + 0.013, px, ink);
+        }
+        if (anyDerails)
+        {
+            // Top right, under the title: the bottom edge is behind the valve wheels from the driver's seat.
+            const string key = "IN RED: KM/H OR OFF THE RAILS";
+            MapFigure(draw, key, x0 + W - 0.024 - BitmapFont.Default.Measure(key) * 0.0035, y0 + H - 0.064, z + 0.011, 0.0035, MapLimit);
         }
         // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
         double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
@@ -2650,14 +2663,14 @@ public sealed class GreyboxScene
 
     LinePlan? _bendsFor;
     Route? _bendsForRoute;
-    List<(double S0, double S1, int Kmh)> _bends = [];
+    List<(double S0, double S1, int Kmh, string? Why)> _bends = [];
 
     /// <summary>
     /// The main line's posted stretches, for the run map: a generated line's speed boards (LineBuilder.Signage: every bend
     /// that would derail the engine at full steam, and each demand's), its figure and the bend it stands before; a
     /// prototype route's own boards (Lineside) where there's no plan.
     /// </summary>
-    List<(double S0, double S1, int Kmh)> PostedBends(RailLine line, double length)
+    List<(double S0, double S1, int Kmh, string? Why)> PostedBends(RailLine line, double length)
     {
         if (ReferenceEquals(_bendsForRoute, Route) && ReferenceEquals(_bendsFor, Route?.Plan))
             return _bends;
@@ -2668,6 +2681,19 @@ public sealed class GreyboxScene
         {
             foreach (var b in plan.Signage.Where(b => b is { Type: "speedBoard", Edge: "main", Required: true, Value: > 0 }))
             {
+                // Note 266 (build 1121, "a maximum speed ... not on curves"): a board for something that isn't a bend (brass,
+                // a weak bridge) is inked over its own stretch, with what it's for; it was put on the nearest curve, however gentle.
+                var demand = b.For is null ? null : plan.Authority.Demands.FirstOrDefault(d => d.Id == b.For);
+                if (demand is { Type: DemandType.Brass or DemandType.WeakBridge })
+                {
+                    var limit = plan.Authority.Limits.FirstOrDefault(l => l.Edge == "main" && Math.Abs(l.S0 - demand.SReq) < 1);
+                    if (limit is null)
+                        continue;
+                    int posted = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int p0) ? p0 : (int)(b.Value!.Value * 3.6);
+                    _bends.Add((Math.Clamp(limit.S0, 0, length), Math.Clamp(Math.Max(limit.S1, limit.S0 + 10), 0, length), posted,
+                        demand.Type == DemandType.Brass ? "BRASS" : "BRIDGE"));
+                    continue;
+                }
                 // The bend it stands before: the sharpest curve in the next 600 m, and as far either side as it's nearly as sharp.
                 double kMax = 0, sMax = b.S;
                 for (double s = b.S; s <= Math.Min(length, b.S + 600); s += 5)
@@ -2676,7 +2702,8 @@ public sealed class GreyboxScene
                     if (k > kMax)
                         (kMax, sMax) = (k, s);
                 }
-                if (kMax < 1e-6)
+                // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
+                if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
                     continue;
                 double s0 = sMax, s1 = sMax;
                 while (s0 > b.S && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
@@ -2685,13 +2712,13 @@ public sealed class GreyboxScene
                     s1 += 5;
                 // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
                 int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
-                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh));
+                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh, null));
             }
         }
         else
             foreach (var sign in BoardList().Where(b => b.Kind == SignKind.SpeedLimit && b.Limit > 0))
                 if (Math.Clamp(sign.End, 0, length) > Math.Clamp(sign.Start, 0, length))
-                    _bends.Add((Math.Clamp(sign.Start, 0, length), Math.Clamp(sign.End, 0, length), sign.LimitKmh));
+                    _bends.Add((Math.Clamp(sign.Start, 0, length), Math.Clamp(sign.End, 0, length), sign.LimitKmh, sign.Bridge ? "BRIDGE" : null));
         return _bends;
     }
 

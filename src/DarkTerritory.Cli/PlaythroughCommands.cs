@@ -27,9 +27,9 @@ static class PlaythroughCommands
         int width = (int)Opt(args, "--width", 960), height = (int)Opt(args, "--height", 540), cars = (int)Opt(args, "--cars", 6);
         double minutes = Opt(args, "--minutes", 20), every = Opt(args, "--every", 90), gap = Opt(args, "--gap", 2);
         int bots = (int)Opt(args, "--bots", 0);
-        // The ride drives the line's authority and knows nothing of debris; held under what debris lets you through at
-        // (the Sleepers' 40 km/h), a night lasts long enough to meet the roster rather than ending on the first heap.
-        double cap = Opt(args, "--cap", 38) / 3.6;
+        // The ride drives the line's authority. --cap km/h holds it under a figure besides (it was 38, for the Sleepers' 40,
+        // until they went: the director's decision of 2026-10-06, note 265); 0, none.
+        double cap = Opt(args, "--cap", 0) is > 0 and var capKmh ? capKmh / 3.6 : double.MaxValue;
         string dir = Str(args, "--out", "out/playthrough");
         if (Directory.Exists(dir))
             Directory.Delete(dir, true);
@@ -152,6 +152,42 @@ static class PlaythroughCommands
             }
         }
 
+        // Note 266: the bend warning as the cab has it (TrackRules.Assess), each time it goes up, and the night's lamps: when
+        // the forward lamp went out and came back, and each car's (who put it out, by the enemies under way then).
+        int bendWarnings = 0;
+        bool bendUp = false, headWas = true;
+        double headOutSeconds = 0;
+        var headOuts = new List<object>();
+        var carOuts = new List<object>();
+        var carWas = new Dictionary<int, bool>();
+        void LampAndBendAudit(World world)
+        {
+            var train = world.Train;
+            double now = world.Tick * SimConstants.TickSeconds;
+            if (world.TrackPlan is { } plan)
+            {
+                bool up = DarkTerritory.Sim.LineGen.TrackRules.Assess(train, plan.Rules, train.Dynamics.Tuning.Overspeed).Warning;
+                if (up && !bendUp)
+                    bendWarnings++;
+                bendUp = up;
+            }
+            string Who() => string.Join(",", world.ActiveEnemies.Where(e => !e.Gone && e.Phase != SpinePhase.Dormant).Select(e => e.Kind.ToString()).Distinct());
+            if (!world.Derailed)
+            {
+                if (!world.LampLit)
+                    headOutSeconds += SimConstants.TickSeconds;
+                if (world.LampLit != headWas)
+                    headOuts.Add(new { seconds = Math.Round(now, 1), lit = world.LampLit, smashed = Math.Round(world.LampOutSeconds), around = Who() });
+                headWas = world.LampLit;
+                foreach (var v in train.Dynamics.Consist.Vehicles)
+                {
+                    if (carWas.TryGetValue(v.Id, out bool was) && was && !v.LampLit)
+                        carOuts.Add(new { seconds = Math.Round(now, 1), car = v.Id, around = Who() });
+                    carWas[v.Id] = v.LampLit;
+                }
+            }
+        }
+
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
         void Watch(World world, IReadOnlyList<PlayerState> crew)
@@ -159,6 +195,7 @@ static class PlaythroughCommands
             var train = world.Train;
             double now = world.Tick * SimConstants.TickSeconds;
             RoofAudit(world, crew);
+            LampAndBendAudit(world);
             stokerSince = world.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
             // The scene watching every tick, as the app's does each frame: what it takes in now it draws going later.
             scene.Enemies = world.ActiveEnemies;
@@ -239,6 +276,24 @@ static class PlaythroughCommands
             end = last.Run?.End.ToString(),
             derailed = last.Derailed ? last.DerailCause : null,
             shots = shots.Count,
+            // Note 266: a bend too fast (train.json overspeed): its warning each time it went up, every bend derailment by how
+            // long that warning had been up (none may be under leadSeconds), and the ticks spared for want of it.
+            bends = new
+            {
+                warnings = bendWarnings,
+                derails = last.BendCommits.Count,
+                warnedSeconds = last.BendCommits.Select(x => Math.Round(x, 2)).ToArray(),
+                underLead = last.BendCommits.Count(x => x + 1e-9 < last.Train.Dynamics.Tuning.Overspeed.LeadSeconds),
+                spared = last.BendsSpared,
+            },
+            lamps = new
+            {
+                headlampOutSeconds = Math.Round(headOutSeconds),
+                headlamp = headOuts,
+                carsPutOut = carOuts,
+                carsLitAtEnd = last.Train.Dynamics.Consist.Vehicles.Count(v => v.LampLit && v.Id > 0),
+                cars = last.Train.Dynamics.Consist.Vehicles.Count - 1,
+            },
             // Note 260: the line's own kills against their warning (sight.json roofWarning.leadSeconds).
             roofWarning = new
             {

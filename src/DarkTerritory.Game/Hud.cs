@@ -743,6 +743,13 @@ public static class Hud
             Big(roof.Head, world.Tick / 8 % 2 == 0 ? Red : Amber);
             Small(roof.Line, Ink);
         }
+        // Note 266 (build 1121: "people should know they're going too fast for a spot"): a bend the speed now would derail
+        // the train on, coming or under it, to whoever's in the cab; and its stress rising, short of that.
+        else if (BendWarningLines(s) is { } bend)
+        {
+            Big(bend.Head, bend.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber);
+            Small(bend.Line, Ink);
+        }
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
@@ -1192,6 +1199,30 @@ public static class Hud
     }
 
     /// <summary>
+    /// The cab's bend warning (note 265), or null: in the cab, a bend the speed now would derail the train on, under it or
+    /// ahead within the distance to brake (LineGen.TrackRules.Assess, urgent); or the bend under it stressed past halfway
+    /// from its board to its derailing speed. From the line and the train as this machine has them.
+    /// </summary>
+    public static (string Head, string Line, bool Urgent)? BendWarningLines(IPlaySession s)
+    {
+        var world = s.World;
+        if (world.TrackPlan is not { } plan || world.Derailed || !s.Player.Alive || !PlayerMotor.InCab(s.Player, s.Train))
+            return null;
+        var t = s.Train.Dynamics.Tuning.Overspeed;
+        var b = Sim.LineGen.TrackRules.Assess(s.Train, plan.Rules, t);
+        int kmh = (int)Math.Round(s.Train.Dynamics.Speed * 3.6);
+        // The board's figure as it's painted (in fives, down), and the speed it'd come off at.
+        int posted = (int)(Math.Floor(b.PostedMs * 3.6 / 5) * 5), derails = (int)Math.Floor(b.DerailMs * 3.6);
+        if (b.Warning)
+            return b.OnIt
+                ? ("FLANGES SCREAMING: YOU'RE COMING OFF", $"{kmh} KM/H ON A {posted} KM/H BEND. IT DERAILS OVER {derails}: BRAKE NOW", true)
+                : ("TOO FAST FOR THE BEND AHEAD", $"{posted} KM/H BEND IN {b.AheadM:0} M, DERAILS OVER {derails}. YOU'RE AT {kmh}: BRAKE", true);
+        if (b.Stress >= t.LurchAt)
+            return ("THE BEND IS PULLING HARD", $"{kmh} KM/H, OVER ITS BOARD: EASE OFF", false);
+        return null;
+    }
+
+    /// <summary>
     /// What the death screen says killed you. Every cause has its line (T115 playtest: "the death screen doesn't show me
     /// anything": the v1.1 creatures' causes had none); an unknown one says its name.
     /// </summary>
@@ -1468,6 +1499,11 @@ public static class Hud
             return world.LampOutSeconds > 0 ? $"{drive}{vent}   LAMP SMASHED ({world.LampOutSeconds:0}s)"
                 : $"{drive}{vent}   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
         }
+        // Note 266 (build 1121: "the lights are completely off"): in a car whose lamp is out (a Climber came in through it),
+        // how to light it.
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
+            && train.Frames[p.Parent].Shape.Interior is not null)
+            return $"THE CAR'S LAMP IS OUT: [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}] LIGHT IT";
         return null;
     }
 

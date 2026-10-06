@@ -410,7 +410,12 @@ public sealed record SwitchmanTuning
     public double DeadLineWeight { get; init; } = 1.5;
 }
 
-public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage);
+/// <summary>enemies.json <c>sleepers</c> (track debris, GDD §22). Field docs live in that file.</summary>
+/// <param name="Enabled">Placed on generated lines and run at all: off since the director's decision of 2026-10-06 (note 265); a mod can bring them back.</param>
+/// <param name="BraceLeadSeconds">Note 266: they brace (and are heard) as far out as a train at its speed needs to brake under them: this long at its speed, then a service stop (train.json overspeed).</param>
+/// <param name="DerailLeadSeconds">Note 266: they derail a train only once their telegraph has been up this long; short of it, they're the heavy damage.</param>
+public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage,
+    bool Enabled = false, double BraceLeadSeconds = 4, double DerailLeadSeconds = 4);
 
 public sealed record HoundTuning(int[] PackSize, double Health, double Radius, double MaxSpeed, double ClosingSpeed, double SpawnBehind,
     double HowlSeconds, double LeapDistance, int BiteDamage, double BiteEverySeconds, double Reach, double BoredSeconds, double MinTrainSpeed,

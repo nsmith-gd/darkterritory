@@ -503,7 +503,8 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 | **Weak bridges** | Length. Your longer, richer train may not clear it. |
 | **Tunnels** | Radio. Compressed proximity voice, no exterior reference. |
 | **Brass growth** | Speed. Cut through slowly or ram it and pay. |
-| **Track debris** | Speed in the dark. Only the forward lamp reveals it; hit it fast and you derail. |
+| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window. Run right up to it and brake hard, or slow early and deal with what's on the roof. |
+| ~~Track debris~~ | *Retired: the director's decision, 6 Oct 2026. "A derailment needs to be clearly a mistake by the driver, someone not paying attention to the map." Debris forced a derailment on the game's behalf. Off by a tuning flag (enemies.json sleepers.enabled), kept in the code for mods.* |
 | **Marsh** | Movement. Something in the reeds surges toward motion; stand still for ~4s and it loses you. |
 | **Dawn** | Time. Every careful option becomes unaffordable. |
 
@@ -601,7 +602,7 @@ Pillar 5 says the night gets worse and funnier. A failure is only funny when fou
 
 **Horror in the telegraph, comedy in the grab.** The shared skeleton (A.1) splits the two cleanly. DORMANT through TELEGRAPH is where the game is frightening: the porcelain face in the lamp, the tiptoeing, the rising Choir. GRAB through PUNISH is where it gets funny: a friend narrating their own death, a crew sprinting after a Whistler carrying someone off at a run, a voice cut off mid-word.
 
-**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the un-shot Switchman, the debris nobody called (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
+**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the un-shot Switchman, the bend taken at 70 (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
 
 **Kept straight, on purpose.** The Soot Children and the Passenger are built to disturb, and so is the idea of a corrupted human on the radio (open question 4). None of the comedy levers above are applied to them beyond the shared systems. A few failures that aren't funny are what make the rest land.
 
@@ -1339,7 +1340,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 |---|---|---|---|
 | **Track Doll** | Straight track with a clear 200m sightline | Any tier (first pass) · once per run | Weight up if the cab has been left empty earlier in the run |
 
-**Note:** track debris (formerly Sleepers) is level content placed at line generation, not a spawn. It sets the baseline the director works over.
+**Note:** track debris (formerly Sleepers) was level content placed at line generation, not a spawn. *Retired by the director's decision of 6 Oct 2026 (§22): a derailment comes only from the driver taking a bend, a weak bridge or a switch over its limit. Off by default (enemies.json sleepers.enabled); a mod can bring it back.*
 
 ---
 
@@ -1462,7 +1463,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    | Failure | Contributing action recorded |
    |---|---|
    | Track Doll struck | Who was on the throttle, and the speed at impact |
-   | Track debris derailment | Who was on the throttle, and the speed at impact |
+   | Track debris derailment *(retired 6 Oct 2026, §22)* | Who was on the throttle, and the speed at impact |
    | Switchman derailment | Whether the forward cannon was crewed, and by whom |
    | Stoker runaway or derailment | Who last fuelled or tended the firebox, and how long it had been unattended |
    | Boiler rupture | Who last fired or vented the boiler, and how long it sat at 100 |
@@ -1883,7 +1884,7 @@ Shots may revisit the same sim time from new angles. The cinematic is edited, no
 - **Order.** Players go in ascending order of peak score, so the biggest flight comes last. The music's hit (E.6) lands on that final death.
 - **Length.** From the first person to the cause card, with the replay between: about 36s at crew 4 and 52s at crew 8 (the first person 4.5–9s, the replay 9s, 4s a player, the settle 3s, the cause card 2s). *(5 Oct 2026, take 3; it was about 18s and 24s.)*
 - **Bookmarks.** Each player's death frame is captured as their auto-bookmark (D.12).
-- **The cause card**, for example: *Consist derailed at mile 14, 19 m/s. Track debris, uncalled. Throttle: Dave. Recovery not scheduled.*
+- **The cause card**, for example: *Consist derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave. Recovery not scheduled.*
 - **Skipping.** After the first player shot, anyone can vote to skip, and a majority of the session skips to the cause card. The host can always skip. The cause card is never skipped.
 
 ## E.6 Music
