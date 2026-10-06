@@ -23,6 +23,17 @@
   // at a stop (a village's cupboards and cellars, a yard's crate stacks and strongroom) has this chance of a kit lying
   // beside what it holds: rare, about one a night on a long line. Brought home, a found kit is kept as a spare.
   "repairKitChance": 0.03,
+  // Note 267 (the director's notes on build 1121: the guard van's toys "are things that we should definitely find out in
+  // the world"): GDD §19's hand-carried loot, found at the stops, not stocked from the fortress. Each village container of
+  // these kinds has this chance of a toy lying with what it holds (rolled on its own stream, so the finds are the same
+  // with or without), and each toy is drawn from `noises`: GDD v1.4 App. C item 4's quiet ones and its squeaker, music box
+  // and wind-up drummer, which feed the loudness meter while carried (combat.json choir.toys). Not in the GDD's numbers:
+  // about two a village, so most nights have a toy for the Track Doll by the second stop.
+  "toys": {
+    "chance": 0.4,
+    "kinds": ["cupboard", "cellar", "hayloft", "underFloor"],
+    "noises": ["none", "none", "squeaker", "musicBox", "drummer"]
+  },
 
   // What each kind of container can hold, and how much of the budget it draws.
   "kinds": {

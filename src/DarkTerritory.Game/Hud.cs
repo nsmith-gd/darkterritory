@@ -17,7 +17,8 @@ namespace DarkTerritory.Game;
 /// The flat-screen HUD (T23), drawn in the low-res frame's own pixels with the pixel font. Sparse on purpose
 /// (GDD §32: the screen is the night, not a dashboard):
 /// <list type="bullet">
-/// <item>top left: the engine (speed, regulator, the pressure gauge with its working band, fire and coal);</item>
+/// <item>top left: the engine (speed, regulator, the pressure gauge with its working band, fire and coal); in the cab only
+/// the speed and the levers' state, the gauges on the backhead being the boiler's read-out (note 264, GDD §32);</item>
 /// <item>top right: the link, ping to host first and big (spec E: "shown prominently", non-optional);</item>
 /// <item>centre: what's happening to you (dead, waiting at a Holdout, cold, the night's result);</item>
 /// <item>bottom centre: what your hands can do right here;</item>
@@ -91,7 +92,7 @@ public static class Hud
         Night(o, height, s, line);
         if (p.Alive)
         {
-            Hotbar(o, width, height, p, line);
+            Hotbar(o, width, height, p, line, s.World.Bodies.CarriedBy(s.PlayerId) is { } inHands ? Called(s.World, inHands) : null);
             if (s.World.Run?.Report is null)
                 Noise(o, width, height, s.World, line);
         }
@@ -138,10 +139,16 @@ public static class Hud
     /// The hotbar (T108), bottom right: each slot with a tool in it, by its number key, the one in hand lit; an empty slot
     /// picked shows as hands. The wheel steps through the tools.
     /// </summary>
-    static void Hotbar(Overlay o, int width, int height, PlayerState p, int line)
+    /// <param name="inHands">
+    /// What's carried in both hands (a lamp, the repair kit, a crate), by name: it's what's held, lit at the hotbar's left
+    /// (note 264, the director's notes on build 1121: "I don't seem to understand how to hold it in my inventory").
+    /// </param>
+    static void Hotbar(Overlay o, int width, int height, PlayerState p, int line, string? inHands = null)
     {
         var slots = Enumerable.Range(0, Kit.Slots).Where(i => Kit.At(p.Kit, i) != Tool.None || i == p.HeldSlot).ToList();
         float x = width - 4, y = height - line - 8;
+        if (inHands is not null)
+            slots.RemoveAll(i => Kit.At(p.Kit, i) == Tool.None);
         for (int k = slots.Count - 1; k >= 0; k--)
         {
             int i = slots[k];
@@ -153,7 +160,16 @@ public static class Hud
             UiStyle.Plate(o, x, y - 2, w, line + 6, held ? UiStyle.Lit : null);
             if (held)
                 o.Rect(x + 3, y + line + 1, w - 6, 1, UiStyle.Lit);
-            o.Text(x + 4, y + 1, label, held ? Amber : Dim);
+            o.Text(x + 4, y + 1, label, held && inHands is null ? Amber : Dim);
+        }
+        if (inHands is not null)
+        {
+            string label = $"IN HANDS: {inHands}";
+            float w = o.Font.Measure(label) + 8;
+            x -= w + 2;
+            UiStyle.Plate(o, x, y - 2, w, line + 6, UiStyle.Lit);
+            o.Rect(x + 3, y + line + 1, w - 6, 1, UiStyle.Lit);
+            o.Text(x + 4, y + 1, label, Amber);
         }
     }
 
@@ -236,14 +252,93 @@ public static class Hud
         }
     }
 
+    /// <summary>
+    /// The supplies aboard (the director's decision of 2026-10-06, GDD §10; note 264): one panel, toggled on (its key, I),
+    /// never always on: the coal, the repair kit and where it is, the extinguishers, the cargo and crates, the stores (lamps,
+    /// radios, toys, finds) and the powder and shot. Like the manifest board in a guard van, read when it's wanted.
+    /// </summary>
+    public static void Supplies(Overlay o, int width, int height, IPlaySession s)
+    {
+        var lines = SuppliesLines(s.World, s.PlayerId);
+        int line = o.Font.LineHeight;
+        float col = lines.Max(l => o.Font.Measure(l.Item)) + 12;
+        float w = Math.Max(240, col + lines.Max(l => o.Font.Measure(l.Value))) + 12;
+        float h = (lines.Count + 2) * line + 8;
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
+        UiStyle.Plate(o, x, y, w, h);
+        o.Text(x + 6, y + 4, "SUPPLIES ABOARD", Amber);
+        UiStyle.Keyed(o, x + w - 6 - UiStyle.MeasureKeyed(o, Bound("[I] CLOSE")), y + 4, Bound("[I] CLOSE"), Dim);
+        y += 4 + 2 * line;
+        foreach (var (item, value, warn) in lines)
+        {
+            o.Text(x + 6, y, item, Dim);
+            o.Text(x + 6 + col, y, value, warn ? Amber : Ink);
+            y += line;
+        }
+    }
+
+    /// <summary>The supplies panel's rows (note 264): what, how much or where, and whether it's short.</summary>
+    public static List<(string Item, string Value, bool Warn)> SuppliesLines(Sim.World world, int playerId)
+    {
+        var train = world.Train;
+        var consist = train.Dynamics.Consist;
+        var bodies = world.Bodies.All.Where(b => b.Carrier >= 0 || consist.IndexOf(b.Parent) >= 0).ToList();
+        int Count(BodyKind kind) => bodies.Count(b => b.Kind == kind);
+        var rows = new List<(string, string, bool)>();
+        if (train.BoilerTuning is { } bt)
+            rows.Add(("COAL", $"{train.Boiler.Tender:0} IN THE TENDER, FIRE {train.Boiler.Firebox:0.0}", train.Boiler.Tender < 40 || train.Boiler.LowFire(bt)));
+        int kits = Count(BodyKind.RepairKit);
+        rows.Add(("REPAIR KIT", KitWhere(world, playerId) + (kits > 1 ? $" (+{kits - 1} SPARE)" : ""), kits == 0));
+        rows.Add(("EXTINGUISHERS", $"{Count(BodyKind.Extinguisher)} ABOARD", Count(BodyKind.Extinguisher) == 0));
+        var cargo = consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        rows.Add(("CARGO", $"{cargo.Count(v => v.Load > 0.01)} OF {cargo.Count} CARS LOADED, {cargo.Sum(v => v.Load):0.0} LOADS; {Count(BodyKind.Crate) + Count(BodyKind.Cargo)} CRATES", false));
+        int finds = world.Run?.Stowed.Count ?? 0;
+        rows.Add(("STORES", $"{Count(BodyKind.Lamp)} LAMPS, {Count(BodyKind.Radio)} RADIOS, {Count(BodyKind.Toy)} TOYS, {finds + Count(BodyKind.Loot)} FINDS", false));
+        int rounds = train.Vehicles.Where(v => v is not null).Sum(v => v.Gun.Ammo);
+        if (world.Combat is not null)
+            rows.Add(("POWDER AND SHOT", $"{rounds} ROUNDS", rounds < 5));
+        return rows;
+    }
+
+    /// <summary>Where the handiest repair kit is, in a few words (the supplies panel's; note 264).</summary>
+    static string KitWhere(Sim.World world, int playerId)
+    {
+        var consist = world.Train.Dynamics.Consist;
+        var kit = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit)
+            .OrderBy(b => b.Carrier == playerId ? 0 : b.Carrier >= 0 ? 1 : consist.IndexOf(b.Parent) >= 0 ? 2 + consist.IndexOf(b.Parent) : 1000).ThenBy(b => b.Id)
+            .FirstOrDefault();
+        if (kit is null)
+            return "NONE ABOARD";
+        if (kit.Carrier == playerId)
+            return "IN YOUR HANDS";
+        if (kit.Carrier >= 0)
+            return $"WITH {IncidentLog.NameOf(world, kit.Carrier).ToUpperInvariant()}";
+        int car = consist.IndexOf(kit.Parent);
+        if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
+            return $"THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
+        return car > 0 ? $"ON THE FLOOR, CAR {car}" : car == 0 ? "ON THE ENGINE" : "OFF THE TRAIN";
+    }
+
     static void Engine(Overlay o, IPlaySession s, int line)
     {
         var train = s.Train;
         var d = train.Dynamics;
         var c = s.Controls;
-        UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         float x = 6, y = 5;
         var band = SpeedBands.Classify(d.Tuning, d.Speed);
+        // In the cab (note 264, the director's notes on build 1121: "way too much UI for what's on the screen"): the gauges on
+        // the backhead and the firebox are the boiler's read-out (GDD §32), so the panel's the speed and the levers' state.
+        if (PlayerMotor.InCab(s.Player, train) && train.BoilerTuning is { SteamDrive: true })
+        {
+            string levers = Bound($"BRAKE {(c.Brake > 0 ? "ON " : "OFF")}  [X] {(c.Reverser > 0 ? "FWD" : "REV")}");
+            float cw = Math.Max(o.Font.Measure($"{0,3:0} KM/H  ") + o.Font.Measure("CRUISE"), UiStyle.MeasureKeyed(o, levers)) + 10;
+            UiStyle.Plate(o, 2, 2, cw, 2 * line + 6, train.Boiler.Ruptured ? Red : null);
+            o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
+            o.Text(x + 64, y, band.ToString().ToUpperInvariant(), band >= SpeedBand.Cruise ? Amber : Dim);
+            UiStyle.Keyed(o, x, y + line, levers, Dim);
+            return;
+        }
+        UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
         o.Text(x + 64, y, band.ToString().ToUpperInvariant(), band >= SpeedBand.Cruise ? Amber : Dim);
         y += line;
@@ -366,6 +461,11 @@ public static class Hud
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
+        // What else is carried, for the hotbar's IN HANDS (note 264).
+        BodyKind.Crate or BodyKind.Cargo => "A CRATE",
+        BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
+        BodyKind.Ragdoll => "A BODY",
+        BodyKind.Child => "THE CHILD",
         _ => "IT",
     };
 
@@ -382,13 +482,23 @@ public static class Hud
         if (carried is not null && !Lockers.Holds(train, carried.Kind))
             return null;
         string name = $"THE {at.Bay.Name}'S LOCKER";
+        bool full = Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) < 0;
+        // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): the tag on its door says
+        // what's in it, shut or open; a tap opens a shut one, and puts what's in your hands in.
         if (!train.Vehicles[at.Car].LockerOpen(at.Bay.Index))
-            return $"{name}   [E] HOLD: OPEN";
+            return carried is not null && !full ? $"{name}   [E] PUT {Called(world, carried)} IN" : $"{name}: {Holding(world, at.Car, at.Bay.Index)}   [E] OPEN";
         if (carried is not null)
-            return Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) >= 0
-                ? $"[E] PUT {Called(world, carried)} IN {name}   HOLD: SHUT" : $"{name} IS FULL   [E] HOLD: SHUT";
+            return !full ? $"[E] PUT {Called(world, carried)} IN {name}   HOLD: SHUT" : $"{name} IS FULL   [E] HOLD: SHUT";
         return Lockers.Contents(world.Bodies, at.Car, at.Bay.Index).LastOrDefault() is { } top
-            ? $"[E] TAKE {Called(world, top)} FROM {name}   HOLD: SHUT" : $"{name}: EMPTY   [E] HOLD: SHUT";
+            ? $"[E] TAKE {Called(world, top)} INTO YOUR HANDS   HOLD: SHUT" : $"{name}: EMPTY   [E] HOLD: SHUT";
+    }
+
+    /// <summary>What's on a locker's shelves, as its door's tag has it (note 264): "THE REPAIR KIT", "2 LAMPS", "EMPTY".</summary>
+    public static string Holding(Sim.World world, int car, int locker)
+    {
+        var things = Lockers.Contents(world.Bodies, car, locker).Select(b => Called(world, b))
+            .GroupBy(n => n).Select(g => g.Count() == 1 ? g.Key : $"{g.Count()} {(g.Key.StartsWith("THE ", StringComparison.Ordinal) ? g.Key[4..] : g.Key)}S").ToList();
+        return things.Count == 0 ? "EMPTY" : string.Join(" AND ", things);
     }
 
     /// <summary>
@@ -460,7 +570,13 @@ public static class Hud
         // Clear of the engine's panel top left and the link's top right.
         float w = MathF.Round(width * 0.34f), x = MathF.Round(width * 0.41f), y = 6, h = 5;
         double at = Math.Clamp(s.Train.Dynamics.Distance / route.Length, 0, 1);
-        UiStyle.Plate(o, x - 4, y - 3, w + 8, h + line + 8);
+        double left = Math.Max(0, route.Length - s.Train.Dynamics.Distance) / 1000;
+        // Note 267: the next place by name, which the bottom-left block said again under it; it says it here only, the
+        // plate as wide as it needs.
+        string ahead = PrototypeSession.NextPlace(route, s.Train.Dynamics.Distance).ToUpperInvariant();
+        string caption = $"{ahead}   {left:0.0} KM LEFT";
+        float pw = Math.Max(w + 8, o.Font.Measure(caption) + 10);
+        UiStyle.Plate(o, x + w / 2 - pw / 2, y - 3, pw, h + line + 8);
         o.Rect(x, y, w, h, Track);
         o.Rect(x, y, MathF.Round(w * (float)at), h, Dim);
         foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
@@ -471,11 +587,7 @@ public static class Hud
             o.Rect(fx - 1, y - 2, 3, h + 4, colour);
         }
         o.Rect(x + MathF.Round(w * (float)at) - 2, y - 3, 5, h + 6, Green);
-        double left = Math.Max(0, route.Length - s.Train.Dynamics.Distance) / 1000;
-        var next = route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village && f.Start > s.Train.Dynamics.Distance)
-            .OrderBy(f => f.Start).FirstOrDefault();
-        string ahead = next is null ? "NO MORE STOPS" : $"STOP IN {(next.Start - s.Train.Dynamics.Distance) / 1000:0.0}";
-        o.TextCentred(x + w / 2, y + h + 2, $"{left:0.0} KM LEFT  {ahead}", Ink);
+        o.TextCentred(x + w / 2, y + h + 2, caption, Ink);
     }
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
@@ -605,10 +717,17 @@ public static class Hud
                     Small(RepairKitWhere(world, s.PlayerId), Ink);
             }
             else if (b.AtMaxSeconds > 0)
+            {
                 Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);
+                Small(Bound("[VENT] HOLD IN THE CAB"), Ink);
+            }
             else if (b.Pressure >= bt.Redline)
-                Small("PRESSURE IN THE RED: VENT, OR LET THE FIRE BURN DOWN", flash ? Red : Amber);
+                Small(Bound("PRESSURE IN THE RED: [VENT] HOLD TO VENT, OR LET THE FIRE BURN DOWN"), flash ? Red : Amber);
         }
+        // Note 267: a crewmate's whistle names whose hand is on the cord (GDD §12). The Whistler's has no hand on it, and no
+        // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
+        if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
+            Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD (LOUD)" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
         // T115 playtest ("suddenly I can't move and then a few seconds later I die"): held, say so, and what to do. Alone
         // (the solo rule) Use held struggles free; with a crew, a friend has to pull it off or hit it.
         if (p.Alive && p.Has(PlayerFlags.Held))
@@ -1125,9 +1244,14 @@ public static class Hud
     /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
     public static string Bound(string prompt) =>
         // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
-        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
+        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B|X|L|H|I|VENT)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
         {
             "E" => Control.Use,
+            "X" => Control.Reverser,
+            "L" => Control.Lamp,
+            "H" => Control.Whistle,
+            "I" => Control.Supplies,
+            "VENT" => Control.Vent,
             "RMB" => Control.Throw,
             "T" => Control.Radio,
             "Z" => Control.Uncouple,
@@ -1220,8 +1344,14 @@ public static class Hud
             return p.Hand != default ? "REACH DOWN AND GRIP: CUT THE COUPLING"
                 : p.Pitch <= -train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180 ? "[Z] HOLD: CUT THE COUPLING"
                 : "LOOK DOWN AT THE COUPLER TO CUT IT";
+        // Note 267: the vent's feedback while it's held open (its key, or Use at the valve), from the cab: it's working.
+        if (PlayerMotor.InCab(p, train) && train.BoilerTuning is not null && train.Boiler.Vented && !train.Boiler.Ruptured)
+            return $"VENTING STEAM: PRESSURE {train.Boiler.Pressure:0}, FALLING. LET GO TO SHUT IT";
         switch (near)
         {
+            // GDD §12's whistle cord (note 264), looked at: loud, the meter and the Choir hear it, in your name.
+            case InteractableKind.Whistle when PlayerMotor.InCab(p, train):
+                return "[E] HOLD: WHISTLE (LOUD: THE CHOIR HEARS IT)   OR [H]";
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
                 return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
@@ -1232,7 +1362,7 @@ public static class Hud
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL: INTO THE FIREBOX" : "GRIP: COAL ON THE SHOVEL";
             // T97: venting is how the train's slowed (steam sets its speed); T109, in the cab.
             case InteractableKind.Vent when PlayerMotor.InCab(p, train):
-                return "[E] HOLD: VENT STEAM (SLOWER)";
+                return "[E] HOLD: VENT STEAM (SLOWER)   OR [VENT] ANYWHERE IN THE CAB";
             // T109: the engineering kit's rack.
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
                 return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
@@ -1267,7 +1397,7 @@ public static class Hud
             {
                 BodyKind.Ragdoll => "[E] PICK UP THE BODY",
                 BodyKind.Radio => "[E] TAKE THE RADIO",
-                BodyKind.RepairKit => "[E] TAKE THE REPAIR KIT",
+                BodyKind.RepairKit => "[E] TAKE THE REPAIR KIT INTO YOUR HANDS",
                 BodyKind.Loot => $"[E] TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"}",
                 // A reaching hand takes its end with both hands on it (T43).
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "BOTH HANDS ON IT: TAKE THE OTHER END" : "[E] TAKE THE OTHER END",
@@ -1332,9 +1462,11 @@ public static class Hud
             // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
             string drive = train.BoilerTuning?.SteamDrive != true ? "[R/F] REGULATOR   [B] BRAKE"
                 : s.Controls.Brake > 0 && train.Dynamics.Speed < CabControls.StandingBelow ? "[R] RELEASE BRAKE" : "[B] BRAKE";
-            // The lamp switch too (T52): out, smashed (the glass is out a while), or lit.
-            return world.LampOutSeconds > 0 ? $"{drive}   [X] REVERSER   LAMP SMASHED ({world.LampOutSeconds:0}s)"
-                : $"{drive}   [X] REVERSER   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
+            // Note 267 (the director's notes on build 1121: "way too much UI", and the vent's control "a bit off"): the brake
+            // and the vent, one key each, held; the reverser's key is on the engine panel by its state, the lamp's on the lamp.
+            string vent = train.BoilerTuning is null ? "" : "   [VENT] HOLD: VENT";
+            return world.LampOutSeconds > 0 ? $"{drive}{vent}   LAMP SMASHED ({world.LampOutSeconds:0}s)"
+                : $"{drive}{vent}   [L] LAMP {(world.LampLit ? "OFF" : "ON")}";
         }
         return null;
     }
@@ -1353,6 +1485,9 @@ public static class Hud
         var parts = status.Split(" | ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             // The night's result has its own place in the middle.
             .Where(t => !t.StartsWith("VIGIL", StringComparison.Ordinal) && !t.StartsWith("DELIVERED", StringComparison.Ordinal) && !t.StartsWith("RUN LOST", StringComparison.Ordinal))
+            // Note 267: the route's name (the route card has it) and the next place (the strip across the top has it).
+            .Where(t => s.Route is not { } r || !t.Equals(r.Name, StringComparison.OrdinalIgnoreCase)
+                && !t.StartsWith(PrototypeSession.NextPlace(r, s.Train.Dynamics.Distance), StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (parts.Count == 0)
             return;

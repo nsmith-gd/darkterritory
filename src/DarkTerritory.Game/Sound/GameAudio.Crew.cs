@@ -843,7 +843,8 @@ public sealed partial class GameAudio
         float outside = Occlusion(PlayerMotor.Outside);
         if (cord && (e.Whistle <= 0 || e.Released && whistle > e.WhistleLow + 0.15))
         {
-            var cordAt = shape.Cab is { } cabBox ? engine.ToWorld(new Double3(0, cabBox.Max.Y - 0.2, cabBox.Centre.Z)) : dome;
+            // At the cord's handle (note 264: in the driver's front corner).
+            var cordAt = engine.ToWorld(Art.TrainKit.WhistleCordHandle(shape, pulled: true));
             Cue("crew-cab-controls.whistle-cord", cordAt, cab);
             if (CordWhistles(world))
                 Cue("crew-cab-controls.whistle-start", dome, outside);

@@ -430,12 +430,17 @@ public sealed class Bodies
                 _lockerHeld[playerId] = 1;
             else if (use && _lockerHeld.ContainsKey(playerId))
                 _lockerHeld[playerId]++;
-            else if (!use && _lockerHeld.Remove(playerId, out int held) && held * Dt < Lockers.DoorSeconds(train) - Dt / 2
-                && train.Vehicles[locker.Car].LockerOpen(locker.Bay.Index))
+            else if (!use && _lockerHeld.Remove(playerId, out int held) && held * Dt < Lockers.DoorSeconds(train) - Dt / 2)
             {
+                // Note 267 ("put in the locker doesn't seem to be working well"): a tap at a shut locker opens it, and what's
+                // in your hands goes in all the same; empty-handed, the tap only opens it, so you see what's there first.
+                var v = train.Vehicles[locker.Car];
+                bool open = v.LockerOpen(locker.Bay.Index);
+                if (!open)
+                    v.ToggleLocker(locker.Bay.Index);
                 if (carried is not null)
                     Stow(carried, train, locker.Car, locker.Bay.Index);
-                else
+                else if (open)
                     Take(train, locker.Car, locker.Bay.Index, playerId);
             }
             return false;

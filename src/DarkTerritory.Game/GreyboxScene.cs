@@ -2376,8 +2376,14 @@ public sealed class GreyboxScene
                 : new Vector3((float)frame.Shape.HalfWidth - 0.35f, (float)frame.Shape.RoofHeight + 0.9f, -(float)frame.Shape.HalfLength + 2.6f);
             Look.Art.Effects.StoveSmoke(mesh, o + right * pipe.X + up * pipe.Y + back * pipe.Z, up, back, (float)_speed, Time, frame.Index);
         }
+        // Note 267: the lockers with something on their shelves, tagged.
+        uint tagged = 0;
+        if (frame.Shape.Lockers.Count > 0 && Bodies is { } stowed)
+            foreach (var b in stowed)
+                if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
+                    tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut)))
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

@@ -30,7 +30,7 @@ public class PutDownTests
     {
         var room = world.Train.Frames[car].Shape.Interior!.Value;
         var s = new PlayerState { Parent = car, Position = at with { Y = room.Min.Y + 0.1 }, Yaw = yaw, Surface = Surface.Deck, Health = P.Health };
-        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp);
+        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp && !b.Stowed);
         lamp.Carrier = 1;
         world.StepBodies([(1, s)]);
         return (s, lamp);

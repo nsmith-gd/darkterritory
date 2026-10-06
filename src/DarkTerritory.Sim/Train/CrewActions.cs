@@ -35,6 +35,9 @@ public static class CrewActions
                 train.Uncouple(s.Parent);
             return;
         }
+        // The vent's own key (note 264): held anywhere in the cab, the blow-off's open, whatever Use is doing.
+        if (VentHeld(s, intent, train))
+            train.Boiler.Venting = true;
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
             // Let go of the shovel and what's on it is spilled.
@@ -166,6 +169,10 @@ public static class CrewActions
 
     static bool Hand(in PlayerState s, HandTuning? hand) => hand is not null && s.Hand != default;
 
+    /// <summary>The vent key held in the cab (note 264): the blow-off open while it's down. Never on a coupler (that's Uncouple's).</summary>
+    public static bool VentHeld(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
+        s.Alive && intent.Has(PlayerActions.Vent) && s.Surface != Surface.Coupler && train.BoilerTuning is not null && PlayerMotor.InCab(s, train);
+
     /// <summary>At the firebox of a ruptured boiler, in the cab: where the repair kit in hand mends it (T109).</summary>
     public static bool AtTheRupture(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
         s.Alive && train.BoilerTuning is not null && train.Boiler.Ruptured && PlayerMotor.InCab(s, train)
@@ -232,11 +239,20 @@ public static class CrewActions
         if (s.Parent == PlayerState.World)
             return null;
         var reaching = Hand(s, hand) ? PlayerMotor.HandAt(s) : null;
-        (Interactable, int)? best = null;
+        (Interactable, int)? best = null, looked = null;
         double bestD = double.MaxValue;
+        int own = s.Parent;
         // Doors want facing: the coupler plate is in reach of two of them, and Use there also cuts the coupling. So do the
         // crew lockers: a row of them, and you're at the one you face.
         double fx = -DMath.Sin(s.Yaw), fz = -DMath.Cos(s.Yaw);
+        // Note 267: where several are in reach (a row of lockers a hand wide, the firebox under the whistle cord), the one
+        // looked at is the one worked: the least angle off the view's centre, within pick.lookDegrees. Only then the nearest.
+        var pick = train.Dynamics.Tuning.Pick;
+        double cp = DMath.Cos(s.Pitch);
+        var view = new Double3(fx * cp, DMath.Sin(s.Pitch), fz * cp);
+        var eye = s.Position + Double3.Up * pick.EyeHeight;
+        // Compared as cosines (no Acos: what's picked changes the train, so it's worked out alike on every machine).
+        double bestCos = DMath.Cos(pick.LookDegrees * Math.PI / 180);
         void Search(int vehicle, Double3 at, bool doorsOnly)
         {
             foreach (var i in train.Frames[vehicle].Shape.Interactables)
@@ -248,7 +264,22 @@ public static class CrewActions
                 if (reaching is null && i.Kind is InteractableKind.Door or InteractableKind.Locker && -(dx * fx + dz * fz) < 0.6 * Math.Sqrt(d))
                     continue;
                 bool height = reaching is null ? Math.Abs(at.Y - i.Position.Y) < 1.2 : at.Y - i.Position.Y is >= 0.2 and <= 1.8;
-                if (d <= i.Radius * i.Radius && height && d < bestD)
+                if (d > i.Radius * i.Radius || !height)
+                    continue;
+                if (reaching is null && vehicle == own)
+                {
+                    var to = i.Position + Double3.Up * i.Aim - eye;
+                    double cos = Double3.Dot(view, to.Normalized);
+                    if (cos >= bestCos)
+                    {
+                        bestCos = cos;
+                        looked = (i, vehicle);
+                    }
+                }
+                // The whistle cord is only ever the one looked at: never pulled by standing near it.
+                if (reaching is null && i.Kind == InteractableKind.Whistle)
+                    continue;
+                if (d < bestD)
                 {
                     bestD = d;
                     best = (i, vehicle);
@@ -263,6 +294,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return best;
+        return looked ?? best;
     }
 }

@@ -23,9 +23,19 @@ public sealed record TrainTuning
     public CompositionTuning Composition { get; init; } = new();
     /// <summary>GDD §19's fragile medicine (train.json <c>fragile</c>; note 182). Unset, medicine rides like anything else.</summary>
     public FragileTuning? Fragile { get; init; }
+    /// <summary>Which of the things in reach a look picks (train.json <c>pick</c>; note 264).</summary>
+    public PickTuning Pick { get; init; } = new();
 
     public const string File = "tuning/train.json";
 }
+
+/// <summary>
+/// Picking what Use works by where you look (note 264, the director's notes on build 1121: neighbouring lockers, and the
+/// whistle cord over the firebox, fought over one press). Field docs live in train.json <c>pick</c>.
+/// </summary>
+/// <param name="EyeHeight">The eye over the feet (m), where the look is taken from.</param>
+/// <param name="LookDegrees">A thing in reach within this of the view's centre is looked at; the nearest to it wins.</param>
+public sealed record PickTuning(double EyeHeight = 1.6, double LookDegrees = 30);
 
 /// <summary>Boarding up a breached car (decided 1 Oct; spec B.9). Field docs live in train.json <c>breach</c>.</summary>
 public sealed record BreachTuning
@@ -145,6 +155,11 @@ public sealed record LockerTuning
     public double Height { get; init; } = 1.9;
     public double FromFront { get; init; } = 0.7;
     public double DoorSeconds { get; init; } = 0.4;
+    /// <summary>
+    /// What each locker starts the night with besides the repair kit (note 264), by its name. Looked up locker by locker in
+    /// the row's order, never iterated.
+    /// </summary>
+    public Dictionary<string, Physics.BodyKind[]> Stock { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record GeometryTuning(

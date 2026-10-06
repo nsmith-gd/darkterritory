@@ -1952,6 +1952,40 @@ static object HudShot(string content, string[] args)
             if (bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
+        // --lockers [NAME] (note 264): stood at a crew locker (the fitter's if none named), facing it, with what it holds on
+        // its door's tag; --carrying kit: the repair kit in hands (from the fitter's), as the hotbar shows it.
+        if (args.Contains("--lockers") && DarkTerritory.Sim.World.KitLocker(solo.Train) is { } kitLocker)
+        {
+            string name = Str(args, "--lockers", "");
+            var shape = solo.Train.Frames[kitLocker.Car].Shape;
+            var bay = shape.Lockers.FirstOrDefault(b => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase), kitLocker.Bay);
+            var front = bay.Front;
+            solo.Player = solo.Player with
+            {
+                Parent = kitLocker.Car,
+                Surface = DarkTerritory.Sim.Player.Surface.Deck,
+                Position = new Double3(front.X + bay.Facing * 0.5, front.Y, front.Z + 0.3),
+                // Facing the door (it faces +X on the left wall): a quarter turn, down at its handle and tag, along the row.
+                Yaw = bay.Facing * Math.PI / 2 - 0.35,
+                Pitch = -0.45,
+                Velocity = default,
+            };
+            if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
+                (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
+        }
+        // --cord (note 264): in the cab looking up at the whistle cord's handle, as the driver reaching for it does.
+        if (args.Contains("--cord") && solo.Train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == DarkTerritory.Sim.Train.InteractableKind.Whistle) is { Aim: > 0 } cord)
+        {
+            var eye = cord.Position + new Double3(-0.4, 0, 0.45);
+            var to = cord.Position + Double3.Up * cord.Aim - (eye + Double3.Up * solo.Train.Dynamics.Tuning.Pick.EyeHeight);
+            solo.Player = solo.Player with
+            {
+                Position = eye,
+                Yaw = Math.Atan2(-to.X, -to.Z),
+                Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+                Velocity = default,
+            };
+        }
         session = solo;
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
@@ -2025,6 +2059,9 @@ static object HudShot(string content, string[] args)
             : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
         Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
     }
+    // --supplies: the supplies aboard (the director's decision of 2026-10-06; note 264), as I toggles it on.
+    if (args.Contains("--supplies"))
+        Hud.Supplies(hud, width, height, session);
     // --roster: the crew roster (T69) as Q shows it, with a staged crew: two heard, one not yet, and a Passenger among them.
     if (args.Contains("--roster"))
     {

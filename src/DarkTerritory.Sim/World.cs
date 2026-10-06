@@ -130,13 +130,17 @@ public sealed class World
     /// </summary>
     public double WhistleSeconds { get; set; }
     /// <summary>Who's blowing it (the last to pull the cord), or −1: the Whistler's whistle belongs to nobody (App. C.7).</summary>
-    public int WhistleBy { get; private set; } = -1;
+    public int WhistleBy { get; internal set; } = -1;
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
         WhistleSeconds = Math.Max(WhistleSeconds, seconds);
         WhistleBy = by;
     }
+
+    /// <summary>Use held at the whistle cord's handle, looking at it (note 264): a hand on the cord.</summary>
+    public bool OnTheCord(in PlayerState s, in PlayerIntent intent) =>
+        s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && CrewActions.Nearest(s, Train, Hand) == InteractableKind.Whistle;
 
     readonly SortedDictionary<int, double> _choirShares = [];
 
@@ -384,6 +388,26 @@ public sealed class World
                 b.Pbd.Particles[0].Position = b.Pbd.Particles[0].Previous = RepairKitStowage(shape, shape.Interior!.Value, i, floor: true) + Ballast.Double3.Up * 0.1;
         }
         KitStocked |= kits > 0;
+        StockLockers(car, shape);
+    }
+
+    /// <summary>
+    /// The rest of the lockers' stock (note 264, the director's notes on build 1121: "all of these seem empty"): train.json
+    /// kit.lockers.stock, each locker's things on its shelves, along the row front to back. What doesn't fit (a shelf the
+    /// spare kits took) isn't stocked.
+    /// </summary>
+    void StockLockers(int car, CarShape shape)
+    {
+        if (Lockers.Tuning(Train) is not { } t)
+            return;
+        foreach (var bay in shape.Lockers)
+            if (t.Stock.TryGetValue(bay.Name, out var things))
+                foreach (var kind in things)
+                {
+                    var b = Bodies.SpawnCrate(Train, car, Lockers.SlotAt(bay, 0, 1, 0), kind);
+                    if (!Bodies.Stow(b, Train, car, bay.Index))
+                        Bodies.Remove(b);
+                }
     }
 
     /// <summary>The train left with a repair kit (GDD v1.4 §23.2: without one, nothing can strand it).</summary>
@@ -818,7 +842,9 @@ public sealed class World
         bool pushing = Combat is { } cp && Guns.Pushing(s, intent, Train, cp.Guns);
         s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
-        if (intent.Has(PlayerActions.Whistle) && Net.CabControls.CanDrive(s, Train))
+        // Note 267: or Use held on the cord's handle, looked at (CrewActions picks it only so). Either way it's in the puller's
+        // name: their share of the loudness meter, and the HUD's "on the cord" (the Whistler's blows with no name, App. A.4).
+        if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
             Whistled(1.0, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count

@@ -300,6 +300,20 @@ bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 Launch? Menu()
 {
     window.MouseCaptured = false;
+    // Note 267: in the menus a click is a click on what the pointer's over, not the window taking the mouse.
+    window.CaptureOnClick = false;
+    try
+    {
+        return MenuLoop();
+    }
+    finally
+    {
+        window.CaptureOnClick = true;
+    }
+}
+
+Launch? MenuLoop()
+{
     var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
     var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
     var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, 6, 1)), line, 1200);
@@ -344,14 +358,12 @@ Launch? Menu()
         }
         else
         {
-            if (input.Pressed(Key.Up) || input.Pressed(Key.W) && !frontEnd.WantsText) frontEnd.Up();
-            if (input.Pressed(Key.Down) || input.Pressed(Key.S) && !frontEnd.WantsText) frontEnd.Down();
-            if (input.Pressed(Key.Left) || input.Pressed(Key.A) && !frontEnd.WantsText) frontEnd.Left();
-            if (input.Pressed(Key.Right) || input.Pressed(Key.D) && !frontEnd.WantsText) frontEnd.Right();
-            if (input.Pressed(Key.Enter) || input.Pressed(Key.Space) && !frontEnd.WantsText) chosen = frontEnd.Select();
-            if (input.Pressed(Key.Escape)) frontEnd.Back();
-            if (input.Pressed(Key.Backspace)) frontEnd.Erase();
-            if (input.Text.Length > 0) frontEnd.Type(input.Text);
+            // The keys as ever, and the mouse (note 264): hover, click, the wheel, in the overlay's pixels (it's stretched
+            // over the window). Typing only while a field's being edited (the window turns text input on for that).
+            var keys = MenuInput.Keys(name => Enum.TryParse<Key>(name, out var k) && input.Pressed(k), frontEnd.WantsText);
+            var mouse = vr is not null ? (MenuMouse?)null : new MenuMouse(new Vector2(input.MouseX * UiWidth, input.MouseY * UiHeight), input.MouseMoved,
+                input.Pressed(Key.MouseLeft), input.Pressed(Key.MouseRight), input.Wheel);
+            chosen = MenuInput.Apply(frontEnd, keys, frontEnd.WantsText ? input.Text : "", mouse);
         }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
@@ -592,6 +604,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     bool showHud = settings.Hud && !args.Contains("--no-hud");
     // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
     int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
+    // The supplies aboard (the director's decision of 2026-10-06; note 264): toggled on and off, never always there.
+    bool showSupplies = args.Contains("--supplies");
     double stokerSince = -1;
     bool showPlan = args.Contains("--overlay");
     // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
@@ -725,7 +739,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (input.Pressed(k) && net is not { Voting: true })
                 pendingSelect = (byte)(k - Key.D1 + 1);
-        pendingCycle += input.Wheel;
+        if (window.MouseCaptured)
+            pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
         pendingReverser |= reverser;
@@ -745,6 +760,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (input.Pressed(Key.F5)) net?.Reconnect();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
         if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+        if (Hit(Control.Supplies)) showSupplies = !showSupplies;
         if (input.Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
@@ -788,7 +804,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // T108: the left button swings what's in hand too (the host ignores a swing from someone at a gun, whose
                 // left button fires it).
                 Actions = (Held(Control.Swing) || Held(Control.Fire) ? PlayerActions.Swing : 0) | (Held(Control.Whistle) ? PlayerActions.Whistle : 0)
-                    | (Held(Control.Uncouple) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
+                    // Note 267: the vent's key shares Uncouple's bit (a coupler plate is never in the cab).
+                    | (Held(Control.Uncouple) || Held(Control.Vent) ? PlayerActions.Uncouple : 0) | (Held(Control.Ladder) ? PlayerActions.Ladder : 0)
                     | (pendingCarLamp ? PlayerActions.CarLamp : 0) | (pendingSeat ? PlayerActions.Seat : 0)
                     // D.12: the dead's bookmark, while the run's under way (the same bit is the film's skip vote once it's over).
                     | (pendingBookmark && session.World.Run is not { Over: true } ? PlayerActions.Bookmark : 0)
@@ -1023,6 +1040,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
+            else if (showSupplies && session.World.Run?.Over != true)
+                Hud.Supplies(overlay, UiWidth, UiHeight, session);
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)

@@ -77,11 +77,94 @@ public class HudTests
         s.Player = At(InteractableKind.Firebox);
         Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
         s.Player = At(InteractableKind.Vent);
-        Assert.Equal("[E] HOLD: VENT STEAM (SLOWER)", Hud.Prompt(s));
+        Assert.Equal("[E] HOLD: VENT STEAM (SLOWER)   OR [VENT] ANYWHERE IN THE CAB", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.StartsWith(s.Train.BoilerTuning?.SteamDrive == true ? "[R] RELEASE BRAKE" : "[R/F] REGULATOR", Hud.Prompt(s));
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
+    }
+
+    /// <summary>Stood in the cab at <paramref name="at"/>, looking at <paramref name="kind"/>'s handle.</summary>
+    static PlayerState LookingAt(PrototypeSession s, Double3 at, InteractableKind kind)
+    {
+        var thing = s.Train.Frames[0].Shape.Interactables.First(i => i.Kind == kind);
+        var p = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        p.Position = at with { Y = p.Position.Y };
+        var to = thing.Position + Double3.Up * thing.Aim - (p.Position + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
+        p.Yaw = Math.Atan2(-to.X, -to.Z);
+        p.Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z));
+        return p;
+    }
+
+    [Fact]
+    public void TheCabSaysTheCordTheVentAndTheBrakeAndLittleElse()
+    {
+        // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says what it is and that it's loud;
+        // the vent's one key is on the driving prompt with the brake's, and held, the prompt says it's working.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var firebox = s.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
+        var at = new Double3(0.55, 0, firebox.Position.Z + 0.6);
+        s.Player = LookingAt(s, at, InteractableKind.Whistle);
+        Assert.Equal("[E] HOLD: WHISTLE (LOUD: THE CHOIR HEARS IT)   OR [H]", Hud.Prompt(s));
+        s.Player = LookingAt(s, at, InteractableKind.Firebox);
+        Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        Assert.Contains("[VENT] HOLD: VENT", Hud.Prompt(s));
+        Assert.DoesNotContain("REVERSER", Hud.Prompt(s));
+        Assert.Contains("[LEFT CTRL]", Hud.Bound(Hud.Prompt(s)!));
+        s.Train.Boiler.Vented = true;
+        Assert.StartsWith("VENTING STEAM: PRESSURE", Hud.Prompt(s));
+        s.Train.Boiler.Vented = false;
+
+        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, the boiler's read-out too.
+        static int TopLeft(Overlay o) => o.Vertices.Count(v => v.Position.X < 160 && v.Position.Y < 46);
+        var hud = new Overlay();
+        Hud.Build(hud, 480, 270, s);
+        int cab = TopLeft(hud);
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 1, 0, s.PlayerTuning);
+        Hud.Build(hud, 480, 270, s);
+        int roof = TopLeft(hud);
+        Assert.True(cab < roof * 0.7, $"the cab's engine panel ({cab} vertices) isn't lighter than the roof's ({roof})");
+    }
+
+    [Fact]
+    public void ALockersDoorSaysWhatsInItAndTheHotbarWhatsInYourHands()
+    {
+        // Note 267: "there needs to be some telegraphing that there's a repair kit inside one of the lockers", and "I don't
+        // seem to understand how to hold it in my inventory".
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var (car, bay) = DarkTerritory.Sim.World.KitLocker(s.Train)!.Value;
+        var front = bay.Front;
+        s.Player = new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Health = 100,
+            Position = new Double3(front.X + bay.Facing * 0.42, front.Y, front.Z),
+            Yaw = bay.Facing * Math.PI / 2,
+        };
+        Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
+        Assert.Equal("THE FITTER'S LOCKER: THE REPAIR KIT   [E] OPEN", Hud.Prompt(s));
+        s.Train.Vehicles[car].ToggleLocker(bay.Index);
+        Assert.Equal("[E] TAKE THE REPAIR KIT INTO YOUR HANDS   HOLD: SHUT", Hud.Prompt(s));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+    }
+
+    [Fact]
+    public void TheSuppliesPanelListsWhatsAboard()
+    {
+        // The director's decision of 2026-10-06 (note 264): one panel, toggled on, of the supplies aboard.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
+        Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
+        Assert.Equal("THE FITTER'S LOCKER, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
+        var hud = new Overlay();
+        Hud.Supplies(hud, 480, 270, s);
+        Assert.True(hud.Count > 0);
+        Assert.Equal("I", Controls.Defaults[Control.Supplies]);
     }
 
     [Fact]

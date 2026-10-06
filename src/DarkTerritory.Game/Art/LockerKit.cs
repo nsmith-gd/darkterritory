@@ -53,6 +53,24 @@ public static class LockerKit
     }
 
     /// <summary>
+    /// A stores tag (note 264): a buff card on a string from a door's handle, in the door's frame (<see cref="Door"/>'s), so a
+    /// shut locker with something in it says so from the aisle.
+    /// </summary>
+    public static MeshAsset Tag(Look? look, float width, float height)
+    {
+        var k = new Kit(look, 1530);
+        float t = DoorThickness, w = width - 0.004f, y = height * 0.5f - 0.1f;
+        k.Use("wood_grey", new Vector3(0.62f, 0.56f, 0.42f), 0.85f, 0.05f, tile: 0.3f);
+        k.Rod(new Vector3(t + 0.03f, y, w - 0.05f), new Vector3(t + 0.035f, y - 0.05f, w - 0.07f), 0.003f);
+        k.Use("enamel_plate", new Vector3(0.86f, 0.80f, 0.62f), 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(t + 0.03f, y - 0.14f, w - 0.11f), new Vector3(t + 0.036f, y - 0.05f, w - 0.04f));
+        k.Use("paint_black", Palette.SootBlack, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(t + 0.036f, y - 0.08f, w - 0.10f), new Vector3(t + 0.038f, y - 0.07f, w - 0.05f));
+        k.Box(new Vector3(t + 0.036f, y - 0.11f, w - 0.10f), new Vector3(t + 0.038f, y - 0.10f, w - 0.06f));
+        return k.Build("locker-tag");
+    }
+
+    /// <summary>
     /// A locker's door, hung from its hinge (the origin) and running along +Z for <paramref name="width"/>, its face to +X:
     /// louvres top and bottom, a handle at its free edge, and the grade on an enamel plate at eye height, lettered
     /// <paramref name="px"/> to the font's pixel (the same on every door in the row, so the longest name fits).

@@ -86,7 +86,9 @@ public static class WorldRecords
                 // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 174).
                 world.DerailMusic,
                 // The derailment film's skip vote (GDD v1.4 App. E.5; note 177): skipped, and the votes of how many.
-                world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of]));
+                world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of,
+                // Whose hand's on the whistle cord (note 264): the HUD names them; the Whistler's whistle has no hand (−1).
+                world.WhistleBy]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -318,6 +320,7 @@ public static class WorldRecords
                         Rest = f.Length > 10 ? D(f[10], Fine) : 0,
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
+                    world.WhistleBy = f.Length > 15 ? (int)f[15] : -1;
                     world.SetDerailed(f[3] != 0);
                     world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;
                     world.FilmSkipped = f.Length > 12 && f[12] != 0;

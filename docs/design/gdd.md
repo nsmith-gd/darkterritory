@@ -18,6 +18,13 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
+**Director's decisions of 2026-10-06 (build 1121 play-test; ARCHITECTURE §8 note 264).**
+- **One supplies view, toggled on.** "The UI is a little too heavy overall in the game, but we do need a way to track all of the supplies that we have on board." The HUD gets lighter (the cab's gauges are the boiler's read-out), and a single panel, off until it's wanted, lists the supplies aboard: coal, the engineering kit and where it is, extinguishers, cargo and crates, stores (lamps, radios, toys, finds) and powder and shot (§10).
+- **No spoken manifest at the gates.** The dispatcher's reading leaving the yard is dropped (too long, hard to localise); the clerk's tally home stays (§9).
+- **Toys are found, not issued.** The guard van no longer starts with toys; they turn up in villages' cupboards, cellars, haylofts and under floors (§19, C.4).
+- **The lockers start stocked** with emergency lamps and extinguishers by grade, and say what's in them on the door (§12).
+- **The whistle cord hangs in the driver's corner**, worked with Use when looked at, and the HUD names whose hand is on it; a whistle with no name on it is the Whistler's (§12, A.4).
+
 **v1.3 changes — failure is funny.**
 - New **§23.1 — Failure has to be funny**: the four conditions a failure must meet, and the rule *horror in the telegraph, comedy in the grab*.
 - **Death hard-cuts the victim's voice** mid-word, and a grabbed player holding a radio broadcasts the whole GRAB to the crew (D.2, C.8).
@@ -157,7 +164,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ### Departure
 Inside the walls: purchase equipment, repair or upgrade the train, choose freight contracts, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools.
 
-Then the gates open. The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.
+Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
 ### The threshold
 The transition should be a major tonal moment. Inside: workers, lights, machinery, voices, guards, whistles, industrial noise. Then the outer gates open, the train passes the final defensive towers, the lights disappear behind it, and ahead is only track.
@@ -194,6 +201,8 @@ Early crews run **engine plus one or two cars.** Experienced crews run **engine,
 The train should increasingly feel like home. Players learn where cannons are mounted, where powder and shot are stored, where the engineering kit is kept, where emergency lamps are kept, where coal is stored, where tools and fire extinguishers hang.
 
 That familiarity matters because the train gets more complex over time. **Progression literally makes your home harder to defend.**
+
+**Supplies aboard** (director's decision of 2026-10-06). One compact view, toggled on and never always there, says what the train carries: coal, the engineering kit and where it is, extinguishers, cargo and crates, stores (lamps, radios, toys, finds) and powder and shot. The rest of the HUD stays light; in the cab the gauges on the backhead are the boiler's read-out.
 
 ## 11. Progression
 

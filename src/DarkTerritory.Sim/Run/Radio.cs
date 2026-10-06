@@ -3,7 +3,10 @@ namespace DarkTerritory.Sim.Run;
 /// <summary>run.json <c>radio</c>: how long each line of the dispatcher's manifest and the clerk's tally stays on the air.</summary>
 /// <param name="LineSeconds">Each line's turn, read flat (GDD §9: "with the same tone used for the coal"); the least a spoken one gets.</param>
 /// <param name="PauseSeconds">Spoken (note 240), the breath after each line before the next: the reading's even pace.</param>
-public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5);
+/// <param name="Manifest">
+/// Whether the dispatcher reads the manifest at the gate at all (note 264: the director dropped it, run.json says false).
+/// </param>
+public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5, bool Manifest = true);
 
 /// <summary>
 /// The fortress on the radio (GDD v1.4 §9, WP9; ARCHITECTURE §8 note 178): at the gate the yard dispatcher reads the crew

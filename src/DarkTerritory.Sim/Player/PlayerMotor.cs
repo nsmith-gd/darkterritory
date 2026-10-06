@@ -43,6 +43,11 @@ public enum PlayerActions : byte
     /// which is also every door's and ladder's, so couplings came apart by accident.
     /// </summary>
     Uncouple = 8,
+    /// <summary>
+    /// The blow-off held open from anywhere in the cab (note 264, the director's notes on build 1121: one key, held). The
+    /// same bit as <see cref="Uncouple"/>: that's only on a coupler plate, and the cab never is one.
+    /// </summary>
+    Vent = 8,
     /// <summary>Take hold of the nearest ladder in reach, whichever way you face (T94 playtest): its own key.</summary>
     Ladder = 16,
     /// <summary>On the wire only: this intent carries a hotbar choice (<see cref="PlayerIntent.Select"/>, <see cref="PlayerIntent.Cycle"/>).</summary>

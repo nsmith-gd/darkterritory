@@ -46,6 +46,15 @@ public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Setting
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
 
 /// <summary>
+/// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
+/// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
+/// </summary>
+public enum TextField { LobbyName, Address, PlayerName }
+
+/// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
+public readonly record struct MenuHit(int Item, int Step = 0);
+
+/// <summary>
 /// The game's front door and the fortress between nights (spec E, F; roadmap M6 "settings"): the title, the three
 /// campaign slots, the fortress's board of contracts with cars and upgrades to buy, a quick night on any tier, joining
 /// by address, and the settings. It's a plain state machine the app feeds keys to and draws with the HUD's overlay,
@@ -157,12 +166,24 @@ public sealed class FrontEnd
         Cue?.Invoke(UiCue.Select);
     }
 
-    /// <summary>The join screen's address, or the host screen's lobby name while it's chosen, wants typed text (the app turns text input on).</summary>
-    public bool WantsText => Screen == Screen.Join || NamingLobby;
+    /// <summary>A text field's being edited, and wants typed text (the app turns text input on). Only then: never on being chosen.</summary>
+    public bool WantsText => Editing is not null;
 
-    /// <summary>The host screen's NAME is chosen: it's after the night's options and VISIBILITY.</summary>
-    bool NamingLobby => Screen == Screen.Host && Selected == NightOptions().Count + 1;
+    /// <summary>The text field being edited (note 264): from Enter or a click on it, to Enter or Esc (or moving off it).</summary>
+    public TextField? Editing { get; private set; }
+
+    bool NamingLobby => Editing == TextField.LobbyName;
     const string NameLabel = "NAME: ";
+
+    /// <summary>Stops editing (the text's kept as typed).</summary>
+    void EndEdit()
+    {
+        if (Editing is null)
+            return;
+        Editing = null;
+        _blankName = false;
+        Cue?.Invoke(UiCue.Select);
+    }
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
     public bool Headset { get; set; }
 
@@ -170,13 +191,27 @@ public sealed class FrontEnd
 
     public void Up() => Move(-1);
     public void Down() => Move(+1);
-    /// <summary>Changes the selected setting or value (tier, seed, cars, toggles).</summary>
-    public void Left() => Adjust(-1);
-    public void Right() => Adjust(+1);
+    /// <summary>Changes the selected setting or value (tier, seed, cars, toggles). Not while a field's being typed in.</summary>
+    public void Left()
+    {
+        if (Editing is null)
+            Adjust(-1);
+    }
+    public void Right()
+    {
+        if (Editing is null)
+            Adjust(+1);
+    }
 
     /// <summary>Back a screen (from the title: nothing).</summary>
     public void Back()
     {
+        // Esc ends typing in a field, and goes nowhere else (note 264).
+        if (Editing is not null)
+        {
+            EndEdit();
+            return;
+        }
         if (Capturing is not null)
         {
             Capturing = null;
@@ -200,6 +235,12 @@ public sealed class FrontEnd
     /// <summary>Acts on the selected item: a new screen, a purchase, or something for the app to start.</summary>
     public Launch? Select()
     {
+        // Enter ends typing in a field (note 264): it doesn't also choose what's selected.
+        if (Editing is not null)
+        {
+            EndEdit();
+            return null;
+        }
         var entries = Entries();
         if (entries.Count == 0)
             return null;
@@ -207,6 +248,14 @@ public sealed class FrontEnd
         if (!e.Item.Enabled)
             return null;
         Message = null;
+        // A text field: Enter (or a click) starts typing into it.
+        if (e.Field is { } field)
+        {
+            Editing = field;
+            _blankName = false;
+            Cue?.Invoke(UiCue.Select);
+            return null;
+        }
         if (e.Select is null)
             return null;
         // Choosing BACK is backing out.
@@ -216,6 +265,15 @@ public sealed class FrontEnd
 
     public void Type(string text)
     {
+        if (Editing == TextField.PlayerName)
+        {
+            string me = Settings.PlayerName;
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '_') && me.Length < Sim.Net.Messages.NameLength && c < 0x7f)
+                    me += c;
+            Change(Settings with { PlayerName = me.TrimStart() });
+            return;
+        }
         if (NamingLobby)
         {
             // From the name shown: typing onto the default carries on from it.
@@ -227,7 +285,7 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = name });
             return;
         }
-        if (!WantsText)
+        if (Editing != TextField.Address)
             return;
         foreach (char c in text)
             if ((char.IsLetterOrDigit(c) || c is '.' or ':' or '-') && Address.Length < 64)
@@ -239,6 +297,12 @@ public sealed class FrontEnd
 
     public void Erase()
     {
+        if (Editing == TextField.PlayerName)
+        {
+            if (Settings.PlayerName.Length > 0)
+                Change(Settings with { PlayerName = Settings.PlayerName[..^1] });
+            return;
+        }
         if (NamingLobby)
         {
             // Erased to nothing, it's the default again.
@@ -249,15 +313,18 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = _blankName ? "" : name });
             return;
         }
-        if (WantsText && Address.Length > 0)
+        if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
     }
 
     public void Show(Screen screen)
     {
         _blankName = false;
+        Editing = null;
         Screen = screen;
         Selected = 0;
+        _scroll = 0;
+        _follow = true;
         // Skip to the first item you can do something with.
         var entries = Entries();
         while (Selected < entries.Count - 1 && !entries[Selected].Item.Enabled)
@@ -294,13 +361,107 @@ public sealed class FrontEnd
         Message = message;
     }
 
+    // The mouse (note 264, the director's notes on build 1121: "we really should be able to click with a mouse"): what the
+    // last Draw put where, in the overlay's pixels, for HitTest; and the list's scroll.
+    readonly List<(MenuHit Hit, float X, float Y, float W, float H)> _hits = [];
+    int _scroll;
+    /// <summary>The scroll follows the selection (the keys moved it), or stays where the wheel put it.</summary>
+    bool _follow = true;
+
+    /// <summary>The first row shown of <paramref name="count"/> in <paramref name="rows"/>: the selection kept in view while the keys move it.</summary>
+    int First(int rows, int count)
+    {
+        if (_follow)
+        {
+            if (Selected < _scroll)
+                _scroll = Selected;
+            else if (Selected >= _scroll + rows)
+                _scroll = Selected - rows + 1;
+        }
+        _scroll = Math.Clamp(_scroll, 0, Math.Max(0, count - rows));
+        return _scroll;
+    }
+
+    /// <summary>What's under the pointer at (<paramref name="x"/>, <paramref name="y"/>), in the overlay's pixels, as last drawn; null for nothing.</summary>
+    public MenuHit? HitTest(float x, float y)
+    {
+        MenuHit? hit = null;
+        foreach (var (h, hx, hy, w, ht) in _hits)
+            if (x >= hx && x < hx + w && y >= hy && y < hy + ht)
+                hit = h;
+        return hit;
+    }
+
+    /// <summary>The pointer's moved onto an item: it's the selection (anything greyed out is passed over).</summary>
+    public void Hover(int item)
+    {
+        if (Capturing is not null || item == Selected)
+            return;
+        var entries = Entries();
+        if (item < 0 || item >= entries.Count || !entries[item].Item.Enabled)
+            return;
+        Selected = item;
+        Cue?.Invoke(UiCue.Move);
+    }
+
+    /// <summary>
+    /// A click (note 264): on an item, it's selected and chosen, as Enter does (a field starts typing); on a value's arrows
+    /// it's stepped, as left and right do, and a value with nothing to choose steps on (back, with <paramref name="right"/>,
+    /// the right button). A click anywhere else ends typing in a field.
+    /// </summary>
+    public Launch? Click(MenuHit? at, bool right = false)
+    {
+        if (Capturing is not null)
+            return null;
+        var entries = Entries();
+        if (at is not { } hit || hit.Item < 0 || hit.Item >= entries.Count || !entries[hit.Item].Item.Enabled)
+        {
+            EndEdit();
+            return null;
+        }
+        var e = entries[hit.Item];
+        // Clicking the field being typed in carries on typing; clicking anything else ends it first.
+        if (Editing is not null && e.Field == Editing)
+            return null;
+        if (Editing is not null)
+            EndEdit();
+        if (Selected != hit.Item)
+            Hover(hit.Item);
+        if (hit.Step != 0 || right)
+        {
+            Adjust(hit.Step != 0 ? hit.Step : -1);
+            return null;
+        }
+        if (e.Select is null && e.Field is null && e.Adjust is not null)
+        {
+            Adjust(+1);
+            return null;
+        }
+        return Select();
+    }
+
+    /// <summary>The wheel: <paramref name="notches"/> up (positive) scrolls a long list back towards its top.</summary>
+    public void Scroll(int notches)
+    {
+        if (notches == 0)
+            return;
+        _scroll -= notches;
+        _follow = false;
+    }
+
     void Move(int by)
     {
         var entries = Entries();
         if (entries.Count == 0)
             return;
         int was = Selected;
-        _blankName = false;
+        // Moving off a field ends typing in it (the text's kept).
+        if (Editing is not null)
+        {
+            Editing = null;
+            _blankName = false;
+        }
+        _follow = true;
         // Over anything greyed out.
         for (int i = 0; i < entries.Count; i++)
         {
@@ -343,7 +504,8 @@ public sealed class FrontEnd
     ];
 
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
-    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false);
+    /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
+    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null);
 
     List<Entry> Entries() => Screen switch
     {
@@ -378,7 +540,8 @@ public sealed class FrontEnd
                     ? "Listed: anyone on your network, or on Steam, finds it on their join screen."
                     : "Not listed: friends join by Steam invite, or type your address."),
                 Toggle(s => s with { PublicLobby = !s.PublicLobby }), _ => Change(Settings with { PublicLobby = !Settings.PublicLobby })),
-            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", "Type to rename it: what the join screen calls it."), null),
+            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
+                Field: TextField.LobbyName),
             new(new("OPEN THE LOBBY", "You wait in the yard with the train; you drive out when everyone's in."),
                 () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots, Public = Settings.PublicLobby, LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName }),
             BackTo(Screen.Title),
@@ -393,12 +556,18 @@ public sealed class FrontEnd
                 () => g.Join)),
             .. Games.Count == 0 ? [new Entry(new("  NO PUBLIC GAMES YET", "When someone opens a public lobby, it shows here.", false))] : (Entry[])[],
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
-            new(new($"ADDRESS: {Address}_", "A private game, or one far off: type it, and the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
+            new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
+                    ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
+                    : "A private game, or one far off: Enter to type its address."), Field: TextField.Address),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             BackTo(Screen.Title),
         ],
         Screen.Settings =>
         [
+            // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name).
+            new(new($"PLAYER NAME: {(Editing == TextField.PlayerName ? Settings.PlayerName + "_" : Settings.PlayerName is { Length: > 0 } me ? me.ToUpperInvariant() : DefaultPlayerName.ToUpperInvariant())}",
+                Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
+                    : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             // The audio checklist's mix-settings: the volumes, the microphone and its level.
@@ -624,7 +793,7 @@ public sealed class FrontEnd
         var items = Items;
         // Room under the list for the selected track's line in full, over two rows.
         int rows = Math.Max(1, (int)((height - y - 44) / 20));
-        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         float w = width - x - 8;
         int chars = (int)((w - 8) / o.Font.Advance);
@@ -634,6 +803,7 @@ public sealed class FrontEnd
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            _hits.Add((new MenuHit(i), x - 4, y - 1, w - 4, 19));
             if (on)
                 o.Rect(x - 4, y - 1, w - 4, items[i].Detail is null ? 9 : 19, UiStyle.Lit with { W = 0.14f });
             o.Text(x, y, Fit((on ? "> " : "  ") + items[i].Label, chars), on ? Amber : Ink);
@@ -673,6 +843,7 @@ public sealed class FrontEnd
     public void Draw(Overlay o, int width, int height)
     {
         o.Clear();
+        _hits.Clear();
         float x = 20, y = 14;
         // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
         float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
@@ -717,22 +888,36 @@ public sealed class FrontEnd
             UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, CreditHints), height - 13, CreditHints, Dim);
             return;
         }
-        var items = Items;
+        var entries = Entries();
+        var items = entries.Select(e => e.Item).ToList();
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
-        // A list longer than the screen (the controls) scrolls to keep the selection in view.
+        // A value's row has its arrows at the plate's right, for the mouse (note 264): < and > step it, as left and right do.
+        bool arrows = entries.Any(e => e.Adjust is not null);
+        float plate = Math.Min(width - x, widest + 12 + (arrows ? 24 : 0));
+        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it.
         int rows = Math.Max(1, (int)((height - y - 44) / 10));
-        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
-        UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, widest + 12), shown * 10 + 10);
+        UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            _hits.Add((new MenuHit(i), x - 4, y - 1, plate - 8, 10));
             // The selection: a brass-lit bar under it, as a lamp on a lever frame's plate.
             if (on)
-                o.Rect(x - 4, y - 1, Math.Min(width - x, widest + 12) - 8, 9, UiStyle.Lit with { W = 0.14f });
+                o.Rect(x - 4, y - 1, plate - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
             string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
+            if (entries[i].Adjust is not null && items[i].Enabled && Editing is null)
+            {
+                float ax = x - 8 + plate - 26;
+                o.Text(ax, y, "<", on ? Amber : Dim);
+                o.Text(ax + 12, y, ">", on ? Amber : Dim);
+                // Each arrow's box a little bigger than its glyph; listed after the row, so the arrow wins over it.
+                _hits.Add((new MenuHit(i, -1), ax - 3, y - 1, 10, 10));
+                _hits.Add((new MenuHit(i, +1), ax + 9, y - 1, 10, 10));
+            }
             y += 10;
         }
         y += 6;
@@ -744,10 +929,9 @@ public sealed class FrontEnd
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
-            : NamingLobby ? "TYPE A NAME   [UP/DOWN] CHOOSE   [ESC] BACK"
-            : WantsText ? "TYPE   [ENTER] JOIN   [ESC] BACK"
+            : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
             : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
-            : "[UP/DOWN] CHOOSE   [ENTER]   [LEFT/RIGHT] CHANGE   [ESC] BACK";
+            : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK";
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
     }
 }
