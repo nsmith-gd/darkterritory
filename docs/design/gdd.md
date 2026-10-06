@@ -2055,6 +2055,24 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *In progress (T127: telegraph the debris and over-speed).*
 - The train's lights and lanterns were all off. *In progress (T127).*
 
+**Second session (same build, continued)**
+- *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
+- *Cab:* a redesign of the front of the train is coming (the director's sketch to follow), for a lone driver's view of track hazards. Every function stays. *Open (awaiting sketch).*
+- *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
+- *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
+- *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
+- *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *In progress (T129).*
+- *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *In progress (T129: a cooldown after it's driven off).*
+- *Falling:* far too easy to fall off the train. *In progress (T128).*
+- *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
+- *Overall:* the director hasn't finished a run yet.
+
+**Direction** (the director, 6 Oct 2026; proposal in T131, not yet decided):
+- *Boarding-first enemies:* "things shouldn't be able to get on the train unless they board it." Enemy design centres on boarding. A train that's just hauling is safer, but runs the risk of derailment, and that becomes the core fear.
+- *Solo like Lethal Company:* a solo player can explore and get a few runs in to learn the game, and won't get far. Friends let you go further.
+
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
