@@ -266,6 +266,23 @@ public sealed record CarFireTuning
     public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
+    /// <summary>Note 267: the fire grid's cell size (m; App. F.1 "large cells of 1–2 m").</summary>
+    public double CellSize { get; init; } = 1.5;
+    /// <summary>Note 267: a cell this hot heats the cells round it, at <see cref="CatchPerSecond"/> x its heat, upward x <see cref="Climb"/>.</summary>
+    public double CatchFrom { get; init; } = 0.5;
+    public double CatchPerSecond { get; init; } = 0.04;
+    public double Climb { get; init; } = 2;
+    /// <summary>Note 267: what a cell burns of itself a second at full heat (1: all of it); it chars as it goes.</summary>
+    public double CharPerSecond { get; init; } = 0.01;
+    /// <summary>Note 267: of the spray on a cell, the share the cells round it get; and how long a sprayed cell stays wet (s).</summary>
+    public double SprayShare { get; init; } = 0.4;
+    public double DampSeconds { get; init; } = 3;
+    /// <summary>Note 267: the roof's burn on whoever's under it, of a floor or wall cell's as near.</summary>
+    public double CeilingBurnShare { get; init; } = 0.5;
+    /// <summary>Note 267: how tall a crewmate is to the fire (m): what of them a burning cell can reach.</summary>
+    public double BodyHeight { get; init; } = 1.8;
+    /// <summary>Note 267: a cell cooler than this doesn't burn on its own, and goes out unless a cell round it heats it.</summary>
+    public double OutBelow { get; init; } = 0.05;
 }
 
 /// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>

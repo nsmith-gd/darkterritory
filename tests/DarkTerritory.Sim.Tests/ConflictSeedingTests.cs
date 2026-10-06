@@ -48,7 +48,9 @@ public class ConflictSeedingTests
     {
         var d = Tuning.Enemies.Director with
         {
-            GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager,
+            GraceMinSeconds = 0,
+            GraceMaxSeconds = 0,
+            Pressure = Tuning.Eager,
             CooldownSeconds = [1, 1],
             Costs = Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         };

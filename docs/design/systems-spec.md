@@ -344,6 +344,24 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 
 Early in a night the pressure takes about a minute after a spawn to reach the threshold again; near the end about twenty seconds, and the cooldown sets the pace. In the harness (8 bots, 1,800 s, ARCHITECTURE §8 note 266) that is 4–5 of the director's spawns in the first five minutes against 11–12 in the last, and no quiet over about 30 s.
 
+## B.11 Fire grid
+
+A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). Each car's floor, side walls and roof are cut into cells of about 1.5 m, never mid-air; the end walls aren't cells, and a fire's way out of a car is through its ends. Each cell has its own heat (0 to 1) and its own fuel, and a cell that burns chars for the rest of the night. The extinguisher puts out the cell you aim at. The numbers live in enemies.json `carFire`.
+
+| Parameter | Value |
+|---|---|
+| Cell size | 1.5 m (`cellSize`): 72 cells in a cargo car |
+| A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
+| Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
+| Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
+| Extinguisher | 3.5 m from the eye along the look; the cell hit cools 0.35/s, the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Alight | When any cell reaches 0.35 (the commit, after the smoke) |
+| The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
+| Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
+| Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
+| Left alone (goods) | Alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min |
+| One extinguisher | Puts out a fire found in its first 40 s; not one left a minute (about 60% of the car alight) |
+
 ---
 
 # PART C — DEATH AND REVIVAL

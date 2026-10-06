@@ -40,7 +40,9 @@ public static class Protocol
     //     different one (cars hit bodies, landings, a death per crewmate); the living ride the wreck to their own hit, not
     //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 258).
     // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
-    public const int Version = 29;
+    // 30: fire is a grid (App. F.1, the director's decision of 6 Oct 2026; note 267): a car fire's record carries its cells'
+    //     heat, and a car's its cells' char, packed four bits a cell.
+    public const int Version = 30;
 }
 
 public enum MessageType : byte

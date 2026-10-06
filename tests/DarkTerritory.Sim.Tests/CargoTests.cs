@@ -95,7 +95,9 @@ public class CargoTests
         {
             Director = d with
             {
-                GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager,
+                GraceMinSeconds = 0,
+                GraceMaxSeconds = 0,
+                Pressure = Tuning.Eager,
                 CooldownSeconds = [1, 1],
                 SaveFor = [],
                 Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key is "cinderHounds" or "trackDoll" ? 1 : 1e9)
