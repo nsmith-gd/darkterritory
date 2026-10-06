@@ -1,6 +1,7 @@
 # Dark Territory — agent guide
 
 Co-op first-person survival horror (2–8+ players, PC + VR) on **Ballast**, a small custom C#/.NET 10 engine built for this game.
+**Before starting any work, read `docs/COORDINATION.md`** (who owns what, claiming an item, reserved note numbers; several agents work on this repo at once).
 Read before large changes: `docs/ARCHITECTURE.md` (decisions and why), `docs/ROADMAP.md` (what's next), `docs/design/gdd.md` and `docs/design/systems-spec.md` (the design, source of truth for numbers), `docs/design/level-design.md` (level-design principles from example sketches, and the rules for generating sites).
 
 ## Commands
