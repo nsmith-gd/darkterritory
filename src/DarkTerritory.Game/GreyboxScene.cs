@@ -416,6 +416,9 @@ public sealed class GreyboxScene
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
         Look?.Art.Creatures?.Clutches.Clear();
+        // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
+        if (Look?.Art.Effects is { } cells)
+            cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
         if (Enemies is not null)
             foreach (var e in Enemies)
                 if (e.Kind == EnemyKind.Passenger && Look?.Art.Creatures is { } passengers && passengers.Get("passenger") is not null)
@@ -492,6 +495,7 @@ public sealed class GreyboxScene
             }
         }
         Extinguishing(mesh, frames, eye);
+        FireGrids(mesh, frames, eye);
         if (Crew is not null)
             foreach (var held in Crew)
             {
@@ -952,6 +956,55 @@ public sealed class GreyboxScene
                     fx.Spray(mesh, nozzle, foot, Time);
                     _spraying.Add(b.Carrier);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The fire grid (GDD App. F.1; note 267), from what's replicated: every burning car's cells alight, each where it is on
+    /// the floor, walls and roof, and every car's char where its cells have burnt.
+    /// </summary>
+    void FireGrids(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { HasFlames: true } fx || Look.Art.Creatures is not { } creatures)
+            return;
+        double cell = creatures.CarFire.CellSize;
+        (Vector3 At, Vector3 Along, Vector3 Across, Vector3 Normal) Patch(CarFrame car, Sim.Enemies.FireGrid grid, int i)
+        {
+            var c = grid.Centre[i];
+            var size = grid.Room.Max - grid.Room.Min;
+            double hz = size.Z / grid.Along / 2;
+            var n = grid.Normal(i);
+            // Across the floor and roof is X; up a wall is Y.
+            var across = grid.Face[i] is Sim.Enemies.FireFace.Floor or Sim.Enemies.FireFace.Ceiling
+                ? new Double3(size.X / grid.Across / 2, 0, 0) : new Double3(0, size.Y / grid.Up / 2, 0);
+            var at = car.ToWorld(c).RelativeTo(eye);
+            return (at, car.ToWorld(c + new Double3(0, 0, hz)).RelativeTo(eye) - at, car.ToWorld(c + across).RelativeTo(eye) - at,
+                Vector3.Normalize(car.ToWorld(c + n).RelativeTo(eye) - at));
+        }
+        if (Vehicles is { } fleet)
+            foreach (var car in frames)
+                if (car.Index < fleet.Count && fleet[car.Index].Char is { Length: > 0 } burnt && car.Shape.Interior is { } room
+                    && Sim.Enemies.FireGrid.For(room, cell) is { } grid && grid.Count == burnt.Length)
+                    for (int i = 0; i < grid.Count; i++)
+                        if (burnt[i] > 0)
+                        {
+                            var (at, along, across, normal) = Patch(car, grid, i);
+                            Art.Effects.Char(mesh, at, along, across, normal, burnt[i] / (float)((1 << Sim.Enemies.CarFire.Bits) - 1), car.Index * 131 + i);
+                        }
+        foreach (var e in Enemies ?? [])
+        {
+            if (e is not Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 } fire || e.Attached < 0 || e.Attached >= frames.Count)
+                continue;
+            var car = frames[e.Attached];
+            if (car.Shape.Interior is not { } room || Sim.Enemies.FireGrid.For(room, cell) is not { } grid || grid.Count != fire.Heat.Length)
+                continue;
+            bool alight = e.Phase is SpinePhase.Commit or SpinePhase.Punish;
+            for (int i = 0; i < grid.Count; i++)
+            {
+                var (at, along, across, normal) = Patch(car, grid, i);
+                fx.FireCell(mesh, at, along, across, normal, grid.Face[i], (float)fire.Heat[i],
+                    alight && fire.Heat[i] >= creatures.CarFire.BurnFrom * 0.8, Time, e.Id * 97 + i);
             }
         }
     }
