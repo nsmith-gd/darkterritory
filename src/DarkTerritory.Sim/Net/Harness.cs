@@ -562,7 +562,7 @@ public static class Harness
         string doing = bot switch
         {
             ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
-            ConductorBot c => c.Sanding ? "sanding" : c.BreachingAlone ? "breaching" : c.Stops?.Doing.ToString() ?? "",
+            ConductorBot c => c.Sanding ? "sanding" : c.BreachingAlone ? "breaching" : c.WorkingOut ? $"{c.Stops?.Doing}: {c.WorkStep}" : c.Stops?.Doing.ToString() ?? "",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot { TendStep: { } t } => $"tend:{t}",
             RoofWalkerBot { Errand.Doing: { } l } => l,

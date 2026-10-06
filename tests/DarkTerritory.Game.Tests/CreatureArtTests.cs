@@ -160,7 +160,7 @@ public class CreatureArtTests
     /// <summary>
     /// The demo's creatures, from their own meshes (Clearance.Mesh: a capsule fitted to each bone's share of the skin):
     /// no part of one goes through another in any clip deeper than reads as touching, beyond how they sit at rest (a
-    /// Car Hugger's folded arm through its mouth, a Track Doll's fingers through its head; note 261).
+    /// Car Hugger's folded arm through its mouth, a Track Doll's fingers through its head; note 262).
     /// </summary>
     [Theory]
     [InlineData("ribbit")]
@@ -178,7 +178,7 @@ public class CreatureArtTests
     /// <summary>
     /// At their full budgets the demo's creatures would put a headset's frame over tuning/perf.json's triangles (each is
     /// drawn for two eyes and the shadows), so each has a distance copy, drawn past look.json's creatureLodMetres: two
-    /// fifths of it or so, on the same bones (note 261).
+    /// fifths of it or so, on the same bones (note 262).
     /// </summary>
     [Theory]
     [InlineData("ribbit")]

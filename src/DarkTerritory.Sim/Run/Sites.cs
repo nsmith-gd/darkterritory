@@ -19,6 +19,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
     public WreckYardTuning Wreck { get; init; } = new();
+    /// <summary>Who works a stop (note 261, spec D.2's "Crew" column): the driver getting down, people playing as hands.</summary>
+    public StopCrewTuning Crew { get; init; } = new();
 
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
@@ -103,6 +105,14 @@ public sealed record CraneTuning
     public double RigSeconds { get; init; } = 2;
     public double DropAbove { get; init; } = 0.6;
     public double CrushRadius { get; init; } = 1.4;
+}
+
+/// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
+public sealed record StopCrewTuning
+{
+    public bool DriverWorks { get; init; } = true;
+    public bool PeopleAreHands { get; init; } = true;
+    public double PeopleWait { get; init; } = 45;
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>

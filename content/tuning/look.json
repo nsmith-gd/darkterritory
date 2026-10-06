@@ -16,7 +16,7 @@
   "bigHeroLayerSize": 2048,
   // Past this far from the eye (m) the creatures baked with a distance copy (tools/models overbake `lod`: the demo's six,
   // at GDD §27's full budgets) draw it, two fifths of their triangles: a headset draws each for two eyes and the shadows
-  // (tuning/perf.json maxFrameTriangles; ARCHITECTURE §8 note 261). Inside it, as close as a creature gets to anyone, the
+  // (tuning/perf.json maxFrameTriangles; ARCHITECTURE §8 note 262). Inside it, as close as a creature gets to anyone, the
   // whole model.
   "creatureLodMetres": 14,
   // The bottoms of things are this much darker: the baked shadow, and the soot and wet that collect low.
