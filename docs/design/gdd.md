@@ -1997,4 +1997,82 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 ---
 
+# APPENDIX F — BUILD REVIEWS
+
+*Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
+
+## F.1 2026-10-06 — build 1121
+
+**Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
+
+**Front end**
+- The updated menu looks good, and so do the menu sound effects. *Keep.*
+- The mouse should work in the menus. *In progress (T126).*
+- The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *In progress (T126).*
+
+**Audio**
+- Turning on the spot shouldn't make a sound; only walking should. *Open.*
+- Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
+- The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
+- The gun's traverse sound is bad. *Open.*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The Choir was heard behind the train (A.7). *Noted.*
+
+**Cab**
+- Far too much UI for what's on screen. *In progress (T126).*
+- The hold-to-vent control feels off. *In progress (T126).*
+- There's no whistle cord, and people will want one. *In progress (T126).*
+- The coal shovel is fun. *Keep.*
+- The firebox door shutting by itself is OK. *Keep.*
+
+**Lockers (§12)**
+- The lockers are cute, but neighbouring lockers block each other. *In progress (T126).*
+- Stowing a held item in a locker doesn't work well. *In progress (T126).*
+- The lockers are mostly empty; only the fitter's had the engineering kit. *In progress (T126).*
+- A locker with something in it should say so. *In progress (T126).*
+- It isn't clear how to hold the kit in the inventory. *In progress (T126).*
+
+**Train and world**
+- It's good that every car has an extinguisher (C.5). *Keep.*
+- The toys in the guard van at spawn should be found in the world instead (C.4). *In progress (T126).*
+- There's a walkie-talkie aboard. *Noted.*
+
+**The fort**
+- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
+
+**Bugs**
+- The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
+- The rupture message said the train had no engineering kit, though it had been dropped in the front car (§23.2: a kit in a reachable car is never lost). *In progress (T129).*
+- The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
+
+**Abandoned player**
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Open (T128).*
+
+**Line and derailment**
+- The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
+- The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *In progress (T127: telegraph the debris and over-speed).*
+- The train's lights and lanterns were all off. *In progress (T127).*
+
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
+
+## F.2 2026-10-05/06 — derailment film, takes 3–5
+
+**Played:** the director watching `dt film`, the derailment cinematic (Appendix E). Film page: [claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw](https://claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw).
+
+**The film**
+- Take 3 was much better, but people should be alive and colliding before they go limp. Each third-person death shot gets 2s more, and the first person 3s more. *Design change → E.2 step 1, E.5, E.10; ARCHITECTURE.md note 258.*
+- Take 4: the timing and the first person are better, but the third-person poses are arms-up and awkward, not people mid-task. *Design change → E.3; ARCHITECTURE.md note 257.*
+- Hits should bounce more, on derailments only. *Design change → E.3, E.10; ARCHITECTURE.md note 257.*
+
+**Decided** (the director, 5 Oct 2026; marked in E.2, E.3, E.5 and E.10):
+- Each player dies on their own first fatal hit, not on the derail tick (E.2 step 1).
+- Until then they are an alive, active ragdoll (E.3).
+- Death shots run 4s (E.5, E.10).
+- The first person runs 3.8s past the death (E.5, E.10).
+- The extra bounce applies to derailments only (E.3, E.10).
+
+---
+
 *Dark Territory · GDD v1.4 · October 2026*
