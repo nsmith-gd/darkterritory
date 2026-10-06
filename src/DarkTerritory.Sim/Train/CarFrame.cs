@@ -68,10 +68,19 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward);
 /// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
 /// door (its <see cref="Interactable.Index"/> the locker's), worked like a car door and wanting facing as one does.
 /// </summary>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker }
+/// <remarks>
+/// <see cref="Points"/> is the powered switch thrower's lever in the cab (spec F.3; note 196): it works only fitted.
+/// <see cref="Whistle"/> is the whistle cord's handle (GDD §12; note 264): Use held there blows the engine's whistle, and
+/// only when it's looked at (<see cref="CrewActions.NearestInteractable"/>), so nobody pulls it reaching for the firebox.
+/// </remarks>
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle }
 
-/// <summary>A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door.</summary>
-public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0);
+/// <summary>
+/// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
+/// far over <see cref="Position"/> (its footing) the thing itself is, the point a look picks it by (note 264): where two
+/// are in reach, the one looked at is the one worked.
+/// </summary>
+public readonly record struct Interactable(InteractableKind Kind, Double3 Position, double Radius, int Index = 0, double Aim = 1.0);
 
 /// <summary>
 /// Where the driver's hands go in the engine's cab (T29): the regulator's handle on the backhead, the brake valve's and
@@ -380,7 +389,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var solids = car.Solids.Where(s => !(s.Part == PartKind.Locker && s.Box.Min.Z < span.Max.Z && s.Box.Max.Z > span.Min.Z && s.Box.Min.X < span.Max.X))
             .Concat(bays.Select(b => new Solid(b.Box, SurfaceKind.Deck, PartKind.CrewLocker))).ToList();
         // Each door's handle: at its face, at the feet of whoever stands in front of it.
-        var interactables = car.Interactables.Concat(bays.Select(b => new Interactable(InteractableKind.Locker, b.Front with { X = b.Front.X + 0.05 }, 0.6, b.Index))).ToList();
+        var interactables = car.Interactables.Concat(bays.Select(b => new Interactable(InteractableKind.Locker, b.Front with { X = b.Front.X + 0.05 }, 0.6, b.Index, Aim: 1.1))).ToList();
         int kit = bays.FindIndex(b => string.Equals(b.Name, t.KitLocker, StringComparison.OrdinalIgnoreCase));
         return car with { Solids = solids, Interactables = interactables, Lockers = bays, LockerShelves = Math.Max(1, t.Slots), KitLocker = Math.Max(0, kit) };
     }
@@ -470,15 +479,23 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
         var interactables = new List<Interactable>
         {
-            new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1),
+            new(InteractableKind.Firebox, new Double3(0, deck, cabFront + 0.2), 1.1, Aim: 0.7),
             // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab on its left side, so one player
             // works it all from the footplate; clear of where the firebox is worked from.
             new(InteractableKind.Vent, new Double3(-w + 0.3, deck, cabFront + 1.2), 0.6),
             // The tool rack on the right side, the driver's (T109): the wrench, a tool to swing (the repair kit mends the boiler).
-            new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.0), 0.6),
+            new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.0), 0.6, Aim: 1.2),
+            // The powered switch thrower's lever (spec F.3, note 196), on the driver's side behind the tool rack: clear of the
+            // firebox's reach, and of the regulator, brake and reverser a reaching hand works. Only fitted does it throw
+            // anything (train.json composition.switchThrower).
+            new(InteractableKind.Points, new Double3(w - 0.3, deck, cabFront + 2.8), 0.4, Aim: 0.9),
+            // The whistle cord (GDD §12; note 264, the director's notes on build 1121: "I don't see a switch for a whistle", and
+            // it hung over the firebox, so reaching for it got the shovel). Down from the roof in the driver's front corner,
+            // over the brake valve, where the driver's view takes it in, and out of the firebox's reach (1.1 m).
+            new(InteractableKind.Whistle, WhistleCordAt(w, deck, cabFront), 0.8, Aim: WhistleCordHeight),
             // The coal comes forward through the tender's front onto a shovelling plate at the back of the cab, near
             // enough the firebox that a fireman turning between them reaches both.
-            new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0),
+            new(InteractableKind.Coal, new Double3(0, deck, cabBack - 0.6), 1.0, Aim: 0.5),
             // A sandbox on each running board ahead of the cab: out there, Use sands the rail (App. A.2's counter to Grease).
             new(InteractableKind.Sandbox, new Double3(w + board / 2, deck, cabFront - e.SandboxAhead), 0.8),
             new(InteractableKind.Sandbox, new Double3(-w - board / 2, deck, cabFront - e.SandboxAhead), 0.8),
@@ -497,4 +514,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             Reverser: new Double3(w - 0.35, deck + 0.95, cabFront + 1.1));
         return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)), Levers: levers);
     }
+
+    /// <summary>How high over the cab floor the whistle cord's handle hangs at rest (m): a hand above the shoulder.</summary>
+    public const double WhistleCordHeight = 1.8;
+
+    /// <summary>The whistle cord's footing in the engine's frame (note 264): the driver's front corner, over the brake valve.</summary>
+    public static Double3 WhistleCordAt(double halfWidth, double deck, double cabFront) => new(halfWidth - 0.45, deck, cabFront + 0.9);
 }

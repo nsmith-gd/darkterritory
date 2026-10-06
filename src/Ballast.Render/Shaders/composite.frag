@@ -1,14 +1,15 @@
 #version 450
+#include "view.glsl"
 // The end of the post stack: bloom (two scales), exposure and a filmic tonemap, the colour grade by 16^3 LUT, vignette,
 // a touch of lens fringing, film grain. The benchmarks are 2008-2012's (BioShock 2, Dead Space, RE Revelations): HDR
 // that rolls off like film instead of clipping, and a clean 8-bit frame (a triangular dither of one step, no bands).
 // The PS2 comparison mode (b.z) keeps the old 2006 framebuffer: a hard shoulder, ordered dither, reduced colour depth.
-layout(set = 0, binding = 0) uniform sampler2D scene;
-layout(set = 0, binding = 1) uniform sampler2D bloom;
+layout(set = 0, binding = 0) uniform EYE_SAMPLER scene;
+layout(set = 0, binding = 1) uniform EYE_SAMPLER bloom;
 layout(set = 0, binding = 2) uniform sampler3D grade;
-layout(set = 0, binding = 3) uniform sampler2D bloomWide;
+layout(set = 0, binding = 3) uniform EYE_SAMPLER bloomWide;
 // The half-resolution ambient occlusion (ssao.frag), blurred here.
-layout(set = 0, binding = 4) uniform sampler2D occlusion;
+layout(set = 0, binding = 4) uniform EYE_SAMPLER occlusion;
 // a: x = bloom strength, y = vignette, z = grain, w = colour levels (PS2 mode).
 // b: x = frame seed, y = aspect, z = PS2 look, w = exposure. c: x = wide bloom share, y = lens fringe, z = occlusion
 // strength, w = the occlusion target's texel (u; v by aspect).
@@ -50,20 +51,20 @@ void main() {
     float edge = dot(centred, centred);
     vec3 c;
     if (ps2) {
-        c = texture(scene, vUv).rgb;
+        c = texture(scene, EYE_UV(vUv)).rgb;
         c = pow(shoulder(max(c, 0.0)), vec3(1.0 / 2.2));
     } else {
         // Lens fringing: red and blue a hair apart toward the corners, as the era's cameras-in-games had it.
         vec2 shift = (vUv - 0.5) * post.c.y * edge;
-        c = vec3(texture(scene, vUv + shift).r, texture(scene, vUv).g, texture(scene, vUv - shift).b);
+        c = vec3(texture(scene, EYE_UV(vUv + shift)).r, texture(scene, EYE_UV(vUv)).g, texture(scene, EYE_UV(vUv - shift)).b);
         // The occlusion, blurred over a few of its texels (four bilinear taps: a 4x4 box), darkening the scene, but not a
         // light's core: a lamp burning in a corner is still a lamp.
         vec2 ot = vec2(post.c.w, post.c.w * post.b.y);
-        float ao = 0.25 * (texture(occlusion, vUv + ot * vec2(-0.75, -0.75)).r + texture(occlusion, vUv + ot * vec2(0.75, -0.75)).r
-                         + texture(occlusion, vUv + ot * vec2(-0.75, 0.75)).r + texture(occlusion, vUv + ot * vec2(0.75, 0.75)).r);
+        float ao = 0.25 * (texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, -0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, -0.75))).r
+                         + texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, 0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, 0.75))).r);
         float lit = clamp(dot(c, vec3(0.299, 0.587, 0.114)) - 0.8, 0.0, 1.0);
         c *= mix(1.0, ao, post.c.z * (1.0 - lit));
-        c += (texture(bloom, vUv).rgb * (1.0 - post.c.x) + texture(bloomWide, vUv).rgb * post.c.x) * post.a.x;
+        c += (texture(bloom, EYE_UV(vUv)).rgb * (1.0 - post.c.x) + texture(bloomWide, EYE_UV(vUv)).rgb * post.c.x) * post.a.x;
         c = toSrgb(filmic(max(c, 0.0) * post.b.w));
     }
     c = texture(grade, c * (15.0 / 16.0) + 0.5 / 16.0).rgb;

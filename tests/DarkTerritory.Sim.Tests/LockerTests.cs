@@ -95,17 +95,19 @@ public class LockerTests
     {
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "LAMPMAN");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "PORTER");
         var s = Facing(world, bay);
         Assert.Equal(InteractableKind.Locker, CrewActions.Nearest(s, world.Train));
-        // A tap at a shut locker does nothing; held, it opens.
+        // Note 267: a tap at a shut locker opens it; held, it shuts, and held again it opens.
         Use(world, ref s, Tap);
+        Assert.True(world.Train.Vehicles[car].LockerOpen(bay.Index));
+        Use(world, ref s, Lockers.DoorSeconds(world.Train) + 0.1);
         Assert.False(world.Train.Vehicles[car].LockerOpen(bay.Index));
         Use(world, ref s, Lockers.DoorSeconds(world.Train) + 0.1);
         Assert.True(world.Train.Vehicles[car].LockerOpen(bay.Index));
 
         // The guard van's lamp, carried here and tapped in: on the bottom shelf, out of the hands, out of the physics.
-        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp);
+        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp && !b.Stowed);
         lamp.Carrier = 1;
         world.StepBodies([(1, s)]);
         Use(world, ref s, Tap);
@@ -125,12 +127,12 @@ public class LockerTests
         }
         Assert.Equal(at, lamp.Centre);
 
-        // Shut, it neither gives nor takes; open, a tap takes it back into the hands.
+        // Shut, a tap opens it and gives nothing yet (you see what's there first); open, a tap takes it back into the hands.
         Use(world, ref s, Lockers.DoorSeconds(world.Train) + 0.1);
         Assert.False(world.Train.Vehicles[car].LockerOpen(bay.Index));
         Use(world, ref s, Tap);
+        Assert.True(world.Train.Vehicles[car].LockerOpen(bay.Index));
         Assert.Equal(bay.Index, lamp.Locker);
-        Use(world, ref s, Lockers.DoorSeconds(world.Train) + 0.1);
         Use(world, ref s, Tap);
         Assert.Same(lamp, world.Bodies.CarriedBy(1));
         Assert.False(lamp.Stowed);
@@ -142,7 +144,9 @@ public class LockerTests
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
         var bay = KitCarShape(world).Lockers.First(b => b.Name == "PORTER");
-        var toys = world.Bodies.All.Where(b => b.Kind == BodyKind.Toy).ToList();
+        // Toys are found at the stops now (note 264): two brought aboard.
+        var room = KitCarShape(world).Interior!.Value;
+        var toys = Enumerable.Range(0, 2).Select(i => world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + i), BodyKind.Toy)).ToList();
         var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio && b.Parent != 0);
         Assert.True(world.Bodies.Stow(toys[0], world.Train, car, bay.Index));
         Assert.True(world.Bodies.Stow(toys[1], world.Train, car, bay.Index));
@@ -174,9 +178,79 @@ public class LockerTests
         Assert.Equal(kit.Slot, mirrored.Slot);
         Assert.Equal(car, mirrored.Parent);
         // A thing out of a locker says so too.
-        var lamp = host.Bodies.All.First(b => b.Kind == BodyKind.Lamp);
+        var lamp = host.Bodies.All.First(b => b.Kind == BodyKind.Lamp && !b.Stowed);
         WorldRecords.Apply(WorldRecords.Capture(host, controls, []), client, ref controls, []);
         Assert.False(client.Bodies.All.Single(b => b.Id == lamp.Id).Stowed);
+    }
+
+    [Fact]
+    public void TheLockersStartStockedAsTheTuningSays()
+    {
+        // Note 267 (the director's notes on build 1121: "all of these seem empty"): train.json kit.lockers.stock, by name.
+        var world = Stocked();
+        int car = World.RepairKitCar(world.Train)!.Value;
+        var stock = Tuning.Train.Kit.Lockers!.Stock;
+        Assert.NotEmpty(stock);
+        foreach (var bay in KitCarShape(world).Lockers)
+        {
+            var held = Lockers.Contents(world.Bodies, car, bay.Index).Where(b => b.Kind != BodyKind.RepairKit).Select(b => b.Kind).ToList();
+            Assert.Equal(stock.TryGetValue(bay.Name, out var want) ? want : [], held);
+            Assert.All(Lockers.Contents(world.Bodies, car, bay.Index), b => Assert.True(b.Claimed));
+        }
+        // GDD §10: emergency lamps and extinguishers where the crew learn to look for them.
+        Assert.Contains(BodyKind.Lamp, stock["LAMPMAN"]);
+        Assert.Contains(BodyKind.Extinguisher, stock["FIREMAN"]);
+    }
+
+    [Fact]
+    public void NeighbouringLockersArePickedByLookAndTwoCanWorkThemAtOnce()
+    {
+        // Note 267 ("if one person's trying to use one, the other person can't"): in front of the pair, each picks the
+        // one they look at, not the nearer, and two players tap their own at once.
+        var world = Stocked();
+        int car = World.RepairKitCar(world.Train)!.Value;
+        var shape = KitCarShape(world);
+        var (a, b) = (shape.Lockers.First(x => x.Name == "PORTER"), shape.Lockers.First(x => x.Name == "YARDMASTER"));
+        Assert.Equal(1, Math.Abs(a.Index - b.Index));
+        var between = (a.Front + b.Front) * 0.5;
+        PlayerState Looking(LockerBay bay, double sideways)
+        {
+            var at = new Double3(between.X + bay.Facing * 0.45, between.Y, between.Z + sideways);
+            var to = bay.Front + Double3.Up * 1.1 - (at + Double3.Up * Tuning.Train.Pick.EyeHeight);
+            return new PlayerState
+            {
+                Parent = car,
+                Surface = Surface.Deck,
+                Health = P.Health,
+                Position = at,
+                Yaw = Math.Atan2(-to.X, -to.Z),
+                Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            };
+        }
+        // Stood a little nearer a, looking at b: it's b.
+        double nearA = (a.Front.Z - between.Z) * 0.3;
+        Assert.Equal(b.Index, Lockers.AtHand(Looking(b, nearA), world.Train)!.Value.Bay.Index);
+        Assert.Equal(a.Index, Lockers.AtHand(Looking(a, -nearA), world.Train)!.Value.Bay.Index);
+        // Two of them side by side, each with a lamp, each tapping their own: both go in, each in its own locker.
+        var p1 = Looking(a, (a.Front.Z - between.Z) * 0.6);
+        var p2 = Looking(b, (b.Front.Z - between.Z) * 0.6);
+        var lamps = world.Bodies.All.Where(x => x.Kind == BodyKind.Lamp && !x.Stowed).Take(1)
+            .Append(world.Bodies.SpawnCrate(world.Train, car, between with { Y = between.Y + 0.1 }, BodyKind.Lamp)).ToList();
+        (lamps[0].Carrier, lamps[1].Carrier) = (1, 2);
+        for (int i = 0; i < 2; i++)
+        {
+            world.BeginTick();
+            var press = i == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
+            world.CrewAct(ref p1, press, 1);
+            world.CrewAct(ref p2, press, 2);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            world.StepBodies([(1, p1), (2, p2)]);
+        }
+        Assert.Equal(a.Index, lamps[0].Locker);
+        Assert.Equal(b.Index, lamps[1].Locker);
+        // A shut locker took it in on the tap, and opened to do it: the door says it's been used.
+        Assert.True(world.Train.Vehicles[car].LockerOpen(a.Index));
+        Assert.True(world.Train.Vehicles[car].LockerOpen(b.Index));
     }
 
     [Fact]

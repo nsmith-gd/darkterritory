@@ -47,6 +47,18 @@ void main() {
     model = model * skinOf(draw.skin.w);
 #endif
     vec4 p = model * vec4(inPos, 1.0);
+    // The wind in the foliage: a card or bough bends from its root (v 1, its foot) to its tip (v 0), swaying on a
+    // phase of its own place so a stand doesn't move in step, harder in the gusts that roll through.
+    int li = int(inLayer + 0.5);
+    if (inLayer >= 0.0 && li < 256 && frame.swayOf[li >> 2][li & 3] > 0.5) {
+        float flex = clamp(1.0 - fract(inUv.y), 0.0, 1.0);
+        flex *= flex;
+        float t = frame.fogHeight.w;
+        float place = dot(inSurface, vec3(0.31, 0.11, 0.23));
+        float gust = 1.0 + frame.wind.w * (0.5 + 0.5 * sin(t * 0.45 + dot(inSurface, vec3(0.013, 0.0, 0.009)) * 6.0));
+        float sway = 0.6 + 0.4 * sin(t * 1.9 + place) + 0.15 * sin(t * 4.7 + place * 2.3);
+        p.xyz += frame.wind.xyz * (0.012 * flex * sway * gust);
+    }
     vPos = p.xyz;
     vNormal = mat3(model) * inNormal;
     vColor = inColor * draw.tint.rgb;
@@ -63,5 +75,5 @@ void main() {
     vObj = inPos;
     vBite = draw.bite;
     vBiteFloor = draw.scar.z;
-    gl_Position = frame.viewProj * p;
+    gl_Position = eyeViewProj() * p;
 }

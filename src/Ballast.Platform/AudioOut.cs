@@ -52,7 +52,7 @@ public sealed unsafe class AudioOut : IDisposable
 }
 
 /// <summary>
-/// The default recording device (the microphone) as 48 kHz mono float, read by polling. As with output, no
+/// A recording device (the microphone: the default, or the one the settings name) as 48 kHz mono float, read by polling. As with output, no
 /// device just means <see cref="Open"/> returns null: you can still hear everyone.
 /// </summary>
 public sealed unsafe class AudioIn : IDisposable
@@ -61,7 +61,21 @@ public sealed unsafe class AudioIn : IDisposable
 
     AudioIn(SDL_AudioStream* stream) => _stream = stream;
 
-    public static AudioIn? Open(int sampleRate, out string? error)
+    /// <summary>The microphones there are, by name (none without audio): the settings screen's MICROPHONE.</summary>
+    public static IReadOnlyList<string> Devices()
+    {
+        if (!SDL_InitSubSystem(SDL_InitFlags.SDL_INIT_AUDIO))
+            return [];
+        using var ids = SDL_GetAudioRecordingDevices();
+        var names = new List<string>();
+        for (int i = 0; ids is not null && i < ids.Count; i++)
+            if (SDL_GetAudioDeviceName(ids[i]) is { Length: > 0 } name)
+                names.Add(name);
+        return names;
+    }
+
+    /// <summary>The microphone called <paramref name="device"/>, or the default one (no name, or none of that name now).</summary>
+    public static AudioIn? Open(int sampleRate, out string? error, string? device = null)
     {
         error = null;
         if (!SDL_InitSubSystem(SDL_InitFlags.SDL_INIT_AUDIO))
@@ -69,8 +83,16 @@ public sealed unsafe class AudioIn : IDisposable
             error = SDL_GetError();
             return null;
         }
+        var id = SDL_AUDIO_DEVICE_DEFAULT_RECORDING;
+        if (!string.IsNullOrEmpty(device))
+        {
+            using var ids = SDL_GetAudioRecordingDevices();
+            for (int i = 0; ids is not null && i < ids.Count; i++)
+                if (SDL_GetAudioDeviceName(ids[i]) == device)
+                    id = ids[i];
+        }
         var spec = new SDL_AudioSpec { format = SDL_AudioFormat.SDL_AUDIO_F32LE, channels = 1, freq = sampleRate };
-        var stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_RECORDING, &spec, null, IntPtr.Zero);
+        var stream = SDL_OpenAudioDeviceStream(id, &spec, null, IntPtr.Zero);
         if (stream is null)
         {
             error = SDL_GetError();

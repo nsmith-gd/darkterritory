@@ -1,0 +1,21 @@
+// Tell (tier 1), the Car Hugger: "a heavy grinding from the rear" (GDD v1.1 App. A.3), 60-300 Hz (the band the Weight
+// held). Something clamped on the rear car and chewing its shell, in slow uneven heaves the wheels never make: a low
+// groaning rasp with a sub-bass tearing under it, from the back of the train. Low, like the bed, so it's the heave and the
+// tearing that tell it apart.
+{
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
+  "tier": 1, "loop": true, "maxInstances": 1, "minDistance": 4, "maxDistance": 120, "gainDb": 10,
+  "layers": [
+    { "source": "noise", "gain": 1.0,
+      "filters": [{ "type": "bandPass", "frequency": 140, "q": 1.6 }, { "type": "peak", "frequency": 95, "q": 3, "gainDb": 8 }],
+      "tremolo": { "rate": 1.6, "depth": 0.85, "duty": 0.6, "jitter": 0.6 } },
+    { "source": "saw", "frequency": 62, "gain": 0.55,
+      "filters": [{ "type": "lowPass", "frequency": 240, "q": 0.9 }],
+      "vibrato": { "rate": 0.7, "depth": 0.08 },
+      "tremolo": { "rate": 1.6, "depth": 0.7, "duty": 0.6, "jitter": 0.6 } },
+    { "source": "impulse", "gain": 0.8, "frequency": 9,
+      "filters": [{ "type": "bandPass", "frequency": 210, "q": 2.5 }],
+      "tremolo": { "rate": 1.6, "depth": 1, "duty": 0.5, "jitter": 0.6 } }
+  ]
+}

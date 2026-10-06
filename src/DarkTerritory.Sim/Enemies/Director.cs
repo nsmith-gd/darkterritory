@@ -12,7 +12,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// </param>
 public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false);
 
-/// <summary>What built the director's pressure in its last second (note 195), for the harness's trace.</summary>
+/// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
 /// <param name="Rate">Pressure a second, all told.</param>
 /// <param name="Escalation">The night's escalation multiplier (1 at the gate, rising toward dawn or the terminus).</param>
 /// <param name="Quiet">Seconds since a threat was last engaged.</param>
@@ -27,7 +27,7 @@ public readonly record struct PressureTerms(double Rate, double Escalation, doub
 /// run against a rising curve (15% before the first facility, 45% across the middle, 40% in the final
 /// approach), with hard caps per zone and overall, a grace period at the gate, a trough after every spawn,
 /// and silence in the final 500 m. Sleepers are level content and aren't spent from the budget.
-/// When it spends is algorithmic (design decision 2026-10, note 195): a pressure builds from the night's escalation, quiet,
+/// When it spends is algorithmic (design decision 2026-10, note 266): a pressure builds from the night's escalation, quiet,
 /// the crew's loudness and the cargo aboard, eased when the crew is down, and past a threshold the director sends what its
 /// weights pick; the spawn relieves it.
 /// </summary>
@@ -68,7 +68,7 @@ public sealed class Director
 
     /// <summary>This night's grace: no spawns of the director's own before it (seconds into the night).</summary>
     public double Grace { get; }
-    /// <summary>The pressure now (note 195): 0 until the grace is over, then <see cref="PressureTuning.Start"/> and building.</summary>
+    /// <summary>The pressure now (note 266): 0 until the grace is over, then <see cref="PressureTuning.Start"/> and building.</summary>
     public double Pressure => _pressure;
     /// <summary>What built it in the last second the director thought.</summary>
     public PressureTerms Terms { get; private set; }
@@ -353,7 +353,7 @@ public sealed class Director
     }
 
     /// <summary>
-    /// One second of pressure (design decision 2026-10, note 195): the night's escalation toward dawn or the terminus, the quiet
+    /// One second of pressure (design decision 2026-10, note 266): the night's escalation toward dawn or the terminus, the quiet
     /// since a threat was last engaged, the crew's loudness, the cargo aboard; scaled by the tier and the conditions; eased
     /// when the crew is down or hurt (a relief valve, so a night that's going badly doesn't snowball) and while threats are
     /// already engaged. The dead's votes aren't in it: D.11 has them move weight between creatures, never the pacing.
@@ -410,7 +410,7 @@ public sealed class Director
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions);
     }
 
-    /// <summary>A threat engaged with the crew now: telegraphing, committing, grabbing or punishing (note 195).</summary>
+    /// <summary>A threat engaged with the crew now: telegraphing, committing, grabbing or punishing (note 266).</summary>
     public static bool Confronting(Enemy e) => !e.Gone && !e.Hazard
         && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
 
@@ -488,7 +488,7 @@ public sealed class Director
         if (VotersFor(kind) is { Count: > 0 } voters)
             _cues.Add((kind, voters));
         _spent += Cost(kind);
-        // Spending relieves the pressure (note 195): the trough after a spawn is the pressure building again, and the quiet
+        // Spending relieves the pressure (note 266): the trough after a spawn is the pressure building again, and the quiet
         // counts again from the threat's coming.
         _pressure = Math.Max(0, _pressure - _t.Pressure.ReliefPerCost * Cost(kind));
         _sinceThreat = 0;

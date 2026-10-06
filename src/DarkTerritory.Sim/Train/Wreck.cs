@@ -174,6 +174,9 @@ public sealed class Wreck
         var bodies = new List<WreckBody>();
         foreach (var f in train.Frames)
         {
+            // A switchyard's cars standing on their siding (note 187) aren't the train: they stay where they stand.
+            if (train.StandingCar(f.Index))
+                continue;
             var v = train.Vehicles[f.Index];
             // Its rake's speed along its own length (the frame's may be a tick stale).
             double along = train.RakeOf(f.Index).Velocity;
@@ -196,6 +199,8 @@ public sealed class Wreck
         var w = new Wreck(t, bodies, ground, seed);
         foreach (var rake in train.Rakes)
         {
+            if (train.Standing(rake))
+                continue;
             var vs = rake.Consist.Vehicles;
             for (int i = 0; i + 1 < vs.Count; i++)
             {

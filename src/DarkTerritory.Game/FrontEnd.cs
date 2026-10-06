@@ -1,7 +1,9 @@
 using System.Numerics;
 using Ballast.Online;
 using Ballast.Render;
+using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim.Campaign;
+using DarkTerritory.Sim.Music;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -38,10 +40,19 @@ public abstract record Launch
     public sealed record Quit : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
+
+/// <summary>
+/// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
+/// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
+/// </summary>
+public enum TextField { LobbyName, Address, PlayerName }
+
+/// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
+public readonly record struct MenuHit(int Item, int Step = 0);
 
 /// <summary>
 /// The game's front door and the fortress between nights (spec E, F; roadmap M6 "settings"): the title, the three
@@ -100,6 +111,11 @@ public sealed class FrontEnd
     /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
     /// </summary>
     public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    /// <summary>
+    /// The derailment's music for the credits screen (GDD v1.4 App. E.6: "the credits screen lists every performer"; note
+    /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
+    /// </summary>
+    public IReadOnlyList<MusicTrack> Music { get; set; } = [];
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -118,10 +134,18 @@ public sealed class FrontEnd
     }
     /// <summary>The wire protocol this build speaks: a game on another can't be joined.</summary>
     public int Protocol { get; init; }
+    /// <summary>The microphones there are, by name (the app asks the platform): the settings' MICROPHONE goes round them.</summary>
+    public IReadOnlyList<string> MicDevices { get; init; } = [];
     /// <summary>The address typed so far on the join screen.</summary>
     public string Address { get; private set; } = "";
     /// <summary>Waiting for the key to bind this control to (T80): the app hands the next one pressed to <see cref="Bind"/>.</summary>
     public Control? Capturing { get; private set; }
+
+    /// <summary>
+    /// The menus' interface sounds as they're worked, by name (<see cref="UiCue"/>, the audio checklist's ui-menus): a move,
+    /// a choice, backing out, the demo's end card. The app hands them to <c>GameAudio.Ui</c>; tests listen. Null: silent.
+    /// </summary>
+    public Action<string>? Cue { get; set; }
 
     /// <summary>The key pressed for the control being bound (a key's name); Escape (<see cref="Back"/>) keeps the old one.</summary>
     public void Bind(string key)
@@ -132,19 +156,34 @@ public sealed class FrontEnd
         if (Controls.Reserved.Contains(key))
         {
             Message = $"{Controls.KeyLabel(key)} is kept for the menus.";
+            // Not taken: the old key's kept, as if backed out of.
+            Cue?.Invoke(UiCue.Back);
             return;
         }
         var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
         Change(Settings.Bind(c, key));
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
+        Cue?.Invoke(UiCue.Select);
     }
 
-    /// <summary>The join screen's address, or the host screen's lobby name while it's chosen, wants typed text (the app turns text input on).</summary>
-    public bool WantsText => Screen == Screen.Join || NamingLobby;
+    /// <summary>A text field's being edited, and wants typed text (the app turns text input on). Only then: never on being chosen.</summary>
+    public bool WantsText => Editing is not null;
 
-    /// <summary>The host screen's NAME is chosen: it's after the night's options and VISIBILITY.</summary>
-    bool NamingLobby => Screen == Screen.Host && Selected == NightOptions().Count + 1;
+    /// <summary>The text field being edited (note 264): from Enter or a click on it, to Enter or Esc (or moving off it).</summary>
+    public TextField? Editing { get; private set; }
+
+    bool NamingLobby => Editing == TextField.LobbyName;
     const string NameLabel = "NAME: ";
+
+    /// <summary>Stops editing (the text's kept as typed).</summary>
+    void EndEdit()
+    {
+        if (Editing is null)
+            return;
+        Editing = null;
+        _blankName = false;
+        Cue?.Invoke(UiCue.Select);
+    }
     /// <summary>Played in a headset (T36): the hints name the controllers' buttons, not the keys.</summary>
     public bool Headset { get; set; }
 
@@ -152,19 +191,37 @@ public sealed class FrontEnd
 
     public void Up() => Move(-1);
     public void Down() => Move(+1);
-    /// <summary>Changes the selected setting or value (tier, seed, cars, toggles).</summary>
-    public void Left() => Adjust(-1);
-    public void Right() => Adjust(+1);
+    /// <summary>Changes the selected setting or value (tier, seed, cars, toggles). Not while a field's being typed in.</summary>
+    public void Left()
+    {
+        if (Editing is null)
+            Adjust(-1);
+    }
+    public void Right()
+    {
+        if (Editing is null)
+            Adjust(+1);
+    }
 
     /// <summary>Back a screen (from the title: nothing).</summary>
     public void Back()
     {
+        // Esc ends typing in a field, and goes nowhere else (note 264).
+        if (Editing is not null)
+        {
+            EndEdit();
+            return;
+        }
         if (Capturing is not null)
         {
             Capturing = null;
             Message = null;
+            Cue?.Invoke(UiCue.Back);
             return;
         }
+        // From the title there's nowhere to back out to.
+        if (Screen != Screen.Title)
+            Cue?.Invoke(UiCue.Back);
         Show(Screen switch
         {
             Screen.Upgrades or Screen.Stores => Screen.Fortress,
@@ -178,6 +235,12 @@ public sealed class FrontEnd
     /// <summary>Acts on the selected item: a new screen, a purchase, or something for the app to start.</summary>
     public Launch? Select()
     {
+        // Enter ends typing in a field (note 264): it doesn't also choose what's selected.
+        if (Editing is not null)
+        {
+            EndEdit();
+            return null;
+        }
         var entries = Entries();
         if (entries.Count == 0)
             return null;
@@ -185,11 +248,32 @@ public sealed class FrontEnd
         if (!e.Item.Enabled)
             return null;
         Message = null;
-        return e.Select?.Invoke();
+        // A text field: Enter (or a click) starts typing into it.
+        if (e.Field is { } field)
+        {
+            Editing = field;
+            _blankName = false;
+            Cue?.Invoke(UiCue.Select);
+            return null;
+        }
+        if (e.Select is null)
+            return null;
+        // Choosing BACK is backing out.
+        Cue?.Invoke(e.Back ? UiCue.Back : UiCue.Select);
+        return e.Select();
     }
 
     public void Type(string text)
     {
+        if (Editing == TextField.PlayerName)
+        {
+            string me = Settings.PlayerName;
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '_') && me.Length < Sim.Net.Messages.NameLength && c < 0x7f)
+                    me += c;
+            Change(Settings with { PlayerName = me.TrimStart() });
+            return;
+        }
         if (NamingLobby)
         {
             // From the name shown: typing onto the default carries on from it.
@@ -201,7 +285,7 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = name });
             return;
         }
-        if (!WantsText)
+        if (Editing != TextField.Address)
             return;
         foreach (char c in text)
             if ((char.IsLetterOrDigit(c) || c is '.' or ':' or '-') && Address.Length < 64)
@@ -213,6 +297,12 @@ public sealed class FrontEnd
 
     public void Erase()
     {
+        if (Editing == TextField.PlayerName)
+        {
+            if (Settings.PlayerName.Length > 0)
+                Change(Settings with { PlayerName = Settings.PlayerName[..^1] });
+            return;
+        }
         if (NamingLobby)
         {
             // Erased to nothing, it's the default again.
@@ -223,15 +313,18 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = _blankName ? "" : name });
             return;
         }
-        if (WantsText && Address.Length > 0)
+        if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
     }
 
     public void Show(Screen screen)
     {
         _blankName = false;
+        Editing = null;
         Screen = screen;
         Selected = 0;
+        _scroll = 0;
+        _follow = true;
         // Skip to the first item you can do something with.
         var entries = Entries();
         while (Selected < entries.Count - 1 && !entries[Selected].Item.Enabled)
@@ -250,6 +343,9 @@ public sealed class FrontEnd
     {
         Show(Screen.Title);
         Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
+        // The demo's end card (T79): its wishlist line coming up.
+        if (Message is not null)
+            Cue?.Invoke(UiCue.EndCard);
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -265,12 +361,107 @@ public sealed class FrontEnd
         Message = message;
     }
 
+    // The mouse (note 264, the director's notes on build 1121: "we really should be able to click with a mouse"): what the
+    // last Draw put where, in the overlay's pixels, for HitTest; and the list's scroll.
+    readonly List<(MenuHit Hit, float X, float Y, float W, float H)> _hits = [];
+    int _scroll;
+    /// <summary>The scroll follows the selection (the keys moved it), or stays where the wheel put it.</summary>
+    bool _follow = true;
+
+    /// <summary>The first row shown of <paramref name="count"/> in <paramref name="rows"/>: the selection kept in view while the keys move it.</summary>
+    int First(int rows, int count)
+    {
+        if (_follow)
+        {
+            if (Selected < _scroll)
+                _scroll = Selected;
+            else if (Selected >= _scroll + rows)
+                _scroll = Selected - rows + 1;
+        }
+        _scroll = Math.Clamp(_scroll, 0, Math.Max(0, count - rows));
+        return _scroll;
+    }
+
+    /// <summary>What's under the pointer at (<paramref name="x"/>, <paramref name="y"/>), in the overlay's pixels, as last drawn; null for nothing.</summary>
+    public MenuHit? HitTest(float x, float y)
+    {
+        MenuHit? hit = null;
+        foreach (var (h, hx, hy, w, ht) in _hits)
+            if (x >= hx && x < hx + w && y >= hy && y < hy + ht)
+                hit = h;
+        return hit;
+    }
+
+    /// <summary>The pointer's moved onto an item: it's the selection (anything greyed out is passed over).</summary>
+    public void Hover(int item)
+    {
+        if (Capturing is not null || item == Selected)
+            return;
+        var entries = Entries();
+        if (item < 0 || item >= entries.Count || !entries[item].Item.Enabled)
+            return;
+        Selected = item;
+        Cue?.Invoke(UiCue.Move);
+    }
+
+    /// <summary>
+    /// A click (note 264): on an item, it's selected and chosen, as Enter does (a field starts typing); on a value's arrows
+    /// it's stepped, as left and right do, and a value with nothing to choose steps on (back, with <paramref name="right"/>,
+    /// the right button). A click anywhere else ends typing in a field.
+    /// </summary>
+    public Launch? Click(MenuHit? at, bool right = false)
+    {
+        if (Capturing is not null)
+            return null;
+        var entries = Entries();
+        if (at is not { } hit || hit.Item < 0 || hit.Item >= entries.Count || !entries[hit.Item].Item.Enabled)
+        {
+            EndEdit();
+            return null;
+        }
+        var e = entries[hit.Item];
+        // Clicking the field being typed in carries on typing; clicking anything else ends it first.
+        if (Editing is not null && e.Field == Editing)
+            return null;
+        if (Editing is not null)
+            EndEdit();
+        if (Selected != hit.Item)
+            Hover(hit.Item);
+        if (hit.Step != 0 || right)
+        {
+            Adjust(hit.Step != 0 ? hit.Step : -1);
+            return null;
+        }
+        if (e.Select is null && e.Field is null && e.Adjust is not null)
+        {
+            Adjust(+1);
+            return null;
+        }
+        return Select();
+    }
+
+    /// <summary>The wheel: <paramref name="notches"/> up (positive) scrolls a long list back towards its top.</summary>
+    public void Scroll(int notches)
+    {
+        if (notches == 0)
+            return;
+        _scroll -= notches;
+        _follow = false;
+    }
+
     void Move(int by)
     {
         var entries = Entries();
         if (entries.Count == 0)
             return;
-        _blankName = false;
+        int was = Selected;
+        // Moving off a field ends typing in it (the text's kept).
+        if (Editing is not null)
+        {
+            Editing = null;
+            _blankName = false;
+        }
+        _follow = true;
         // Over anything greyed out.
         for (int i = 0; i < entries.Count; i++)
         {
@@ -279,13 +470,20 @@ public sealed class FrontEnd
                 break;
         }
         Message = null;
+        if (Selected != was)
+            Cue?.Invoke(UiCue.Move);
     }
 
     void Adjust(int by)
     {
         var entries = Entries();
-        if (Selected < entries.Count)
-            entries[Selected].Adjust?.Invoke(by);
+        if (Selected >= entries.Count || entries[Selected].Adjust is not { } adjust)
+            return;
+        string was = entries[Selected].Item.Label;
+        adjust(by);
+        // A value stepped along (a tier, the seed, cars, a setting) sounds as a move, when it moved at all.
+        if (Items.ElementAtOrDefault(Selected)?.Label != was)
+            Cue?.Invoke(UiCue.Move);
     }
 
     void Change(Settings settings)
@@ -305,7 +503,9 @@ public sealed class FrontEnd
                 "Bots drive, stoke, man the rear gun and lend a hand. None, and it's all yours to do."), null, by => _bots = Math.Clamp(_bots + by, 0, MaxBots)),
     ];
 
-    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null);
+    /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
+    /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
+    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null);
 
     List<Entry> Entries() => Screen switch
     {
@@ -319,9 +519,10 @@ public sealed class FrontEnd
             new(new("HOST", "Open a lobby in the yard for a run. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
             new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
+            new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
-        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), new(new("BACK"), Go(Screen.Title))],
+        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
         Screen.Stores => StoreEntries(),
@@ -329,7 +530,7 @@ public sealed class FrontEnd
         [
             .. NightOptions(),
             new(new("PLAY"), () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: false) { Bots = _bots }),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Host =>
         [
@@ -339,10 +540,11 @@ public sealed class FrontEnd
                     ? "Listed: anyone on your network, or on Steam, finds it on their join screen."
                     : "Not listed: friends join by Steam invite, or type your address."),
                 Toggle(s => s with { PublicLobby = !s.PublicLobby }), _ => Change(Settings with { PublicLobby = !Settings.PublicLobby })),
-            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", "Type to rename it: what the join screen calls it."), null),
+            new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
+                Field: TextField.LobbyName),
             new(new("OPEN THE LOBBY", "You wait in the yard with the train; you drive out when everyone's in."),
                 () => new Launch.Night(RouteSpec(_tiers[_tier], _seed), _cars, Host: true) { Bots = _bots, Public = Settings.PublicLobby, LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName }),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Join =>
         [
@@ -354,14 +556,29 @@ public sealed class FrontEnd
                 () => g.Join)),
             .. Games.Count == 0 ? [new Entry(new("  NO PUBLIC GAMES YET", "When someone opens a public lobby, it shows here.", false))] : (Entry[])[],
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
-            new(new($"ADDRESS: {Address}_", "A private game, or one far off: type it, and the host's port if it isn't the usual one (host:port)."), () => Address.Length > 0 ? new Launch.Join(Address) : null),
+            new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
+                    ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
+                    : "A private game, or one far off: Enter to type its address."), Field: TextField.Address),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
-            new(new("BACK"), Go(Screen.Title)),
+            BackTo(Screen.Title),
         ],
         Screen.Settings =>
         [
+            // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name).
+            new(new($"PLAYER NAME: {(Editing == TextField.PlayerName ? Settings.PlayerName + "_" : Settings.PlayerName is { Length: > 0 } me ? me.ToUpperInvariant() : DefaultPlayerName.ToUpperInvariant())}",
+                Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
+                    : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            // The audio checklist's mix-settings: the volumes, the microphone and its level.
+            Volume("MASTER VOLUME", "Everything you hear.", Settings.MasterVolume, (s, v) => s with { MasterVolume = v }),
+            Volume("EFFECTS VOLUME", "The train, the world, the things in the dark, your own hands.", Settings.EffectsVolume, (s, v) => s with { EffectsVolume = v }),
+            Volume("MUSIC VOLUME", "The drone under the night, and the opera when it's over.", Settings.MusicVolume, (s, v) => s with { MusicVolume = v }),
+            Volume("VOICE VOLUME", "The crew, near and on the radio, the dead, and the yard.", Settings.VoiceVolume, (s, v) => s with { VoiceVolume = v }),
+            new(new($"MICROPHONE: {(Settings.MicDevice is { Length: > 0 } mic ? mic.ToUpperInvariant() : "DEFAULT")}", "Left and right to change. From the next night."),
+                Toggle(s => s with { MicDevice = NextMic(s.MicDevice, 1) }), by => Change(Settings with { MicDevice = NextMic(Settings.MicDevice, by) })),
+            new(new($"MIC LEVEL: {Settings.MicLevel * 100:0}%", "Left and right to change: up if the crew can't hear you."), null,
+                by => Change(Settings with { MicLevel = Math.Clamp(Math.Round(Settings.MicLevel + by * 0.1, 1), 0, 3) })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
                 _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
@@ -375,6 +592,12 @@ public sealed class FrontEnd
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
+            BackTo(Screen.Title),
+        ],
+        // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        Screen.Credits =>
+        [
+            .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
             new(new("BACK"), Go(Screen.Title)),
         ],
         Screen.Controls =>
@@ -383,7 +606,7 @@ public sealed class FrontEnd
                 new($"{Controls.Label(c)}: {(Capturing == c ? "PRESS A KEY" : Controls.KeyLabel(Settings.KeyFor(c)))}", "Enter, then the key. Esc keeps it."),
                 () => { Capturing = c; Message = null; return null; })),
             new(new("RESET TO DEFAULTS", null, Settings.Keys.Count > 0), () => { Change(Settings with { Keys = new() }); Message = "Keys reset."; return null; }),
-            new(new("BACK"), Go(Screen.Settings)),
+            BackTo(Screen.Settings),
         ],
         _ => [],
     };
@@ -396,7 +619,20 @@ public sealed class FrontEnd
 
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
 
+    Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
+
     Func<Launch?> Toggle(Func<Settings, Settings> change) => () => { Change(change(Settings)); return null; };
+
+    /// <summary>A volume row: left and right a tenth at a time, from silent to full.</summary>
+    Entry Volume(string label, string what, double now, Func<Settings, double, Settings> set) =>
+        new(new($"{label}: {now * 100:0}%", what), null, by => Change(set(Settings, Math.Clamp(Math.Round(now + by * 0.1, 1), 0, 1))));
+
+    /// <summary>The next microphone along (the default first, then each by name), wrapping round.</summary>
+    string NextMic(string now, int by)
+    {
+        string[] all = ["", .. MicDevices];
+        return Settings.Cycle(all, Array.IndexOf(all, now) < 0 ? "" : now, by);
+    }
 
     Entry SlotEntry(int slot, CampaignState? s)
     {
@@ -419,7 +655,7 @@ public sealed class FrontEnd
     List<Entry> FortressEntries()
     {
         if (Open is not { } s)
-            return [new(new("BACK"), Go(Screen.Slots))];
+            return [BackTo(Screen.Slots)];
         var list = new List<Entry>();
         if (s.Current is { } tonight)
         {
@@ -468,14 +704,14 @@ public sealed class FrontEnd
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
-        list.Add(new(new("BACK"), Go(Screen.Slots)));
+        list.Add(BackTo(Screen.Slots));
         return list;
     }
 
     List<Entry> UpgradeEntries()
     {
         if (Open is not { } s)
-            return [new(new("BACK"), Go(Screen.Fortress))];
+            return [BackTo(Screen.Fortress)];
         var list = new List<Entry>();
         foreach (var u in _campaign.Upgrades)
         {
@@ -486,7 +722,7 @@ public sealed class FrontEnd
             list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
                 () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
         }
-        list.Add(new(new("BACK"), Go(Screen.Fortress)));
+        list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
@@ -513,7 +749,7 @@ public sealed class FrontEnd
     List<Entry> StoreEntries()
     {
         if (Open is not { } s || _campaign.Stores is not { } st)
-            return [new(new("BACK"), Go(Screen.Fortress))];
+            return [BackTo(Screen.Fortress)];
         var list = new List<Entry>();
         void Row(StoreKind kind, StoreItem item, string name, string detail)
         {
@@ -525,7 +761,7 @@ public sealed class FrontEnd
         Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
         Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
         Row(StoreKind.Extinguisher, st.Extinguishers, "SPARE EXTINGUISHER", "Loose in the guard van: a second hand on a fire. It doesn't recharge.");
-        list.Add(new(new("BACK"), Go(Screen.Fortress)));
+        list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
@@ -539,6 +775,54 @@ public sealed class FrontEnd
         Message = p.Ok ? done : p.Refused;
         return null;
     }
+
+    const string CreditHints = "[UP/DOWN] SCROLL   [ESC] BACK";
+
+    /// <summary>A track's performers, licence and where it came from: a recording's Commons page, or the script that made it.</summary>
+    static string CreditLine(MusicTrack t) =>
+        $"{t.Performers}. {t.Licence}. {(t.Recorded ? t.Source.Replace("https://", "") : "Made by " + Path.GetFileName(t.Source))}";
+
+    /// <summary>
+    /// The credits (E.6: CC0 asks for none, the screen lists every performer anyway): each track two lines, its work,
+    /// composer and year, then its performers, licence and source, scrolled to keep the selection in view.
+    /// </summary>
+    void DrawCredits(Overlay o, float x, float y, int width, int height)
+    {
+        o.Text(x, y, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", Faint);
+        y += 16;
+        var items = Items;
+        // Room under the list for the selected track's line in full, over two rows.
+        int rows = Math.Max(1, (int)((height - y - 44) / 20));
+        int first = First(rows, items.Count);
+        int shown = Math.Min(rows, items.Count - first);
+        float w = width - x - 8;
+        int chars = (int)((w - 8) / o.Font.Advance);
+        UiStyle.Plate(o, x - 8, y - 6, w + 4, shown * 20 + 6);
+        if (Music.Count == 0)
+            o.Text(x, y + shown * 20 - 4, "NO MUSIC IN THIS BUILD.", Faint);
+        for (int i = first; i < first + shown; i++)
+        {
+            bool on = i == Selected;
+            _hits.Add((new MenuHit(i), x - 4, y - 1, w - 4, 19));
+            if (on)
+                o.Rect(x - 4, y - 1, w - 4, items[i].Detail is null ? 9 : 19, UiStyle.Lit with { W = 0.14f });
+            o.Text(x, y, Fit((on ? "> " : "  ") + items[i].Label, chars), on ? Amber : Ink);
+            if (items[i].Detail is { } line)
+                o.Text(x, y + 9, Fit("    " + line, chars), Dim);
+            y += 20;
+        }
+        // The selected track's performers, licence and source, whole (a long Commons title or ensemble name is cut above).
+        if (Selected < items.Count && items[Selected].Detail is { } full && full.Length + 4 > chars)
+        {
+            y += 6;
+            string text = full.ToUpperInvariant();
+            o.Text(x, y, text[..Math.Min(chars, text.Length)], Ink);
+            if (text.Length > chars)
+                o.Text(x, y + 9, Fit(text[chars..], chars), Ink);
+        }
+    }
+
+    static string Fit(string s, int chars) => s.Length <= chars ? s : s[..Math.Max(0, chars - 3)] + "...";
 
     static string Name(RouteTier tier) => tier switch
     {
@@ -559,6 +843,7 @@ public sealed class FrontEnd
     public void Draw(Overlay o, int width, int height)
     {
         o.Clear();
+        _hits.Clear();
         float x = 20, y = 14;
         // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
         float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
@@ -576,6 +861,7 @@ public sealed class FrontEnd
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
+            Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         o.Text(x, y, heading!, Dim);
@@ -596,22 +882,42 @@ public sealed class FrontEnd
             y += 10;
         }
         y += 4;
-        var items = Items;
+        if (Screen == Screen.Credits)
+        {
+            DrawCredits(o, x, y, width, height);
+            UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, CreditHints), height - 13, CreditHints, Dim);
+            return;
+        }
+        var entries = Entries();
+        var items = entries.Select(e => e.Item).ToList();
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
-        // A list longer than the screen (the controls) scrolls to keep the selection in view.
+        // A value's row has its arrows at the plate's right, for the mouse (note 264): < and > step it, as left and right do.
+        bool arrows = entries.Any(e => e.Adjust is not null);
+        float plate = Math.Min(width - x, widest + 12 + (arrows ? 24 : 0));
+        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it.
         int rows = Math.Max(1, (int)((height - y - 44) / 10));
-        int first = Math.Clamp(Selected - rows / 2, 0, Math.Max(0, items.Count - rows));
+        int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
-        UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, widest + 12), shown * 10 + 10);
+        UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
+            _hits.Add((new MenuHit(i), x - 4, y - 1, plate - 8, 10));
             // The selection: a brass-lit bar under it, as a lamp on a lever frame's plate.
             if (on)
-                o.Rect(x - 4, y - 1, Math.Min(width - x, widest + 12) - 8, 9, UiStyle.Lit with { W = 0.14f });
+                o.Rect(x - 4, y - 1, plate - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
             string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
+            if (entries[i].Adjust is not null && items[i].Enabled && Editing is null)
+            {
+                float ax = x - 8 + plate - 26;
+                o.Text(ax, y, "<", on ? Amber : Dim);
+                o.Text(ax + 12, y, ">", on ? Amber : Dim);
+                // Each arrow's box a little bigger than its glyph; listed after the row, so the arrow wins over it.
+                _hits.Add((new MenuHit(i, -1), ax - 3, y - 1, 10, 10));
+                _hits.Add((new MenuHit(i, +1), ax + 9, y - 1, 10, 10));
+            }
             y += 10;
         }
         y += 6;
@@ -623,10 +929,9 @@ public sealed class FrontEnd
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
-            : NamingLobby ? "TYPE A NAME   [UP/DOWN] CHOOSE   [ESC] BACK"
-            : WantsText ? "TYPE   [ENTER] JOIN   [ESC] BACK"
+            : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
             : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
-            : "[UP/DOWN] CHOOSE   [ENTER]   [LEFT/RIGHT] CHANGE   [ESC] BACK";
+            : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK";
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
     }
 }

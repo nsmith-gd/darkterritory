@@ -61,6 +61,12 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
     public double Length => Line.Segments.Sum(s => s.Length);
     public IEnumerable<RouteFeature> Of(FeatureKind kind) => Features.Where(f => f.Kind == kind);
     public bool InTunnel(double s) => Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(s));
+    /// <summary>
+    /// Under a tunnel and more than <paramref name="reach"/> from either mouth: where a radio's dead (spec A.5, with F.3's
+    /// radio range carrying it <paramref name="reach"/> in; note 196). With no reach, anywhere under one.
+    /// </summary>
+    public bool DeepInTunnel(double s, double reach) =>
+        Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(s) && Math.Min(s - f.Start, f.End - s) >= reach);
     public RouteFeature? BridgeAt(double s) => Features.FirstOrDefault(f => f.Kind == FeatureKind.Bridge && f.Contains(s));
     /// <summary>The branches off the main line at its switches, in order along it (GDD §17, App. A.7).</summary>
     public IReadOnlyList<BranchDefinition> Branches { get; init; } = [];

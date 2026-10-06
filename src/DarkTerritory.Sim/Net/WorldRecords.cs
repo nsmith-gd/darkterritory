@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -36,12 +36,12 @@ public static class WorldRecords
     /// <summary>
     /// A body record's fields before its particles: kind, parent, carrier, owner, asleep, yaw, count, second carrier,
     /// what it shows (an extinguisher's charge to the percent, its sight glass, App. C.5; a crate's cargo, GDD §19), and the
-    /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1).
+    /// crew locker and shelf it's on (note 173: locker × 256 + shelf, or −1), and the thing carrying it off (App. A.6, or −1).
     /// </summary>
-    const int BodyParticles = 10;
+    const int BodyParticles = 11;
     // The Run record's header (phase, end, clock, facility, chute, scavenged), and room in a crane (or wreck heap) record's id for
     // each of a site's cranes (heaps).
-    const int RunHead = 6, CranesPerSite = 16;
+    const int RunHead = 9, CranesPerSite = 16;
 
     static long Q(double v, double scale) => (long)Math.Round(v * scale);
     static double D(long q, double scale) => q / scale;
@@ -77,14 +77,18 @@ public static class WorldRecords
                     // How the seated gunner has it laid (T112).
                     Q(v.Gun.Traverse, Fine), Q(v.Gun.Elevation, Fine),
                     // Its crew lockers' doors (note 173).
-                    v.LockersOpen]));
+                    v.LockersOpen,
+                    // Its shell breached, and where (decided 1 Oct: it shuts nobody in until it's boarded up).
+                    v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos)]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
             [Q(world.Choir.Loudness, Fine), Q(world.Choir.Build, Fine), Q(world.Choir.Floor, Fine), world.Derailed ? 1 : 0, world.LampLit ? 1 : 0, Q(world.LampOutSeconds, Fine), Q(train.Sand, Fine),
                 (world.Choir.Present ? 1 : 0) | (world.Choir.Spent ? 2 : 0), Q(world.Choir.QuietSeconds, Fine), Q(world.WhistleSeconds, Fine), Q(world.Choir.Rest, Fine),
                 // The derailment's opera, the host's draw (GDD v1.4 App. E.6; note 174).
                 world.DerailMusic,
                 // The derailment film's skip vote (GDD v1.4 App. E.5; note 177): skipped, and the votes of how many.
-                world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of]));
+                world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of,
+                // Whose hand's on the whistle cord (note 264): the HUD names them; the Whistler's whistle has no hand (−1).
+                world.WhistleBy]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -100,6 +104,9 @@ public static class WorldRecords
                 h.Tick, h.EnemyId, (long)h.Kind, h.By, (long)h.Source, h.Killed ? 1 : 0,
                 Q(h.At.X, Pos), Q(h.At.Y, Pos), Q(h.At.Z, Pos), Q(h.From.X, Fine), Q(h.From.Y, Fine), Q(h.From.Z, Fine),
             ]));
+        // Swings, landed or not (note 197): who, and when it started.
+        foreach (var w in world.Swings)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Swing, w.Id), [w.Tick, w.By]));
         foreach (var i in world.Impacts)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Impact, i.Id),
             [
@@ -138,6 +145,11 @@ public static class WorldRecords
             f[3] = run.Facility;
             f[4] = run.ChuteOpen ? 1 : 0;
             f[5] = Q(run.Scavenged, Fine);
+            // Where the repair kit is, as the host reckons it (§23.2; note 263): a client only has the bodies within its interest
+            // radius, so left behind by the train it saw none, and said the train had none.
+            f[6] = (long)run.Kit.Place;
+            f[7] = run.Kit.Vehicle;
+            f[8] = (long)run.Kit.Loss;
             for (int i = 0; i < run.FacilityCount; i++)
             {
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
@@ -205,10 +217,13 @@ public static class WorldRecords
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll => (long)body.Tools,
                 Physics.BodyKind.Toy => (long)body.Noise,
-                Physics.BodyKind.Radio => body.Broken ? 1 : 0,
+                // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
+                Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
                 _ => (long)body.Cargo,
             };
             f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
+            // What's carrying it off, if a thing is (the Gaunt leaving with it, App. A.6).
+            f[10] = body.TakenBy;
             for (int i = 0; i < ps.Length; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
@@ -230,6 +245,8 @@ public static class WorldRecords
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand.
                 (long)s.Kit, s.HeldSlot,
+                // A headset's head height over the feet (T82): zero, so free, for a keyboard or a bot.
+                Q(s.Head, Cm),
             ]));
         }
         list.Sort((a, c) => a.Key.CompareTo(c.Key));
@@ -248,6 +265,7 @@ public static class WorldRecords
         var bodies = new List<Physics.Body>();
         var wrecked = new List<(int Vehicle, Ballast.Double3 Origin, Ballast.Double3 Right, Ballast.Double3 Up, Ballast.Double3 Velocity)>();
         var hits = new List<HitConfirm>();
+        var swings = new List<SwingEvent>();
         var impacts = new List<CannonImpact>();
         foreach (var r in records)
         {
@@ -287,7 +305,8 @@ public static class WorldRecords
                             Elevation = f.Length > 17 ? D(f[17], Fine) : 0,
                         }, f.Length > 7 ? (byte)f[7] : (byte)0,
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
-                        f.Length > 18 ? (uint)f[18] : 0));
+                        f.Length > 18 ? (uint)f[18] : 0,
+                        f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -301,6 +320,7 @@ public static class WorldRecords
                         Rest = f.Length > 10 ? D(f[10], Fine) : 0,
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
+                    world.WhistleBy = f.Length > 15 ? (int)f[15] : -1;
                     world.SetDerailed(f[3] != 0);
                     world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;
                     world.FilmSkipped = f.Length > 12 && f[12] != 0;
@@ -345,6 +365,9 @@ public static class WorldRecords
                     hits.Add(new HitConfirm(r.Id, (uint)f[0], (int)f[1], (EnemyKind)f[2], (int)f[3], (HitSource)f[4],
                         new Double3(D(f[6], Pos), D(f[7], Pos), D(f[8], Pos)), new Double3(D(f[9], Fine), D(f[10], Fine), D(f[11], Fine)), f[5] != 0));
                     break;
+                case RecordKind.Swing when !world.Authority:
+                    swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
+                    break;
                 case RecordKind.Impact when !world.Authority:
                     impacts.Add(new CannonImpact(r.Id, (uint)f[0], new Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)),
                         new Double3(D(f[7], Fine), D(f[8], Fine), D(f[9], Fine)), (ImpactSurface)f[1], (int)f[2], (EnemyKind)f[3]));
@@ -379,7 +402,7 @@ public static class WorldRecords
                             Pouring = (f[Head + 1 + i * Each] & 8) != 0, Herding = (f[Head + 1 + i * Each] & 16) != 0,
                             Bin = D(f[Head + 7 + i * Each], Fine), Head = (int)f[Head + 8 + i * Each], Herd = D(f[Head + 9 + i * Each], Fine),
                             HoseCar = (int)f[Head + 10 + i * Each], Pressure = D(f[Head + 11 + i * Each], Fine), Leak = D(f[Head + 12 + i * Each], Fine),
-                        })], D(f[5], Fine));
+                        })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;
             }
         }
@@ -404,7 +427,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
-            world.MirrorHits(hits, impacts);
+            world.MirrorHits(hits, impacts, swings);
             world.Bodies.Mirror(bodies);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
@@ -435,8 +458,10 @@ public static class WorldRecords
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio ? CargoKind.None : (CargoKind)f[8],
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
+            MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
+            TakenBy = (int)f[10],
         };
     }
 
@@ -576,6 +601,7 @@ public static class WorldRecords
             OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
             Kit = f.Length > 24 ? (ulong)f[23] : 0,
             HeldSlot = f.Length > 24 ? (byte)f[24] : (byte)0,
+            Head = f.Length > 25 ? D(f[25], Cm) : 0,
         });
     }
 

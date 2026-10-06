@@ -31,11 +31,15 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
     /// <param name="enemies">Run the pressure director and the route's Sleepers (GDD App. B).</param>
-    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true)
-        : this(contentRoot, route.Build(), route, cars, 0)
+    /// <param name="crew">The crew the director plans the night for (App. B: what it fields scales with it); one, played
+    /// solo. dt playthrough asks for more to meet the roster a bigger crew does.</param>
+    /// <param name="at">Where the engine's front starts along the line (a staged moment, `dt screenshot --roof-warning`);
+    /// null, at the fortress's gate.</param>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true, int crew = 1, double? at = null)
+        : this(contentRoot, route.Build(), route, cars, at ?? double.NaN)
     {
         if (enemies)
-            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
+            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: Math.Max(1, crew), authority: true);
         var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
@@ -56,7 +60,7 @@ public sealed class PrototypeSession : IPlaySession
         var runTuning = DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File));
         var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : runTuning.DepartureLoad);
         // On a route, start at the fortress's gate, ready to depart (run.json departShortOfGateM), the train in the yard.
-        if (route is not null)
+        if (route is not null && double.IsNaN(start))
             start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
@@ -267,7 +271,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
         (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
         (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving with something: run it down before it's off the train",
         // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
         (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
         (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
@@ -320,7 +324,7 @@ public sealed class PrototypeSession : IPlaySession
         if (PlayerMotor.InCab(p, train))
             return "cab";
         if (PlayerMotor.Indoors(p, train))
-            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, door open" : $"inside car {p.Parent}, shut in";
+            return PlayerMotor.Space(p, train) == PlayerMotor.Outside ? $"inside car {p.Parent}, {(train.Vehicles[p.Parent].Breached ? "breached" : "door open")}" : $"inside car {p.Parent}, shut in";
         return p.Parent == 0 ? "engine" : $"car {p.Parent}";
     }
 
@@ -393,6 +397,18 @@ public sealed class PrototypeSession : IPlaySession
         return " — " + string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// On a generated line, the next place by its name, as the route card has it (linegen plan §13.3), and how far: what
+    /// the HUD's strip across the top says (note 264).
+    /// </summary>
+    public static string NextPlace(Route route, double s) =>
+        route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
+            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
+            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
+            : route.NextLandmark(s) is { } l
+            ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
+            : "terminus ahead";
+
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
         if (route is null)
@@ -420,13 +436,7 @@ public sealed class PrototypeSession : IPlaySession
                     stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
                         (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
                 }
-        // On a generated line, the next place by its name, as the route card has it (linegen plan §13.3).
-        string next = route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
-            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
-            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
-            : route.NextLandmark(s) is { } l
-            ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
-            : "terminus ahead";
+        string next = NextPlace(route, s);
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
         return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{HoldoutStatus(world)}";
     }

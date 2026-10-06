@@ -64,7 +64,7 @@ DIALS = [
     # Few, big numerals (every 100 psi, every 20 mph): legible when the dial is 64 px on screen.
     ("pressure", "PRESSURE", [0, 100, 200], 0, 250, 50, 10, 200, "PSI"),
     ("heat", "HEAT", [100, 300, 500], 100, 500, 100, 20, 450, "°F"),
-    ("water", "WATER", None, 0, 1, None, None, None, ""),
+    ("water", "TENDER", None, 0, 1, None, None, None, ""),
     ("speed", "SPEED", [0, 20, 40, 60], 0, 60, 10, 5, None, "MPH"),
 ]
 SWEEP = (-120.0, 120.0)   # degrees clockwise from straight up

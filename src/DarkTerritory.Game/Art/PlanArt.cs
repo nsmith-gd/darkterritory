@@ -65,15 +65,18 @@ public sealed partial class WorldArt
         public RailLine EdgeLine(string edge) => edge == "main" ? Line : Line.Branches[Plan.Edge(edge).Branch].Local;
 
         /// <summary>The biome at a main-line distance (§13.1).</summary>
-        public string BiomeAt(double s)
-        {
-            foreach (var b in Plan.Biomes)
-                if (b.Edge == "main" && s >= b.S0 && s < b.S1)
-                    return b.Biome;
-            return Plan.Biomes.Count > 0 ? Plan.Biomes[^1].Biome : "farmland";
-        }
+        public string BiomeAt(double s) => BiomeOf(Plan, s);
 
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
+    }
+
+    /// <summary>A plan's biome at a main-line distance (§13.1).</summary>
+    static string BiomeOf(LinePlan plan, double s)
+    {
+        foreach (var b in plan.Biomes)
+            if (b.Edge == "main" && s >= b.S0 && s < b.S1)
+                return b.Biome;
+        return plan.Biomes.Count > 0 ? plan.Biomes[^1].Biome : "farmland";
     }
 
     static readonly ConditionalWeakTable<Route, PlanScene> Scenes = new();
@@ -82,6 +85,26 @@ public sealed partial class WorldArt
 
     /// <summary>A generated line's biome at a main-line distance (linegen plan §13.1), or null for a hand-laid one.</summary>
     public static string? BiomeAt(Route? route, double s) => Scene(route)?.BiomeAt(s);
+
+    /// <summary>
+    /// Whether <paramref name="eye"/> is within <paramref name="reach"/> metres of a brass field on a generated line (its
+    /// crystals, <see cref="Brass"/>): where the air carries its dust (Effects.Corruption's <c>Air.Brass</c>).
+    /// </summary>
+    public static bool NearBrass(Route? route, Double3 eye, double reach = 35)
+    {
+        if (Scene(route) is not { } p)
+            return false;
+        foreach (var st in p.Plan.Structures)
+        {
+            if (st.Type != StructureType.BrassField)
+                continue;
+            var line = p.EdgeLine(st.Edge);
+            for (double s = st.S0 - reach; s <= st.S1 + reach; s += 10)
+                if ((line.Sample(Math.Clamp(s, 0, line.Length)).Position - eye).Length < reach)
+                    return true;
+        }
+        return false;
+    }
 
     static float SmoothStep(float a, float b, float x)
     {
@@ -117,22 +140,25 @@ public sealed partial class WorldArt
     /// </summary>
     (int Ground, int Rock) BiomeGround(PlanScene p, double s)
     {
-        // biomes.json names the textures (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's names
-        // are the splat families they stood for.
-        string Texture(string? name) => name switch
-        {
-            null => "ground_grass",
-            "deadGrass" => "ground_grass",
-            "soil" => "ground_forest",
-            "mud" => "ground_mud",
-            "rock" => "rock_cliff",
-            "cinder" => "slag",
-            _ => name,
-        };
         var def = p.Biome(s);
-        int ground = _look.Layer(Texture(def?.Ground)), second = _look.Layer(Texture(def?.Materials.FirstOrDefault() ?? "rock"));
+        int ground = _look.Layer(BiomeTexture(def?.Ground)), second = _look.Layer(BiomeTexture(def?.Materials.FirstOrDefault() ?? "rock"));
         return (ground >= 0 ? ground : _look.Layer("ground_grass"), second >= 0 ? second : _look.Layer("rock_cliff"));
     }
+
+    /// <summary>
+    /// A biome's texture by its biomes.json name (the Maritime ground, tools/art/texgen/mat_maritime.py); an older plan's
+    /// names are the splat families they stood for.
+    /// </summary>
+    static string BiomeTexture(string? name) => name switch
+    {
+        null => "ground_grass",
+        "deadGrass" => "ground_grass",
+        "soil" => "ground_forest",
+        "mud" => "ground_mud",
+        "rock" => "rock_cliff",
+        "cinder" => "slag",
+        _ => name,
+    };
 
     /// <summary>
     /// How far the land gives way to its biome's second ground at a world point: on the steep (the slope), and in
@@ -221,12 +247,15 @@ public sealed partial class WorldArt
             return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
-        MeshAsset Tree(string kind, int v) => kind switch
+        // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
+        // the crossed cards.
+        MeshAsset Tree(string kind, int v, bool near) => kind switch
         {
             "fir" => Piece($"fir-{v}", () => NovaKit.Conifer(_look, v, 12, 0.46f)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
             "tamarack" => Piece($"tamarack-{v}", () => NovaKit.Conifer(_look, v, 12, 0.26f)),
+            _ when near => Piece($"spruce3d-{v}", () => WorldKit.Spruce(_look, v, 12)),
             _ => Piece($"spruce-{v}", () => NovaKit.Conifer(_look, v, 12, 0.3f)),
         };
 
@@ -276,16 +305,32 @@ public sealed partial class WorldArt
                     continue; // nothing grows on the crag
                 MeshAsset piece = dead
                     ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Tree(kind, variant);
+                    : Tree(kind, variant, Math.Abs(offset) < NearSpruce);
                 if (dead)
                     (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
                 if (kind == "birch" && !dead)
                     (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
                 // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
                 var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
+                // The corruption's trees (GDD §30): charred black and sweating, the brass breaking out through the bark up
+                // the trunk as well as heaped at the foot.
+                if (corrupted)
+                    tint = new Vector3(0.32f, 0.24f, 0.2f);
                 mesh.Append(piece, m, tint);
                 if (corrupted)
-                    mesh.Append(Piece($"brass-{variant % 3}", () => BrassCluster(_look, variant % 3)), Place(along + 0.6, offset, yaw, 0.9f, 0.05f).M);
+                {
+                    // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
+                    var brass = Piece($"growth-{variant % 3}", () => BrassCluster(_look, variant % 3, glow: 0.4f));
+                    var glint = new Vector3(1.6f, 1.35f, 0.8f);
+                    mesh.Append(brass, Place(along + 0.6, offset, yaw, 2.6f, 0.05f).M, glint);
+                    var trunk = Place(along, offset, yaw, 1, 0.05f).M;
+                    for (int b = 0; b < 3; b++)
+                    {
+                        float up = height * (0.2f + 0.22f * b), turn = yaw + b * 2.1f;
+                        mesh.Append(brass, Matrix4x4.CreateScale(2.2f - 0.4f * b) * Matrix4x4.CreateRotationZ(1.2f) * Matrix4x4.CreateRotationY(turn)
+                            * Matrix4x4.CreateTranslation(0, up, 0) * trunk, glint);
+                    }
+                }
             }
             // The stand's mass behind the single trees: walls of packed spires where a stand runs on out from the
             // line, one at its near edge's depth and one deep in it, so the forest has a body and a serrated top.
@@ -892,6 +937,8 @@ public sealed partial class WorldArt
 
     static Vector3 F(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
 
+    // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
+    const double NearSpruce = 40;
     // The causeway's bank, along: a stretch at a time.
     const double BankStep = 5;
     // (WorldArt's ground laterals from the bed's shoulder out: the pitching lies on the same facets the land's mesh has.)
@@ -1108,11 +1155,11 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A cluster of brass crystal: faceted spikes leaning out of one root, and brass weeds round its foot.</summary>
-    static MeshAsset BrassCluster(Look? look, int variant)
+    static MeshAsset BrassCluster(Look? look, int variant, float glow = 0.05f)
     {
         var k = new Kit(look, 1500 + variant);
         k.Use("mineral_growth", Palette.TarnishedBrass, 0.2f, 0.7f, tile: 0.8f);
-        k.Emissive = 0.05f;
+        k.Emissive = glow;
         var rng = new Random(variant * 977 + 3);
         int spikes = 4 + variant * 2;
         for (int i = 0; i < spikes; i++)
@@ -1147,7 +1194,13 @@ public sealed partial class WorldArt
             var mid = line.Sample(Math.Clamp((w.S0 + w.S1) / 2, 0, line.Length));
             if ((mid.Position - eye).Length > drawDistance + 150)
                 continue;
-            k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
+            // The tar ponds (biomes.json contaminatedMarsh, GDD §30): not water. Black pitch, glossy as a mirror,
+            // an oil film's colours on it and its slow bubbles: a marsh you'd not wade.
+            bool tar = w.Type == "contaminatedMarsh" || p.BiomeAt((w.S0 + w.S1) / 2) == "contaminatedMarsh";
+            if (tar)
+                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
+            else
+                k.Tint = w.Type == "tidal" ? mud : w.Type == "river" ? peat : new Vector3(0.9f, 0.95f, 0.9f);
             bool river = w.Type is "river" or "tidal";
             // A river runs across under the span and on down its valley either way into the far land (note 138); a marsh
             // lies beside the bed.
@@ -1167,8 +1220,12 @@ public sealed partial class WorldArt
                     var q2 = P(b, rb, reach);
                     var q3 = P(b, rb, inner);
                     k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
+                    if (tar)
+                        TarFilm(k, a, ra, side, w.LevelM, s, eye);
                 }
             }
+            if (tar)
+                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
         }
         // Lakes: a disc a little past the shore at the water's level; the land's own shore hides what's outside it.
         k.Tint = peat;
@@ -1180,6 +1237,11 @@ public sealed partial class WorldArt
                 continue;
             const int n = 40;
             var centre = c.RelativeTo(eye);
+            // A lake in the tar ponds' country is one of them: pitch, not peat water.
+            var near = p.Terrain.Nearby(lake.X, lake.Z, 700).Where(q => q.Edge == 0).OrderBy(q => Math.Abs(q.Lateral)).FirstOrDefault();
+            bool tar = p.BiomeAt(near.S) == "contaminatedMarsh";
+            if (tar)
+                k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
             Vector3 Rim(int i)
             {
                 double a = i * Math.Tau / n, u = Math.Cos(a) * lake.RadiusM * lake.Stretch, v = Math.Sin(a) * lake.RadiusM;
@@ -1192,13 +1254,44 @@ public sealed partial class WorldArt
                 var b = Rim(i + 1);
                 k.Quad(centre, a, b, centre, new Vector2(centre.X, centre.Z), new Vector2(a.X, a.Z), new Vector2(b.X, b.Z), new Vector2(centre.X, centre.Z), twoSided: true);
             }
+            if (tar)
+            {
+                var sheen = k.Tint;
+                var rng = new Random(lake.Id.GetHashCode(StringComparison.Ordinal) & 0xffff);
+                for (int i = 0; i < 6; i++)
+                {
+                    double a = rng.NextDouble() * Math.Tau, d = Math.Sqrt(rng.NextDouble()) * lake.RadiusM * 0.8;
+                    var at = new Double3(lake.X + Math.Cos(a) * d, lake.LevelM, lake.Z + Math.Sin(a) * d);
+                    TarSpot(k, at, rng, eye);
+                }
+                k.Tint = sheen;
+                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
+                k.Tint = peat;
+            }
         }
         // Shores: the sea from just inside the water's edge out into the fog, along the shore and past its tapered ends.
         foreach (var sh in p.Plan.Shores)
         {
             var line = p.EdgeLine(sh.Edge);
             double taper = p.Plan.Rules.Terrain.Shore.TaperM;
-            k.Tint = sh.Kind == ShoreKind.Sea ? slate : sh.Kind == ShoreKind.River ? peat : mud;
+            var tint = sh.Kind == ShoreKind.Sea ? slate : sh.Kind == ShoreKind.River ? peat : mud;
+            k.Tint = tint;
+            // Where it runs through the tar ponds' country the shore's water is pitch out into the fog, filmed and blistered.
+            bool pitch = false;
+            void Pitch(double s)
+            {
+                bool tar = p.BiomeAt(Math.Clamp(s, 0, line.Length)) == "contaminatedMarsh";
+                if (tar == pitch)
+                    return;
+                pitch = tar;
+                if (tar)
+                    k.Use(_look?.Layer("tar") >= 0 ? "tar" : "water_dark", new Vector3(0.02f, 0.02f, 0.02f), PitchWear, 0.55f, tile: 9).Shade(0.3f);
+                else
+                {
+                    k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
+                    k.Tint = tint;
+                }
+            }
             if (sh.Kind == ShoreKind.River)
             {
                 // A river: a ribbon between its banks, falling with the rail, along its meander.
@@ -1217,6 +1310,7 @@ public sealed partial class WorldArt
                     var q1 = R(a, ra, da + sh.FlatM + 4);
                     var q2 = R(b, rb, db + sh.FlatM + 4);
                     var q3 = R(b, rb, db - 4);
+                    Pitch(s);
                     k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
                 }
                 continue;
@@ -1232,6 +1326,10 @@ public sealed partial class WorldArt
                 var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized * sh.Side;
                 double inner = Math.Max(sh.NearM * 0.5, 12);
                 Vector3 P(TrackSample t, Double3 r, double l) => (new Double3(t.Position.X, sh.LevelM, t.Position.Z) + r * l).RelativeTo(eye);
+                Pitch(s);
+                if (pitch && (a.Position - eye).Length < drawDistance)
+                    for (int i = 0; i < 2; i++)
+                        TarFilm(k, a, ra, 1, sh.LevelM, s + i * 10, eye);
                 foreach (var (l0, l1) in new[] { (inner, 300.0), (300.0, 1500.0) })
                 {
                     var q0 = P(a, ra, l0);
@@ -1241,7 +1339,56 @@ public sealed partial class WorldArt
                     k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
                 }
             }
+            if (pitch)
+                k.Use(_look?.Layer("water_dark") >= 0 ? "water_dark" : "tar", new Vector3(0.05f, 0.06f, 0.07f), 0.05f, 0.9f, tile: 29);
         }
+    }
+
+    /// <summary>Tar's wear: the band below 0.015 scene.frag reads as pitch, which no frost rimes.</summary>
+    const float PitchWear = 0.01f;
+
+    /// <summary>On a tar pond's 10 m of shore: its oil film and bubbles, seeded by where they lie so they stay put.</summary>
+    static void TarFilm(Kit k, TrackSample a, Double3 right, int side, double level, double s, Double3 eye)
+    {
+        var rng = new Random((int)(s * 7.31) ^ (side * 7919));
+        var tint = k.Tint;
+        for (int i = 0; i < 2; i++)
+        {
+            double along = rng.NextDouble() * 10, lat = 6 + rng.NextDouble() * 60;
+            TarSpot(k, new Double3(a.Position.X, level, a.Position.Z) + a.Tangent * along + right * (side * lat), rng, eye);
+        }
+        k.Tint = tint;
+    }
+
+    /// <summary>A spot on tar: a skin of oil film in bruise colours, violet into bottle green, and a few low blisters of
+    /// pitch round it, black and wet.</summary>
+    static void TarSpot(Kit k, Double3 c, Random rng, Double3 eye)
+    {
+        double rx = 3 + rng.NextDouble() * 6, rz = 1.5 + rng.NextDouble() * 4, turn = rng.NextDouble() * Math.Tau;
+        var tint = k.Tint;
+        // The film catches what light there is: a faint glint of its own so it reads on black pitch at night.
+        k.Tint = Vector3.Lerp(new Vector3(0.5f, 0.25f, 0.7f), new Vector3(0.2f, 0.6f, 0.4f), (float)rng.NextDouble()) * 0.9f;
+        k.Emissive = 0.05f;
+        Vector3 E(double t) => new Double3(c.X + Math.Cos(t + turn) * rx * Math.Cos(turn) - Math.Sin(t + turn) * rz * Math.Sin(turn),
+            c.Y + 0.02, c.Z + Math.Cos(t + turn) * rx * Math.Sin(turn) + Math.Sin(t + turn) * rz * Math.Cos(turn)).RelativeTo(eye);
+        var o = (c + new Double3(0, 0.02, 0)).RelativeTo(eye);
+        const int n = 8;
+        for (int j = 0; j < n; j++)
+        {
+            var p0 = E(j * Math.Tau / n);
+            var p1 = E((j + 1) * Math.Tau / n);
+            k.Quad(o, p0, p1, o, new Vector2(o.X, o.Z), new Vector2(p0.X, p0.Z), new Vector2(p1.X, p1.Z), new Vector2(o.X, o.Z), twoSided: true);
+        }
+        k.Emissive = 0;
+        k.Tint = tint * 0.6f;
+        for (int i = 0; i < 5; i++)
+        {
+            double a = rng.NextDouble() * Math.Tau, d = rng.NextDouble() * (rx + 1);
+            float r = 0.25f + (float)rng.NextDouble() * 0.5f;
+            var b = (c + new Double3(Math.Cos(a) * d, 0, Math.Sin(a) * d)).RelativeTo(eye);
+            k.Cylinder(b, b + new Vector3(0, r * 0.5f, 0), r, 7, caps: true, radiusB: r * 0.55f);
+        }
+        k.Tint = tint;
     }
 
     // Far land (note 138): past the corridor's ground (WorldArt.PlanLateral's 300 m), low hills on to the horizon, and
@@ -1355,7 +1502,49 @@ public sealed partial class WorldArt
             if (town.Type == "town")
                 Place(mesh, p, line, rng.Next(2) == 0 ? Piece("church", () => TownKit.Church(_look)) : Piece("windmill", () => TownKit.Windmill(_look)),
                     mid, (rng.Next(2) == 0 ? -1 : 1) * 45, (float)rng.NextDouble(), eye);
+            if (town.Type == "town")
+                DeadTown(mesh, p, line, town.Name, mid, eye);
         }
+    }
+
+    /// <summary>
+    /// A dead town's rooms open to the line (the checklist's dead towns: "readable from a moving train"), as a hand-laid
+    /// route's villages have them (WorldArt.Settlements): a house nearest the line with its front wall gone and the child's
+    /// room in it, the bedside lamp on; further along the parlour laid out for a wake; across the line the photographer's,
+    /// the dead boy propped for his portrait; the churchyard's cadaver saint and tombs, a defaced statue in the square.
+    /// Hashed on the town's name so every machine dresses it alike.
+    /// </summary>
+    void DeadTown(MeshBuilder mesh, PlanScene p, RailLine line, string name, double mid, Double3 eye)
+    {
+        float h = name.Aggregate(17, (a, c) => a * 37 + c) * 0.0001f;
+        int side = Hash(h * 1.3f) < 0.5f ? -1 : 1;
+        void Room(string prop, double along, double across, float light, float range, Vector3 colour)
+        {
+            if (_props.Get(prop) is not { } room)
+                return;
+            var t = line.Sample(Math.Clamp(along, 0, line.Length));
+            var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * across;
+            if (p.Terrain.WaterAt(at.X, at.Z) is not null)
+                return;
+            at = at with { Y = p.Terrain.Height(at.X, at.Z) - 0.1 };
+            var m = Basis(t.Tangent, at, eye, across > 0 ? MathF.PI / 2 : -MathF.PI / 2);
+            mesh.Instances.Add(new MeshInstance(room, m));
+            if (_props.Socket(prop, "lamp") is { } lamp)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), colour * light, range));
+        }
+        Room("boy_room", mid - 40, side * (15 + Hash(h * 2.1f) * 4), 1.6f, 6.5f, new Vector3(1.0f, 0.72f, 0.42f));
+        if (Hash(h * 3.7f) < 0.7f)
+            Room("wake_room", mid + 42, side * (16 + Hash(h * 4.3f) * 3), 0.9f, 4.5f, new Vector3(1.0f, 0.74f, 0.46f));
+        if (Hash(h * 5.9f) < 0.6f)
+            Room("portrait_room", mid - 4, -side * (17 + Hash(h * 6.1f) * 3), 0.9f, 4.0f, new Vector3(1.0f, 0.7f, 0.4f));
+        // The churchyard by the line: the cadaver saint at its gate, the tombs between it and the rails.
+        if (_props.Get("transi") is { } saint)
+            Place(mesh, p, line, saint, mid + 20, side * 30, 0, eye);
+        if (_props.Get("effigy") is { } tomb)
+            for (int i = 0; i < 3; i++)
+                Place(mesh, p, line, tomb, mid + 8 + i * 9, side * (19 + Hash(h * (7 + i)) * 5), MathF.PI / 2, eye);
+        if (_props.Get("mercury_defaced") is { } square)
+            Place(mesh, p, line, square, mid, -side * 26, Hash(h * 9.1f) - 0.5f, eye);
     }
 
     void Place(MeshBuilder mesh, PlanScene p, RailLine line, MeshAsset piece, double s, double lateral, float yaw, Double3 eye)

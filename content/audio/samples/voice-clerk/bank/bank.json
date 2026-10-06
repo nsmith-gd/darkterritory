@@ -1,0 +1,1072 @@
+// The clerk's vocabulary (tools/audio/clerk.py; note 240): each phrase or word, its take, and how long it runs.
+{
+ "entries": {
+  "abattoir": {
+   "file": "abattoir",
+   "said": "abattoir",
+   "seconds": 0.575
+  },
+  "achebe": {
+   "file": "achebe",
+   "said": "Ah-chay-bay",
+   "seconds": 0.471
+  },
+  "aldous": {
+   "file": "aldous",
+   "said": "aldous",
+   "seconds": 0.515
+  },
+  "ambrose": {
+   "file": "ambrose",
+   "said": "ambrose",
+   "seconds": 0.49
+  },
+  "ashby": {
+   "file": "ashby",
+   "said": "ashby",
+   "seconds": 0.492
+  },
+  "ashgrove": {
+   "file": "ashgrove",
+   "said": "ashgrove",
+   "seconds": 0.53
+  },
+  "at": {
+   "file": "at",
+   "said": "at",
+   "seconds": 0.193
+  },
+  "bend": {
+   "file": "bend",
+   "said": "bend",
+   "seconds": 0.35
+  },
+  "blackwell": {
+   "file": "blackwell",
+   "said": "blackwell",
+   "seconds": 0.465
+  },
+  "body not recovered": {
+   "file": "body-not-recovered",
+   "said": "body not recovered",
+   "seconds": 0.86
+  },
+  "body recovered": {
+   "file": "body-recovered",
+   "said": "body recovered",
+   "seconds": 0.737
+  },
+  "bramwell": {
+   "file": "bramwell",
+   "said": "bramwell",
+   "seconds": 0.471
+  },
+  "brennan": {
+   "file": "brennan",
+   "said": "brennan",
+   "seconds": 0.396
+  },
+  "bridge": {
+   "file": "bridge",
+   "said": "bridge",
+   "seconds": 0.397
+  },
+  "brook": {
+   "file": "brook",
+   "said": "brook",
+   "seconds": 0.311
+  },
+  "car": {
+   "file": "car",
+   "said": "car",
+   "seconds": 0.298
+  },
+  "cargo": {
+   "file": "cargo",
+   "said": "cargo",
+   "seconds": 0.399
+  },
+  "carr": {
+   "file": "carr",
+   "said": "carr",
+   "seconds": 0.318
+  },
+  "carrow": {
+   "file": "carrow",
+   "said": "carrow",
+   "seconds": 0.334
+  },
+  "cars": {
+   "file": "cars",
+   "said": "cars",
+   "seconds": 0.421
+  },
+  "cars delivered": {
+   "file": "cars-delivered",
+   "said": "cars delivered",
+   "seconds": 0.652
+  },
+  "cars lost": {
+   "file": "cars-lost",
+   "said": "cars lost",
+   "seconds": 0.683
+  },
+  "castell": {
+   "file": "castell",
+   "said": "castell",
+   "seconds": 0.426
+  },
+  "cause not established": {
+   "file": "cause-not-established",
+   "said": "cause not established",
+   "seconds": 1.063
+  },
+  "chemical": {
+   "file": "chemical",
+   "said": "chemical",
+   "seconds": 0.438
+  },
+  "chemicals": {
+   "file": "chemicals",
+   "said": "chemicals",
+   "seconds": 0.568
+  },
+  "child survivor": {
+   "file": "child-survivor",
+   "said": "child survivor",
+   "seconds": 0.779
+  },
+  "child survivors": {
+   "file": "child-survivors",
+   "said": "child survivors",
+   "seconds": 0.966
+  },
+  "coal": {
+   "file": "coal",
+   "said": "coal",
+   "seconds": 0.251
+  },
+  "coaling": {
+   "file": "coaling",
+   "said": "coaling",
+   "seconds": 0.398
+  },
+  "colliery": {
+   "file": "colliery",
+   "said": "colliery",
+   "seconds": 0.471
+  },
+  "combe": {
+   "file": "combe",
+   "said": "Coom",
+   "seconds": 0.29
+  },
+  "comet-derived material": {
+   "file": "comet-derived-material",
+   "said": "comet-derived material",
+   "seconds": 1.301
+  },
+  "consist derailed": {
+   "file": "consist-derailed",
+   "said": "consist derailed",
+   "seconds": 0.916
+  },
+  "consist received": {
+   "file": "consist-received",
+   "said": "consist received",
+   "seconds": 0.853
+  },
+  "consist reported stranded": {
+   "file": "consist-reported-stranded",
+   "said": "consist reported stranded",
+   "seconds": 1.274
+  },
+  "cotter": {
+   "file": "cotter",
+   "said": "cotter",
+   "seconds": 0.357
+  },
+  "crane": {
+   "file": "crane",
+   "said": "crane",
+   "seconds": 0.366
+  },
+  "crew": {
+   "file": "crew",
+   "said": "crew",
+   "seconds": 0.28
+  },
+  "cross": {
+   "file": "cross",
+   "said": "cross",
+   "seconds": 0.404
+  },
+  "crossing": {
+   "file": "crossing",
+   "said": "crossing",
+   "seconds": 0.462
+  },
+  "depot": {
+   "file": "depot",
+   "said": "depot",
+   "seconds": 0.418
+  },
+  "drury": {
+   "file": "drury",
+   "said": "Droo-ree",
+   "seconds": 0.447
+  },
+  "dunmore": {
+   "file": "dunmore",
+   "said": "dunmore",
+   "seconds": 0.429
+  },
+  "duval": {
+   "file": "duval",
+   "said": "duval",
+   "seconds": 0.363
+  },
+  "eight": {
+   "file": "eight",
+   "said": "eight",
+   "seconds": 0.322
+  },
+  "eighteen": {
+   "file": "eighteen",
+   "said": "eighteen",
+   "seconds": 0.476
+  },
+  "eighty": {
+   "file": "eighty",
+   "said": "eighty",
+   "seconds": 0.324
+  },
+  "elevator": {
+   "file": "elevator",
+   "said": "elevator",
+   "seconds": 0.523
+  },
+  "eleven": {
+   "file": "eleven",
+   "said": "eleven",
+   "seconds": 0.407
+  },
+  "emory": {
+   "file": "emory",
+   "said": "emory",
+   "seconds": 0.405
+  },
+  "fee": {
+   "file": "fee",
+   "said": "fee",
+   "seconds": 0.25
+  },
+  "fell": {
+   "file": "fell",
+   "said": "fell",
+   "seconds": 0.338
+  },
+  "fenwick": {
+   "file": "fenwick",
+   "said": "fenwick",
+   "seconds": 0.422
+  },
+  "fifteen": {
+   "file": "fifteen",
+   "said": "fifteen",
+   "seconds": 0.481
+  },
+  "fifty": {
+   "file": "fifty",
+   "said": "fifty",
+   "seconds": 0.391
+  },
+  "finch": {
+   "file": "finch",
+   "said": "finch",
+   "seconds": 0.398
+  },
+  "firebox last tended": {
+   "file": "firebox-last-tended",
+   "said": "firebox last tended",
+   "seconds": 1.076
+  },
+  "five": {
+   "file": "five",
+   "said": "five",
+   "seconds": 0.377
+  },
+  "food": {
+   "file": "food",
+   "said": "food",
+   "seconds": 0.339
+  },
+  "ford": {
+   "file": "ford",
+   "said": "ford",
+   "seconds": 0.395
+  },
+  "fort": {
+   "file": "fort",
+   "said": "fort",
+   "seconds": 0.313
+  },
+  "forty": {
+   "file": "forty",
+   "said": "forty",
+   "seconds": 0.347
+  },
+  "forward cannon crewed by": {
+   "file": "forward-cannon-crewed-by",
+   "said": "forward cannon crewed by",
+   "seconds": 1.213
+  },
+  "forward cannon not crewed": {
+   "file": "forward-cannon-not-crewed",
+   "said": "forward cannon not crewed",
+   "seconds": 1.462
+  },
+  "foundry": {
+   "file": "foundry",
+   "said": "foundry",
+   "seconds": 0.46
+  },
+  "four": {
+   "file": "four",
+   "said": "four",
+   "seconds": 0.296
+  },
+  "fourteen": {
+   "file": "fourteen",
+   "said": "fourteen",
+   "seconds": 0.504
+  },
+  "freight": {
+   "file": "freight",
+   "said": "freight",
+   "seconds": 0.261
+  },
+  "from the train": {
+   "file": "from-the-train",
+   "said": "from the train",
+   "seconds": 0.641
+  },
+  "galloway": {
+   "file": "galloway",
+   "said": "galloway",
+   "seconds": 0.511
+  },
+  "gantry": {
+   "file": "gantry",
+   "said": "gantry",
+   "seconds": 0.446
+  },
+  "garrick": {
+   "file": "garrick",
+   "said": "garrick",
+   "seconds": 0.393
+  },
+  "gates open": {
+   "file": "gates-open",
+   "said": "gates open",
+   "seconds": 0.579
+  },
+  "gave way under car": {
+   "file": "gave-way-under-car",
+   "said": "gave way under car",
+   "seconds": 0.904
+  },
+  "gill": {
+   "file": "gill",
+   "said": "gill",
+   "seconds": 0.266
+  },
+  "girders": {
+   "file": "girders",
+   "said": "girders",
+   "seconds": 0.452
+  },
+  "goods": {
+   "file": "goods",
+   "said": "goods",
+   "seconds": 0.33
+  },
+  "grain": {
+   "file": "grain",
+   "said": "grain",
+   "seconds": 0.393
+  },
+  "grieve": {
+   "file": "grieve",
+   "said": "grieve",
+   "seconds": 0.395
+  },
+  "gunpowder and shot": {
+   "file": "gunpowder-and-shot",
+   "said": "gunpowder and shot",
+   "seconds": 1.048
+  },
+  "halloran": {
+   "file": "halloran",
+   "said": "halloran",
+   "seconds": 0.444
+  },
+  "halloway": {
+   "file": "halloway",
+   "said": "halloway",
+   "seconds": 0.427
+  },
+  "halt": {
+   "file": "halt",
+   "said": "halt",
+   "seconds": 0.361
+  },
+  "harlan": {
+   "file": "harlan",
+   "said": "harlan",
+   "seconds": 0.402
+  },
+  "harrow": {
+   "file": "harrow",
+   "said": "harrow",
+   "seconds": 0.289
+  },
+  "heath": {
+   "file": "heath",
+   "said": "heath",
+   "seconds": 0.313
+  },
+  "hensley": {
+   "file": "hensley",
+   "said": "hensley",
+   "seconds": 0.456
+  },
+  "hollow": {
+   "file": "hollow",
+   "said": "hollow",
+   "seconds": 0.406
+  },
+  "holt": {
+   "file": "holt",
+   "said": "holt",
+   "seconds": 0.349
+  },
+  "hundred": {
+   "file": "hundred",
+   "said": "hundred",
+   "seconds": 0.383
+  },
+  "ingram": {
+   "file": "ingram",
+   "said": "ingram",
+   "seconds": 0.442
+  },
+  "jessop": {
+   "file": "jessop",
+   "said": "jessop",
+   "seconds": 0.344
+  },
+  "junction": {
+   "file": "junction",
+   "said": "junction",
+   "seconds": 0.469
+  },
+  "kell": {
+   "file": "kell",
+   "said": "kell",
+   "seconds": 0.291
+  },
+  "kessel": {
+   "file": "kessel",
+   "said": "kessel",
+   "seconds": 0.379
+  },
+  "kettering": {
+   "file": "kettering",
+   "said": "kettering",
+   "seconds": 0.357
+  },
+  "kilometre": {
+   "file": "kilometre",
+   "said": "kilometre",
+   "seconds": 0.518
+  },
+  "kilometres an hour": {
+   "file": "kilometres-an-hour",
+   "said": "kilometres an hour",
+   "seconds": 0.847
+  },
+  "lindqvist": {
+   "file": "lindqvist",
+   "said": "lindqvist",
+   "seconds": 0.45
+  },
+  "livestock": {
+   "file": "livestock",
+   "said": "livestock",
+   "seconds": 0.592
+  },
+  "lomax": {
+   "file": "lomax",
+   "said": "lomax",
+   "seconds": 0.523
+  },
+  "lusk": {
+   "file": "lusk",
+   "said": "lusk",
+   "seconds": 0.444
+  },
+  "machine parts": {
+   "file": "machine-parts",
+   "said": "machine parts",
+   "seconds": 0.855
+  },
+  "maddox": {
+   "file": "maddox",
+   "said": "maddox",
+   "seconds": 0.532
+  },
+  "mail": {
+   "file": "mail",
+   "said": "mail",
+   "seconds": 0.395
+  },
+  "manifest follows": {
+   "file": "manifest-follows",
+   "said": "manifest follows",
+   "seconds": 0.955
+  },
+  "marrin": {
+   "file": "marrin",
+   "said": "marrin",
+   "seconds": 0.437
+  },
+  "marsh": {
+   "file": "marsh",
+   "said": "marsh",
+   "seconds": 0.388
+  },
+  "medicine": {
+   "file": "medicine",
+   "said": "medicine",
+   "seconds": 0.431
+  },
+  "mercer": {
+   "file": "mercer",
+   "said": "mercer",
+   "seconds": 0.422
+  },
+  "mere": {
+   "file": "mere",
+   "said": "mere",
+   "seconds": 0.385
+  },
+  "metres": {
+   "file": "metres",
+   "said": "metres",
+   "seconds": 0.447
+  },
+  "mile": {
+   "file": "mile",
+   "said": "mile",
+   "seconds": 0.403
+  },
+  "mill": {
+   "file": "mill",
+   "said": "mill",
+   "seconds": 0.292
+  },
+  "million": {
+   "file": "million",
+   "said": "million",
+   "seconds": 0.462
+  },
+  "minus": {
+   "file": "minus",
+   "said": "minus",
+   "seconds": 0.46
+  },
+  "moreau": {
+   "file": "moreau",
+   "said": "Mor-oh",
+   "seconds": 0.496
+  },
+  "morrow": {
+   "file": "morrow",
+   "said": "morrow",
+   "seconds": 0.398
+  },
+  "moss": {
+   "file": "moss",
+   "said": "moss",
+   "seconds": 0.418
+  },
+  "nance": {
+   "file": "nance",
+   "said": "nance",
+   "seconds": 0.465
+  },
+  "net": {
+   "file": "net",
+   "said": "net",
+   "seconds": 0.312
+  },
+  "next": {
+   "file": "next",
+   "said": "next",
+   "seconds": 0.424
+  },
+  "nine": {
+   "file": "nine",
+   "said": "nine",
+   "seconds": 0.367
+  },
+  "nineteen": {
+   "file": "nineteen",
+   "said": "nineteen",
+   "seconds": 0.538
+  },
+  "ninety": {
+   "file": "ninety",
+   "said": "ninety",
+   "seconds": 0.459
+  },
+  "no forward cannon on the consist": {
+   "file": "no-forward-cannon-on-the-consist",
+   "said": "no forward cannon on the consist",
+   "seconds": 1.626
+  },
+  "nobody had tended the firebox": {
+   "file": "nobody-had-tended-the-firebox",
+   "said": "nobody had tended the firebox",
+   "seconds": 1.432
+  },
+  "nobody on the throttle": {
+   "file": "nobody-on-the-throttle",
+   "said": "nobody on the throttle",
+   "seconds": 0.85
+  },
+  "oakes": {
+   "file": "oakes",
+   "said": "oakes",
+   "seconds": 0.428
+  },
+  "okafor": {
+   "file": "okafor",
+   "said": "Oh-kah-for",
+   "seconds": 0.662
+  },
+  "oldcastle": {
+   "file": "oldcastle",
+   "said": "oldcastle",
+   "seconds": 0.622
+  },
+  "one": {
+   "file": "one",
+   "said": "one",
+   "seconds": 0.332
+  },
+  "ore": {
+   "file": "ore",
+   "said": "ore",
+   "seconds": 0.327
+  },
+  "orme": {
+   "file": "orme",
+   "said": "orme",
+   "seconds": 0.305
+  },
+  "over": {
+   "file": "over",
+   "said": "over",
+   "seconds": 0.346
+  },
+  "paid": {
+   "file": "paid",
+   "said": "paid",
+   "seconds": 0.325
+  },
+  "pell": {
+   "file": "pell",
+   "said": "pell",
+   "seconds": 0.293
+  },
+  "penrose": {
+   "file": "penrose",
+   "said": "penrose",
+   "seconds": 0.562
+  },
+  "petrov": {
+   "file": "petrov",
+   "said": "petrov",
+   "seconds": 0.584
+  },
+  "powder and shot": {
+   "file": "powder-and-shot",
+   "said": "powder and shot",
+   "seconds": 0.767
+  },
+  "pritchard": {
+   "file": "pritchard",
+   "said": "pritchard",
+   "seconds": 0.39
+  },
+  "pryor": {
+   "file": "pryor",
+   "said": "pryor",
+   "seconds": 0.383
+  },
+  "quill": {
+   "file": "quill",
+   "said": "quill",
+   "seconds": 0.33
+  },
+  "radley": {
+   "file": "radley",
+   "said": "radley",
+   "seconds": 0.426
+  },
+  "ran onto the sleepers": {
+   "file": "ran-onto-the-sleepers",
+   "said": "ran onto the sleepers",
+   "seconds": 1.072
+  },
+  "ran onto the washout": {
+   "file": "ran-onto-the-washout",
+   "said": "ran onto the washout",
+   "seconds": 1.016
+  },
+  "recovery at first light": {
+   "file": "recovery-at-first-light",
+   "said": "recovery at first light",
+   "seconds": 1.297
+  },
+  "recovery is chargeable": {
+   "file": "recovery-is-chargeable",
+   "said": "recovery is chargeable",
+   "seconds": 1.376
+  },
+  "recovery not scheduled": {
+   "file": "recovery-not-scheduled",
+   "said": "recovery not scheduled",
+   "seconds": 1.149
+  },
+  "refund": {
+   "file": "refund",
+   "said": "refund",
+   "seconds": 0.456
+  },
+  "renwick": {
+   "file": "renwick",
+   "said": "renwick",
+   "seconds": 0.435
+  },
+  "repairs": {
+   "file": "repairs",
+   "said": "repairs",
+   "seconds": 0.59
+  },
+  "reyes": {
+   "file": "reyes",
+   "said": "Ray-ez",
+   "seconds": 0.429
+  },
+  "ridge": {
+   "file": "ridge",
+   "said": "ridge",
+   "seconds": 0.398
+  },
+  "rooke": {
+   "file": "rooke",
+   "said": "rooke",
+   "seconds": 0.27
+  },
+  "sallow": {
+   "file": "sallow",
+   "said": "sallow",
+   "seconds": 0.438
+  },
+  "salvage": {
+   "file": "salvage",
+   "said": "salvage",
+   "seconds": 0.528
+  },
+  "scar": {
+   "file": "scar",
+   "said": "scar",
+   "seconds": 0.361
+  },
+  "seconds": {
+   "file": "seconds",
+   "said": "seconds",
+   "seconds": 0.512
+  },
+  "seven": {
+   "file": "seven",
+   "said": "seven",
+   "seconds": 0.413
+  },
+  "seventeen": {
+   "file": "seventeen",
+   "said": "seventeen",
+   "seconds": 0.642
+  },
+  "seventy": {
+   "file": "seventy",
+   "said": "seventy",
+   "seconds": 0.479
+  },
+  "siding": {
+   "file": "siding",
+   "said": "siding",
+   "seconds": 0.439
+  },
+  "six": {
+   "file": "six",
+   "said": "six",
+   "seconds": 0.414
+  },
+  "sixteen": {
+   "file": "sixteen",
+   "said": "sixteen",
+   "seconds": 0.537
+  },
+  "sixty": {
+   "file": "sixty",
+   "said": "sixty",
+   "seconds": 0.476
+  },
+  "stage": {
+   "file": "stage",
+   "said": "stage",
+   "seconds": 0.39
+  },
+  "stroud": {
+   "file": "stroud",
+   "said": "stroud",
+   "seconds": 0.443
+  },
+  "sutter": {
+   "file": "sutter",
+   "said": "sutter",
+   "seconds": 0.403
+  },
+  "talbot": {
+   "file": "talbot",
+   "said": "talbot",
+   "seconds": 0.411
+  },
+  "tally follows": {
+   "file": "tally-follows",
+   "said": "tally follows",
+   "seconds": 0.729
+  },
+  "tarrant": {
+   "file": "tarrant",
+   "said": "tarrant",
+   "seconds": 0.426
+  },
+  "ten": {
+   "file": "ten",
+   "said": "ten",
+   "seconds": 0.337
+  },
+  "the": {
+   "file": "the",
+   "said": "the",
+   "seconds": 0.187
+  },
+  "the stoker ran away with it": {
+   "file": "the-stoker-ran-away-with-it",
+   "said": "the stoker ran away with it",
+   "seconds": 1.233
+  },
+  "the switchman threw the points under it": {
+   "file": "the-switchman-threw-the-points-under-it",
+   "said": "the switchman threw the points under it",
+   "seconds": 1.462
+  },
+  "they throw a train off": {
+   "file": "they-throw-a-train-off",
+   "said": "they throw a train off",
+   "seconds": 0.973
+  },
+  "they'll take": {
+   "file": "they-ll-take",
+   "said": "they'll take",
+   "seconds": 0.52
+  },
+  "thirteen": {
+   "file": "thirteen",
+   "said": "thirteen",
+   "seconds": 0.5
+  },
+  "thirty": {
+   "file": "thirty",
+   "said": "thirty",
+   "seconds": 0.368
+  },
+  "thorne": {
+   "file": "thorne",
+   "said": "thorne",
+   "seconds": 0.363
+  },
+  "thousand": {
+   "file": "thousand",
+   "said": "thousand",
+   "seconds": 0.461
+  },
+  "three": {
+   "file": "three",
+   "said": "three",
+   "seconds": 0.298
+  },
+  "throttle": {
+   "file": "throttle",
+   "said": "throttle",
+   "seconds": 0.43
+  },
+  "timber": {
+   "file": "timber",
+   "said": "timber",
+   "seconds": 0.401
+  },
+  "tolley": {
+   "file": "tolley",
+   "said": "tolley",
+   "seconds": 0.348
+  },
+  "too fast": {
+   "file": "too-fast",
+   "said": "too fast",
+   "seconds": 0.675
+  },
+  "took the": {
+   "file": "took-the",
+   "said": "took the",
+   "seconds": 0.338
+  },
+  "tor": {
+   "file": "tor",
+   "said": "tor",
+   "seconds": 0.31
+  },
+  "trestle": {
+   "file": "trestle",
+   "said": "trestle",
+   "seconds": 0.393
+  },
+  "tunnel": {
+   "file": "tunnel",
+   "said": "tunnel",
+   "seconds": 0.299
+  },
+  "twelve": {
+   "file": "twelve",
+   "said": "twelve",
+   "seconds": 0.371
+  },
+  "twenty": {
+   "file": "twenty",
+   "said": "twenty",
+   "seconds": 0.395
+  },
+  "two": {
+   "file": "two",
+   "said": "two",
+   "seconds": 0.302
+  },
+  "ulland": {
+   "file": "ulland",
+   "said": "ulland",
+   "seconds": 0.401
+  },
+  "unattended": {
+   "file": "unattended",
+   "said": "unattended",
+   "seconds": 0.576
+  },
+  "vane": {
+   "file": "vane",
+   "said": "vane",
+   "seconds": 0.328
+  },
+  "viaduct": {
+   "file": "viaduct",
+   "said": "viaduct",
+   "seconds": 0.446
+  },
+  "vickery": {
+   "file": "vickery",
+   "said": "vickery",
+   "seconds": 0.428
+  },
+  "voss": {
+   "file": "voss",
+   "said": "voss",
+   "seconds": 0.436
+  },
+  "wexley": {
+   "file": "wexley",
+   "said": "wexley",
+   "seconds": 0.454
+  },
+  "whitlow": {
+   "file": "whitlow",
+   "said": "whitlow",
+   "seconds": 0.364
+  },
+  "wold": {
+   "file": "wold",
+   "said": "wold",
+   "seconds": 0.345
+  },
+  "works": {
+   "file": "works",
+   "said": "works",
+   "seconds": 0.413
+  },
+  "wreck": {
+   "file": "wreck",
+   "said": "wreck",
+   "seconds": 0.319
+  },
+  "wren": {
+   "file": "wren",
+   "said": "wren",
+   "seconds": 0.34
+  },
+  "yard": {
+   "file": "yard",
+   "said": "yard",
+   "seconds": 0.336
+  },
+  "yard clerk": {
+   "file": "yard-clerk",
+   "said": "yard clerk",
+   "seconds": 0.681
+  },
+  "yard out": {
+   "file": "yard-out",
+   "said": "yard out",
+   "seconds": 0.46
+  },
+  "yard to consist": {
+   "file": "yard-to-consist",
+   "said": "yard to consist",
+   "seconds": 0.851
+  },
+  "yeld": {
+   "file": "yeld",
+   "said": "yeld",
+   "seconds": 0.379
+  },
+  "zero": {
+   "file": "zero",
+   "said": "zero",
+   "seconds": 0.405
+  }
+ },
+ "speaker": 385,
+ "voice": "a low, even man's voice"
+}

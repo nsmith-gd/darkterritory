@@ -22,6 +22,23 @@ public class LinesideArtTests
         new(new TrainDynamics(Consist.Uniform(Tuning, 4, 1)), RailLine.Load(Path.Combine(Content, "lines/test-loop.json")), 1200);
 
     [Fact]
+    public void TheNearSpruceIsModelledNarrowAndMassed()
+    {
+        // WorldKit.Spruce (the 5 October audit: from the chase camera the crossed cards read as a column of separate clumps):
+        // boughs in many whorls, a narrow spire as black spruce is, beside the broader modelled pine; the far field's cards
+        // are a handful of quads.
+        var spruce = WorldKit.Spruce(Look, 1, 12);
+        var pine = WorldKit.Pine(Look, 1, 12);
+        var cards = NovaKit.Conifer(Look, 1, 12, 0.3f);
+        float Width(MeshAsset m) => m.Vertices.Max(v => v.Position.X) - m.Vertices.Min(v => v.Position.X);
+        Assert.True(spruce.Vertices.Length > cards.Vertices.Length * 20, $"{spruce.Vertices.Length} against the cards' {cards.Vertices.Length}");
+        Assert.InRange(Width(spruce) / 12, 0.2f, 0.5f);
+        Assert.True(Width(spruce) < Width(pine) * 0.75f, "a spire, narrower than the pine");
+        // Its top a club, not a bare trunk: foliage up to the leader, and no bark above the boughs.
+        Assert.True(spruce.Vertices.Max(v => v.Position.Y) > 11.5f);
+    }
+
+    [Fact]
     public void ACarsLoadComesInItsCargosCases()
     {
         var shape = Train().Frames[2].Shape;

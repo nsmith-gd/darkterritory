@@ -60,7 +60,9 @@ public class WreckSessionTests
             night.Step(default);
         night.Host!.World.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
         var film = WaitForFilm(night);
-        var t = night.World.WreckTuning;
+        // The sequence's timing is this player's: their own first person runs to their own death in the film (App. E.2 step 1).
+        var t = night.SequenceTuning;
+        Assert.Equal(film.FirstPersonOf(night.PlayerId), t.FirstPersonSeconds);
         Assert.Single(film.Start.Players);
         Assert.Equal(night.PlayerId, film.Start.Players[0].Id);
         Assert.Equal([ShotKind.Player, ShotKind.Settle, ShotKind.Cause], film.Cut.Select(s => s.Kind));
@@ -90,10 +92,52 @@ public class WreckSessionTests
     }
 
     [Fact]
+    public void TheCrewRideTheWreckToTheirOwnDeathAndTheFirstPersonEndsOnIt()
+    {
+        // GDD v1.4 App. E.2 step 1 (the director's decision of 5 Oct 2026; note 258): nobody dies on the derail tick. The
+        // player rides the wreck, alive and unable to move, till the hit that kills them lands in their first person; the
+        // first person ends on it, and the run is already over, settled on the derail tick.
+        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        for (int i = 0; i < 20; i++)
+            night.Step(default);
+        var host = night.Host!;
+        host.World.Derail("test");
+        uint derail = host.World.DerailTick;
+        uint dies = host.World.DoomedAt[night.PlayerId];
+        Assert.True(dies > derail, "dead on the derail tick");
+        var walk = new Sim.Player.PlayerIntent { MoveZ = 1, Buttons = Sim.Player.PlayerButtons.Run };
+        var at = host.Players.First(p => p.Id == night.PlayerId).State.Position;
+        while (host.World.Tick <= derail + 2)
+            night.Step(walk);
+        // Their death counted and in the log already (the settlement's fixed on the derail tick, E.7), but alive, and
+        // pressing forward moves nothing: the wreck has them.
+        Assert.Equal(1, host.World.Bodies.Deaths);
+        Assert.Single(host.World.Attribution.Log, i => i.Kind == Sim.Run.IncidentKind.Death && i.Victim == night.PlayerId);
+        var riding = host.Players.First(p => p.Id == night.PlayerId).State;
+        Assert.True(riding.Alive);
+        Assert.Equal(at, riding.Position);
+        while (host.World.Tick < dies)
+        {
+            Assert.True(host.Players.First(p => p.Id == night.PlayerId).State.Alive);
+            night.Step(walk);
+        }
+        var dead = host.Players.First(p => p.Id == night.PlayerId).State;
+        Assert.False(dead.Alive);
+        Assert.Equal(Sim.Player.DeathCause.Derailed, dead.Death);
+        Assert.Equal(1, host.World.Bodies.Deaths);
+        Assert.Single(host.World.Attribution.Log, i => i.Kind == Sim.Run.IncidentKind.Death);
+        // The first person is as long as the film says, and the host's kill lands inside it, before its end.
+        var film = WaitForFilm(night);
+        var death = film.Deaths[night.PlayerId];
+        Assert.Equal(film.Tuning.FirstPersonLength(death.At), night.SequenceTuning.FirstPersonSeconds, 9);
+        Assert.True((dies - derail) * SimConstants.TickSeconds < night.SequenceTuning.FirstPersonSeconds);
+    }
+
+    [Fact]
     public void TheHostDrawsTheOperaAndItsClientPlaysTheSameTrack()
     {
         // GDD v1.4 App. E.6 (note 174): the host draws from the bag it brought, and the track goes out with the world.
-        var bag = new Sim.Music.MusicBag { Left = ["doom-dies-irae", "lament-vesti-la-giubba"], Last = "gallop-infernal-galop" };
+        var bag = new Sim.Music.MusicBag { Left = ["doom-egmont-overture", "lament-funeral-march"], Last = "gallop-infernal-galop" };
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false) { MusicBag = bag }, port: 0);
         for (int i = 0; i < 10; i++)
             night.Step(default);

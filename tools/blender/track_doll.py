@@ -405,7 +405,8 @@ beckon.close(120)
 # snaps from one tilt to the next, holds, lurches in closer.
 A = over(DOLL, spine_01=(-7, 0, -10), spine_02=(-10, 0, -12), spine_03=(-8, 0, -8), neck=(-6, 0, -4), head=(-12, 16, -18))
 A = arm_to(A, "r", (0.62, 0.42, 1.12), fist=0.1)
-A = arm_to(A, "l", (0.02, 0.3, 1.45), fist=0.5)
+# (The hand at its chest low enough that the head's snaps down to that side clear it: dt art clearance.)
+A = arm_to(A, "l", (0.04, 0.24, 1.14), fist=0.5)
 A2 = over(A, head=(-16, -14, -30), neck=(-4, 0, -8))
 A3 = arm_to(over(A, spine_02=(-16, 0, -14), spine_03=(-12, 0, -10), head=(-8, 24, -14)), "r", (0.7, 0.5, 1.02), fist=0.0)
 # (Stroking it: the reaching hand moved along the load in little pops, the only thing about it that's gentle.)
@@ -474,6 +475,8 @@ hit.key(2, over(C, spine_02=(-4, 0, 6), spine_03=(-2, 0, 4), neck=(4, 0, 0), hea
 hit.key(7, over(C, spine_03=(-8, 0, 4), head=(-10, -8, 6)), "LINEAR")
 hit.key(14, C, "BEZIER")
 
+# Up toward GDD §27's budget (a character's, 4-10k): rig.densify rounds the forms out (a Look Review ask).
+kit.target_tris = 9200
 kit.build()
 rig.bake(sk, [stand, beckon, admire, giggle, tamper, cower, hit],
          plant=rig.feet_planter(sk, clips=["cower", "hit"], lowest=H("ball_r").z))

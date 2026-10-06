@@ -24,7 +24,7 @@ public sealed class ClientSession
     const int HistoryLength = 128;
     const int SnapshotBuffer = 32;
 
-    readonly ITransport _transport;
+    ITransport _transport;
     readonly List<TransportEvent> _events = new();
     readonly List<PlayerSnapshot> _players = new();
     readonly NetWriter _writer = new();
@@ -102,6 +102,9 @@ public sealed class ClientSession
     /// <summary>This dead player's creature vote (D.11), as the host offered it: the ballot and what they cast; null till offered.</summary>
     public (IReadOnlyList<Enemies.EnemyKind> Options, Enemies.EnemyKind? Cast)? Ballot { get; private set; }
 
+    /// <summary>The host's tick (the newest snapshot's) when <see cref="Ballot"/> was first offered: a dead bot votes a while after (note 202).</summary>
+    public uint BallotOfferedTick { get; private set; }
+
     /// <summary>D.11's cues to the dead, as they came: a creature they voted for is coming, and who called it. The game takes them.</summary>
     public List<(Enemies.EnemyKind Kind, List<int> Voters)> VoteCues { get; } = [];
 
@@ -110,6 +113,67 @@ public sealed class ClientSession
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
     public bool Connected => PlayerId is not null && _haveState;
+    /// <summary>The link to the host went after this client was welcomed: the night's over for it, unless it comes back (<see cref="Reconnect"/>).</summary>
+    public bool Dropped { get; private set; }
+    /// <summary>The host's token for this player's slot, from the Welcome: said back after a drop, it gets the slot back (note 253).</summary>
+    public ulong Token { get; private set; }
+    /// <summary>How many times this client has come back after a drop.</summary>
+    public int Reconnects { get; private set; }
+    /// <summary>The host turned this connection away instead of welcoming it (a full crew, note 254); null otherwise.</summary>
+    public Refusal? Refused { get; private set; }
+
+    /// <summary>
+    /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
+    /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
+    /// holds the place as for any drop.
+    /// </summary>
+    public void Leave()
+    {
+        if (Left)
+            return;
+        Left = true;
+        Messages.WriteLeave(_writer);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+        _transport.Disconnect(PeerId.Host);
+        PlayerId = null;
+        _haveState = false;
+    }
+
+    /// <summary>This player quit (<see cref="Leave"/>): the session's done.</summary>
+    public bool Left { get; private set; }
+
+    /// <summary>
+    /// Note 253: after a drop, connects again on <paramref name="transport"/> (a new link to the same host: UDP, a lobby, any
+    /// transport) and asks for this player's slot back with its token. The world stays as it was; the host's next full
+    /// snapshot brings it up to date, and this player's own state with it, adopted as a placement.
+    /// </summary>
+    public void Reconnect(ITransport transport)
+    {
+        _transport = transport;
+        Dropped = false;
+        PlayerId = null;
+        _haveState = false;
+        WaitingReason = null;
+        Refused = null;
+        _helloSent = false;
+        _decoded.Clear();
+        _snapshots.Clear();
+        Reconnects++;
+    }
+
+    bool _helloSent;
+
+    /// <summary>The first word to the host (note 253): who this is, and the slot it's coming back to, if any.</summary>
+    void Hello()
+    {
+        if (_helloSent)
+            return;
+        _helloSent = true;
+        Messages.WriteHello(_writer, Name, Token);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+    /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
+    byte? _was;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
     public PlayerState Predicted;
     public TrainControls Controls;
@@ -130,6 +194,9 @@ public sealed class ClientSession
 
     public void Step(in PlayerIntent intent)
     {
+        // Gone for good (Leave): a transport polled after hanging up would dial the host again as someone new.
+        if (Left)
+            return;
         Receive();
         if (!Connected)
             return;
@@ -140,8 +207,10 @@ public sealed class ClientSession
         SendInputs();
     }
 
-    void Predict(in PlayerIntent intent)
+    void Predict(in PlayerIntent given)
     {
+        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it.
+        var intent = World.Wrecked(Predicted) ? World.WreckedIntent(given) : given;
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
@@ -150,13 +219,14 @@ public sealed class ClientSession
         CabControls.Apply(ref Controls, intent, Predicted, Train);
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
-        PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+        if (!World.Wrecked(Predicted))
+            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly. The hand
         // isn't replicated (the next intent brings it), but this machine's HUD reads it between ticks, so it stays.
         _quantise.Clear();
         _quantise.Add(new PlayerSnapshot(PlayerId ?? 0, Predicted));
         WorldRecords.Quantise(World, ref Controls, _quantise);
-        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand };
+        Predicted = _quantise[0].State with { Hand = Predicted.Hand, OtherHand = Predicted.OtherHand, Head = Predicted.Head };
     }
 
     readonly List<PlayerSnapshot> _quantise = new();
@@ -184,8 +254,18 @@ public sealed class ClientSession
         uint newestAcked = 0;
         foreach (var e in _events)
         {
+            if (e.Kind == TransportEventKind.Connected)
+            {
+                // Said before the host welcomes it: the host lets nobody in till they've said hello (or greetSeconds pass).
+                if (PlayerId is null)
+                    Hello();
+                continue;
+            }
             if (e.Kind == TransportEventKind.Disconnected)
             {
+                // Once aboard, a drop is the night lost to this client, said as much (the 4 Oct rehearsal: a joiner whose
+                // link timed out sat on "connecting…" and drew itself as a crewmate round its own eyes).
+                Dropped |= PlayerId is not null || _was is not null;
                 PlayerId = null;
                 _haveState = false;
                 continue;
@@ -206,14 +286,20 @@ public sealed class ClientSession
                 case MessageType.Wait:
                     WaitingReason = r.Str();
                     break;
-                case MessageType.Welcome:
-                    (PlayerId, _, SessionInfo) = Messages.ReadWelcome(ref r);
-                    if (Name.Length > 0)
-                    {
-                        Messages.WriteHello(_writer, Name);
-                        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
-                    }
+                case MessageType.Refused:
+                    // Note 254: turned away (a full crew). Kept to show; the host hangs up on this link in a moment.
+                    Refused = Messages.ReadRefused(ref r);
                     break;
+                case MessageType.Welcome:
+                    {
+                        (PlayerId, _, SessionInfo, ulong token) = Messages.ReadWelcome(ref r);
+                        _was = PlayerId;
+                        if (token != 0)
+                            Token = token;
+                        // Welcomed by a host whose Hello went before it was connected to: say it now (the name), once.
+                        Hello();
+                        break;
+                    }
                 case MessageType.Names:
                     Messages.ReadNames(ref r, World.Names);
                     break;
@@ -221,6 +307,8 @@ public sealed class ClientSession
                     Messages.ReadLooks(ref r, World.Looks);
                     break;
                 case MessageType.Ballot:
+                    if (Ballot is null)
+                        BallotOfferedTick = _newestSnapshotTick;
                     Ballot = Messages.ReadBallot(ref r);
                     break;
                 case MessageType.VoteCue:
@@ -380,12 +468,14 @@ public sealed class ClientSession
                 state.Hand = Double3.Lerp(a.Hand, b.Hand, t);
             if (a.OtherHand != default && b.OtherHand != default)
                 state.OtherHand = Double3.Lerp(a.OtherHand, b.OtherHand, t);
+            if (a.Head > 0 && b.Head > 0)
+                state.Head = a.Head + (b.Head - a.Head) * t;
         }
         return true;
     }
 
     public IEnumerable<byte> RemoteIds =>
-        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != PlayerId);
+        _snapshots.Count == 0 ? [] : _snapshots[^1].Players.Select(p => p.Id).Where(i => i != (PlayerId ?? _was));
 
     static bool Find(PlayerSnapshot[] players, byte id, out PlayerState state)
     {

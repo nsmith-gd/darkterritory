@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The night's pace (GDD App. B.1 "Pacing rules", design decision 2026-10, ARCHITECTURE §8 note 195): a grace picked per
+/// The night's pace (GDD App. B.1 "Pacing rules", design decision 2026-10, ARCHITECTURE §8 note 266): a grace picked per
 /// night from a range, then a pressure that builds with the night, the quiet, the crew's noise and the cargo, eases when the
 /// crew is down, and is spent on what the director's weights pick.
 /// </summary>

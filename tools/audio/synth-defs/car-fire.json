@@ -1,0 +1,15 @@
+// Tell (tier 1), a car fire (the in-car incidents): "crackle and pop through the boards", 6-9 kHz, above everything else
+// the train makes. Sparse pops while it's smoke; a dense crackle over a roar once it's alight ("progress": how far it's gone).
+{
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
+  "tier": 1, "loop": true, "maxInstances": 4, "minDistance": 3, "maxDistance": 60, "gainDb": 8,
+  "layers": [
+    { "source": "impulse", "gain": 1.3, "frequency": { "param": "progress", "points": [[0, 9], [1, 38]] },
+      "filters": [{ "type": "bandPass", "frequency": 7400, "q": 2.2 }, { "type": "peak", "frequency": 8200, "q": 4, "gainDb": 6 }],
+      "tremolo": { "rate": 3.1, "depth": 0.7, "jitter": 0.9 } },
+    { "source": "noise", "gain": { "param": "progress", "points": [[0, 0.05], [1, 0.3]] },
+      "filters": [{ "type": "bandPass", "frequency": 7000, "q": 1.4 }],
+      "tremolo": { "rate": 0.9, "depth": 0.5, "jitter": 0.6 } }
+  ]
+}

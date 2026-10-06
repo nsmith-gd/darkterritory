@@ -11,6 +11,7 @@ using DarkTerritory.Sim.Train;
 /// crew on the roof and the threats about, drawn as a flat screen draws it and as a headset does (two eyes, and the
 /// desktop's mirror), for a run of frames. The main thread's share (the scene built, uploaded to the GPU, recorded) is
 /// timed on this machine's CPU; the GPU's passes by timestamps. Counts (triangles, draws) are the same on any machine.
+/// The headset's eyes are drawn the way tuning/vr.json says (multiview where the GPU has it), or --stereo multiview|per-eye.
 /// </summary>
 static class PerfCommands
 {
@@ -34,12 +35,22 @@ static class PerfCommands
 
         using var gpu = new GpuContext("dt perf");
         var mesh = new MeshBuilder();
+        var wanted = Str(args, "--stereo", "") switch
+        {
+            "per-eye" => StereoPath.PerEye,
+            "multiview" => StereoPath.Multiview,
+            _ => DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Stereo,
+        };
         object Measure(string name, PerfTarget target)
         {
-            // The eyes as VrView makes them: the moon's map at 1024, drawn by the left eye and sampled by the right. (The
-            // desktop's mirror is the left eye's image blitted, VrView.Mirror: nothing to draw.)
-            var eyes = Enumerable.Range(0, target.Eyes)
-                .Select(_ => new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
+            // The eyes as VrView makes them, the moon's map at 1024: both in one multiview renderer, or one an eye, the left
+            // drawing the shadow maps and the right sampling them. (The desktop's mirror is the left eye's image blitted,
+            // VrView.Mirror: nothing to draw.)
+            var stereo = target.Eyes > 1 ? VrView.Choose(wanted, gpu) : (StereoPath?)null;
+            var eyes = stereo == StereoPath.Multiview
+                ? [new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: 1024, views: 2)]
+                : Enumerable.Range(0, target.Eyes)
+                    .Select(_ => new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
             for (int e = 1; e < eyes.Count; e++)
                 eyes[e].ShadowsFrom = eyes[0];
             var all = eyes;
@@ -55,7 +66,7 @@ static class PerfCommands
                     var record = new List<double>();
                     var submit = new List<double>();
                     var passes = new Dictionary<string, List<double>>();
-                    int triangles = 0, maxDraws = 0;
+                    int triangles = 0, maxDraws = 0, draws = 0;
                     FrameStats stats = default;
                     // Two warm-up frames (the first cooks the kit's pieces and uploads them), then the measured run.
                     for (int f = -2; f < frames; f++)
@@ -68,13 +79,19 @@ static class PerfCommands
                         double prepared = 0, recorded = 0, submitted = 0;
                         triangles = 0;
                         maxDraws = 0;
+                        draws = 0;
+                        // Each eye a few centimetres to its side of the body's eye point, as a headset's are.
+                        Camera Eye(int e)
+                        {
+                            var eye = camera;
+                            if (target.Eyes > 1)
+                                eye.EyeOffset = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY)) * (e == 0 ? -0.032f : 0.032f);
+                            return eye;
+                        }
                         for (int e = 0; e < all.Count; e++)
                         {
                             var r = all[e];
-                            // Each eye a few centimetres to its side of the body's eye point, as a headset's are.
-                            var eye = camera;
-                            if (eyes.Count > 1)
-                                eye.EyeOffset = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(camera.Forward, System.Numerics.Vector3.UnitY)) * (e == 0 ? -0.032f : 0.032f);
+                            Camera[] cameras = r.Views > 1 ? [Eye(0), Eye(1)] : [Eye(e)];
                             clock.Restart();
                             r.Prepare(mesh);
                             prepared += clock.Elapsed.TotalMilliseconds;
@@ -83,13 +100,15 @@ static class PerfCommands
                             gpu.Submit(cmd =>
                             {
                                 var inner = Stopwatch.StartNew();
-                                r.Record(cmd, eye, lighting, lighting.FogColor);
+                                r.Record(cmd, cameras, lighting, lighting.FogColor);
                                 inRecord = inner.Elapsed.TotalMilliseconds;
                             });
                             submitted += clock.Elapsed.TotalMilliseconds - inRecord;
                             recorded += inRecord;
                             stats = r.Stats;
-                            triangles += stats.Triangles + stats.LampTriangles + stats.MoonTriangles;
+                            // A multiview pass's triangles go through the GPU once an eye.
+                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles;
+                            draws += stats.Draws + stats.LampDraws + stats.MoonDraws;
                             maxDraws = Math.Max(maxDraws, Math.Max(stats.Draws, Math.Max(stats.LampDraws, stats.MoonDraws)));
                             if (f >= 0)
                                 foreach (var (pass, ms) in r.PassTimes())
@@ -116,6 +135,9 @@ static class PerfCommands
                         view,
                         triangles,
                         maxPassDraws = maxDraws,
+                        // Every pass's draw calls in a frame, every eye's: what the CPU records and the driver checks.
+                        drawsPerFrame = draws,
+                        submitsPerFrame = all.Count,
                         sceneTriangles = stats.Triangles,
                         lampTriangles = stats.LampTriangles,
                         moonTriangles = stats.MoonTriangles,
@@ -139,6 +161,7 @@ static class PerfCommands
                     fps = target.Fps,
                     frameMs = Math.Round(target.FrameMs, 2),
                     resolution = $"{target.Width}x{target.Height}" + (target.Eyes > 1 ? $" x{target.Eyes} eyes" : "") + (target.Mirror ? " (mirrored: the left eye)" : ""),
+                    stereo = stereo?.ToString(),
                     cpuBudgetMs = Math.Round(cpuBudget, 2),
                     worstCpuMs = rows.Max(r => r.cpuMs),
                     cpuWithin = rows.All(r => r.cpuMs <= cpuBudget),

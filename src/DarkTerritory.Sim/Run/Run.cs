@@ -15,6 +15,12 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>
+    /// The fortress yard is a safe space until the run begins (run.json <c>yardIsSafe</c>; the director's decision of 6 Oct
+    /// 2026, ARCHITECTURE §8 note 263): nothing spawns, the boiler and the fire hold, the cold doesn't bite.
+    /// </summary>
+    public bool YardIsSafe { get; init; } = true;
+
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
 
@@ -125,21 +131,24 @@ public sealed partial class Run
     /// Down a mine head's spur, where the radio dies (spec A.5 "dies in tunnels and mine spurs"; GDD §17 "the spur
     /// descends underground. Radio blackout in and out"): aboard a rake standing on it, or on the ground beside it.
     /// </summary>
-    public bool Underground(in PlayerState s, TrainOnLine train)
+    /// <param name="reach">How far down the spur from its points a radio still carries (train.json kit.radioReach; F.3's
+    /// radio range, note 196). With none, anywhere on the mine head's spur's path.</param>
+    public bool Underground(in PlayerState s, TrainOnLine train, double reach = 0)
     {
         int path;
+        double along;
         if (s.Parent != PlayerState.World && s.Parent < train.Vehicles.Count)
-            path = train.RakeOf(s.Parent).Path;
+            (path, along) = (train.RakeOf(s.Parent).Path, train.Cars[s.Parent].FrontDistance);
         else
         {
             double hint = s.LineHint;
-            path = train.Line.Nearest(s.Position, ref hint).Path;
+            (path, along) = train.Line.Nearest(s.Position, ref hint);
         }
         if (path == RailLine.MainPath)
             return false;
         for (int i = 0; i < _facilities.Count; i++)
             if (_spurs[i] == path && _facilities[i].Facility == FacilityKind.MineHead)
-                return true;
+                return reach <= 0 || along - train.Line.Branches[path].Toe >= reach;
         return false;
     }
 
@@ -638,8 +647,8 @@ public sealed partial class Run
         string where = IncidentLog.At(world, train.Frames[0].Origin, EngineRake(train).Distance);
         // App. C.9's whole-train rows, and E.5's cause card: what took the train off the rails, at what speed, and who drove.
         if (end == RunEnd.Derailed)
-            a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailDriver,
-                $"{Capital(world.DerailCause ?? "cause not established")}. Throttle: {{actor}}."));
+            a.Add(new Incident(IncidentKind.Derailed, Seconds, -1, $"Consist derailed, {Kmh(world.DerailSpeed)}", where, world.DerailActor,
+                $"{Capital(world.DerailCause ?? "cause not established")}. {(world.DerailAction is { Length: > 0 } blame ? blame : "Throttle: {actor}.")}"));
         else if (end == RunEnd.Stranded)
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
@@ -685,7 +694,8 @@ public sealed partial class Run
         const double WithTheTrain = 40;
         // Stranded (§23.2): the dawn freight tows the train in, and the living come home with it, wherever they're stood.
         bool stranded = End == RunEnd.Stranded;
-        int crewHome = crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
+        // Derailed, nobody comes home: the living on the derail tick are the wreck's, and die in it (App. E.2 step 1).
+        int crewHome = End == RunEnd.Derailed ? 0 : crew.Count(c => c.Alive && (stranded || c.Parent != PlayerState.World && attached.Contains(c.Parent)
             || attached.Any(id => (train.Frames[id].Origin - PlayerMotor.WorldPosition(c, train)).Length < WithTheTrain)));
         double recovery = stranded ? Math.Round(Tuning.Stranded.RecoveryFee * perCar) : 0;
         // GDD App. D.9, bodies as loot: every death costs the crew a fee; every body brought home (stowed in a car still on
@@ -778,6 +788,8 @@ public sealed partial class Run
             }
             return b.Kind switch
             {
+                // A PUNISH that held nobody: beside the record it wrote the same tick (note 190: the doll struck, the nest).
+                BookmarkKind.Punish when b.Victim < 0 => lines.FindIndex(l => IncidentLog.IsEvent(l.Kind) && Math.Abs(l.Seconds - b.Seconds) < 1e-6),
                 BookmarkKind.Derail => lines.FindIndex(l => l.Kind == IncidentKind.Derailed),
                 BookmarkKind.Stranded => lines.FindIndex(l => l.Kind == IncidentKind.Stranded),
                 _ => -1,
@@ -832,9 +844,11 @@ public sealed partial class Run
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
-        IReadOnlyList<SiteState>? sites = null, double scavenged = 0)
+        IReadOnlyList<SiteState>? sites = null, double scavenged = 0, KitWhere? kit = null)
     {
         Scavenged = scavenged;
+        if (kit is { } k)
+            Kit = k;
         Phase = phase;
         End = end;
         Seconds = seconds;

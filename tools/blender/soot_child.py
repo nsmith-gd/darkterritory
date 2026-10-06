@@ -365,7 +365,18 @@ drink.key(60, clinging(over(CLING, neck=(4, 0, -20), head=(10, 0, -66), jaw=(-60
 drink.key(63, clinging(CLING), "BEZIER")
 drink.close(72)
 
+# Clutch (3 s, loop; GDD App. C.4 "the child is carried in the arms"): a rescued child, the real one, held by whoever
+# carries it: the same hold as the lure's (CLING, its legs round their waist and its arms round their neck), but the
+# face turned away and laid on their shoulder, the mouth shut, the fingers holding on; breathing, a hitch now and then.
+# (SceneArt puts its origin where CreatureArt puts the lure's, at the carrier's feet, 0.3 m out, facing them.)
+CLUTCH = over(CLING, pelvis=(10, 0, 0), spine_03=(-4, 0, 0), neck=(-6, 0, 18), head=(-14, 0, 52), jaw=(0, 0, 0))
+clutch = Clip("clutch")
+for f, (k, hitch) in ((0, (0.0, 0.0)), (24, (1.0, 0.0)), (48, (0.0, 0.0)), (60, (0.6, 1.0)), (66, (0.2, 0.0))):
+    clutch.key(f, clinging(over(CLUTCH, spine_02=(-10 - 2 * k, 0, 0), spine_03=(-4 - 2 * k - 3 * hitch, 0, 0),
+                                head=(-14 + 3 * hitch, 0, 52 - 4 * hitch))) | {"fingers_r": (0, 85, 0), "fingers_l": (0, -85, 0)}, "BEZIER")
+clutch.close(90)
+
 kit.build()
-rig.bake(sk, [huddle, call, pin, drink], plant=rig.feet_planter(sk, lowest=0.015, clips=["huddle", "call"]))
+rig.bake(sk, [huddle, call, pin, drink, clutch], plant=rig.feet_planter(sk, lowest=0.015, clips=["huddle", "call"]))
 print("[dt] soot_child", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "soot_child.glb", kit)

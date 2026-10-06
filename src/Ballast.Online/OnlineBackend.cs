@@ -89,6 +89,8 @@ public interface IOnlineBackend : IDisposable
     string LobbyData(LobbyId lobby, string key);
     void SetLobbyData(LobbyId lobby, string key, string value);
     void SetJoinable(LobbyId lobby, bool joinable);
+    /// <summary>How many members the lobby takes (the owner's only, as on Steam).</summary>
+    void SetMemberLimit(LobbyId lobby, int max);
 
     /// <summary>Searches for lobbies; the result comes back as a <see cref="OnlineEventKind.LobbyList"/> on a later poll.</summary>
     void RequestLobbyList(LobbyFilter filter);

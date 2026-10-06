@@ -230,6 +230,13 @@ public class CargoTests
         var at = n.Train.Frames[car].ToWorld(n.Crew[1].Position);
         var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
         n.Run(3);
+        // It's leaving with it (A.6): the toy in its hold, out in full view, the child left where it was.
+        Assert.Equal(SpinePhase.BreakOff, gaunt.Phase);
+        Assert.Equal(gaunt.Id, toy.TakenBy);
+        Assert.Contains(child, n.World.Bodies.All);
+        Assert.Equal(-1, child.TakenBy);
+        // Out of the car, off from the train at walking pace, and gone with it once it's clear.
+        n.Run(40);
         Assert.True(gaunt.Gone, $"{gaunt.Phase}");
         Assert.DoesNotContain(toy, n.World.Bodies.All);
         Assert.Contains(child, n.World.Bodies.All);
@@ -239,13 +246,46 @@ public class CargoTests
         var kid = ChildIn(m.World, car);
         m.Crew[1] = n.Crew[1] with { };
         var again = m.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
-        m.Run(3);
+        m.Run(40);
         Assert.True(again.Gone, $"{again.Phase}");
         Assert.Contains(kid, m.World.Bodies.All);
         Assert.True(m.Train.Vehicles[car].CargoIntegrity < 1);
         // What creatures rank loot by: the child is worth the most to the crew and nothing to them.
         Assert.Equal(0, Bodies.Prey(kid));
         Assert.True(Bodies.Value(kid) > Bodies.Value(BodyKind.Ragdoll));
+    }
+
+    [Fact]
+    public void TheGauntCarriesABodyOutWhereTheCrewCanStillChaseItDown()
+    {
+        // GDD App. A.6: "It carries the body out at walking pace, in full view, and the crew can still chase it down before
+        // it clears the train."
+        var n = new Night(4, speed: 0);
+        int car = 2;
+        var room = n.Train.Frames[car].Shape.Interior!.Value;
+        var lying = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + 2), Surface = Surface.Deck };
+        var body = n.World.Bodies.SpawnRagdoll(n.Train, 3, lying);
+        n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, room.Centre.Z - 1), Surface = Surface.Deck, Health = Tuning.Player.Health };
+        var at = n.Train.Frames[car].ToWorld(n.Crew[1].Position);
+        var gaunt = n.World.AddEnemy(id => Gaunt.Asleep(id, at, Tuning.Enemies.Gaunt));
+        n.Run(3);
+        Assert.Equal(SpinePhase.BreakOff, gaunt.Phase);
+        Assert.Equal(gaunt.Id, body.TakenBy);
+        // Held under it by the hips as it goes (Bodies.TakeAlong): nobody can just pick it up out of its hold.
+        var hips = body.Pbd.Particles[2].Position;
+        n.Run(1);
+        Assert.NotEqual(hips, body.Pbd.Particles[2].Position);
+        Assert.False(n.World.Bodies.Handle(n.Crew[1] with { Position = gaunt.Local }, new PlayerIntent { Buttons = PlayerButtons.Use }, 1, n.Train)
+            && body.Carrier == 1);
+        // Run down and killed on its way out: it drops the body where it is.
+        gaunt.Health = 0.01;
+        var near = gaunt.Attached == car ? gaunt.Local : n.Train.Frames[car].ToLocal(gaunt.Local);
+        n.Crew[1] = n.Crew[1] with { Parent = car, Position = near with { Y = room.Min.Y } + new Double3(0, 0, 1.2), Yaw = 0 };
+        n.Run(0.5, _ => new PlayerIntent { Actions = PlayerActions.Swing });
+        Assert.True(gaunt.Gone, $"{gaunt.Phase} at {gaunt.Local}, crew at {n.Crew[1].Position}");
+        Assert.Contains(body, n.World.Bodies.All);
+        Assert.Equal(-1, body.TakenBy);
+        Assert.Equal(1, body.Pbd.Particles[2].InverseMass);
     }
 
     [Fact]

@@ -78,22 +78,30 @@ public static class Wav
 /// <summary>Band-limited loudness, for checking that a tell sits clear of the bed in its own band (spec A.4 rule 1).</summary>
 public static class Meter
 {
-    /// <summary>RMS level in dBFS of a stereo buffer (mono-summed) between two frequencies.</summary>
+    /// <summary>
+    /// RMS level in dBFS of a stereo buffer between two frequencies: each ear's energy, halved and summed, so a sound in the
+    /// middle reads as its mono sum would, and one through the head's delay (HeadDef) isn't read as comb-filtered.
+    /// </summary>
     public static double BandDb(ReadOnlySpan<float> stereo, double low, double high)
     {
-        Biquad hp1 = default, hp2 = default, lp1 = default, lp2 = default;
-        hp1.Set(FilterType.HighPass, low, 0.707);
-        hp2.Set(FilterType.HighPass, low, 0.707);
-        lp1.Set(FilterType.LowPass, high, 0.707);
-        lp2.Set(FilterType.LowPass, high, 0.707);
+        var ears = new Biquad[2, 4];
+        for (int ear = 0; ear < 2; ear++)
+        {
+            ears[ear, 0].Set(FilterType.HighPass, low, 0.707);
+            ears[ear, 1].Set(FilterType.HighPass, low, 0.707);
+            ears[ear, 2].Set(FilterType.LowPass, high, 0.707);
+            ears[ear, 3].Set(FilterType.LowPass, high, 0.707);
+        }
         double sum = 0;
         int n = stereo.Length / 2;
         for (int i = 0; i < n; i++)
-        {
-            float x = 0.5f * (stereo[i * 2] + stereo[i * 2 + 1]);
-            x = lp2.Process(lp1.Process(hp2.Process(hp1.Process(x))));
-            sum += x * x;
-        }
+            for (int ear = 0; ear < 2; ear++)
+            {
+                float x = stereo[i * 2 + ear];
+                for (int f = 0; f < 4; f++)
+                    x = ears[ear, f].Process(x);
+                sum += 0.5 * x * x;
+            }
         return Audio.GainToDb(Math.Sqrt(sum / Math.Max(1, n)));
     }
 

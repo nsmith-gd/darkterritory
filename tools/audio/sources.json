@@ -1,0 +1,16 @@
+{
+ "_": "The audio sources in the project's Google Drive folder (12xyia1L_on4a4z2HX2WHRtHYuNDvHpQL), by Drive file id. tools/audio/fetch.py reads this.",
+ "packs": {
+  "kenney_impact-sounds": {"drive": "1eIHWtZaoFBSqNTbE5PeXDdbAUIi4NFz1", "licence": "CC0"},
+  "kenney_rpg-audio": {"drive": "1fgAU2rHN6v02nnLWN1xYyiheXkA7uvxy", "licence": "CC0"},
+  "kenney_ui-audio": {"drive": "17Z-7aw0qw0azLZapbuaBNL4Q4TYhJm9q", "licence": "CC0"},
+  "sfx_100_v2": {"drive": "1sSu5B_jPJSZ-Pgm_J3cz7cRIBtT5kGkB", "licence": "CC0"}
+ },
+ "sonniss": {
+  "GDC2026-1of5": {"drive": "1-8SAh9YANS6KWgAM-Z1XXMNwl_ATsU5X", "bytes": 1301592146, "licence": "Sonniss GDC: royalty-free in a game, not CC0; never publish the originals"},
+  "GDC2026-2of5": {"drive": "17nDgpNRchDpkWk5_VO_776AerhbOyIi_", "bytes": 1418237636, "licence": "Sonniss GDC: royalty-free in a game, not CC0; never publish the originals"},
+  "GDC2026-3of5": {"drive": "1H3GuH3exIhOpKLBG6okilhLxtVFrDGPo", "bytes": 1490753131, "licence": "Sonniss GDC: royalty-free in a game, not CC0; never publish the originals"},
+  "GDC2026-4of5": {"drive": "15XM9dqH1TOFXTSNY5UgwvD56ivMPih0D", "bytes": 1853924113, "licence": "Sonniss GDC: royalty-free in a game, not CC0; never publish the originals"},
+  "GDC2026-5of5": {"drive": "1u4cFXOeiVpDZKlq9KAYMSuQzeK5r42dG", "bytes": 856448992, "licence": "Sonniss GDC: royalty-free in a game, not CC0; never publish the originals"}
+ }
+}

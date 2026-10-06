@@ -36,6 +36,60 @@ public static class Staging
     }
 
     /// <summary>
+    /// The roof warning (note 260, `dt screenshot --hud --roof-warning tunnel|bend`): a solo night on <paramref name="route"/>
+    /// with the train <paramref name="seconds"/> short of its first tunnel's mouth (or its first posted bend, taken fast
+    /// enough to throw roof riders off), the player up on car 2's roof facing ahead, warned.
+    /// </summary>
+    public static PrototypeSession RoofWarning(string content, Sim.Route.Route route, int cars, string kind, double seconds = 6)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        bool tunnel = !kind.Equals("bend", StringComparison.OrdinalIgnoreCase);
+        var signs = Sim.Route.Lineside.Boards(sight, route);
+        var sign = signs.FirstOrDefault(s => s.Kind == (tunnel ? Sim.Route.SignKind.LowClearance : Sim.Route.SignKind.SpeedLimit) && s.Start > 2000)
+            ?? throw new InvalidOperationException($"{route.Name} has no {(tunnel ? "tunnel" : "posted bend")} past its yard");
+        double speed = tunnel ? 14 : sign.Limit + sight.ThrowOver + 0.5;
+        // Settled a second before the moment, so the frames have a previous tick to draw from.
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: sign.Start - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        if (!tunnel && session.World.Lineside is { } lineside)
+            speed = Math.Max(speed, lineside.ThrowsAbove(sign, session.Train) + 0.5);
+        session.Respawn(Math.Min(2, session.Train.Frames.Count - 1));
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
+    /// The cab's bend warning (note 265, `dt screenshot --hud --bend-warning [s]`): a solo night on <paramref name="route"/>
+    /// with the train <paramref name="seconds"/> short of its first bend that can derail it, a quarter over that bend's
+    /// derailing speed, the player at the controls, warned. <paramref name="seconds"/> 0: on the bend (the flanges' line).
+    /// </summary>
+    public static PrototypeSession BendWarning(string content, Sim.Route.Route route, int cars, double seconds = 6)
+    {
+        var plan = route.Plan ?? throw new InvalidOperationException($"{route.Name} isn't a generated line");
+        var line = route.Build();
+        double maxSpeed = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(content, Sim.Train.TrainTuning.File)).MaxSpeed;
+        double at = -1, k = 0;
+        for (double s = route.Gate + 2000; s < line.Length - 500 && at < 0; s += 5)
+            if (Math.Abs(line.Sample(s).Curvature) is var c and > 1e-9 && Math.Sqrt(plan.Rules.ADerail / c) < maxSpeed * 0.9)
+                (at, k) = (s, c);
+        if (at < 0)
+            throw new InvalidOperationException($"{route.Name} has no bend that can derail a train past its yard");
+        double speed = Math.Min(maxSpeed, 1.25 * Math.Sqrt(plan.Rules.ADerail / k));
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: seconds <= 0 ? at + 60 : at - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A blow landed on each staged creature (T121, `dt screenshot --hit-flash`), struck from the camera's side so its flinch
     /// is seen: the hit at its middle, a melee blow.
     /// </summary>
@@ -76,6 +130,28 @@ public static class Staging
     }
 
     /// <summary>
+    /// A crewmate on car 2's roof with a body over their shoulder (App. C.4), carried a second and a half in the sim's
+    /// fireman's carry (Bodies.Shoulder) so it's hanging as it would; <paramref name="walking"/>, stepping along the roof.
+    /// </summary>
+    /// <param name="child">The rescued child instead, in their arms (Bodies.ChildAt, the cradle).</param>
+    public static (Sim.Physics.Bodies Bodies, Crewmate Carrier) Shouldered(TrainOnLine train, string content, bool walking = false, bool child = false)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -3, player) with { Yaw = Math.PI - 0.6 };
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -2, player) with { Health = 0, Yaw = 0.4 };
+        var body = child ? bodies.SpawnCrate(train, 2, new Double3(0, tuning.Geometry.CarHeight + 0.4, -2.6), Sim.Physics.BodyKind.Child)
+            : bodies.SpawnRagdoll(train, 9, dead);
+        body.Carrier = 1;
+        for (int i = 0; i < 90; i++)
+            bodies.Step(train, tuning, id => id == 1 ? carrier : null);
+        var (feet, yaw) = (Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train));
+        var act = child ? walking ? Art.CrewPose.CradleWalk : Art.CrewPose.Cradle : walking ? Art.CrewPose.ShoulderWalk : Art.CrewPose.Shoulder;
+        return (bodies, new Crewmate(1, feet, yaw, true, Act: act));
+    }
+
+    /// <summary>
     /// The train as it leaves (World.Stock, Guns.Arm): the guard van's stores, lamp, radios and toys, every car's
     /// extinguisher on its mount, each at <paramref name="charge"/> (its sight glass, App. C.5), settled where they lie, and
     /// the guns' full stock of powder and shot.
@@ -113,6 +189,38 @@ public static class Staging
             // (Pointing down the line ahead, low: an arm raised high read as a salute.)
             At(2, 0.1, -5.5, Math.PI - 0.4, hand: new Double3(0.3, 1.05, -0.55)),
             At(3, 1.0, -4.5, Math.PI + 0.35, hand: new Double3(0.22, 1.15, -0.45), other: new Double3(-0.22, 1.2, -0.42)),
+        ];
+    }
+
+    /// <summary>
+    /// Three headset crewmates on car 2's roof (T82, <c>dt screenshot --view crew --vr-body</c>, or crewside): one leaning
+    /// over to reach down ahead of them, looking down at it; one crouched right down, both hands low by the roof; and one
+    /// who has turned their head well past the hips' deadzone, the hips come round after it and a foot halfway through
+    /// its step to catch up (the stride lived up to that moment, since a screenshot is one frame).
+    /// </summary>
+    public static List<Crewmate> Headsets(TrainOnLine train, string content)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var body = DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body;
+        Crewmate At(byte id, double x, double z, double yaw, double head, double pitch, Double3 hand, Double3 other = default, VrStride? stride = null)
+        {
+            var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, z, player, x) with { Yaw = yaw, Pitch = pitch, Head = head };
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other,
+                Headset: new HeadsetBody(head, pitch, s.Parent, s.Position, s.Yaw, stride));
+        }
+        // Side by side across the roof, far enough down it for the crew view to have them head to foot, and facing across
+        // it (a little towards the camera), so it sees them side on.
+        // The stepper: stood square facing `from`, then the head turned round to `to` and the hips shuffled a little aside.
+        double across = -Math.PI / 2 - 0.3, to = across, from = to + 100 * Math.PI / 180;
+        var stand = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -5.9, player, 0.95);
+        var stride = VrBody.Stand(stand.Position + new Double3(-0.08, 0, 0), from, body);
+        for (int i = 0; i < 600 && !(stride.Stepping != 0 && stride.Progress >= 0.5); i++)
+            stride = VrBody.Step(stride, stand.Position, to, 1 / 120.0, body);
+        return
+        [
+            At(31, -1.0, -5.5, across, head: 1.42, pitch: -0.55, hand: new Double3(0.2, 0.9, -0.6)),
+            At(32, 0.0, -5.7, across, head: 1.0, pitch: -0.35, hand: new Double3(0.25, 0.35, -0.4), other: new Double3(-0.22, 0.4, -0.35)),
+            At(33, 0.95, -5.9, to, head: 1.62, pitch: 0, hand: new Double3(0.3, 1.1, -0.5), stride: stride),
         ];
     }
 
@@ -176,9 +284,10 @@ public static class Staging
     /// <summary>
     /// The staged Ribbit pack as it goes (<c>dt screenshot --ribbits</c>): <c>hop</c> after crewmate 4 (alone on the ground
     /// off the train's left, <see cref="Lone"/>), <c>swell</c> lined up on them (App. A.6 TELEGRAPH), <c>tongue</c> on them
-    /// (GRAB). Without a mode, they're as <see cref="Threats"/> has them.
+    /// (GRAB) and creeping in, <c>devour</c> the leader on them (GRAB, where the hop stops 0.8 m short). Without a mode,
+    /// they're as <see cref="Threats"/> has them.
     /// </summary>
-    public static List<Enemy> Ribbits(List<Enemy> threats, string mode)
+    public static List<Enemy> Ribbits(List<Enemy> threats, string mode, TrainOnLine train)
     {
         if (mode.Length == 0)
             return threats;
@@ -186,11 +295,20 @@ public static class Staging
         {
             "hop" => SpinePhase.Dormant,
             "swell" => SpinePhase.Telegraph,
-            "tongue" => SpinePhase.Grab,
-            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell or tongue"),
+            "tongue" or "devour" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--ribbits {mode}: hop, swell, tongue or devour"),
         };
-        foreach (var r in threats.OfType<Ribbit>())
-            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, r.Local, 0, 0, 0, LoneId, 0);
+        var pack = threats.OfType<Ribbit>().ToList();
+        foreach (var r in pack)
+        {
+            var at = r.Local;
+            if (mode == "devour" && r == pack.MinBy(m => m.Id))
+            {
+                var them = Lone(train).Feet;
+                at = them + ((at - them) with { Y = 0 }).Normalized * 0.8;
+            }
+            r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, at, 0, 0, 0, LoneId, 0);
+        }
         return threats;
     }
 
@@ -221,21 +339,34 @@ public static class Staging
     /// <summary>How far out from its gap the staged Whistler's nest is (a camera on the trail: <c>--whistler nest --view trail</c>).</summary>
     public const double NestOut = 24;
 
+    /// <summary>How far out from its gap the staged Whistler is on its run, carrying its catch (<c>--whistler carry</c>).</summary>
+    public const double CarryOut = 7;
+
     /// <summary>
     /// The staged Whistler as it goes (<c>dt screenshot --whistler</c>): <c>fold</c> hidden in its gap (App. A.4 HIDE),
     /// <c>whistle</c> pulling the cord, <c>watch</c> watching the gap's mouth after (WAIT). The <c>gapside</c> view looks in.
+    /// <c>carry</c>: on its run out to its nest with crewmate <see cref="LoneId"/> (<see cref="Carried"/>), the <c>carry</c> view
+    /// off its side.
     /// </summary>
     public static List<Enemy> Whistler(List<Enemy> threats, string mode, TrainOnLine? train = null)
     {
         if (mode.Length == 0 || threats.OfType<Whistler>().FirstOrDefault() is not { } w)
             return threats;
+        if (mode == "carry" && train is not null && w.Attached >= 0)
+        {
+            // Carrying its catch off (App. A.4 GRAB): loose, off the train's left, a second into the run out from its gap.
+            var f = train.Frames[w.Attached];
+            var at = f.ToWorld(w.Local + new Double3(-CarryOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
+            w.Restore(SpinePhase.Grab, 1.0, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
+            return threats;
+        }
         if (mode == "nest" && train is not null && w.Attached >= 0)
         {
             // At its nest with its catch (App. A.4): loose, off the train's left, the run out from its gap done (GreyboxScene
             // sets it on the land, its trail behind it).
             var f = train.Frames[w.Attached];
             var at = f.ToWorld(w.Local + new Double3(-NestOut, 0, 0)) with { Y = f.ToWorld(Double3.Zero).Y };
-            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0);
+            w.Restore(SpinePhase.Grab, 18, w.Health, Enemy.Loose, at, 0, 0, 0, 0, 0, holding: LoneId);
             return threats;
         }
         var (phase, extra) = mode switch
@@ -243,7 +374,7 @@ public static class Staging
             "fold" => (SpinePhase.Dormant, 0.0),
             "whistle" => (SpinePhase.Telegraph, 1.0),
             "watch" => (SpinePhase.Commit, 0.0),
-            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch or nest"),
+            _ => throw new ArgumentException($"--whistler {mode}: fold, whistle, watch, carry or nest"),
         };
         w.Restore(phase, 0.4, w.Health, w.Attached, w.Local, 0, 0, 0, extra, 0);
         return threats;
@@ -268,6 +399,11 @@ public static class Staging
                 tippy.Restore(mode == "grab" ? SpinePhase.Grab : SpinePhase.Telegraph, tippy.PhaseSeconds, tippy.Health, tippy.Attached,
                     tippy.Local with { X = -0.7, Z = -6.7 }, 0, 0, 0, tippy.Extra, tippy.Extra2);
                 break;
+            case var r when r.StartsWith("recoil", StringComparison.Ordinal):
+                // Pulled off crewmate 1 s seconds ago (recoil:s, 0.15 by default): hidden again in the sim, but where it was.
+                double ago = r.Length > 7 ? double.Parse(r[7..], System.Globalization.CultureInfo.InvariantCulture) : 0.15;
+                tippy.Restore(SpinePhase.Dormant, ago, tippy.Health, tippy.Attached, tippy.Local with { X = -0.7, Z = -6.7 }, 0, 0, 0, -1, tippy.Extra2);
+                break;
             case "in":
                 tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(-0.35, floor, -3.6), 0, 0, 0, -1, 0);
                 break;
@@ -275,7 +411,7 @@ public static class Staging
                 tippy.Restore(SpinePhase.Telegraph, 5, 3, car, new Double3(x, floor, shape.HalfLength - 0.3), 0, 0, 0, -1, 0);
                 break;
             default:
-                throw new ArgumentException($"--tippy {mode}: behind, grab, in or door");
+                throw new ArgumentException($"--tippy {mode}: behind, grab, recoil[:s], in or door");
         }
         return threats;
     }
@@ -312,10 +448,53 @@ public static class Staging
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 gaunt.Restore(SpinePhase.Telegraph, 2.2, gaunt.Health, car, new Double3(-0.45, floor, -train.Frames[car].Shape.HalfLength + 4.2), 0, 0, 0, -1, 1);
                 break;
+            // Leaving with what it took (App. A.6): off from the car's side on the ground, or still aboard making for the
+            // door (GauntLoad gives it the body it's carrying).
+            case "leave":
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, Enemy.Loose, before, 0, 0, 0, -1, 0);
+                break;
+            case "leavein":
+                int from = Math.Min(2, train.Frames.Count - 1);
+                double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                gaunt.Restore(SpinePhase.BreakOff, 2.2, gaunt.Health, from, new Double3(0.2, deck, -train.Frames[from].Shape.HalfLength + 3.2), 0, 0, 0, -1, 0);
+                break;
             default:
-                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack or in");
+                throw new ArgumentException($"--gaunt {mode}: sleep, stir, listen, angry, attack, in, leave or leavein");
         }
         return threats;
+    }
+
+    /// <summary>
+    /// A body for a staged Gaunt leaving (<c>--gaunt leave|leavein</c>) to carry off, held under it as Gaunt.Leave holds
+    /// it (Bodies.TakeAlong: by the hips, high as it stalks, low as it creeps aboard) and settled there for 1.5 s.
+    /// </summary>
+    public static Sim.Physics.Bodies GauntLoad(TrainOnLine train, string content, Gaunt gaunt)
+    {
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var g = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)).Gaunt;
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var bodies = new Sim.Physics.Bodies();
+        var dead = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, 0, player) with { Health = 0 };
+        var body = bodies.SpawnRagdoll(train, 6, dead);
+        gaunt.Extra = body.Id;
+        bool aboard = gaunt.Attached >= 0;
+        // Facing where it's going: aboard, toward the car's front door; off it, away from the car.
+        double yaw;
+        if (aboard)
+            yaw = 0;
+        else
+        {
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var away = frame.Right * -1;
+            yaw = Math.Atan2(-away.X, -away.Z);
+        }
+        for (int i = 0; i < 90; i++)
+        {
+            bodies.TakeAlong(body, train, gaunt.Id, aboard ? gaunt.Attached : Sim.Player.PlayerState.World,
+                gaunt.Local + Double3.Up * (aboard ? g.CarryLow : g.CarryHigh), yaw);
+            bodies.Step(train, tuning, _ => null);
+        }
+        return bodies;
     }
 
     /// <summary>
@@ -458,6 +637,33 @@ public static class Staging
         "drag" => (float)new PassengerTuning().DragSpeed,
         _ => 0,
     };
+
+    /// <summary>The one the staged Whistler's carrying off (<c>--whistler carry</c>) or has at its nest (<c>nest</c>): where the
+    /// sim has them, at its middle (the scene hangs them in its forelegs, or lays them in the nest: GreyboxScene.Hung).</summary>
+    public static Crewmate Carried(Whistler w) => new(LoneId, w.Local, 0, true, Act: Art.CrewPose.HeldCarried);
+
+    /// <summary>
+    /// The staged Car Hugger swallowing (<c>dt screenshot --hugger swallow</c>, App. A.3 GRAB): crewmate <see cref="LoneId"/>
+    /// (<see cref="Swallowed"/>) caught at the rear car's end door in front of its mouth. The <c>swallow</c> view looks at it.
+    /// </summary>
+    public static List<Enemy> Hugger(List<Enemy> threats, string mode)
+    {
+        if (mode != "swallow" || threats.OfType<CarHugger>().FirstOrDefault(h => h.Attached >= 0) is not { } h)
+            return threats;
+        h.Restore(SpinePhase.Grab, 1.2, h.Health, h.Attached, h.Local, 0, 0, 0, 0, 0, holding: LoneId);
+        return threats;
+    }
+
+    /// <summary>The one the staged Car Hugger has (<c>--hugger swallow</c>): where the sim caught and holds them, in reach
+    /// of its mouth on the rear car's floor, off to one side (the scene stands them bent into the mouth: GreyboxScene.Hung).</summary>
+    public static Crewmate Swallowed(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        var at = rear.ToWorld(new Double3(0.3, floor, rear.Shape.HalfLength - 1.4));
+        var facing = rear.DirToWorld(new Double3(0, 0, 1));
+        return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
+    }
 
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)
@@ -613,6 +819,27 @@ public static class Staging
     /// <summary>One of each enemy (GDD v1.1 §21) mid-telegraph or mid-commit around the train, where a view can see it.</summary>
     /// <param name="dollAhead">How far up the line the Track Doll stands (App. A.2's reveal is 200 m in the lamp).</param>
     /// <param name="lurkAhead">If given, a second Car Hugger lurking beside the line this far ahead (App. A.3 LURK).</param>
+    /// <summary>The staged car fire smouldering instead (its TELEGRAPH, App. C.5: smoke before flame): dt screenshot --threats --smoulder.</summary>
+    public static List<Enemy> Smoulder(List<Enemy> threats)
+    {
+        foreach (var e in threats)
+            if (e is CarFire fire)
+                fire.Restore(SpinePhase.Telegraph, 8, 1, fire.Attached, fire.Local, 0, 0, 0, 0.15, 0);
+        return threats;
+    }
+
+    /// <summary>
+    /// The staged car fire on its way to jumping the coupling (App. A.5; <c>dt screenshot --threats --spread f</c>): alight,
+    /// its blaze <paramref name="fraction"/> of the way to enemies.json carFire.spreadSeconds.
+    /// </summary>
+    public static List<Enemy> Spread(List<Enemy> threats, double fraction, double spreadSeconds)
+    {
+        foreach (var e in threats)
+            if (e is CarFire fire)
+                fire.Restore(fire.Phase, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, fire.Extra, fraction * spreadSeconds);
+        return threats;
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;

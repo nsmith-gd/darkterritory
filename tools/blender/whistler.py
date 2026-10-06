@@ -16,7 +16,8 @@ engine's -Z). Its origin is the gap's (the sim's GapLocal, 0.6 m over the rail):
 Clips (GDD §31: still, then too fast): fold (coiled under the plate, the front laid on top of the coil looking out,
 breathing; once a ripple down the legs), whistle (reared up out of the gap, the forelegs yanking the cord twice, the
 siphon swelling, its stops opening), watch (the front lifted at the gap's mouth, swaying and stopping in jerks), run
-(straightened out and gone, the body snaking, the legs in waves), hit (struck, once).
+(straightened out and gone, the body snaking, the legs in waves), carry (the same run with its front reared up, someone held
+in its forelegs under it), hit (struck, once). Sockets hook_r and hook_l: the forelegs' tips.
 
     tools/models/build.sh whistler        # this, its high copy and the bake -> content/art/models/whistler.glb
 """
@@ -56,6 +57,9 @@ for s, sx in (("r", 1), ("l", -1)):
         bones.append(Bone(f"femur_{k + 1:02d}{s}", seg, hip, knee))
         bones.append(Bone(f"tibia_{k + 1:02d}{s}", f"femur_{k + 1:02d}{s}", knee, hook))
         LEGS.append((k + 1, s))
+    # The forelegs' hook tips, as sockets (not weighted): where what it carries is held (CreatureArt.WhistlerClutch).
+    hook = (sx * 0.22, TAIL + (N - 1 + 0.55) * SEG + 0.62, Z0 + 0.05)
+    bones.append(Bone(f"hook_{s}", f"tibia_{N:02d}{s}", hook, (hook[0], hook[1] + 0.05, hook[2]), deform=False))
 sk = Skeleton("SK_Whistler", bones)
 sk.build()
 kit = rig.Kit(sk, "whistler")
@@ -132,6 +136,7 @@ body.tube(pts, radii, 18, PLATE, (SEGS + ["head"], 5.0), ref=(0, 0, 1), shape=pl
 
 # --- the head: a smooth blunt wedge, eyeless; the siphon out of it; the feelers ----------------------------------------
 head = kit.part("head")
+skin = kit.part("skin")   # the head's wedge and the siphon: one skin with the body (rig.fuse); lips, stops, feelers `head`
 HC = FRONT + Vector((0, 0.1, -0.005))
 
 
@@ -146,7 +151,7 @@ def wedge(i, j, a, th, p):
     return p + Vector((0, 0, 0.002 * noise3(p * 30, 142, 1.0)))
 
 
-head.blob(HC, (0.14, 0.18, 0.11), 18, 12, PLATE, {"head": 1.0}, shape=wedge)
+skin.blob(HC, (0.14, 0.18, 0.11), 18, 12, PLATE, {"head": 1.0}, shape=wedge)
 # The siphon: a fleshy tube, thick at the root, ending in a puckered lip; the stops along its top.
 sph = [SIPHON[0] - Vector((0, 0.06, 0.01))] + [SIPHON[k].lerp(SIPHON[k + 1], f) for k in range(3) for f in (0.0, 0.5)] + [SIPHON[-1]]
 sr = [0.05, 0.048, 0.044, 0.04, 0.037, 0.035, 0.034, 0.036]
@@ -160,7 +165,7 @@ def siphon_shape(i, j, a, p, fr):
     return p + out * 0.003 * math.sin(p.y * 160)
 
 
-head.tube(sph, sr, 12, FLESH, (["head", "siphon_01", "siphon_02", "siphon_03"], 6.0), ref=(0, 0, 1), shape=siphon_shape)
+skin.tube(sph, sr, 12, FLESH, (["head", "siphon_01", "siphon_02", "siphon_03"], 6.0), ref=(0, 0, 1), shape=siphon_shape)
 END = SIPHON[-1]
 ring = []
 for k in range(14):
@@ -186,11 +191,24 @@ legs = kit.part("legs")
 for k, s in LEGS:
     fe, ti = f"femur_{k:02d}{s}", f"tibia_{k:02d}{s}"
     big = 1.4 if k == N else 1.0
-    legs.tube([H(fe), H(fe).lerp(T(fe), 0.5), T(fe)], [0.026 * big, 0.021 * big, 0.018 * big], 6, LEG, fe, ref=(0, 0, 1))
-    legs.blob(T(fe), (0.022 * big, 0.022 * big, 0.022 * big), 6, 4, LEG, {fe: 0.5, ti: 0.5})
+    a, b = H(fe), T(fe)
+    out = (b - a).normalized()
+    # The coxa, a knuckle where it comes out of the body; the femur swollen along its first half like a cricket's, a ridge
+    # down its top, a spine off its back edge (two on the forelegs); the knee a hard knob.
+    legs.blob(a + out * 0.012, (0.028 * big, 0.028 * big, 0.026 * big), 8, 5, LEG, fe)
+    legs.tube([a, a.lerp(b, 0.3), a.lerp(b, 0.62), b], [0.024 * big, (0.031 * big, 0.026 * big), 0.02 * big, 0.016 * big], 8, LEG, fe,
+              ref=(0, 0, 1), shape=lambda i, j, ang, p, fr, big=big: Vector(p) + fr[1] * (0.004 * big * bell((math.cos(ang) - 1) / 0.35)))
+    for q in ((0.4, 0.66) if k == N else (0.55,)):
+        c = a.lerp(b, q) + Vector((0, 0, 0.014 * big))
+        legs.tube([c, c + (out * 0.4 + Vector((0, -0.3, 0.9))).normalized() * 0.03 * big], [0.0045 * big, 0.0006], 4, HOOK, fe,
+                  ref=(0, 1, 0))
+    legs.blob(b, (0.022 * big, 0.022 * big, 0.022 * big), 8, 5, LEG, {fe: 0.5, ti: 0.5})
     hook = T(ti)
     pre = H(ti).lerp(hook, 0.8)
-    legs.tube([H(ti), H(ti).lerp(hook, 0.5), pre, hook], [0.017 * big, 0.013 * big, 0.009 * big, 0.002], 6, LEG, ti, ref=(0, 0, 1),
+    # The tibia thin and straight, a band at each of its two false joints, the black hook its last fifth.
+    t0 = H(ti)
+    legs.tube([t0, t0.lerp(hook, 0.33), t0.lerp(hook, 0.36), t0.lerp(hook, 0.6), t0.lerp(hook, 0.63), pre, hook],
+              [0.016 * big, 0.0125 * big, 0.0145 * big, 0.011 * big, 0.0128 * big, 0.009 * big, 0.002], 6, LEG, ti, ref=(0, 0, 1),
               fmat=lambda pts_, n, pre=pre, hook=hook: HOOK if (sum(pts_, Vector()) / len(pts_) - hook).length < (pre - hook).length * 0.9 else LEG)
     if k == N:
         # The forelegs' inner edge serrated: a row of spines to hold what it carries.
@@ -250,11 +268,12 @@ FOREFOLD = mirror({f"femur_{N:02d}r": (0, 14, -24), f"tibia_{N:02d}r": (0, 64, 0
 # Fold (5 s, loop): coiled round the drawgear under the plate, the front laid up over the coil looking out over it, the
 # siphon resting along it; breathing (the coil easing and tightening); once, a ripple down the legs from front to tail,
 # and the feelers flick.
-FOLD_BODY = coil(34, 2.6) | {SEGS[N - 2]: (16, 0, 30), SEGS[N - 1]: (14, 0, 26), "head": (-28, 0, 0), "siphon_01": (-8, 0, 0)}
+# (The front half wound a little looser and riding up over the tail's turn rather than through it: dt art clearance.)
+FOLD_BODY = coil(31, 2.4, rise=2.4) | {SEGS[N - 2]: (13, 0, 30), SEGS[N - 1]: (14, 0, 26), "head": (-28, 0, 0), "siphon_01": (-8, 0, 0)}
 FOLD = grounded(centred(FOLD_BODY | legs_pose(tuck=0.8) | FOREFOLD))
 fold = Clip("fold")
 for f, k in ((0, 0.0), (40, 1.0), (80, 0.0), (120, 1.0)):
-    fold.key(f, grounded(centred(over(FOLD_BODY | legs_pose(tuck=0.8 - 0.1 * k) | FOREFOLD, seg_05=(0, 0, 34 + 2.6 * 4 - 3 * k)))), "BEZIER")
+    fold.key(f, grounded(centred(over(FOLD_BODY | legs_pose(tuck=0.8 - 0.1 * k) | FOREFOLD, seg_05=(0, 0, 31 + 2.4 * 4 - 3 * k)))), "BEZIER")
 for f, w in ((126, 0), (128, 1), (130, 2), (132, 3), (134, 4), (136, 5), (140, -9)):
     rip = legs_pose(lift=lambda k, w=w: 35 * bell((N - k - w * 2) / 1.5), tuck=0.8)
     flick = {"feeler_r": (0, -20 if w == 1 else 0, 20 if w == 2 else 0), "feeler_l": (0, 20 if w == 3 else 0, -20 if w == 1 else 0)}
@@ -326,16 +345,57 @@ for f in range(0, 18, 3):
     run.key(f, grounded(centred(snake | lp | clutch)), "LINEAR")
 run.close(18)
 
+# Carry (0.6 s, loop; GRAB, App. A.4 "carried off at a run to its nest"): someone held in its forelegs under its front.
+# The back half runs flat and snaking as in the run (the front kept heading straight on: seg_05 takes back the snake's
+# turn); the front half reared up two metres in a column, the head curled forward over the one it holds and the siphon
+# out over their head; the forelegs wrapped round from behind, the hooks under their arms, lifted off their feet
+# (crew_clips.py held_carried: the armpits at CARRY_UNDERARM, 1.42 m over their feet). The legs up the column hang curled
+# and stirring.
+CARRY_UNDERARM = 1.42
+
+
+def carried(ph):
+    sn = [12 * math.sin(ph - k * 0.9) for k in range(4)]
+    body_ = {SEGS[k]: (0, 0, sn[k]) for k in range(4)} | {
+        "seg_05": (20, 0, -sum(sn)), "seg_06": (45, 0, 0), "seg_07": (25, 0, 0), "seg_08": (0, 0, 0), "seg_09": (-15, 0, 0),
+        "seg_10": (-30, 0, 0), "head": (-35, 0, 0), "siphon_01": (-10, 0, 0), "siphon_02": (-8, 0, 0)}
+    lp = {}
+    for k in range(1, 6):
+        u = ph - k * 1.1
+        lp[f"femur_{k:02d}r"] = (0, -30 * max(0.0, math.sin(u)), 30 * math.cos(u))
+        lp[f"tibia_{k:02d}r"] = (0, 10 * max(0.0, math.sin(u)), 0)
+        lp[f"femur_{k:02d}l"] = (0, 30 * max(0.0, math.sin(u + math.pi)), -30 * math.cos(u + math.pi))
+        lp[f"tibia_{k:02d}l"] = (0, -10 * max(0.0, math.sin(u + math.pi)), 0)
+    hang = {n: v for n, v in uplegs(ph * 2).items() if int(n[6:8]) >= 6}
+    p = grounded(centred(body_ | lp | hang))
+    # The hooks under their arms: in front of the column, one each side of its line.
+    pts = rig.pose_points(sk, p, [(n, "head") for n in SEGS])
+    x, y = pts[N - 2].x, max(q.y for q in pts[5:]) + 0.4
+    for s_, k in (("r", 1), ("l", -1)):
+        p = rig.reach(sk, p, f"femur_{N:02d}{s_}", f"tibia_{N:02d}{s_}", (x + 0.19 * k, y, CARRY_UNDERARM), elbow_axis=1, bend=-k)
+    return p
+
+
+carry = Clip("carry")
+for f in range(0, 18, 3):
+    carry.key(f, carried(2 * math.pi * f / 18), "LINEAR")
+carry.close(18)
+
 # Hit (0.4 s, once): struck, it whips into an S round the blow, the legs all flung out, and snaps back.
 hit = Clip("hit", loop=False)
 hit.key(0, WATCH, "CONSTANT")
 hit.key(2, grounded(centred(over(WATCH_BODY, seg_06=(10, 0, 50), seg_07=(0, 0, -40), seg_08=(40, 0, -30), head=(20, 0, 30)) | legs_pose(lift=lambda k: 40))), "CONSTANT")
-hit.key(7, grounded(centred(over(WATCH_BODY, seg_07=(0, 0, 10)) | legs_pose(tuck=0.3) | FOREFOLD)), "LINEAR")
+# (Settling back, the legs fold as they were, not out across the tail's turn: dt art clearance.)
+hit.key(7, grounded(centred(over(WATCH_BODY, seg_07=(0, 0, 10)) | legs_pose(tuck=0.5) | FOREFOLD)), "LINEAR")
 hit.key(12, WATCH, "CONSTANT")
 
+# One skin from the tail to the siphon's lip, the head grown out of the body rather than pushed onto it (rig.fuse); then up
+# toward GDD §27's budget (a character's, 4-10k): rig.densify rounds the legs and the lips out (Look Review asks).
+kit.fuse("body", ["body", "skin"], voxel=0.0035, faces=1800)
+kit.target_tris = 8500
 kit.build()
-rig.bake(sk, [fold, whistle, watch, run, hit])
-for name, p in (("fold", FOLD), ("watch", WATCH), ("whistle", grounded(centred(reach_up(REAR | UPLEGS, 0.0))))):
+rig.bake(sk, [fold, whistle, watch, run, carry, hit])
+for name, p in (("fold", FOLD), ("watch", WATCH), ("whistle", grounded(centred(reach_up(REAR | UPLEGS, 0.0)))), ("carry", carried(0.0))):
     pts = rig.pose_points(sk, p, [(b.name, "tail") for b in sk.bones] + [(b.name, "head") for b in sk.bones])
     print(f"[dt] whistler {name} top {max(q.z for q in pts):.2f} low {min(q.z for q in pts):.2f}")
 print("[dt] whistler", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))

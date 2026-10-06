@@ -1,0 +1,14 @@
+// Tell (tier 1), the Grumbler: "audible gnawing" on the food crates at a facility (GDD v1.1 App. A.8), 1.4-2.2 kHz (the
+// band the loose load held). Teeth on timber: a stick-slip rasp, in runs, from wherever it's scuttled to on the stack.
+{
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
+  "tier": 1, "loop": true, "maxInstances": 2, "minDistance": 3, "maxDistance": 45, "gainDb": 5,
+  "layers": [
+    { "source": "impulse", "gain": 1.4, "frequency": 26,
+      "filters": [{ "type": "bandPass", "frequency": 1800, "q": 6 }, { "type": "peak", "frequency": 1650, "q": 8, "gainDb": 8 }],
+      "tremolo": { "rate": 0.9, "depth": 1, "duty": 0.6, "jitter": 0.4 } },
+    { "source": "noise", "gain": 0.3, "filters": [{ "type": "bandPass", "frequency": 1750, "q": 5 }],
+      "tremolo": { "rate": 0.9, "depth": 1, "duty": 0.6, "jitter": 0.4 } }
+  ]
+}

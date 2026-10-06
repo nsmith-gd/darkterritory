@@ -10,7 +10,7 @@ public static class Audio
     public static double GainToDb(double gain) => 20 * Math.Log10(Math.Max(gain, 1e-9));
 }
 
-public enum FilterType : byte { LowPass, HighPass, BandPass, Peak }
+public enum FilterType : byte { LowPass, HighPass, BandPass, Peak, HighShelf }
 
 /// <summary>RBJ-cookbook biquad, transposed direct form II. Coefficients can be retuned per block.</summary>
 public struct Biquad
@@ -34,6 +34,14 @@ public struct Biquad
                 // Constant 0 dB peak gain.
                 b0 = alpha; b1 = 0; b2 = -alpha; a0 = 1 + alpha; a1 = -2 * cos; a2 = 1 - alpha;
                 break;
+            case FilterType.HighShelf:
+                {
+                    // Everything above the corner moved by gainDb (the head's shadow, the pinna from behind).
+                    double g = Math.Pow(10, gainDb / 40), root = 2 * Math.Sqrt(g) * alpha;
+                    b0 = g * ((g + 1) + (g - 1) * cos + root); b1 = -2 * g * ((g - 1) + (g + 1) * cos); b2 = g * ((g + 1) + (g - 1) * cos - root);
+                    a0 = (g + 1) - (g - 1) * cos + root; a1 = 2 * ((g - 1) - (g + 1) * cos); a2 = (g + 1) - (g - 1) * cos - root;
+                    break;
+                }
             default:
                 double a = Math.Pow(10, gainDb / 40);
                 b0 = 1 + alpha * a; b1 = -2 * cos; b2 = 1 - alpha * a; a0 = 1 + alpha / a; a1 = -2 * cos; a2 = 1 - alpha / a;

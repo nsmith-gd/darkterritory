@@ -101,8 +101,15 @@ sealed partial class LineBuilder
                             Sign("bridgeLimit", d.Edge, board + 5, $"MAX {weak.MaxCars} CARS", true, weak.MaxCars, d.Id, ref rng);
                             _form19.Add(new CardLine("bridge", Card(d.Edge, d.SReq), $"{bridge.Name}: max {weak.MaxCars} cars, {Kmh(weak.SpeedMs)} km/h"));
                         }
-                        else if (paper)
-                            _form19.Add(new CardLine("limit", Card(d.Edge, d.SReq), $"{Kmh(d.VReq)} km/h at km {km} ({limit.Why})", Card(d.Edge, limit.S1)));
+                        else
+                        {
+                            // Note 266: a limit that isn't a bend's says what it's for, so a "20" on straight track isn't
+                            // taken for a bend that isn't there (build 1121).
+                            if (d.Type == DemandType.Brass)
+                                Sign("limitReason", d.Edge, board + 5, "BRASS", true, null, d.Id, ref rng);
+                            if (paper)
+                                _form19.Add(new CardLine("limit", Card(d.Edge, d.SReq), $"{Kmh(d.VReq)} km/h at km {km} ({limit.Why})", Card(d.Edge, limit.S1)));
+                        }
                         break;
                     }
                 case DemandType.Restricted:

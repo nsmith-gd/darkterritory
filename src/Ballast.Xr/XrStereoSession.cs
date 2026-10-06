@@ -37,8 +37,10 @@ public enum XrFrameResult : byte
 }
 
 /// <summary>
-/// A running OpenXR session: the stereo swapchains, the frame loop, and the session's lifecycle. The game draws each
-/// eye with its own <see cref="GreyboxRenderer"/> and the frame is copied into the runtime's swapchain bit for bit:
+/// A running OpenXR session: the stereo swapchains, the frame loop, and the session's lifecycle. The game draws both
+/// eyes in one pass into a two-layer <see cref="GreyboxRenderer"/> (multiview: <see cref="FrameBoth"/>), or, where the
+/// device can't, each eye with its own (<see cref="Frame(Func{XrEye, VkCommandBuffer, GreyboxRenderer}, Action{XrControllerState}?)"/>),
+/// and each eye's image is copied into its swapchain bit for bit:
 /// the renderer's UNORM target holds display-ready values, and the swapchain is the sRGB twin of that format.
 /// Pixels are copied, not scaled: the eye is drawn at <c>renderScale</c> of the runtime's recommendation into the
 /// top-left of the image, and the compositor stretches it. The low-res look survives, without nearest-filter shimmer
@@ -206,7 +208,22 @@ public sealed unsafe class XrStereoSession : IDisposable
     /// follows the hands (the hands themselves) is placed there, not a frame late. The eyes are located by then too
     /// (<see cref="Eyes"/>), so what's placed by the head (a HUD panel projected into each eye) isn't a frame late either.
     /// </summary>
-    public XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye, Action<XrControllerState>? synced = null)
+    public XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer> drawEye, Action<XrControllerState>? synced = null) =>
+        Frame(drawEye, null, synced);
+
+    /// <summary>
+    /// <see cref="Frame(Func{XrEye, VkCommandBuffer, GreyboxRenderer}, Action{XrControllerState}?)"/> with both eyes drawn
+    /// at once (multiview, ARCHITECTURE §8 note 221): <paramref name="drawBoth"/> records both into one renderer's
+    /// two-layer image (left, right) and returns it, and each layer is copied to its eye's swapchain in the same submit.
+    /// </summary>
+    public XrFrameResult FrameBoth(Func<IReadOnlyList<XrEye>, VkCommandBuffer, GreyboxRenderer> drawBoth, Action<XrControllerState>? synced = null) =>
+        Frame(null, drawBoth, synced);
+
+    /// <summary>GPU submits for the eyes so far: one an eye drawing each alone, one a frame drawing both at once.</summary>
+    public int EyeSubmits { get; private set; }
+
+    XrFrameResult Frame(Func<XrEye, VkCommandBuffer, GreyboxRenderer>? drawEye, Func<IReadOnlyList<XrEye>, VkCommandBuffer, GreyboxRenderer>? drawBoth,
+        Action<XrControllerState>? synced)
     {
         if (!PollEvents())
             return XrFrameResult.Exiting;
@@ -254,11 +271,12 @@ public sealed unsafe class XrStereoSession : IDisposable
         synced?.Invoke(Controllers);
         if (draw)
         {
+            var both = drawBoth is null ? default : DrawBoth(drawBoth);
             for (int eye = 0; eye < 2; eye++)
             {
                 var pose = views[eye].Pose;
                 var fov = views[eye].Fov;
-                var (width, height) = DrawEye(eye, _eyes[eye], drawEye);
+                var (width, height) = drawBoth is null ? DrawEye(eye, _eyes[eye], drawEye!) : both;
                 projection[eye] = new CompositionLayerProjectionView
                 {
                     Type = StructureType.CompositionLayerProjectionView,
@@ -308,6 +326,7 @@ public sealed unsafe class XrStereoSession : IDisposable
         XrHeadset.Check(_xr.WaitSwapchainImage(swapchain, &wait), "xrWaitSwapchainImage");
         var target = _images[eye][index];
         int width = 0, height = 0;
+        EyeSubmits++;
         _gpu.Submit(cmd =>
         {
             var renderer = drawEye(view, cmd);
@@ -326,6 +345,49 @@ public sealed unsafe class XrStereoSession : IDisposable
         });
         var release = new SwapchainImageReleaseInfo { Type = StructureType.SwapchainImageReleaseInfo };
         XrHeadset.Check(_xr.ReleaseSwapchainImage(swapchain, &release), "xrReleaseSwapchainImage");
+        return (width, height);
+    }
+
+    /// <summary>Both eyes from one renderer's layers, in one submit: each swapchain's image acquired, filled from its layer, released.</summary>
+    (int Width, int Height) DrawBoth(Func<IReadOnlyList<XrEye>, VkCommandBuffer, GreyboxRenderer> drawBoth)
+    {
+        var targets = new VkImage[2];
+        for (int eye = 0; eye < 2; eye++)
+        {
+            var acquire = new SwapchainImageAcquireInfo { Type = StructureType.SwapchainImageAcquireInfo };
+            uint index;
+            XrHeadset.Check(_xr.AcquireSwapchainImage(_swapchains[eye], &acquire, &index), "xrAcquireSwapchainImage");
+            var wait = new SwapchainImageWaitInfo { Type = StructureType.SwapchainImageWaitInfo, Timeout = long.MaxValue };
+            XrHeadset.Check(_xr.WaitSwapchainImage(_swapchains[eye], &wait), "xrWaitSwapchainImage");
+            targets[eye] = _images[eye][index];
+        }
+        int width = 0, height = 0;
+        EyeSubmits++;
+        _gpu.Submit(cmd =>
+        {
+            var renderer = drawBoth(_eyes, cmd);
+            if (renderer.Views != 2)
+                throw new InvalidOperationException("drawing both eyes at once wants a two-view renderer");
+            width = Math.Min(renderer.Width, _swapchainWidth);
+            height = Math.Min(renderer.Height, _swapchainHeight);
+            for (int eye = 0; eye < 2; eye++)
+            {
+                renderer.Transition(cmd, targets[eye], VkImageAspectFlags.Color, VkImageLayout.ColorAttachmentOptimal, VkImageLayout.TransferDstOptimal);
+                var region = new VkImageCopy
+                {
+                    srcSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, (uint)eye, 1),
+                    dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+                    extent = new VkExtent3D((uint)width, (uint)height, 1),
+                };
+                _gpu.Api.vkCmdCopyImage(cmd, renderer.ColorImage, VkImageLayout.TransferSrcOptimal, targets[eye], VkImageLayout.TransferDstOptimal, 1, &region);
+                renderer.Transition(cmd, targets[eye], VkImageAspectFlags.Color, VkImageLayout.TransferDstOptimal, VkImageLayout.ColorAttachmentOptimal);
+            }
+        });
+        for (int eye = 0; eye < 2; eye++)
+        {
+            var release = new SwapchainImageReleaseInfo { Type = StructureType.SwapchainImageReleaseInfo };
+            XrHeadset.Check(_xr.ReleaseSwapchainImage(_swapchains[eye], &release), "xrReleaseSwapchainImage");
+        }
         return (width, height);
     }
 

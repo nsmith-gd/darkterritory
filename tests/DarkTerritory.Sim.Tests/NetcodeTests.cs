@@ -3,6 +3,8 @@ using Ballast.Net;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -58,6 +60,28 @@ public class NetcodeTests
             for (int i = 0; i < clients.Length; i++)
                 clients[i].Step(intent(i));
         }
+    }
+
+    [Fact]
+    public void ADroppedClientKnowsItAndDoesntSeeItselfAsCrew()
+    {
+        // The 4 Oct two-window rehearsal: a joiner whose link timed out sat on "connecting…", with its own player back in the
+        // crew list (RemoteIds filtered on a PlayerId the drop had cleared), drawn round its own eyes.
+        var net = new LoopbackNetwork();
+        var hostLink = net.CreateHost();
+        var host = new HostSession(hostLink, new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600), T, P);
+        var clientLinks = new[] { net.CreateClient(), net.CreateClient() };
+        var clients = clientLinks.Select(l => new ClientSession(l, new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), TestLoop, 600), T, P)).ToArray();
+        Run(net, host, clients, 30, _ => default);
+        byte me = clients[0].PlayerId!.Value;
+        Assert.DoesNotContain(me, clients[0].RemoteIds);
+        Assert.False(clients[0].Dropped);
+        hostLink.Disconnect(clientLinks[0].LocalId);
+        Run(net, host, clients, 2, _ => default);
+        Assert.True(clients[0].Dropped);
+        Assert.False(clients[0].Connected);
+        Assert.DoesNotContain(me, clients[0].RemoteIds);
+        Assert.False(clients[1].Dropped);
     }
 
     [Fact]
@@ -172,6 +196,35 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientBoardingUpABreachIsPredictedExactly()
+    {
+        // Decided 1 Oct: a breached car is boarded up from inside, Use held at the hole; the boarder's client predicts it.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        const int car = 3;
+        var room = host.Train.Frames[car].Shape.Interior!.Value;
+        host.Train.Vehicles[car].Breach(Breaches.EndWall(host.Train.Frames[car].Shape)!.Value);
+        HostTeleport(host, clients[1].PlayerId!.Value, new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, room.Max.Z - 0.7),
+            Yaw = Math.PI,
+            Health = 100,
+        });
+        Run(net, host, clients, 5, _ => default);
+        Assert.All(clients, c => Assert.True(c.Train.Vehicles[car].Breached));
+        foreach (var c in clients)
+            c.ResetStats();
+
+        Run(net, host, clients, (int)(T.Breach.BoardSeconds * SimConstants.TickRate) + 5, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.False(host.Train.Vehicles[car].Breached);
+        Assert.All(clients, c => Assert.False(c.Train.Vehicles[car].Breached));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
     public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
     {
         // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train
@@ -241,6 +294,11 @@ public class NetcodeTests
         var net = new LoopbackNetwork();
         var host = new HostSession(net.CreateHost(), new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), TestLoop, 600), T, P);
         var evil = net.CreateClient();
+        // Let in first (note 253: nobody is welcomed before they've said hello), then the junk.
+        var hello = new NetWriter();
+        Messages.WriteHello(hello, "evil", 0);
+        evil.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
+        net.Advance(SimConstants.TickSeconds);
         host.Step();
         var rng = new Random(9);
         for (int i = 0; i < 500; i++)
@@ -350,6 +408,7 @@ public class BodyNetcodeTests
         Assert.Equal(victim, body.Owner);
         Assert.Equal(2, body.Parent);
     }
+
 }
 
 /// <summary>M2's remainder: interest management, inert bodies, drop-in at stops (spec E).</summary>

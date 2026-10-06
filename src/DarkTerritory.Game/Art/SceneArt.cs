@@ -20,40 +20,91 @@ public sealed partial class SceneArt(Look look)
     public WorldArt World { get; } = new(look);
 
     CreatureArt? _creatures;
-    readonly Dictionary<byte, (Double3 Feet, double Time, float Speed)> _crewMotion = new();
+    readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
 
     /// <summary>The crew and the creatures, skinned (content/art/models, tools/blender); loaded on first use.</summary>
     public CreatureArt Creatures => _creatures ??= new CreatureArt(Look);
 
     /// <summary>
     /// A crewmate as the crew model, walking or running by how fast they've moved since last drawn (the snapshot
-    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). False without the model.
+    /// doesn't say; this is presentation only, so a frame's lag in the gait doesn't matter). On a car that's over the car,
+    /// in its frame (note 211): stood still on a train at speed is stood still. False without the model.
     /// </summary>
-    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time)
+    /// <param name="swung">Seconds since a blow of theirs landed (a HitConfirm by them, App. C.2), or negative: their swing
+    /// is played round it, so another crewmate's blow is seen as well as felt.</param>
+    public bool Crewmate(MeshBuilder mesh, Crewmate c, Double3 eye, double time, double swung = -1)
     {
         float speed = 0;
+        // Measured in the frame they stand in: the car's, or the ground's (World). The step they change frames on (a car to
+        // the next, off onto the ballast) has its two samples in different frames, so it keeps the pace they had.
+        var at = c.Car != Sim.Player.PlayerState.World ? c.Local : c.Feet;
         if (_crewMotion.TryGetValue(c.Id, out var last) && time > last.Time)
         {
-            var d = c.Feet - last.Feet;
-            float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
-            float now = moved / (float)(time - last.Time);
-            // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
-            speed = float.Lerp(last.Speed, now, 0.35f);
+            speed = last.Speed;
+            if (last.Car == c.Car)
+            {
+                var d = at - last.At;
+                float moved = (float)Math.Sqrt(d.X * d.X + d.Z * d.Z);
+                float now = moved / (float)(time - last.Time);
+                // Smoothed a little, so the gait doesn't flicker between clips on one jittery snapshot.
+                speed = float.Lerp(last.Speed, now, 0.35f);
+            }
         }
-        _crewMotion[c.Id] = (c.Feet, time, speed);
+        _crewMotion[c.Id] = (at, c.Car, time, speed);
         var pose = c.Act switch
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
+            CrewPose.Shoulder => speed < 0.4f ? CrewPose.Shoulder : CrewPose.ShoulderWalk,
+            CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
             { } act => act,
-            null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : CrewPose.Run,
+            // Running with something waking close by, hunched and hurried (GDD §31).
+            null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
+        // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
+        // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
+        // the drop, until it's done, rather than snapping back to stood (App. C.5; the checklist's "a distinct hang-back").
+        if (pose == CrewPose.Extinguish && Spraying?.Contains(c.Id) == true)
+            pose = CrewPose.Spray;
+        var before = _crewActSince.TryGetValue(c.Id, out var wasDoing) ? wasDoing : default;
+        if (pose == CrewPose.TakeDown && before.Pose is CrewPose.Extinguish or CrewPose.Spray or CrewPose.HangUp)
+            pose = CrewPose.HangUp;
+        else if (before.Pose == CrewPose.HangUp && pose is CrewPose.Idle or CrewPose.Walk && time - before.Time < HangUpSeconds)
+            pose = CrewPose.HangUp;
+        LastPose = pose;
+        // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
+        if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
+            _staggered[c.Id] = time;
+        _crewHealth[c.Id] = c.Health;
+        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern;
+        if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
+            pose = CrewPose.Stagger;
+        // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
+        if (FireDoorAt is { } door && FireDoorSince is >= 0 and < FireDoorSeconds && c.Act is null or CrewPose.Shovel or CrewPose.Drive
+            && ((c.Feet - door) with { Y = 0 }).Length < FireDoorReach)
+            pose = CrewPose.FireDoor;
+        // Their own blow (it landed swungBeforeHit into the clip): played round it, wherever they stand.
+        if (free && swung >= 0 && swung + SwingHitAt < SwingSeconds)
+            pose = CrewPose.Swing;
         // When this act began, for the ones played once from the start (getting up, a thing off its bracket).
         if (!_crewActSince.TryGetValue(c.Id, out var since) || since.Pose != pose)
             _crewActSince[c.Id] = since = (pose, time);
-        double clipTime = pose is CrewPose.GetUp or CrewPose.TakeDown ? time - since.Time : time;
+        double clipTime = pose switch
+        {
+            CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
+            CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
+            CrewPose.Swing => swung + SwingHitAt,
+            // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
+            CrewPose.Reload => c.Phase,
+            // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
+            // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
+            CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
+            _ => time,
+        };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
         var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
@@ -77,7 +128,7 @@ public sealed partial class SceneArt(Look look)
         }
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor));
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
         if (drawn && Breath > 0 && c.Alive)
@@ -97,7 +148,35 @@ public sealed partial class SceneArt(Look look)
         return drawn;
     }
 
+    /// <summary>
+    /// A headset crewmate's body under their head (T82, <see cref="VrBody"/>), stood still: walking and running are the
+    /// clips', and so is any act (the lever, the shovel, a hold). Their feet are kept planted from frame to frame in the
+    /// frame they stand in, and planted afresh when they start, stop or move frames.
+    /// </summary>
+    VrBodyPose? HeadsetBody(in Crewmate c, CrewPose pose, double time) =>
+        _strides.Pose(c, c.Alive && c.Act is null && pose == CrewPose.Idle, time, Look.VrBody);
+
+    readonly VrStrides _strides = new();
+
+    /// <summary>The pace-chosen pose of the crewmate last drawn (before a stagger, a swing or the fire door take over).</summary>
+    public CrewPose LastPose { get; private set; }
+
     readonly Dictionary<int, (Double3 At, double Time)> _lampHands = new();
+    readonly Dictionary<byte, int> _crewHealth = new();
+    readonly Dictionary<byte, double> _staggered = new();
+
+    /// <summary>The firehole's door in the world (GreyboxScene sets it with the cab), and how long since it last moved (s).</summary>
+    public Double3? FireDoorAt { get; set; }
+    public double FireDoorSince { get; set; } = -1;
+
+    /// <summary>crew_clips.py's firedoor clip (21 frames); how near the door's foot someone stands to be the one at it (m).</summary>
+    const double FireDoorSeconds = 21 / 30.0, FireDoorReach = 1.3;
+
+    /// <summary>crew_clips.py's climb and climb_carry: one 40-frame cycle per two rungs (TrainKit.RungPitch) climbed.</summary>
+    const double ClimbCycleSeconds = 40 / 30.0, ClimbCycleRise = 2 * TrainKit.RungPitch;
+
+    /// <summary>crew_clips.py's stagger (20 frames) and swing (24 frames, the blow landing at frame 11), in seconds.</summary>
+    const double StaggerSeconds = 20 / 30.0, SwingSeconds = 24 / 30.0, SwingHitAt = 11 / 30.0;
 
     /// <summary>How much a breath shows tonight, 0..1 (look.json atmosphere.cold, GreyboxScene.Cold).</summary>
     public float Breath { get; set; }
@@ -172,11 +251,21 @@ public sealed partial class SceneArt(Look look)
 
     readonly Dictionary<byte, (CrewPose Pose, double Time)> _crewActSince = new();
 
+    /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
+    public IReadOnlySet<int>? Spraying { get; set; }
+
+    // How long hanging the extinguisher back on its bracket takes (s): crew_clips.py's hang_up, 40 frames at 30.
+    const double HangUpSeconds = 40 / 30.0;
+
     /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
     public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>
         Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, ToolProp(own.Holding));
 
     /// <summary>A hotbar tool's model (tools/models hand_tools), or null for none.</summary>
+    /// <summary>A headset player's own gloved hands on their controllers, the tool in hand in the right (CreatureArt.HeadsetHands).</summary>
+    public bool HeadsetHands(MeshBuilder mesh, float yaw, in Ballast.Xr.XrControllerState controllers, int variant, Sim.Player.Tool holding) =>
+        Creatures.HeadsetHands(mesh, yaw, controllers.Left, controllers.Right, variant, ToolProp(holding));
+
     MeshAsset? ToolProp(Sim.Player.Tool tool) => tool switch
     {
         Sim.Player.Tool.Crowbar => PropArt.Of(Look).Get("tool_crowbar"),
@@ -307,6 +396,9 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
     static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
 
+    /// <summary>The toy a toy body is drawn as (by its id, as <see cref="Body"/> draws it), or null.</summary>
+    public MeshAsset? Toy(int bodyId) => PropArt.Of(Look).Get(Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)]);
+
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
 
@@ -316,7 +408,7 @@ public sealed partial class SceneArt(Look look)
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
-            return Corpse(mesh, frames, b, eye, onCar);
+            return Corpse(mesh, frames, b, eye, onCar, time);
         // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it.
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)
             return true;
@@ -350,9 +442,13 @@ public sealed partial class SceneArt(Look look)
         }
         // A rescued child (GDD §19, App. A.6: the real half of the Soot Children's roll, the most valuable cargo there is):
         // the same child as the lure, the model's variant 0, its own eyes and its hands only dirty, huddled, its arms round
-        // its knees; carried, curled against whoever has it. (The body's a ball 0.35 m round its middle.)
-        if (b.Kind == Sim.Physics.BodyKind.Child
-            && Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, b.Carrier >= 0 ? -0.45f : -0.35f, 0) * m, 0, seed: 2))
+        // its knees; carried, in the arms (App. C.4): clinging to whoever has it, its legs round their waist and its face on
+        // their shoulder (the clutch: its origin at their feet, out in front; a carried body's frame already faces back at
+        // whoever carries it; Bodies.ChildAt holds its middle there). (The body's a ball 0.35 m round its middle.)
+        if (b.Kind == Sim.Physics.BodyKind.Child && (b.Carrier >= 0
+                ? Creatures.Draw(mesh, "soot_child", "clutch", time, true,
+                    Matrix4x4.CreateTranslation(0, -(float)Sim.Physics.Bodies.ChildHeight, 0) * m, 0, seed: 2)
+                : Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, -0.35f, 0) * m, 0, seed: 2)))
             return true;
         // What the crew carry: the modelled props (tools/models make: stores_crate, freight_*, heavy_crate,
         // field_radio, train_stores' toys and repair kit) where they're built, centred on the body like the kit's; the
@@ -529,8 +625,11 @@ public sealed partial class SceneArt(Look look)
 
     readonly Vector3[] _joints = new Vector3[CreatureArt.RagdollJoints];
 
+    /// <summary>Whose bodies died by fire (the Stoker, a burning car, powder going up): drawn charred, still smouldering.</summary>
+    public IReadOnlySet<int>? Burned { get; set; }
+
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
-    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar)
+    bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)
     {
         var ps = b.Pbd.Particles;
         if (ps.Length < _joints.Length)
@@ -540,7 +639,21 @@ public sealed partial class SceneArt(Look look)
             return true;
         for (int i = 0; i < _joints.Length; i++)
             _joints[i] = (onCar ? frames[b.Parent].ToWorld(ps[i].Position) : ps[i].Position).RelativeTo(eye);
-        return Creatures.Corpse(mesh, _joints, b.Owner);
+        bool charred = Burned?.Contains(b.Owner) == true;
+        if (charred)
+        {
+            // Embers still in the coat at the chest and the hips, and a thin smoke off them (the near ones only).
+            float glow = 0.6f + 0.4f * MathF.Sin(b.Owner * 1.7f + (float)time * 3.1f);
+            foreach (int j in new[] { 1, 2, 7, 9 })
+                mesh.Billboard(_joints[j] + new Vector3(0, 0.12f, 0), 0.4f * glow, 0, new Vector4(Palette.LampAmber * new Vector3(3.2f, 1.3f, 0.5f) * glow, 1), -1, FxBlend.Additive);
+            for (int k = 0; k < 3; k++)
+            {
+                float rise = (float)((time * 0.5 + k / 3.0) % 1.0);
+                mesh.Billboard(_joints[1] + new Vector3(0.1f * MathF.Sin(k * 2.1f + rise * 3), 0.2f + rise * 1.6f, 0), 0.3f + rise * 0.6f, rise,
+                    new Vector4(new Vector3(0.12f), 0.45f * (1 - rise)), -1, FxBlend.Alpha);
+            }
+        }
+        return Creatures.Corpse(mesh, _joints, b.Owner, charred);
     }
 
     /// <summary>
@@ -559,6 +672,28 @@ public sealed partial class SceneArt(Look look)
         var needle = Piece("needle", () => TrainKit.Needle(Look));
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
+            if (i == 2)
+            {
+                // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
+                // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
+                // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
+                var g = TrainKit.GaugeCentre(engine.Shape, i);
+                float gr = TrainKit.GaugeRadius, f = Math.Clamp(fractions[i], 0, 1);
+                float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
+                float y1 = bottom + (top - bottom) * f;
+                if (y1 - bottom > 0.002f)
+                {
+                    var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), m);
+                    var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
+                    var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
+                    var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
+                    float e = mesh.Emissive;
+                    mesh.Emissive = 0.35f;
+                    mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
+                    mesh.Emissive = e;
+                }
+                continue;
+            }
             // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
             float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
             var c = TrainKit.GaugeCentre(engine.Shape, i);
@@ -570,7 +705,8 @@ public sealed partial class SceneArt(Look look)
     /// A car's two lanterns, hanging on their chains from the carlines where its lights are; red glass under emergency
     /// lighting. One whose ceiling a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
     /// </summary>
-    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default)
+    /// <param name="lit">The lamps are lit: out, the lanterns hang dark (their glass unlit, no glow round them).</param>
+    public void CarLamps(MeshBuilder mesh, in CarFrame frame, Double3 eye, bool emergency, Bite bite = default, bool lit = true)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 80)
             return;
@@ -597,8 +733,10 @@ public sealed partial class SceneArt(Look look)
             return k.Build("car-lamps");
         });
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
-        mesh.Instances.Add(new MeshInstance(lamps, m, 1, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default,
+        mesh.Instances.Add(new MeshInstance(lamps, m, lit ? 1 : 0, emergency ? new Vector3(0.6f, 0.08f, 0.05f) : default,
             Scar: new Vector2(0, bite.Seed), Bite: cut, BiteFloor: floor));
+        if (!lit)
+            return;
         var glow = emergency ? new Vector3(0.35f, 0.04f, 0.03f) : Palette.LampAmber * 0.35f;
         foreach (var at in LampPositions(room))
             if (!bite.Eats(at with { Y = (float)room.Max.Y - 0.05f }))
@@ -631,6 +769,130 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>
+    /// The firebox door shut (the boiler's FireDoorOpen false; the Stoker's "keep it hot, keep it shut"): two iron leaves
+    /// over the firehole, strapped and handled, meeting in the middle, the fire's light only at the seam between them and
+    /// through the peephole. Open, the backhead's own leaves stand ajar (tools/models cab_backhead) and the fire shows.
+    /// </summary>
+    public void FireDoorShut(MeshBuilder mesh, in CarFrame engine, Double3 eye, float fire, Vector3 fireColour)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 40)
+            return;
+        var m = FrameMatrix(engine, eye);
+        var at = TrainKit.FireDoor(engine.Shape);
+        mesh.Instances.Add(new MeshInstance(Piece("firedoor-shut", () =>
+        {
+            var k = new Kit(Look, 61);
+            float w = TrainKit.FireDoorHalfWidth + 0.03f, h = TrainKit.FireDoorHalfHeight + 0.03f;
+            foreach (int side in new[] { -1, 1 })
+            {
+                float x0 = side < 0 ? -w : 0.006f, x1 = side < 0 ? -0.006f : w;
+                k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.35f, tile: 0.6f);
+                k.Box(new Vector3(x0, -h, 0.01f), new Vector3(x1, h, 0.045f));
+                // Two straps across each leaf and its hinge knuckles at the outer edge.
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                foreach (float y in new[] { -h * 0.55f, h * 0.55f })
+                    k.Box(new Vector3(x0 + 0.01f, y - 0.022f, 0.045f), new Vector3(x1 - 0.01f, y + 0.022f, 0.055f));
+                float hx = side * (w + 0.01f);
+                foreach (float y in new[] { -h * 0.55f, h * 0.55f })
+                    k.Cylinder(new Vector3(hx, y - 0.05f, 0.03f), new Vector3(hx, y + 0.05f, 0.03f), 0.02f, 6);
+                // The handle, a loop of rod near the meeting edge.
+                k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
+                float gx = side * 0.06f;
+                k.Rod(new Vector3(gx, -0.05f, 0.055f), new Vector3(gx, -0.05f, 0.1f), 0.01f, 5);
+                k.Rod(new Vector3(gx, 0.05f, 0.055f), new Vector3(gx, 0.05f, 0.1f), 0.01f, 5);
+                k.Rod(new Vector3(gx, -0.05f, 0.1f), new Vector3(gx, 0.05f, 0.1f), 0.012f, 5);
+            }
+            return k.Build("firedoor-shut");
+        }), Matrix4x4.CreateTranslation(at) * m));
+        // The fire's light where it gets out: the seam down the middle and the peephole in the right leaf.
+        if (fire > 0)
+        {
+            var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
+            var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
+            var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
+            float e = mesh.Emissive;
+            mesh.Emissive = 1;
+            var glow = fireColour * (0.25f + 0.75f * fire);
+            mesh.Box(Vector3.Transform(at + new Vector3(0, 0, 0.03f), m), ax, ay, az, new Vector3(0.004f, TrainKit.FireDoorHalfHeight + 0.02f, 0.016f), glow);
+            mesh.Box(Vector3.Transform(at + new Vector3(0.14f, 0.08f, 0.047f), m), ax, ay, az, new Vector3(0.018f, 0.012f, 0.002f), glow);
+            mesh.Emissive = e;
+        }
+    }
+
+    /// <summary>The engine's modelled moving parts (tools/models engine_parts), or null when they aren't there to turn.</summary>
+    (MeshAsset Wheel, MeshAsset Rod)? GearParts =>
+        PropArt.Of(Look).Get("driver_wheel") is { } wheel && PropArt.Of(Look).Get("coupling_rod") is { } rod ? (wheel, rod) : null;
+
+    /// <summary>
+    /// The engine's running gear, turning with its going (the checklist's train motion: "wheels turn, rods move"): the four
+    /// pairs of drivers rolled <paramref name="distance"/> along the line, the coupling rods carried round on their crank
+    /// pins, and the main rods from the third pair's pins back to the crossheads sliding in their guides. Close enough to
+    /// see it only; past that the still gear baked in a far engine would do, but the engine's always near.
+    /// </summary>
+    public void Gear(MeshBuilder mesh, in CarFrame frame, Double3 eye, double distance, float glow = 1)
+    {
+        if (frame.Shape.Cab is null || GearParts is not { } parts || (frame.Origin - eye).Length > 400)
+            return;
+        var shape = frame.Shape;
+        var m = FrameMatrix(frame, eye);
+        float turn = (float)(distance / TrainKit.DriverRadius % (2 * Math.PI));
+        var drivers = TrainKit.Drivers(shape);
+        // The main rod's length: as the still engine lays it, crosshead to pin at the rest crank.
+        var restPin = TrainKit.CrankPin(1, 0);
+        float length = Vector2.Distance(new Vector2(TrainKit.CrossheadY, TrainKit.CrossheadRestZ(shape)),
+            new Vector2(TrainKit.DriverRadius + restPin.Y, drivers[2] + restPin.Z));
+        var mainRod = Piece($"engine-main-rod:{length:0.000}", () => TrainKit.MainRod(Look, length));
+        foreach (int side in new[] { -1, 1 })
+        {
+            foreach (float z in drivers)
+                mesh.Instances.Add(new MeshInstance(parts.Wheel, TrainKit.DriverAt(side, new Vector3(side * TrainKit.HalfGauge, TrainKit.DriverRadius, z), turn) * m, glow));
+            var pin = TrainKit.CrankPin(side, turn);
+            float x = side * (TrainKit.HalfGauge + 0.2f);
+            var rodAt = new Vector3(x, TrainKit.DriverRadius + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
+            mesh.Instances.Add(new MeshInstance(parts.Rod, (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt) * m, glow));
+            // The main rod: big end on the third pair's pin, little end on the crosshead, which slides level in its guides.
+            var big = new Vector3(TrainKit.RodX(side), TrainKit.DriverRadius + pin.Y, drivers[2] + pin.Z);
+            float dy = TrainKit.CrossheadY - big.Y;
+            var little = new Vector3(big.X, TrainKit.CrossheadY, big.Z - MathF.Sqrt(MathF.Max(0, length * length - dy * dy)));
+            var along = Vector3.Normalize(little - big);
+            var lay = Matrix4x4.CreateFromQuaternion(Rotation(Vector3.UnitZ, along)) * Kit.At(big);
+            mesh.Instances.Add(new MeshInstance(mainRod, lay * m, glow));
+        }
+    }
+
+    static Quaternion Rotation(Vector3 from, Vector3 to)
+    {
+        float d = Vector3.Dot(from, to);
+        if (d > 0.9999f)
+            return Quaternion.Identity;
+        var axis = Vector3.Cross(from, to);
+        if (axis.LengthSquared() < 1e-8f)
+            axis = Vector3.UnitY;
+        return Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), MathF.Acos(Math.Clamp(d, -1, 1)));
+    }
+
+    // Each door's last setting and when the scene saw it change (presentation only: the sim's doors are open or shut).
+    readonly Dictionary<(int Vehicle, int Door), (bool Open, long Since)> _doors = new();
+    const double DoorSeconds = 0.6;
+
+    /// <summary>
+    /// How far a door is open, 0..1, eased: it slides over <see cref="DoorSeconds"/> from when the scene first saw it change.
+    /// One first seen (or with no clock, <paramref name="tick"/> −1) is where it's set.
+    /// </summary>
+    float Opening(int vehicle, int door, bool open, long tick)
+    {
+        if (tick < 0)
+            return open ? 1 : 0;
+        if (!_doors.TryGetValue((vehicle, door), out var was))
+            _doors[(vehicle, door)] = was = (open, long.MinValue / 2);
+        else if (was.Open != open)
+            _doors[(vehicle, door)] = was = (open, tick);
+        double k = Math.Clamp((tick - was.Since) * Sim.SimConstants.TickSeconds / DoorSeconds, 0, 1);
+        k = k * k * (3 - 2 * k);
+        return (float)(open ? k : 1 - k);
+    }
+
     /// <summary>How far an open roof hatch's lid is swung over on its hinges (T99): a little past upright.</summary>
     const float OpenHatch = MathF.PI * 100 / 180;
 
@@ -640,10 +902,13 @@ public sealed partial class SceneArt(Look look)
     /// blackened toward soot, the scars of the burn the mask draws.</param>
     /// <param name="openLockers">Crew lockers drawn open whatever their doors are doing (the Stranded outro's empty locker).</param>
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
+    /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0)
     {
+        // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
+        float lamps = emergency || dark ? 0.06f : 1;
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
         bool engine = shape.Cab is not null;
@@ -656,7 +921,10 @@ public sealed partial class SceneArt(Look look)
         string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
         // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
         bool loadApart = !engine && vehicle is not null;
-        var body = Piece(loadApart ? key + ":empty" : key, () => engine ? TrainKit.Engine(Look, shape, 0) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
+        // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
+        bool turning = engine && GearParts is not null;
+        var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
@@ -670,7 +938,7 @@ public sealed partial class SceneArt(Look look)
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
-        mesh.Instances.Add(new MeshInstance(body, m, emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        mesh.Instances.Add(new MeshInstance(body, m, lamps, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {
@@ -728,16 +996,20 @@ public sealed partial class SceneArt(Look look)
         foreach (var door in shape.DoorList)
         {
             bool open = vehicle?.DoorOpen(door.Index) ?? false;
+            // Sliding over, not snapping (the checklist's doors: "open and shut, readable"): how far across it's got.
+            float slid = Opening(vehicle?.Id ?? frame.Index, door.Index, open, tick);
             var box = door.Box;
             // An end door it's eaten past is gone with its wall.
             if (bite.Eats(new Vector3((float)box.Centre.X, (float)box.Centre.Y, (float)box.Centre.Z)))
                 continue;
             bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
-            if (open)
+            if (slid > 0)
             {
+                // Out from the wall first, then along it: the step out done in the first fifth of the slide.
+                double outward = Math.Min(1, slid * 5), along = slid;
                 var move = side
-                    ? new Double3(box.Min.X < 0 ? -0.12 : 0.12, 0, box.Max.Z - box.Min.Z)
-                    : new Double3(box.Max.X - box.Min.X, 0, box.Min.Z < 0 ? 0.12 : -0.12);
+                    ? new Double3((box.Min.X < 0 ? -0.12 : 0.12) * outward, 0, (box.Max.Z - box.Min.Z) * along)
+                    : new Double3((box.Max.X - box.Min.X) * along, 0, (box.Min.Z < 0 ? 0.12 : -0.12) * outward);
                 box = new Box(box.Min + move, box.Max + move);
             }
             var size = new Vector3((float)(box.Max.X - box.Min.X), (float)(box.Max.Y - box.Min.Y), (float)(box.Max.Z - box.Min.Z));
@@ -761,6 +1033,10 @@ public sealed partial class SceneArt(Look look)
                 bool open = (vehicle?.LockerOpen(bay.Index) ?? false) || (openLockers & (1u << bay.Index)) != 0;
                 var leaf = Piece($"locker-door:{bay.Name}:{w:0.###}x{h:0.###}:{px:0.#####}", () => LockerKit.Door(Look, bay.Name, w, h, px));
                 mesh.Instances.Add(new MeshInstance(leaf, LockerKit.DoorAt(bay, open) * m, emergency ? 0.06f : 1, Scar: scar));
+                // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): something on its shelves,
+                // a stores tag hangs off the shut door's handle; the prompt at the door names what.
+                if (!open && (taggedLockers & (1u << bay.Index)) != 0)
+                    mesh.Instances.Add(new MeshInstance(Piece($"locker-tag:{w:0.###}x{h:0.###}", () => LockerKit.Tag(Look, w, h)), LockerKit.DoorAt(bay, false) * m, emergency ? 0.06f : 1));
             }
         }
         // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up
@@ -771,14 +1047,15 @@ public sealed partial class SceneArt(Look look)
             var lid = Piece($"hatch:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.HatchLid(Look, size));
             var c = hatch.Centre;
             bool open = vehicle?.DoorOpen(CarShape.HatchBit) == true;
+            float lift = Opening(vehicle?.Id ?? frame.Index, CarShape.HatchBit, open, tick);
             foreach (int side in new[] { -1, 1 })
             {
                 // The leaf's hinges are on its +X: the left leaf is the right one turned about.
                 var turn = side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity;
                 Matrix4x4 at;
-                if (open)
+                if (lift > 0)
                 {
-                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch);
+                    var swing = Matrix4x4.CreateRotationZ(-OpenHatch * lift);
                     var hinge = new Vector3(size.X, (float)hatch.Max.Y, 0);
                     at = swing * Matrix4x4.CreateTranslation(hinge - Vector3.Transform((size / 2) with { Z = 0 }, swing)) * turn;
                 }

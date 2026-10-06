@@ -62,7 +62,7 @@ public class RadioTests
         Assert.True(world.Bodies.HasRadio(1));
         Assert.Null(world.Bodies.CarriedBy(1));
         // Still a pair of free hands: the lamp beside it comes too, and the radio stays on the belt.
-        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp);
+        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp && !b.Stowed);
         s = Beside(world, lamp);
         Press(world, ref s, PlayerButtons.Use);
         Assert.Same(lamp, world.Bodies.CarriedBy(1));

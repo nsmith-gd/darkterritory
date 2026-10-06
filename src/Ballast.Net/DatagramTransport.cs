@@ -278,7 +278,7 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
         ulong token = r.U64();
         if (kind == Kind.Accept)
         {
-            if (!_isHost && !IsConnected && EqualityComparer<TAddress>.Default.Equals(from, _hostAddress))
+            if (!_isHost && !IsConnected && !_gaveUp && EqualityComparer<TAddress>.Default.Equals(from, _hostAddress))
             {
                 ulong peer = r.U64();
                 if (r.U64() != _nonce)
@@ -377,6 +377,11 @@ public class DatagramTransport<TAddress> : ITransport, IConnectionInfo where TAd
     {
         _byAddress.Remove(link.Address);
         _byPeer.Remove(link.Peer);
+        // A client's link to its host, once gone, stays gone: it never dials again on its own. (It did, within the first
+        // ConnectSeconds of its life, and the host welcomed the silent second connection as a phantom crewmate after its
+        // greeting wait, taking a place against the crew cap: notes 253, 254.) Coming back is a new transport.
+        if (!_isHost && link.Peer == PeerId.Host)
+            _gaveUp = true;
         if (!notify)
             return;
         // Not on our own Disconnect: closing the carrier's session there could lose the Bye still in flight.

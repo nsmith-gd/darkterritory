@@ -18,6 +18,13 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
+**Director's decisions of 2026-10-06 (build 1121 play-test; ARCHITECTURE §8 note 264).**
+- **One supplies view, toggled on.** "The UI is a little too heavy overall in the game, but we do need a way to track all of the supplies that we have on board." The HUD gets lighter (the cab's gauges are the boiler's read-out), and a single panel, off until it's wanted, lists the supplies aboard: coal, the engineering kit and where it is, extinguishers, cargo and crates, stores (lamps, radios, toys, finds) and powder and shot (§10).
+- **No spoken manifest at the gates.** The dispatcher's reading leaving the yard is dropped (too long, hard to localise); the clerk's tally home stays (§9).
+- **Toys are found, not issued.** The guard van no longer starts with toys; they turn up in villages' cupboards, cellars, haylofts and under floors (§19, C.4).
+- **The lockers start stocked** with emergency lamps and extinguishers by grade, and say what's in them on the door (§12).
+- **The whistle cord hangs in the driver's corner**, worked with Use when looked at, and the HUD names whose hand is on it; a whistle with no name on it is the Whistler's (§12, A.4).
+
 **v1.3 changes — failure is funny.**
 - New **§23.1 — Failure has to be funny**: the four conditions a failure must meet, and the rule *horror in the telegraph, comedy in the grab*.
 - **Death hard-cuts the victim's voice** mid-word, and a grabbed player holding a radio broadcasts the whole GRAB to the crew (D.2, C.8).
@@ -157,12 +164,22 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ### Departure
 Inside the walls: purchase equipment, repair or upgrade the train, choose freight contracts, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools.
 
-Then the gates open. The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.
+Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
 ### The threshold
 The transition should be a major tonal moment. Inside: workers, lights, machinery, voices, guards, whistles, industrial noise. Then the outer gates open, the train passes the final defensive towers, the lights disappear behind it, and ahead is only track.
 
 **This is where the run actually begins.**
+
+### The fortress is a safe space *(the director's decision, 2026-10-06)*
+Until the train passes the outer gate, the fortress yard and the lobby are a safe space, like the ship in *Lethal Company*. The crew wait for friends, hang out, dance, try on outfits, walk away for a cigarette, and come back when they're ready. Nothing of consequence happens there:
+
+- nothing spawns, and the Choir's meter doesn't gather;
+- the boiler and its fire hold: no overheating, no rupture, no running out of steam or coal;
+- the cold doesn't bite;
+- the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
+
+The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`).
 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
@@ -184,6 +201,8 @@ Early crews run **engine plus one or two cars.** Experienced crews run **engine,
 The train should increasingly feel like home. Players learn where cannons are mounted, where powder and shot are stored, where the engineering kit is kept, where emergency lamps are kept, where coal is stored, where tools and fire extinguishers hang.
 
 That familiarity matters because the train gets more complex over time. **Progression literally makes your home harder to defend.**
+
+**Supplies aboard** (director's decision of 2026-10-06). One compact view, toggled on and never always there, says what the train carries: coal, the engineering kit and where it is, extinguishers, cargo and crates, stores (lamps, radios, toys, finds) and powder and shot. The rest of the HUD stays light; in the cab the gauges on the backhead are the boiler's read-out.
 
 ## 11. Progression
 
@@ -393,9 +412,9 @@ Only strikes when the train is stopped. It carries its victim off to a nest, and
 ### INTERIOR — already aboard
 
 **STOKER** · *the firebox*
-Gets into the firebox when the fire burns low or the door is left open. Pressure climbs, and so does speed.
-> **RULE: keep it hot, keep it shut.**
-Vent to slow down. Open the firebox and club it to kill it, and get burned doing it. Ignored, the train runs away and derails.
+Looks for heat *(the director's decision, 2026-10-06)*. A firebox run hot draws it: it boards at the tender, scraping and glowing on the coal, and crosses the footplate to the fire door. A fireman at the fire can catch it there. Once in, it eats the fire and drives the pressure up in lurches, and the speed with it. Beaten, it stays away a couple of minutes.
+> **RULE: run cool, or watch the coal.**
+Running hot is fast and draws it; running cool is safe and slow. Catch it on the way in. Once it's in, vent to buy time, open the firebox and club it, and get burned doing it. Ignored, the boiler goes or the train runs away and derails.
 
 **TIPPY TOESIE** · *behind anyone standing still*
 Tiptoes up behind idle players. Runs if you see it coming.
@@ -484,7 +503,8 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 | **Weak bridges** | Length. Your longer, richer train may not clear it. |
 | **Tunnels** | Radio. Compressed proximity voice, no exterior reference. |
 | **Brass growth** | Speed. Cut through slowly or ram it and pay. |
-| **Track debris** | Speed in the dark. Only the forward lamp reveals it; hit it fast and you derail. |
+| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window. Run right up to it and brake hard, or slow early and deal with what's on the roof. |
+| ~~Track debris~~ | *Retired: the director's decision, 6 Oct 2026. "A derailment needs to be clearly a mistake by the driver, someone not paying attention to the map." Debris forced a derailment on the game's behalf. Off by a tuning flag (enemies.json sleepers.enabled), kept in the code for mods.* |
 | **Marsh** | Movement. Something in the reeds surges toward motion; stand still for ~4s and it loses you. |
 | **Dawn** | Time. Every careful option becomes unaffordable. |
 
@@ -582,7 +602,7 @@ Pillar 5 says the night gets worse and funnier. A failure is only funny when fou
 
 **Horror in the telegraph, comedy in the grab.** The shared skeleton (A.1) splits the two cleanly. DORMANT through TELEGRAPH is where the game is frightening: the porcelain face in the lamp, the tiptoeing, the rising Choir. GRAB through PUNISH is where it gets funny: a friend narrating their own death, a crew sprinting after a Whistler carrying someone off at a run, a voice cut off mid-word.
 
-**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the un-shot Switchman, the debris nobody called (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
+**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the un-shot Switchman, the bend taken at 70 (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
 
 **Kept straight, on purpose.** The Soot Children and the Passenger are built to disturb, and so is the idea of a corrupted human on the radio (open question 4). None of the comedy levers above are applied to them beyond the shared systems. A few failures that aren't funny are what make the rest land.
 
@@ -1033,19 +1053,23 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 
 ## A.5 Interior
 
-### STOKER · heat
+### STOKER · heat *(the director's decision, 2026-10-06; replaces the low-fire and open-door entry)*
 ```
-PERCH     on the smokestack
-ENTER     pressure below 40 for 45s → down the stack
-          OR firebox door open at a stop → through the door
-          └ TELEGRAPH: soot falls into the cab
-FEED      pressure climbs without fuel; speed climbs with it
-          └ TELEGRAPH: gauge rising, wrong-coloured glow, train accelerating
-RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL
+DRAWN     the firebox run hot (above a tuned heat) for a while; a low fire never draws it
+          └ PERCH: on the smokestack, watching the heat
+BOARD     at the tender: onto the coal, then across the footplate to the fire door
+          └ TELEGRAPH: scraping on the coal, a sick glow there, the hiss (the fireman hears it)
+CATCH     a blow on the way in drives it off, and doesn't burn
+FEED      in the firebox: it eats the fire, and the pressure lurches up toward rupture, the
+          safety valve held shut; the brake comes off and the speed climbs with it
+          └ TELEGRAPH: the gauge swinging, wrong-coloured glow, train accelerating
+RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL (or the boiler ruptures first)
 COUNTER   vent: pressure and speed drop, time is lost (buys time only)
-KILL      open the firebox and bludgeon it; each swing burns the attacker
+KILL      open the firebox (a shovelful) and bludgeon it; each swing burns the attacker;
+          a swing at the shut door only rings on the iron
+BREAK     beaten, no Stoker returns for two to three minutes
 ```
-Fully preventable. **The counter has a clock cost**, and killing it has a health cost.
+Fully preventable. **The trade-off is the fire**: running hot is fast and draws it; running cool is safe and slow. Once it's in, it's urgent: someone must drop what they're doing. The counter has a clock cost, and killing it has a health cost. Numbers in enemies.json `stoker`.
 
 ### TIPPY TOESIE · absence (a player standing still)
 ```
@@ -1205,7 +1229,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 **Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All five sit on the voice layer, so it is a gameplay system, not just comms.
 
-**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (keep it hot, keep it shut) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
+**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (run cool, or catch it on the way in) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
 
 **Cost-only enemies.** The Track Doll and the Switchman's routing throws cost time and control rather than lives. Keep this category small.
 
@@ -1337,7 +1361,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 |---|---|---|---|
 | **Track Doll** | Straight track with a clear 200m sightline | Any tier (first pass) · once per run | Weight up if the cab has been left empty earlier in the run |
 
-**Note:** track debris (formerly Sleepers) is level content placed at line generation, not a spawn. It sets the baseline the director works over.
+**Note:** track debris (formerly Sleepers) was level content placed at line generation, not a spawn. *Retired by the director's decision of 6 Oct 2026 (§22): a derailment comes only from the driver taking a bend, a weak bridge or a switch over its limit. Off by default (enemies.json sleepers.enabled); a mod can bring it back.*
 
 ---
 
@@ -1364,7 +1388,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
-| **Stoker** | **Condition-triggered, not placed.** Down the stack or through an open firebox door | Pressure below 40 for 45s, or firebox left open at a stop | ×3 if the firebox was left open at a facility |
+| **Stoker** | **Condition-triggered, not placed.** Boards at the tender, crosses to the firebox *(2026-10-06)* | The firebox run above a tuned heat for a while; never within a few minutes of the last one's defeat, nor in the fortress | None |
 | **Tippy Toesie** | Any car, or the ground near the train | Crew ≥2 · any tier (first pass) | Weight up per player idle and alone |
 | **Fire Flies** | Lineside in dark forest and open sections | ≥1 lamp lit inside a car | ×2 at night depth · ×0 if every car lamp is out |
 
@@ -1460,7 +1484,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    | Failure | Contributing action recorded |
    |---|---|
    | Track Doll struck | Who was on the throttle, and the speed at impact |
-   | Track debris derailment | Who was on the throttle, and the speed at impact |
+   | Track debris derailment *(retired 6 Oct 2026, §22)* | Who was on the throttle, and the speed at impact |
    | Switchman derailment | Whether the forward cannon was crewed, and by whom |
    | Stoker runaway or derailment | Who last fuelled or tended the firebox, and how long it had been unattended |
    | Boiler rupture | Who last fired or vented the boiler, and how long it sat at 100 |
@@ -1808,7 +1832,7 @@ Every number in this appendix lives in data, not code.
 
 | Step | Where | What |
 |---|---|---|
-| **1. Derail tick** | Host | The run ends as Derailed. Every mic hard-cuts mid-word and moves to the dead channel (C.8). |
+| **1. Derail tick** | Host | The run ends as Derailed, and the settlement is fixed (E.7). Nobody dies yet: from this tick the living are the wreck's, and nothing they press moves them. Each player dies in an impact that follows, as the wreck's physics plays it (E.3): alive, they take their first hits (two, where the wreck gives them that many), and the next hard one kills them (the ground, a car, the train running into them), as does being crushed under a car or a hit of 16 m/s at any time; the fourth hit kills whatever it is. The host reads it from the pre-sim (step 3) and kills each of them as it lands in their own first person (E.5); their mic hard-cuts mid-word then and moves to the dead channel (C.8). A bystander (E.3) takes no hit: they die as their first person ends, with the settle. *(The director's decision, 5 Oct 2026.)* |
 | **2. Snapshot** | Host | The world at that tick is copied: every car's position and velocity, every player's world position and velocity, every loose body aboard. |
 | **3. Pre-simulate** | Host | The copy runs the wreck to rest under E.3, up to **6s of sim time**, recording every body at 30Hz. It's a few hundred PBD steps and costs less than a frame. |
 | **4. Plan** | Host | The camera director (E.4) uses the full recording to choose shots, find each player's peak moment, and pick and align the music (E.6). It can see the future, which is what makes the occlusion rules achievable. |
@@ -1824,9 +1848,10 @@ Every number in this appendix lives in data, not code.
 | **Cars become rigid boxes** | On the derail tick, the engine and every car become PBD rigid boxes (8 corner particles with edge and diagonal constraints), keeping their mass and velocity. |
 | **Couplings tear** | Each coupling becomes a distance constraint that breaks above a strain threshold. The consist concertinas, then comes apart. |
 | **Players ragdoll** | Every living player becomes their existing ragdoll (the 11-particle body from D.9), launched with their world velocity at the derail tick. |
-| **Comic fling** | Each player ragdoll gets its velocity × **1.3**, an upward kick of **2–4 m/s** and a spin of up to **4 rad/s**, all drawn from the run seed. Ejection speed is capped at **30 m/s** so bodies stay in frame and in the sim. |
+| **Alive till the fatal hit** | Until their fatal impact (E.2 step 1) each player's ragdoll is alive: an active ragdoll with muscle tone, holding a brace (elbows and hands up and out, knees bent) and reaching its hands toward where it's going. It collides with the cars, the ground, the others and the debris, and takes its first hits and survives them, visibly knocked about. At the fatal hit the muscles let go and it goes limp. *(The director's decision, 5 Oct 2026, take 3.)* |
+| **Comic fling** | Each player ragdoll gets its velocity × **1.6**, an upward kick of **3–5 m/s** and a spin of **3.5–7 rad/s**, all drawn from the run seed. Ejection speed is capped at **30 m/s** so bodies stay in frame and in the sim. Someone in the gun's seat is thrown up out of it at **6 m/s** with the seat's own velocity, from clear of the gun, head over heels at the full spin. *(The director's numbers, 5 Oct 2026; they were ×1.3, 2–4 m/s and 4 rad/s.)* |
 | **Slow derails still throw people** | Below 6 m/s the kick is applied in full regardless, so a slow tip-over still launches somebody. |
-| **Bystanders** | A player more than 25 m from every car at the derail tick gets no impulse. They play a 0.8s beat turning to watch the wreck, then go limp where they stand. They die with the run (§23) and get a shot like everyone else. |
+| **Bystanders** | A player more than 25 m from every car at the derail tick gets no impulse. They play a 0.8s beat turning to watch the wreck, then go limp where they stand. Nothing hits them, so they die as their own first person ends, with the settle (E.2 step 1), and get a shot like everyone else. |
 | **Extras** | Bodies of the already-dead stowed in cars, crates, loot and extinguishers aboard all join the wreck. They never get their own shot. |
 | **Joint limits** | Elbows and knees bend one way only, and the head-chest-pelvis spine bends at most 60°. No limb separates. |
 
@@ -1834,7 +1859,7 @@ Every number in this appendix lives in data, not code.
 
 | Rule | Detail |
 |---|---|
-| **What collides** | Terrain heightfield, track bed, bridges, tunnel bores, car boxes, static props within 50 m, and every ragdoll particle against every other ragdoll's (0.12 m spheres), so bodies pile up. |
+| **What collides** | Terrain heightfield, track bed, bridges, tunnel bores, car boxes, static props within 50 m, and every ragdoll particle against every other ragdoll's (0.12 m spheres), so bodies pile up. The cars are moving solids: a car that ploughs into a body throws it, and one that comes down on a body pins it, which crushes it. Nothing is pushed out to somewhere safe; a body can end up under a car. A mounted gun is solid too. |
 | **Cars are hollow** | Floor, walls and roof collide from both sides. Doorways and windows are gaps, so a player inside tumbles around inside the car and can be thrown out through an opening, but never through a wall. |
 | **No starting overlap** | Before the first step, any particle inside a solid is pushed out along the shortest axis. The pre-sim never starts interpenetrating. |
 | **No tunnelling** | 4 substeps per tick. Each particle's travel per substep is clamped to its radius, and each car's to its half-thickness. |
@@ -1871,16 +1896,16 @@ Shots may revisit the same sim time from new angles. The cinematic is edited, no
 
 | Beat | Real time | Speed | What |
 |---|---|---|---|
-| **Freeze** | 0.4s | Held | Each client holds its own first-person frame from the derail tick, just after the mic cut. |
+| **Freeze** | To your death, then 3.8s (4.5–9s) | 0.5× | Each client sees through its own player's eyes as their body is thrown, through the hits they survive and the impact that kills them (E.2 step 1), then 3.8s more as the view rolls and settles with the limp body. It no longer holds the derail tick's frame, and it isn't a fixed length. *(The director's decision, 5 Oct 2026; take 3 added 3s after the death.)* |
 | **Establishing** | 3s | 0.25× | A wide of the consist leaving the rails. The music starts on the cut. |
-| **One per player** | 2.5s each, block capped at 16s | 0.25×, easing to 0.1× at the player's peak and back | Each player's ragdoll at its peak: highest apex, longest airtime or hardest landing, whichever scores highest. A lower-third name card in the clerk's typewriter face: **DAVE — on the throttle**, the role taken from where they stood (§12). |
+| **One per player** | 4s each, block capped at 32s | 0.4×, easing to 0.15× at the hit and back | Each player's ragdoll thrown into the hit that kills them (E.2 step 1), with the hits they took on the way, and then the limp aftermath. *(4s, the director's decision of 5 Oct 2026, take 3; it was 2.5s, capped at 16s.)* Their peak (the highest apex, longest airtime or hardest landing, whichever scores highest) orders the shots. *(The director's decision, 5 Oct 2026: it was the peak itself, at 0.25× to 0.1×.)* A lower-third name card in the clerk's typewriter face: **DAVE — on the throttle**, the role taken from where they stood (§12). |
 | **Settle** | 3s | 0.25× ramping to 1× | A wide as everything comes to rest. |
 | **Cause card** | 2s | — | The clerk on radio static, reading the derail's attribution line (C.9). |
 
-- **Order.** Players go in ascending order of peak score, so the biggest flight comes last. The music's hit (E.6) lands on that final apex.
-- **Length.** About 18s at crew 4 and 24s at crew 8. At crew 8 each player shot drops to 2s to fit the cap.
-- **Bookmarks.** Each player's peak frame is captured as their auto-bookmark (D.12).
-- **The cause card**, for example: *Consist derailed at mile 14, 19 m/s. Track debris, uncalled. Throttle: Dave. Recovery not scheduled.*
+- **Order.** Players go in ascending order of peak score, so the biggest flight comes last. The music's hit (E.6) lands on that final death.
+- **Length.** From the first person to the cause card, with the replay between: about 36s at crew 4 and 52s at crew 8 (the first person 4.5–9s, the replay 9s, 4s a player, the settle 3s, the cause card 2s). *(5 Oct 2026, take 3; it was about 18s and 24s.)*
+- **Bookmarks.** Each player's death frame is captured as their auto-bookmark (D.12).
+- **The cause card**, for example: *Consist derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave. Recovery not scheduled.*
 - **Skipping.** After the first player shot, anyone can vote to skip, and a majority of the session skips to the cause card. The host can always skip. The cause card is never skipped.
 
 ## E.6 Music
@@ -1969,16 +1994,18 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 | Pre-sim length | 6s | 4–8s |
 | Substeps | 4 | 2–8 |
 | Coupling break strain | — | Set in feel-testing |
-| Fling multiplier | ×1.3 | ×1.0–2.0 |
-| Upward kick | 2–4 m/s | 0–6 m/s |
-| Spin | ≤4 rad/s | 0–8 |
+| Fling multiplier | ×1.6 (5 Oct; was ×1.3) | ×1.0–2.0 |
+| Upward kick | 3–5 m/s (5 Oct; was 2–4) | 0–6 m/s |
+| Spin | 3.5–7 rad/s (5 Oct; was ≤4) | 0–8 |
 | Ejection cap | 30 m/s | 20–40 |
 | Minimum-kick speed | 6 m/s | 4–10 |
 | Bystander distance | 25 m | 15–40 |
-| Base slow motion | 0.25× | 0.1–0.5× |
-| Peak slow motion | 0.1× | 0.05–0.25× |
-| Player shot | 2.5s | 1.5–3.5s |
-| Player-shot block cap | 16s | 10–24s |
+| Base slow motion | 0.4× (5 Oct; was 0.25×) | 0.1–0.5× |
+| Peak slow motion | 0.15× (5 Oct; was 0.1×) | 0.05–0.25× |
+| Player shot | 4s (5 Oct, take 3; was 2.5s) | 1.5–5s |
+| Player-shot block cap | 32s (5 Oct, take 3; was 16s) | 10–40s |
+| First person | to the death + 3.8s, 4.5–9s (5 Oct, take 3) | — |
+| Hits survived before the fatal one | 2, at most 3 (5 Oct, take 3) | 0–4 |
 | Camera sphere / min distance | 0.3 m / 2.5 m | — |
 | Lens clearance | 1.5 m | 1–3 m |
 | Occluder fade | 0.15s | 0.1–0.3s |
@@ -2012,6 +2039,138 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
 5. **Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+
+---
+
+# APPENDIX F — BUILD REVIEWS
+
+*Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
+
+## F.1 2026-10-06 — build 1121
+
+**Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
+
+**Front end**
+- The updated menu looks good, and so do the menu sound effects. *Keep.*
+- The mouse should work in the menus. *In progress (T126).*
+- The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *In progress (T126).*
+
+**Audio**
+- Turning on the spot shouldn't make a sound; only walking should. *Open.*
+- Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
+- The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
+- The gun's traverse sound is bad. *Open.*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The Choir was heard behind the train (A.7). *Noted.*
+
+**Cab**
+- Far too much UI for what's on screen. *In progress (T126).*
+- The hold-to-vent control feels off. *In progress (T126).*
+- There's no whistle cord, and people will want one. *In progress (T126).*
+- The coal shovel is fun. *Keep.*
+- The firebox door shutting by itself is OK. *Keep.*
+
+**Lockers (§12)**
+- The lockers are cute, but neighbouring lockers block each other. *In progress (T126).*
+- Stowing a held item in a locker doesn't work well. *In progress (T126).*
+- The lockers are mostly empty; only the fitter's had the engineering kit. *In progress (T126).*
+- A locker with something in it should say so. *In progress (T126).*
+- It isn't clear how to hold the kit in the inventory. *In progress (T126).*
+
+**Train and world**
+- It's good that every car has an extinguisher (C.5). *Keep.*
+- The toys in the guard van at spawn should be found in the world instead (C.4). *In progress (T126).*
+- There's a walkie-talkie aboard. *Noted.*
+
+**The fort**
+- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
+
+**Bugs**
+- The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
+- The rupture message said the train had no engineering kit, though it had been dropped in the front car (§23.2: a kit in a reachable car is never lost). *In progress (T129).*
+- The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
+
+**Abandoned player**
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Open (T128).*
+
+**Line and derailment**
+- The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
+- The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *In progress (T127: telegraph the debris and over-speed).*
+- The train's lights and lanterns were all off. *In progress (T127).*
+
+**Second session (same build, continued)**
+- *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
+- *Cab:* a redesign of the front of the train is coming (the director's sketch to follow), for a lone driver's view of track hazards. Every function stays. *Open (awaiting sketch).*
+- *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
+- *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
+- *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
+- *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *In progress (T129).*
+- *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *In progress (T129: a cooldown after it's driven off).*
+- *Falling:* far too easy to fall off the train. *In progress (T128).*
+- *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
+- *Overall:* the director hasn't finished a run yet.
+
+**Direction** (the director, 6 Oct 2026; proposal in T131, not yet decided):
+- *Boarding-first enemies:* "things shouldn't be able to get on the train unless they board it." Enemy design centres on boarding. A train that's just hauling is safer, but runs the risk of derailment, and that becomes the core fear.
+- *Solo like Lethal Company:* a solo player can explore and get a few runs in to learn the game, and won't get far. Friends let you go further.
+
+**Decided** (the director, 6 Oct 2026, on the boarding-first proposal, T131):
+- **Nothing acts inside the train unless it boarded.** Players must be able to understand or learn the rule for how each creature gets on; they needn't see it happen. A player's action opens a pathway by invoking or negating a rule.
+- **Each creature has its own boarding rule** at a specific, known point, with a telegraph and a counter.
+- **Boarding speeds are per creature.** Some board faster than a human can; the Cinder Hounds are the example. Outrunning them means going fast, which risks derailing on curves the conductor can clearly identify on the map. That makes a choice: run up to the curve and brake hard, or deal with them now. A savvy, experienced player should be able to outsmart the situation.
+- **A hauling train is safe from most monsters, not all.** A fast, flying class may come later to answer the top-speed strategy.
+- **Slowing opens the doors.** Stops, facilities and tight curves are where things board or the yards attack. These are the heightened scares; the train between them is a relative break. Loot and progress pull players into them.
+- **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
+- **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map.
+- **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them.
+- **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
+- **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
+- **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+
+Further decisions (the director, 6 Oct 2026):
+- **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
+- **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule.
+- **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off.
+- **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped.
+- **Run length** is to be set by simulation sweeps (T125).
+- **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later.
+
+- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
+
+**Direction** (the director, 6 Oct 2026; proposals in T133):
+- *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
+- *Procedural, with people in them.* Each town has its own odd culture, different from the last.
+- *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
+- *Much more in the towns is interactable.*
+
+**Decided** (the director, 6 Oct 2026, later the same day):
+- **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden.
+- **Stoker v3.** It's drawn by heat and boards at the tender with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
+- **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
+- **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures.
+
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
+
+## F.2 2026-10-05/06 — derailment film, takes 3–5
+
+**Played:** the director watching `dt film`, the derailment cinematic (Appendix E). Film page: [claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw](https://claude.ai/artifact/JyXaqcHCPbZAo8JK3AmSLw).
+
+**The film**
+- Take 3 was much better, but people should be alive and colliding before they go limp. Each third-person death shot gets 2s more, and the first person 3s more. *Design change → E.2 step 1, E.5, E.10; ARCHITECTURE.md note 258.*
+- Take 4: the timing and the first person are better, but the third-person poses are arms-up and awkward, not people mid-task. *Design change → E.3; ARCHITECTURE.md note 257.*
+- Hits should bounce more, on derailments only. *Design change → E.3, E.10; ARCHITECTURE.md note 257.*
+
+**Decided** (the director, 5 Oct 2026; marked in E.2, E.3, E.5 and E.10):
+- Each player dies on their own first fatal hit, not on the derail tick (E.2 step 1).
+- Until then they are an alive, active ragdoll (E.3).
+- Death shots run 4s (E.5, E.10).
+- The first person runs 3.8s past the death (E.5, E.10).
+- The extra bounce applies to derailments only (E.3, E.10).
 
 ---
 

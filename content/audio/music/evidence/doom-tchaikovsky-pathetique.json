@@ -1,0 +1,62 @@
+{
+  "title": "File:Tchaikovsky, Symphony No. 6 In B Minor, Op. 74, 'Pathetique' - I. Adagio, Allegro Non Troppo.ogg",
+  "cc0": true,
+  "metaSaysCc0": false,
+  "licence": "pd",
+  "licenceShortName": "Public domain",
+  "licenceUrl": "",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Tchaikovsky%2C_Symphony_No._6_In_B_Minor%2C_Op._74%2C_%27Pathetique%27_-_I._Adagio%2C_Allegro_Non_Troppo.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Tchaikovsky,_Symphony_No._6_In_B_Minor,_Op._74,_%27Pathetique%27_-_I._Adagio,_Allegro_Non_Troppo.ogg",
+  "sha1": "57360e659543c5a6817c94f676d8cad0234b27b6",
+  "size": 22187615,
+  "mime": "application/ogg",
+  "artist": "Pyotr Ilyich Tchaikovsky",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/80-symphony-no-6-in-bm-pathetique-op-74/#recordings The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "Symphony No. 6 In B Minor, Op. 74, 'Pathetique' - I. Adagio, allegro na non troppo",
+  "date": "",
+  "revision": 1104797051,
+  "revisionTimestamp": "2025-10-25T12:26:28Z",
+  "user": "Morn",
+  "refused": [],
+  "id": "doom-tchaikovsky-pathetique",
+  "work": "Symphony No. 6 \"Pathétique\", first movement",
+  "composer": "Pyotr Ilyich Tchaikovsky",
+  "sourceSha256": "b52c09edf987496aa27868cd784bc95127036e5b9bd495db02199e56b607c84a",
+  "fetched": "2026-10-03T17:55:58Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Copyright information|recording={{Cc-zero}}|musical composition={{PD-old-auto-expired|deathyear=1893}}}}\n\n[[Category:Symphony No. 6 (Tchaikovsky)|1]]\n[[Category:Audio files of music by Pyotr Ilyich Tchaikovsky|1]]\n[[Category:Audio files of adagio (music)]]\n[[Category:Allegro (music)]]\n[[Category:Musopen]]",
+  "information": "{{Information\n|Description    ={{en|1=Symphony No. 6 In B Minor, Op. 74, 'Pathetique' - I. Adagio, allegro na non troppo}}\n|Source         ={{Musopen|https://musopen.org/music/80-symphony-no-6-in-bm-pathetique-op-74/#recordings}}\n|Author         ={{Creator:Pyotr Ilyich Tchaikovsky}}\n|Date           =\n|Permission     =\n|other_versions ={{fl|Tchaikovsky - Symphony No. 6 in B minor, Op. 74 'Pathétique' - I. Adagio - Allegro non troppo (Musopen Symphony).flac}}\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=Symphony No. 6 In B Minor, Op. 74, 'Pathetique' - I. Adagio, allegro na non troppo}}\n|Source         ={{Musopen|https://musopen.org/music/80-symphony-no-6-in-bm-pathetique-op-74/#recordings}}\n|Author         ={{Creator:Pyotr Ilyich Tchaikovsky}}\n|Date           =\n|Permission     =\n|other_versions ={{fl|Tchaikovsky - Symphony No. 6 in B minor, Op. 74 'Pathétique' - I. Adagio - Allegro non troppo (Musopen Symphony).flac}}\n}}\n\n== {{int:license-header}} ==\n{{Copyright information|recording={{Cc-zero}}|musical composition={{PD-old-auto-expired|deathyear=1893}}}}\n\n[[Category:Symphony No. 6 (Tchaikovsky)|1]]\n[[Category:Audio files of music by Pyotr Ilyich Tchaikovsky|1]]\n[[Category:Audio files of adagio (music)]]\n[[Category:Allegro (music)]]\n[[Category:Musopen]]",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the development's explosion: the fortissimo crash after the clarinet's dying phrase",
+  "hitClock": "9:00.2",
+  "file": "doom-tchaikovsky-pathetique.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 1051.176,
+  "window": [
+    516.244,
+    561.244
+  ],
+  "hitInSource": 540.244,
+  "analysis": {
+    "score": 36.49,
+    "range": [
+      441.49,
+      651.73
+    ]
+  },
+  "inputLufs": -21.86,
+  "inputTruePeak": -3.01,
+  "normalization": "dynamic",
+  "outputLufs": -16.1,
+  "limiterGainDb": 0.6,
+  "limitDb": -4.69,
+  "decodedPeakDb": -1.61,
+  "hitCheck": {
+    "jumpDb": 23.4,
+    "loudnessRank": 0.0,
+    "weak": false
+  }
+}

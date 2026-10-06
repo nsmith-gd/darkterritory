@@ -1,0 +1,112 @@
+# GDD v1.4 App. E.6, ARCHITECTURE §8 note 194: the derailment's opera, for real. Takes in CC0 1.0 recordings of
+# public-domain works from Wikimedia Commons (tools/audio/fetch_music.py: each file's own licence checked through the API,
+# the evidence kept, a window cut round each one's climax, normalised to -16 LUFS, Opus), checks them with the manifest
+# tests, and pushes content/audio/music back. It runs here because the cloud sessions' proxy refuses Commons.
+#
+# Starts on a push that changes tools/audio/music_intake.json (the request: which candidates) to an intake branch, and
+# pushes the result back to that branch; or by hand (workflow_dispatch, once this file is on the default branch), pushing
+# the result to the `music-intake` branch. Never on pull requests. Its own push only touches content/audio/music, which
+# the paths filter leaves out (and a GITHUB_TOKEN push starts no workflow anyway), so it doesn't loop.
+name: Music intake
+on:
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: "Candidate ids, space-separated (empty: the request file's)"
+        required: false
+        default: ""
+  push:
+    branches: [music-intake-request]
+    paths: [tools/audio/music_intake.json]
+permissions:
+  contents: write
+concurrency:
+  group: music-intake-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DT: dotnet run --project src/DarkTerritory.Cli -c Release --no-build --
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: ffmpeg (with libopus)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg && ffmpeg -hide_banner -encoders | grep -q libopus
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build src/DarkTerritory.Cli -c Release
+      - name: The candidate list, offline
+        run: python3 tools/audio/fetch_music.py --dry-run
+      - name: The cut/normalise/encode/manifest path on a made-up recording
+        run: python3 tools/audio/fetch_music.py --offline-test --dt "$DT"
+      - name: Intake from Wikimedia Commons
+        run: |
+          mkdir -p out
+          only=()
+          if [ -n "${{ github.event.inputs.candidates }}" ]; then only=(--only ${{ github.event.inputs.candidates }}); fi
+          python3 tools/audio/fetch_music.py --dt "$DT" "${only[@]}" | tee out/intake.json
+          # E.6's fallback fills what the recordings don't: every mood, and the demo's 4 (writes only the synthesised
+          # tracks the pool still wants; with 4 or more recordings covering every mood, nothing).
+          $DT audio opera
+      - name: What came in
+        if: always()
+        run: |
+          git status --short content/audio/music
+          du -sh content/audio/music
+          # The kept tracks (hit, jump, rank, weak, performers), the refusals, near misses and pins: the log's last lines before the tests.
+          python3 tools/audio/fetch_music.py --summary || true
+      - name: The manifest tests (E.6 licensing, hashes, loudness, hits) and the Opus reader
+        run: |
+          set -o pipefail
+          run() {
+            if ! "$@" 2>&1 | tee out/test.log; then
+              echo "::error::Music intake stopped: a test failed, so nothing is pushed. $*"
+              echo "==== WHY ===="
+              grep -E "failed |\[FAIL\]|Assert|Exception|error " out/test.log | head -40
+              exit 1
+            fi
+          }
+          run dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.MusicManifestTests"
+          run dotnet test --project tests/DarkTerritory.Game.Tests -c Release -- --filter-class "*.FrontEndTests"
+          run dotnet test --project tests/Ballast.Audio.Tests -c Release
+      - name: Evidence (licence metadata, wikitext, the rendered file pages, SHA-256s, the report)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-intake-evidence
+          path: |
+            intake/_sources/music/**/*.json
+            intake/_sources/music/**/*.html
+            intake/_sources/music/**/*.txt
+            out/intake.json
+          retention-days: 90
+      - name: Sources as downloaded
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: music-intake-sources
+          path: intake/_sources/music/
+          retention-days: 14
+      - name: Commit and push content/audio/music
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add -A content/audio/music
+          if git diff --cached --quiet; then echo "Nothing changed in content/audio/music."; exit 0; fi
+          kept=$(python3 -c "import json;print(len(json.load(open('intake/_sources/music/report.json'))['kept']))")
+          git commit -q -F - <<EOF
+          Music intake: ${kept} CC0 recordings of public-domain works from Wikimedia Commons (GDD v1.4 App. E.6)
+
+          tools/audio/fetch_music.py, run by .github/workflows/music-intake.yml (run ${{ github.run_id }}).
+          Each file's own Commons licence read through the API (CC0 1.0 only); evidence in content/audio/music/evidence/
+          and the run's artifact. Listen before merging: the hits were found by analysis near each candidate's hint.
+          EOF
+          # Back to the branch that asked; by hand, to music-intake (a generated branch, so it's replaced).
+          if [ "${{ github.event_name }}" = "push" ]; then
+            git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          else
+            git push --force origin "HEAD:refs/heads/music-intake"
+          fi

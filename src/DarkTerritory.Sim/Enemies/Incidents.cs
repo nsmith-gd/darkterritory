@@ -77,12 +77,19 @@ public abstract class Incident(int id) : Enemy(id)
 /// <remarks><see cref="Enemy.Extra"/> is how far it's gone, 0 to 1 (replicated: the flames and the sound follow it).</remarks>
 public sealed class CarFire(int id) : Incident(id)
 {
-    double _burnTimer, _blaze;
+    double _blaze;
+    /// <summary>Host: how long each player's been in it this time (s), and the burn they've taken short of a whole point.</summary>
+    readonly Dictionary<int, (double In, double Dose)> _burning = new();
     bool _spread, _exploded;
 
     public override EnemyKind Kind => EnemyKind.CarFire;
     public override Sense Sense => Sense.Heat;
     public override Want Want => Want.Cargo;
+
+    /// <summary>
+    /// Alight: what set it is the record (the Fire Flies', note 190), and what it does after is the deaths and the cars lost.
+    /// </summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => null;
 
     public static CarFire In(int id, TrainOnLine train, int car, double along, CarFireTuning t) =>
         new(id) { Attached = car, Local = At(train, car, along), Extra = t.StartIntensity };
@@ -141,20 +148,7 @@ public sealed class CarFire(int id) : Incident(id)
         }
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * Extra * dt);
         car.Integrity = Math.Max(0, car.Integrity - t.IntegrityPerSecond * Extra * dt);
-        _burnTimer += dt;
-        if (_burnTimer >= t.BurnEverySeconds)
-        {
-            _burnTimer = 0;
-            foreach (var (p, _) in Inside(ctx, t.SprayReach))
-            {
-                // The fire's the train's own danger (like a fall): it can kill. Down the far end of the car you're clear of it.
-                if (Math.Abs(p.State.Position.Z - Local.Z) > t.BurnReach)
-                    continue;
-                int amount = (int)Math.Round(t.BurnDamage * Extra);
-                if (amount > 0)
-                    ctx.Harm(p.Id, amount, DeathCause.Burned);
-            }
-        }
+        Burn(ctx, t, dt);
         // Chemicals spread it faster (B.9), and so do coal and timber: "fire cascades escalate faster".
         _blaze = Extra >= t.SpreadFrom ? _blaze + dt * (car.Cargo == CargoKind.Chemicals ? t.ChemicalSpread : Cargoes.Fuel(car.Cargo) ? t.FuelSpread : 1) : 0;
         Extra2 = _blaze;
@@ -163,6 +157,33 @@ public sealed class CarFire(int id) : Incident(id)
             _spread = true;
             ctx.World.AddEnemy(i => In(i, ctx.Train, next, Local.Z, t));
         }
+    }
+
+    /// <summary>
+    /// The fire's the train's own danger (like a fall): it can kill. Down the far end of the car you're clear of it. It burns
+    /// by the second (the director's decision of 6 Oct 2026, note 263): a brush at <see cref="CarFireTuning.BurnBrushShare"/>
+    /// of the full rate, rising to it over <see cref="CarFireTuning.BurnRampSeconds"/> in it, so a brush hurts and standing
+    /// in it kills. Whole points are dealt as they add up.
+    /// </summary>
+    void Burn(EnemyContext ctx, CarFireTuning t, double dt)
+    {
+        var inIt = new HashSet<int>();
+        foreach (var (p, _) in Inside(ctx, t.SprayReach))
+        {
+            if (Math.Abs(p.State.Position.Z - Local.Z) > t.BurnReach)
+                continue;
+            inIt.Add(p.Id);
+            var (was, dose) = _burning.GetValueOrDefault(p.Id);
+            double inFor = was + dt;
+            double share = t.BurnBrushShare + (1 - t.BurnBrushShare) * Math.Clamp(inFor / Math.Max(1e-6, t.BurnRampSeconds), 0, 1);
+            dose += t.BurnPerSecond * Extra * share * dt;
+            int whole = (int)dose;
+            if (whole > 0)
+                ctx.Harm(p.Id, whole, DeathCause.Burned);
+            _burning[p.Id] = (inFor, dose - whole);
+        }
+        foreach (int gone in _burning.Keys.Where(id => !inIt.Contains(id)).ToList())
+            _burning.Remove(gone);
     }
 
     /// <summary>
