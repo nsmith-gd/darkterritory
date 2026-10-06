@@ -598,23 +598,31 @@ public static class TrainKit
 
     /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
     /// <summary>
-    /// Where the whistle cord's handle hangs in the cab (car frame): over the driver's head, a little back of the regulator
-    /// (GDD §12: the real whistle has a hand on it; the Whistler's has none, App. A.4). Hauled down 0.18 m while it blows.
+    /// Where the whistle cord's handle hangs in the cab (car frame): the sim's whistle interactable (note 264), in the
+    /// driver's front corner over the brake valve, at its height (GDD §12: the real whistle has a hand on it; the Whistler's
+    /// has none, App. A.4). Hauled down 0.2 m while it blows.
     /// </summary>
     public static Ballast.Double3 WhistleCordHandle(CarShape engine, bool pulled)
     {
+        foreach (var i in engine.Interactables)
+            if (i.Kind == InteractableKind.Whistle)
+                return i.Position + Ballast.Double3.Up * (i.Aim - (pulled ? 0.2 : 0));
         var reg = engine.Levers?.Regulator ?? default;
         return new Ballast.Double3(reg.X - 0.12, reg.Y + (pulled ? 0.22 : 0.4), reg.Z + 0.4);
     }
 
-    /// <summary>The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a turned wooden handle, its origin at the handle.</summary>
+    /// <summary>
+    /// The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a T-handle painted signal red (note
+    /// 267: "I don't see a switch for a whistle"), so it reads at a glance as the brake's grip does; its origin at the handle.
+    /// </summary>
     public static MeshAsset WhistleCord(Look? look, float length)
     {
         var k = new Kit(look, 63);
-        k.Use("wood_grey", new Vector3(0.42f, 0.36f, 0.26f), 0.85f, 0.05f, tile: 0.3f);
-        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.006f, 5);
-        k.Use("wood_crate", new Vector3(0.36f, 0.24f, 0.14f), 0.7f, 0.1f, tile: 0.2f);
-        k.Cylinder(new Vector3(-0.07f, 0, 0), new Vector3(0.07f, 0, 0), 0.016f, 6);
+        k.Use("wood_grey", new Vector3(0.62f, 0.56f, 0.42f), 0.85f, 0.05f, tile: 0.3f);
+        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.009f, 5);
+        k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
+        k.Cylinder(new Vector3(-0.1f, 0, 0), new Vector3(0.1f, 0, 0), 0.022f, 6);
+        k.Cylinder(new Vector3(0, -0.01f, 0), new Vector3(0, 0.06f, 0), 0.012f, 5);
         return k.Build("whistle-cord");
     }
 

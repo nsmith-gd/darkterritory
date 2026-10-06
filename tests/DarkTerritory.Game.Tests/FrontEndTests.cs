@@ -227,21 +227,175 @@ public sealed class FrontEndTests : IDisposable
         m.DefaultPlayerName = "nick";
         Choose(m, "HOST");
         Assert.False(m.WantsText);
+        // Note 267 ("when I go to name of lobby, it just starts automatically typing"): chosen, it doesn't take typing, and
+        // WASD still moves through the screen.
         Pick(m, "NAME");
+        Assert.False(m.WantsText);
+        Assert.Equal("NAME: NICK'S RUN", m.Items[m.Selected].Label);
+        m.Type("wasd");
+        Assert.Equal("NICK'S RUN", m.LobbyName);
+        Assert.Equal(MenuKey.Down, MenuInput.Keys(k => k == "S", m.WantsText));
+        // Enter starts typing into it; WASD and Space are letters then.
+        Assert.Null(m.Select());
         Assert.True(m.WantsText);
+        Assert.Equal(TextField.LobbyName, m.Editing);
         Assert.Equal("NAME: NICK'S RUN_", m.Items[m.Selected].Label);
+        Assert.Equal(MenuKey.None, MenuInput.Keys(k => k is "W" or "S" or "Space", m.WantsText));
         for (int i = 0; i < 3; i++)
             m.Erase();
         m.Type("ride, 2am");
         Assert.Equal("NICK'S RIDE 2AM", m.LobbyName);
+        // Enter ends it (and chooses nothing); the name's kept.
+        Assert.Null(m.Select());
+        Assert.False(m.WantsText);
+        Assert.Equal(Screen.Host, m.Screen);
         Assert.Equal("NICK'S RIDE 2AM", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).LobbyName);
-        // Erased away, it's blank to type into; left blank, the name is the default again.
+        // Erased away, it's blank to type into; Esc ends it, and goes no further back; left blank, the name's the default.
         Pick(m, "NAME");
+        m.Select();
         for (int i = 0; i < 20; i++)
             m.Erase();
         Assert.Equal("", m.LobbyName);
-        Assert.Equal("NICK'S RUN", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).LobbyName);
+        m.Back();
+        Assert.False(m.WantsText);
+        Assert.Equal(Screen.Host, m.Screen);
         Assert.Equal("NICK'S RUN", m.LobbyName);
+        Assert.Equal("NICK'S RUN", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).LobbyName);
+    }
+
+    [Fact]
+    public void ThePlayerNameIsAFieldThatTakesTypingOnlyOnceEntered()
+    {
+        // Note 267: every text field alike (the lobby's name, the join address, the player's name).
+        var m = Menu();
+        m.DefaultPlayerName = "nick";
+        Choose(m, "SETTINGS");
+        Pick(m, "PLAYER NAME");
+        Assert.Equal("PLAYER NAME: NICK", m.Items[m.Selected].Label);
+        Assert.False(m.WantsText);
+        // WASD moves, as on every other screen.
+        Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "S", m.WantsText)));
+        Assert.StartsWith("SOUND", m.Items[m.Selected].Label);
+        Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "W", m.WantsText)));
+        Assert.Null(MenuInput.Apply(m, MenuKey.Select));
+        Assert.True(m.WantsText);
+        MenuInput.Apply(m, MenuInput.Keys(k => k == "S", m.WantsText), "Dave");
+        Assert.Equal("PLAYER NAME: Dave_", m.Items[m.Selected].Label);
+        MenuInput.Apply(m, MenuKey.Back);
+        Assert.False(m.WantsText);
+        Assert.Equal(Screen.Settings, m.Screen);
+        // Saved, and the lobby's default name follows it.
+        Assert.Equal("Dave", Settings.Load(SettingsPath).PlayerName);
+        Assert.Equal("DAVE'S RUN", m.LobbyName);
+    }
+
+    /// <summary>Every point <paramref name="label"/>'s row (or its arrow, <paramref name="step"/>) was last drawn on, for the mouse.</summary>
+    static List<System.Numerics.Vector2> Drawn(FrontEnd m, string label, int step = 0)
+    {
+        // The row called that, or else the first that starts so (the controls have a BACK: S as well as BACK).
+        int item = m.Items.ToList().FindIndex(x => x.Label == label);
+        if (item < 0)
+            item = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+        Assert.True(item >= 0, $"no '{label}' on {m.Screen}");
+        var hits = new List<System.Numerics.Vector2>();
+        for (int y = 0; y < 270; y++)
+            for (int x = 0; x < 480; x++)
+                if (m.HitTest(x + 0.5f, y + 0.5f) == new MenuHit(item, step))
+                    hits.Add(new(x + 0.5f, y + 0.5f));
+        return hits;
+    }
+
+    /// <summary>The middle of what <paramref name="label"/>'s row (or its arrow) was last drawn on.</summary>
+    static System.Numerics.Vector2 Where(FrontEnd m, string label, int step = 0)
+    {
+        var hits = Drawn(m, label, step);
+        Assert.True(hits.Count > 0, $"'{label}' ({step}) isn't drawn where the mouse can reach it");
+        return hits[hits.Count / 2];
+    }
+
+    static Launch? Click(FrontEnd m, string label, int step = 0, bool right = false)
+    {
+        m.Draw(new Overlay(), 480, 270);
+        return MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(Where(m, label, step), Moved: true, Left: !right, Right: right));
+    }
+
+    [Fact]
+    public void TheMouseHoversClicksStepsAndScrolls()
+    {
+        // Note 267 (the director's notes on build 1121: "we really should be able to click with a mouse").
+        var m = Menu();
+        var o = new Overlay();
+        m.Draw(o, 480, 270);
+        // Hovering a row selects it; a click on it chooses it, as Enter does.
+        MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(Where(m, "JOIN"), Moved: true));
+        Assert.StartsWith("JOIN", m.Items[m.Selected].Label);
+        Assert.Null(Click(m, "QUICK NIGHT"));
+        Assert.Equal(Screen.QuickNight, m.Screen);
+        // A value's arrows step it, as left and right do; a click on the row steps it on, the right button back.
+        Click(m, "CARS", +1);
+        Assert.Equal("CARS: 7", m.Items[m.Selected].Label);
+        Click(m, "CARS", -1);
+        Click(m, "CARS", -1);
+        Assert.Equal("CARS: 5", m.Items[m.Selected].Label);
+        Click(m, "CARS");
+        Assert.Equal("CARS: 6", m.Items[m.Selected].Label);
+        Click(m, "CARS", right: true);
+        Assert.Equal("CARS: 5", m.Items[m.Selected].Label);
+        Assert.Equal(new Launch.Night("frontier:7", 5, Host: false), Click(m, "PLAY"));
+        // A click on a toggle toggles it.
+        m.Show(Screen.Settings);
+        Click(m, "SOUND");
+        Assert.Equal("SOUND: OFF", m.Items[m.Selected].Label);
+        Assert.True(Settings.Load(SettingsPath).Mute);
+        // BACK, clicked, backs out.
+        m.Show(Screen.QuickNight);
+        Click(m, "BACK");
+        Assert.Equal(Screen.Title, m.Screen);
+
+        // The wheel scrolls a list longer than the screen (the controls), and a click on a row it brought up works it.
+        m.Show(Screen.Controls);
+        m.Draw(o, 480, 270);
+        Assert.NotEmpty(Drawn(m, Controls.Label(Control.Forward)));
+        Assert.Empty(Drawn(m, "RESET TO DEFAULTS"));
+        for (int i = 0; i < 40; i++)
+            MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(new(5, 5), Wheel: -1));
+        m.Draw(o, 480, 270);
+        Assert.Empty(Drawn(m, Controls.Label(Control.Forward)));
+        Assert.NotEmpty(Drawn(m, "RESET TO DEFAULTS"));
+        // Back up, a notch at a time.
+        for (int i = 0; i < 40; i++)
+            MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(new(5, 5), Wheel: 1));
+        m.Draw(o, 480, 270);
+        Assert.NotEmpty(Drawn(m, Controls.Label(Control.Forward)));
+        for (int i = 0; i < 40; i++)
+            MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(new(5, 5), Wheel: -1));
+        Click(m, "BACK");
+        Assert.Equal(Screen.Settings, m.Screen);
+    }
+
+    [Fact]
+    public void AClickStartsTypingInAFieldAndAClickElsewhereEndsIt()
+    {
+        var m = Menu();
+        m.DefaultPlayerName = "nick";
+        Choose(m, "HOST");
+        Assert.Null(Click(m, "NAME"));
+        Assert.Equal(TextField.LobbyName, m.Editing);
+        // Clicking the field again carries on; typing goes in.
+        Click(m, "NAME");
+        MenuInput.Apply(m, MenuKey.None, "!");
+        Assert.Equal("NICK'S RUN!", m.LobbyName);
+        // Clicking off any row ends it, and does nothing else.
+        m.Draw(new Overlay(), 480, 270);
+        MenuInput.Apply(m, MenuKey.None, "", new MenuMouse(new(470, 260), Left: true));
+        Assert.Null(m.Editing);
+        Assert.Equal(Screen.Host, m.Screen);
+        // Clicking another row while typing ends the typing and works that row.
+        Click(m, "NAME");
+        Assert.NotNull(m.Editing);
+        Click(m, "VISIBILITY");
+        Assert.Null(m.Editing);
+        Assert.Contains("VISIBILITY: PRIVATE", m.Items.Select(i => i.Label));
     }
 
     [Fact]
@@ -300,14 +454,20 @@ public sealed class FrontEndTests : IDisposable
     {
         var m = Menu();
         Choose(m, "JOIN");
-        Assert.True(m.WantsText);
+        // Note 267: the join screen doesn't take typing until the address is entered.
+        Assert.False(m.WantsText);
         Pick(m, "ADDRESS");
+        m.Type("1.2.3.4");
+        Assert.Equal("", m.Address);
+        Assert.Null(m.Select());
+        Assert.True(m.WantsText);
         for (int i = 0; i < 9; i++)
             m.Erase();
         m.Type("10.0.0.5:27015 !");
         Assert.Equal("10.0.0.5:27015", m.Address);
-        // Enter on the address itself joins as well.
-        Assert.Equal(new Launch.Join("10.0.0.5:27015"), m.Select());
+        // Enter ends it; JOIN joins it.
+        Assert.Null(m.Select());
+        Assert.False(m.WantsText);
         Assert.Equal(new Launch.Join("10.0.0.5:27015"), Choose(m, "JOIN"));
         m.Back();
         Assert.False(m.WantsText);

@@ -365,7 +365,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         if (World.Run is not { } run)
             return;
-        if (_manifest is null && run.Phase != Sim.Run.RunPhase.Yard && !run.Over)
+        // Note 267: unless the run's tuning has dropped it (the director's call on build 1121).
+        if (_manifest is null && RadioTuning.Manifest && run.Phase != Sim.Run.RunPhase.Yard && !run.Over)
         {
             var crew = Client.RemoteIds.Select(id => (int)id).Append(PlayerId).Distinct().Order();
             _manifest = Sim.Run.Radio.Manifest(World, crew);

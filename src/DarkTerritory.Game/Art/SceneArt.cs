@@ -902,9 +902,10 @@ public sealed partial class SceneArt(Look look)
     /// blackened toward soot, the scars of the burn the mask draws.</param>
     /// <param name="openLockers">Crew lockers drawn open whatever their doors are doing (the Stranded outro's empty locker).</param>
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
+    /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
@@ -1032,6 +1033,10 @@ public sealed partial class SceneArt(Look look)
                 bool open = (vehicle?.LockerOpen(bay.Index) ?? false) || (openLockers & (1u << bay.Index)) != 0;
                 var leaf = Piece($"locker-door:{bay.Name}:{w:0.###}x{h:0.###}:{px:0.#####}", () => LockerKit.Door(Look, bay.Name, w, h, px));
                 mesh.Instances.Add(new MeshInstance(leaf, LockerKit.DoorAt(bay, open) * m, emergency ? 0.06f : 1, Scar: scar));
+                // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): something on its shelves,
+                // a stores tag hangs off the shut door's handle; the prompt at the door names what.
+                if (!open && (taggedLockers & (1u << bay.Index)) != 0)
+                    mesh.Instances.Add(new MeshInstance(Piece($"locker-tag:{w:0.###}x{h:0.###}", () => LockerKit.Tag(Look, w, h)), LockerKit.DoorAt(bay, false) * m, emergency ? 0.06f : 1));
             }
         }
         // A cargo car's roof hatch (T99): two leaves meeting on the centreline, shut in the opening, or open, each swung up

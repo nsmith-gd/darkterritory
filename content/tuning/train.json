@@ -204,6 +204,11 @@
   // brakeShockPerSecond a second for every m/s^2 over. Not in the GDD's numbers: a gentle coupling (under 1.5 m/s) costs a
   // few percent, a full brake on a short train (2.2 m/s^2) about a fifth of the load from line speed to a stand.
   "fragile": { "safeContactSpeed": 0.3, "shockShare": 3, "brakeShockDecel": 1.2, "brakeShockPerSecond": 0.02 },
+  // Note 267 (the director's notes on build 1121): Use works the thing looked at. Where several are in reach (a row of
+  // lockers a hand wide; the firebox, the vent, the tool rack and the whistle cord in the cab), the one within
+  // lookDegrees of the view's centre, taken from eyeHeight over the feet, wins; none looked at, the nearest, as before.
+  // The whistle cord is only ever pulled looked at.
+  "pick": { "eyeHeight": 1.6, "lookDegrees": 30 },
   "kit": {
     "radios": 2,
     // Spec A.5: the radio "dies in tunnels and mine spurs". It still carries this far in, from a tunnel's mouth or a mine
@@ -217,11 +222,12 @@
     "radioBreakPerDamage": 0.006,
     "radioBreakOnGrab": 0.25,
     "radioMendSeconds": 8,
-    // GDD v1.1 App. C.4 hand loot: toys in the guard van, for the Track Doll (it steals one and leaves for the run).
-    // GDD v1.4 App. C item 4: "some toys are noisy": four now, and three of them make a noise while carried (a squeaker, a
-    // music box, a wind-up drummer), in the carrier's name on the loudness meter (combat.json choir.toys; note 175).
-    "toys": 4,
-    "toyNoises": ["squeaker", "musicBox", "drummer"],
+    // GDD v1.1 App. C.4 hand loot: toys, for the Track Doll (it steals one and leaves for the run). Note 267 (the director's
+    // notes on build 1121: "things that we should definitely find out in the world"): none ride from the fortress now;
+    // they're found at the stops (loot.json "toys"). A count here would put that many back in the guard van, quiet past
+    // the noises listed (App. C item 4; combat.json choir.toys, note 175).
+    "toys": 0,
+    "toyNoises": [],
     // GDD §12 "the repair kit is an item, not a station": one toolbox, in its locker (lockers.kitLocker) in car
     // `repairKitCar` (counted back from the engine). It's what mends a ruptured boiler (boiler.json repairSeconds), so
     // someone has to leave the footplate for it, and whoever carries it opens a Holdout's lock silently (holdouts.json
@@ -253,7 +259,17 @@
       "height": 1.9,
       "fromFront": 0.7,
       // Holding Use this long at one opens or shuts its door (a tap is shorter: it stows or takes).
-      "doorSeconds": 0.4
+      "doorSeconds": 0.4,
+      // Note 267 (the director's notes on build 1121: "all of these seem empty"): what each locker starts with besides the
+      // kit. Not in the GDD, which names only the fitter's kit; GDD §10's "where emergency lamps are kept, where fire
+      // extinguishers hang", by the grade whose job it is. The rest stand empty for what the crew finds and stows.
+      "stock": {
+        "DRIVER": ["lamp"],
+        "FIREMAN": ["extinguisher"],
+        "GUARD": ["lamp"],
+        "BRAKESMAN": ["extinguisher"],
+        "LAMPMAN": ["lamp", "lamp"]
+      }
     }
   }
 }
