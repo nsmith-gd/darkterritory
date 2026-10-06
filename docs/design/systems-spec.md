@@ -91,9 +91,14 @@ whoever has to hear it.
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
+| Low clearance *(the line's roof warning, a tunnel's mouth ahead; added 5 Oct, note 260)* | The telltales: a run of cord slaps over the roof | 4–7k | warn-low-clearance |
+| Bend too fast *(the line's roof warning, riders up over a posted speed; added 5 Oct, note 260)* | The roof irons chattering, rocking in and out | 2.5–4.5k | warn-curve |
 
 Overlapping bands (Draggers and Climbers, Tippy Toesie and the Stoker) are either never staged together or are told apart by
 rhythm: the Dragger's scrape is one rasp, the Climbers' scrabble a clatter; the tiptoe ticks slowly, the hiss is continuous.
+The two roof warnings sit in shared bands the same way: the telltales are a quick run of slaps, not the doll's giggle or the
+fire's crackle; the roof irons' chatter rocks in and out, not one rasp or a clatter at a gap. They are heard by whoever is up
+top (`sight.json` `roofWarning.roofOnly`), as the warning goes up and every 4 s while it's up.
 Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for.
 
 ## A.5 Proximity voice

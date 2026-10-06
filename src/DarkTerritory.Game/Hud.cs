@@ -603,6 +603,13 @@ public static class Hud
             bool alone = s.Roster().Count(l => l.Alive) <= 1;
             Small(alone ? Bound("HOLD [E] TO STRUGGLE FREE") : "SHOUT FOR HELP: A CREWMATE CAN PULL IT OFF, OR HIT IT", Ink);
         }
+        // Note 260 (T115 playtest, "random death walking outside"; GDD App. A.1): the line's own kills are telegraphed. Up
+        // top with a tunnel's mouth or a bend taken too fast coming, say so, how long, and what to do.
+        if (RoofWarningLines(s) is { } roof)
+        {
+            Big(roof.Head, world.Tick / 8 % 2 == 0 ? Red : Amber);
+            Small(roof.Line, Ink);
+        }
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
@@ -1035,6 +1042,21 @@ public static class Hud
     /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
     static string LoadStep(in GunState gun, GunTuning t) =>
         (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "POWDER", 1 => "BALL", _ => "RAM" };
+
+    /// <summary>
+    /// The roof warning's two lines (note 260), or null: nothing coming, or it isn't for you (sight.json <c>roofWarning.roofOnly</c>:
+    /// only up top). From the line and the train as this machine has them, so a client says it when the host would.
+    /// </summary>
+    public static (string Head, string Line)? RoofWarningLines(IPlaySession s)
+    {
+        var p = s.Player;
+        if (s.World.Lineside is not { } lineside || !lineside.For(p, s.World) || lineside.Warning(s.Train) is not { } w)
+            return null;
+        string when = w.Metres <= 0 ? "NOW" : double.IsFinite(w.Seconds) ? $"IN {Math.Max(1, Math.Ceiling(w.Seconds)):0}S" : $"{w.Metres:0} M AHEAD";
+        return w.Kind == SignKind.LowClearance
+            ? ("LOW CLEARANCE", w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
+            : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
+    }
 
     /// <summary>
     /// What the death screen says killed you. Every cause has its line (T115 playtest: "the death screen doesn't show me

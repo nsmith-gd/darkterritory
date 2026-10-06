@@ -260,15 +260,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     }
 
     /// <summary>
-    /// Reads the line ahead: a posted tunnel (its board read) whose mouth is near enough, or the train still in one, means
-    /// off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
+    /// Reads the line ahead: the roof warning up (note 260: a tunnel's mouth, or a bend the train's taking too fast, coming,
+    /// or the train still in it) means off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
     public void Look(World world, in PlayerState self, bool safe = false, bool tend = true)
     {
         if (_warm is null)
             return;
-        _warm.Shelter = !safe && TunnelNear(world);
+        _warm.Shelter = !safe && RoofWarned(world);
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
         // The nearest to us, so a crew splits up over them; a fire first (it spreads), then a load (it's on a clock).
         int here = self.Parent;
@@ -567,19 +567,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     uint _tick;
 
 
-    /// <summary>Seconds' warning a walker wants to get off the roofs and in before a tunnel's mouth.</summary>
-    const double ShelterSeconds = 40;
-
-    /// <summary>A tunnel ahead that's been posted (the board read, or its mouth made out in the dark), and near.</summary>
-    public static bool TunnelNear(World world)
-    {
-        if (world.Lineside is not { } lineside)
-            return false;
-        var d = world.Train.Dynamics;
-        double reach = Math.Max(d.Speed, 3) * ShelterSeconds + 30;
-        return lineside.Signs.Any(s => s.Kind == Sim.Route.SignKind.LowClearance && lineside.Read(s.Id) && s.End >= d.RearDistance - 5
-            && s.Start - d.Distance <= reach);
-    }
+    /// <summary>
+    /// Note 260: the roof warning is up (<see cref="Sim.Route.Lineside.Warning"/>), a tunnel's mouth or a bend taken too fast
+    /// coming: the same warning a player gets, from the same route and train, lamp or no lamp. It was a posted tunnel within
+    /// 40 s, its board read, so in the dark a walker learned of the mouth 10 m short.
+    /// </summary>
+    public static bool RoofWarned(World world) => world.Lineside?.Warning(world.Train) is not null;
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
