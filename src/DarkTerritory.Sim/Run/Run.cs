@@ -624,7 +624,7 @@ public sealed partial class Run
             ChuteOpen = false;
         var engine = EngineRake(train);
         var geometry = train.Dynamics.Tuning.Geometry;
-        double tender = engine.Distance - (geometry.EngineLength - geometry.Engine.TenderLength / 2);
+        double tender = engine.Distance - EnginePlan.Of(geometry).CoalFromFront;
         var (spout, _) = ChuteAt(_facilities[Facility], train.Line);
         if (Math.Abs(tender - spout) > c.SpoutTolerance || train.BoilerTuning is not { } bt)
             return; // spilt

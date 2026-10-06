@@ -234,18 +234,24 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
     public double HatchLength { get; init; }
 }
 
-/// <summary>Greybox layout of the 20 m engine + tender unit, front to back: boiler, cab, tender.</summary>
-public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength, double TenderLength, double TenderTop)
+/// <summary>
+/// Greybox layout of the 20 m engine, cab forward (note 267), front to back: the pilot, the cab (the driver's controls at
+/// its front windows, the firebox in its back wall, the coal bunker beside it), the boiler with the stack at the rear.
+/// </summary>
+public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength)
 {
-    /// <summary>The running boards: how far out past the cab side they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
+    /// <summary>The pilot ahead of the cab: buffer beam, plough and headlamp.</summary>
+    public double PilotLength { get; init; } = 0.6;
+    /// <summary>The coal bunker in the cab (note 267): along the left wall ahead of the left doorway, this long.</summary>
+    public double BunkerLength { get; init; } = 1.8;
+    /// <summary>How far in from the cab's left wall the bunker reaches.</summary>
+    public double BunkerDepth { get; init; } = 0.85;
+    /// <summary>The bunker's top over the cab floor.</summary>
+    public double BunkerHeight { get; init; } = 1.0;
+    /// <summary>The running boards: how far out past the body's sides they stand (App. A.2 GREASE: "sanding from the running boards").</summary>
     public double RunningBoardWidth { get; init; } = 0.6;
-    /// <summary>The sandboxes on the running boards: this far ahead of the cab front.</summary>
-    public double SandboxAhead { get; init; } = 2.5;
-    /// <summary>
-    /// The gangway down the tender's left side, this wide at deck height, from its rear coupler into the back of the cab
-    /// (T90: the crew had no way into the cab from the train). Zero is the old full-width tender.
-    /// </summary>
-    public double TenderGangway { get; init; }
+    /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
+    public double SandboxBehind { get; init; } = 2.5;
 }
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);

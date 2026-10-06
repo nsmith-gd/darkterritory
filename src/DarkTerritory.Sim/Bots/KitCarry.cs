@@ -188,7 +188,7 @@ public static class KitCarry
         if (self.Parent == 0 || self.Parent == vehicles[1].Id)
         {
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            return KitRun.Decide(self, world, new Double3(0, 0, firebox.Z + 0.5), tick);
+            return KitRun.Decide(self, world, ConductorBot.FiringSpot(firebox, 0), tick);
         }
         int slot = Slot(self, train), x = self.Parent;
         if (slot < 2)

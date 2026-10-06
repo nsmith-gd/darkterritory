@@ -562,7 +562,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
             || bt.TenderCapacity - train.Boiler.Tender < bt.TenderCapacity * WorthFilling)
             return null;
         var g = train.Dynamics.Tuning.Geometry;
-        double tender = g.EngineLength - g.Engine.TenderLength / 2;
+        double tender = EnginePlan.Of(g).CoalFromFront;
         var facilities = run.Route.Of(FeatureKind.Facility).ToList();
         for (int i = 0; i < facilities.Count; i++)
         {
@@ -2308,8 +2308,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     static double CabDoorZ(TrainOnLine train)
     {
         var g = train.Dynamics.Tuning.Geometry;
-        double cabBack = g.EngineLength / 2 - g.Engine.TenderLength;
-        return (cabBack - g.Doorway.Width + cabBack - 0.15) / 2;
+        var plan = EnginePlan.Of(g);
+        return (plan.DoorFront + plan.CabBack - 0.15) / 2;
     }
 
     /// <summary>

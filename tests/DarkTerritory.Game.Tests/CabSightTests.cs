@@ -6,9 +6,10 @@ namespace DarkTerritory.Game.Tests;
 
 /// <summary>
 /// T101 (playtest: "there also needs to be a way for the driver to see the track ahead and the front of the train on
-/// their own ... players should clearly see the firebox, map, gauges, speed, brake, and vent"): from the driver's place
-/// the line ahead is in sight through the window beside the boiler, past the boiler and its stack, and every working of
-/// the cab is in front of the driver; from the fireman's side, the blow-off on the running board.
+/// their own ... players should clearly see the firebox, map, gauges, speed, brake, and vent"), cab forward (ARCHITECTURE
+/// §8 note 267, the director's sketch: "controls at the front with full vis of the rail"): from the driver's place the line
+/// ahead is in sight through the front window from a few metres past the plough, with nothing of the engine in the way;
+/// the driver's gauges, the map and the brake are in front of them, and turned round, the fire door's in plain view.
 /// </summary>
 public class CabSightTests
 {
@@ -17,20 +18,20 @@ public class CabSightTests
     static readonly CarShape Engine = CarShape.Build(Tuning.Geometry, VehicleKind.Engine, hasCarBehind: true);
     static double CabFront => Engine.Cab!.Value.Min.Z;
 
-    /// <summary>Where a sightline from the eye crosses the spectacle plate, and whether that's through its open window.</summary>
+    /// <summary>Where a sightline from the eye crosses the cab's front, and whether that's through its open window.</summary>
     static bool ThroughWindow(Double3 eye, Double3 at, int side)
     {
-        var w = TrainKit.SpectacleWindow(Engine, side);
+        var w = TrainKit.FrontWindow(Engine, side);
         double t = (CabFront - eye.Z) / (at.Z - eye.Z);
         var p = eye + (at - eye) * t;
         return t is > 0 and < 1 && p.X > w.X0 && p.X < w.X1 && p.Y > w.Y0 && p.Y < w.Y1;
     }
 
-    /// <summary>Whether the sightline is clear of every solid ahead of the cab (the boiler, its stack, the cab walls).</summary>
+    /// <summary>Whether the sightline is clear of the engine's solids that could stand in it (the boiler, its stack, the cab walls, the bunker).</summary>
     static bool Clear(Double3 eye, Double3 at)
     {
         foreach (var s in Engine.Solids)
-            if (s.Part is PartKind.Boiler or PartKind.Stack or PartKind.CabWall && Hits(eye, at, s.Box))
+            if (s.Part is PartKind.Boiler or PartKind.Stack or PartKind.CabWall or PartKind.Tender && Hits(eye, at, s.Box))
                 return false;
         return true;
     }
@@ -59,7 +60,9 @@ public class CabSightTests
     }
 
     [Theory]
-    // The near rail, 30 m on; and the middle of the line from 60 m.
+    // The near rail and the middle of the line, from 8 m past the plough (with the boiler ahead it was 30 m: T101), and on.
+    [InlineData(TrainKit.HalfGauge, 8)]
+    [InlineData(0, 10)]
     [InlineData(TrainKit.HalfGauge, 30)]
     [InlineData(0, 60)]
     [InlineData(0, 150)]
@@ -68,17 +71,17 @@ public class CabSightTests
         var eye = Views.CabEye(Engine);
         var rail = new Double3(lateral, 0.15, -Engine.HalfLength - ahead);
         Assert.True(ThroughWindow(eye, rail, 1), "it's seen through the right-hand window");
-        Assert.True(Clear(eye, rail), "past the boiler and its stack");
+        Assert.True(Clear(eye, rail), "with nothing of the engine in the way");
     }
 
     [Fact]
-    public void FromTheDriversPlaceTheRunningBoardRunsToTheFrontOfTheEngine()
+    public void TheDriversPlaceIsAtTheFrontOfTheTrain()
     {
-        // The right running board's outer edge at the buffer beam: the front of the train.
-        var eye = Views.CabEye(Engine);
-        var front = new Double3(Engine.HalfWidth + Tuning.Geometry.Engine.RunningBoardWidth, Tuning.Geometry.Engine.DeckHeight, -Engine.HalfLength + 0.6);
-        Assert.True(ThroughWindow(eye, front, 1));
-        Assert.True(Clear(eye, front));
+        // Cab forward (note 267): nothing of the engine ahead of the cab but the pilot under its nose.
+        Assert.True(CabFront - -Engine.HalfLength <= Tuning.Geometry.Engine.PilotLength + 1e-9);
+        foreach (var s in Engine.Solids.Where(s => s.Part is PartKind.Boiler or PartKind.Stack))
+            Assert.True(s.Box.Min.Z >= Engine.Cab!.Value.Max.Z - 1e-9, $"the {s.Part} is behind the cab");
+        Assert.True(Views.CabEye(Engine).Z - CabFront < 2.0, "the driver stands at the front windows");
     }
 
     [Fact]
@@ -93,7 +96,7 @@ public class CabSightTests
     }
 
     [Fact]
-    public void TheGaugesTheMapTheFireboxAndTheBrakeAreAllInFrontOfTheDriver()
+    public void TheGaugesTheMapAndTheBrakeAreAllInFrontOfTheDriver()
     {
         var eye = Views.CabEye(Engine);
         // Within a comfortable look from straight ahead: 50 degrees off, as far as eyes go without turning the head.
@@ -105,16 +108,31 @@ public class CabSightTests
         }
         for (int i = 0; i < 4; i++)
         {
-            var c = TrainKit.GaugeCentre(Engine, i);
+            var c = TrainKit.DriverGauge(Engine, i);
             InView(new Double3(c.X, c.Y, c.Z), i == 3 ? "speed gauge" : $"gauge {i}");
         }
         var map = TrainKit.MapPlate(Engine);
         InView(new Double3(map.Corner.X + map.Width / 2, map.Corner.Y + map.Height / 2, map.Corner.Z), "map");
-        InView(Engine.Interactables.Single(i => i.Kind == InteractableKind.Firebox).Position + new Double3(0, 0.7, 0), "firebox door");
         InView(Engine.Levers!.Value.Brake, "brake");
         // And big enough to read from there: a dial's face over six degrees across.
-        var g = TrainKit.GaugeCentre(Engine, 3);
+        var g = TrainKit.DriverGauge(Engine, 3);
         double distance = (new Double3(g.X, g.Y, g.Z) - eye).Length;
-        Assert.True(2 * Math.Atan(TrainKit.GaugeRadius / distance) * 180 / Math.PI > 6, "the speed dial reads from the driver's place");
+        Assert.True(2 * Math.Atan(TrainKit.DriverGaugeRadius / distance) * 180 / Math.PI > 6, "the speed dial reads from the driver's place");
+        // Over the window: the line's view isn't cut by them.
+        Assert.True(g.Y - TrainKit.DriverGaugeRadius > TrainKit.FrontWindow(Engine, 1).Y1);
+    }
+
+    [Fact]
+    public void TurnedRoundTheFireDoorAndTheCoalAreInPlainViewFromTheDriversPlace()
+    {
+        // Cab forward the firebox is in the cab's back wall, behind the driver: the length of the cab off, nothing between.
+        var eye = Views.CabEye(Engine);
+        var door = TrainKit.FireDoor(Engine);
+        var at = new Double3(door.X, door.Y, door.Z);
+        Assert.True(at.Z > eye.Z, "behind the driver");
+        Assert.True((at - eye).Length < 5, $"{(at - eye).Length:0.0} m off");
+        Assert.True(Clear(eye, at + new Double3(0, 0, -0.05)));
+        var coal = Engine.Interactables.Single(i => i.Kind == InteractableKind.Coal).Position;
+        Assert.True(Clear(eye, coal + new Double3(0, 0.6, 0)));
     }
 }

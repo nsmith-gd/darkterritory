@@ -3938,3 +3938,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The Stoker's runaway still derails on a bend through the same warning (its cause line unchanged).
         - The bell is a synth definition with no audio-checklist line for recorded candidates.
     - **Verified:** `BendWarningTests` (`EveryBendDerailOnAGeneratedLineIsWarnedAFullLeadAhead`: every bend that can derail a train on deepTerritory:2, deepTerritory:5, deadLines:3 and frontier:2, into it held at 1.2× and surging over it on the bend from 0.95×: each derails, once, after ≥ 4 s of warning, none spared at a held speed; `ADriverWhoBrakesOnTheWarningMakesTheBend` 6 and 20 cars; `ABendTakenAtItsBoardIsNoWarningAndItsStressRisesTowardItsDerailingSpeed`). `EnemyTests`: the Sleepers' brace distance and lead (`WithTheLampDownTheyStillBraceAsFarOutAsTheTrainNeedsToStop`, the cruise theory above). `SandTests`' Sleepers case brings them back as a mod would. All Sim tests and Game tests green; `AudioTests` green.
+267. **The engine, cab forward (the director's sketch of 6 Oct 2026: "the current front of train design that I want to change to the desired design where controls are at the front with full vis of the rail"; then "put a coal bunker in the cab").** GDD's open item ("a redesign of the front of the train … for a lone driver's view of track hazards. Every function stays") is done. Before, the boiler and stack led, the cab sat behind them with the cannon on its roof, and the coal tender followed. Now the order is reversed, as on the Southern Pacific's cab-forwards.
+    - **The layout** (train.json `geometry.engine`, built by `CarShape.Engine`; `EnginePlan` is where everything reads it from, so nothing recomputes it).
+        - Front to back: the pilot (`pilotLength` 0.6: buffer beam, plough, the headlamp on the cab's nose), then the cab (`cabLength` 5.0), then the boiler with its smokebox and stack at the rear, where car 1 couples on.
+        - The unit is still 20 m (spec B.4), and every function stays.
+    - **The cab.**
+        - **Front, the driver's end:** the front windows either side of a narrow post; the driver's console under the right-hand one, with the regulator, brake and reverser; the whistle cord in that corner, hung against the side so it's out of the window. The levers still come back (+Z) towards the driver as they're worked, so `CabLevers`, `VrLevers` and the bots' driving are unchanged.
+        - **Back, the fireman's end:** the firebox door in the back wall, where the boiler comes through. The coal bunker (`bunkerLength` 1.8, `bunkerDepth` 0.85, `bunkerHeight` 1.0, the director's "coal bunker in the cab") stands against the left wall ahead of the left doorway. Its gate is low in its inner side by the fire door, so the fireman's turn from coal to fire is the quarter turn it was.
+        - **Roof:** the coaling hatch over the bunker, which a tower's spout pours through (`EnginePlan.CoalFromFront` replaces the tender's offset in `Run`, `StopCrew` and `dt`). The cannon stands at the roof's front, and the gun rail is the cab roof's.
+        - **Ways in and up:** the doorways are at the back of each side. The running boards run from them back along the boiler to the rear deck, and a footplate off car 1's plate meets them (T90). A ladder climbs the cab's back wall from the boiler's top to its roof, and the hatch ladder goes up from the floor in the front left corner.
+        - **Sandboxes:** on the boards over the drivers (`sandboxBehind` 2.5), since nothing is ahead of the cab now.
+        - The tuning fields `tenderLength`, `tenderTop` and `tenderGangway` are gone. The coal store is still the boiler's `Tender` in the sim, and its capacity (spec B.5's 400 units) is unchanged.
+    - **The driver's sight (T101, re-stated):** the line is in sight through the right-hand window from 8 m past the plough; with the boiler ahead it was 30 m. Spec B.7's "the stack masks the rail closer than ~60 m" is gone from it.
+        - **Driver's gauges.** The backhead is now behind the driver. As on the real cab-forwards, a second set of the four gauges stands in front of them, two rows of two over the right-hand window beside the run map (`TrainKit.DriverGauge`). The scene turns both sets' needles.
+        - **Backhead.** It's drawn in its own frame (`TrainKit.BackheadFrame`: the engine's turned round, +Z out into the cab), and so are everything on it, the shut fire door, the fire seen through the hole (`InFirebox`), the furnace's light and the firebox camera. A Stoker in the fire looks out of it at the cab ahead.
+    - **Art** (`TrainKit.Engine`).
+        - The drivers move back under the boiler with the cylinders ahead of them under the cab's back; the pilot truck is under the cab and a trailing truck under the smokebox. `Drivers` and `CrossheadRestZ` read the cab's back, so `SceneArt.Gear` turns them where they are.
+        - The cab's sides have window posts. The smokebox door looks back down the train, with the tail lamp on its corner.
+        - The headlamp is on the cab's nose under the windows: `World.LampHeight` is 2.0, where it was 2.8 high on the smokebox door.
+        - The whistle and safety valves stand on the boiler just behind the cab (`WhistleZ`, `SafetyValveZ`; `Effects` plumes there).
+        - The Stoker perches on the stack at the rear, facing forward along the boiler at the cab.
+    - **Bots.** `ConductorBot.FiringSpot` is in front of the fire door, facing it (`FacingFire`). The way out to car 1 (`Route`) runs through the left doorway, along the left board, over the rear deck and onto the plate. `SandWay`, `CabDoorZ` and the kit run read `EnginePlan`.
+    - **Views.**
+        - `fireman` looks back across the footplate at the fire door and the bunker.
+        - `coaling` looks up at the bunker's hatch.
+        - `gangway` looks along the boiler from the plate.
+        - New `engine`: the whole engine three-quarters on.

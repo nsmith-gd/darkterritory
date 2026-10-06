@@ -412,7 +412,7 @@ Only strikes when the train is stopped. It carries its victim off to a nest, and
 ### INTERIOR — already aboard
 
 **STOKER** · *the firebox*
-Looks for heat *(the director's decision, 2026-10-06)*. A firebox run hot draws it: it boards at the tender, scraping and glowing on the coal, and crosses the footplate to the fire door. A fireman at the fire can catch it there. Once in, it eats the fire and drives the pressure up in lurches, and the speed with it. Beaten, it stays away a couple of minutes.
+Looks for heat *(the director's decision, 2026-10-06)*. A firebox run hot draws it: it boards at the coal bunker in the cab, scraping and glowing on the coal, and crosses the footplate to the fire door. A fireman at the fire can catch it there. Once in, it eats the fire and drives the pressure up in lurches, and the speed with it. Beaten, it stays away a couple of minutes.
 > **RULE: run cool, or watch the coal.**
 Running hot is fast and draws it; running cool is safe and slow. Catch it on the way in. Once it's in, vent to buy time, open the firebox and club it, and get burned doing it. Ignored, the boiler goes or the train runs away and derails.
 
@@ -1057,7 +1057,7 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 ```
 DRAWN     the firebox run hot (above a tuned heat) for a while; a low fire never draws it
           └ PERCH: on the smokestack, watching the heat
-BOARD     at the tender: onto the coal, then across the footplate to the fire door
+BOARD     at the coal bunker: onto the coal, then across the footplate to the fire door
           └ TELEGRAPH: scraping on the coal, a sick glow there, the hiss (the fireman hears it)
 CATCH     a blow on the way in drives it off, and doesn't burn
 FEED      in the firebox: it eats the fire, and the pressure lurches up toward rupture, the
@@ -1367,7 +1367,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
-| **Stoker** | **Condition-triggered, not placed.** Boards at the tender, crosses to the firebox *(2026-10-06)* | The firebox run above a tuned heat for a while; never within a few minutes of the last one's defeat, nor in the fortress | None |
+| **Stoker** | **Condition-triggered, not placed.** Boards at the coal bunker, crosses to the firebox *(2026-10-06)* | The firebox run above a tuned heat for a while; never within a few minutes of the last one's defeat, nor in the fortress | None |
 | **Tippy Toesie** | Any car, or the ground near the train | Crew ≥2 · any tier (first pass) | Weight up per player idle and alone |
 | **Fire Flies** | Lineside in dark forest and open sections | ≥1 lamp lit inside a car | ×2 at night depth · ×0 if every car lamp is out |
 
@@ -2083,7 +2083,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
 - *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
-- *Cab:* a redesign of the front of the train is coming (the director's sketch to follow), for a lone driver's view of track hazards. Every function stays. *Open (awaiting sketch).*
+- *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 267): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
 - *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
 - *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
@@ -2129,7 +2129,7 @@ Further decisions (the director, 6 Oct 2026):
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden.
-- **Stoker v3.** It's drawn by heat and boards at the tender with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
+- **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures.
 

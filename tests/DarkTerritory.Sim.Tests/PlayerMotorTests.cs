@@ -200,26 +200,30 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void FromTheFirstCarsCouplerTheGangwayLeadsIntoTheCab()
+    public void FromTheFirstCarsCouplerTheRunningBoardLeadsIntoTheCab()
     {
-        // T90 (playtest): there was no way into the cab from the train. Off the plate behind the tender, left onto the
-        // gangway down its side, and forward into the cab, at speed.
+        // T90 (playtest): there was no way into the cab from the train. Cab forward (note 267), car 1 couples on behind the
+        // smokebox: off the plate onto the footplate, out onto the left running board, forward along it beside the boiler,
+        // and in at the cab's left doorway, at speed.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
-        double l = engine.Shape.HalfLength, cabBack = l - T.Geometry.Engine.TenderLength, w = engine.Shape.HalfWidth;
+        var plan = EnginePlan.Of(T.Geometry);
+        double l = engine.Shape.HalfLength, w = engine.Shape.HalfWidth;
+        double board = -w - T.Geometry.Engine.RunningBoardWidth / 2, door = plan.DoorFront + T.Geometry.Doorway.Width * 0.75;
         rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, l + T.Geometry.CouplingGap / 2, P);
         Assert.Equal(Surface.Coupler, rig.Player.Surface);
-        double aisle = -w + T.Geometry.Engine.TenderGangway / 2;
-        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l + 0.3)));
-        rig.Run(1, r => Toward(r, new Double3(aisle, 0, l - 0.4)));
-        rig.Run(4, r => Toward(r, new Double3(aisle, 0, cabBack - 1.2)));
+        rig.Run(1, r => Toward(r, new Double3(-w + 0.3, 0, l + 0.3)));
+        rig.Run(1, r => Toward(r, new Double3(board, 0, l - 0.6)));
+        rig.Run(5, r => Toward(r, new Double3(board, 0, door)));
+        rig.Run(2, r => Toward(r, new Double3(-w + 0.5, 0, door)));
         Assert.True(PlayerMotor.InCab(rig.Player, rig.Train), $"on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
     }
 
     [Fact]
-    public void UpTheTendersFrontLadderToTheCabRoofAndItsGun()
+    public void UpTheCabsBackLadderFromTheBoilerToTheCabRoofAndItsGun()
     {
-        // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof.
+        // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof: cab
+        // forward (note 267), from the boiler's top up the cab's back wall.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
         var ladder = engine.Shape.Ladders.Single(x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
