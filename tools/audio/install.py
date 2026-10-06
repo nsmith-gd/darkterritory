@@ -54,7 +54,7 @@ OPUS_KBPS = 64
 # The train bed and its alarms (GameAudio.Train), levelled to the synthesised bed they replace: as recorded they buried
 # every tell in AudioTests' chaos and tells benches (the wheels and the wind 20 dB over the synth, a hound at -13 dB).
 # Then too far down (build 1121, the director: "the train doesn't appear to be making any noise while it's on the rail"):
-# the rolling, the joints and the exhaust back up 4-6 dB (note 266), the tells still 6 dB over the bed in AudioTests.
+# the rolling, the joints and the exhaust back up 4-6 dB (note 265), the tells still 6 dB over the bed in AudioTests.
 CUE_GAIN_DB = {
     "cs-stoker.in-fire": -10,
     "bed-wheel-rail.roll-slow": -17,
