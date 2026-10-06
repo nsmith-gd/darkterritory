@@ -887,9 +887,9 @@ public static class Staging
         var doll = new TrackDoll(23);
         doll.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + dollAhead, 0, 0, 0, 0);
         threats.Add(doll);
-        // Haunting the cab at the controls (A.2 TAMPER), where it's heard giggling.
+        // Haunting the cab at the controls (A.2 TAMPER), where it's heard giggling: left alone to her last stage (note 268).
         var haunting = new TrackDoll(26);
-        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 1);
+        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 3);
         threats.Add(haunting);
         // On the ground by the first cargo car, gnawing a crate it's come off (A.8).
         var grumbler = new Grumbler(27);

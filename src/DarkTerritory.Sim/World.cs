@@ -1042,7 +1042,9 @@ public sealed class World
         // Build 1121 (note 263): a train standing on the brake it was left on stays on it, whatever's at the controls. With
         // steam driving (T97) a standing engine off its brake pulls away, so a Stoker's runaway took a train held in the yard
         // off with nobody in the cab. (Clients alike, from the same replicated state: prediction holds the brake as the host does.)
-        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow)
+        // The one exception is the director's (note 268): a Track Doll left alone to her last stage, at the controls a while.
+        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow
+            && !_enemies.Any(e => !e.Gone && e.ReleasesStandingBrake(this)))
             applied.Brake = Math.Max(applied.Brake, controls.Brake);
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
@@ -1230,7 +1232,10 @@ public sealed class World
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
             // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
             // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
+            // Nor a haunting Track Doll (the director's decision of 6 Oct 2026, note 268): being left alone is what makes her
+            // worse, and only getting her off the train ends her, so she can't give up and go for want of company.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire
+                || e is DarkTerritory.Sim.Enemies.TrackDoll { Haunting: true })
             {
                 _unmet.Remove(e.Id);
                 continue;

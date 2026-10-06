@@ -129,6 +129,13 @@ public abstract class Enemy
     /// <summary>Plays with the cab's controls (the Track Doll in an empty cab). From replicated state, on clients too.</summary>
     public virtual void Tamper(World world, ref TrainControls controls) { }
 
+    /// <summary>
+    /// Whether its <see cref="Tamper"/> may let a standing train off the brake it's held on, where enemies.json
+    /// <c>tamperReleasesStandingBrake</c> otherwise keeps it on (note 263): only the Track Doll at her last stage (note 268).
+    /// From replicated state, so a predicting client lets it off as the host does.
+    /// </summary>
+    public virtual bool ReleasesStandingBrake(World world) => false;
+
     /// <summary>Free per-kind values that are replicated (drill progress, pry progress, pack id).</summary>
     public double Extra { get; set; }
     public double Extra2 { get; set; }
