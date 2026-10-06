@@ -2073,6 +2073,22 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Boarding-first enemies:* "things shouldn't be able to get on the train unless they board it." Enemy design centres on boarding. A train that's just hauling is safer, but runs the risk of derailment, and that becomes the core fear.
 - *Solo like Lethal Company:* a solo player can explore and get a few runs in to learn the game, and won't get far. Friends let you go further.
 
+**Decided** (the director, 6 Oct 2026, on the boarding-first proposal, T131):
+- **Nothing acts inside the train unless it boarded.** Players must be able to understand or learn the rule for how each creature gets on; they needn't see it happen. A player's action opens a pathway by invoking or negating a rule.
+- **Each creature has its own boarding rule** at a specific, known point, with a telegraph and a counter.
+- **Boarding speeds are per creature.** Some board faster than a human can; the Cinder Hounds are the example. Outrunning them means going fast, which risks derailing on curves the conductor can clearly identify on the map. That makes a choice: run up to the curve and brake hard, or deal with them now. A savvy, experienced player should be able to outsmart the situation.
+- **A hauling train is safe from most monsters, not all.** A fast, flying class may come later to answer the top-speed strategy.
+- **Slowing opens the doors.** Stops, facilities and tight curves are where things board or the yards attack. These are the heightened scares; the train between them is a relative break. Loot and progress pull players into them.
+- **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
+- **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map.
+- **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them.
+- **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
+- **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
+- **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+
+Still open on the proposal: shut doors versus every boarder; the Track Doll after a strike; how long a beaten Stoker stays gone; car lamps at the start; run length (24 or 30 km); counting quiet in distance; a solo player's struggle free of a GRAB; the solo finish target.
+
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
