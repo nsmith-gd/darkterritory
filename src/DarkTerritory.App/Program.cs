@@ -980,7 +980,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;
-        scene.StokerDownAt = session.World.Enemies?.Stoker.LowPressureSeconds ?? 45;
+        scene.StokerDownAt = session.World.Enemies?.Stoker.HeatSeconds ?? 20;
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);

@@ -316,15 +316,17 @@ public static class Hud
     static string SwitchTo(TrainOnLine train, int branch) =>
         train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
 
-    static string RepairKitWhere(Sim.World world, int playerId)
+    public static string RepairKitWhere(Sim.World world, int playerId)
     {
         // With spares (E.12 question 4), the one that's handiest: in your hands, a crewmate's, then the nearest car's.
         var consist = world.Train.Dynamics.Consist;
         var kit = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit)
             .OrderBy(b => b.Carrier == playerId ? 0 : b.Carrier >= 0 ? 1 : consist.IndexOf(b.Parent) >= 0 ? 2 + consist.IndexOf(b.Parent) : 1000).ThenBy(b => b.Id)
             .FirstOrDefault();
+        // This machine only has the bodies within its interest radius (note 263: left behind by a runaway train, the director
+        // saw none, and was told the train had none). Out of sight, the host's word on it (Run.Kit, replicated).
         if (kit is null)
-            return "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
+            return world.Run?.Kit is { Place: not KitPlace.None } far ? RepairKitFar(far, consist) : "THE REPAIR KIT MENDS IT, AND THE TRAIN HAS NONE";
         if (kit.Carrier == playerId)
             return "THE REPAIR KIT MENDS IT: TO THE FIREBOX WITH IT";
         if (kit.Carrier >= 0)
@@ -334,6 +336,18 @@ public static class Hud
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
             return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
+            : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
+    }
+
+    /// <summary>Where the host says the kit is, when it's beyond what this machine is sent (note 263).</summary>
+    static string RepairKitFar(KitWhere kit, Consist consist)
+    {
+        if (kit.Place == KitPlace.Carried)
+            return "A CREWMATE HAS THE REPAIR KIT: IT MENDS IT, AT THE FIREBOX";
+        if (kit.Place == KitPlace.Lost)
+            return "THE REPAIR KIT IS GONE";
+        int car = kit.Vehicle >= 0 ? consist.IndexOf(kit.Vehicle) : -1;
+        return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S ON THE ENGINE"
             : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
     }
 

@@ -611,7 +611,8 @@ public sealed partial class GameAudio
         double cos = Math.Cos(melee.ConeDegrees * Math.PI / 180);
         foreach (var e in world.ActiveEnemies)
         {
-            if (e.Gone || e.MeleeRadius <= 0)
+            // A Stoker behind the shut firebox door (note 263) isn't struck: the blow rings on the iron.
+            if (e.Gone || e.MeleeRadius <= 0 || !e.Reachable(world))
                 continue;
             var to = e.WorldPosition(train) + Double3.Up * 0.8 - eye;
             var flat = to with { Y = 0 };

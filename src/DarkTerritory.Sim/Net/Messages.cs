@@ -39,7 +39,8 @@ public static class Protocol
     // 28: the film's start carries each car's mounted gun and whether a crewmate was in its seat, and the film it shoots is a
     //     different one (cars hit bodies, landings, a death per crewmate); the living ride the wreck to their own hit, not
     //     dead on the derail tick (GDD v1.4 App. E.2 step 1, the director's decision of 5 Oct 2026; note 258).
-    public const int Version = 28;
+    // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
+    public const int Version = 29;
 }
 
 public enum MessageType : byte

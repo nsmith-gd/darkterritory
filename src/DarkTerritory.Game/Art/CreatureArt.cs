@@ -2010,6 +2010,17 @@ public sealed class CreatureArt
             case EnemyKind.FireFlies:
                 // Each swarm its own way round its lamp (by its id).
                 return Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: true, extra2: e.Id);
+            case EnemyKind.Stoker when e is Sim.Enemies.Stoker { Boarding: true } && _models.ContainsKey("stoker"):
+                {
+                    // Boarding at the tender (note 263): crouched on the coal and creeping across the footplate to the fire
+                    // door, facing it (the engine's −Z), lit by its own sick glow: the telegraph, in the open.
+                    if (Draw(mesh, "stoker", "peer", e.PhaseSeconds, true, model, seed: 13))
+                    {
+                        float flicker = 0.8f + 0.2f * (float)Math.Sin(e.PhaseSeconds * 17.0);
+                        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 0.4f, 0), model), StokerFire * flicker * 1.6f, 2.2f));
+                    }
+                    return true;
+                }
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
                 // At the open door, looking out of it into the cab (the model faces −Z: turned to the engine's +Z, back).
                 m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;

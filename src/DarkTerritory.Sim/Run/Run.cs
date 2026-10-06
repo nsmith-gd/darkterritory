@@ -15,6 +15,12 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>
+    /// The fortress yard is a safe space until the run begins (run.json <c>yardIsSafe</c>; the director's decision of 6 Oct
+    /// 2026, ARCHITECTURE §8 note 263): nothing spawns, the boiler and the fire hold, the cold doesn't bite.
+    /// </summary>
+    public bool YardIsSafe { get; init; } = true;
+
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
 
@@ -838,9 +844,11 @@ public sealed partial class Run
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
-        IReadOnlyList<SiteState>? sites = null, double scavenged = 0)
+        IReadOnlyList<SiteState>? sites = null, double scavenged = 0, KitWhere? kit = null)
     {
         Scavenged = scavenged;
+        if (kit is { } k)
+            Kit = k;
         Phase = phase;
         End = end;
         Seconds = seconds;

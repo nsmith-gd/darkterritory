@@ -164,6 +164,16 @@ The transition should be a major tonal moment. Inside: workers, lights, machiner
 
 **This is where the run actually begins.**
 
+### The fortress is a safe space *(the director's decision, 2026-10-06)*
+Until the train passes the outer gate, the fortress yard and the lobby are a safe space, like the ship in *Lethal Company*. The crew wait for friends, hang out, dance, try on outfits, walk away for a cigarette, and come back when they're ready. Nothing of consequence happens there:
+
+- nothing spawns, and the Choir's meter doesn't gather;
+- the boiler and its fire hold: no overheating, no rupture, no running out of steam or coal;
+- the cold doesn't bite;
+- the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
+
+The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`).
+
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 
@@ -393,9 +403,9 @@ Only strikes when the train is stopped. It carries its victim off to a nest, and
 ### INTERIOR — already aboard
 
 **STOKER** · *the firebox*
-Gets into the firebox when the fire burns low or the door is left open. Pressure climbs, and so does speed.
-> **RULE: keep it hot, keep it shut.**
-Vent to slow down. Open the firebox and club it to kill it, and get burned doing it. Ignored, the train runs away and derails.
+Looks for heat *(the director's decision, 2026-10-06)*. A firebox run hot draws it: it boards at the tender, scraping and glowing on the coal, and crosses the footplate to the fire door. A fireman at the fire can catch it there. Once in, it eats the fire and drives the pressure up in lurches, and the speed with it. Beaten, it stays away a couple of minutes.
+> **RULE: run cool, or watch the coal.**
+Running hot is fast and draws it; running cool is safe and slow. Catch it on the way in. Once it's in, vent to buy time, open the firebox and club it, and get burned doing it. Ignored, the boiler goes or the train runs away and derails.
 
 **TIPPY TOESIE** · *behind anyone standing still*
 Tiptoes up behind idle players. Runs if you see it coming.
@@ -1033,19 +1043,23 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 
 ## A.5 Interior
 
-### STOKER · heat
+### STOKER · heat *(the director's decision, 2026-10-06; replaces the low-fire and open-door entry)*
 ```
-PERCH     on the smokestack
-ENTER     pressure below 40 for 45s → down the stack
-          OR firebox door open at a stop → through the door
-          └ TELEGRAPH: soot falls into the cab
-FEED      pressure climbs without fuel; speed climbs with it
-          └ TELEGRAPH: gauge rising, wrong-coloured glow, train accelerating
-RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL
+DRAWN     the firebox run hot (above a tuned heat) for a while; a low fire never draws it
+          └ PERCH: on the smokestack, watching the heat
+BOARD     at the tender: onto the coal, then across the footplate to the fire door
+          └ TELEGRAPH: scraping on the coal, a sick glow there, the hiss (the fireman hears it)
+CATCH     a blow on the way in drives it off, and doesn't burn
+FEED      in the firebox: it eats the fire, and the pressure lurches up toward rupture, the
+          safety valve held shut; the brake comes off and the speed climbs with it
+          └ TELEGRAPH: the gauge swinging, wrong-coloured glow, train accelerating
+RUNAWAY   speed exceeds the limit for the next curve or grade → DERAIL (or the boiler ruptures first)
 COUNTER   vent: pressure and speed drop, time is lost (buys time only)
-KILL      open the firebox and bludgeon it; each swing burns the attacker
+KILL      open the firebox (a shovelful) and bludgeon it; each swing burns the attacker;
+          a swing at the shut door only rings on the iron
+BREAK     beaten, no Stoker returns for two to three minutes
 ```
-Fully preventable. **The counter has a clock cost**, and killing it has a health cost.
+Fully preventable. **The trade-off is the fire**: running hot is fast and draws it; running cool is safe and slow. Once it's in, it's urgent: someone must drop what they're doing. The counter has a clock cost, and killing it has a health cost. Numbers in enemies.json `stoker`.
 
 ### TIPPY TOESIE · absence (a player standing still)
 ```
@@ -1205,7 +1219,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 **Voice-system enemies.** The Gaunt reads silence, the Choir reads loudness, Tippy Toesie muffles its victim, Soot Child victims fade, and the Passenger never speaks. All five sit on the voice layer, so it is a gameplay system, not just comms.
 
-**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (keep it hot, keep it shut) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
+**Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit) and the Stoker (run cool, or catch it on the way in) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
 
 **Cost-only enemies.** The Track Doll and the Switchman's routing throws cost time and control rather than lives. Keep this category small.
 
@@ -1343,7 +1357,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
-| **Stoker** | **Condition-triggered, not placed.** Down the stack or through an open firebox door | Pressure below 40 for 45s, or firebox left open at a stop | ×3 if the firebox was left open at a facility |
+| **Stoker** | **Condition-triggered, not placed.** Boards at the tender, crosses to the firebox *(2026-10-06)* | The firebox run above a tuned heat for a while; never within a few minutes of the last one's defeat, nor in the fortress | None |
 | **Tippy Toesie** | Any car, or the ground near the train | Crew ≥2 · any tier (first pass) | Weight up per player idle and alone |
 | **Fire Flies** | Lineside in dark forest and open sections | ≥1 lamp lit inside a car | ×2 at night depth · ×0 if every car lamp is out |
 
