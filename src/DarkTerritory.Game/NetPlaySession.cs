@@ -488,7 +488,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby) };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -648,7 +648,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 if (e.Kind == TransportEventKind.Connected)
                 {
                     var hello = new NetWriter();
-                    Messages.WriteHello(hello, LocalName(lobby));
+                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit);
                     transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
                 }
                 if (e.Kind == TransportEventKind.Disconnected)
@@ -695,7 +695,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby) };
+        { Name = LocalName(lobby), Outfit = Outfit };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -1036,6 +1036,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>The name set in the settings (the app sets it at start), for the crew and the report.</summary>
     public static string PlayerName { get; set; } = "";
+
+    /// <summary>The outfit set in the settings (note 298; the app sets it at start), or <see cref="Messages.NoOutfit"/>: their id's.</summary>
+    public static byte Outfit { get; set; } = Messages.NoOutfit;
+
+    /// <summary>
+    /// Tries an outfit on (note 298), the in-night menu's OUTFIT: asked of the host, which takes it only in the yard before
+    /// the gate (<see cref="CanWear"/>).
+    /// </summary>
+    public void Wear(byte outfit) => Client.Wear(outfit);
+
+    /// <summary>In the yard, where outfits are tried on (GDD §9; note 298).</summary>
+    public bool CanWear => World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
 
     /// <summary>What this player is called: the settings' name, else the online name, else the system's.</summary>
     static string LocalName(Lobby? lobby) =>

@@ -54,7 +54,9 @@ public abstract record Launch
 /// <param name="Invites">A platform lobby with room, that takes invites (Steam's overlay).</param>
 /// <param name="JoinAt">Hosting on the network: the address friends type on JOIN.</param>
 /// <param name="Over">The night's over (the report's up): leaving costs nothing, so it isn't asked twice.</param>
-public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false);
+/// <param name="Yard">In the yard before the gate (GDD §9), where outfits are tried on (note 298): OUTFIT is on the menu.</param>
+public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
+    bool Yard = false);
 
 public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile }
 
@@ -416,6 +418,9 @@ public sealed class FrontEnd
             new(new("RESUME", "The night goes on while this is open."), () => { CloseNight(); return null; }),
             new(new("SETTINGS"), Go(Screen.Settings)),
         };
+        // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
+        if (n.Yard)
+            list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
         // Someone to ask along: a platform lobby that takes invites (its overlay), or a host on the network (its address,
         // to type on JOIN). A night nobody can join (alone, on this machine only) has no INVITE.
         if (n.Invites)
@@ -698,6 +703,7 @@ public sealed class FrontEnd
                 new Entry(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
             ],
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
+            OutfitEntry(Night is null ? "Left and right to change: what the crew see you in." : "Tried on in the yard; past the gate, from the next night."),
             // Note 297: comfort.
             new(new($"INVERT MOUSE: {(Settings.InvertMouse ? "ON" : "OFF")}", "On, pushing the mouse away looks down."), Toggle(s => s with { InvertMouse = !s.InvertMouse }),
                 _ => Change(Settings with { InvertMouse = !Settings.InvertMouse })),
@@ -749,6 +755,22 @@ public sealed class FrontEnd
     Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
 
     Func<Launch?> Toggle(Func<Settings, Settings> change) => () => { Change(change(Settings)); return null; };
+
+    /// <summary>
+    /// The crew's looks by name, for OUTFIT (note 298): look.json's crew colours, in order (the app sets them). Each look
+    /// is its colour and the cap or helmet and scarf that come with it.
+    /// </summary>
+    public IReadOnlyList<string> OutfitNames { get; set; } = ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"];
+
+    /// <summary>OUTFIT (note 298): the crew's pick (your place's look), then each look in turn, round again.</summary>
+    Entry OutfitEntry(string detail)
+    {
+        int n = OutfitNames.Count;
+        int now = Settings.Outfit >= 0 && Settings.Outfit < n ? Settings.Outfit : -1;
+        string name = now < 0 ? "THE CREW'S PICK" : OutfitNames[now].ToUpperInvariant();
+        return new(new($"OUTFIT: {name}", detail), Toggle(s => s with { Outfit = (now + 2) % (n + 1) - 1 }),
+            by => Change(Settings with { Outfit = ((now + 1 + by) % (n + 1) + n + 1) % (n + 1) - 1 }));
+    }
 
     /// <summary>A volume row: left and right a tenth at a time, from silent to full.</summary>
     Entry Volume(string label, string what, double now, Func<Settings, double, Settings> set) =>

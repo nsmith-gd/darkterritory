@@ -2103,6 +2103,13 @@ static object HudShot(string content, string[] args)
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills);
+    // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
+    if (args.Contains("--emote-wheel"))
+    {
+        var wheel = new EmoteWheel();
+        wheel.Update(true, -60, 0);
+        wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
+    }
     // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
     // --radio-at s into the reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
@@ -2495,7 +2502,7 @@ static int Usage()
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
-          screenshot --hud [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
+          screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the

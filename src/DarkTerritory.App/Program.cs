@@ -91,6 +91,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
     // The settings' MICROPHONE: what there is to choose from.
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
+    // OUTFIT (note 298): the crew's looks by name.
+    OutfitNames = look?.Tuning.CrewColourNames is { Length: > 0 } outfits ? outfits : ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"],
     // The PROFILE page (note 293): the commendations kept in the profile, and where the nights' stills go (note 203).
     Profile = profile.Load(),
     StillsFolder = BookmarkAlbum.DefaultDirectory,
@@ -493,6 +495,10 @@ while (!window.CloseRequested && !QuitNow())
     // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
     // night's line take seconds, and ran on the window's thread with nothing pumping it, and a join nobody answered threw
     // out of the game. Now they run behind a loading screen, and a failure is said on the menu.
+    // Who you are and what you wear go in your Hello as the night's joined or hosted (notes 267, 298), so they're the
+    // settings' before it starts (the name was only set once the first night was under way).
+    NetPlaySession.PlayerName = frontEnd.Settings.PlayerName;
+    NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count);
     if (Starting(launch) is not { } begun)
     {
         if (fromCommandLine)
@@ -625,6 +631,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
+        Outfits = session.World.Outfits,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
@@ -682,6 +689,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.PushToTalk = now.PushToTalk || args.Contains("--push-to-talk");
             voice.MicLevel = (float)now.MicLevel;
         }
+        // An outfit tried on (note 298): asked of the host, which takes it in the yard (and keeps it for the next Hello).
+        byte outfit = now.OutfitByte(frontEnd.OutfitNames.Count);
+        if (net is not null && outfit != NetPlaySession.Outfit)
+        {
+            NetPlaySession.Outfit = outfit;
+            net.Wear(outfit);
+        }
         ApplyDisplay();
     }
     // What the menu's LEAVE has to say about this night (note 292): whose it is, and who else is in it.
@@ -691,7 +705,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Campaign: campaign is not null,
         Invites: net?.Lobby is { Status: Ballast.Online.Lobby.State.Open } && session.Link is not { Full: true },
         JoinAt: session.Link?.JoinAt,
-        Over: session.World.Run?.Over == true);
+        Over: session.World.Run?.Over == true,
+        Yard: net is { CanWear: true });
+    // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
+    var wheel = new EmoteWheel();
+    var pendingEmote = Emote.None;
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
@@ -857,7 +875,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         }
 
-        if (!inMenu)
+        // Held, the emote wheel takes the mouse (note 298); let go, what it was on goes with the next tick.
+        if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
+            pendingEmote = let;
+        if (!inMenu && !wheel.Open)
         {
             pendingYaw -= input.MouseDX * sensitivity;
             pendingPitch -= input.MouseDY * sensitivity * (settings.InvertMouse ? -1 : 1);
@@ -908,8 +929,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
+                Emote = pendingEmote,
             };
             pendingSelect = 0;
+            pendingEmote = Emote.None;
             if (Math.Abs(pendingCycle) >= 1)
                 pendingCycle -= Math.Sign(pendingCycle);
             if (locomotion is not null)
@@ -1063,7 +1086,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             swingFrom = -1;
         scene.Own = chase || cinematic || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
-                swing, session.PlayerId, Kit.Held(me));
+                swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
         lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
         lighting.Time = now;
@@ -1137,6 +1160,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (showHud)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight);
+            wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
