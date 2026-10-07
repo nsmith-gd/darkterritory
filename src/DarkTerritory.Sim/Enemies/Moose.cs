@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Enemies;
 public enum MooseMode : byte { Graze, Home, Hunt, Search, Ram, SquareUp, Charge, Wheel, Snag, Pin }
 
 /// <summary>
-/// THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 323; the director's
+/// THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 332; the director's
 /// decisions of 7 Oct 2026, docs/design/creatures/moose.md). A hyper-aggressive, territorial bull moose, too big to get on
 /// the train. It grazes beside the line and at the stops, docile, and leaves be whoever leaves it be. Its temper is a meter:
 /// crowding it, talking near it and a passing train fill it; a hit fills it at once. Listening (head up, ears turning) and

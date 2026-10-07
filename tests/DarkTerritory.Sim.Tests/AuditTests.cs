@@ -211,7 +211,9 @@ public class AuditTests
         Assert.NotNull(report.Threats);
         Assert.All(report.Threats!.Spawned.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
         Assert.All(report.Threats.Engaged.Keys, k => Assert.Contains(k, kinds.Select(x => x.ToString())));
-        Assert.Contains("FireFlies", report.Threats.Spawned.Keys);
+        // Fire Flies come only to a lit car with a way in (a door or the hatch open: note 286), so whether they come here is
+        // up to the crew's doors; the Dragger gets under a car at the stand it starts from.
+        Assert.Contains("Dragger", report.Threats.Spawned.Keys);
     }
 
     [Fact]
@@ -223,11 +225,12 @@ public class AuditTests
         var line = route.Build();
         EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
         var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        // Note 286: a Dragger that got on with nobody up top waits under any car, a longer walk for the look-out.
         HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
             Bots = 4,
             Cars = 6,
-            Seconds = 30,
+            Seconds = look is null ? 30 : 60,
             Seed = 1,
             Link = new Ballast.Net.LinkConditions(0, 0, 0),
             StartDistance = stage.StartM,
@@ -257,11 +260,12 @@ public class AuditTests
         var line = route.Build();
         EnemyKind[] kinds = [EnemyKind.Gaunt, EnemyKind.Dragger];
         var stage = Combinations.Stage(route, line, kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), 20, atStops: false);
+        // Note 286: a Dragger that got on with nobody up top waits under any car, a longer walk for the look-out.
         HarnessReport Night(Bots.LookTuning? look) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
             Bots = 2,
             Cars = 6,
-            Seconds = 30,
+            Seconds = look is null ? 30 : 60,
             Seed = 1,
             Link = new Ballast.Net.LinkConditions(0, 0, 0),
             StartDistance = stage.StartM,

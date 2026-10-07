@@ -1,7 +1,7 @@
 # THE MOOSE — a corrupted bull moose
 
-*Creature design, G1 (enemy design). **Status: approved by the director, 7 Oct 2026, and built (queue #62, ARCHITECTURE
-§8 note 323).** It's in the GDD (§21, App. A.6, A.9, B.1, B.6, Part Eleven Q14), level-design H.2, the systems spec (B.12,
+*Creature design, G1 (enemy design). **Status: approved by the director, 7 Oct 2026, and built (queue #71, ARCHITECTURE
+§8 note 332).** It's in the GDD (§21, App. A.6, A.9, B.1, B.6, Part Eleven Q14), level-design H.2, the systems spec (B.12,
 pinned by `SpecTableTests.TheMooseMatchesB12`) and `content/tuning/enemies.json` `moose`. This page keeps the reasons; the
 numbers in §9 are the tuning's. Where building it changed the design, it says so (**As built**). Its model is
 `tools/blender/moose.py`; the stills beside this page are from `dt screenshot --view moose|moosecharge|moosepin`.*

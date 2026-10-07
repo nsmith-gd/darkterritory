@@ -40,6 +40,14 @@ public static class Staging
     }
 
     /// <summary>
+    /// The dark answering a draw (note 287, `dt screenshot --answer left`): eyes <paramref name="ahead"/> m out from the engine's nose and
+    /// <paramref name="lateral"/> m to its right (enemies.json director.draw's answerDistance and answerLateral), at an animal's
+    /// eye height off the ground, <paramref name="left"/> seconds still to show.
+    /// </summary>
+    public static DrawAnswer Answer(TrainOnLine train, double left, double ahead = 60, double lateral = 12, double height = 0.7) =>
+        new(left, DrawCause.Whistle, Sim.World.DrawAnswerAt(train, ahead, lateral, height), 0);
+
+    /// <summary>
     /// The roof warning (note 260, `dt screenshot --hud --roof-warning tunnel|bend`): a solo night on <paramref name="route"/>
     /// with the train <paramref name="seconds"/> short of its first tunnel's mouth (or its first posted bend, taken fast
     /// enough to throw roof riders off), the player up on car 2's roof facing ahead, warned.
@@ -738,7 +746,7 @@ public static class Staging
     }
 
     /// <summary>
-    /// The staged Moose (<c>dt screenshot --moose</c>; note 323, docs/design/creatures/moose.md), on the ground off the
+    /// The staged Moose (<c>dt screenshot --moose</c>; note 332, docs/design/creatures/moose.md), on the ground off the
     /// stopped engine's left ahead of it, where its headlamp reaches (beside the line, never on it: well outside the track's
     /// clearance). Its ears and posture are its meter: <c>graze</c> unbothered, <c>listen</c> its head up (aggro past
     /// listenAt), <c>warn</c> ears flat and the sac ridge up (past warnAt); riled at crewmate 4 (<see cref="MooseCrewmate"/>,

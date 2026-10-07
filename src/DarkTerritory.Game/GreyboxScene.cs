@@ -405,6 +405,9 @@ public sealed class GreyboxScene
             // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
             if (ChoirGathering > ChoirFrostFrom)
                 Look.Art.Effects.Frost(mesh, eye, Time, ChoirCold(ChoirGathering));
+            // Something out past the lamp heard the crew (note 287).
+            if (Answer.Showing)
+                Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -481,7 +484,7 @@ public sealed class GreyboxScene
                             && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
-                    // A Moose pinning someone stands over them (note 323): the one it holds.
+                    // A Moose pinning someone stands over them (note 332): the one it holds.
                     if (e.Kind == EnemyKind.Moose && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
@@ -493,7 +496,7 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    // A Moose by the line as the train goes by (note 323): it takes it for a rival, tossing its head after it.
+                    // A Moose by the line as the train goes by (note 332): it takes it for a rival, tossing its head after it.
                     if (e.Kind == EnemyKind.Moose && Look?.Art.Creatures is { } herd)
                         herd.TrainPassing = Math.Abs(_speed) > 1 && frames.Count > 0
                             && frames.Min(f => ((f.Origin - e.Local) with { Y = 0 }).Length - f.Shape.HalfLength) <= herd.MooseTuning.TrainPassAt;
@@ -937,6 +940,13 @@ public sealed class GreyboxScene
     /// </summary>
     public float ChoirGathering { get; set; }
 
+    /// <summary>
+    /// The dark's answer to a draw (World.Answer, note 287): eyes at the lamp's edge while it shows, over
+    /// <see cref="AnswerShowSeconds"/> (enemies.json director.draw.showSeconds).
+    /// </summary>
+    public Sim.Enemies.DrawAnswer Answer { get; set; }
+    public double AnswerShowSeconds { get; set; } = 7;
+
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
 
@@ -1065,7 +1075,7 @@ public sealed class GreyboxScene
     /// </summary>
     Crewmate Hung(Crewmate c, Double3 eye)
     {
-        // Pinned under a Moose's rack (note 323; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
+        // Pinned under a Moose's rack (note 332; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
         // head toward it (it's stood over them).
         if (Look?.Art.Creatures?.Pins.TryGetValue(c.Id, out var pin) == true)
             return c with { Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
@@ -1410,7 +1420,7 @@ public sealed class GreyboxScene
         Double3 origin, right, up = Double3.Up, back;
         if (e.Kind == EnemyKind.Moose && e.Attached == Enemy.Loose)
         {
-            // The Moose goes its own way (note 323): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
+            // The Moose goes its own way (note 332): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
@@ -1503,7 +1513,7 @@ public sealed class GreyboxScene
         {
             case EnemyKind.Moose:
                 {
-                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 323): the head up listening,
+                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 332): the head up listening,
                     // down warning, and the rack stood up level in front of it squaring up and charging.
                     var hide = Palette.BlueGrey * 1.5f;
                     bool levelled = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;

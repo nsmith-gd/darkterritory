@@ -17,6 +17,8 @@ static class Tuning
     /// cooldown and the budget's curve hold).
     /// </summary>
     public static readonly DarkTerritory.Sim.Enemies.PressureTuning Eager = Enemies.Director.Pressure with { Threshold = 0, PressAt = 1e9 };
+    /// <summary>Note 287: the first threat not held for a draw, for the director's weights tests that spend as soon as they can.</summary>
+    public static readonly DarkTerritory.Sim.Enemies.DrawTuning Unheld = Enemies.Director.Draw with { HoldFirst = false };
     public static readonly BoilerTuning Boiler = DataFile.Load<BoilerTuning>(Path.Combine(Content, BoilerTuning.File));
     public static readonly DarkTerritory.Sim.Run.RunTuning Run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.RunTuning.File));
     public static readonly DarkTerritory.Sim.Run.HoldoutTuning Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(Content, DarkTerritory.Sim.Run.HoldoutTuning.File));

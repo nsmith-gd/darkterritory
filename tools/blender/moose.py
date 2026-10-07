@@ -1,4 +1,4 @@
-"""THE MOOSE (GDD §21 outside; docs/design/creatures/moose.md §3; ARCHITECTURE §8 note 323): a corrupted bull moose.
+"""THE MOOSE (GDD §21 outside; docs/design/creatures/moose.md §3; ARCHITECTURE §8 note 332): a corrupted bull moose.
 
 "The strongest monsters are the ones where you can still tell what they used to be" (§26.5): anyone who has seen a moose
 knows this one at once, then sees what's wrong with it. The silhouette is the RACK: never shed, grown for years,

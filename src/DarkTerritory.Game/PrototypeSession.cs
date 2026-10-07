@@ -291,7 +291,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Grumbler, SpinePhase.Punish) => "it came aboard with a crate: it's eating the cargo",
         (EnemyKind.Grumbler, SpinePhase.BreakOff) => "the Grumbler's dead",
         (EnemyKind.Choir, SpinePhase.Grab) => "the ghosts have someone: hush and shut the doors",
-        // The Moose (note 323; docs/design/creatures/moose.md): its ears and its posture are its meter, no HUD; these are
+        // The Moose (note 332; docs/design/creatures/moose.md): its ears and its posture are its meter, no HUD; these are
         // what they say.
         (EnemyKind.Moose, SpinePhase.Alert) => "a moose's head comes up: give it room, keep it quiet",
         (EnemyKind.Moose, SpinePhase.Telegraph) => "ears flat, rack down: it's coming, get somewhere narrow",

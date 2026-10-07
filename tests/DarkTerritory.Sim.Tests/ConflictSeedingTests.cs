@@ -51,6 +51,7 @@ public class ConflictSeedingTests
             GraceMinSeconds = 0,
             GraceMaxSeconds = 0,
             Pressure = Tuning.Eager,
+            Draw = Tuning.Unheld,
             CooldownSeconds = [1, 1],
             Costs = Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         };
@@ -114,7 +115,7 @@ public class ConflictSeedingTests
         var d = Tuning.Enemies.Director;
         Assert.NotEmpty(d.Conflicts);
         var known = d.Costs.Keys.Concat(["choir", "grade", "facilityLoading", "facilityStop"]).ToHashSet();
-        // GDD v1.1 App. B.1's eight pairs, and the Moose's four (note 323).
+        // GDD v1.1 App. B.1's eight pairs, and the Moose's four (note 332).
         Assert.Equal(12, d.Conflicts.Length);
         Assert.All(d.Conflicts.SelectMany(p => p), side => Assert.Contains(side, known));
         Assert.Equal(1, d.PairsPerRun["frontier"]);
