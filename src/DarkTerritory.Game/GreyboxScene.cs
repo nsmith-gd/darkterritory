@@ -409,6 +409,9 @@ public sealed class GreyboxScene
             // The Choir coming: the frost before it's seen (App. A.7), from halfway through its gathering, and while it's here.
             if (ChoirGathering > ChoirFrostFrom)
                 Look.Art.Effects.Frost(mesh, eye, Time, ChoirCold(ChoirGathering));
+            // Something out past the lamp heard the crew (note 287).
+            if (Answer.Showing)
+                Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -930,6 +933,13 @@ public sealed class GreyboxScene
     /// <see cref="ChoirFrostFrom"/> on, the frost in the air and everyone's breath showing (App. A.7's arrival beat).
     /// </summary>
     public float ChoirGathering { get; set; }
+
+    /// <summary>
+    /// The dark's answer to a draw (World.Answer, note 287): eyes at the lamp's edge while it shows, over
+    /// <see cref="AnswerShowSeconds"/> (enemies.json director.draw.showSeconds).
+    /// </summary>
+    public Sim.Enemies.DrawAnswer Answer { get; set; }
+    public double AnswerShowSeconds { get; set; } = 7;
 
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
