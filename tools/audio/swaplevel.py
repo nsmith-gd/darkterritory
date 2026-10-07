@@ -22,7 +22,7 @@ from install import SWAP_GAIN_DB, SWAPS, SYNTH_DEFS, SOUNDS, _read_def  # noqa: 
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "out", "audio", "swaplevel")
-PARAMS = {"gun-lay": ["--param", "speed=0.6"], "boiler-tick": ["--param", "cool=0.3"]}
+PARAMS = {"boiler-tick": ["--param", "cool=0.3"]}
 
 
 def render(sound, wav):

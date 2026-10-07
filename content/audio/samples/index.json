@@ -4834,30 +4834,6 @@
   "takes": 6,
   "sha": "8fb9265172c88a3d"
  },
- "crew-gun-lay/lay": {
-  "cue": "crew-gun-lay.lay",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
-   {
-    "label": "The laying gear as a little steam engine: sharp exhaust chuffs, the valve gear's clack, worm teeth knocking",
-    "key": "engine",
-    "sources": [
-     "sfx_100_v2:misc_20",
-     "sfx_100_v2:lock_open_01",
-     "kenney_rpg-audio:handleCoins2",
-     "kenney_impact-sounds:impactMetal_heavy_000",
-     "kenney_impact-sounds:impactMetal_heavy_001",
-     "kenney_impact-sounds:impactMetal_heavy_002",
-     "kenney_impact-sounds:impactMetal_heavy_003",
-     "kenney_impact-sounds:impactMetal_heavy_004"
-    ],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 1,
-  "sha": "0e0048d577f303f9"
- },
  "crew-hurt/body-fall/concrete": {
   "cue": "crew-hurt.body-fall",
   "surface": "concrete",

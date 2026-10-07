@@ -39,6 +39,10 @@
 
   // Villages (P4, P11, P20).
   "village": {
+    // GDD App. F.3 (the director, 7 Oct: "the villages don't have explorable interiors ... things that we can search
+    // through in order to find things"; ARCHITECTURE §8 note 326): the plain houses, a rectangle or a square, stand open,
+    // a door in the face toward the line, their finds inside; the L, cross and paired houses stay shut, finds on the step.
+    "openHouses": true,
     "yawJitter": 0.44,
     "roadReach": 18,
     "houseGap": 2.5,

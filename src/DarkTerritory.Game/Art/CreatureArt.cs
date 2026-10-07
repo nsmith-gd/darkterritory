@@ -199,6 +199,18 @@ public sealed class CreatureArt
     static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
 
     const int FireFlyMost = 22;
+    // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
+    // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
+    // carries the light instead, shedding FireFlySparks sparks of FireFlyEmber behind each on the wing.
+    const int FireFlySparks = 3;
+    static readonly Vector3 FireFlyEmber = new(1.0f, 0.55f, 0.18f);
+
+    static MaterialLook FireFlyLook(ModelMaterial m, MaterialLook l) => m.Name switch
+    {
+        _ when m.Name.Contains("firefly_rim") => l with { Emissive = 0, Colour = new Vector3(0.13f, 0.11f, 0.1f) },
+        _ when m.Name.StartsWith("ember_core") => l with { Emissive = Math.Max(l.Emissive, 1) * 1.6f },
+        _ => l,
+    };
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
     /// <summary>
@@ -1936,12 +1948,23 @@ public sealed class CreatureArt
                 fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
                 up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
                 clip = "flutter";
+                // T131 (the director: "what were the bubbles?"): the sparks it sheds off its burning tail, a short trail
+                // behind it on its loop, falling and dimming, so a swarm on the wing reads as embers round the lamp.
+                mesh.Emissive = 1;
+                for (int j = 1; j <= FireFlySparks; j++)
+                {
+                    double back = j * 0.07;
+                    var spark = Where(t - back) - u * (float)(0.05 * back * j);
+                    float fade = 1 - (j - 1f) / FireFlySparks;
+                    mesh.Box(spark, r, u, b, new Vector3(0.005f * fade + 0.002f), FireFlyEmber * (0.6f + 0.8f * fade) * (0.8f + 0.2f * MathF.Sin((float)t * 17 + i + j)));
+                }
+                mesh.Emissive = 0;
             }
             // The model faces -Z with its back +Y: its rows are where X, Y and Z go.
             var z = -fwd;
             var x = Vector3.Cross(up, z);
             var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
-            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed);
+            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed, adjust: FireFlyLook);
         }
         // The lamp's light through them: brighter, and redder, the more there are.
         float flick = 0.85f + 0.15f * MathF.Sin((float)t * 13 + 1.7f) * MathF.Sin((float)t * 5.3f);

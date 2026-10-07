@@ -47,6 +47,11 @@ public sealed record OverspeedTuning
     public double LurchAt { get; init; } = 0.5;
     public double RepeatSeconds { get; init; } = 1.5;
     public string WarningSound { get; init; } = "warn-overspeed";
+    /// <summary>
+    /// A dead line's buffers run into over this (m/s) and the train goes through them and off the end (the director's
+    /// decision of 7 Oct 2026, note 286; <see cref="DeadEnds"/>), once this tuning's warning has been up its lead.
+    /// </summary>
+    public double DeadEndDerailAbove { get; init; } = 6.9;
 
     /// <summary>
     /// How far ahead a demand at <paramref name="safe"/> must be told of to a train at <paramref name="speed"/> braking at

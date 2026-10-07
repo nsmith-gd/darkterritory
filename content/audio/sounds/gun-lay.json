@@ -1,44 +1,22 @@
-// The cue's takes from the audio checklist, kept or the first candidate under review
-// (crew-gun-lay/lay), in place of its synth definition
-// (tools/audio/synth-defs/gun-lay.json), keeping its tier, range and level. Written by
-// tools/audio/install.py; edit the cue or that file, not this one.
+// Player action (tier 4, T112 "a gun seat with its own controls"; spec C.2 "the turrets run on steam"): the seated gunner
+// laying the gun. Its steam motor's low hum, and the worm gear's slow, deep clunk as it turns, a little quicker and louder
+// the faster it goes ("speed": 0 barely moving, 1 its full traverse rate). Held while it turns.
+// The director, 7 Oct 2026 (GDD App. F.3, queue #68, note 329): "a weird high repeated sound when the cannon turns ...
+// get rid of it, or make it something that's a lot more low and slow." It was the gear's teeth ticking 6-28 times a second,
+// band-passed at 1.8 kHz with a 3.1 kHz peak, over a hiss at 2.6 kHz: now a clunk 2-5 times a second down at 160-320 Hz,
+// the steam a breath at 500 Hz, and the motor's hum carrying it.
 {
- "tier": 4,
- "loop": true,
- "maxInstances": 4,
- "minDistance": 3,
- "maxDistance": 90,
- "layers": [
-  {
-   "source": "sample",
-   "sample": "crew-gun-lay/lay",
-   "gain": {
-    "param": "speed",
-    "points": [
-     [
-      0,
-      0.45
-     ],
-     [
-      1,
-      1
-     ]
-    ]
-   },
-   "rate": {
-    "param": "speed",
-    "points": [
-     [
-      0,
-      0.8
-     ],
-     [
-      1,
-      1.2
-     ]
-    ]
-   }
-  }
- ],
- "gainDb": 1
+  "tier": 4, "loop": true, "maxInstances": 4, "minDistance": 3, "maxDistance": 60,
+  "layers": [
+    // The gear's clunk, slow and deep.
+    { "source": "impulse", "frequency": { "param": "speed", "points": [[0, 2], [1, 5]] }, "gain": { "param": "speed", "points": [[0, 0.15], [1, 0.4]] },
+      "filters": [{ "type": "lowPass", "frequency": 420, "q": 0.8 }, { "type": "peak", "frequency": 180, "q": 1.5, "gainDb": 5 }] },
+    // The steam driving it: a low breath, not a hiss.
+    { "source": "noise", "gain": { "param": "speed", "points": [[0, 0.02], [1, 0.08]] },
+      "filters": [{ "type": "lowPass", "frequency": 500, "q": 0.7 }],
+      "tremolo": { "rate": { "param": "speed", "points": [[0, 1.5], [1, 3]] }, "depth": 0.4, "jitter": 0.2 } },
+    // The motor's hum.
+    { "source": "saw", "frequency": { "param": "speed", "points": [[0, 32], [1, 44]] }, "gain": { "param": "speed", "points": [[0, 0.1], [1, 0.28]] },
+      "filters": [{ "type": "lowPass", "frequency": 220, "q": 0.9 }] }
+  ]
 }
