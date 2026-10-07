@@ -4203,3 +4203,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **point** (2 s loop): the right arm straight out ahead at the shoulder's height, the hand flat along it, the eyes down it (`look_at`); the left hand on the hip; a jab of emphasis once a second.
     - **dance** (4 s loop, twice over player.json's 8 s): a workman's jig in heavy boots (§31). For two bars it stamps knee-lifts on a two-a-second beat with the fists pumped up over the head on the beat. Then come two bars of a side-to-side shuffle, the hips swinging, the fists up before the chest and the elbows out flapping like a hen's, the head bobbing a beat behind.
     - **Verified:** `dt art clearance --only crew --clips dance,wave,point` is clean (the fists first sat in the coat at the armpits; now they're out before the chest). `CreatureArtTests`, `CrewActsTests`. `dt art clip crew wave|point|dance` looked at.
+
+307. **The trailer, re-cut and heard (queue #46, E1; the art checklist's "trailer", GDD §36: Next Fest pulls trailers on 18 Jan 2027).** `dt trailer` was silent, and cut before most of the creatures had their art: its one creature shot was the Tippy-toesie in an aisle.
+    - **The cut** (58 s at 24 fps):
+      - title card; the train out of the fog; card; the crew on the roofs; card ("SOMETHING RUNS BESIDE IT");
+      - the Cinder Hounds running the train down, from low behind the pack;
+      - the Switchman at his lever, his hand on it (COMMIT), the lamp coming at him out of the fog until the engine goes by;
+      - card ("SOMETHING IS ABOARD"); the Tippy-toesie in the aisle; a Car Hugger eating the rear car; the Choir's ghosts over the guard van; the cannon at the pack;
+      - card; the dawn; the end card.
+
+      The creatures are staged as the screenshots stage them (`Staging.Threats` and its modes), staged afresh where the train is each frame, and that far into what they're doing. The Switchman's beat is the exception: it's staged once, with its camera, so he stays by the line while the train comes on. The pack is brought in close behind the guard van for the trailer only (the screenshots' stand 14 to 26 m back).
+    - **The sound is the game's own.** `GameAudio` runs offline, every take decoded on demand (as `dt audio render` and `dt film` run it). It's updated each sim tick from the shot's camera (under a card, from car 1's roof) and mixed on to keep time with the ticks.
+      - The beat's creatures are mirrored into the world for the mixer to find, then taken out again before the next tick, so the night itself never meets them.
+      - Only the beat's own creatures are heard (the hounds in theirs, the Switchman in his), so its tell isn't buried under every other creature's.
+      - The Choir's beat sets the swarm in (`ChoirState.Present`). The cannon's shots are heard where the muzzle is.
+      - There's no score: what's heard is the night itself (the train, the tells, the guns). A score is the director's call. E.6's music is the derailment's, and a trailer that ends on a derailment (GDD open question 3) would bring the opera with it.
+    - **Out:** out/trailer/frames, `trailer.wav` with its spectrogram, and `trailer.mp4` (H.264 and AAC) with a contact sheet, through FilmCommands' ffmpeg finder. `--beats i,j` renders only those beats, to look at a shot.
+    - **Found on the way:** a steam-driven session starts with its brake on (`PrototypeSession`: `Brake = 1` under `SteamDrive`). The old trailer set the throttle but never let the brake off, and the train ended the cut standing (0 km/h). It now runs 45 to 66 km/h through the cut.

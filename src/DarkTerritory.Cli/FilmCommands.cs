@@ -368,7 +368,7 @@ static class FilmCommands
         return (mp4, File.Exists(sheet) ? sheet : null, null);
     }
 
-    static (bool Ok, string Error) Ffmpeg(string exe, string[] args)
+    internal static (bool Ok, string Error) Ffmpeg(string exe, string[] args)
     {
         var psi = new ProcessStartInfo(exe) { RedirectStandardError = true };
         foreach (var a in args)
@@ -379,7 +379,7 @@ static class FilmCommands
         return (p.ExitCode == 0, error);
     }
 
-    static string? FindFfmpeg()
+    internal static string? FindFfmpeg()
     {
         foreach (var d in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
             if (d.Length > 0 && File.Exists(Path.Combine(d, "ffmpeg")))
