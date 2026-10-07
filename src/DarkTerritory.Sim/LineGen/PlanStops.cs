@@ -136,13 +136,13 @@ public static class PlanStops
         if (from < 0 || to > main.Length)
             return false;
         double y0 = main.Sample(from).Position.Y;
-        for (double s = from; s <= to; s += 10)
-        {
-            var t = main.Sample(s);
-            if (Math.Abs(t.Curvature) > maxCurvature || level && Math.Abs(t.Position.Y - y0) > 0.05)
+        bool Holds(double s) => main.Sample(s) is var t && Math.Abs(t.Curvature) <= maxCurvature && (!level || Math.Abs(t.Position.Y - y0) <= 0.05);
+        // Up to its end, not onto it: what's sampled there is the next piece's first curvature, and a connector after a
+        // halt can start its turn at once (note 278: deadLines:12's halt read a 53 km radius off the turn after it).
+        for (double s = from; s < to; s += 10)
+            if (!Holds(s))
                 return false;
-        }
-        return true;
+        return Holds(Math.Max(from, to - 0.5));
     }
 
     /// <summary>

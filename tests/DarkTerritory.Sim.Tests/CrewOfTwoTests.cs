@@ -15,9 +15,22 @@ public class CrewOfTwoTests
 {
     static readonly string Content = DataFile.FindContentRoot();
 
+    /// <summary>
+    /// Where deadLines:2's Car Hugger nights start: 270 m short of the middle of its trestle past the tunnel, where it lurks
+    /// (`CarHugger.Spot`: a bridge 250–800 m ahead), as they were found at 7700 m. Taken from the line, not pinned: note 278's
+    /// bends moved the trestle 23 m nearer, inside the 250, and the Car Hugger never came.
+    /// </summary>
+    internal static double ShortOfTheTrestle(int cars = 6)
+    {
+        var route = LineGen.Routes.Generate(Content, "deadLines:2", cars);
+        var trestle = route.Of(Route.FeatureKind.Bridge).First(f => (f.Start + f.End) / 2 > 7500);
+        return Math.Round((trestle.Start + trestle.End) / 2 - 270);
+    }
+
     /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
+    /// <param name="cranes">The mail cranes up (false: none, every other board as it is).</param>
     internal static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind insist, double? start = null,
-        Action<World>? each = null, int bots = 2, int seed = 1)
+        Action<World>? each = null, int bots = 2, int seed = 1, bool cranes = true)
     {
         var route = LineGen.Routes.Generate(Content, routeName, cars);
         double gate = route.GateOr(Tuning.Route.YardLength);
@@ -37,7 +50,8 @@ public class CrewOfTwoTests
             Route = route,
             Run = Tuning.Run,
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
+                ? sight with { DropFrom = double.MaxValue } : sight,
             YardLength = gate,
             Holdouts = Tuning.Holdouts,
             Insist = [insist],
@@ -65,7 +79,7 @@ public class CrewOfTwoTests
         // it. With nobody near but the driver in the cab, the gunner went down to its car's platform to club it and was eaten
         // (deadLines:2, every crew-2 night). Now it goes up the train, clear of it.
         bool latched = false;
-        var report = Night("deadLines:2", 6, 90, EnemyKind.CarHugger, start: 7700,
+        var report = Night("deadLines:2", 6, 90, EnemyKind.CarHugger, start: ShortOfTheTrestle(),
             each: world => latched |= world.ActiveEnemies.Any(e => e is CarHugger { Latched: true }));
         Assert.True(latched, "the Car Hugger never latched on");
         Assert.False(report.Threats!.DeathsByCause.ContainsKey(nameof(DeathCause.Eaten)), string.Join(", ", report.Threats.DeathsByCause));
