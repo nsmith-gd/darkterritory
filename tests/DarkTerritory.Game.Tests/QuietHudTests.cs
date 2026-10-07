@@ -170,4 +170,28 @@ public class QuietHudTests
         // The record's defaults are the file's, so a session that never loads it (a test, a film frame) looks the same.
         Assert.Equal(new HudTuning(), DataFile.Load<HudTuning>(Path.Combine(Content, HudTuning.File)));
     }
+
+    [Fact]
+    public void ThePanelsYouOpenAreFinePrintWithNoRivets()
+    {
+        // Note 316 (note 285's "not yet"): the roster (Q) and the supplies (I) in the ballot's form: fine print on a dark
+        // backing, no riveted plate and no brass trim, and narrower than a plate in the HUD's full-size text was.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Drawn(s); // the fine print's scale, as a frame sets it
+        static bool Riveted(Overlay o) => o.Vertices.Any(v => v.Colour == UiStyle.Rivet || v.Colour == UiStyle.Brass || v.Colour == UiStyle.Bevel);
+        static float Wide(Overlay o) => o.Vertices.Max(v => v.Position.X) - o.Vertices.Min(v => v.Position.X);
+        var supplies = new Overlay();
+        Hud.Supplies(supplies, W, H, s);
+        Assert.True(supplies.Count > 0);
+        Assert.False(Riveted(supplies));
+        Assert.True(Wide(supplies) < W * 0.6f, $"{Wide(supplies)} wide");
+        var (lines, heard) = Staging.Roster(s.Train, Content);
+        var roster = new Overlay();
+        Hud.Roster(roster, W, H, lines, heard);
+        Assert.True(roster.Count > 0);
+        Assert.False(Riveted(roster));
+        Assert.True(Wide(roster) < 200, $"{Wide(roster)} wide (the plate was 260)");
+        // The roster still says who's speaking, in green.
+        Assert.Contains(roster.Vertices, v => v.Colour.Y > 0.8f && v.Colour.X < 0.6f);
+    }
 }
