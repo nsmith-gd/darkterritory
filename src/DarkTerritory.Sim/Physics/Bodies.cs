@@ -314,7 +314,8 @@ public sealed class Bodies
 
     /// <summary>
     /// Lifting a body takes the tools off it, into the lifter's empty slots (GDD v1.4 §12: "they go looking for the
-    /// engineer", and whoever finds the engineer has the kit). The wrench first; what doesn't fit stays on the body.
+    /// engineer", and whoever finds the engineer has the kit). The wrench and the shovel first (note 275); what doesn't fit
+    /// stays on the body.
     /// </summary>
     public static void TakeTools(ref PlayerState s, Body body)
     {
@@ -322,10 +323,10 @@ public sealed class Bodies
             return;
         ulong kit = s.Kit, left = 0;
         foreach (var tool in Enumerable.Range(0, Player.Kit.Slots).Select(i => Player.Kit.At(body.Tools, i)).Where(t => t != Tool.None)
-            .OrderBy(t => t == Tool.Wrench ? 0 : 1))
+            .OrderBy(t => t is Tool.Wrench or Tool.Shovel ? 0 : 1))
         {
-            // A spare crowbar isn't worth a slot; the wrench (there's the one) always is.
-            if (tool != Tool.Wrench && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
+            // A spare crowbar isn't worth a slot; the wrench and the shovel (there's the one of each) always are.
+            if (tool is not (Tool.Wrench or Tool.Shovel) && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
                 Player.Kit.TryAdd(ref left, tool);
         }
         s.Kit = kit;

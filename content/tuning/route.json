@@ -4,6 +4,14 @@
   // curves and the trouble in the cars wouldn't fit in it, and missing dawn was a night's commonest failure).
   "dawnAverageSpeed": 11,
   "dawnSlack": 0.4,
+  // Spec B.8 and GDD §11 (the director's decision of 6 Oct 2026, ARCHITECTURE §8 note 270): "the time a run takes should
+  // always be the same. Difficulty scales not by time but by monsters and density of challenges." Every tier's line is
+  // this long, gate to terminus, so every night's dawn timer is the same
+  // (24 km: 51 min). 24 km is B.8's "transit at cruise" floor of the total run (28.6 min at 14 m/s, the table's 28), and
+  // the length of the Frontier night the director has been playing. Was 18-22 / 24-30 / 30-36 / 36-40 km by tier (the
+  // generated lines' 18 / 23 / 29 / 34-40 km columns). The line generator (the game's nights) reads it; its
+  // content/linegen/tiers.json columns carry the tiers' counts, which over one length are their density.
+  "nightLengthKm": 24,
   // Flat straight track at each end: the fortress yard, and the terminus approach where nothing spawns (App. B.1).
   "yardLength": 600,
   "terminusApproach": 800,
@@ -38,6 +46,9 @@
     "spurLength": 100
   },
 
+  // The legacy prototype generator's tiers ("routes": "legacy" in content/linegen/tiers.json; the game's nights are the
+  // line generator's, at nightLengthKm above). lengthKm is the legacy routes' own, left as it was: they are the test
+  // fixtures much of the sim's suite is pinned to, not nights anyone plays (note 270).
   "tiers": {
     "local":         { "lengthKm": [18, 22], "maxGrade": 2.0, "gradeChance": 0.35, "minRadius": 420, "curveChance": 0.30, "pois": [3, 4], "tunnels": [0, 1], "bridges": [1, 2], "weakBridgeChance": 0.10, "junctions": [1, 3], "sleepersPerKm": 0.15, "greasePerKm": 0.08, "fog": [0.010, 0.016], "wetChance": 0.2, "cold": [0.0, 0.3], "wind": [0.0, 0.4] },
     "frontier":      { "lengthKm": [24, 30], "maxGrade": 3.0, "gradeChance": 0.45, "minRadius": 320, "curveChance": 0.38, "pois": [3, 5], "tunnels": [1, 2], "bridges": [1, 3], "weakBridgeChance": 0.25, "junctions": [2, 4], "sleepersPerKm": 0.30, "greasePerKm": 0.12, "fog": [0.012, 0.022], "wetChance": 0.3, "cold": [0.1, 0.5], "wind": [0.1, 0.6] },
