@@ -2222,7 +2222,7 @@ Further decisions (the director, 6 Oct 2026):
 - *Every culture is somewhat traumatised* by the events of the world.
 - *Towns of 20 to 350 people.*
 - Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
-- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #60, walled towns, note 321.)
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #62, walled towns, note 323.)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
