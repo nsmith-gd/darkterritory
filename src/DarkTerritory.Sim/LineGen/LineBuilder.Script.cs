@@ -123,7 +123,9 @@ sealed partial class LineBuilder
     /// Note 278: any share of the night still without its hard bend (the stretches were too full when the bends were
     /// handed out: each must reserves a whole recovery it seldom uses) gets one where the line already is: cut into a
     /// plain connector, with straight track either side, or laid on a climb, descent, summit or roller as the line
-    /// going round a hill. Nearest the share's middle; the longest there.
+    /// going round a hill. Nearest the share's middle; the longest there. A share with no room borrows the nearest, which
+    /// can be in the next share, and that one's then counted laid: what's still owed after the shares goes where the line
+    /// has room, as far from the bends already laid as it can be (deepTerritory:4 was one short on its first attempt).
     /// </summary>
     void CarveBends(List<Item> all)
     {
@@ -137,28 +139,11 @@ sealed partial class LineBuilder
         static bool Plain(Item c) => c is { Type: "recovery", Kind: "straight", H: HShape.Free or HShape.Straight } && !c.Params.ContainsKey("window");
         static bool Carries(Item c) => c is { IsPiece: true, Kind: "climb" or "descent" or "summit" or "roller", H: HShape.Free, Signature: null, Overlays.Count: 0 }
             && !c.Params.ContainsKey("hardBend");
-        for (int i = 0, laid = all.Count(x => x.Params.ContainsKey("hardBend")); i < n && laid < n; i++)
+        bool Room(Item c) => (Plain(c) || Carries(c)) && c.Length >= least && c.S0 >= from && c.S1 <= to;
+        bool Lay(Item best, ref Pcg32 rng)
         {
-            double a = from + i * share, b = a + share, mid = (a + b) / 2;
-            if (all.Any(x => x.Params.ContainsKey("hardBend") && (x.S0 + x.S1) / 2 >= a && (x.S0 + x.S1) / 2 < b))
-                continue;
-            Item? best = null;
-            double bestScore = double.MaxValue;
-            foreach (var c in all)
-            {
-                if (!(Plain(c) || Carries(c)) || c.Length < least || c.S0 < from || c.S1 > to)
-                    continue;
-                double off = Math.Max(0, Math.Max(c.S0 - mid, mid - c.S1)), score = Math.Max(0, off - share / 2) - c.Length * 0.01;
-                if (score < bestScore)
-                    (best, bestScore) = (c, score);
-            }
-            if (best is null)
-            {
-                Warn($"nowhere to lay a hard bend near km {Km(mid):0.0}");
-                continue;
-            }
             if (BendShape(def, best.Length - 2 * run, ref rng) is not { } fit)
-                continue;
+                return false;
             if (Carries(best))
             {
                 // The climb or descent goes round its hill: its grades as they were, its line one hard turn.
@@ -188,6 +173,44 @@ sealed partial class LineBuilder
                 all.InsertRange(all.IndexOf(best) + 1, [bend, after]);
             }
             _budgetSpent += def.Cost;
+            return true;
+        }
+        int laid = all.Count(x => x.Params.ContainsKey("hardBend"));
+        for (int i = 0; i < n && laid < n; i++)
+        {
+            double a = from + i * share, b = a + share, mid = (a + b) / 2;
+            if (all.Any(x => x.Params.ContainsKey("hardBend") && (x.S0 + x.S1) / 2 >= a && (x.S0 + x.S1) / 2 < b))
+                continue;
+            Item? best = null;
+            double bestScore = double.MaxValue;
+            foreach (var c in all.Where(Room))
+            {
+                double off = Math.Max(0, Math.Max(c.S0 - mid, mid - c.S1)), score = Math.Max(0, off - share / 2) - c.Length * 0.01;
+                if (score < bestScore)
+                    (best, bestScore) = (c, score);
+            }
+            if (best is null)
+            {
+                Warn($"nowhere to lay a hard bend near km {Km(mid):0.0}");
+                continue;
+            }
+            if (Lay(best, ref rng))
+                laid++;
+        }
+        // Still owed: as far from the others as there's room, never nearer one than a share's third.
+        while (laid < n)
+        {
+            var bends = all.Where(x => x.Params.ContainsKey("hardBend")).Select(x => (x.S0 + x.S1) / 2).ToList();
+            Item? best = null;
+            double far = share / 3;
+            foreach (var c in all.Where(Room))
+            {
+                double d = bends.Count == 0 ? double.MaxValue : bends.Min(x => Math.Abs(x - (c.S0 + c.S1) / 2));
+                if (d > far)
+                    (best, far) = (c, d);
+            }
+            if (best is null || !Lay(best, ref rng))
+                break;
             laid++;
         }
     }
