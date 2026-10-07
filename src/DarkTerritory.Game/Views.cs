@@ -458,6 +458,14 @@ public static class Views
 
     public static FrameLighting Lighting(TrainOnLine train, Look? look = null, float dawn = 0) => Lighting(train.Frames[0], look, dawn);
 
+    /// <summary>
+    /// The night's fog where the engine is (linegen plan §14; note 313): the route's density times the stretch's factor,
+    /// thicker in the low ground and by water, thinner on a crest, blended along the line so it comes and goes. The crew
+    /// are all within a train's length of it, or out at a stop it's standing at.
+    /// </summary>
+    public static float FogDensity(Sim.Route.Route route, TrainOnLine train) =>
+        (float)(route.Weather.FogDensity * (train.Line.Conditions?.Fog(train.Dynamics.Path, train.Dynamics.Distance) ?? 1));
+
     /// <param name="look">The art pass's atmosphere (look.json) over the night's defaults, when there is one.</param>
     /// <param name="dawn">How far the dawn's come up (0..1, <see cref="Look.DawnOf"/>).</param>
     public static FrameLighting Lighting(in CarFrame engine, Look? look = null, float dawn = 0)

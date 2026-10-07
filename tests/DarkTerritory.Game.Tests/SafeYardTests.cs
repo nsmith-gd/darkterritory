@@ -113,6 +113,6 @@ public class SafeYardTests
             host.Step(default);
         Assert.DoesNotContain(host.World.Bodies.All, b => b.Kind == BodyKind.RepairKit);
         Assert.Equal(KitPlace.Lying, host.World.Run!.Kit.Place);
-        Assert.Equal($"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}", Hud.RepairKitWhere(host.World, host.PlayerId));
+        Assert.Equal($"REPAIR KIT: CAR {car}", Hud.RepairKitWhere(host.World, host.PlayerId));
     }
 }

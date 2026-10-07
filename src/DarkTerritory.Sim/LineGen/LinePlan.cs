@@ -254,6 +254,10 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public double APost { get; init; } = 0.7;
     /// <summary>How far out from the track the boards stand (signage.json sideOffsetM).</summary>
     public double SignOffsetM { get; init; } = 3.2;
+    /// <summary>How far either side the fog factor is averaged as the eye sees it (tiers.json weather.fogBlendM; note 313).</summary>
+    public double FogBlendM { get; init; }
+    /// <summary>Whether the eye's fog follows §14's factor along the line at all (tiers.json weather.fogAlongLine; note 313).</summary>
+    public bool FogAlongLine { get; init; }
     /// <summary>The biomes as their dressing reads them (biomes.json): the ground, the trees, the water.</summary>
     public IReadOnlyDictionary<string, BiomeDef> Biomes { get; init; } = new Dictionary<string, BiomeDef>();
     /// <summary>Each biome's landform mix (biomes.json "landform"), by biome.</summary>

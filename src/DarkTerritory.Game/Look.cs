@@ -168,6 +168,8 @@ public sealed record LookTuning
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
+    /// <summary>Each of <see cref="CrewColours"/> by name, for the settings' OUTFIT (note 298).</summary>
+    public string[] CrewColourNames { get; init; } = [];
 
     /// <summary>A crewmate's paint colour.</summary>
     public System.Numerics.Vector3 CrewColour(int id)

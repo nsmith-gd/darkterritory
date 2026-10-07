@@ -28,13 +28,37 @@ public static class CrewActs
         var act = Of(s, id, world, others);
         var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
-        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Act: act, Holding: Sim.Player.Kit.Held(s),
+        var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
+        int outfit = world.OutfitOf(id);
+        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
             Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
             Lamp: world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp }, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
-            Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position);
+            Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
+            Emote: emote, EmoteSeconds: emoteSeconds);
+    }
+
+    /// <summary>Walking faster than this (m/s) ends an emote, as a step away from it does (note 298).</summary>
+    const double EmoteStill = 0.5;
+
+    /// <summary>
+    /// The emote <paramref name="id"/> is at (note 298): their latest, while it lasts (player.json emotes) and while they
+    /// stand, and how far into it they are. Anything they're doing (an act) comes first, so this is asked only when idle.
+    /// </summary>
+    public static (Emote Kind, double Seconds) EmoteOf(int id, in PlayerState s, World world)
+    {
+        if (!s.Alive || s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
+            return (Emote.None, 0);
+        EmoteEvent? latest = null;
+        foreach (var e in world.Emotes)
+            if (e.By == id && (latest is null || e.Tick > latest.Value.Tick))
+                latest = e;
+        if (latest is not { } at)
+            return (Emote.None, 0);
+        double age = ((double)world.Tick - at.Tick) * SimConstants.TickSeconds;
+        return age >= 0 && age < world.EmoteTuning.Seconds(at.Kind) ? (at.Kind, age) : (Emote.None, 0);
     }
 
     /// <summary>How near a waking threat has to be for a crewmate's run to be a hurried one (m).</summary>

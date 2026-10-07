@@ -113,8 +113,10 @@
     "followers": { "radius": 14, "most": 3 },
     // A child calls from the open this far beyond the stop's built edge, where the train can see it.
     "sootCall": [25, 60],
-    // The Whistler carries its victim off to a nest this far out from the main line, away from the stop.
-    "whistlerNest": [40, 90]
+    // The Whistler carries its victim off to a nest this far out from the main line, away from the stop, and no further
+    // along the line than whistlerNestAlong from where the train stands: it snatches from the train's gaps, and runs to a
+    // nest within enemies.json whistler.nestSiteReach of its gap (ARCHITECTURE §8 note 314).
+    "whistlerNest": [40, 90], "whistlerNestAlong": 50
   },
 
   // Blocked sidings (level-design D.1, D.2, P18; ARCHITECTURE §8 note 294): bad-order cars nobody moved, standing at a
@@ -123,6 +125,17 @@
   // and never at a switchyard (its sidings have its standing cars, facilities.json rakes). How many sidings: the tier's
   // `blocked`. In the world they're facilities.json `derelicts`.
   "derelict": { "cars": [1, 3] },
+  // A dead town's railway side (linegen plan §11.3: "platforms, station building, goods shed, sidings with derelict stock";
+  // ARCHITECTURE §8 note 302). The station building [length, width] stands `gap` behind the halt's platform, `fromLane`
+  // metres along from the lane up to the village. The goods yard is out past the tier's rail buffer by `beyond` (its find is
+  // loot, P13), `length` long, `margin` in from the zone's ends, its middle within `reach` of the halt along the line (it's
+  // the station's goods yard; and a long walk along the town is the village's difficulty, P15): a siding with its points
+  // lifted, `cars` derelicts on it ([length, width], `carGap` apart) from its buffer stop, and the goods shed [length,
+  // width] beyond it, its workbench a find at `find`.
+  "deadTown": {
+    "station": { "size": [16, 7], "gap": 1.5, "fromLane": [4, 12] },
+    "goods": { "beyond": [2, 12], "length": [70, 110], "margin": 20, "reach": 60, "cars": [1, 3], "car": [14, 3.2], "carGap": 1.2, "shed": [20, 9], "find": 0.6 }
+  },
 
   // Measuring a stop (P15, level-design D.1): what the crew has to do to fill the empties it brought, weighted.
   "score": {
