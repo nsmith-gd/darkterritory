@@ -1394,6 +1394,8 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Cinder Hounds** | Behind the train, out of visual range, after sustained speed | Any tier · requires a rear cannon or rearmost car | ×2.5 with livestock or food cargo · ×1.5 when the boiler runs hot |
 | **Car Hugger** | Marsh, water crossings, low ground | Train length ≥2 · cannot spawn on grades | Weight up at low speed |
 
+**The hound run** (*7 Oct 2026*, App. F.3; ARCHITECTURE §8 note 328): apart from the director's packs, a train run fast (2.4 km at 15 m/s or more without slowing, sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, sized to the crew alive (2 to 6), outside the budget and caps. The guns answer them one hound at a time ([orchestrator.md](orchestrator.md) §5.3, §6.1).
+
 ---
 
 ## B.4 Flank
@@ -2086,10 +2088,10 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
-- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *Open (queue #67, note 328).*
+- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run fast for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Open (queue #67, note 328).*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs is proposed, not built ([orchestrator.md](orchestrator.md) §5.1).*
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and four questions for the director.*
 
 **Repairs**

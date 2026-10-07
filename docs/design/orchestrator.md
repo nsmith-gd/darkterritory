@@ -2,7 +2,7 @@
 
 *Design outline, 7 Oct 2026 (D1.2, queue #67, ARCHITECTURE §8 note 328). Answers the director's notes of 7 Oct (GDD App.
 F.3, "Encounters" and "Pacing on the train"). A proposal for the director to read: the numbers are first-pass tuning, and
-every section names the file they'd live in. §6.1, the hound run, is the first piece, in progress (note 328); the rest is not built.*
+every section names the file they'd live in. §6.1, the hound run, is built (note 328); the rest is not.*
 
 > "On the train, still relatively boring from point A to point B ... A couple playtests ago, I had two car huggers because
 > I just kept the train hot the whole time and I didn't stop for anything ... we're going to need more threats that can
@@ -146,7 +146,7 @@ top-speed strategy; none comes to a train under `minSpeed` (they're the run's, n
 
 | # | Threat | Boards | Tell | Counter | Status |
 |---|---|---|---|---|---|
-| S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **First piece (§6.1)** |
+| S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **Built (§6.1)** |
 | S2 | **Climbers at speed**: raise `climbers.maxSpeed` to 24 m/s on Dead Lines+ | A coupling gap (B.4) | Pacing alongside, scrabbling | A walker in the gap, or a gun on the gap | Tuning only |
 | S3 | **The kites** (new, App. F.1's "fast, flying class") | The roofs, only above 18 m/s, in open country | A shriek overhead, a shadow across the lamp | Lamps lit on the roofs (they won't land in light), or a walker with a tool. The gun can't elevate to them (`maxPitchDegrees` 45) unless one's on a roof | New creature: art, clips, a rule |
 | S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from an overbridge or a tunnel mouth | A scraping above as the bridge comes up | Nobody on the roofs under a bridge, or knocked off with a tool | Rule change |
@@ -160,13 +160,13 @@ for one ball. Each one that gets through boards and is the rest of the crew's pr
 walkers and riders, which is what gives everyone something to answer at once.
 
 1. **When.** The run has gone `afterMetres` above `fromSpeed` since the last stop, the last wave, or the start of the
-   night past its grace. A hot firebox shortens it (×`hotShorter`): the heat draws them (App. B.3's ×1.5 for a hot boiler).
+   night past its grace (slowing under `stopSpeed`, 2 m/s, starts the count again). A hot boiler shortens it (×`hotShorter`): the heat draws them (App. B.3's ×1.5 for a hot boiler).
 2. **How many.** `round(base + perActive × active)`, in pairs, between `size[0]` and `size[1]`: 2 at crew 1, 3 at crew 2,
    4 at crew 4, 6 at crew 8. A crew of eight gets six runners; a lone driver gets two.
 3. **How they come.** In pairs, `spacing` seconds apart, from `spawnBehind` m behind, alternating flanks, closing at
    `closing` m/s faster than the train. That's faster than the train can run, so a fast train can't outrun them. About
-   25 s from first howl to the leap for each pair, so one gunner reloading by hand (about 5.5 s a round) gets four shots
-   at each pair.
+   38 s from first howl to the leap for each pair (a 4 s howl, then 170 m at 5 m/s), so one gunner reloading by hand
+   (about 5.5 s a round) gets six shots at each pair, and a run of six is about 50 s of shooting.
 4. **Answered.** A ball that lands within `scatter` m of a runner scatters it (it breaks off, App. A.3) and one on it
    kills it (note 290). A pair running close is one good shot. Rounds fired near but not at them no longer drive the
    whole wave off: that was the old pack's rule and stays with the director's packs.
@@ -177,13 +177,13 @@ walkers and riders, which is what gives everyone something to answer at once.
 
 ## 6. The first piece, and what's next
 
-### 6.1 First: the hound run (note 328)
+### 6.1 Built: the hound run (note 328)
 
 §5.3 with the Cinder Hounds as the runners, behind and on the flanks. enemies.json `director.run`:
 
 ```
-"run": { "on": true, "fromSpeed": 15, "afterMetres": 2400, "hotShorter": 0.75, "base": 1.25, "perActive": 0.6,
-  "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8], "closing": 5, "scatter": 5 }
+"run": { "on": true, "fromSpeed": 15, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75, "base": 1.4,
+  "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8], "closing": 5, "scatter": 5 }
 ```
 
 Outside the director's budget and caps, like the left-behind's hunts (note 273): it's the run's, and only a train

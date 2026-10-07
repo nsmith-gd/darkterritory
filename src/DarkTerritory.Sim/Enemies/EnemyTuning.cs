@@ -561,6 +561,8 @@ public sealed record DirectorTuning(
     public PressureTuning Pressure { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>The hound run (note 328): a fast train's wave of Cinder Hounds, answered by the guns one hound at a time.</summary>
+    public HoundRunTuning Run { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -662,6 +664,29 @@ public sealed record AbandonedTuning
     public double[] SpawnOut { get; init; } = [35, 18];
     /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
     public int GauntFrom { get; init; } = 2;
+}
+
+/// <summary>
+/// The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3, §6.1; GDD App. F.3, the director, 7 Oct 2026:
+/// "things that are trying to attack the train sort of like tower defense style that gives our gunners things to do"): a
+/// train run fast long enough draws a stream of Cinder Hounds faster than it is, sized to the crew active, that the guns
+/// answer one hound at a time. Mirror of enemies.json <c>director.run</c>; field docs live there.
+/// </summary>
+public sealed record HoundRunTuning
+{
+    public bool On { get; init; } = true;
+    public double FromSpeed { get; init; } = 15;
+    public double StopSpeed { get; init; } = 2;
+    public double AfterMetres { get; init; } = 2400;
+    public double HotShorter { get; init; } = 0.75;
+    public double Base { get; init; } = 1.4;
+    public double PerActive { get; init; } = 0.6;
+    public int[] Size { get; init; } = [2, 6];
+    public double Spacing { get; init; } = 6;
+    public double SpawnBehind { get; init; } = 200;
+    public double[] Lateral { get; init; } = [4, 8];
+    public double Closing { get; init; } = 5;
+    public double Scatter { get; init; } = 5;
 }
 
 /// <summary>

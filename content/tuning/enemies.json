@@ -503,6 +503,24 @@
       "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
       "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18], "gauntFrom": 2
     },
+    // The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3 and §6.1; GDD App. F.3, the director, 7 Oct
+    // 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").
+    // Not in the spec; first pass. A train that has run afterMetres at fromSpeed m/s or more (×hotShorter with the boiler
+    // over its working band: the heat draws them, App. B.3) since it last slowed under stopSpeed, since the last run, or
+    // since the grace, draws a run: round(base + perActive × the crew alive) Cinder Hounds, to between size[0] and size[1],
+    // in pairs spacing s apart, alternating flanks, put down spawnBehind m behind the rear car and lateral m off the line.
+    // A runner closes at the train's speed + closing m/s, whatever the train's speed (they are faster than it: a hot train
+    // can't outrun them), and leaps aboard the rear car from the pack's leapDistance as the director's hounds do (App.
+    // A.3; then they stay aboard, note 269). Answered one at a time: a ball landing within scatter m of a runner sends it
+    // off (one landing between a pair takes both); a ball on it kills it (note 290). A round fired anywhere near doesn't
+    // send a runner off (the director's packs keep suppressRounds). Not from the budget, not on the caps (it's the fast
+    // train's, as the left-behind's hunts are theirs); never in the grace, a fort, the final approach or at a stop, and
+    // one run at a time. Its own dice, so the night's other draws are as they were.
+    "run": {
+      "on": true, "fromSpeed": 15, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
+      "base": 1.4, "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8],
+      "closing": 5, "scatter": 5
+    },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
