@@ -592,7 +592,12 @@ public sealed class World
             Run.StandCars(Train);
         }
         if (loot is not null)
+        {
             Run.EnableLoot(loot, Train.Line, facilities);
+            // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
+            Bodies.Heals = Run.HealOf;
+            Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
+        }
         Authority |= authority;
     }
 
@@ -813,6 +818,9 @@ public sealed class World
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
+        // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
+        if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
+            s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
         // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
         // client predicts standing still at the stand.
         bool operating = false;

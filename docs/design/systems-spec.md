@@ -180,7 +180,8 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Carrying heavy cargo | 2.8 m/s | No climbing |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Jump height | 0.8m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all. A roof-run jump now carries ~2.8 m |
-| Health | 100 | Most attacks 35–60 |
+| Health | 100 | Most attacks 35–60. No regeneration. Damage model (GDD App. F.1, note 272): every creature hit is a big one, at least 30 (`enemies.json` `damage.minHit`; a hit 35, a heavy hit 60) and at least 2.5 s apart (`minGapSeconds`), so a creature on you is two or three hits from death. The train's own continuous dangers (fire, gas) and landings are not chip-limited |
+| Healing | Bandages 30, medicine 50, morphine 80 | Rare finds (about one a frontier night), used from the hands: Use held 2 s standing, up to full health, the find gone (`loot.json` `healing`; note 272) |
 | Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
 
 ## B.3 Speed bands
