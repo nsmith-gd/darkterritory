@@ -15,14 +15,19 @@ public class BendWarningTests
 {
     static readonly OverspeedTuning O = Tuning.Train.Overspeed;
 
-    /// <summary>The routes' sharp bends: each on the main line where a train would come off under full speed.</summary>
-    static IEnumerable<(string Spec, double S, double DerailMs, double SMax)> Bends(int cars, params string[] specs)
+    /// <summary>
+    /// The routes' sharp bends: each on the main line where a train would come off under full speed, and where a train
+    /// running up to it starts clear of the bend before it (<c>Clear</c>: its whole length past that bend's end). Note 278
+    /// lays bends a braking distance from line speed apart, not the 1.2 km these runs used to take as given.
+    /// </summary>
+    static IEnumerable<(string Spec, double S, double DerailMs, double SMax, double Clear)> Bends(int cars, params string[] specs)
     {
         foreach (var spec in specs)
         {
             var route = Routes.Generate(DataFile.FindContentRoot(), spec, cars);
             var line = route.Build();
-            double start = -1, kMax = 0, sMax = 0;
+            double length = Consist.Uniform(Tuning.Train, cars, 1).LengthMetres;
+            double start = -1, kMax = 0, sMax = 0, clear = double.NegativeInfinity;
             // The main line between the gate and the terminus's yard (past it the train runs into the arrival roads, not the main line).
             for (double s = route.Gate + 1000; s < Math.Min(line.Length, route.Plan!.TerminusM) - 600; s += 5)
             {
@@ -39,7 +44,8 @@ public class BendWarningTests
                 }
                 else if (start >= 0)
                 {
-                    yield return (spec, start, Math.Sqrt(route.Plan!.Rules.ADerail / kMax), sMax);
+                    yield return (spec, start, Math.Sqrt(route.Plan!.Rules.ADerail / kMax), sMax, clear);
+                    clear = s + length + 20;
                     start = -1;
                     kMax = 0;
                 }
@@ -86,12 +92,12 @@ public class BendWarningTests
         var bends = Bends(6, Specs).ToList();
         Assert.NotEmpty(bends);
         int derails = 0;
-        foreach (var (spec, s, vd, _) in bends)
+        foreach (var (spec, s, vd, _, clear) in bends)
         {
             // Into it a fifth over its derailing speed, held; and surging over it once on the bend, from just under it.
             foreach (bool surge in new[] { false, true })
             {
-                var r = new Run(spec, s - 700, surge ? vd * 0.95 : vd * 1.2);
+                var r = new Run(spec, Math.Max(s - 700, clear), surge ? vd * 0.95 : vd * 1.2);
                 r.Until(s + 400, _ => surge && r.Train.Dynamics.Distance > s + 20 ? vd * 1.2 : surge ? vd * 0.95 : vd * 1.2, new TrainControls { Reverser = 1 });
                 Assert.True(r.World.Derailed, $"{spec} km {s / 1000:0.0} ({vd * 3.6:0} km/h), surge {surge}: still on");
                 derails++;
@@ -111,10 +117,10 @@ public class BendWarningTests
     {
         // The director's risk: run right up to the bend and brake hard. A driver who shuts off and brakes within the reaction
         // window (lead - 0.5 s) of the warning going up is under its derailing speed by the time the train's on it.
-        foreach (var (spec, s, vd, _) in Bends(cars, Specs))
+        foreach (var (spec, s, vd, _, clear) in Bends(cars, Specs))
         {
             double speed = Math.Min(Tuning.Train.MaxSpeed, vd * 1.4);
-            var r = new Run(spec, s - 1200, speed, cars);
+            var r = new Run(spec, Math.Max(s - 1200, clear), speed, cars);
             var coast = new TrainControls { Reverser = 1 };
             r.Until(s + 400, _ => speed, coast, () => !double.IsNaN(r.WarnedAt) && r.World.ElapsedSeconds >= r.WarnedAt + O.LeadSeconds - 0.5);
             Assert.False(double.IsNaN(r.WarnedAt), $"{spec} km {s / 1000:0.0}: never warned (at {r.Train.Dynamics.Distance:0} m, {r.Train.Dynamics.Speed:0.0} m/s, {r.World.ElapsedSeconds:0} s, derailed {r.World.DerailCause}, vd {vd:0.0}, line {r.Train.Line.Length:0})");
@@ -127,7 +133,7 @@ public class BendWarningTests
     [Fact]
     public void ABendTakenAtItsBoardIsNoWarningAndItsStressRisesTowardItsDerailingSpeed()
     {
-        var (spec, s, vd, sMax) = Bends(6, Specs).First();
+        var (spec, s, vd, sMax, _) = Bends(6, Specs).First();
         var rules = Routes.Generate(DataFile.FindContentRoot(), spec, 6).Plan!.Rules;
         double posted = vd * Math.Sqrt(rules.APost / rules.ADerail);
         var r = new Run(spec, s - 300, posted * 0.98);

@@ -170,8 +170,18 @@ sealed partial class LineBuilder
                 Bend(bend, fit);
                 var after = new Item
                 {
-                    Id = $"c{_itemCounter++}", Type = best.Type, Kind = best.Kind, Def = best.Def, S0 = bend.S1, S1 = best.S1, H = best.H,
-                    Wander = best.Wander, MinRadius = best.MinRadius, Params = new(best.Params), Tags = new(best.Tags), DriftCap = best.DriftCap,
+                    Id = $"c{_itemCounter++}",
+                    Type = best.Type,
+                    Kind = best.Kind,
+                    Def = best.Def,
+                    S0 = bend.S1,
+                    S1 = best.S1,
+                    H = best.H,
+                    Wander = best.Wander,
+                    MinRadius = best.MinRadius,
+                    Params = new(best.Params),
+                    Tags = new(best.Tags),
+                    DriftCap = best.DriftCap,
                 };
                 best.S1 = bend.S0;
                 all.InsertRange(all.IndexOf(best) + 1, [bend, after]);
@@ -415,8 +425,7 @@ sealed partial class LineBuilder
             // Dead settlements every 4-8 km (§11.3), and one within 2 km of a facility from the Frontier on (§15.3).
             if (s >= _nextSettlement && st.Window is null)
             {
-                // What must still go in this stretch keeps its room: a dead settlement every few km is a nicety.
-                if (Settlement(s, end - s - Owed(queue), ref rng) is { } town)
+                if (Settlement(s, end - s, ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
                     _nextSettlement = NextSettlement(s, ref rng);

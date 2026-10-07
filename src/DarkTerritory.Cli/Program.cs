@@ -1968,7 +1968,7 @@ static object HudShot(string content, string[] args)
         // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
         string roofWarning = Str(args, "--roof-warning", "");
         // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
-        // warned. deepTerritory:2 if no --route: frontier:7 has no such bend.
+        // warned. deepTerritory:2 if no --route (every night has such bends since note 278; frontier:7's first is at km 8.8).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
         var solo = roofWarning == "bend-cab"

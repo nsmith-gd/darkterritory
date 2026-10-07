@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -97,6 +98,22 @@ public class HardBendTests
             Assert.True(inside.H > 0);
             Assert.Equal(IntentType.Embankment, outside.T);
         }
+    }
+
+    [Fact]
+    public void TheWarningTellsTheBendsTightestPointNotWhereItFirstBites()
+    {
+        // On full steam a hard bend's easing already bites before its arc: what's told must be what gets round all of it.
+        var c = LineGenConfig.Load(Content).Tiers.Curves;
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var bend = HardBends(route, c).First(b => b.S0 > route.Plan!.GateM + 2000);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), route.Build(), bend.S0 - 60);
+        train.Dynamics.Velocity = Tuning.Train.MaxSpeed;
+        var told = TrackRules.Assess(train, route.Plan!.Rules, Tuning.Train.Overspeed);
+        Assert.True(told.Warning);
+        Assert.False(told.OnIt);
+        Assert.Equal(Math.Sqrt(c.ADerail / Math.Abs(bend.K)), told.DerailMs, 1);
+        Assert.Equal(Math.Floor(Math.Sqrt(c.APost / Math.Abs(bend.K))), told.PostedMs);
     }
 
     [Theory]
