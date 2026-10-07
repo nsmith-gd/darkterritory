@@ -21,7 +21,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     public override EnemyKind Kind => EnemyKind.CinderHound;
     public override PressureZone Zone => PressureZone.Rear;
     public override Sense Sense => Sense.Heat;
-    public override double HitRadius => Attached < 0 ? 0.8 : 0;
+    /// <summary>Running on the line behind, it's in the open: the rear cannon's work (App. A.3). Aboard, the car's walls are round it.</summary>
+    public override bool Exposed => Attached < 0 && !Gone;
+    public override bool GunAnswers => true;
     /// <summary>Aboard, it's in reach of a tool (App. A.3 PACK FIGHT).</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.8 : 0;
     public int Pack { get; } = pack;
@@ -190,6 +192,8 @@ public sealed class CarHugger(int id) : Enemy(id)
     public override Sense Sense => Sense.Vibration;
     public override Want Want => Want.Cargo;
     public override double MeleeRadius => Attached >= 0 ? 1.2 : 0;
+    /// <summary>Lurking by the line ahead or clamped on a car, it's a great body in the open (note 290).</summary>
+    public override bool Exposed => !Gone;
     public override bool PullsFree => true;
 
     /// <summary>Clamped on a car (the telegraph onwards).</summary>
