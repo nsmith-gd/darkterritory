@@ -155,6 +155,21 @@
     "needsKit": false
   },
 
+  // Note 301 (queue #39; the director, 7 Oct, GDD App. F.3: "the wrench doesn't seem to be repairing things in the Sea of
+  // Thieves style"): the wrench is the repair tool, and everyone carries one (player.json kit). wrench: with it in hand,
+  // Use at a break mends it: the burst boiler at its firebox (boiler.json repairSeconds; the repair kit no longer does),
+  // a breach at its hole (breach.boardSeconds; bare hands no longer do), and a car battered below dentedBelow of its
+  // shell (what it ran into, or what ran into it) at its dent, the left wall three quarters back, where it comes back
+  // integrityPerSecond while it's worked, never past what a Car Hugger ate. dentReach: how near the dent (m, across the
+  // floor). A mend half done is kept while you stay at it with the wrench, so a few presses do it as well as a hold.
+  // Every break shows where it is (the callout, Effects.Repairs). false: the kit and hands, as before note 301.
+  "repair": {
+    "wrench": true,
+    "dentedBelow": 0.9,
+    "integrityPerSecond": 0.04,
+    "dentReach": 1.3
+  },
+
   "speedBands": {
     "yard": 2.5,
     "jumpOffLethal": 4.0,

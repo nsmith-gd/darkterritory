@@ -24,10 +24,12 @@ public class StrandedTests
         public PlayerIntent[] Intents = new PlayerIntent[4];
 
         /// <param name="spares">Spare repair kits from the fortress (E.12 question 4), in the lockers beside the first.</param>
-        public Night(bool stocked = true, int spares = 0)
+        /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench mends the boiler. Off by default here: §23.2's rule
+        /// is the kit's.</param>
+        public Night(bool stocked = true, int spares = 0, bool wrench = false)
         {
             var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 1);
-            var tuning = Tuning.Train with { Kit = Tuning.Train.Kit with { SpareKits = spares } };
+            var tuning = Tuning.Train with { Kit = Tuning.Train.Kit with { SpareKits = spares }, Repair = Tuning.Train.Repair with { Wrench = wrench } };
             Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
             World = new World(Train, Tuning.Combat);
             World.EnableBodies();
@@ -124,6 +126,21 @@ public class StrandedTests
         Assert.Equal(Math.Round(Tuning.Run.Stranded.RecoveryFee * 700), r.Recovery);
         Assert.Equal(2, r.CrewHome);
         Assert.Equal(0, r.CrewLossFees);
+    }
+
+    [Fact]
+    public void WhereTheWrenchMendsTheBoilerALostKitStrandsNobody()
+    {
+        // Note 301: everyone carries the wrench that mends it, so the kit's car taken is no end to a ruptured night.
+        var n = new Night(wrench: true);
+        n.AddInCab();
+        int car = World.RepairKitCar(n.Train)!.Value;
+        n.Train.Uncouple(n.Train.VehicleAhead(car));
+        n.Train.Vehicles[car].Taken = true;
+        n.Train.Boiler.Ruptured = true;
+        n.Step(2, speed: 3);
+        n.Step(5);
+        Assert.False(n.Run.Over);
     }
 
     [Fact]

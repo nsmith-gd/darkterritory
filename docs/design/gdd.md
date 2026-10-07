@@ -2091,7 +2091,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Open (queue #67, note 328).*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Open (queue #68, note 329).*

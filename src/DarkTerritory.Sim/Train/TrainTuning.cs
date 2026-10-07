@@ -17,6 +17,8 @@ public sealed record TrainTuning
     public KitTuning Kit { get; init; } = new();
     /// <summary>A car's shell given way, and boarding it up (train.json <c>breach</c>, spec B.9).</summary>
     public BreachTuning Breach { get; init; } = new();
+    /// <summary>The wrench is the repair tool, Sea of Thieves style (train.json <c>repair</c>; queue #39, note 301).</summary>
+    public RepairTuning Repair { get; init; } = new();
     /// <summary>Line Plan §12.6, never an unrecoverable body or kit (train.json <c>recovery</c>; note 181).</summary>
     public RecoveryTuning Recovery { get; init; } = new();
     /// <summary>What the consist's made of past engine, cargo and guard van, and what its fittings do (train.json <c>composition</c>; note 184).</summary>
@@ -64,6 +66,19 @@ public sealed record BreachTuning
     public double BoardReach { get; init; } = 1.5;
     /// <summary>Boarding up wants the repair kit in hand (note 150: it's an item someone carries).</summary>
     public bool NeedsKit { get; init; }
+}
+
+/// <summary>
+/// Mending with the wrench (the director, 7 Oct, GDD App. F.3; ARCHITECTURE §8 note 301). Field docs live in train.json
+/// <c>repair</c>. Unset (<see cref="Wrench"/> false), the repair kit mends the boiler and anyone's hands board a breach, as
+/// before.
+/// </summary>
+public sealed record RepairTuning
+{
+    public bool Wrench { get; init; }
+    public double DentedBelow { get; init; } = 0.9;
+    public double IntegrityPerSecond { get; init; } = 0.04;
+    public double DentReach { get; init; } = 1.3;
 }
 
 /// <summary>

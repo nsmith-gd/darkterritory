@@ -1317,6 +1317,28 @@ public static partial class Hud
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
             : null;
 
+    /// <summary>
+    /// The break in reach and what mends it (note 301): with the wrench in hand, the hold and how far it's got; without, the
+    /// break and the key that puts the wrench in hand. Null with no break in reach.
+    /// </summary>
+    public static string? RepairPrompt(in PlayerState p, TrainOnLine train, HandTuning? hand)
+    {
+        var at = Repairs.At(p, train, hand);
+        if (at == BreakKind.None)
+            return null;
+        string what = at switch { BreakKind.Breach => "THE CAR'S BREACHED", BreakKind.Rupture => "BOILER RUPTURED", _ => "THE CAR'S BATTERED" };
+        if (!Repairs.WrenchInHand(p))
+            return Repairs.WrenchKey(p) is var key and > 0 ? $"{what}   WRENCH : [{key}]" : $"{what}   NO WRENCH";
+        double done = at switch
+        {
+            BreakKind.Breach => p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds,
+            BreakKind.Rupture => train.BoilerTuning is { } bt ? p.ActionProgress / bt.RepairSeconds : 0,
+            _ => p.Parent > 0 && p.Parent < train.Vehicles.Count ? train.Vehicles[p.Parent].Integrity / Math.Max(1e-6, Repairs.Mendable(train.Vehicles[p.Parent])) : 0,
+        };
+        string verb = at switch { BreakKind.Breach => "BOARD IT UP", BreakKind.Rupture => "MEND THE BOILER", _ => "MEND THE CAR" };
+        return $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)";
+    }
+
     public static string? Prompt(IPlaySession s)
     {
         var p = s.Player;
@@ -1340,7 +1362,7 @@ public static partial class Hud
         {
             if (HoldoutPrompt(world, p, train, kit: true) is { } opening)
                 return opening;
-            if (CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
+            if (!Repairs.ByWrench(train) && CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
                 return $"MEND THE BOILER : HOLD [E] ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
         }
         // A crew locker in front of you (note 173): its door, and its shelves.
@@ -1375,6 +1397,9 @@ public static partial class Hud
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
+        // Note 301: a break in reach (a breach, the burst boiler, a battered car's dent), mended with the wrench in hand.
+        if (Repairs.ByWrench(train) && RepairPrompt(p, train, hand) is { } mending)
+            return mending;
         // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
         if (Breaches.Within(p, train, hand) is not null)
             return $"BOARD IT UP : HOLD [E] ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";

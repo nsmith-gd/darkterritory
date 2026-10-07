@@ -13,7 +13,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
 /// <item>at a cargo car's roof hatch, open or shut it (T99);</item>
 /// <item>at a sandbox on the engine's running boards, sand the rail (Grease's counter, App. A.2);</item>
-/// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>);</item>
+/// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>; with the wrench, note 301);</item>
+/// <item>the wrench in hand at a burst boiler or a battered car's dent, mend it (note 301, <see cref="Repairs"/>);</item>
 /// <item>at a crew locker, open or shut its door (a tap there is the hands': <see cref="Lockers"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
@@ -40,8 +41,10 @@ public static class CrewActions
             train.Boiler.Venting = true;
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)
         {
-            // Let go of the shovel and what's on it is spilled.
-            s.ActionProgress = 0;
+            // Let go of the shovel and what's on it is spilled. A mend under way with the wrench is kept while you're at it
+            // (note 301: a few presses do it, Sea of Thieves style).
+            if (!(s.Alive && !intent.Has(PlayerButtons.Use) && Repairs.Keeps(s, train, hand)))
+                s.ActionProgress = 0;
             s.Flags &= ~PlayerFlags.Shovelful;
             return;
         }
@@ -57,6 +60,13 @@ public static class CrewActions
             s.ActionProgress += dt;
             if (s.ActionProgress >= board)
                 train.Vehicles[breached].Breached = false;
+            return;
+        }
+        // At the hole without what boards it up (note 301: the wrench): nothing, not the end door beside it either.
+        if (Repairs.ByWrench(train) && Breaches.AtHole(s, train, hand) is not null)
+        {
+            s.ActionProgress = 0;
+            s.Flags &= ~PlayerFlags.Shovelful;
             return;
         }
         double before = s.ActionProgress;
@@ -98,8 +108,9 @@ public static class CrewActions
                 if (before < lockerSeconds && s.ActionProgress >= lockerSeconds)
                     train.Vehicles[near.Value.Vehicle].ToggleLocker(near.Value.Thing.Index);
                 break;
-            // A ruptured boiler, the repair kit in hand (T109, GDD §12: the engineer is whoever has it): held there, it's mended.
-            case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && s.Has(PlayerFlags.RepairKit) && PlayerMotor.InCab(s, train):
+            // A ruptured boiler, the wrench in hand (note 301; the repair kit where the wrench isn't the tool, T109, GDD §12):
+            // worked there, it's mended.
+            case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Repairs.MendsBoiler(s, train) && PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= rt.RepairSeconds)
                 {
@@ -132,7 +143,7 @@ public static class CrewActions
                 s.ActionProgress = 0;
                 break;
             // The cab's tool rack (T109): a press takes the wrench, into the first free slot and into hand; with it in hand,
-            // a press puts it back. It's a tool to swing; the repair kit is what mends the boiler. The shovel in hand is hung
+            // a press puts it back. It's a tool to swing, and mends (note 301: everyone carries one now). The shovel in hand is hung
             // back on it the same way (note 275).
             case InteractableKind.ToolRack when PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
@@ -154,6 +165,11 @@ public static class CrewActions
                 s.ActionProgress += dt;
                 if (before < couplings.HandbrakeSeconds && s.ActionProgress >= couplings.HandbrakeSeconds)
                     train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
+                break;
+            // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
+            case null when Repairs.Dent(s, train, hand) is { } dented:
+                s.ActionProgress += dt;
+                Repairs.MendDent(train, dented, dt);
                 break;
             default:
                 s.ActionProgress = 0;
@@ -186,7 +202,7 @@ public static class CrewActions
     public static bool VentHeld(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
         s.Alive && intent.Has(PlayerActions.Vent) && s.Surface != Surface.Coupler && train.BoilerTuning is not null && PlayerMotor.InCab(s, train);
 
-    /// <summary>At the firebox of a ruptured boiler, in the cab: where the repair kit in hand mends it (T109).</summary>
+    /// <summary>At the firebox of a ruptured boiler, in the cab: where the wrench in hand mends it (note 301; the repair kit, T109).</summary>
     public static bool AtTheRupture(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
         s.Alive && train.BoilerTuning is not null && train.Boiler.Ruptured && PlayerMotor.InCab(s, train)
         && Nearest(s, train, hand) == InteractableKind.Firebox;
