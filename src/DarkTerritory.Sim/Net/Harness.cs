@@ -201,9 +201,18 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Votes { get; init; } = new Dictionary<string, int>();
     /// <summary>The night's first threat and what drew it (note 287), if one came.</summary>
     public FirstThreatReport? FirstThreat { get; init; }
+    /// <summary>The crew afoot off the train, watched (note 327).</summary>
+    public AfootReport? Afoot { get; init; }
     /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
 }
+
+/// <summary>
+/// The crew afoot off the train (note 327): crew-seconds out, the signs shown them (and how many from a site at the stop), by
+/// kind; the director's spawns made while anyone was out, of all its spawns; the threats that telegraphed then, of all.
+/// </summary>
+public sealed record AfootReport(double CrewSeconds, int Signs, int FromSites, IReadOnlyDictionary<string, int> Kinds, int SpawnsAfoot, int Spawns,
+    int EngagedAfoot, int Engaged);
 
 /// <summary>
 /// The night's first threat (note 287): when (run seconds, and how long after the grace), what, what drew it and who, and
@@ -331,6 +340,7 @@ public static class Harness
         var deaths = new Dictionary<string, int>();
         double choirPeak = 0;
         var held = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var afootSeconds = new HashSet<int>();
         var capped = new SortedDictionary<string, int>(StringComparer.Ordinal);
         // The director's pressure, sampled (note 266), and its own spawns by five minutes out on the line.
         const double PressureEvery = 30;
@@ -416,6 +426,9 @@ public static class Harness
             lastQuiet = q;
             choirPeak = Math.Max(choirPeak, host.World.Choir.Build);
             // T114 ("where are all the monsters"): what the director did with each second out on the line.
+            // Note 327: the seconds anyone was afoot off the train, so what showed itself then can be counted.
+            if (t % SimConstants.TickRate == 1 && host.World.Director is { AfootShare: > 0 })
+                afootSeconds.Add((int)(host.World.Tick / SimConstants.TickRate));
             if (t % SimConstants.TickRate == 1 && host.World.Director is { } dir && host.World.Run is { Phase: not (Sim.Run.RunPhase.Yard or Sim.Run.RunPhase.Arrived or Sim.Run.RunPhase.Failed) })
             {
                 string what = host.World.Derailed ? "derailed" : dir.HeldBecause ?? "sent";
@@ -526,6 +539,11 @@ public static class Harness
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded))],
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
+                Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
+                    new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
+                    d.SpawnsAfoot, d.Log.Count,
+                    events.Where(e => e.To == SpinePhase.Telegraph && afootSeconds.Contains((int)(e.Tick / SimConstants.TickRate))).DistinctBy(e => e.EnemyId).Count(),
+                    events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId).Count()),
                 FirstThreat = d.First is { } first ? new FirstThreatReport(Math.Round(first.Seconds, 1), Math.Round(first.Seconds - d.Grace, 1),
                     Math.Round(first.Distance / 1000, 2), first.Kind.ToString(), Enemies.DrawLedger.Key(first.Cause),
                     first.Actor, Math.Round(first.Amount, 2), first.Answered, Math.Round(first.AnsweredAt, 1),
