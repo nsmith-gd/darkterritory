@@ -1108,7 +1108,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 311), the hold filling under it; under the
+    /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 315), the hold filling under it; under the
     /// crew's vote, the votes so far of the crew's.
     /// </summary>
     static void Skip(Overlay o, int width, int height, IPlaySession s)

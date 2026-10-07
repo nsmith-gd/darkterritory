@@ -258,13 +258,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
 
     /// <summary>
-    /// Each player's own skip (E.5 after E.12 question 2; note 311): from the train coming off to the cause card, the first
+    /// Each player's own skip (E.5 after E.12 question 2; note 315): from the train coming off to the cause card, the first
     /// person and the replay too, while the film's still being shot. Not once it's been taken (the jump waits for the film).
     /// </summary>
     bool OwnFilmSkippable => Train.Wreck is not null && !_skipped
         && (Film is not { } film || WreckSeconds < SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt);
 
-    /// <summary>How far through holding the skip this player is, 0 to 1 (the prompt's fill; note 311). 0 under the crew's vote.</summary>
+    /// <summary>How far through holding the skip this player is, 0 to 1 (the prompt's fill; note 315). 0 under the crew's vote.</summary>
     public double SkipHold => World.WreckTuning.Skip.Own && Skippable ? Math.Clamp(_skipHeld / Math.Max(World.WreckTuning.Skip.HoldSeconds, 1e-6), 0, 1) : 0;
 
     double _skipHeld;
@@ -859,7 +859,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var sent = intent;
         if (Picker.Select(Ballot) is > 0 and var vote && !Player.Alive)
             sent.Select = vote;
-        // E.5 after E.12 question 2 (note 311): the skip is this player's own, held here and never sent.
+        // E.5 after E.12 question 2 (note 315): the skip is this player's own, held here and never sent.
         if (World.WreckTuning.Skip.Own && Skippable)
         {
             _skipHeld = intent.Has(PlayerActions.Skip) ? _skipHeld + SimConstants.TickSeconds : 0;
@@ -886,7 +886,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
             && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
             WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt + SkipLanding;
-        // Note 311: skipped on this screen alone, from anywhere before it, the first person and the replay too. Taken while
+        // Note 315: skipped on this screen alone, from anywhere before it, the first person and the replay too. Taken while
         // the film's still being shot, the jump waits for it.
         if (_skipped && Train.Wreck is not null && Film is { } mine
             && WreckSeconds < SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt)

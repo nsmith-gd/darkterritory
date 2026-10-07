@@ -207,6 +207,8 @@ sealed partial class LineBuilder
             {
                 APost = _t.Curves.APost,
                 SignOffsetM = _c.Config.Signage.SideOffsetM,
+                FogBlendM = _t.Weather.FogBlendM,
+                FogAlongLine = _t.Weather.FogAlongLine,
                 Biomes = new SortedDictionary<string, BiomeDef>(_c.Config.Biomes.Biomes, StringComparer.Ordinal),
                 BiomeLandforms = new SortedDictionary<string, IReadOnlyDictionary<string, double>>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key,
                     b => (IReadOnlyDictionary<string, double>)new SortedDictionary<string, double>(b.Value.Landform, StringComparer.Ordinal)), StringComparer.Ordinal),

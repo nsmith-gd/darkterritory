@@ -13,7 +13,7 @@ public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBa
 }
 
 /// <summary>
-/// GDD v1.4 App. E.5 "Skipping", after the director's answer to E.12 question 2 (note 311).
+/// GDD v1.4 App. E.5 "Skipping", after the director's answer to E.12 question 2 (note 315).
 /// </summary>
 /// <param name="Own">Each player skips the film (and the Stranded outro) on their own screen, whenever they want; false: the old majority-or-host vote.</param>
 /// <param name="HoldSeconds">How long the key's held to skip your own.</param>
@@ -28,7 +28,7 @@ public sealed record WreckTuning
     public Music.MusicTuning Music { get; init; } = new();
     /// <summary>GDD v1.4 App. E: the derailment film's physics and shots.</summary>
     public FilmTuning Film { get; init; } = new();
-    /// <summary>GDD v1.4 App. E.5 "Skipping": each player's own, or the crew's vote (note 311).</summary>
+    /// <summary>GDD v1.4 App. E.5 "Skipping": each player's own, or the crew's vote (note 315).</summary>
     public SkipTuning Skip { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;

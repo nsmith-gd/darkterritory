@@ -56,7 +56,7 @@ public class WreckSessionTests
     public void TheFilmIsTheCrewsAndEachPlayerSkipsTheirOwnToTheCauseCard()
     {
         // GDD v1.4 App. E.5 (note 177): the host's crew in it, a shot each, then the cause card. After E.12 question 2 (the
-        // director, 7 Oct 2026: "players should be able to skip whenever they want. It's up to EACH player"; note 311):
+        // director, 7 Oct 2026: "players should be able to skip whenever they want. It's up to EACH player"; note 315):
         // each player skips their own, from the first frame, by holding the key; it lands on the cause card, never past it,
         // and skips nobody else's.
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);

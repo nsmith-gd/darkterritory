@@ -59,7 +59,7 @@ public enum PlayerActions : byte
     /// the run's under way, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12), sent on the press; the host
     /// takes one on the tick it first sees it held. <see cref="Skip"/>: once the night's over, a held vote to skip the derailment
     /// film to its cause card (App. E.5) or the Stranded outro (E.9); the host counts heads, and a majority, or the host, skips.
-    /// With each player's own skip (wreck.json "skip", note 311) the client keeps it and never sends it.
+    /// With each player's own skip (wreck.json "skip", note 315) the client keeps it and never sends it.
     /// The two never overlap: a run under way has no film or outro, and a night that's over takes no bookmarks.
     /// </summary>
     Bookmark = 128,

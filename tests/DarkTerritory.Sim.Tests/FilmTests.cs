@@ -113,7 +113,7 @@ public class FilmTests
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
         TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 600);
         var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, P);
-        // The crew's vote: wreck.json's old rule, kept behind skip.own (note 311).
+        // The crew's vote: wreck.json's old rule, kept behind skip.own (note 315).
         host.World.WreckTuning = W with { Skip = new(Own: false) };
         host.World.EnableBodies(); // a real host simulates the bodies (and so knows its crew's states)
         var clients = Enumerable.Range(0, 3).Select(_ => new ClientSession(net.CreateClient(), Train(), Tuning.Train, P)).ToArray();
@@ -176,7 +176,7 @@ public class FilmTests
     public void EachPlayersOwnSkipIsNeverTheCrewsVote()
     {
         // GDD v1.4 App. E.5 after E.12 question 2 (the director, 7 Oct 2026: "It's up to EACH player if they want to skip
-        // their film"; note 311): with skip.own, the host counts no votes, so the whole crew holding it, the host's own
+        // their film"; note 315): with skip.own, the host counts no votes, so the whole crew holding it, the host's own
         // player too, skips nobody's film but their own (a client's, not the host's to do).
         var net = new LoopbackNetwork();
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));

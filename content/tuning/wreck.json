@@ -64,7 +64,7 @@
   // skipAfterSeconds in, it can be skipped (E.9, E.10).
   "stranded": { "rackSeconds": 1.5, "pullBackSeconds": 6, "heightM": 42, "backM": 55, "skipAfterSeconds": 3 },
   // GDD v1.4 App. E.5 "Skipping", the director's answer to E.12 question 2 (7 Oct 2026: "players should be able to skip
-  // whenever they want. It's up to EACH player if they want to skip their film"; note 311): `own` skips are each player's,
+  // whenever they want. It's up to EACH player if they want to skip their film"; note 315): `own` skips are each player's,
   // on their own screen, from the first frame to the cause card (never past it), and the Stranded outro's the same way
   // from its skip delay. Holding the key holdSeconds skips, so a jump mashed as the train comes off doesn't. `own: false`
   // is the old rule: a majority of the session, or the host, skips it for everyone, after the first player's shot.

@@ -925,7 +925,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     // D.12: the dead's bookmark, while the run's under way (the same bit is the film's skip vote once it's over).
                     | (pendingBookmark && session.World.Run is not { Over: true } ? PlayerActions.Bookmark : 0)
                     // E.5, E.9: holding Jump skips the film to its cause card (or the Stranded outro), once a skip counts: this
-                    // player's own, held for wreck.json's skip.holdSeconds (note 311), or a vote.
+                    // player's own, held for wreck.json's skip.holdSeconds (note 315), or a vote.
                     | (session.Skippable && Held(Control.Jump) ? PlayerActions.Skip : 0),
                 // How loud you are (GDD v1.1 App. C.7, C.8): the mic while it sends; with no mic, holding Talk counts as
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
@@ -1099,7 +1099,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             lighting.LampIntensity = 0;
         if (session.Route is { } r)
         {
-            lighting.FogDensity = (float)r.Weather.FogDensity;
+            lighting.FogDensity = Views.FogDensity(r, session.Train);
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
             if (look?.Tuning.Atmosphere.Wind is { } wind)

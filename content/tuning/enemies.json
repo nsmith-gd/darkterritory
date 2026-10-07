@@ -199,6 +199,14 @@
     "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5
   },
 
+  // WHERE THE OUTSIDE CREATURES START (level-design H.2; GDD B.6; ARCHITECTURE §8 note 309). A generated stop's layout says
+  // where each lives; the director still says when. At the stops within `around` m of the train: Ribbits come out of the
+  // warren nearest the ground crew within `warrenReach` (a stop whose warrens are all further has none to send); the Gaunt
+  // sleeps in its roost if it's within `roostReach`; a child calls from its call within `callReach`; a Follower takes only a
+  // crewmate standing in one of its grounds (its radius and `groundMargin`). Nothing comes out closer than `minOut` m. A
+  // hand-laid route's stops have no layouts: there they come from out in the dark round the ground crew, as before.
+  "sites": { "around": 300, "minOut": 12, "warrenReach": 70, "roostReach": 400, "callReach": 160, "groundMargin": 4 },
+
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
   // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and
   // eats for devourSeconds. They lose interest past giveUpBeyond m.

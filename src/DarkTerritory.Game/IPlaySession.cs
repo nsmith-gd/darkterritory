@@ -75,11 +75,11 @@ public interface IPlaySession
     /// </summary>
     WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
     /// <summary>
-    /// The skip counts now. Each player's own (note 311): from the train coming off to the cause card; under the crew's vote,
+    /// The skip counts now. Each player's own (note 315): from the train coming off to the cause card; under the crew's vote,
     /// after the first player's shot (E.5). E.9: three seconds into the outro.
     /// </summary>
     bool Skippable => false;
-    /// <summary>How far through holding their own skip this player is, 0 to 1 (note 311).</summary>
+    /// <summary>How far through holding their own skip this player is, 0 to 1 (note 315).</summary>
     double SkipHold => 0;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
