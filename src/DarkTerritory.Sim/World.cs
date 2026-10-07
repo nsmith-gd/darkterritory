@@ -1159,8 +1159,17 @@ public sealed class World
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
                 }
-                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather.
-                bool swarm = !SafeYard && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather. Nor with the train in
+                // a fort (GDD §9; note 273's caveat, note 296): what it had gathered falls away as in the quiet, and a swarm
+                // that followed the train in is gone (its ghosts are driven off by the fort, below).
+                bool fort = !SafeYard && TrainInFort;
+                if (fort)
+                {
+                    if (Choir.Present)
+                        Choir.Disperse(false, c.Choir.RestSeconds);
+                    Choir.Build = Math.Max(0, Choir.Build - c.Choir.QuietDecayPerSecond * SimConstants.TickSeconds);
+                }
+                bool swarm = !SafeYard && !fort && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
@@ -1331,9 +1340,10 @@ public sealed class World
         // Rounds fired this tick land first.
         if (Combat is { } c)
             foreach (var shot in Shots.Where(s => s.HitTargetId > 0))
-                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Gone: false } struck && struck.HitRadius > 0)
+                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Exposed: true } struck)
                 {
-                    struck.Hit(ctx, c.Guns.DamagePerRound);
+                    // A ball on a creature's body lands as a heavy blow by the gunner, answered by its own rule (note 290).
+                    struck.Hit(ctx, shot.Shooter, c.Guns.DamagePerRound);
                     Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
                 }
 
@@ -1465,10 +1475,7 @@ public sealed class World
 
     void RefreshTargets()
     {
-        Targets.Clear();
-        foreach (var e in _enemies)
-            if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+        ExposedBodies(Targets);
         _targetHistory[Tick] = new List<HitTarget>(Targets);
         _targetHistory.Remove(Tick - 32);
     }
@@ -1478,10 +1485,16 @@ public sealed class World
     {
         _enemies.Clear();
         _enemies.AddRange(enemies);
-        Targets.Clear();
-        foreach (var e in _enemies)
-            if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+        ExposedBodies(Targets);
+    }
+
+    /// <summary>Every creature's body in the open, as a ball finds it (enemies.json <c>bodies</c>; note 290).</summary>
+    void ExposedBodies(List<HitTarget> into)
+    {
+        into.Clear();
+        if (Enemies is { } t)
+            foreach (var e in _enemies)
+                into.AddRange(e.Body(Train, t));
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
