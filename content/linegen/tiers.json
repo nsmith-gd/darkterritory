@@ -201,10 +201,13 @@
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse
   // where exposed; cold a step per 150 m climbed and on exposed track; wet rail's adhesion, worse where wet-biased.
-  // The renderer's fog density is this over the fog distance.
+  // The renderer's fog density is this over the fog distance. Fog fills the coves first (maritime-rules §4): beside a
+  // shore, or within fogWaterM of a lake's edge, it's as thick as low ground. The renderer's fog follows the factor
+  // along the line, averaged over fogBlendM either side so it thickens and thins, never steps; fogAlongLine false
+  // keeps the night's one density everywhere (note 313).
   "weather": {
     "fogLowGround": 1.3, "fogCrest": 0.8, "windExposed": 1.5, "coldStepPerM": 150, "coldExposedStep": 1, "wetAdhesion": 0.85, "wetBiasAdhesion": 0.75,
-    "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400
+    "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400, "fogWater": 1.3, "fogWaterM": 40, "fogBlendM": 150, "fogAlongLine": true
   },
 
   // Plan §15. The Long Whistle's pre-grade/pre-curve window; tunnel exits; near a facility; Grease doubled in wet or

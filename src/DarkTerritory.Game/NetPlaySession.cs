@@ -332,9 +332,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         _commended = true;
     }
 
-    List<string>? _manifest, _tally;
-    List<double>? _manifestTimes, _tallyTimes;
-    double _manifestSeconds = -1, _tallySeconds = -1;
+    List<string>? _manifest, _tally, _bulletin;
+    List<double>? _manifestTimes, _tallyTimes, _bulletinTimes;
+    double _manifestSeconds = -1, _tallySeconds = -1, _bulletinSeconds = -1;
+    /// <summary>How long the run's said the kit's lost (note 308): it's said once that's held a second (stranded.lostForSeconds).</summary>
+    double _kitLostFor;
+    bool _kitLostSaid;
+
+    /// <summary>A bulletin on the air (note 308: the kit lost), while it's being read.</summary>
+    bool Bulletin => _bulletin is not null && _bulletinSeconds >= 0 && _bulletinSeconds < Sim.Run.Radio.Length(_bulletin, RadioTuning, _bulletinTimes);
 
     /// <summary>
     /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 240), so the reading goes at its pace: the card
@@ -344,12 +350,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public IReadOnlyList<string>? RadioReading =>
         _tally is not null && _tallySeconds >= 0 ? _tally
+        : Bulletin ? _bulletin
         : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning, _manifestTimes) ? _manifest
         : null;
 
-    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
+    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : Bulletin ? _bulletinSeconds : _manifestSeconds;
 
-    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : _manifestTimes;
+    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : Bulletin ? _bulletinTimes : _manifestTimes;
 
     public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning, _tallyTimes);
 
@@ -375,6 +382,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         else if (_manifestSeconds >= 0)
             _manifestSeconds += SimConstants.TickSeconds;
+        // GDD App. E.12 question 5 (note 308): the last engineering kit lost, the yard says so, once.
+        _kitLostFor = run.Kit.Lost && !run.Over ? _kitLostFor + SimConstants.TickSeconds : 0;
+        if (!_kitLostSaid && RadioTuning.KitLost && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
+        {
+            _kitLostSaid = true;
+            _bulletin = Sim.Run.Radio.KitLost(run.Kit);
+            _bulletinTimes = RadioTimesOf(_bulletin);
+            _bulletinSeconds = 0;
+        }
+        else if (_bulletinSeconds >= 0)
+            _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report);
@@ -488,7 +506,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby) };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -648,7 +666,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 if (e.Kind == TransportEventKind.Connected)
                 {
                     var hello = new NetWriter();
-                    Messages.WriteHello(hello, LocalName(lobby));
+                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit);
                     transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
                 }
                 if (e.Kind == TransportEventKind.Disconnected)
@@ -695,7 +713,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby) };
+        { Name = LocalName(lobby), Outfit = Outfit };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -1036,6 +1054,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>The name set in the settings (the app sets it at start), for the crew and the report.</summary>
     public static string PlayerName { get; set; } = "";
+
+    /// <summary>The outfit set in the settings (note 298; the app sets it at start), or <see cref="Messages.NoOutfit"/>: their id's.</summary>
+    public static byte Outfit { get; set; } = Messages.NoOutfit;
+
+    /// <summary>
+    /// Tries an outfit on (note 298), the in-night menu's OUTFIT: asked of the host, which takes it only in the yard before
+    /// the gate (<see cref="CanWear"/>).
+    /// </summary>
+    public void Wear(byte outfit) => Client.Wear(outfit);
+
+    /// <summary>In the yard, where outfits are tried on (GDD §9; note 298).</summary>
+    public bool CanWear => World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
 
     /// <summary>What this player is called: the settings' name, else the online name, else the system's.</summary>
     static string LocalName(Lobby? lobby) =>

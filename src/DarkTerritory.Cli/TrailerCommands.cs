@@ -151,7 +151,7 @@ static class TrailerCommands
                 var lighting = Views.Lighting(train, look, beat.Dawn);
                 if (route is not null)
                 {
-                    lighting.FogDensity = (float)route.Weather.FogDensity;
+                    lighting.FogDensity = Views.FogDensity(route, train);
                     lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
                 }
                 if (beat.Card is { } lines)

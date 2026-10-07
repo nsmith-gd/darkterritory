@@ -61,7 +61,7 @@ static class PlaythroughCommands
             var train = world.Train;
             double seconds = world.Tick * SimConstants.TickSeconds;
             var lighting = Views.Lighting(train, look);
-            lighting.FogDensity = (float)route.Weather.FogDensity;
+            lighting.FogDensity = Views.FogDensity(route, train);
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
             lighting = look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
             scene.Signs = world.Lineside?.Signs;

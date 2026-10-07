@@ -71,6 +71,7 @@ public sealed class HostSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.EmoteTuning = value.Emotes;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
     }
@@ -355,6 +356,7 @@ public sealed class HostSession
         public bool Late;
         public string Name = "";
         public ulong Token;
+        public byte Outfit = Messages.NoOutfit;
     }
 
     readonly List<Greeting> _greeting = [];
@@ -442,6 +444,7 @@ public sealed class HostSession
             }
             byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
+            Wear(id, g.Outfit, any: true);
         }
     }
 
@@ -640,6 +643,9 @@ public sealed class HostSession
             Messages.WriteLooks(_writer, World.Looks);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WriteOutfits(_writer, World.Outfits);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
         // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
         for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
@@ -724,17 +730,20 @@ public sealed class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token) = Messages.ReadHello(ref hr);
+                var (name, token, outfit) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
-                    (greeting.Said, greeting.Name, greeting.Token) = (true, name, token);
+                    (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit) = (true, name, token, outfit);
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
                 if (id >= 0)
+                {
                     Name(id, name);
+                    Wear(id, outfit, any: true);
+                }
             }
             catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException)
             {
@@ -744,6 +753,12 @@ public sealed class HostSession
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;
+        // Note 298: trying an outfit on, in the yard.
+        if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
+        {
+            Wear(c.Id, payload[1], any: false);
+            return;
+        }
         try
         {
             var r = new NetReader(payload);
@@ -778,6 +793,31 @@ public sealed class HostSession
         if (World.LooksByName.TryGetValue(name, out var look))
             World.Looks[id] = look;
     }
+
+    /// <summary>
+    /// A player's outfit (note 298): the one they came in (<paramref name="any"/>, from their Hello), or one tried on, which
+    /// only takes in the yard before the gate (GDD §9: the yard is where the crew "try on outfits"). Out of range, it's
+    /// their id's look.
+    /// </summary>
+    void Wear(int id, byte outfit, bool any)
+    {
+        if (!any && World.Run is { Phase: not Sim.Run.RunPhase.Yard })
+            return;
+        bool had = World.Outfits.TryGetValue(id, out byte was);
+        if (outfit >= MaxOutfits)
+        {
+            if (had && World.Outfits.Remove(id))
+                _namesChanged = true;
+            return;
+        }
+        if (had && was == outfit)
+            return;
+        World.Outfits[id] = outfit;
+        _namesChanged = true;
+    }
+
+    /// <summary>The outfits there can be (note 298): the art draws as many as it has looks, round again past them.</summary>
+    public const int MaxOutfits = 64;
 
     readonly NetWriter _voiceWriter = new();
 
