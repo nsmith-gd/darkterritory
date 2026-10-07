@@ -12,18 +12,26 @@ namespace DarkTerritory.Sim.Enemies;
 /// whenever the cab is empty. It vanishes when approached from one side; come at it from both ends of its car at once and
 /// it's cornered, and two players can club it. Or give it a toy, and it steals it and leaves. No lethal punish of its own:
 /// it costs speed control and cargo, and it's the reason someone stays in the cab (App. A.2, replacing the Deadman).
+/// She escalates only if ignored (the director, 6 Oct 2026; note 268): at first she only haunts the cars; left alone long
+/// enough she takes an empty cab and nudges the regulator; left alone longer, she works the controls in earnest, and can let
+/// a standing train off its brake. Each stage is telegraphed (restless) well before it comes, and attention winds her back.
 /// A forward cannon's ball that finds her on the rail shatters her (T121 playtest: "I shot the track doll and it did
 /// nothing"): gone for the run, the same as stopping short, so the train passes where she stood. The answer's loud (the
 /// meter) and costs the reload; she's a cost-only enemy, and the cannon pays the cost another way.
 /// </summary>
 /// <remarks>
 /// On the rail it's free on the main line (<see cref="Enemy.LineDistance"/>). Haunting (<see cref="SpinePhase.Punish"/>)
-/// it's in a car (<see cref="Enemy.Attached"/>), or in the cab with <see cref="Enemy.Extra2"/> = 1: tampering.
+/// it's in a car (<see cref="Enemy.Attached"/>), or in the cab: tampering. <see cref="Enemy.Extra2"/> is her escalation
+/// (<see cref="Escalation"/>: the stage, plus a half while she's restless for the next), negative in a car and positive at
+/// the controls; <see cref="Enemy.Extra"/> is cornered (1) in a car, and in the cab the seconds she's been at the controls at her last stage.
 /// </remarks>
 public sealed class TrackDoll(int id) : Enemy(id)
 {
     double _moveIn;
     int _hop;
+    /// <summary>Host: seconds of neglect (note 268), and the escalation they come to.</summary>
+    double _neglect;
+    double _level = 1;
 
     public override EnemyKind Kind => EnemyKind.TrackDoll;
     public override PressureZone Zone => PressureZone.Forward;
@@ -47,8 +55,19 @@ public sealed class TrackDoll(int id) : Enemy(id)
     /// <summary>At the controls of an empty cab (App. A.2 TAMPER): replicated, so a predicting client drives as it does.</summary>
     public bool Tampering => Phase == SpinePhase.Punish && Attached == 0 && Extra2 > 0.5;
     /// <summary>Approached from both ends of its car at once (<see cref="Enemy.Extra"/> = 1): it can't vanish.</summary>
-    public bool Cornered => Extra > 0.5;
+    public bool Cornered => Attached != 0 && Extra > 0.5;
     public bool Haunting => Phase == SpinePhase.Punish;
+    /// <summary>
+    /// How far being ignored has brought her (note 268), replicated: 1, 2 or 3 for the stage, plus a half while she's
+    /// restless, the next stage under <see cref="TrackDollTuning.WarnSeconds"/> away. 0 before she's aboard.
+    /// </summary>
+    public double Escalation => Haunting ? Math.Abs(Extra2) : 0;
+    /// <summary>1 haunting the cars, 2 at an empty cab's regulator, 3 working the controls (a standing brake too); 0 not aboard.</summary>
+    public int Stage => Haunting ? Math.Clamp((int)Escalation, 1, 3) : 0;
+    /// <summary>The next stage is coming (her telegraph): the giggle quickens; at the controls she rattles the brake handle.</summary>
+    public bool Restless => Haunting && Escalation - Math.Floor(Escalation) > 0.25;
+    /// <summary>Seconds at the controls at her last stage, this visit to the cab (replicated in <see cref="Enemy.Extra"/>).</summary>
+    public double SecondsAtControls => Tampering ? Extra : 0;
 
     /// <summary>On the rail this far ahead of the engine.</summary>
     public static TrackDoll Ahead(int id, TrainOnLine train, double ahead, TrackDollTuning t) => new(id)
@@ -131,6 +150,8 @@ public sealed class TrackDoll(int id) : Enemy(id)
     void Haunt(EnemyContext ctx)
     {
         _moveIn = ctx.Tuning.TrackDoll.HauntMoveSeconds;
+        _neglect = 0;
+        _level = 1;
         MoveTo(ctx, null);
     }
 
@@ -152,8 +173,24 @@ public sealed class TrackDoll(int id) : Enemy(id)
         Attached = car;
         Local = room.Centre with { Y = room.Min.Y };
         Extra = 0;
-        Extra2 = 0;
+        Extra2 = -_level;
     }
+
+    /// <summary>The escalation <paramref name="neglect"/> seconds of being left alone come to: the stage, plus a half if restless.</summary>
+    public static double Level(double neglect, TrackDollTuning t)
+    {
+        int stage = neglect >= t.ReleaseAfter ? 3 : neglect >= t.ControlsAfter ? 2 : 1;
+        double next = stage switch { 1 => t.ControlsAfter, 2 => t.ReleaseAfter, _ => double.PositiveInfinity };
+        return stage + (next - neglect <= t.WarnSeconds ? 0.5 : 0);
+    }
+
+    /// <summary>
+    /// Someone's minding her (note 268): a living crewmate in her car, or within <see cref="TrackDollTuning.AttendRadius"/>.
+    /// In the cab nobody's in it (she leaves when anyone comes in), so only someone close outside it.
+    /// </summary>
+    bool Attended(EnemyContext ctx, Double3 at, TrackDollTuning t) =>
+        ctx.Crew.Any(c => c.Player.State is { Alive: true } s
+            && (Attached > 0 && s.Parent == Attached || (PlayerMotor.WorldPosition(s, ctx.Train) - at).Length <= t.AttendRadius));
 
     void HauntTick(EnemyContext ctx, TrackDollTuning t)
     {
@@ -178,27 +215,34 @@ public sealed class TrackDoll(int id) : Enemy(id)
                 return;
             }
         }
-        // TAMPER: the cab left empty long enough, it's in there at the controls.
+        // Ignored, she gets worse; minded, she winds back (the director, 6 Oct 2026; note 268).
+        _neglect = Attended(ctx, at, t)
+            ? Math.Max(0, _neglect - t.AttendedEase * SimConstants.TickSeconds)
+            : _neglect + SimConstants.TickSeconds;
+        _level = Level(_neglect, t);
+        // TAMPER: past her first stage, the cab left empty long enough, she's in there at the controls.
         bool cabEmpty = ctx.World.CabEmptySeconds >= t.TamperAfterEmpty;
         if (Attached == 0)
         {
             bool someone = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train));
-            if (someone)
+            if (someone || _level < 2)
             {
-                // Somebody's back: it's off to a car.
-                Extra2 = 0;
+                // Somebody's back (or she's been minded back to her first stage): she's off to a car.
                 MoveTo(ctx, 0);
                 return;
             }
-            Extra2 = 1;
+            // How long she's been at them at her last stage, this visit: the brake handle worked that long before it goes.
+            Extra = _level >= 3 ? Extra + SimConstants.TickSeconds : 0;
+            Extra2 = _level;
             return;
         }
-        if (cabEmpty && train.Frames[0].Shape.Cab is { } cab)
+        Extra2 = -_level;
+        if (cabEmpty && _level >= 2 && train.Frames[0].Shape.Cab is { } cab)
         {
             Attached = 0;
             Local = cab.Centre with { Y = cab.Min.Y };
             Extra = 0;
-            Extra2 = 1;
+            Extra2 = _level;
             return;
         }
         // Admiring the cargo: it costs a little of what's in its car.
@@ -247,13 +291,31 @@ public sealed class TrackDoll(int id) : Enemy(id)
         return true;
     }
 
-    /// <summary>Plays with the throttle and the brake, in turns of a few seconds (from replicated state, so clients agree).</summary>
+    /// <summary>
+    /// Plays with the controls in beats of three seconds, as far as her stage goes (note 268): at stage 2 the regulator
+    /// nudged up on one beat in three, the brake left alone; at 3 the regulator open, then shut, then the brake on. From
+    /// replicated state, so clients agree. A standing train's held brake stays on unless <see cref="ReleasesStandingBrake"/>.
+    /// </summary>
     public override void Tamper(World world, ref TrainControls controls)
     {
         if (!Tampering)
             return;
-        int beat = (int)(PhaseSeconds / 3) % 3;
-        controls.Throttle = beat == 0 ? 1 : 0;
-        controls.Brake = beat == 2 ? 1 : 0;
+        controls = Hands(Escalation, PhaseSeconds, (world.Enemies?.TrackDoll ?? new()).NudgeThrottle, controls);
     }
+
+    /// <summary>What her hands make of the controls as set (<see cref="Tamper"/>; the client's lever sounds too).</summary>
+    public static TrainControls Hands(double escalation, double phaseSeconds, double nudge, TrainControls set)
+    {
+        int beat = (int)(phaseSeconds / 3) % 3;
+        if (escalation >= 3)
+            return set with { Throttle = beat == 0 ? 1 : 0, Brake = beat == 2 ? 1 : 0 };
+        return beat == 0 ? set with { Throttle = Math.Max(set.Throttle, nudge) } : set;
+    }
+
+    /// <summary>
+    /// Her last stage, at the controls <see cref="TrackDollTuning.ReleaseAfterAtControls"/> on this visit: she can let a
+    /// standing train off its brake (the director, 6 Oct 2026; note 268). From replicated state.
+    /// </summary>
+    public override bool ReleasesStandingBrake(World world) =>
+        Tampering && Escalation >= 3 && world.Enemies?.TrackDoll is { FinalStageReleasesBrake: true } t && Extra >= t.ReleaseAfterAtControls;
 }
