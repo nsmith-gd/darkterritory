@@ -2251,8 +2251,9 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return GetDown(self, train, Side(train, h.Door, h.LineHint));
         Doing = "at the Holdout";
         var at = PlayerMotor.WorldPosition(self, train);
+        // Smash and pry want a melee tool in hand (D.7; note 275): a hand put free picks the first one up again.
         if (((h.Door - at) with { Y = 0 }).Length <= hs.Tuning.BreachReach * 0.8)
-            return new PlayerIntent { Buttons = PlayerButtons.Use };
+            return new PlayerIntent { Buttons = PlayerButtons.Use, Select = Kit.ToolToHand(self) };
         return WalkTo(self, train.Line, RailLine.MainPath, h.Door, null).Step;
     }
 

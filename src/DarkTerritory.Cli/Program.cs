@@ -493,8 +493,8 @@ static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, strin
         timeline = drill.Timeline.Select(x => new { step = x.Step.ToString(), atS = x.Seconds }),
         done = drill.Step == DarkTerritory.Sim.Run.DrillStep.Done,
         seconds = Math.Round(ticks * SimConstants.TickSeconds, 1),
-        rakes = train.Rakes.Count,
-        inOrder = train.Rakes.Count == 1 && train.Dynamics.Consist.Vehicles.Select(v => v.Id).SequenceEqual(order),
+        rakes = train.TrainRakes,
+        inOrder = train.TrainRakes == 1 && train.Dynamics.Consist.Vehicles.Select(v => v.Id).SequenceEqual(order),
         onMain = train.OnMain,
         switchBack = !train.Diverging(spur.Index),
         departures = world.Run!.Departures,
@@ -723,7 +723,7 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         layout.InBand,
         band = StopGenerator.Band(st, layout),
         layout.Moves,
-        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane }),
+        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane, derelicts = t.Derelicts }),
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
@@ -768,6 +768,9 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
                 valid = Math.Round(kept.Average(l => l.Valid ? 1.0 : 0), 3),
                 meanAttempts = Math.Round(kept.Average(l => l.Attempt + 1.0), 2),
                 forms = kept.Where(l => l.Form is not null).GroupBy(l => l.Form!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                // Blocked sidings (D.2; note 294): how many a kept stop has, and how many its measure cleared.
+                blocked = kept.Where(l => l.HasYard).GroupBy(l => l.Tracks.Count(t => t.Blocked)).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                clearances = Math.Round(kept.Where(l => l.HasYard).Select(l => (double)l.Moves.Clearances).DefaultIfEmpty(0).Average(), 2),
                 villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
                 examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
@@ -1621,7 +1624,8 @@ static object ArtClip(string content, string name, string clip, string[] args)
         // (--tool tool_crowbar: the crew with a hand tool in their fist, as SceneArt hangs it, for the clip's pose by its name.)
         if (Str(args, "--tool", "") is { Length: > 0 } tool && name == "crew"
             && Enum.TryParse<DarkTerritory.Game.Art.CrewPose>(clip.Replace("_idle", "").Replace("_", ""), true, out var pose))
-            art.Crewmate(mesh, placed, pose, time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
+            art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
+                    or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));

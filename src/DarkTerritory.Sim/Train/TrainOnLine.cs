@@ -101,12 +101,31 @@ public sealed class TrainOnLine
     /// along <paramref name="path"/>, uncoupled, its handbrakes on. Its cars take the ids after every vehicle there is, so a
     /// host and its clients, standing the same cars from the same route, agree on them. Done before the night begins.
     /// </summary>
-    public IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars)
+    public IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars) =>
+        Stand(path, distance, cars, null);
+
+    /// <summary>
+    /// Stands a blocked siding's derelict cars (level-design D.2; note 294) as <see cref="Stand(int, double, IReadOnlyList{ValueTuple{double, CargoKind}})"/>
+    /// does a switchyard's: <paramref name="count"/> empty cars, their shells at <paramref name="integrity"/> and anything loaded
+    /// into them paying <paramref name="pays"/> of itself.
+    /// </summary>
+    public IReadOnlyList<Vehicle> StandDerelicts(int path, double distance, int count, double integrity, double pays) =>
+        Stand(path, distance, [.. Enumerable.Repeat((0.0, CargoKind.None), count)], (integrity, pays));
+
+    IReadOnlyList<Vehicle> Stand(int path, double distance, IReadOnlyList<(double Load, CargoKind Cargo)> cars, (double Integrity, double Pays)? derelict)
     {
         var consist = new Consist(Tuning);
         int id = _vehicles.Length;
         foreach (var (load, cargo) in cars)
-            consist.Add(new Vehicle(id++, VehicleKind.Cargo, load) { YardCar = true, Cargo = load > 0 ? cargo : CargoKind.None, LampLit = false });
+            consist.Add(new Vehicle(id++, VehicleKind.Cargo, load)
+            {
+                YardCar = true,
+                Derelict = derelict is not null,
+                Cargo = load > 0 ? cargo : CargoKind.None,
+                LampLit = false,
+                Integrity = derelict?.Integrity ?? 1,
+                CargoIntegrity = derelict?.Pays ?? 1,
+            });
         if (consist.Vehicles.Count == 0)
             return [];
         Array.Resize(ref _vehicles, id);
@@ -121,11 +140,12 @@ public sealed class TrainOnLine
 
     /// <summary>
     /// A rake still standing as the night found it (note 187): a switchyard's cars and nothing else, on a siding, the engine
-    /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either.
+    /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either. Derelicts alone (note 294)
+    /// are never the train's, wherever they've been put away.
     /// </summary>
     public bool Standing(TrainDynamics rake) =>
-        !rake.Consist.HasEngine && rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur
-        && rake.Consist.Vehicles.All(v => v.YardCar);
+        !rake.Consist.HasEngine && (rake.Consist.Vehicles.All(v => v.Derelict)
+            || rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur && rake.Consist.Vehicles.All(v => v.YardCar));
 
     /// <summary>A vehicle in a rake still standing as the night found it (note 187).</summary>
     public bool StandingCar(int vehicleId) =>

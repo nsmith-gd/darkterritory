@@ -183,6 +183,16 @@
     "back": 1.0,
     "spare": 1
   },
+  // Blocked sidings (level-design D.1, D.2; ARCHITECTURE §8 note 294): the derelicts a yard's layout stands on some of its
+  // sidings (stops.json derelict, and the tier's blocked), "back" metres short of the buffer stop, handbrakes on, empty, their
+  // shells at "integrity" (they look it). They're bad-order stock: anything loaded into one pays only "pays" of itself, and
+  // wherever the crew put them away they're not cars lost. To use the siding, couple up, pull them out and leave them on a
+  // track already worked; or keep them, ahead of the engine, for the rest of the night.
+  "derelicts": {
+    "back": 1.0,
+    "integrity": 0.4,
+    "pays": 0.3
+  },
   // The wreck yard: "salvage, high value. Pull cargo off derailed trains. Unstable, unlit, already occupied" (the occupants are
   // enemies.json director "residents"). The last train came off at the end of the yard's line: "heaps" of its cars lie where
   // "layout" puts them, metres along from its buffer stop (on beyond it, positive) and out on the site's side, each with
