@@ -61,16 +61,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
-| 16 | **Audio: the bend's stress heard building, and main's synth sounds on the checklist:** `dt audio render --scenario bend`; a squeal that holds and a scream that climbs; the line's warnings, the gun's laying, the cannon's landings, the toys, the depot's blast and the stranded ending as checklist lines with recorded candidates (install.py SWAPS) | AU1 | `claude/relaxed-cerf-r4pvh7` | 281 | in progress |
+| 20 | **Audio: the bend's stress heard building, and main's synth sounds on the checklist:** `dt audio render --scenario bend`; a squeal that holds and a scream that climbs; the line's warnings, the gun's laying, the cannon's landings, the toys, the depot's blast and the stranded ending as checklist lines with recorded candidates (install.py SWAPS) | AU1 | `claude/relaxed-cerf-r4pvh7` | 284 | in progress |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **282**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **285**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 281 (AU1's bend stress and synth swaps). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 284 (AU1's bend stress and synth swaps; 281-283 are claimed on open PRs: C1's wrench repairs and B2's towns both 281, A1's 281-283 on #198). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
