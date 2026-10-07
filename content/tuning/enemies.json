@@ -533,7 +533,9 @@
     },
     // The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3 and §6.1; GDD App. F.3, the director, 7 Oct
     // 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").
-    // Not in the spec; first pass. A train that has run afterMetres at fromSpeed m/s or more (×hotShorter with the boiler
+    // Not in the spec; first pass. fromSpeed is the director's packs' own maxSpeed: under it they can board, and outrunning
+    // them is their counter (App. F.1, Decided; note 286); the run is what answers a train run faster than that (App. F.1:
+    // "a fast ... class may come later to answer the top-speed strategy"). A train that has run afterMetres at fromSpeed m/s or more (×hotShorter with the boiler
     // over its working band: the heat draws them, App. B.3) since it last slowed under stopSpeed, since the last run, or
     // since the grace, draws a run: round(base + perActive × the crew alive) Cinder Hounds, to between size[0] and size[1],
     // in pairs spacing s apart, alternating flanks, put down spawnBehind m behind the rear car and lateral m off the line.
@@ -545,7 +547,7 @@
     // train's, as the left-behind's hunts are theirs); never in the grace, a fort, the final approach or at a stop, and
     // one run at a time. Its own dice, so the night's other draws are as they were.
     "run": {
-      "on": true, "fromSpeed": 15, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
+      "on": true, "fromSpeed": 19, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
       "base": 1.4, "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8],
       "closing": 5, "scatter": 5
     },

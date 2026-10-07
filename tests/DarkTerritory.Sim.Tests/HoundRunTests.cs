@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
@@ -108,12 +109,35 @@ public class HoundRunTests
     }
 
     [Theory]
-    [InlineData(12)] // under fromSpeed: hauling, not running
+    [InlineData(18)] // under fromSpeed, the pack's own 19: the director's packs can still board it, and outrunning them is the counter
+    [InlineData(12)] // hauling
     [InlineData(1)] // at a stand
     public void ASlowTrainDrawsNoRun(double speed)
     {
         var n = FirstRun(4, speed, seconds: E.Director.GraceMaxSeconds + R.AfterMetres / 12 + 60);
         Assert.Empty(n.World.Director!.HoundRuns);
+    }
+
+    [Fact]
+    public void TheGunnerAtTheGuardGunAnswersTheRun()
+    {
+        // The gunners' wave (App. F.3): the gunner bot at the guard van's gun, a run of two coming up behind a 21 m/s train.
+        var e = E with { Director = E.Director with { Run = R with { AfterMetres = 200 } } };
+        var n = new Night(4, 21, enemies: e);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var mount = Guns.Mount(n.Train, rear)!.Value;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, rear, mount.Position.Z + 0.7, P) with { Yaw = Math.PI };
+        var gunner = new GunnerBot(Tuning.Combat.Guns);
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var run = Assert.Single(d.HoundRuns);
+        n.Run((R.SpawnBehind + 10) / R.Closing + E.CinderHounds.HowlSeconds + 2, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var (scattered, killed, boarded) = d.RunOutcome(run.Pack);
+        Assert.True(n.Shots.Count > 0);
+        // One gunner, a run of two: 7 rounds, both killed on the line, neither aboard (first pass).
+        Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
+        n.AssertFair();
     }
 
     [Fact]

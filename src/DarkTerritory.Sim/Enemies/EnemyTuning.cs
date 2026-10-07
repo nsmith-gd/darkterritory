@@ -710,7 +710,7 @@ public sealed record AbandonedTuning
 public sealed record HoundRunTuning
 {
     public bool On { get; init; } = true;
-    public double FromSpeed { get; init; } = 15;
+    public double FromSpeed { get; init; } = 19;
     public double StopSpeed { get; init; } = 2;
     public double AfterMetres { get; init; } = 2400;
     public double HotShorter { get; init; } = 0.75;
