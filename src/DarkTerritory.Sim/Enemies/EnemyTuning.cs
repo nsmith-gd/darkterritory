@@ -68,6 +68,18 @@ public sealed record TrackDollTuning
     public bool CannonShatters { get; init; } = true;
     public double RailHitRadius { get; init; } = 0.55;
     public double RailHitHeight { get; init; } = 0.7;
+    /// <summary>Her escalation when ignored (the director, 6 Oct 2026; note 268): stage 2's neglect, stage 3's, the warning before each.</summary>
+    public double ControlsAfter { get; init; } = 120;
+    public double ReleaseAfter { get; init; } = 300;
+    public double WarnSeconds { get; init; } = 30;
+    /// <summary>A crewmate this close (or in her car) is attending her: the neglect clock winds back at <see cref="AttendedEase"/>.</summary>
+    public double AttendRadius { get; init; } = 8;
+    public double AttendedEase { get; init; } = 0.5;
+    /// <summary>Stage 2 at the controls: the regulator nudged up to this, never the brake.</summary>
+    public double NudgeThrottle { get; init; } = 0.25;
+    /// <summary>Stage 3: this long at the controls at that stage, on a visit, before a standing train's held brake goes too.</summary>
+    public double ReleaseAfterAtControls { get; init; } = 12;
+    public bool FinalStageReleasesBrake { get; init; } = true;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -134,6 +146,10 @@ public sealed record FireFliesTuning
     public double PullAwaySpeed { get; init; } = 15;
     public double PullAwaySeconds { get; init; } = 8;
     public double DepthWeight { get; init; } = 2;
+    /// <summary>GDD App. F, 6 Oct 2026 (note 269): the director sends them only while the train is under this (m/s).</summary>
+    public double StoppedBelow { get; init; } = 0.3;
+    /// <summary>Note 269: "their pull … is rare": their weight at a stop, against the rest of the table.</summary>
+    public double StoppedWeight { get; init; } = 0.5;
 }
 
 /// <summary>Ribbits (v1.1 App. A.6, B.6). Field docs live in enemies.json.</summary>
@@ -449,6 +465,15 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
 {
     /// <summary>A crewmate pinned in the pack fight has this long for a friend to club it off (v1.1 App. A.1 GRAB).</summary>
     public double MaulSeconds { get; init; } = 8;
+    /// <summary>
+    /// GDD App. F, 6 Oct 2026 (note 269): "Cinder Hounds that board stay aboard." Off restores the v1.1 drop-off after
+    /// <see cref="BoredSeconds"/> with nobody near.
+    /// </summary>
+    public bool StayAboard { get; init; } = true;
+    /// <summary>Note 269: aboard with nobody near, each eats this share of its car's cargo a second.</summary>
+    public double CargoPerSecond { get; init; } = 0.002;
+    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
+    public double IgniteEverySeconds { get; init; } = 20;
 }
 
 public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);

@@ -189,9 +189,9 @@ public class CreatureSoundTests
         {
             var cab = scene.Train.Frames[0].Shape.Cab!.Value;
             var heard = new List<string>();
-            // Its beats (TrackDoll.Tamper): throttle open, then shut, then the brake on, every three seconds.
+            // Its beats at her last stage (TrackDoll.Tamper, note 268): throttle open, then shut, then the brake on, every 3 s.
             for (double t = 2.5; t < 9.5; t += SimConstants.TickSeconds)
-                heard.AddRange(scene.Tick(Record(new TrackDoll(26), SpinePhase.Punish, t, 2, 0, cab.Centre with { Y = cab.Min.Y }, extra2: 1)));
+                heard.AddRange(scene.Tick(Record(new TrackDoll(26), SpinePhase.Punish, t, 2, 0, cab.Centre with { Y = cab.Min.Y }, extra2: 3)));
             return heard;
         }
         using (var crews = new Scene(0, "crew-cab-controls.regulator-notch", "crew-cab-controls.brake-handle"))
@@ -199,6 +199,25 @@ public class CreatureSoundTests
                 Tamper(crews));
         using var own = new Scene(0, "cs-track-doll.tamper", "crew-cab-controls.regulator-notch", "crew-cab-controls.brake-handle");
         Assert.Equal(Enumerable.Repeat("cs-track-doll.tamper", 4), Tamper(own));
+    }
+
+    [Fact]
+    public void RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet()
+    {
+        // Note 268: at stage 2 she nudges the regulator up and lets it back; restless (extra2 2.5, her last stage coming)
+        // she rattles the brake handle on the beat she'll take it, without moving it: the telegraph before the brake goes.
+        using var scene = new Scene(0, "crew-cab-controls.regulator-notch", "crew-cab-controls.brake-handle");
+        var cab = scene.Train.Frames[0].Shape.Cab!.Value;
+        List<string> Heard(double escalation)
+        {
+            var heard = new List<string>();
+            for (double t = 2.5; t < 9.5; t += SimConstants.TickSeconds)
+                heard.AddRange(scene.Tick(Record(new TrackDoll(26), SpinePhase.Punish, t, 2, 0, cab.Centre with { Y = cab.Min.Y }, extra2: escalation)));
+            return heard;
+        }
+        Assert.DoesNotContain("crew-cab-controls.brake-handle", Heard(2));
+        // Let back at 3 s, the rattle at 6, nudged up again at 9.
+        Assert.Equal(["crew-cab-controls.regulator-notch", "crew-cab-controls.brake-handle", "crew-cab-controls.regulator-notch"], Heard(2.5));
     }
 
     [Fact]

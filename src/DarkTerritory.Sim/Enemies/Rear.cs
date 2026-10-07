@@ -9,11 +9,14 @@ namespace DarkTerritory.Sim.Enemies;
 /// grade. Rule: keep the rear cannon crewed. A cannon shot at the pack drives it off, and it's loud (it feeds the loudness
 /// meter, and the Choir). Any that board become a pack fight the crew bludgeons together: each takes several blows, and
 /// bites hard; a crewmate bitten down to their last is pinned and mauled, and a friend has the rescue window to club it off.
+/// Once aboard they stay (GDD App. F, 6 Oct 2026; note 269): left alone, they eat the car's supplies and keep setting it
+/// alight, until they're killed or their car is cut loose.
 /// </summary>
 public sealed class CinderHound(int id, int pack) : Enemy(id)
 {
     public override Want Want => Want.Kill;
     double _biteTimer, _boredTimer;
+    bool _stays;
 
     public override EnemyKind Kind => EnemyKind.CinderHound;
     public override PressureZone Zone => PressureZone.Rear;
@@ -22,10 +25,12 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// <summary>Aboard, it's in reach of a tool (App. A.3 PACK FIGHT).</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.8 : 0;
     public int Pack { get; } = pack;
+    public override bool StaysAboard => _stays && Attached >= 0;
 
     protected override void Tick(EnemyContext ctx)
     {
         var t = ctx.Tuning.CinderHounds;
+        _stays = t.StayAboard;
         Extra = Pack;
         var train = ctx.Train.Dynamics;
         // Sustained fire from a gun in range drives a running pack off, dead or not (App. A.3 break off).
@@ -107,7 +112,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         if (victim is not { } v)
         {
             _boredTimer += SimConstants.TickSeconds;
-            if (_boredTimer >= t.BoredSeconds)
+            if (t.StayAboard)
+                Feed(ctx, t);
+            else if (_boredTimer >= t.BoredSeconds)
             {
                 Enter(ctx, SpinePhase.BreakOff);
                 Enter(ctx, SpinePhase.Gone);
@@ -125,6 +132,27 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                 return;
             ctx.Bite(v.Id, t.BiteDamage, DeathCause.Mauled);
         }
+    }
+
+    /// <summary>
+    /// Nobody near: it eats the car's supplies, and keeps setting the car alight (GDD App. F, 6 Oct 2026: "they keep setting
+    /// the car alight while they eat the supplies, which forces the crew to confront them"; note 269). The fire is App. C.5's,
+    /// one to a car; put out, it starts another once it's been left alone that long again.
+    /// </summary>
+    void Feed(EnemyContext ctx, HoundTuning t)
+    {
+        var train = ctx.Train;
+        var car = train.Vehicles[Attached];
+        car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * SimConstants.TickSeconds);
+        if (_boredTimer < t.IgniteEverySeconds)
+            return;
+        _boredTimer = 0;
+        if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached))
+            return;
+        int into = Attached;
+        double along = Local.Z;
+        // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
+        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
     }
 
     /// <summary>Mauled: it takes its kill and leaves the fight.</summary>

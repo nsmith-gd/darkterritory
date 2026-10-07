@@ -984,6 +984,7 @@ IF train strikes it  → HAUNT
 HAUNT     aboard; giggles in random cars; seen admiring cargo
           └ vanishes when approached from one side
 TAMPER    cab unoccupied → plays with throttle and brake
+          └ only once she's been left alone a while, and worse the longer (F.1)
 CORNERED  approached from both doors at once → cannot vanish → can be bludgeoned
 APPEASED  given a toy loot item → steals it, leaves for the run
 ```
@@ -2098,7 +2099,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - There's a walkie-talkie aboard. *Noted.*
 
 **The fort**
-- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Fort buildings have no collision, and gun shots hit nothing. *Done (T124, note 274).*
 - Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
 
 **Bugs**
@@ -2140,7 +2141,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **Slowing opens the doors.** Stops, facilities and tight curves are where things board or the yards attack. These are the heightened scares; the train between them is a relative break. Loot and progress pull players into them.
 - **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
 - **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map.
-- **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them.
+- **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them. *Done (note 269).*
 - **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
 - **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
 - **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
@@ -2150,7 +2151,7 @@ Further decisions (the director, 6 Oct 2026):
 - **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
 - **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule.
 - **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off.
-- **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped.
+- **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
 - **Run length** is to be set by simulation sweeps (T125).
 - **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later.
 
@@ -2163,7 +2164,7 @@ Further decisions (the director, 6 Oct 2026):
 - *Much more in the towns is interactable.*
 
 **Decided** (the director, 6 Oct 2026, later the same day):
-- **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden.
+- **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
 - **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt. *Done (note 271): the boarding half in note 263, the firebox half in 271; the hose is an extinguisher for now.*
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*

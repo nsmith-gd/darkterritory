@@ -61,7 +61,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
-| 16 | **The HUD overhaul, Lethal Company / R.E.P.O. style:** only the crosshair and your hands always on screen; what you look at at the crosshair, what you hold in the corner; the rest when it matters (the director, 7 Oct: "too much UI on screen"). It takes #12's smaller prompts and lighter HUD further, and is built on #195 | B2 | `ccr-7c2927a4-nh28k9` (after #195) | 281 | claimed |
+| 16 | **The HUD overhaul, Lethal Company / R.E.P.O. style:** only the crosshair and your hands always on screen; what you look at at the crosshair, what you hold in the corner; the rest when it matters (the director, 7 Oct: "too much UI on screen"). It takes #12's smaller prompts and lighter HUD (#195) further | B2 | `ccr-7c2927a4-nh28k9` | 281 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
