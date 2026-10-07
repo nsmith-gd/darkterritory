@@ -113,7 +113,8 @@ public class FilmTests
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
         TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 600);
         var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, P);
-        host.World.WreckTuning = W;
+        // The crew's vote: wreck.json's old rule, kept behind skip.own (note 311).
+        host.World.WreckTuning = W with { Skip = new(Own: false) };
         host.World.EnableBodies(); // a real host simulates the bodies (and so knows its crew's states)
         var clients = Enumerable.Range(0, 3).Select(_ => new ClientSession(net.CreateClient(), Train(), Tuning.Train, P)).ToArray();
         var skip = new PlayerIntent { Actions = PlayerActions.Skip };
@@ -159,6 +160,7 @@ public class FilmTests
                 c.Step(default);
         }
         host.HostPlayer = clients[2].PlayerId!.Value;
+        host.World.WreckTuning = new WreckTuning { Skip = new(Own: false) };
         host.World.Derail("test");
         for (int t = 0; t < 15; t++)
         {
@@ -168,5 +170,40 @@ public class FilmTests
                 clients[i].Step(i == 2 ? new PlayerIntent { Actions = PlayerActions.Skip } : default);
         }
         Assert.True(host.World.FilmSkipped);
+    }
+
+    [Fact]
+    public void EachPlayersOwnSkipIsNeverTheCrewsVote()
+    {
+        // GDD v1.4 App. E.5 after E.12 question 2 (the director, 7 Oct 2026: "It's up to EACH player if they want to skip
+        // their film"; note 311): with skip.own, the host counts no votes, so the whole crew holding it, the host's own
+        // player too, skips nobody's film but their own (a client's, not the host's to do).
+        var net = new LoopbackNetwork();
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 600);
+        var host = new HostSession(net.CreateHost(), Train(), Tuning.Train, P);
+        Assert.True(W.Skip.Own);
+        host.World.WreckTuning = W;
+        host.World.EnableBodies();
+        var clients = Enumerable.Range(0, 3).Select(_ => new ClientSession(net.CreateClient(), Train(), Tuning.Train, P)).ToArray();
+        for (int t = 0; t < 30; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            foreach (var c in clients)
+                c.Step(default);
+        }
+        host.HostPlayer = clients[0].PlayerId!.Value;
+        host.World.Derail("test");
+        for (int t = 0; t < 30; t++)
+        {
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            foreach (var c in clients)
+                c.Step(new PlayerIntent { Actions = PlayerActions.Skip });
+        }
+        Assert.False(host.World.FilmSkipped);
+        Assert.Equal((0, 0), host.World.FilmVotes);
+        Assert.All(clients, c => Assert.False(c.World.FilmSkipped));
     }
 }

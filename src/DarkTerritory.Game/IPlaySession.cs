@@ -74,8 +74,13 @@ public interface IPlaySession
     /// <see cref="WreckFilm.FirstPersonOf"/>), so the replay, the cut and the opera follow on from it.
     /// </summary>
     WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
-    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    /// <summary>
+    /// The skip counts now. Each player's own (note 311): from the train coming off to the cause card; under the crew's vote,
+    /// after the first player's shot (E.5). E.9: three seconds into the outro.
+    /// </summary>
     bool Skippable => false;
+    /// <summary>How far through holding their own skip this player is, 0 to 1 (note 311).</summary>
+    double SkipHold => 0;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;

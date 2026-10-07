@@ -61,8 +61,14 @@
   // GDD v1.4 App. E.9, the Stranded outro (nobody died, so no opera): 1.5 s on the empty engineering-kit rack, then 6 s pulling
   // up and back over the stopped train to a high wide as its lamps go out one by one, the last car first and the engine last,
   // with the clerk on the radio. heightM and backM: where the wide ends, over and out from the middle of the train. From
-  // skipAfterSeconds in, a majority (or the host) can skip it (E.9, E.10).
+  // skipAfterSeconds in, it can be skipped (E.9, E.10).
   "stranded": { "rackSeconds": 1.5, "pullBackSeconds": 6, "heightM": 42, "backM": 55, "skipAfterSeconds": 3 },
+  // GDD v1.4 App. E.5 "Skipping", the director's answer to E.12 question 2 (7 Oct 2026: "players should be able to skip
+  // whenever they want. It's up to EACH player if they want to skip their film"; note 311): `own` skips are each player's,
+  // on their own screen, from the first frame to the cause card (never past it), and the Stranded outro's the same way
+  // from its skip delay. Holding the key holdSeconds skips, so a jump mashed as the train comes off doesn't. `own: false`
+  // is the old rule: a majority of the session, or the host, skips it for everyone, after the first player's shot.
+  "skip": { "own": true, "holdSeconds": 0.5 },
   // GDD v1.4 App. E.3-E.5 and E.10, the derailment film (note 177): after the first person and the replay, everyone's own
   // death. The host sends the wreck's start and the crew as they were; every client pre-simulates it (seconds, substeps)
   // with the crew ragdolled and flung (velocity × fling, an upward kick of kickMin-kickMax, a tumble up to spin rad/s,

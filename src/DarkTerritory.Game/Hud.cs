@@ -1107,14 +1107,20 @@ public static partial class Hud
         }
     }
 
-    /// <summary>The skip vote (E.5, E.9), once it counts: hold the key; the votes so far of the crew's.</summary>
+    /// <summary>
+    /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 311), the hold filling under it; under the
+    /// crew's vote, the votes so far of the crew's.
+    /// </summary>
     static void Skip(Overlay o, int width, int height, IPlaySession s)
     {
         if (!s.Skippable)
             return;
         var (votes, of) = s.World.FilmVotes;
-        string text = of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
-        UiStyle.Keyed(o, width - 12 - UiStyle.MeasureKeyed(o, text), height - 18, text, Dim);
+        string text = !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        float w = UiStyle.MeasureKeyed(o, text), x = width - 12 - w;
+        UiStyle.Keyed(o, x, height - 18, text, Dim);
+        if (s.SkipHold > 0)
+            o.Rect(x, height - 8, MathF.Round((float)(w * s.SkipHold)), 1, Ink);
     }
 
     static IEnumerable<string> Wrap(string text, int chars)

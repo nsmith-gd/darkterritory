@@ -144,8 +144,9 @@ public sealed class HostSession
         Votes();
         // E.5 "Skipping": a majority of the session, or the host, skips the film to the cause card, or the Stranded outro
         // (E.9). When a vote counts at all is the clients' to say: they only offer it after the first player's shot, or three
-        // seconds into the outro. Once skipped, it stays skipped.
-        if ((World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
+        // seconds into the outro. Once skipped, it stays skipped. With each player's own skip (wreck.json "skip", note 311)
+        // there's no vote: each client skips its own, and the host has nothing to count.
+        if (!World.WreckTuning.Skip.Own && (World.Film is not null || World.Run?.End == Run.RunEnd.Stranded) && _crew.Count > 0)
         {
             int votes = _crew.Count(c => c.ThisTick.Has(PlayerActions.Skip));
             World.FilmVotes = (votes, _crew.Count);

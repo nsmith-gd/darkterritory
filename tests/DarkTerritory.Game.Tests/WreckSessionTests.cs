@@ -53,44 +53,47 @@ public class WreckSessionTests
     }
 
     [Fact]
-    public void TheFilmIsTheCrewsAndTheHostCanSkipItToTheCauseCard()
+    public void TheFilmIsTheCrewsAndEachPlayerSkipsTheirOwnToTheCauseCard()
     {
-        // GDD v1.4 App. E.5 (note 177): the host's crew in it, a shot each, then the cause card; after the first player's shot
-        // the host's vote alone skips to the cause card, never past it.
+        // GDD v1.4 App. E.5 (note 177): the host's crew in it, a shot each, then the cause card. After E.12 question 2 (the
+        // director, 7 Oct 2026: "players should be able to skip whenever they want. It's up to EACH player"; note 311):
+        // each player skips their own, from the first frame, by holding the key; it lands on the cause card, never past it,
+        // and skips nobody else's.
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
         for (int i = 0; i < 20; i++)
             night.Step(default);
         night.Host!.World.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
+        night.Step(default);
+        // Skippable in the first person already, the film not yet shot.
+        Assert.True(night.Skippable);
+        Assert.Equal(DerailBeat.FirstPerson, DerailSequence.Beat(night.SequenceTuning, night.WreckSeconds, night.Film));
+        var skip = new Sim.Player.PlayerIntent { Actions = Sim.Player.PlayerActions.Skip };
+        // A tap (a jump mashed as the train comes off) skips nothing, and letting go empties the hold.
+        int hold = (int)Math.Ceiling(night.World.WreckTuning.Skip.HoldSeconds * SimConstants.TickRate);
+        for (int i = 0; i < hold - 3; i++)
+            night.Step(skip);
+        Assert.True(night.SkipHold is > 0 and < 1);
+        night.Step(default);
+        Assert.Equal(0, night.SkipHold);
+        Assert.True(night.Skippable);
+        // Held: taken, and the jump waits for the film.
+        for (int i = 0; i < hold + 1 && night.Skippable; i++)
+            night.Step(skip);
+        Assert.False(night.Skippable);
         var film = WaitForFilm(night);
-        // The sequence's timing is this player's: their own first person runs to their own death in the film (App. E.2 step 1).
+        night.Step(default);
         var t = night.SequenceTuning;
         Assert.Equal(film.FirstPersonOf(night.PlayerId), t.FirstPersonSeconds);
         Assert.Single(film.Start.Players);
         Assert.Equal(night.PlayerId, film.Start.Players[0].Id);
         Assert.Equal([ShotKind.Player, ShotKind.Settle, ShotKind.Cause], film.Cut.Select(s => s.Kind));
-        // Not skippable in the first person, the replay, or the first player's own shot.
-        Assert.False(night.Skippable);
-        // (The app sends the vote only once it counts: Skippable.)
-        while (DerailSequence.FilmSeconds(t, night.WreckSeconds) < film.SkippableFrom - 0.1)
-        {
-            Assert.False(night.Skippable);
-            night.Step(default);
-        }
-        while (DerailSequence.FilmSeconds(t, night.WreckSeconds) < film.SkippableFrom + 0.1)
-            night.Step(default);
-        Assert.True(night.Skippable);
-        // The vote goes to the host and the skip comes back on a snapshot: over real sockets, so by the clock, not a step count
-        // (a slow runner took more than 10 steps for the round trip).
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (!night.World.FilmSkipped && clock.Elapsed.TotalSeconds < 10)
-        {
-            night.Step(new Sim.Player.PlayerIntent { Actions = night.Skippable ? Sim.Player.PlayerActions.Skip : 0 });
-            Thread.Sleep(5);
-        }
-        Assert.True(night.World.FilmSkipped);
-        night.Step(default);
+        Assert.Equal(DerailBeat.Film, DerailSequence.Beat(t, night.WreckSeconds, film));
         Assert.Equal(ShotKind.Cause, film.CutAt(DerailSequence.FilmSeconds(t, night.WreckSeconds))!.Value.Shot.Kind);
-        Assert.False(night.Skippable);
+        // The cause card plays out, and the skip went nowhere: the crew's film isn't voted off, and the host saw no vote.
+        Assert.True(night.WreckCinematic);
+        Assert.False(night.World.FilmSkipped);
+        Assert.False(night.Host.World.FilmSkipped);
+        Assert.Equal((0, 0), night.Host.World.FilmVotes);
     }
 
     [Fact]
