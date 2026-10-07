@@ -1,0 +1,21 @@
+# AU1 — the director's audio chat
+
+Agent id **AU1**: Claude Code on the director's account, owning the audio (the Dark Territory Audio Checklist,
+claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN, and its build scripts in tools/audio), except the derailment opera. Agents it
+launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct were written afterwards from commit times.
+
+| Id | What | Branch |
+|---|---|---|
+| AU1.1 | Candidates: the line's warnings, the gun's laying, the cannon's landings, the depot's blast (recipes/warnings.py) | `claude/relaxed-cerf-r4pvh7` (no commits of its own) |
+| AU1.2 | Candidates: the noisy toys, the stranded ending's boiler and lamps (recipes/toys_outro.py) | `claude/relaxed-cerf-r4pvh7` (no commits of its own) |
+
+## Log
+
+- 2026-10-07 00:35 UTC · AU1 · Merged main into `claude/relaxed-cerf-r4pvh7` (994ade9), taking main's side throughout: this branch's audio was already on main (#169, #174, #175); the helper sim work main built its own way (Wreck.cs, the grain spout, fouls, report replication) dropped.
+- 2026-10-07 00:40 UTC · AU1 · Checklist audit: 8 lines play synth sounds with no candidates (the three line warnings from notes 260/265, gun lay, cannon impact, noisy toys, depot blast, stranded outro). Added them to tools/audio/cues.py; launched AU1.1 and AU1.2 to make candidates.
+- 2026-10-07 12:52 UTC · AU1 · `dt audio render --scenario bend` (note 265's stress telegraph, a second at a time): in the cab the flange squeal was 23 dB under the mix and mostly silent, the scream one held chord. New candidates `bed-wheel-rail.flange.sing` and `state-derail.flange-scream.shriek` (recipes/stress.py), played first; the scream climbs two semitones with the stress; the squeal 8 dB up. install.py SWAPS for main's synth sounds; a pick-order bug fixed (a library candidate jumped the built one where a cue had no first choice). Commit 4616f77.
+- 2026-10-07 12:52 UTC · AU1 · Merged main (cab forward #190, art L1s #195, boarding rules, Track Doll, fortresses) in, clean (31b5104). Registered as AU1 here; claimed queue #16, note 281 (renumbered below).
+- 2026-10-07 13:20 UTC · AU1 · The director: always work from this file. Read every open PR's COORDINATION.md: queue #16-#19 and notes 281-283 are already claimed there (A1's #198; C1's #203 and B2's #194 both take 281). Moved to queue #20 and note 284. No open PR touches audio files bar WP19's one line in GameAudio.Creatures.cs (#201, not a file this branch changes); the damage model's healing finds (#202) and C1's wrench repairs (#203) will want sounds once merged.
+- 2026-10-07 13:25 UTC · AU1 · Opened [#205](https://github.com/nsmith-gd/darkterritory/pull/205) as a draft, so the claim (queue #20, note 284) shows while the swapped sounds' candidates are made; watching it.
+- 2026-10-07 15:05 UTC · AU1 · AU1.1 and AU1.2 finished: 26 candidates for the 13 swapped sounds (recipes/warnings.py, toys_outro.py; the warnings in band, inBand 0.97-1.00), committed 2939787 on #205; uploaded to the Audio Checklist and its 8 lines filled in. `AudioTests.ABendTakenTooFastIsHeardBuildingInOrderFromTheCab` passes; Game suite 515/515 (1 skipped) before it.
+- 2026-10-07 15:39 UTC · AU1 · The director: declare on main and coordinate through this file. Read main's COORDINATION.md, every open PR's (#194, #198, #201-#207, #210, #214, #217) and the logs: queue #20 and note 284 still mine; rows 16, 21-41 and notes 285-303 held by others. Opened this docs-only claim PR: the Audio row (AU1), #20 (bend stress and synth swaps, note 284, on #205) and #42 (the voice booth, note 304). No open PR changes an audio file but WP19's one line in GameAudio.Creatures.cs (#201). Audio wanted from others' items once they land: the damage model's healing finds (#202), C1's wrench repairs (#203), B2's townspeople (#194), F1's emotes (#217).
