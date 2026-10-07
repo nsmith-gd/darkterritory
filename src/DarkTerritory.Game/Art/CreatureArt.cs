@@ -2089,10 +2089,11 @@ public sealed class CreatureArt
                     if (e.Attached < 0)
                     {
                         m = Matrix4x4.CreateRotationY(MathF.PI) * model;
-                        // There with its victim (the run to it done: enemies.json whistler nestDistance at runSpeed), its
+                        // There with its victim (the run to it done: Extra2's seconds, T128's nest where the land allows;
+                        // without one, enemies.json whistler nestDistance at runSpeed), its
                         // nest under it on the land (GreyboxScene puts the carry on the ground, and its trail behind it) (tools/models whistler_nest: the hollow, the sleepers, the bones, the strands).
                         _whistler ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Whistler;
-                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= _whistler.NestDistance / _whistler.RunSpeed)
+                        if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.PhaseSeconds >= (e.Extra2 > 0 ? e.Extra2 : _whistler.NestDistance / _whistler.RunSpeed))
                         {
                             if (PropArt.Of(Look).Get("whistler_nest") is { } nest)
                                 mesh.Instances.Add(new MeshInstance(nest, model));
