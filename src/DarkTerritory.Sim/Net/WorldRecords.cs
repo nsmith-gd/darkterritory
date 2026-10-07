@@ -93,7 +93,10 @@ public static class WorldRecords
                 world.WhistleBy,
                 // The dark's answer to a draw (note 287): how long it shows, what it answered, who, and where it's heard from.
                 Q(world.Answer.Seconds, Fine), (long)world.Answer.Cause, world.Answer.Actor,
-                Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos)]));
+                Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos),
+                // A sign shown a crewmate afoot (note 327): how long it shows, whose, to whom, and where.
+                Q(world.Watcher.Seconds, Fine), (long)world.Watcher.Kind, world.Watcher.Player,
+                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -347,6 +350,9 @@ public static class WorldRecords
                     world.WhistleBy = f.Length > 15 ? (int)f[15] : -1;
                     world.Answer = f.Length > 21
                         ? new DrawAnswer(D(f[16], Fine), (DrawCause)f[17], new Double3(D(f[19], Pos), D(f[20], Pos), D(f[21], Pos)), (int)f[18])
+                        : default;
+                    world.Watcher = f.Length > 27
+                        ? new Watcher(D(f[22], Fine), (EnemyKind)f[23], new Double3(D(f[25], Pos), D(f[26], Pos), D(f[27], Pos)), (int)f[24])
                         : default;
                     world.SetDerailed(f[3] != 0);
                     world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;

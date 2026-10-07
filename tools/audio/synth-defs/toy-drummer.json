@@ -1,0 +1,19 @@
+// Player action (tier 4), a wind-up drummer in someone's hands (GDD v1.4 §19, App. C item 4): a tin drum rattled in fours
+// with a cymbal's tink on the one, and the clockwork whirring under it. The loudest of the noisy toys; it feeds the Choir's
+// meter in the carrier's name (note 175).
+{
+  "tier": 4, "loop": true, "cycleSeconds": 1.0, "maxInstances": 4, "minDistance": 2, "maxDistance": 40, "gainDb": 10,
+  "layers": [
+    // The drum: four beats a second through the tin's ring.
+    { "source": "impulse", "frequency": 4, "gain": 1.0,
+      "filters": [{ "type": "bandPass", "frequency": 340, "q": 9 }, { "type": "bandPass", "frequency": 720, "q": 4 }] },
+    // The snare's buzz on each beat.
+    { "source": "noise", "gain": 0.25, "filters": [{ "type": "bandPass", "frequency": 2600, "q": 1.5 }],
+      "envelope": [[0, 1], [0.05, 0], [0.25, 1], [0.3, 0], [0.5, 1], [0.55, 0], [0.75, 1], [0.8, 0], [1.0, 0]] },
+    // The cymbal on the one.
+    { "source": "impulse", "frequency": 1, "gain": 0.5, "filters": [{ "type": "bandPass", "frequency": 5200, "q": 12 }] },
+    // The spring, whirring.
+    { "source": "saw", "frequency": 95, "gain": 0.06, "filters": [{ "type": "bandPass", "frequency": 1400, "q": 3 }],
+      "tremolo": { "rate": 31, "depth": 0.6 } }
+  ]
+}
