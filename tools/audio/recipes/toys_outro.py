@@ -730,3 +730,100 @@ def boiler_shell(rng, k):
         b.at(t, place_far(contraction_model(rng, kind), m, rng))
     y = dsp.room(b.x, "night", wet=0.15, rng=np.random.default_rng(9))
     return seamless(y, samples(L))
+
+
+# ---- A car's lamp going out -------------------------------------------------------------------------------------------------
+# An oil lamp out of oil: the flame gutters (flutters, the wick spits), lifts off the wick with a little puff and is gone,
+# and its hot glass chimney ticks as it starts to cool. Heard from outside the car as the camera pulls back, so each take
+# has a plain shape: flutter, puff, silence, tick.
+
+GLASS = ck.K("impactGlass_light") + ["sfx_100_v2:glass_04", "sfx_100_v2:glass_06"]
+PUFFS = ["kenney_rpg-audio:cloth3", "kenney_rpg-audio:dropLeather", "kenney_rpg-audio:cloth1"]
+
+
+def chimney(rng, vel=1.0):
+    """The hot glass chimney ticking: a real small glass knock cut to its tick and a little of its ring, pitched to a
+    thin lamp glass."""
+    x = unit(ck.align(ck.get(GLASS[int(rng.integers(len(GLASS)))])))
+    x = ck.choke(dsp.vari(x, rng.uniform(0, 4)), rng.uniform(0.02, 0.05), 0.03)
+    return unit(hp(x, 900, 2)) * vel
+
+
+def flutter(rng, length, rate=(14, 7)):
+    """A guttering flame: the soft roar of a small flame (low noise) pulsing as it starves, quick and shallow at first,
+    slower, deeper and more ragged as it goes, with a thin hiss of the drying wick on top."""
+    n = samples(length)
+    r = env([(0, rate[0]), (length, rate[1])], length) * (1 + 0.35 * lp(rng.standard_normal(n).astype(np.float32), 8) * 6)
+    ph = np.cumsum(np.clip(r, 2, 30)) / SR
+    depth = env([(0, 0.4), (length, 0.95)], length)
+    am = 1 - depth * (0.5 + 0.5 * np.cos(2 * np.pi * ph)) ** 2
+    roar = lp(hp(synth.noise(length, rng, "brown"), 90, 2), 650, 2)
+    hiss = bp(synth.noise(length, rng), 2500, 7000)
+    return (unit(roar) * am + unit(hiss) * am * 0.06).astype(np.float32)
+
+
+def puff(rng, length=0.09, f=600):
+    """The flame lifting off the wick: a small soft pulse of air, low and quick."""
+    p = lp(synth.noise(length, rng, "pink"), f, 2) * env([(0, 0), (0.005, 1), (length, 0)], length) ** 1.6
+    return unit(mix(unit(p), synth.thump(rng.uniform(70, 95), length, drop=0.3) * 0.35))
+
+
+@ck.recipe("ui-stranded-outro", "lamp-out", "gutter",
+        "An oil lamp guttering out: its flame fluttering and spitting, a soft puff as it dies, the hot glass ticking",
+        """The flame is modelled: the low soft roar of a small flame pulsing as it starves of oil, quick and shallow at first
+        and slower, deeper and raggeder as it goes, a thin hiss of the wick on top and a few spits (sharp little crackles)
+        as it dries. It lifts off the wick with a soft low puff, and after a moment's silence the hot glass chimney ticks
+        (a real small glass knock cut to its tick). In the car's wooden room, about 0.9 s. Three takes with different
+        flutters, spits and timing.""",
+        sources=GLASS, takes=3)
+def lamp_gutter(rng, k):
+    die = rng.uniform(0.42, 0.55)
+    fl = flutter(rng, die, (rng.uniform(11, 16), rng.uniform(5, 8)))
+    fl *= env([(0, 0.5), (0.06, 0.9), (die * 0.6, 0.7), (die, 0.15)], die)
+    spits = synth.crackle(die, rng.uniform(6, 12), rng, size=(0.0003, 0.002), hi=1800)
+    b = Bus(1.2)
+    b.at(0, fl)
+    b.at(0, unit(spits) * 0.35)
+    b.at(die - 0.01, puff(rng, rng.uniform(0.07, 0.11)), -3)
+    b.at(die + 0.02, bp(synth.noise(0.18, rng), 2000, 6000) * env([(0, 0.05), (0.18, 0)], 0.18))
+    tick = die + rng.uniform(0.2, 0.32)
+    b.at(tick, chimney(rng), -9)
+    if rng.random() < 0.4:
+        b.at(tick + rng.uniform(0.06, 0.12), chimney(rng), -16)
+    return dsp.room(b.x, "car", wet=0.15, rng=np.random.default_rng(11))
+
+
+def gulp(rng, length, f):
+    """One gulp of a dying flame (lifting off the wick and catching again): a real soft whoosh cut to its swell and
+    darkened to a flame's low fwup."""
+    x = ck.get(PUFFS[int(rng.integers(len(PUFFS)))])
+    h = ck.hits(x, floor_db=-14, gap=0.03)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    g = ck.cut(x, a - samples(0.01), a + samples(length), 0.01, length * 0.5)
+    return unit(lp(hp(g, 70, 2), f, 2))
+
+
+@ck.recipe("ui-stranded-outro", "lamp-out", "gulp",
+        "An oil lamp going out in gulps: the flame lifting off and catching, twice or three times, then gone; glass ticks",
+        """The flame's gulps are real: soft cloth and leather whooshes cut to their swell and darkened into a flame's low
+        fwup, each one the flame lifting off the dry wick and catching again, two or three of them at widening gaps and
+        each weaker, a thin sizzle of the wick between, then one last lift-off that doesn't catch. A beat of silence and
+        the hot glass chimney ticks once or twice (real small glass knocks). In the car's wooden room, about 0.9 s; three
+        takes with different gulps and timing.""",
+        sources=PUFFS + GLASS, takes=3)
+def lamp_gulp(rng, k):
+    b = Bus(1.2)
+    t, level = 0.0, 0.0
+    gaps = [rng.uniform(0.13, 0.17), rng.uniform(0.17, 0.23), rng.uniform(0.2, 0.27)][:2 + int(rng.random() < 0.5)]
+    for gap in gaps:
+        b.at(t, gulp(rng, rng.uniform(0.07, 0.1), rng.uniform(700, 950)), level)
+        sz = bp(synth.noise(gap, rng), 3000, 8000) * env([(0, 0.15), (gap, 0.02)], gap)
+        b.at(t + 0.03, mix(sz, synth.crackle(gap, 15, rng, hi=2500) * 0.6) * 0.5, level - 4)
+        t += gap
+        level -= rng.uniform(2, 4)
+    b.at(t, gulp(rng, rng.uniform(0.11, 0.15), 600), level + 3)
+    tick = t + rng.uniform(0.22, 0.3)
+    b.at(tick, chimney(rng), -8)
+    if rng.random() < 0.5:
+        b.at(tick + rng.uniform(0.07, 0.14), chimney(rng), -15)
+    return dsp.room(b.x, "car", wet=0.15, rng=np.random.default_rng(11))
