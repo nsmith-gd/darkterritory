@@ -99,7 +99,8 @@ public static partial class StopGenerator
         foreach (double along in R.Chance(0.5) ? new[] { 1.0, -1.0 } : [-1.0, 1.0])
         {
             var station = new StopBuilding(BuildingKind.Station, StopZone.Village, halt.S + along * (dt.Station.Size[0] / 2 + R.Range(dt.Station.FromLane)),
-                side * back, dt.Station.Size[0], dt.Station.Size[1], 0) { Variant = R.Int(0, 2) };
+                side * back, dt.Station.Size[0], dt.Station.Size[1], 0)
+            { Variant = R.Int(0, 2) };
             if (g.Fits(station, new Fit(Gap: 1.5, Rail: 2, Road: 1)))
             {
                 g.Add(station);
@@ -122,9 +123,11 @@ public static partial class StopGenerator
                 double s0 = R.Range(lo, hi), s1 = s0 + length;
                 // The derelicts from the siding's buffer stop (its far end, up the line), a gap between each.
                 var stock = Enumerable.Range(0, cars).Select(c => new StopBuilding(BuildingKind.Derelict, StopZone.Village,
-                    s1 - 1 - gd.Car[0] / 2 - c * (gd.Car[0] + gd.CarGap), d, gd.Car[0], gd.Car[1], 0) { Variant = R.Int(0, 3) }).ToList();
+                    s1 - 1 - gd.Car[0] / 2 - c * (gd.Car[0] + gd.CarGap), d, gd.Car[0], gd.Car[1], 0)
+                { Variant = R.Int(0, 3) }).ToList();
                 var shed = new StopBuilding(BuildingKind.GoodsShed, StopZone.Village, s0 + gd.Shed[0] / 2 + R.Range(4, Math.Max(4, length - gd.Shed[0] - cars * (gd.Car[0] + gd.CarGap))),
-                    d + gs * (gd.Car[1] / 2 + 3 + gd.Shed[1] / 2), gd.Shed[0], gd.Shed[1], 0) { Variant = R.Int(0, 2) };
+                    d + gs * (gd.Car[1] / 2 + 3 + gd.Shed[1] / 2), gd.Shed[0], gd.Shed[1], 0)
+                { Variant = R.Int(0, 2) };
                 var siding = new List<Pt> { new(s0, d), new(s1, d) };
                 if (!stock.All(c => g.Fits(c, new Fit(Gap: 0.5, Rail: 4, Road: 1))) || !g.Fits(shed, new Fit(Gap: 1, Rail: 4, Road: 1)) || !g.Clear(siding, 3))
                     continue;
