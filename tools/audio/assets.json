@@ -1034,10 +1034,20 @@
   "url": "/_blob/c198abeff1bee791fddc7af27b2ecd9e",
   "sha": "1242bcc7119716d8"
  },
+ "previews/crew-gun-lay--lay--deep.mp4": {
+  "id": "bac9e00db0cf9797db858d82d73c7874",
+  "url": "/_blob/bac9e00db0cf9797db858d82d73c7874",
+  "sha": "715c6c2a004d0cc2"
+ },
  "previews/crew-gun-lay--lay--engine.mp4": {
   "id": "560ad50b66dbb89b9a260c4b1c62a5ea",
   "url": "/_blob/560ad50b66dbb89b9a260c4b1c62a5ea",
   "sha": "d5d718f3a67e8802"
+ },
+ "previews/crew-gun-lay--lay--slow.mp4": {
+  "id": "e16995bd56d603ed1420aea8943f98a6",
+  "url": "/_blob/e16995bd56d603ed1420aea8943f98a6",
+  "sha": "572655d71adfdafb"
  },
  "previews/crew-gun-lay--lay--works.mp4": {
   "id": "d1f0d89a1194ce115e9c360c10e7f980",

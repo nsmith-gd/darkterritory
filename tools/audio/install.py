@@ -259,6 +259,8 @@ SWAPS = {
     "warn-overspeed.bell": ("warn-overspeed", {}),
     "warn-curve.chatter": ("warn-curve", {}),
     "warn-low-clearance.telltales": ("warn-low-clearance", {}),
+    # The gun's laying: the director heard "a weird high repeated sound" when the cannon turns (GDD App. F.3, note 329), and
+    # the first candidates were that too, so it's HELD (below) on main's low, slow synth until a candidate is kept.
     "crew-gun-lay.lay": ("gun-lay", {"rate": {"param": "speed", "points": [[0, 0.8], [1, 1.2]]},
                                      "gain": {"param": "speed", "points": [[0, 0.45], [1, 1]]}}),
     "crew-cannon-impact.ground": ("cannon-impact", {}),
@@ -276,7 +278,12 @@ SWAPS = {
 # it): the synth's loudness less the takes', both through `dt audio render sound:<name>`. The toys instead by note 174's
 # test (AudioTests' toys bench: carried on a roof, each 6 dB over the wind and the three within 4 dB): a squeaker that
 # squeaks now and then and a music box's decaying plucks measure quieter than their loudness says.
-SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "gun-lay": 1, "lamp-out": -14,
+# Cues held out of the game until the director keeps one of their candidates (no first-candidate install): the game's
+# sound stays what main has meanwhile. The gun's laying (note 333): its first candidates were the high repeated sound the
+# director heard (note 329), so the low, slow ones wait for a Keep, on main's low, slow synth.
+HELD = {"crew-gun-lay.lay"}
+
+SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "lamp-out": -14,
                 "powder-blast": -3, "toy-drummer": -10, "toy-musicbox": 11, "toy-squeaker": 5, "warn-curve": -6,
                 "warn-low-clearance": 2, "warn-overspeed": 5}
 
@@ -476,6 +483,8 @@ def main():
         stored = {c["id"]: c for c in item.get("cues") or []}
         for cue in cues:
             if cue["silent"] or cue["id"] not in stored:
+                continue
+            if f"{line}.{cue['id']}" in HELD and not any(k.get("verdict") == "keep" for k in stored[cue["id"]].get("cands") or []):
                 continue
             cands = candidates(line, cue, stored[cue["id"]])
             # Prisoner voice sets: every set not marked Redo goes in, each its own folder and sound (setN), since the game

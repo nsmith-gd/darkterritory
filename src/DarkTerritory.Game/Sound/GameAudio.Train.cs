@@ -461,7 +461,8 @@ public sealed partial class GameAudio
         }
         else if (_bendStress < t.LurchAt * 0.5)
             _lurched = false;
-        if (!Sim.LineGen.TrackRules.Assess(train, plan.Rules, t).Warning)
+        // A dead line's buffers too fast (note 286) ring the same bell.
+        if (!Sim.LineGen.TrackRules.Assess(train, plan.Rules, t).Warning && !Sim.Train.DeadEnds.Assess(train, t).Warning)
         {
             _bellAgain = 0;
             return;
