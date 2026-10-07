@@ -359,12 +359,21 @@ public sealed record StokerTuning
     public double FeedRate { get; init; } = 4;
     public double Swing { get; init; } = 3;
     public double SwingSeconds { get; init; } = 3;
-    public double EatPerSecond { get; init; } = 0.2;
+    public double EatPerSecond { get; init; } = 0;
     public double FireDoorShutSeconds { get; init; } = 6;
     public double SootSeconds { get; init; } = 4;
     public double RunawayRampSeconds { get; init; } = 20;
     public double Health { get; init; } = 4;
-    public int BurnPerBlow { get; init; } = 12;
+    /// <summary>Note 268 (Stoker v3): the door opened on it burns whoever's at it this much, and the second time this much.</summary>
+    public int DoorBurn { get; init; } = 60;
+    public int DoorKill { get; init; } = 1000;
+    /// <summary>Note 268: starved under this much fire (of the firebox's 6), it leaves.</summary>
+    public double StarveFirebox { get; init; } = 2;
+    /// <summary>Note 268: an extinguisher held into the firebox this long kills it, taking this share of the fire.</summary>
+    public double HoseSeconds { get; init; } = 2;
+    public double HoseFireCost { get; init; } = 0.6;
+    /// <summary>Note 268: how near the fire door (m, across the cab floor) counts as at it, to open it or hose it.</summary>
+    public double DoorReach { get; init; } = 1.8;
     /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
     public double BreakSeconds { get; init; } = 150;
 }

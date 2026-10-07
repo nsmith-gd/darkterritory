@@ -54,20 +54,21 @@ public class CarFireTests
     }
 
     [Fact]
-    public void TheDriverClubsAStokerOutOfTheFireboxBeforeTheBoilerGoes()
+    public void TheDriverVentsAndStarvesTheStokerOutBeforeTheBoilerGoes()
     {
-        // v1.1 App. A.5: "open the firebox and club it". The driver bot at the door, swinging, brake held.
+        // Stoker v3 (note 271): the driver bot never opens the door on it; it holds the vent and the brake and fires nothing
+        // until it's starved out, and nobody's hurt.
         var n = new Night(4, speed: 0, boiler: true);
         n.Train.Boiler.Pressure = 80;
+        n.Train.Boiler.Firebox = 5;
         var driver = new Bots.ConductorBot(null, 0);
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
         var stoker = n.World.AddEnemy(id => Stoker.InFirebox(id, n.Train, false, Tuning.Enemies.Stoker));
-        for (int s = 0; s < 40 && !stoker.Gone; s++)
+        for (int s = 0; s < 90 && !stoker.Gone; s++)
             n.Run(1, id => driver.Decide(n.Crew[id], n.World, n.World.Tick, out _), holdSpeed: false);
-        Assert.True(stoker.Gone, $"{stoker.Phase} hp {stoker.Health}");
+        Assert.True(stoker.Gone, $"{stoker.Phase}, the fire {n.Train.Boiler.Firebox:0.0}, the gauge {n.Train.Boiler.Pressure:0}");
         Assert.False(n.Train.Boiler.Ruptured);
-        Assert.True(n.Crew[1].Alive);
-        Assert.True(n.Crew[1].Health < P.Health); // it burns
+        Assert.Equal(P.Health, n.Crew[1].Health);
     }
 
     [Fact]

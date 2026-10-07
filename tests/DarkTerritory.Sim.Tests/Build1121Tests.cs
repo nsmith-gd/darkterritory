@@ -48,23 +48,80 @@ public class Build1121Tests
     }
 
     [Fact]
-    public void TheStokerIsClubbedOnlyThroughTheOpenFireboxDoor()
+    public void TheDoorOpenedOnItBurnsHeavilyAndTheSecondTimeKills()
     {
-        // Build 1121: "I just started swinging the crowbar at the firebox and it killed the creature, even though the firebox
-        // wasn't open." App. A.5 KILL: open the firebox and bludgeon it.
+        // Stoker v3 (the director's decision of 6 Oct 2026, note 271): "In the firebox it's territorial: opening the door
+        // while it's in gets you a heavy burn, and a second kills." And no chip damage: a crowbar at it does nothing.
         var n = Standing(60);
         var stoker = n.World.AddEnemy(id => Stoker.InFirebox(id, n.Train, false, E.Stoker));
+        n.Run(E.Stoker.SootSeconds + 0.1, holdSpeed: false);
+        Assert.True(stoker.Feeding);
         n.Crew[1] = AtTheFirebox(n.Train);
-        Assert.False(n.Train.Boiler.FireDoorOpen);
-        n.Run(6, _ => new PlayerIntent { Actions = PlayerActions.Swing }, holdSpeed: false);
+        n.Run(4, _ => new PlayerIntent { Actions = PlayerActions.Swing }, holdSpeed: false);
         Assert.Equal(E.Stoker.Health, stoker.Health, 6);
         Assert.Equal(P.Health, n.Crew[1].Health);
-        // A shovelful opens the door; then every blow lands, and burns.
-        n.Run(2, _ => new PlayerIntent { Buttons = PlayerButtons.Use }, holdSpeed: false);
+        // A shovelful opens the door on it: a heavy burn, once.
+        n.Run(1.5, _ => new PlayerIntent { Buttons = PlayerButtons.Use }, holdSpeed: false);
         Assert.True(n.Train.Boiler.FireDoorOpen);
-        n.Run(4, _ => new PlayerIntent { Actions = PlayerActions.Swing }, holdSpeed: false);
-        Assert.True(stoker.Health < E.Stoker.Health, $"hp {stoker.Health}");
-        Assert.True(n.Crew[1].Health < P.Health);
+        Assert.Equal(P.Health - E.Stoker.DoorBurn, n.Crew[1].Health);
+        // The door swings shut; opened on it again, it kills.
+        n.Run(E.Stoker.FireDoorShutSeconds + 1, holdSpeed: false);
+        Assert.False(n.Train.Boiler.FireDoorOpen, $"door open {n.Train.Boiler.SinceShovel:0.0} s after the shovelful");
+        n.Run(1.5, _ => new PlayerIntent { Buttons = PlayerButtons.Use }, holdSpeed: false);
+        Assert.False(n.Crew[1].Alive);
+        Assert.Equal(DeathCause.Stoker, n.Crew[1].Death);
+        Assert.False(stoker.Gone, $"{stoker.Phase}, the fire {n.Train.Boiler.Firebox:0.0}");
+    }
+
+    [Fact]
+    public void VentedAndStarvedItLeavesTheWayItCameAndNobodysHurt()
+    {
+        // Note 271: "The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of
+        // two to three minutes follows." The vent held, no coal: it goes before the boiler does, and nobody's touched.
+        var n = Standing(75);
+        n.Train.Boiler.Firebox = E.Stoker.HeatFirebox + 0.5;
+        var stoker = n.World.AddEnemy(id => Stoker.InFirebox(id, n.Train, false, E.Stoker));
+        n.Crew[1] = AtTheFirebox(n.Train);
+        bool leaving = false;
+        double gone = double.NaN;
+        for (int i = 0; i < 120 * SimConstants.TickRate && double.IsNaN(gone); i++)
+        {
+            n.Run(1.0 / SimConstants.TickRate, _ => new PlayerIntent { Actions = PlayerActions.Vent }, holdSpeed: false);
+            leaving |= stoker.Leaving && stoker.Extra2 > 0.5;
+            if (stoker.Gone)
+                gone = n.World.ElapsedSeconds;
+        }
+        Assert.True(leaving, "it went back over the footplate");
+        Assert.InRange(gone, 10, 90);
+        Assert.False(n.Train.Boiler.Ruptured);
+        Assert.True(n.Train.Boiler.Firebox < E.Stoker.StarveFirebox);
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        Assert.False(n.Train.Boiler.SafetyValveJammed);
+        Assert.Equal(0, n.Train.Boiler.ExternalHeat);
+        // And the break: a hot fire again straight after doesn't bring the next one.
+        RunHot(n, E.Stoker.HeatSeconds + 10, E.Stoker.HeatFirebox + 0.5);
+        Assert.Null(StokerOf(n));
+    }
+
+    [Fact]
+    public void AHoseThroughTheDoorKillsItAndTakesMostOfTheFire()
+    {
+        // Note 271: "A water hose through the open door kills it, at the cost of much of the fire." The extinguisher stands in
+        // for the hose: held into the firebox, it opens the door without a burn.
+        var n = Standing(70);
+        n.Train.Boiler.Firebox = 5;
+        var stoker = n.World.AddEnemy(id => Stoker.InFirebox(id, n.Train, false, E.Stoker));
+        n.Run(E.Stoker.SootSeconds + 0.1, holdSpeed: false);
+        n.Crew[1] = AtTheFirebox(n.Train);
+        var ext = n.World.Bodies.SpawnCrate(n.Train, 0, n.Crew[1].Position + Double3.Up, Physics.BodyKind.Extinguisher);
+        ext.Carrier = 1;
+        double fire = n.Train.Boiler.Firebox;
+        n.Run(E.Stoker.HoseSeconds + 0.5, _ => new PlayerIntent { Buttons = PlayerButtons.Fire }, holdSpeed: false);
+        Assert.True(stoker.Gone);
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        Assert.InRange(n.Train.Boiler.Firebox, 0, fire * (1 - E.Stoker.HoseFireCost) + 0.2);
+        Assert.False(n.Train.Boiler.SafetyValveJammed);
+        Assert.True(ext.Charge < 1);
     }
 
     /// <summary>A standing engine whose fire's kept where it's put (topped up each second), with someone or nobody in the cab.</summary>
