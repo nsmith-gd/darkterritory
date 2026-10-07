@@ -1,0 +1,17 @@
+# AU1 — the director's audio chat
+
+Agent id **AU1**: Claude Code on the director's account, owning the audio (the Dark Territory Audio Checklist,
+claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN, and its build scripts in tools/audio), except the derailment opera. Agents it
+launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct were written afterwards from commit times.
+
+| Id | What | Branch |
+|---|---|---|
+| AU1.1 | Candidates: the line's warnings, the gun's laying, the cannon's landings, the depot's blast (recipes/warnings.py) | `claude/relaxed-cerf-r4pvh7` (no commits of its own) |
+| AU1.2 | Candidates: the noisy toys, the stranded ending's boiler and lamps (recipes/toys_outro.py) | `claude/relaxed-cerf-r4pvh7` (no commits of its own) |
+
+## Log
+
+- 2026-10-07 00:35 UTC · AU1 · Merged main into `claude/relaxed-cerf-r4pvh7` (994ade9), taking main's side throughout: this branch's audio was already on main (#169, #174, #175); the helper sim work main built its own way (Wreck.cs, the grain spout, fouls, report replication) dropped.
+- 2026-10-07 00:40 UTC · AU1 · Checklist audit: 8 lines play synth sounds with no candidates (the three line warnings from notes 260/265, gun lay, cannon impact, noisy toys, depot blast, stranded outro). Added them to tools/audio/cues.py; launched AU1.1 and AU1.2 to make candidates.
+- 2026-10-07 12:52 UTC · AU1 · `dt audio render --scenario bend` (note 265's stress telegraph, a second at a time): in the cab the flange squeal was 23 dB under the mix and mostly silent, the scream one held chord. New candidates `bed-wheel-rail.flange.sing` and `state-derail.flange-scream.shriek` (recipes/stress.py), played first; the scream climbs two semitones with the stress; the squeal 8 dB up. install.py SWAPS for main's synth sounds; a pick-order bug fixed (a library candidate jumped the built one where a cue had no first choice). Commit 4616f77.
+- 2026-10-07 12:52 UTC · AU1 · Merged main (cab forward #190, art L1s #195, boarding rules, Track Doll, fortresses) in, clean (31b5104). Registered as AU1 here; claimed queue #16, note 281.
