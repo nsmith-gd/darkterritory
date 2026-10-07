@@ -90,7 +90,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 49 | **The crew pull a swallowed crewmate from the Car Hugger's mouth; harness nights started on the line keep their walkers:** found in #43 (note 305): on deadLines:2 at crew 4 the Car Hugger ate a clubber most nights, its friend on the roof above never coming down to haul (App. A.3: "swallowSeconds for friends to pull them free"). And `dt harness --start` past the gate left every walker in the respawn queue all night (App. D.1), so mid-line harness nights ran with the driver and gunner only | D1 | `claude/relaxed-franklin-xkfjgb` | 310 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
-16:30 UTC (D1, main at e81e38f, version 10); whoever lands a gdd.md change republishes it (A1 when it's about).
+17:33 UTC (D1, main at 8ebf15e, version 12); whoever lands a gdd.md change republishes it (A1 when it's about).
 
 ## ARCHITECTURE §8 note numbers
 
