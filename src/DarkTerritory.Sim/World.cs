@@ -715,8 +715,13 @@ public sealed class World
             if (!s.Alive)
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
+            // What they were at (App. F.2 take 4): the film starts their body in it.
+            var task = s.Has(PlayerFlags.Seated) ? FilmTask.Gunning
+                : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
+                : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
+                : FilmTask.None;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
         }
         return crew;
     }
@@ -1239,7 +1244,8 @@ public sealed class World
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
             // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
             // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
+            // Nor is what stays aboard until it's dealt with (Cinder Hounds, note 269): that's the point of it.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire || e.StaysAboard)
             {
                 _unmet.Remove(e.Id);
                 continue;

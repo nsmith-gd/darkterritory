@@ -88,6 +88,8 @@
   // A player's shot shows the throw into their death and a little after (baseSlow 0.4x easing to peakSlow 0.15x, inside
   // E.10's 0.1-0.5x and 0.05-0.25x; E.5 had 0.25x and 0.1x, too little of the throw in 2 s), framed at shotFill of the
   // frame's height (E.4 O6: 25-60%), its field of view fovMin-fovMax degrees.
+  // Take 4 (App. F.2: "people mid-task", not arms up): each goes in from what they were doing (on the throttle, at the
+  // shovel, in the gun's seat, carrying), the pose held taskHold s of the recording before the brace takes over.
   "film": {
     "seconds": 6, "substeps": 4, "fling": 1.6, "kickMin": 3, "kickMax": 5, "spin": 7, "spinMin": 3.5, "ejectCap": 30, "minKickSpeed": 6,
     "bystander": 25, "baseSlow": 0.4, "peakSlow": 0.15, "freezeSeconds": 0.4, "establishingSeconds": 3, "shotSeconds": 4,
@@ -96,6 +98,6 @@
     "seatKick": 6, "seatClear": 0.25, "surviveHits": 2, "mostHits": 3, "certainDeathSpeed": 16, "giveUpSeconds": 2.4, "muscle": 0.25, "reach": 0.03,
     "impactSpeed": 6, "thudSpeed": 2, "thudGap": 0.25,
     "firstPersonRate": 0.5, "firstPersonAfter": 3.8, "firstPersonMin": 4.5, "firstPersonMax": 9,
-    "shotFill": 0.45, "fovMin": 22, "fovMax": 60
+    "shotFill": 0.45, "fovMin": 22, "fovMax": 60, "taskHold": 0.4
   }
 }

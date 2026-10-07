@@ -7,6 +7,13 @@ where tools and fire extinguishers hang"; App. C.3-C.5), modelled and baked, one
       stitched shut and a split seam in its belly with the stuffing coming out;
     - toy_horse: a pull-along horse on a wheeled board, the paint flaked to the wood, an ear snapped off, its tow string;
     - toy_doll: a little porcelain-headed doll in a smock, the Track Doll's own kind (A.2), the face's paint rubbed thin.
+    The noisy toys (App. C.4, C.7: Body.Noise, each heard while it's carried) look like what they sound like:
+    - toy_squeaker: a squeeze toy, a papier-mache pig stood on a pleated cloth bellows on a turned base, the reed's hole
+      in the base's side; the pig's paint crazed, one ear chewed;
+    - toy_musicbox: a little walnut music box with its lid up, the brass comb and pinned cylinder under glass, a bone
+      dancer on her spindle in the lid's well and the winding key in the side;
+    - toy_drummer: a tin wind-up drummer boy, red tunic and a tall shako, the drum on his front and both sticks up mid
+      beat, the big winding key in his back.
   * extinguisher: a copper soda-acid extinguisher (App. C.5) 0.6 m tall, its brass cap and plunger, carrying handle and
     hose, the FIRE band, and a sight glass up its front: the game draws the charge as a column in the glass between the
     sockets glass_lo and glass_hi (Body.Charge, replicated to the percent). Centred.
@@ -65,6 +72,13 @@ def materials():
         "ink_white": make.flat("ink_white", (0.78, 0.76, 0.7), rough=0.8),
         "ink_black": make.flat("ink_black", (0.05, 0.045, 0.04), rough=0.8),
         "ink_red": make.flat("ink_red", (0.45, 0.06, 0.04), rough=0.8),
+        "pig": make.lib("plaster_ruin", 10.0, tint=(0.95, 0.66, 0.6), rough=0.6),
+        "walnut": make.lib("wood_sleeper", 16.0, tint=(0.8, 0.52, 0.34), rough=0.35),
+        "velvet": make.lib("wool", 18.0, tint=(0.45, 0.08, 0.1), rough=0.95),
+        "vellum": make.lib("plaster_ruin", 12.0, tint=(0.9, 0.85, 0.72), rough=0.6),
+        "tin_red": make.lib("paint_oxide", 8.0, tint=(1.2, 0.45, 0.35), rough=0.4, metal=0.4),
+        "tin_blue": make.lib("paint_black", 8.0, tint=(0.45, 0.55, 0.85), rough=0.4, metal=0.4),
+        "tin_green": make.lib("paint_black", 8.0, tint=(0.45, 0.7, 0.45), rough=0.45, metal=0.4),
     }
 
 
@@ -180,6 +194,112 @@ def toy_doll(m):
         p.append(blob((0.004 + sx * 0.014, -0.033, 0.094), (0.006, 0.003, 0.007), m["ink_black"], "eye", n=10, low=0))
         p.append(blob((0.004 + sx * 0.016, -0.03, 0.078), (0.007, 0.003, 0.005), m["ink_red"], "cheek", n=8, low=0))
     p.append(blob((0.004, -0.035, 0.07), (0.005, 0.002, 0.002), m["ink_red"], "mouth", n=8, low=0))
+    return p
+
+
+def toy_squeaker(m):
+    # The turned base and the pleated bellows on it: rings of cloth in and out, the reed's hole in the base.
+    p = [make.cyl((0, 0, -0.15), (0, 0, -0.12), 0.05, m["wood"], n=18, bevel=0.004, name="base", low=10)]
+    p.append(make.cyl((0.05, 0, -0.135), (0.054, 0, -0.135), 0.008, m["ink_black"], n=10, bevel=0, name="reed_hole", low=0))
+    z = -0.12
+    for k in range(5):
+        r = 0.046 if k % 2 == 0 else 0.038
+        p.append(make.cyl((0, 0, z), (0, 0, z + 0.012), r, m["serge"], n=18, bevel=0.002, name="pleat", r1=0.038 if k % 2 == 0 else 0.046, low=8))
+        z += 0.012
+    p.append(make.cyl((0, 0, z), (0, 0, z + 0.006), 0.046, m["wood"], n=18, bevel=0.002, name="top", low=10))
+    # The pig on it: a fat pink barrel, snout and ears, four stub legs on the board, a curl of tail.
+    pig = z + 0.006
+    p.append(blob((0, 0, pig + 0.035), (0.036, 0.05, 0.034), m["pig"], "body"))
+    p.append(blob((0, -0.048, pig + 0.045), (0.026, 0.024, 0.024), m["pig"], "head"))
+    p.append(make.cyl((0, -0.068, pig + 0.042), (0, -0.08, pig + 0.04), 0.012, m["pig"], n=12, bevel=0.002, name="snout", low=6))
+    for sx in (-1, 1):
+        p.append(blob((sx * 0.005, -0.081, pig + 0.041), (0.002, 0.001, 0.003), m["ink_black"], "nostril", n=6, low=0))
+        p.append(blob((sx * 0.011, -0.066, pig + 0.055), (0.003, 0.002, 0.003), m["ink_black"], "eye", n=8, low=0))
+        for y in (-0.03, 0.03):
+            p.append(make.cyl((sx * 0.02, y, pig + 0.012), (sx * 0.02, y, pig), 0.009, m["pig"], n=8, bevel=0, name="leg", low=6))
+    # One ear whole, flopped forward over the eye; the other chewed to a ragged stub.
+    p.append(blob((0.014, -0.052, pig + 0.066), (0.012, 0.004, 0.011), m["pig"], "ear", n=12, low=6,
+                  rot=Matrix.Rotation(-0.7, 4, "X") @ Matrix.Rotation(0.3, 4, "Y")))
+    p.append(blob((-0.014, -0.046, pig + 0.064), (0.006, 0.004, 0.005), m["pig"], "ear_stub", n=10, low=6))
+    p.append(make.torus((0, 0.052, pig + 0.045), (0, 1, 0), 0.008, 0.002, m["pig"], name="tail"))
+    return p
+
+
+def toy_musicbox(m):
+    # The box: walnut, a brass escutcheon; inside under its glass the comb and the pinned cylinder.
+    w, d, h = 0.07, 0.05, 0.05
+    base = -0.15
+    p = [make.box((0, 0, base + h / 2), (w, d, h / 2), m["walnut"], bevel=0.004, name="box")]
+    p.append(make.box((0, 0, base + h + 0.001), (w - 0.008, d - 0.008, 0.002), m["glass"], bevel=0, name="glass", low=False))
+    p.append(make.cyl((-0.035, 0.012, base + h - 0.004), (0.035, 0.012, base + h - 0.004), 0.009, m["brass"], n=12, bevel=0.001, name="cylinder", low=0))
+    for k in range(14):
+        x = -0.03 + k * 0.0046
+        p.append(make.box((x, -0.008, base + h - 0.006), (0.0018, 0.014, 0.0008), m["steel"], bevel=0, name="tooth", low=False))
+    p.append(make.box((0, -d - 0.001, base + h * 0.6), (0.008, 0.001, 0.006), m["brass"], bevel=0.001, name="escutcheon", low=False))
+    # Brass corners and a pale inlaid panel on its front, so it reads as a keepsake, not a crate.
+    p.append(make.box((0, -d - 0.0008, base + h * 0.45), (w * 0.7, 0.0008, h * 0.3), m["vellum"], bevel=0, name="inlay", low=False))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(make.box((sx * (w - 0.004), sy * (d - 0.004), base + h / 2), (0.0045, 0.0045, h / 2 + 0.001), m["brass"],
+                              bevel=0.001, name="corner", low=False))
+    # The winding key in the right side: a stem and its butterfly.
+    p.append(make.cyl((w, 0, base + 0.02), (w + 0.012, 0, base + 0.02), 0.003, m["brass"], n=8, bevel=0, name="key_stem", low=6))
+    p.append(make.box((w + 0.014, 0, base + 0.02), (0.002, 0.012, 0.007), m["brass"], bevel=0.002, name="key_wings"))
+    # The lid up on its hinge at the back, tipped past square; in its lid's well the bone dancer on her spindle.
+    hinge = Vector((0, d, base + h))
+    lid = Matrix.Translation(hinge) @ Matrix.Rotation(-1.75, 4, "X") @ Matrix.Translation(-hinge)
+    p.append(make.box(tuple(lid @ Vector((0, 0, base + h + 0.006))), (w, d, 0.006), m["walnut"], bevel=0.003, name="lid",
+                      rot=Matrix.Rotation(-1.75, 4, "X")))
+    p.append(make.box(tuple(lid @ Vector((0, 0, base + h - 0.0005))), (w - 0.01, d - 0.01, 0.001), m["velvet"], bevel=0, name="lining", low=False,
+                      rot=Matrix.Rotation(-1.75, 4, "X")))
+    # The dancer on top of the box, by the glass: a spindle, a skirt, arms up in an arc, her head.
+    at = Vector((0.0, -0.025, base + h + 0.004))
+    k = 1.7
+    p.append(make.cyl(tuple(at - Vector((0, 0, 0.004))), tuple(at + Vector((0, 0, 0.002))), 0.012, m["brass"], n=12, bevel=0.001, name="pedestal", low=8))
+    p.append(make.cyl(tuple(at), tuple(at + Vector((0, 0, 0.012 * k))), 0.0025, m["brass"], n=8, bevel=0, name="spindle", low=4))
+    p.append(make.cyl(tuple(at + Vector((0, 0, 0.012 * k))), tuple(at + Vector((0, 0, 0.022 * k))), 0.012 * k, m["porcelain"], n=12, bevel=0.001, name="skirt", r1=0.003 * k, low=8))
+    p.append(make.cyl(tuple(at + Vector((0, 0, 0.02 * k))), tuple(at + Vector((0, 0, 0.034 * k))), 0.004 * k, m["porcelain"], n=8, bevel=0, name="bodice", low=4))
+    p.append(blob(tuple(at + Vector((0, 0, 0.039 * k))), (0.005 * k, 0.005 * k, 0.006 * k), m["porcelain"], "head", n=10, low=6))
+    for sx in (-1, 1):
+        p.append(make.cyl(tuple(at + Vector((sx * 0.003 * k, 0, 0.032 * k))), tuple(at + Vector((sx * 0.006 * k, 0, 0.046 * k))), 0.0015 * k, m["porcelain"], n=6, bevel=0, name="arm", low=4))
+    return p
+
+
+def toy_drummer(m):
+    # A tin drummer boy: his legs on a stand, the tunic, the shako; the drum on his front, the sticks up mid beat.
+    p = [make.cyl((0, 0, -0.15), (0, 0, -0.14), 0.035, m["tin_green"], n=16, bevel=0.002, name="stand", low=8)]
+    for sx in (-1, 1):
+        p.append(make.cyl((sx * 0.01, 0, -0.14), (sx * 0.01, 0, -0.08), 0.008, m["tin_blue"], n=10, bevel=0, name="leg", low=6))
+        p.append(make.box((sx * 0.01, -0.006, -0.137), (0.007, 0.012, 0.004), m["paint_dark"], bevel=0.001, name="boot"))
+    p.append(make.cyl((0, 0, -0.085), (0, 0, -0.025), 0.02, m["tin_red"], n=14, bevel=0.002, name="tunic", r1=0.017, low=8))
+    p.append(make.box((0, 0, -0.055), (0.021, 0.021, 0.003), m["ink_white"], bevel=0, name="belt", low=False))
+    p.append(blob((0, 0, -0.012), (0.012, 0.012, 0.013), m["porcelain"], "head", n=12, low=6))
+    for sx in (-1, 1):
+        p.append(blob((sx * 0.005, -0.011, -0.01), (0.002, 0.001, 0.002), m["ink_black"], "eye", n=6, low=0))
+    p.append(make.cyl((0, 0, -0.003), (0, 0, 0.03), 0.013, m["paint_dark"], n=12, bevel=0.001, name="shako", r1=0.015, low=6))
+    p.append(make.box((0, -0.014, -0.002), (0.012, 0.004, 0.002), m["paint_dark"], bevel=0, name="peak", low=False))
+    p.append(blob((0, -0.01, 0.033), (0.004, 0.004, 0.007), m["ink_red"], "plume", n=8, low=6))
+    # The drum: tin shell, brass hoops, cord zigzag up its side.
+    drum = Vector((0, -0.035, -0.07))
+    p.append(make.cyl(tuple(drum + Vector((0, 0, -0.015))), tuple(drum + Vector((0, 0, 0.015))), 0.026, m["tin_blue"], n=18, bevel=0.002, name="drum", low=10))
+    for dz in (-0.015, 0.015):
+        p.append(make.torus(tuple(drum + Vector((0, 0, dz))), (0, 0, 1), 0.026, 0.0025, m["brass"], name="hoop", low=False))
+    p.append(make.cyl(tuple(drum + Vector((0, 0, 0.015))), tuple(drum + Vector((0, 0, 0.016))), 0.024, m["vellum"], n=18, bevel=0, name="head", low=0))
+    for k in range(8):
+        a = k * math.tau / 8
+        lo = drum + Vector((math.cos(a) * 0.027, math.sin(a) * 0.027, -0.014))
+        hi = drum + Vector((math.cos(a + 0.4) * 0.027, math.sin(a + 0.4) * 0.027, 0.014))
+        p.append(make.cyl(tuple(lo), tuple(hi), 0.0012, m["ink_white"], n=6, bevel=0, name="cord", low=0))
+    # The arms out to the sticks, the sticks raised over the drum head.
+    for sx in (-1, 1):
+        sh = Vector((sx * 0.021, 0, -0.035))
+        hand = Vector((sx * 0.02, -0.03, -0.04))
+        p.append(make.cyl(tuple(sh), tuple(hand), 0.006, m["tin_red"], n=8, bevel=0, name="arm", low=6))
+        p.append(make.cyl(tuple(hand), tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), 0.0018, m["wood"], n=6, bevel=0, name="stick", low=4))
+        p.append(blob(tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), (0.003, 0.003, 0.003), m["wood"], "stick_end", n=8, low=4))
+    # The big key in his back.
+    p.append(make.cyl((0, 0.018, -0.05), (0, 0.035, -0.05), 0.003, m["brass"], n=8, bevel=0, name="key_stem", low=6))
+    p.append(make.box((0, 0.037, -0.05), (0.02, 0.002, 0.01), m["brass"], bevel=0.003, name="key_wings"))
     return p
 
 
@@ -370,6 +490,9 @@ PIECES = {
     "toy_bear": lambda: build("toy_bear", toy_bear, "a toy: the rag bear", 900, floor=-0.15),
     "toy_horse": lambda: build("toy_horse", toy_horse, "a toy: the pull-along horse", 900, floor=-0.15),
     "toy_doll": lambda: build("toy_doll", toy_doll, "a toy: the porcelain doll", 900, floor=-0.15),
+    "toy_squeaker": lambda: build("toy_squeaker", toy_squeaker, "a noisy toy: the squeeze pig", 900, floor=-0.15),
+    "toy_musicbox": lambda: build("toy_musicbox", toy_musicbox, "a noisy toy: the music box", 900, floor=-0.15),
+    "toy_drummer": lambda: build("toy_drummer", toy_drummer, "a noisy toy: the wind-up drummer", 900, floor=-0.15),
     # Centred by hand: its middle, so the glass's sockets are where the game draws the charge.
     "extinguisher": lambda: build("extinguisher", extinguisher, "a car's soda-acid extinguisher", 1400, centre=False,
                                   sockets={"glass_lo": tuple(GLASS_LO), "glass_hi": tuple(GLASS_HI)}),
