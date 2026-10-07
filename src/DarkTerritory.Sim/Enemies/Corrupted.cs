@@ -11,6 +11,13 @@ namespace DarkTerritory.Sim.Enemies;
 /// the rear. The only tell is silence: it never speaks on proximity voice. It waits for a player alone, then drags them
 /// toward the caboose at walking pace; the victim can't break free alone, and only the crew can stop it (kill it). At the
 /// caboose it uncouples it and rolls away into the dark to eat: victim and caboose lost. Rule: make everyone speak.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>passenger.drivenOff</c>; the director's clarification of 7 Oct 2026):
+/// found out, it's done. A crewmate's blow (anyone but its victim, who can't break free alone) unmasks it: it lets go, stands
+/// <c>unmaskedSeconds</c>, then bolts for the back of the train at <c>fleeSpeed</c> and off it into the dark. Driven off isn't the end of it: it can
+/// board again at a later stop (<see cref="World.DrivenOff"/>). Killed only by the crew together: blows from two or more
+/// crewmates inside <c>coordinatedKill</c>'s window, run down before it's off the back; killed, it's gone for the night.
+/// </para>
 /// </summary>
 /// <remarks>
 /// In a car (<see cref="Enemy.Attached"/>, <see cref="Enemy.Local"/> its feet). <see cref="Enemy.Extra"/> is whose face it
@@ -116,6 +123,30 @@ public sealed class Passenger(int id) : Enemy(id)
                     ctx.Carry(Holding, WorldPosition(train));
                     return;
                 }
+            case SpinePhase.BreakOff when t.DrivenOff:
+                {
+                    // Found out, it lets go and stands there a moment, face to face with the crew (their one chance to kill it
+                    // together), then it's off the back of the train at a run (out of the car's end into the dark), or, with no way
+                    // through, gone anyway once it's had the time.
+                    if (PhaseSeconds < t.UnmaskedSeconds)
+                        return;
+                    int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+                    if (Attached != rear && PhaseSeconds < FleeGiveUpSeconds)
+                    {
+                        Walk(ctx, train, rear, t.FleeSpeed);
+                        return;
+                    }
+                    var end = new Double3(0, Local.Y, train.Frames[Attached].Shape.HalfLength - 0.3);
+                    var off = end - Local;
+                    if (off.Length > 0.3 && PhaseSeconds < FleeGiveUpSeconds)
+                    {
+                        Local += off.Normalized * Math.Min(t.FleeSpeed * SimConstants.TickSeconds, off.Length);
+                        Extra2 = Math.PI;
+                        return;
+                    }
+                    Enter(ctx, SpinePhase.Gone);
+                    return;
+                }
             default:
                 Enter(ctx, SpinePhase.Gone);
                 return;
@@ -152,10 +183,39 @@ public sealed class Passenger(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Gone);
     }
 
-    /// <summary>Only killing it frees its victim (App. A.8 "the victim can't break free alone").</summary>
+    /// <summary>Found out and running, it's off the train by this long (s) whatever's in its way. Not a design number: a stop.</summary>
+    const double FleeGiveUpSeconds = 30;
+
+    /// <summary>
+    /// Old rule (<c>drivenOff</c> false): only killing it frees its victim (App. A.8 "the victim can't break free alone").
+    /// Note 288: a crewmate's blow finds it out and drives it off (it lets go); the gang's blows kill it.
+    /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
+        if (ctx.Tuning.Passenger.DrivenOff)
+        {
+            if (by == Holding || Gone)
+                return;
+            Marked(ctx, by);
+            if (Ganged(ctx, except: Holding))
+            {
+                Health -= damage;
+                if (Health <= 0)
+                {
+                    ctx.World.DrivenOff.Remove(Kind);
+                    Slay(ctx);
+                    return;
+                }
+            }
+            if (Phase != SpinePhase.BreakOff)
+            {
+                ctx.World.DrivenOff.Add(Kind);
+                Enter(ctx, SpinePhase.BreakOff); // lets go, if it held anyone
+            }
+            return;
+        }
         Health -= damage;
+
         if (Health > 0)
             return;
         Release(ctx);
@@ -341,6 +401,14 @@ public sealed class Switchman(int id) : Enemy(id)
 /// crates, the telegraph). Interrupt it or hit it and it goes feral, hunting whoever hit it last. It heals if only one
 /// player has hit it in the last few seconds: no one player can kill it. Craned aboard with a crate by mistake, it eats the
 /// cargo on the train. Rule: gang up or leave it alone. A spotter checks the crates before every lift.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>grumbler.drivenOff</c>; the director's clarification of 7 Oct 2026): a
+/// lone player's blows never wear it down. Feral, with its prey among friends (two or more of the crew within
+/// <c>gangRadius</c> of it) and no gang striking it, it breaks off after <c>outnumberedSeconds</c> (letting go of a maul too)
+/// and scuttles off for <c>fleeSeconds</c>, then back to gnawing, calmed: a break, not the night. Killed only by the gang
+/// (blows from two or more crewmates inside <c>coordinatedKill</c>'s window wear its health down; it regenerates against
+/// one), and while they're on it, it fights rather than flees. Killed, it's gone for the night (<see cref="World.Slain"/>).
+/// </para>
 /// </summary>
 /// <remarks>
 /// <see cref="Enemy.Extra"/> is the crane casting it's on (its index), −1 once it's off them; aboard,
@@ -349,7 +417,8 @@ public sealed class Switchman(int id) : Enemy(id)
 public sealed class Grumbler(int id) : Enemy(id)
 {
     readonly List<(int By, uint Tick)> _hits = [];
-    double _bite;
+    double _bite, _outnumbered;
+    Double3 _fleeWay;
 
     public override EnemyKind Kind => EnemyKind.Grumbler;
     public override PressureZone Zone => PressureZone.Corrupted;
@@ -371,6 +440,8 @@ public sealed class Grumbler(int id) : Enemy(id)
         _hits.RemoveAll(h => ctx.Tick - h.Tick > window);
         if (_hits.Select(h => h.By).Distinct().Count() <= 1)
             Health = Math.Min(t.Health, Health + t.RegenPerSecond * SimConstants.TickSeconds);
+        if (t.DrivenOff && Feral && Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab && Outnumbered(ctx, t))
+            return;
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -412,10 +483,57 @@ public sealed class Grumbler(int id) : Enemy(id)
                 return;
             case SpinePhase.Grab:
                 return;
+            case SpinePhase.BreakOff when t.DrivenOff:
+                Flee(ctx, t);
+                return;
             default:
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>
+    /// GANG UP (note 288): its prey among friends, two or more of the crew within <see cref="GrumblerTuning.GangRadius"/> of it,
+    /// and no gang striking it: held for <see cref="GrumblerTuning.OutnumberedSeconds"/>, it lets go of anyone it's mauling and
+    /// breaks off. True the tick it does.
+    /// </summary>
+    bool Outnumbered(EnemyContext ctx, GrumblerTuning t)
+    {
+        var here = WorldPosition(ctx.Train);
+        bool crowded = CrewSense.Near(ctx, here, t.GangRadius) >= ctx.Tuning.CoordinatedKill.Gang && !Ganged(ctx);
+        _outnumbered = crowded ? _outnumbered + SimConstants.TickSeconds : 0;
+        if (_outnumbered < t.OutnumberedSeconds)
+            return false;
+        _outnumbered = 0;
+        // Away from the crew about it (straight across their line, if it's in the middle of them), and it keeps to it.
+        var crew = ctx.LivingCrew().Where(c => (c.World - here).Length <= t.GangRadius * 3).Select(c => c.World).ToList();
+        var middle = crew.Aggregate(Double3.Zero, (a, b) => a + b) * (1.0 / Math.Max(1, crew.Count));
+        var away = (here - middle) with { Y = 0 };
+        if (away.Length < 0.2 && crew.Count > 0)
+            away = Double3.Cross((crew[0] - here) with { Y = 0 }, Double3.Up);
+        _fleeWay = away.Length > 1e-6 ? away.Normalized : new Double3(1, 0, 0);
+        Extra2 = 0; // calmed: when it comes back, it's to gnaw
+        Extra = -1;
+        if (Attached != Loose)
+        {
+            Local = here;
+            Attached = Loose;
+        }
+        Enter(ctx, SpinePhase.BreakOff);
+        return true;
+    }
+
+    /// <summary>Driven off: away from the crew at its hunting pace, for a while; then back to gnawing, calmed.</summary>
+    void Flee(EnemyContext ctx, GrumblerTuning t)
+    {
+        if (PhaseSeconds >= t.FleeSeconds)
+        {
+            Enter(ctx, SpinePhase.Telegraph);
+            return;
+        }
+        var here = WorldPosition(ctx.Train);
+        Attached = Loose;
+        Local = here + _fleeWay * t.HuntSpeed * SimConstants.TickSeconds;
     }
 
     /// <summary>FERAL: after whoever hit it last, biting; one it's beaten down, it mauls (a grab the gang can break).</summary>
@@ -451,10 +569,36 @@ public sealed class Grumbler(int id) : Enemy(id)
     {
         _hits.Add((by, ctx.Tick));
         Extra2 = 1; // FERAL
-        base.Struck(ctx, by, damage);
+        if (ctx.Tuning.Grumbler.DrivenOff)
+            Coordinated(ctx, by, damage);
+        else
+            base.Struck(ctx, by, damage);
         if (!Gone && Phase == SpinePhase.Telegraph && Extra >= 0)
             Extra = -1; // off the crates
     }
+
+    /// <summary>
+    /// Note 288: a blow makes it feral at whoever struck it and breaks a maul (a friend's), but only the gang's blows hurt it:
+    /// two or more crewmates inside the window. Killed by them, it's gone for the night.
+    /// </summary>
+    void Coordinated(EnemyContext ctx, int by, double damage)
+    {
+        Marked(ctx, by);
+        if (Phase == SpinePhase.BreakOff)
+            Enter(ctx, SpinePhase.Telegraph); // struck as it goes: it turns on them
+        if (Ganged(ctx))
+        {
+            Health -= damage;
+            if (Health <= 0)
+            {
+                Slay(ctx);
+                return;
+            }
+        }
+        if (Phase == SpinePhase.Grab && by != Holding)
+            Rescued(ctx, by);
+    }
+
 
     protected override void Punish(EnemyContext ctx, int victim)
     {
