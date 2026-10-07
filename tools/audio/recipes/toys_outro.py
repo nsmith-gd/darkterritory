@@ -51,6 +51,10 @@ def unit(x):
     return ck.norm(x, 0.0)
 
 
+def fit_env(points, n):
+    return dsp.fit(env(points), n)
+
+
 # ---- The squeaker ---------------------------------------------------------------------------------------------------------
 # A squeeze toy: a hollow rubber body with a reed whistle in its base. Squeezing drives the air out through the reed (the
 # squeak, its pitch riding the pressure: up as the fingers clamp, sagging as the air runs out); letting go, the rubber
@@ -315,7 +319,8 @@ def comb(rng, times, tonic, tuning, excite=None, broken=(), slop=0.003):
             y = tooth(f, min(ring * 1.2, gap + 0.01), vel, r2, ring, struck=excite is None)
             if excite is not None:
                 x = excite[int(rng.integers(len(excite)))]
-                y = np.convolve(x, y)[:len(y)] * 4
+                y = np.convolve(x, y)[:len(y)]
+                y *= vel / (np.max(np.abs(y)) + 1e-9)
             else:
                 snap = hp(rng.standard_normal(samples(0.003)).astype(np.float32), 2500) * np.linspace(1, 0, samples(0.003))
                 y[:len(snap)] += snap * 0.3 * vel
@@ -349,7 +354,7 @@ def fan(rng, n, turns):
     return (periodic_noise(rng, n, 700, 4500) * (0.35 + 0.65 * vanes)).astype(np.float32)
 
 
-def case(y, rng):
+def case(y):
     """The comb's sound through its little wooden case: the box's air and lid resonances, its small hollow."""
     y = hp(y, 170, 2)
     y = dsp.peak(dsp.peak(y, 470, 1.4, 3), 1900, 2.0, 3)
@@ -369,7 +374,7 @@ def music_box_comb(rng, k):
     n = samples(BEATS * beat)
     tune = {key: rng.normal(0, 4) + (1.5 if key[1] else -1.5) for key in TEETH}
     y = comb(rng, lambda b: b * beat, hz(74), lambda key: tune[key])
-    y = case(unit(y), rng)
+    y = case(unit(y))
     y = mix(unit(y), fan(rng, n, 470) * 0.022)
     y = dsp.room(y, "car", wet=0.1, rng=np.random.default_rng(11))
     return seamless(y, n)
@@ -436,7 +441,7 @@ def music_box_worn(rng, k):
     wood = ck.align(ck.get(WOOD[0]))[:samples(0.2)]
     wood = dsp.fade(wood / np.sqrt(np.sum(wood ** 2)), 0, 0.05)
     y = unit(y)
-    y = case(mix(y * 0.7, unit(np.convolve(y, wood)[:len(y)]) * 0.45), rng)
+    y = case(mix(y * 0.7, unit(np.convolve(y, wood)[:len(y)]) * 0.45))
     motor = dsp.vari(texture(rng, ck.get(MOTOR), L * 0.7, 601), -6)
     motor = fold(unit(lp(bp(motor, 300, 2500, 2), 1800, 1)), n)
     y = mix(unit(y), motor * 0.035)
@@ -629,7 +634,7 @@ def cinders(rng):
     return dsp.room(lp(g, 3500, 2), "box", wet=0.4, rng=np.random.default_rng(4))
 
 
-def place_far(x, metres, rng):
+def place_far(x, metres):
     """Where on the engine it let go: the firebox close by, the smokebox and tender further off (darker, wetter)."""
     return dsp.gain(lp(x, float(np.clip(16000 / (1 + metres / 6), 3000, 16000)), 2), -20 * np.log10(metres / 4) * 0.7)
 
@@ -669,7 +674,7 @@ def boiler_cooling(rng, k):
     L = 14.0
     b = Bus(L + 3)
     for t, kind, m in cooling_plan(rng, L):
-        b.at(t, place_far(contraction_rec(rng, kind), m, rng))
+        b.at(t, place_far(contraction_rec(rng, kind), m))
     y = dsp.room(b.x, "night", wet=0.15, rng=np.random.default_rng(9))
     return seamless(y, samples(L))
 
@@ -727,7 +732,7 @@ def boiler_shell(rng, k):
     L = 14.0
     b = Bus(L + 3)
     for t, kind, m in cooling_plan(rng, L):
-        b.at(t, place_far(contraction_model(rng, kind), m, rng))
+        b.at(t, place_far(contraction_model(rng, kind), m))
     y = dsp.room(b.x, "night", wet=0.15, rng=np.random.default_rng(9))
     return seamless(y, samples(L))
 
@@ -755,11 +760,11 @@ def flutter(rng, length, rate=(14, 7)):
     n = samples(length)
     r = env([(0, rate[0]), (length, rate[1])], length) * (1 + 0.35 * lp(rng.standard_normal(n).astype(np.float32), 8) * 6)
     ph = np.cumsum(np.clip(r, 2, 30)) / SR
-    depth = env([(0, 0.4), (length, 0.95)], length)
+    depth = env([(0, 0.7), (length, 1.0)], length)
     am = 1 - depth * (0.5 + 0.5 * np.cos(2 * np.pi * ph)) ** 2
     roar = lp(hp(synth.noise(length, rng, "brown"), 90, 2), 650, 2)
     hiss = bp(synth.noise(length, rng), 2500, 7000)
-    return (unit(roar) * am + unit(hiss) * am * 0.06).astype(np.float32)
+    return (unit(roar) * am + unit(hiss) * am ** 2 * 0.1).astype(np.float32)
 
 
 def puff(rng, length=0.09, f=600):
@@ -779,14 +784,14 @@ def puff(rng, length=0.09, f=600):
 def lamp_gutter(rng, k):
     die = rng.uniform(0.42, 0.55)
     fl = flutter(rng, die, (rng.uniform(11, 16), rng.uniform(5, 8)))
-    fl *= env([(0, 0.5), (0.06, 0.9), (die * 0.6, 0.7), (die, 0.15)], die)
+    fl *= env([(0, 0.0), (0.08, 0.9), (die * 0.6, 0.75), (die, 0.15)], die)
     spits = synth.crackle(die, rng.uniform(6, 12), rng, size=(0.0003, 0.002), hi=1800)
     b = Bus(1.2)
     b.at(0, fl)
     b.at(0, unit(spits) * 0.35)
     b.at(die - 0.01, puff(rng, rng.uniform(0.07, 0.11)), -3)
     b.at(die + 0.02, bp(synth.noise(0.18, rng), 2000, 6000) * env([(0, 0.05), (0.18, 0)], 0.18))
-    tick = die + rng.uniform(0.2, 0.32)
+    tick = die + rng.uniform(0.17, 0.25)
     b.at(tick, chimney(rng), -9)
     if rng.random() < 0.4:
         b.at(tick + rng.uniform(0.06, 0.12), chimney(rng), -16)
@@ -799,8 +804,9 @@ def gulp(rng, length, f):
     x = ck.get(PUFFS[int(rng.integers(len(PUFFS)))])
     h = ck.hits(x, floor_db=-14, gap=0.03)
     a = h[int(rng.integers(len(h)))][0] if h else 0
-    g = ck.cut(x, a - samples(0.01), a + samples(length), 0.01, length * 0.5)
-    return unit(lp(hp(g, 70, 2), f, 2))
+    g = lp(hp(ck.cut(x, a, a + samples(length), 0.0, length * 0.5), 70, 2), f, 2)
+    # a flame swells, it doesn't hit: the whoosh's own attack is rounded off
+    return unit(g * fit_env([(0, 0), (0.03, 1), (length, 1)], len(g)) ** 1.5)
 
 
 @ck.recipe("ui-stranded-outro", "lamp-out", "gulp",
@@ -814,15 +820,15 @@ def gulp(rng, length, f):
 def lamp_gulp(rng, k):
     b = Bus(1.2)
     t, level = 0.0, 0.0
-    gaps = [rng.uniform(0.13, 0.17), rng.uniform(0.17, 0.23), rng.uniform(0.2, 0.27)][:2 + int(rng.random() < 0.5)]
+    gaps = [rng.uniform(0.11, 0.15), rng.uniform(0.14, 0.19), rng.uniform(0.17, 0.22)][:2 + int(rng.random() < 0.5)]
     for gap in gaps:
         b.at(t, gulp(rng, rng.uniform(0.07, 0.1), rng.uniform(700, 950)), level)
         sz = bp(synth.noise(gap, rng), 3000, 8000) * env([(0, 0.15), (gap, 0.02)], gap)
         b.at(t + 0.03, mix(sz, synth.crackle(gap, 15, rng, hi=2500) * 0.6) * 0.5, level - 4)
         t += gap
         level -= rng.uniform(2, 4)
-    b.at(t, gulp(rng, rng.uniform(0.11, 0.15), 600), level + 3)
-    tick = t + rng.uniform(0.22, 0.3)
+    b.at(t, gulp(rng, rng.uniform(0.11, 0.15), 600), level + 5)
+    tick = t + rng.uniform(0.18, 0.25)
     b.at(tick, chimney(rng), -8)
     if rng.random() < 0.5:
         b.at(tick + rng.uniform(0.07, 0.14), chimney(rng), -15)

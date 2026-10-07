@@ -701,7 +701,7 @@ def rain_of(rng, length, rate, piece, decay=0.45, start=0.06, bounce=0.45):
             b.at(t + rng.uniform(0.04, 0.12), dsp.vari(x, rng.uniform(0.5, 2)) * g * rng.uniform(0.2, 0.45))
 
 
-def last_piece(rng, at, ring=HEAD):
+def last_piece(rng, ring=HEAD):
     """The last of her: a piece of the head rocking to rest on the stones, ringing its own modes a few times, each
     sooner and softer, then still."""
     b = Bus(0.8)
@@ -713,7 +713,7 @@ def last_piece(rng, at, ring=HEAD):
         t += gap
         gap *= 0.62
         g *= 0.55
-    return at, b.x
+    return b.x
 
 
 @recipe("crew-cannon-impact", "doll", "shatter",
@@ -739,7 +739,7 @@ def doll_shatter(rng, k):
         return shard(rng, GLASS[int(rng.integers(len(GLASS)))], rng.uniform(-3, 4), rng.uniform(0.012, 0.035))
 
     rain = rain_of(rng, 1.2, 40, piece, decay=0.35)
-    at, last = last_piece(rng, rng.uniform(0.9, 1.05))
+    at, last = rng.uniform(0.9, 1.05), last_piece(rng)
     b = Bus(L + 0.5)
     b.at(0, W.norm(thunk), -2)
     b.at(0.004, W.norm(ballast), -6)
@@ -784,7 +784,7 @@ def doll_porcelain(rng, k):
         return x
 
     rain = rain_of(rng, 1.2, 45, piece, decay=0.32, start=0.1)
-    at, last = last_piece(rng, rng.uniform(0.95, 1.1))
+    at, last = rng.uniform(0.95, 1.1), last_piece(rng)
     b = Bus(L + 0.5)
     b.at(0, W.norm(body), -2)
     b.at(0.003, W.norm(ballast), -7)
@@ -793,3 +793,101 @@ def doll_porcelain(rng, k):
     b.at(0, W.norm(rain), -8)
     b.at(at, last, -19)
     return finish(over_by(out_there(b.x, rng, 0.1), L), lo=40)
+
+
+# ---- place-depot: a powder keg or a powder car going up ----------------------------------------------------------------------
+
+def whump(rng, rise=0.025, decay=0.32, f=32, length=2.0):
+    """Black powder going up is a deflagration, not a detonation: the pressure comes up over tens of milliseconds
+    instead of instantly, so it shoves the air rather than cracking it. A slow pressure push, its sub dropping in
+    pitch, the dark body of the gas expanding."""
+    n = samples(length)
+    t = np.arange(n) / dsp.SR
+    push = lp(((1 - np.exp(-t / rise)) * np.exp(-t / decay)).astype(np.float32), 260, 2)
+    push = push - lp(push, 18, 1)          # the suction after the push (no DC)
+    sub = synth.thump(f * rng.uniform(0.9, 1.1), length * 0.7, drop=0.4)
+    body = lp(synth.noise(length, rng, "brown"), 320, 2) * env([(0, 0), (rise * 1.5, 1), (length, 0)], length, "exp") ** 1.4
+    return mix(W.norm(push), W.norm(sub) * 0.7, W.norm(body) * 0.8)
+
+
+WRECK = {"wood": 0.5, "iron": 0.2, "tin": 0.2, "scrap": 0.1}
+
+
+def wreckage(rng, length, start=0.5, rate=11, decay=1.3, floor=2.0):
+    """The car's pieces coming back down for seconds: real planks, iron, roof tin and scrap (the packs' impacts pitched
+    to their size), thick at first and thinning to a steady few a second (the last fell from highest, so they land as
+    hard as the first), a little dark with the distance."""
+    names = list(WRECK)
+    w = np.array([WRECK[k] for k in names])
+    b = Bus(length + 1.0)
+    t = start
+    while True:
+        t += rng.exponential(1 / (rate * np.exp(-(t - start) / decay) + floor))
+        if t >= length - 0.3:
+            return lp(b.x, 7000, 2)
+        x = W.norm(W.piece(rng, names[rng.choice(len(names), p=w / w.sum())], (-7, 1)))
+        g = rng.uniform(0.3, 1.0) * (0.55 + 0.45 * np.exp(-(t - start) / decay))
+        b.at(t, x * g)
+        if rng.random() < 0.4:
+            b.at(t + rng.uniform(0.08, 0.3), dsp.vari(x, rng.uniform(0.5, 2)) * g * rng.uniform(0.2, 0.5))
+
+
+@recipe("place-depot", "powder-blast", "fireball",
+        "Black powder going up: a slow shove of air, the fireball's roar burning down, the car torn apart, wreckage raining",
+        """Not a cannonball's crack: black powder deflagrates, so the pressure rises over tens of milliseconds and shoves
+        the air (a slow push, its sub sliding down, the dark body of the gas). Then the fireball: a huge jet of burning
+        gas roaring bright at once and darkening as it burns down over a second, crackling as it goes (jet noise from a
+        wide opening, its pressure falling). In it the car comes apart (real heavy iron and plank hits pitched down for
+        the mass, boards splintering, tin crumpling, ballast thrown), the land throws the blast back (the packs' real
+        thunder, late), and the wreckage rains down for three seconds and more: real planks, iron, roof tin and scrap,
+        thinning out.""",
+        sources=[THUNDER] + W.PIECES["wood"] + W.PIECES["iron"] + W.PIECES["tin"] + W.PIECES["scrap"] + ["sfx_100_v2:misc_34"],
+        takes=2, lufs=-16)
+def blast_fireball(rng, k):
+    L = 4.6
+    push = whump(rng, rng.uniform(0.02, 0.035), rng.uniform(0.28, 0.38))
+    # the fireball swells a moment behind the shove (the whump, then the roar)
+    p = env([(0, 0.02), (0.06, 0.3), (0.25, 1.0), (0.6, 0.55), (1.4, 0.12), (2.2, 0)], 2.2)
+    roar = W.jet(2.2, rng, pressure=p, opening=1.0, peak=rng.uniform(650, 850), low=1.0, rasp=0.6, eddy=0.8)
+    crash = W.crash(rng, size=1.4, iron=0.6, wood=1.0, tin=0.4, ground=0.4, crumple=0.3)
+    echo = W.rec(THUNDER, semis=-1 + rng.uniform(-0.5, 0.5), start=rng.uniform(0.75, 0.85), length=3.4)
+    echo = shaped(echo, [(0, 0), (0.25, 0.2), (0.6, 1), (1.5, 0.5), (3.4, 0)], 3.4)
+    b = Bus(L + 0.5)
+    b.at(0, ck.tilt(push, lo_db=-6, lo_f=90), 0)
+    b.at(0.01, W.norm(roar), -3)
+    b.at(0.03, W.norm(crash), -6)
+    b.at(0.15, W.norm(echo), -9)
+    b.at(0, W.norm(wreckage(rng, L, rng.uniform(0.5, 0.7))), -8)
+    return finish(over_by(out_there(b.x, rng, 0.25), L, 0.8), lo=28)
+
+
+@recipe("place-depot", "powder-blast", "car",
+        "A powder car going up: the slow shove, the blast rolling like thunder, planks and iron torn, fire, wreckage raining",
+        """The same slow black-powder shove of air (a deflagration's push, its sub sliding down), but its roar is the
+        packs' real thunder from its first crack on, pitched down for the size of a whole car of powder: the blast rolling
+        out and coming back off the land. In it the car is torn apart: the packs' real wood breaking and splintering
+        pitched down, a stick-slip run of boards giving way, real heavy iron plates and frame hits slamming; what's left
+        burns (a fire crackling up and dying back) while the wreckage rains down for three seconds and more, real planks,
+        iron, tin and scrap, thinning out.""",
+        sources=[THUNDER] + SPLINTER + W.PIECES["wood"] + W.PIECES["iron"] + W.PIECES["tin"] + W.PIECES["scrap"],
+        takes=2, lufs=-16)
+def blast_car(rng, k):
+    L = 4.6
+    push = whump(rng, rng.uniform(0.03, 0.045), rng.uniform(0.35, 0.45), f=28)
+    roll = W.rec(THUNDER, semis=-3 + rng.uniform(-0.5, 0.5), start=rng.uniform(0.62, 0.7), length=4.0)
+    roll = shaped(roll, [(0, 0), (0.04, 1), (0.8, 0.6), (2.0, 0.3), (4.0, 0)], 4.0)
+    torn = Bus(1.5)
+    for j, key in enumerate(SPLINTER):
+        torn.at(0.01 + 0.04 * j, W.norm(W.rec(key, semis=-4 - 2 * j + rng.uniform(-1, 1))) * (1.0 - 0.3 * j))
+    torn.at(0.0, W.norm(W.splinter(0.6, rng, env([(0, 600), (0.6, 60)], 0.6))) * env([(0, 1), (0.6, 0)], 0.6), -4)
+    for _ in range(4):
+        torn.at(abs(rng.normal(0, 0.05)), W.norm(W.piece(rng, "iron", (-9, -4), tau=0.3)) * rng.uniform(0.5, 0.9))
+    fire = synth.fire(3.5, env([(0, 0.2), (0.4, 1.0), (1.5, 0.6), (3.5, 0.2)], 3.5), rng)
+    fire = shaped(fire, [(0, 0), (0.3, 1), (2.5, 0.6), (3.5, 0)], 3.5)
+    b = Bus(L + 0.5)
+    b.at(0, ck.tilt(push, lo_db=-6, lo_f=90), 0)
+    b.at(0.01, W.norm(roll), -2)
+    b.at(0.02, W.norm(torn.x), -6)
+    b.at(0.5, W.norm(fire), -16)
+    b.at(0, W.norm(wreckage(rng, L, rng.uniform(0.45, 0.6), 12, 1.5)), -7)
+    return finish(over_by(out_there(b.x, rng, 0.25), L, 0.8), lo=28)
