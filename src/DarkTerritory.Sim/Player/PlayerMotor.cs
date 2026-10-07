@@ -59,11 +59,21 @@ public enum PlayerActions : byte
     /// the run's under way, a bookmark of the view you're following (GDD v1.4 App. D.10's UI, D.12), sent on the press; the host
     /// takes one on the tick it first sees it held. <see cref="Skip"/>: once the night's over, a held vote to skip the derailment
     /// film to its cause card (App. E.5) or the Stranded outro (E.9); the host counts heads, and a majority, or the host, skips.
+    /// With each player's own skip (wreck.json "skip", note 315) the client keeps it and never sends it.
     /// The two never overlap: a run under way has no film or outro, and a night that's over takes no bookmarks.
     /// </summary>
     Bookmark = 128,
     Skip = 128,
 }
+
+/// <summary>
+/// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
+/// crew see it; nothing in the sim acts on it.
+/// </summary>
+public enum Emote : byte { None, Dance, Wave, Point }
+
+/// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
+public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
 public enum LampSwitch : byte { None, On, Off }
@@ -102,6 +112,8 @@ public struct PlayerIntent
     public byte Select;
     /// <summary>T108: the wheel, a step to the next (+1) or previous (−1) slot with a tool in it; 0 for none.</summary>
     public sbyte Cycle;
+    /// <summary>Note 298: an emote picked this tick (its wheel let go), or none. Sent once, on the pick.</summary>
+    public Emote Emote;
     /// <summary>
     /// With <see cref="PlayerButtons.Hand"/>: a VR player's reaching hand, in metres from their feet in the frame they face
     /// (x right, y up, z behind, so ahead is −Z as ever). Reach is tested from it instead of from the body (T29).

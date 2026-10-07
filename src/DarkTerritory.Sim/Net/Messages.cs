@@ -44,8 +44,10 @@ public static class Protocol
     //     heat, and a car's its cells' char, packed four bits a cell.
     // 31: the fireman's shovel off its rack, a bit on the boiler record (App. C.2, GDD §12; WP19, note 275).
     // 32: a find's body record carries how far its carrier has got using it, when it heals (App. F.1 damage model; note 272).
-    // 33: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
-    public const int Version = 33;
+    // 33: emotes and outfits (note 298): an emote on the intent's hotbar byte and RecordKind.Emote; the Hello's outfit, the
+    //     host's Outfits and a client's Wear.
+    // 34: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
+    public const int Version = 34;
 }
 
 public enum MessageType : byte
@@ -94,6 +96,10 @@ public enum MessageType : byte
     /// so a full crew opens a place at once (note 254). Lost on the way, the place is held as for any drop.
     /// </summary>
     Leave = 17,
+    /// <summary>Host → client, reliable: everyone's outfit (GDD §9; note 298), by id, whenever it changes.</summary>
+    Outfits = 18,
+    /// <summary>Client → host, reliable: the outfit this player puts on (note 298). The host takes it only in the yard.</summary>
+    Wear = 19,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -159,14 +165,15 @@ public static class Messages
         // The top bit says a watched crewmate follows (App. D.10), so only the dead pay for it.
         w.U8((byte)((i.ThrottleNotch & 0x1F) | ((byte)i.Lamp & 3) << 5 | (i.Watch != 0 ? 0x80 : 0)));
         // v1.1's second byte of buttons, and the voice level the loudness meter hears (App. C.7).
-        bool tool = i.Select != 0 || i.Cycle != 0;
+        bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
         if (i.Watch != 0)
             w.U8(i.Watch);
-        // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high.
+        // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
+        // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
-            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0)));
+            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -211,6 +218,7 @@ public static class Messages
             byte t = r.U8();
             i.Select = (byte)(t & 0x0F);
             i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
+            i.Emote = (Emote)(t >> 6);
             i.Actions &= ~PlayerActions.Tool;
         }
         if (i.Has(PlayerButtons.Hand))
@@ -316,17 +324,56 @@ public static class Messages
         return s.Length > NameLength ? s[..NameLength].TrimEnd() : s;
     }
 
+    /// <summary>No outfit chosen (note 298): the crewmate wears their player id's look.</summary>
+    public const byte NoOutfit = 0xFF;
+
     /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0)
+    /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
         w.U64(token);
+        w.U8(outfit);
     }
 
-    /// <summary>Reads a Hello after its type byte: the name, and the token (0 when it has none).</summary>
-    public static (string Name, ulong Token) ReadHello(ref NetReader r) => (CleanName(r.Str()), r.Remaining >= 8 ? r.U64() : 0);
+    /// <summary>Reads a Hello after its type byte: the name, the token (0 when it has none) and the outfit (note 298).</summary>
+    public static (string Name, ulong Token, byte Outfit) ReadHello(ref NetReader r)
+    {
+        string name = CleanName(r.Str());
+        ulong token = r.Remaining >= 8 ? r.U64() : 0;
+        return (name, token, r.Remaining >= 1 ? r.U8() : NoOutfit);
+    }
+
+    /// <summary>Everyone's outfit (note 298), by id.</summary>
+    public static void WriteOutfits(NetWriter w, IEnumerable<KeyValuePair<int, byte>> outfits)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Outfits);
+        var list = outfits.Where(n => n.Key is >= 0 and < 256).OrderBy(n => n.Key).ToList();
+        w.U8((byte)list.Count);
+        foreach (var (id, outfit) in list)
+        {
+            w.U8((byte)id);
+            w.U8(outfit);
+        }
+    }
+
+    public static void ReadOutfits(ref NetReader r, IDictionary<int, byte> into)
+    {
+        into.Clear();
+        int n = r.U8();
+        for (int i = 0; i < n; i++)
+            into[r.U8()] = r.U8();
+    }
+
+    public static void WriteWear(NetWriter w, byte outfit)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Wear);
+        w.U8(outfit);
+    }
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {

@@ -25,6 +25,7 @@ public sealed record EnemyTuning(
     public TippyToesieTuning TippyToesie { get; init; } = new();
     public FireFliesTuning FireFlies { get; init; } = new();
     public RibbitTuning Ribbits { get; init; } = new();
+    public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
@@ -160,6 +161,8 @@ public sealed record WhistlerTuning
     public double NestDistance { get; init; } = 30;
     public double NestMinDistance { get; init; } = 8;
     public double NestStep { get; init; } = 4;
+    /// <summary>How far from its gap a stop's own nest may be and still be where it runs (note 314).</summary>
+    public double NestSiteReach { get; init; } = 110;
     public double NestMaxSlope { get; init; } = 0.4;
     public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;
@@ -667,3 +670,14 @@ public sealed record AbandonedTuning
 /// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
+
+/// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
+public sealed record CreatureSitesTuning
+{
+    public double Around { get; init; } = 300;
+    public double MinOut { get; init; } = 12;
+    public double WarrenReach { get; init; } = 70;
+    public double RoostReach { get; init; } = 400;
+    public double CallReach { get; init; } = 160;
+    public double GroundMargin { get; init; } = 4;
+}
