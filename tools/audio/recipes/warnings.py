@@ -588,3 +588,208 @@ def ground_shot(rng, k):
     b.at(0, earth, -8)
     b.at(0.3 + rng.uniform(0, 0.1), W.norm(lp(wood, 5000, 2)), -14)
     return finish(over_by(out_there(b.x, rng, 0.2), L))
+
+
+SPLASHES = S("footstep_wet_03", "footstep_wet_02") + ["kenney_impact-sounds:footstep_snow_000"]
+SLOSH = "sfx_100_v2:loop_machine_02"      # water sloshing and splashing in a drum: its loudest splash, 5.2-5.7 s
+STREAM = "sfx_100_v2:loop_water_02"       # a stream pouring and trickling
+SURF = "sfx_100_v2:loop_water_01"         # broad moving water
+
+
+def cavity(rng, f0=85, delay=0.1):
+    """The air the ball drags down pinching off and collapsing: one huge bubble's Minnaert ring (a deep 'bloomp' that
+    rises in pitch as it shrinks), a smaller one after it, and the dull push of the water closing."""
+    big = synth.bubble(f0 * rng.uniform(0.9, 1.1), length=0.45, rise=rng.uniform(0.25, 0.45))
+    small = synth.bubble(f0 * rng.uniform(2.1, 2.8), length=0.25, rise=0.6, amp=0.4)
+    b = Bus(0.8)
+    b.at(delay, big)
+    b.at(delay + rng.uniform(0.05, 0.1), small)
+    b.at(delay * 0.8, synth.thump(f0 * 0.6, 0.3, drop=0.3) * 0.5)
+    return b.x
+
+
+def fall_back(rng, length, start=0.35, peak=0.7, rate=500):
+    """The column of spray coming back down onto the water: drops striking the surface (a hiss of tiny splashes) and
+    some of them ringing a bubble each (every one its own size, so its own pitch), thickest a moment after the column
+    tops out, thinning out."""
+    n = samples(length)
+    shape = env([(0, 0), (start, 0), (peak, 1), (peak + 0.35, 0.45), (length, 0)], length)
+    hiss = bp(W.rain(n, rng, rate * 8, "ground", loop=False), 1500, 9000, 2)
+    plinks = synth.bubbles(length, rate * shape + 1, 1200, 7000, rng, rise=(0.1, 0.5))
+    return (W.norm(hiss) + W.norm(plinks) * 0.35) * shape
+
+
+@recipe("crew-cannon-impact", "water", "plunge",
+        "A ball into water: the smack on the surface, the deep gulp of the air it drags down, spray raining back",
+        """The ball hits the surface flat (a real slap, sfx_100's whip-crack, pitched down an octave into a heavy smack)
+        and throws up a sheet of water (the packs' real splash from a sloshing drum, pitched down for its size); the air
+        it drags under pinches off and collapses in a deep 'bloomp' (one big bubble's ring, rising as it shrinks, and a
+        smaller one after); then the column falls back: the packs' real pouring stream for its weight and thousands of
+        drops landing (each a tiny bubble), thickest just after it tops out and thinning away. Out on open water.""",
+        sources=[SLOSH, STREAM] + WHIPS, takes=3, lufs=-16)
+def water_plunge(rng, k):
+    L = 1.9
+    smack = lp(dsp.vari(flick(WHIPS[k % 2], 0, 0, 0.2), -12 + rng.uniform(-1, 1)), 3500, 2)
+    semis = -4 + rng.uniform(-1, 1)
+    sheet = W.rec(SLOSH, semis=semis, start=5.2 + 0.08 * k, length=0.6)
+    sheet = dsp.peak(sheet, 190 * 2 ** (semis / 12), 8, -15)      # the drum's motor hum under the splash
+    sheet = shaped(sheet, [(0, 0), (0.02, 1), (0.25, 0.7), (0.6, 0)], 0.6)
+    pour = W.rec(STREAM, semis=-3, start=rng.uniform(0.5, 6.0), length=L)
+    pour = shaped(pour, [(0, 0), (0.35, 0), (0.6, 1), (1.0, 0.5), (L, 0)], L)
+    b = Bus(L + 0.5)
+    b.at(0, W.norm(smack), -3)
+    b.at(0.01, W.norm(sheet), -4)
+    b.at(0, W.norm(cavity(rng, rng.uniform(70, 95), rng.uniform(0.08, 0.14))), 0)
+    b.at(0, W.norm(pour), -9)
+    b.at(0, W.norm(fall_back(rng, L, rng.uniform(0.3, 0.4), rng.uniform(0.6, 0.8))), -8)
+    return finish(over_by(out_there(b.x, rng, 0.15), L), lo=35)
+
+
+@recipe("crew-cannon-impact", "water", "column",
+        "A ball into water from small real splashes slowed down huge: the splash, its gulp, the water crashing back",
+        """Real splashes made big the way film does it: the packs' wet footsteps and slush step, slowed an octave and
+        more so a foot's splash becomes a ball's (slowing a splash makes it bigger, the drops fall slower), two layered
+        for the sheet of water thrown up; the gulp of the air it dragged down collapsing under them (one big bubble's
+        ring); then the column crashing back, the packs' broad moving-water recording swelling and dying away with a
+        rain of drops in it. Out on open water.""",
+        sources=SPLASHES + [SURF], takes=3, lufs=-16)
+def water_column(rng, k):
+    L = 1.8
+    a = ck.align(W.rec(SPLASHES[k % 3], semis=-14 + rng.uniform(-1, 1)), floor_db=-12)
+    c = ck.align(W.rec(SPLASHES[(k + 1) % 3], semis=-10 + rng.uniform(-1, 1)), floor_db=-20)
+    crash = W.rec(SURF, semis=-2, start=rng.uniform(0.3, 4.0), length=L)
+    crash = shaped(crash, [(0, 0), (0.3, 0.1), (0.55, 1), (0.9, 0.5), (L, 0)], L)
+    drops = fall_back(rng, L, 0.35, rng.uniform(0.6, 0.75), 350)
+    b = Bus(L + 0.5)
+    b.at(0, W.norm(a), 0)
+    b.at(rng.uniform(0.01, 0.03), W.norm(c), -4)
+    b.at(0, W.norm(cavity(rng, rng.uniform(65, 90), rng.uniform(0.08, 0.13))), -2)
+    b.at(0, W.norm(lp(crash, 5000, 2)), -9)
+    b.at(0, W.norm(drops), -10)
+    return finish(over_by(out_there(b.x, rng, 0.15), L), lo=35)
+
+
+BREAKS = S("misc_26", "misc_27", "door_01", "glass_03", "items_02")    # real glass breaking and shattering
+GLASS = S("glass_01", "glass_02", "glass_04", "glass_05", "glass_06")   # real glass knocks: the shards' ring
+THICK = K("impactGlass_heavy")                                          # a thick glass knock: a porcelain body's thunk
+HEAD = [3900, 4700, 5300]          # the doll's hollow porcelain head (its giggle rings there: tells.py, boarders.py)
+
+
+def shard(rng, key, semis, tau):
+    """One porcelain shard landing: a real glass knock, pitched to the piece and damped short (porcelain is thicker and
+    duller than glass: it clacks more than it rings)."""
+    x = ck.get(key)
+    h = ck.hits(x, floor_db=-18, gap=0.03)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    c = ck.cut(x, a - samples(0.001), a + samples(0.15), 0.0005, 0.02)
+    return ck.norm(hp(ck.choke(dsp.vari(c, semis), 0.003, tau), 700, 2))
+
+
+def rain_of(rng, length, rate, piece, decay=0.45, start=0.06, bounce=0.45):
+    """Pieces coming down on the ballast: `piece(rng)` each, Poisson at `rate` dying away over `decay` s, smaller and
+    quieter as it goes on, some bouncing once off the stones."""
+    b = Bus(length + 0.4)
+    t = start
+    while True:
+        t += rng.exponential(1 / (rate * np.exp(-(t - start) / decay) + 0.5))
+        if t >= length:
+            return b.x
+        g = rng.uniform(0.3, 1.0) * np.exp(-(t - start) / (decay * 1.5))
+        x = piece(rng)
+        b.at(t, x * g)
+        if rng.random() < bounce:
+            b.at(t + rng.uniform(0.04, 0.12), dsp.vari(x, rng.uniform(0.5, 2)) * g * rng.uniform(0.2, 0.45))
+
+
+def last_piece(rng, at, ring=HEAD):
+    """The last of her: a piece of the head rocking to rest on the stones, ringing its own modes a few times, each
+    sooner and softer, then still."""
+    b = Bus(0.8)
+    t, g, gap = 0.0, 1.0, rng.uniform(0.11, 0.16)
+    tick = stroke_tick(GLASS[int(rng.integers(len(GLASS)))], 0.003, 1500)
+    for _ in range(int(rng.integers(3, 5))):
+        r = dsp.resonate(fit(tick, samples(0.25)), [f * rng.uniform(0.98, 1.02) for f in ring], q=180, gains=[1, 0.7, 0.5])
+        b.at(t, ck.norm(r) * g)
+        t += gap
+        gap *= 0.62
+        g *= 0.55
+    return at, b.x
+
+
+@recipe("crew-cannon-impact", "doll", "shatter",
+        "The Track Doll smashed by a ball: a hollow porcelain thunk, the shell bursting, shards raining on the ballast",
+        """Real breakage throughout. The ball meets her: a thick glass knock pitched down into a hollow porcelain body's
+        thunk (her body rings at 600 and 1200 Hz, as the earlier 'cornered' take had it) with the ball's thud into the
+        ballast under it; she bursts: two of the packs' real glass breaks and shatters together, pitched down a little
+        (porcelain is thicker and duller than glass); her pieces rain down on the ballast for a second (real glass
+        knocks pitched to each piece and damped short, so they clack rather than ring, among real stones), and last a
+        piece of her head rocks to rest, ringing at the head's own pitches (3.9, 4.7 and 5.3 kHz, where her giggle rang),
+        and is still.""",
+        sources=BREAKS + GLASS + THICK + STONES + GRAVEL, takes=2, lufs=-16)
+def doll_shatter(rng, k):
+    L = 1.6
+    thunk = ck.choke(dsp.vari(ck.norm(ck.align(ck.get(THICK[k * 2]))), -5 + rng.uniform(-1, 1)), 0.03, 0.05)
+    thunk = mix(thunk, ck.norm(dsp.resonate(fit(thunk, samples(0.3)), [600, 1200, 1830], q=12)) * 0.5)
+    ballast = ck.floor(rng, "ground", k, 3.0, 0.6)
+    bursts = [ck.align(W.rec(BREAKS[(k * 2 + j) % 5], semis=-2 - 2 * j + rng.uniform(-1, 1)), floor_db=-12) for j in range(2)]
+
+    def piece(rng):
+        if rng.random() < 0.2:
+            return clink(STONES[int(rng.integers(3))], int(rng.integers(4)), rng.uniform(-3, 2), 0.02) * 0.6
+        return shard(rng, GLASS[int(rng.integers(len(GLASS)))], rng.uniform(-3, 4), rng.uniform(0.012, 0.035))
+
+    rain = rain_of(rng, 1.2, 40, piece, decay=0.35)
+    at, last = last_piece(rng, rng.uniform(0.9, 1.05))
+    b = Bus(L + 0.5)
+    b.at(0, W.norm(thunk), -2)
+    b.at(0.004, W.norm(ballast), -6)
+    b.at(0.008, W.norm(bursts[0]), -1)
+    b.at(0.02 + rng.uniform(0, 0.02), W.norm(bursts[1]), -5)
+    b.at(0, W.norm(rain), -7)
+    b.at(at, last, -19)
+    return finish(over_by(out_there(b.x, rng, 0.1), L), lo=40)
+
+
+def porcelain_shard(rng, f=None, decay=None):
+    """A porcelain fragment struck: a small plate's modes (bright, a few kilohertz), dying in tens of milliseconds."""
+    f = f or np.exp(rng.uniform(np.log(1800), np.log(5200)))
+    return ck.norm(W.body(rng, f, W.PLATE, decay=decay or rng.uniform(0.015, 0.05), contact=0.00018, count=7, tilt=0.5))
+
+
+@recipe("crew-cannon-impact", "doll", "porcelain",
+        "The Track Doll smashed by a ball, porcelain modelled: her hollow body struck, the shell cracking apart, shards",
+        """Porcelain's physics where the packs only have glass: the ball strikes her hollow body (its low modes at 600,
+        1200 and 1830 Hz, struck hard, as the earlier 'cornered' take rang her) and drives into the ballast (real gravel
+        and stones); her shell fractures in a few milliseconds (a fast run of cracks through the glaze's high modes), its
+        fragments fly apart (dozens of small porcelain plates struck at once, each its own pitch, dying in tens of
+        milliseconds) and come down on the stones for a second (each fragment's clack with a real stone's knock under
+        some), and last a piece of her head rocks to rest ringing at the head's own pitches (3.9, 4.7 and 5.3 kHz, where
+        her giggle rang), and is still.""",
+        sources=STONES + GRAVEL + GLASS, takes=2, lufs=-16)
+def doll_porcelain(rng, k):
+    L = 1.6
+    body = W.modal([600 * rng.uniform(0.97, 1.03), 1200, 1830, 2650, 3400], [0.09, 0.07, 0.05, 0.035, 0.025],
+                   [1.0, 0.8, 0.6, 0.45, 0.3], 0.4, rng, contact=0.0006)
+    ballast = ck.floor(rng, "ground", k + 1, 3.0, 0.6)
+    crack = W.tear(0.22, rng, env([(0, 2500), (0.05, 900), (0.22, 60)], 0.22), (1500, 8000), q=22, crack=0.9)
+    crack = crack * env([(0, 1), (0.22, 0)], 0.22)
+    burst = Bus(0.5)
+    for _ in range(int(rng.integers(26, 36))):
+        burst.at(abs(rng.normal(0, 0.03)), porcelain_shard(rng) * rng.uniform(0.3, 1.0))
+
+    def piece(rng):
+        x = porcelain_shard(rng, decay=rng.uniform(0.012, 0.04))
+        if rng.random() < 0.4:
+            x = mix(x, clink(STONES[int(rng.integers(3))], int(rng.integers(4)), rng.uniform(-4, 0), 0.015) * 0.5)
+        return x
+
+    rain = rain_of(rng, 1.2, 45, piece, decay=0.32, start=0.1)
+    at, last = last_piece(rng, rng.uniform(0.95, 1.1))
+    b = Bus(L + 0.5)
+    b.at(0, W.norm(body), -2)
+    b.at(0.003, W.norm(ballast), -7)
+    b.at(0.002, W.norm(crack), -4)
+    b.at(0.01, W.norm(burst.x), -3)
+    b.at(0, W.norm(rain), -8)
+    b.at(at, last, -19)
+    return finish(over_by(out_there(b.x, rng, 0.1), L), lo=40)

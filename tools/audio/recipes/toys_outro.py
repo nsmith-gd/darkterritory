@@ -590,3 +590,143 @@ def drummer_cam(rng, k):
     y = mix(b.x, unit(buzz) * 0.22)
     y = dsp.room(y, "car", wet=0.12, rng=np.random.default_rng(11))
     return seamless(y, n)
+
+
+# ---- The dead boiler, cooling ----------------------------------------------------------------------------------------------
+# Hot iron contracting as it cools: the cladding and sheet steel tick (sharp, short, high), plates and pipes ping and
+# ring on, now and then a whole panel snaps over with a dull bonk (oil-canning), a seam creaks as plates slide past each
+# other at their rivets, and clinker settles in the firebox. Uneven and in little runs (one tick lets go the next). This
+# is the warm, busy end; the game slows the loop's playback as `cool` rises.
+
+KINDS = ["tick"] * 12 + ["ping"] * 5 + ["pank"] * 1 + ["creak"] * 1 + ["cinder"] * 2
+STEEL = ck.K("impactMetal_light") + ck.K("impactMetal_medium") + ["sfx_100_v2:metal_02", "sfx_100_v2:metal_06"]
+PANEL = ["kenney_impact-sounds:impactBell_heavy_003", "kenney_impact-sounds:impactMetal_heavy_000",
+         "kenney_impact-sounds:impactMetal_heavy_003"]
+SEAM_CREAK = "kenney_rpg-audio:creak2"
+
+
+def cooling_plan(rng, L, rate=1.9):
+    """When things let go over one cycle, [(t, kind, distance m), ...]: a Poisson stream whose rate drifts slowly (the
+    iron cools in fits), each tick with a fair chance of setting off another a moment after (a run of tik-tik-tik)."""
+    drift = lp(rng.standard_normal(samples(L)).astype(np.float32), 0.25)
+    drift = 1 + 0.4 * drift / (np.max(np.abs(drift)) + 1e-9)
+    out, t = [], rng.uniform(0, 0.3)
+    while t < L:
+        kind = KINDS[int(rng.integers(len(KINDS)))]
+        out.append((t, kind, rng.uniform(4, 14)))
+        if kind == "tick":
+            u = t
+            while rng.random() < 0.4:
+                u += rng.uniform(0.05, 0.25)
+                out.append((u, "tick", out[-1][2]))
+        t += rng.exponential(1 / (rate * drift[min(samples(t), len(drift) - 1)]))
+    return out
+
+
+def cinders(rng):
+    """Clinker settling on the grate inside the firebox: a few small hard knocks, muffled by the iron box."""
+    g = ck.grains(rng, int(rng.integers(3, 8)), rng.uniform(0.05, 0.2), 900, 4500, q=(4, 9))
+    return dsp.room(lp(g, 3500, 2), "box", wet=0.4, rng=np.random.default_rng(4))
+
+
+def place_far(x, metres, rng):
+    """Where on the engine it let go: the firebox close by, the smokebox and tender further off (darker, wetter)."""
+    return dsp.gain(lp(x, float(np.clip(16000 / (1 + metres / 6), 3000, 16000)), 2), -20 * np.log10(metres / 4) * 0.7)
+
+
+def contraction_rec(rng, kind):
+    """One thing letting go, from real metal: a tick is a small steel or plate hit cut to its first few milliseconds; a
+    ping lets it ring, pitched down to a bigger plate; a pank is a heavy plate's clang, pitched well down and dulled; a
+    creak is a hinge's stick-slip squeal slowed into iron sliding on iron."""
+    if kind == "tick":
+        x = unit(ck.align(ck.get(STEEL[int(rng.integers(len(STEEL)))])))
+        x = dsp.vari(x, rng.uniform(-5, 4))
+        return ck.choke(x, rng.uniform(0.002, 0.012), rng.uniform(0.005, 0.02)) * rng.uniform(0.4, 1.0)
+    if kind == "ping":
+        x = unit(ck.align(ck.get(STEEL[int(rng.integers(10))])))
+        x = dsp.vari(x, rng.uniform(-9, -2))
+        return ck.choke(x, rng.uniform(0.15, 0.5), 0.15) * rng.uniform(0.25, 0.5)
+    if kind == "pank":
+        x = unit(ck.align(ck.get(PANEL[int(rng.integers(len(PANEL)))])))
+        return lp(ck.choke(dsp.vari(x, rng.uniform(-10, -6)), 0.12, 0.12), 2200, 2) * rng.uniform(0.3, 0.45)
+    if kind == "creak":
+        x = unit(ck.get(SEAM_CREAK))
+        x = lp(dsp.vari(x[samples(0.2):], rng.uniform(-17, -13)), 2500, 2)
+        return dsp.fade(x, 0.05, 0.3) * rng.uniform(0.18, 0.28)
+    return cinders(rng) * rng.uniform(0.25, 0.45)
+
+
+@recipe("ui-stranded-outro", "boiler-tick", "cooling",
+        "The dead engine cooling, from real metal: ticks, pings, a plate's bonk and a seam's creak, uneven, in the dark",
+        """Built from real metal recordings: ticks are small steel and plate hits cut to their first few milliseconds (the
+        crack of iron shrinking), pings let the same hits ring on, pitched down to bigger plates and pipes; a heavy plate's
+        clang pitched well down and dulled is a panel snapping over, a hinge's squeal slowed two octaves a seam sliding at
+        its rivets, and small knocks muffled in an iron box clinker settling in the firebox. They come unevenly, in runs,
+        about two a second (the warm end; the game slows it as it cools), from different parts of the engine (closer and
+        further, darker), out in the open night. One 14 s cycle.""",
+        sources=STEEL + PANEL + [SEAM_CREAK], takes=1, loop=True, seconds=14.0)
+def boiler_cooling(rng, k):
+    L = 14.0
+    b = Bus(L + 3)
+    for t, kind, m in cooling_plan(rng, L):
+        b.at(t, place_far(contraction_rec(rng, kind), m, rng))
+    y = dsp.room(b.x, "night", wet=0.15, rng=np.random.default_rng(9))
+    return seamless(y, samples(L))
+
+
+# The boiler as one body: the shell's modes, fixed (the same engine every time), from its low breathing modes to the
+# ring of its plates.
+_shell = np.random.default_rng(1863)
+SHELL = sorted(float(f) for f in np.exp(_shell.uniform(np.log(140), np.log(5200), 36)))
+SHELL_T = [float(np.clip(1.6 * (300 / f) ** 0.5 * _shell.uniform(0.6, 1.2), 0.15, 2.0)) for f in SHELL]
+
+
+def shell(rng, lo, hi, length, sparse=3.0, short=1.0):
+    """The boiler shell rung where something let go: its modes between lo and hi, each caught more or less depending
+    where (a random, sparse weighting), each dying in its own time."""
+    n = samples(length)
+    t = np.arange(n) / SR
+    y = np.zeros(n)
+    for f, T in zip(SHELL, SHELL_T):
+        if lo <= f <= hi:
+            y += rng.random() ** sparse * np.sin(2 * np.pi * f * t + rng.uniform(0, 6.28)) * np.exp(-6.9 * t / (T * short))
+    return unit(y.astype(np.float32))
+
+
+def contraction_model(rng, kind):
+    """One thing letting go, modelled: a tick is a crack into a small sheet's high modes with the shell barely answering;
+    a ping rings the shell's middle; a pank is a panel snapping over (a dropping thump) with the low shell behind it; a
+    creak is stick-slip through heavy iron."""
+    if kind == "tick":
+        c = synth.click(rng.uniform(2500, 6500), q=rng.uniform(8, 20), length=rng.uniform(0.01, 0.04), rng=rng)
+        return mix(unit(c), shell(rng, 1500, 5200, 0.3, short=0.3) * 0.15) * rng.uniform(0.5, 1.0)
+    if kind == "ping":
+        c = synth.click(rng.uniform(2000, 4000), q=6, length=0.006, rng=rng)
+        return mix(unit(c) * 0.6, shell(rng, 900, 4500, 1.6, sparse=5)) * rng.uniform(0.25, 0.5)
+    if kind == "pank":
+        th = synth.thump(rng.uniform(110, 170), 0.15, drop=0.3)
+        return mix(unit(th), shell(rng, 140, 900, 1.8, sparse=2, short=0.5) * 0.5) * rng.uniform(0.3, 0.45)
+    if kind == "creak":
+        L = rng.uniform(0.5, 1.0)
+        c = synth.creak(L, env([(0, 30), (L, 12)], L), rng, body=[f * rng.uniform(0.8, 1.2) for f in synth.IRON], q=22,
+                        shape=env([(0, 0), (0.1, 1), (L * 0.7, 0.7), (L, 0)], L))
+        return lp(hp(c, 120, 2), 2500, 2) * rng.uniform(0.15, 0.25)
+    return cinders(rng) * rng.uniform(0.25, 0.45)
+
+
+@recipe("ui-stranded-outro", "boiler-tick", "shell",
+        "The dead engine cooling, modelled as one boiler: ticks off its sheet, its shell pinging, a panel's bonk, a creak",
+        """The engine as one iron body: the boiler shell is a fixed set of 36 modes (140 Hz to 5 kHz, the low ones ringing
+        longest), and each thing that lets go rings it from its own place, so every ping is the same boiler but a
+        different note in it. Ticks are cracks into a small sheet's high modes with the shell barely answering; pings ring
+        its middle; a panel snapping over is a dropping thump with the low shell behind it; a seam creaks by stick-slip
+        through heavy iron; clinker knocks in the firebox. Same uneven, run-prone timing as 'cooling', about two a second,
+        out in the open night. One 14 s cycle.""",
+        takes=1, loop=True, seconds=14.0)
+def boiler_shell(rng, k):
+    L = 14.0
+    b = Bus(L + 3)
+    for t, kind, m in cooling_plan(rng, L):
+        b.at(t, place_far(contraction_model(rng, kind), m, rng))
+    y = dsp.room(b.x, "night", wet=0.15, rng=np.random.default_rng(9))
+    return seamless(y, samples(L))
