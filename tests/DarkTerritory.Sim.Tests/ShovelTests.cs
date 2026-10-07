@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
@@ -18,14 +19,20 @@ public class ShovelTests
         return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 1_000, Tuning.Boiler));
     }
 
+    /// <summary>
+    /// Stood in the cab a step short of <paramref name="kind"/> (towards the cab's middle) and looking at it, as note 264's
+    /// pick by look wants; the cab forward (note 276) has the firebox door in the back wall and the rack on the right.
+    /// </summary>
     static PlayerState At(World world, InteractableKind kind)
     {
-        var at = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
+        var thing = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == kind);
         var s = PlayerMotor.SpawnInCab(world.Train, Tuning.Player);
-        if (kind == InteractableKind.Firebox)
-            s.Position = s.Position with { X = 0.35, Z = at.Z + 0.5 };
-        else
-            s.Position = s.Position with { X = Math.Clamp(at.X, -1.05, 1.05), Z = at.Z };
+        var stand = kind == InteractableKind.Firebox ? thing.Position + new Double3(0.2, 0, -0.6)
+            : thing.Position + new Double3(-Math.Sign(thing.Position.X) * 0.55, 0, 0);
+        s.Position = stand with { Y = s.Position.Y };
+        var to = thing.Position + Double3.Up * thing.Aim - (s.Position + Double3.Up * Tuning.Train.Pick.EyeHeight);
+        s.Yaw = Math.Atan2(-to.X, -to.Z);
+        s.Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z));
         return s;
     }
 
@@ -107,8 +114,8 @@ public class ShovelTests
         var s = At(world, InteractableKind.Firebox);
         Hold(world, ref s, 0.1);
         Assert.True(train.Boiler.ShovelOut);
-        var rack = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.ToolRack).Position;
-        s.Position = s.Position with { X = Math.Clamp(rack.X, -1.05, 1.05), Z = rack.Z };
+        var atRack = At(world, InteractableKind.ToolRack);
+        (s.Position, s.Yaw, s.Pitch) = (atRack.Position, atRack.Yaw, atRack.Pitch);
         Hold(world, ref s, 0.5);
         Assert.False(Kit.Has(s.Kit, Tool.Shovel));
         Assert.False(train.Boiler.ShovelOut);
