@@ -39,8 +39,20 @@ jobs:
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
-      - name: Screenshots
-        if: runner.os == 'Linux'
+      # The gallery checks nothing but that each render doesn't crash (ScreenshotTests asserts the five views have a scene),
+      # and each shot is a fresh process that pays the renderer's startup. So a pull request renders one shot per kind,
+      # enough to catch a broken path, and main renders the whole gallery once per merge, kept as the screenshots artifact.
+      - name: Screenshots, one of each kind
+        if: runner.os == 'Linux' && github.event_name == 'pull_request'
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view roof --crew --out out/shots/crew-arms.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --threats --cam 1058,5,2.5 --target 1090,0,2 --fov 55 --out out/shots/threats-rear.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --hud --route frontier:7 --out out/shots/hud.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --route deadLines:8 --site --out out/shots/site-winch.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- linegen generate --route frontier:7 --cars 6 --map out/shots/lg-map.png --profile out/shots/lg-profile.png
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art show engine --out out/shots/art-engine.png
+      - name: Screenshots, the whole gallery
+        if: runner.os == 'Linux' && github.event_name != 'pull_request'
         run: |
           for v in trackside roof cab chase ahead; do
             dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- screenshot --view $v --out out/shots/$v.png
