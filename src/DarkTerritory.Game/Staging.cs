@@ -7,6 +7,94 @@ namespace DarkTerritory.Game;
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
 public static class Staging
 {
+    /// <summary>
+    /// Where to stand to talk to, read or look at a town's <paramref name="what"/> (person, board, paper, fixture, door; the
+    /// <paramref name="which"/>-th of them), and the point to look at (`dt screenshot --hud --talk`): in front of it, as close
+    /// as a crewmate would come.
+    /// </summary>
+    public static (Double3 Feet, Double3 Look) TownStand(Sim.Towns.Town town, string what, int which)
+    {
+        var plan = town.Plan;
+        Double3 Out(double s, double faceS, double faceD, double by) => town.Direction(s, faceS, faceD) * by;
+        switch (what)
+        {
+            case "person":
+                {
+                    var p = plan.People[Math.Clamp(which, 0, plan.People.Count - 1)];
+                    var feet = town.Feet(p);
+                    return (feet + Out(p.S, p.FaceS, p.FaceD, 1.5) with { Y = 0 }, feet + Double3.Up * 1.5);
+                }
+            case "board":
+                {
+                    var b = plan.Fixtures.First(f => f.Kind == "board");
+                    return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
+                }
+            case "paper":
+                {
+                    var loose = plan.Papers.Where(p => !p.OnBoard).ToList();
+                    var p = loose[Math.Clamp(which, 0, loose.Count - 1)];
+                    int side = plan.Square.Side;
+                    var at = town.World(p.S, p.D, p.Height);
+                    return (town.World(p.S - 0.9, p.D - side * 0.9), at);
+                }
+            case "door":
+                {
+                    var b = plan.Buildings[Math.Clamp(which, 0, plan.Buildings.Count - 1)];
+                    var door = town.Door(b);
+                    return (door with { Y = door.Y - 1.2 } + Out(b.S, 0, -Math.Sign(b.D), 2.0), door);
+                }
+            default:
+                {
+                    var f = plan.Fixtures[Math.Clamp(which, 0, plan.Fixtures.Count - 1)];
+                    double back = Math.Max(f.SolidS, f.SolidD) + 1.4;
+                    return (town.World(f.S, f.D) + Out(f.S, f.FaceS, f.FaceD, back), town.World(f.S, f.D, Math.Max(0.3, f.Height * 0.6)));
+                }
+        }
+    }
+
+    /// <summary>
+    /// Standing in a fortress town (note 281, `dt screenshot --town`): "square" at the way in from the engine, looking over
+    /// the centrepiece to the hall; "centre" at the centrepiece, close; "board" before the notice board; "hall" at the
+    /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across
+    /// the train.
+    /// </summary>
+    public static Ballast.Render.Camera TownCamera(Sim.Towns.Town town, string where)
+    {
+        var plan = town.Plan;
+        var sq = plan.Square;
+        int side = sq.Side;
+        double mid = (sq.S0 + sq.S1) / 2;
+        var centre = plan.Fixtures[0];
+        var board = plan.Fixtures.First(f => f.Kind == "board");
+        var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
+        var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour")
+        {
+            var l = home.Layout;
+            int k = l?.Kitchen ?? 1;
+            double du = l?.DoorU ?? 0, pv = l?.PassV ?? home.Depth / 2, w = home.Width;
+            Double3 At(double u, double v, double up) => home.Rail(u, v) is var (s, d) ? town.World(s, d, up) : default;
+            return where switch
+            {
+                // On the houses' side of the train (it stands at the gate, beside them), looking down their street.
+                "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
+                "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
+                "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                _ => Ballast.Render.Camera.LookAt(At(k * 1.0, pv - 0.4, 1.65), At(-k * w / 2, pv + 0.9, 1.1), 75),
+            };
+        }
+        return where switch
+        {
+            "board" => Ballast.Render.Camera.LookAt(town.World(board.S - 1.2, board.D - side * 2.2, 1.65), town.World(board.S, board.D, 1.5), 60),
+            "hall" => Ballast.Render.Camera.LookAt(town.World(hall.S - 7, hall.D - side * (hall.Depth / 2 + 9), 1.7), town.World(hall.S, hall.D, 3), 65),
+            "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
+            "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
+            "street" => Ballast.Render.Camera.LookAt(town.World(mid + 18, -side * 6, 2.2), town.World(mid - 10, side * 18, 2.0), 70),
+            _ => Ballast.Render.Camera.LookAt(town.World(sq.S1 - 3, side * 4.5, 1.7), town.World(centre.S - 6, centre.D, 1.6), 70),
+        };
+    }
+
     /// <summary>The sim tick staged impacts and hits land on (`dt screenshot --impact`, `--hit-flash`): the scene's clock is set after it.</summary>
     public const uint StrikeTick = 100;
 
@@ -925,7 +1013,7 @@ public static class Staging
         {
             var hound = new CinderHound(10 + i, 10);
             // At the sim's own height off the rail (Rear.cs: -0.3), on the ground: not the 0.6 they were staged at, which ran
-            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 335).
+            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 337).
             hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), -0.3, 10, 0);
             threats.Add(hound);
         }

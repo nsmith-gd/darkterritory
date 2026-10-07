@@ -6,9 +6,11 @@ namespace DarkTerritory.Sim.Run;
 /// <summary>
 /// One fortress along the line (GDD §9: "lights, then walls, then gun towers"): its walls from <see cref="Start"/> to
 /// <see cref="End"/>, its gatehouse over the line at <see cref="Gate"/>, the home fortress's platform behind its gate, and
-/// the lived-in village between the line and the walls while the town still answers (T100; linegen plan §22.4).
+/// the lived-in village between the line and the walls while the town still answers (T100; linegen plan §22.4). A town's
+/// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
+/// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood.
 /// </summary>
-public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived);
+public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null);
 
 /// <summary>A lived-in house inside a fortress's walls: its frontage along the line, its depth across, and its ridge.</summary>
 public readonly record struct FortHouse(double Width, double Depth, double Ridge);
@@ -59,13 +61,17 @@ public static class Fortresses
     public static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) =>
         platform && side > 0 && s > start + 50 && s < gateAt - 20;
 
+    /// <summary>A town's square (note 281) on <paramref name="side"/> at <paramref name="s"/>, give or take <paramref name="pad"/>.</summary>
+    public static bool InTheSquare(Towns.TownSquare? square, double s, int side, double pad) =>
+        square is { } sq && sq.Side == side && s > sq.S0 - pad && s < sq.S1 + pad;
+
     /// <summary>
     /// Which house stands at <paramref name="s"/> (a multiple of <see cref="HouseEvery"/>) on <paramref name="side"/>, or
-    /// null for a gap: one in five left empty, none on the platform or by the gate.
+    /// null for a gap: one in five left empty, none on the platform, by the gate, or in a town's <paramref name="square"/>.
     /// </summary>
-    public static int? HouseAt(double s, int side, double start, double end, double gateAt, bool platform)
+    public static int? HouseAt(double s, int side, double start, double end, double gateAt, bool platform, Towns.TownSquare? square = null)
     {
-        if (!InTheVillage(s, start, end, gateAt))
+        if (!InTheVillage(s, start, end, gateAt) || InTheSquare(square, s, side, 5))
             return null;
         int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
         if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform))
@@ -109,15 +115,27 @@ public static class Fortresses
         }
         foreach (int side in new[] { -1, 1 })
         {
-            // A wall piece runs from where it's set a bay up the line (its kit runs to −Z, which is up the line).
+            // A wall piece runs from where it's set a bay up the line (its kit runs to −Z, which is up the line). On a town's
+            // square's side, the bays stop at the square and start again past it, cut short where it does (WorldArt.WallRun).
             for (double s = Math.Floor(a / WallBay) * WallBay; s < b; s += WallBay)
+            {
+                if (fort.Square is { } sq && sq.Side == side && s + WallBay > sq.S0 && s < sq.S1)
+                {
+                    foreach (var (lo, hi) in new[] { (s, Math.Min(s + WallBay, sq.S0)), (Math.Max(s, sq.S1), s + WallBay) })
+                        if (hi - lo >= 0.05)
+                            yield return At((lo + hi) / 2, side * WallOut, (hi - lo) / 2 + 0.05, WallHalf, -3, WallHeight);
+                    continue;
+                }
                 yield return At(s + WallBay / 2, side * WallOut, WallBay / 2 + 0.05, WallHalf, -3, WallHeight);
+            }
             for (double s = Math.Ceiling(a / TowerEvery) * TowerEvery; s < b; s += TowerEvery)
-                yield return At(s, side * WallOut, TowerHalf, TowerHalf, -3, TowerHeight);
-            if (!fort.Lived)
+                if (!InTheSquare(fort.Square, s, side, 3))
+                    yield return At(s, side * WallOut, TowerHalf, TowerHalf, -3, TowerHeight);
+            // A town's houses are its own (Towns.Town's walls, note 281), not this village's.
+            if (!fort.Lived || fort.Square is not null)
                 continue;
             for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
-                if (HouseAt(s, side, fort.Start, fort.End, fort.Gate, fort.Platform) is { } v)
+                if (HouseAt(s, side, fort.Start, fort.End, fort.Gate, fort.Platform, fort.Square) is { } v)
                 {
                     // Its front to the line: its frontage along it, its depth across.
                     var house = House(v);

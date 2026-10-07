@@ -47,6 +47,10 @@ public sealed class PrototypeSession : IPlaySession
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)),
             DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
+        // The departure fortress's town (note 281): the customs of the creatures this edition fields.
+        if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
+            World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
+                DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster);
     }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)

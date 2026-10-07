@@ -113,6 +113,55 @@ This makes every town dependent on freight. One settlement produces coal. Anothe
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
 
+### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 note 281)*
+
+The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a line from somebody at their table, a little posted on a board, never a speech.
+
+**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three hundred and fifty people, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+
+**A town is its custom.** The Corruption exaggerates whatever lets a thing survive (§2), and the towns did the same. Each one got through one bad winter by doing one thing, kept doing it, and did it harder until it was the town's custom. Every custom is the human answer to one creature's rule, said sideways: the crew hear the custom, and the rule is theirs to work out. In a hush town nobody sings, not even at a burying, and the bell's clapper is bound in felt (the Choir). In a pairs town nobody sleeps or waits alone (Tippy Toesie). In an offerings town the children have no toys, because the toys go on a shelf by the gate (the Track Doll). The towns name the creatures in their own words, never the game's. A custom only ever answers a creature the edition fields. Fourteen customs are written (content/world/towns.json), one for each of the demo's five and the Choir among them.
+
+**Each town is different from the last.** It is made from the night's seed: the line's fortress name, its custom (never the one the crew left last night), one or two smaller habits (they wear their dead's coats; every clock stopped at the same minute; the foghorn sounded for the ones still out), and what it makes (a pit town, a growing town, a foundry town).
+
+**The square** is where the walls step back, beside the engine as the night starts. It holds:
+- the custom's own building in a Maritime form: a white clapboard church with a steeple over its door, a one-room school with its belfry, a car shed, a hall;
+- the clerk's office and the stores, lit;
+- the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
+- a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
+
+**The houses.** Down the yard's street from the square, both sides, fronts to the line:
+- the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
+- a few houses standing open with their household at home, explorable: a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
+- then the houses of the people the town has lost: boarded, burnt to the sills, or left open on the dark. Each has something to say when you look at it.
+
+*The director is finding references for the houses; this is the first pass at them.*
+
+**People.** Text only, no voices, as many as the town is big:
+- the gatekeeper says the town's law first;
+- the keeper of the custom's building and the folk round the centrepiece talk about the custom;
+- the clerk, the fitter, the lampman and the rest talk about their work;
+- a few are out in the street with a lamp;
+- the households at home tell their own story: the empty chair kept for somebody, the child who walks in their sleep, the letters to a town that stopped answering.
+
+Use talks to someone, and Use again hears their next line. They turn to face you. Nobody can be talked to through a wall.
+
+**Lore is through what people say** (the director, 7 Oct). They say creepy things. Sometimes it's a hint of how another town deals with a creature they've heard about ("in Pell's Cove they won't sing"), never the full rule. Everyone is a little damaged by what happened.
+
+**Papers.** The board carries three or four notices: the custom's orders first, then the town's trade and whatever else is posted. One or two notes lie about the square. A town's papers name its own people, so a line from one person and a notice about another can be put together.
+
+**Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (the night mail, "still due"), the towns that stopped answering, the sea, the penal cars, Dispatch, and the clerk's fees. None of them is ever explained.
+
+**Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
+
+**Not yet** (for the next passes):
+- the houses to the director's references;
+- buying, upgrading and turning loot into scrip in the town itself, not the menu;
+- the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
+- townspeople who move about, and faces of their own (they wear the crew's model);
+- upstairs in the open houses;
+- things everyone hears when one person does them (ringing the bell);
+- notes found out along the line.
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
@@ -2084,11 +2133,11 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Heat and pressure both fell and the train held its top speed. *Done (note 319, #243): an engine short of steam holds the train back below the working band (`boiler.json` `starvedDecel`).*
 
 **Towns and world building**
-- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #62, #194).*
+- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #74, #194; walled towns of up to 3000 next).*
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *First slice in (queue #65, note 326, B4): the plain village houses stand open with their finds inside; a held search of what they're kept in is next.*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the plain village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. Searched cupboards that look it, bots that search and solid furniture are next.*
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
@@ -2203,11 +2252,20 @@ Further decisions (the director, 6 Oct 2026):
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
 
-**Direction** (the director, 6 Oct 2026; proposals in T133):
+**Direction** (the director, 6 Oct 2026; proposals in T133; *first pass landed: §3.1, note 281, #194*):
 - *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
 - *Procedural, with people in them.* Each town has its own odd culture, different from the last.
 - *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
 - *Much more in the towns is interactable.*
+
+**Direction** (the director, 7 Oct 2026, notes for the towns; *second pass built for review: §3.1, note 281*):
+- *These are Maritime Canada towns.* The buildings must look like Maritime buildings. (The director is finding references for the houses.)
+- *Fully modelled inside and explorable,* some of them, *with residents.*
+- *Lore is through NPC dialogue.* They should say creepy things, sometimes hints of how to deal with monsters they've heard about, but never the full rule.
+- *Every culture is somewhat traumatised* by the events of the world.
+- *Towns of 20 to 350 people.*
+- Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335.)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
