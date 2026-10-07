@@ -112,6 +112,66 @@ public class StopGeneratorTests
         Assert.True(checkedStops > 0, "no deep-territory yard cleared a siding");
     }
 
+    [Theory]
+    [MemberData(nameof(Tiers))]
+    public void ADeadTownHasItsStationAndAGoodsYardOfDerelictStock(RouteTier tier)
+    {
+        // Linegen plan §11.3 (note 301): "platforms, station building, goods shed, sidings with derelict stock". A halt has none.
+        var tt = S.Tiers[tier];
+        var dt = S.DeadTown;
+        for (ulong seed = 1; seed <= 25; seed++)
+        {
+            var cx = Cx with { ZoneLength = 700, HaltAt = 350, Side = seed % 2 == 0 ? 1 : -1 };
+            var town = StopGenerator.Generate(S, tier, seed, StopKind.Village, cx with { DeadTown = true });
+            // Every invariant (the band's spread is EveryStopPassesEveryInvariant's).
+            var failed = town.Checks.Where(c => c.Applies && !c.Pass && c.Name != "Difficulty inside the tier's band").ToList();
+            Assert.True(failed.Count == 0, $"{tier} {seed}: " + string.Join("; ", failed.Select(c => c.Detail)));
+            var halt = town.Halt!.Value;
+            // The station behind the platform, on the halt's side, near it along the line.
+            var station = Assert.Single(town.Buildings, b => b.Kind == BuildingKind.Station);
+            Assert.Equal(Math.Sign(halt.D), Math.Sign(station.D));
+            Assert.InRange(Math.Abs(station.D) - station.Width / 2, Math.Abs(halt.D) + 2.2, Math.Abs(halt.D) + 2.2 + dt.Station.Gap + 0.01);
+            Assert.InRange(Math.Abs(station.S - halt.S), 0, station.Length / 2 + dt.Station.FromLane[1] + 0.01);
+            // The goods siding past the rail buffer, its derelicts on it, the goods shed beyond it; its find out of the buffer (P13).
+            var siding = Assert.Single(town.Sidings);
+            double d = siding[0].D;
+            Assert.InRange(Math.Abs(d), tt.Buffer + dt.Goods.Beyond[0] - 0.01, tt.Buffer + dt.Goods.Beyond[1] + 0.01);
+            var stock = town.Buildings.Where(b => b.Kind == BuildingKind.Derelict).ToList();
+            Assert.InRange(stock.Count, dt.Goods.Cars[0], dt.Goods.Cars[1]);
+            Assert.All(stock, c => Assert.True(c.D == d && c.S - c.Length / 2 >= siding[0].S && c.S + c.Length / 2 <= siding[^1].S));
+            var shed = Assert.Single(town.Buildings, b => b.Kind == BuildingKind.GoodsShed);
+            Assert.True(Math.Abs(shed.D) > Math.Abs(d) && Math.Sign(shed.D) == Math.Sign(d));
+            Assert.All(town.Containers.Where(c => c.Building == town.Buildings.ToList().IndexOf(shed)), c => Assert.True(c.Kind == ContainerKind.Bench && Math.Abs(c.At.D) >= tt.Buffer));
+            // All of it stands as walls (StopWalls), and none of it at a halt.
+            Assert.All(Enumerable.Range(0, town.Buildings.Count).Where(i => town.Buildings[i].Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict),
+                i => Assert.True(StopWalls.Walled(town, i)));
+            var plain = StopGenerator.Generate(S, tier, seed, StopKind.Village, cx);
+            Assert.DoesNotContain(plain.Buildings, b => b.Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict);
+            Assert.Empty(plain.Sidings);
+        }
+    }
+
+    [Fact]
+    public void TheLinesDeadTownsAreStopsWithTheirRailwaySide()
+    {
+        // frontier:7's Maddox (and every main-line dead town on these nights): a village halt with its station and goods yard.
+        int towns = 0;
+        foreach (var spec in new[] { "frontier:7", "deepTerritory:2", "deepTerritory:5" })
+        {
+            var route = LineGen.Routes.Generate(Content, spec, 10);
+            foreach (var t in route.Plan!.Landmarks.Where(l => l.Type == "town" && l.Edge == "main"))
+            {
+                var v = Assert.Single(route.Features, f => f.Kind == FeatureKind.Village && f.Start < t.S1 && t.S0 < f.End);
+                Assert.Contains(v.Stop!.Buildings, b => b.Kind == BuildingKind.Station);
+                Assert.Single(v.Stop!.Sidings);
+                towns++;
+            }
+            Assert.All(route.Features.Where(f => f.Kind == FeatureKind.Village && !route.Plan.Landmarks.Any(l => l.Type == "town" && l.Edge == "main" && f.Start < l.S1 && l.S0 < f.End)),
+                f => Assert.Empty(f.Stop!.Sidings));
+        }
+        Assert.True(towns > 0, "no dead town on the main line of these nights");
+    }
+
     [Fact]
     public void TheSameSeedIsTheSameStop()
     {

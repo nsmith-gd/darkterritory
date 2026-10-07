@@ -30,7 +30,7 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
 /// <summary>
 /// The stops' buildings and the fortresses' as walls a crewmate can't walk through and a ball stops at (T114 playtest:
 /// "collisions"; T124: "fort buildings have no collision, and gun shots hit nothing"). A village's houses, barns and
-/// outbuildings, each part of a house's footprint its own box; a fortress's walls, gun towers, gatehouse and houses
+/// outbuildings, each part of a house's footprint its own box; a dead town's station, goods shed and derelicts (note 301); a fortress's walls, gun towers, gatehouse and houses
 /// (<see cref="Fortresses"/>). Not the yards' sheds (the crates are loaded at them), nor a Holdout's building (its occupant
 /// comes back out of it), nor a well. Built from the route alike on every machine, so a client predicts walking into one
 /// exactly as the host has it.
@@ -56,6 +56,7 @@ public sealed class StopWalls
     /// <summary>Whether a stop's building stands as walls.</summary>
     public static bool Walled(StopLayout stop, int building) =>
         stop.Buildings[building].Kind is BuildingKind.House or BuildingKind.Barn or BuildingKind.Outbuilding
+            or BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict
         && !stop.Holdouts.Any(h => h.Building == building);
 
     /// <summary>

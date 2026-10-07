@@ -8,8 +8,10 @@ namespace DarkTerritory.Sim.Stops;
 /// <param name="Side">The side (+1 right) the stop's yard, or a village halt's village, must be on: where the line generator put the
 /// facility or the platform. 0 lets the stop roll it.</param>
 /// <param name="HaltAt">Where along the zone a village's halt already stands (the line generator's platform), if it does.</param>
+/// <param name="DeadTown">A dead town rather than a halt (linegen plan §11.3): it has its railway side, a station building and a
+/// goods yard with derelict stock (note 301).</param>
 public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null, double ExitGrade = 0,
-    int Side = 0, double? HaltAt = null);
+    int Side = 0, double? HaltAt = null, bool DeadTown = false);
 
 /// <summary>
 /// Generates a stop's layout (level-design Parts D and Z): rail, then roads, then districts, then buildings, then
@@ -78,6 +80,63 @@ public static partial class StopGenerator
             open.Remove(pick);
             int at = g.Tracks.FindIndex(tr => tr.Index == pick);
             g.Tracks[at] = g.Tracks[at] with { Derelicts = Math.Clamp(R.Int(t.Derelict.Cars), 1, g.Tracks[at].Capacity) };
+        }
+    }
+
+    /// <summary>
+    /// A dead town's railway side (linegen plan §11.3: "platforms, station building, goods shed, sidings with derelict stock";
+    /// note 301). The station building stands behind the halt's platform, clear of the lane up to the village. The goods
+    /// yard is out past the tier's rail buffer (P13: its find is loot), on whichever side has room, the far side from the
+    /// village first: a siding with its points long lifted, the derelicts standing on it from its buffer stop, and the goods
+    /// shed beyond it, its workbench a find at <c>deadTown.goods.find</c>. Anything that doesn't fit is left out, and the
+    /// check says so (the stop's rerolled for it, P15).
+    /// </summary>
+    static void RailwaySide(StopDraft g, Dice R, StopTuning t, StopTier tt, Pt halt, int side, List<IReadOnlyList<Pt>> sidings)
+    {
+        var dt = t.DeadTown;
+        // The station: behind the platform's back edge (WorldArt.Halt: 2.2 m behind the halt's line), along from the lane.
+        double back = Math.Abs(halt.D) + 2.2 + dt.Station.Gap + dt.Station.Size[1] / 2;
+        foreach (double along in R.Chance(0.5) ? new[] { 1.0, -1.0 } : [-1.0, 1.0])
+        {
+            var station = new StopBuilding(BuildingKind.Station, StopZone.Village, halt.S + along * (dt.Station.Size[0] / 2 + R.Range(dt.Station.FromLane)),
+                side * back, dt.Station.Size[0], dt.Station.Size[1], 0) { Variant = R.Int(0, 2) };
+            if (g.Fits(station, new Fit(Gap: 1.5, Rail: 2, Road: 1)))
+            {
+                g.Add(station);
+                break;
+            }
+        }
+        // The goods yard.
+        var gd = dt.Goods;
+        int cars = R.Int(gd.Cars);
+        double length = R.Range(gd.Length), beyond = R.Range(gd.Beyond);
+        foreach (int gs in new[] { -side, side })
+        {
+            double d = gs * (tt.Buffer + beyond);
+            for (int tries = 0; tries < 12; tries++)
+            {
+                // Beside the station: the siding's middle within `reach` of the halt along the line.
+                double lo = Math.Max(gd.Margin, halt.S - gd.Reach - length / 2), hi = Math.Min(g.ZoneLength - gd.Margin - length, halt.S + gd.Reach - length / 2);
+                if (hi < lo)
+                    break;
+                double s0 = R.Range(lo, hi), s1 = s0 + length;
+                // The derelicts from the siding's buffer stop (its far end, up the line), a gap between each.
+                var stock = Enumerable.Range(0, cars).Select(c => new StopBuilding(BuildingKind.Derelict, StopZone.Village,
+                    s1 - 1 - gd.Car[0] / 2 - c * (gd.Car[0] + gd.CarGap), d, gd.Car[0], gd.Car[1], 0) { Variant = R.Int(0, 3) }).ToList();
+                var shed = new StopBuilding(BuildingKind.GoodsShed, StopZone.Village, s0 + gd.Shed[0] / 2 + R.Range(4, Math.Max(4, length - gd.Shed[0] - cars * (gd.Car[0] + gd.CarGap))),
+                    d + gs * (gd.Car[1] / 2 + 3 + gd.Shed[1] / 2), gd.Shed[0], gd.Shed[1], 0) { Variant = R.Int(0, 2) };
+                var siding = new List<Pt> { new(s0, d), new(s1, d) };
+                if (!stock.All(c => g.Fits(c, new Fit(Gap: 0.5, Rail: 4, Road: 1))) || !g.Fits(shed, new Fit(Gap: 1, Rail: 4, Road: 1)) || !g.Clear(siding, 3))
+                    continue;
+                foreach (var c in stock)
+                    g.Add(c);
+                int si = g.Add(shed);
+                g.AddRail(siding);
+                sidings.Add(siding);
+                if (R.Chance(gd.Find))
+                    g.Contain(ContainerKind.Bench, StopZone.Village, shed.Centre, Math.Abs(shed.D) > 40 ? 2 : 1, 0, si);
+                return;
+            }
         }
     }
 
@@ -218,6 +277,11 @@ public static partial class StopGenerator
             g.AddRoad(RoadKind.Through, [new Pt(RR.Range(150, 320), -sY * edge), new Pt(RR.Range(60, 120), -sY * RR.Range(50, 90)), new Pt(-12, -sY * RR.Range(30, 60))]);
         }
 
+        // A dead town's railway side (note 301), from its own seed, before the Holdouts and lairs so they're placed round it.
+        var sidings = new List<IReadOnlyList<Pt>>();
+        if (cx.DeadTown && halt is { } stationAt && village is not null)
+            RailwaySide(g, new Dice(StopSeed.Of(s, StopSeed.DeadTown)), t, tt, stationAt, village.Side, sidings);
+
         // The yard's power and its powerhouse at the throat (level-design D.2), from their own seed.
         var power = PowerState.Live;
         int powerhouse = -1;
@@ -262,6 +326,7 @@ public static partial class StopGenerator
             Powerhouse = powerhouse,
             ExitGrade = hasYard ? cx.ExitGrade : 0,
             Holdouts = holdouts,
+            Sidings = sidings,
             Lairs = lairs,
             CutFront = cutFront,
             CutLength = hasYard ? cutLength : 0,

@@ -132,6 +132,9 @@ public sealed partial class WorldArt
             }
             if (stop.Halt is { } halt && f.Start + halt.S >= from && f.Start + halt.S < to)
                 Halt(k, line, f, halt, stop.HaltLength, eye);
+            foreach (var siding in stop.Sidings)
+                if (siding.Count > 1 && f.Start + siding[0].S >= from && f.Start + siding[0].S < to)
+                    GoodsSiding(k, line, route, f, siding, eye, valleyDepth);
             OpenRooms(mesh, line, route, f, stop, eye, from, to, valleyDepth);
         }
     }
@@ -231,6 +234,24 @@ public sealed partial class WorldArt
             case BuildingKind.Well:
                 k.With(frame, () => Well(k));
                 break;
+            case BuildingKind.Station:
+                // A dead town's station (note 301): a brick booking hall behind the platform, its door and a canopy to the line.
+                k.With(frame, () =>
+                {
+                    int door = b.D > 0 ? -1 : 1;
+                    StructureKit.Shed(k, width, length, 5.2f, b.Variant == 1 ? "wood_grey" : "brick_soot", door);
+                    k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+                    float edge = door * width / 2;
+                    k.Box(new Vector3(MathF.Min(edge, edge + door * 2.6f), 3.3f, -length / 2 + 1), new Vector3(MathF.Max(edge, edge + door * 2.6f), 3.45f, length / 2 - 1));
+                });
+                break;
+            case BuildingKind.GoodsShed:
+                // The goods shed: a tall timber shed, its doors to the siding (and the line beyond it).
+                k.With(frame, () => StructureKit.Shed(k, width, length, 7f, b.Variant == 1 ? "rust_heavy" : "wood_grey", b.D > 0 ? -1 : 1));
+                break;
+            case BuildingKind.Derelict:
+                k.With(frame, () => DerelictVan(k, length, b.Variant));
+                break;
             case BuildingKind.Powerhouse:
                 // The yard's powerhouse (level-design D.2): a brick engine house, its door to the main line, a tall
                 // stack at the back. Whether it's running, the scene says (its lamp).
@@ -318,6 +339,63 @@ public sealed partial class WorldArt
         });
         if (_props.Get("lamp_post") is { } post)
             k.Append(post, Basis(t.Tangent, t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * (side * ((float)Math.Abs(halt.D) + 1.6)) - t.Tangent * (half - 2), eye, 0));
+    }
+
+    /// <summary>
+    /// A dead town's goods siding (note 301): sleepers and two rusted rails, its points long lifted, a buffer stop at its far
+    /// end (up the line), where the derelicts stand.
+    /// </summary>
+    void GoodsSiding(Kit k, RailLine line, Route route, RouteFeature f, IReadOnlyList<Pt> siding, Double3 eye, float valleyDepth)
+    {
+        var a = siding[0];
+        var b = siding[^1];
+        var mid = new Pt((a.S + b.S) / 2, (a.D + b.D) / 2);
+        var t = line.Sample(Math.Clamp(f.Start + mid.S, 0, line.Length));
+        var at = Sim.Run.Run.StopWorld(line, f, mid, Ground(route, f.Start + mid.S, (float)mid.D, valleyDepth) - 0.1);
+        float half = (float)(b.S - a.S) / 2;
+        k.With(Basis(t.Tangent, at, eye, 0), () =>
+        {
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.3f);
+            for (float z = -half + 0.4f; z < half; z += 0.75f)
+                k.Box(new Vector3(-1.3f, -0.05f, z - 0.12f), new Vector3(1.3f, 0.07f, z + 0.12f), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side * TrainKit.HalfGauge - 0.035f, 0.07f, -half), new Vector3(side * TrainKit.HalfGauge + 0.035f, 0.19f, half));
+            // The buffer stop at its far end (−Z is up the line): a timber beam on two posts.
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.1f, tile: 1);
+            k.Box(new Vector3(-1.2f, 0.6f, -half - 0.4f), new Vector3(1.2f, 1.1f, -half));
+            foreach (int side in new[] { -1, 1 })
+                k.Box(new Vector3(side * 0.9f - 0.15f, 0, -half - 0.6f), new Vector3(side * 0.9f + 0.15f, 1.1f, -half - 0.3f));
+        });
+    }
+
+    /// <summary>
+    /// A derelict van on a dead town's goods siding (linegen plan §11.3 "derelict stock"; note 301): a box van left where it
+    /// stood, its paint gone to rust, a door hanging open on the dark inside (variant 1), or slid off its runner (2).
+    /// </summary>
+    static void DerelictVan(Kit k, float length, int variant)
+    {
+        float half = length / 2, w = 1.5f, floor = 1.1f, top = 3.5f;
+        k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
+        foreach (float z in new[] { -half + 2.2f, half - 2.2f })
+        {
+            k.Box(new Vector3(-1.1f, 0.3f, z - 1.2f), new Vector3(1.1f, 0.9f, z + 1.2f));
+            foreach (float dz in new[] { -0.8f, 0.8f })
+                foreach (int side in new[] { -1, 1 })
+                    k.Cylinder(new Vector3(side * TrainKit.HalfGauge - 0.06f, 0.5f, z + dz), new Vector3(side * TrainKit.HalfGauge + 0.06f, 0.5f, z + dz), 0.45f, 10);
+        }
+        k.Use(variant == 2 ? "wood_grey" : "rust_heavy", variant == 2 ? Palette.DeepBrown : Palette.RustRed, 0.95f, 0.2f, tile: 1.5f);
+        k.Box(new Vector3(-w, floor, -half), new Vector3(w, top, half), Kit.Faces.All & ~Kit.Faces.NegY);
+        // The sliding door's opening on each side: dark, a leaf hanging or gone.
+        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
+        k.Shade(0.25f);
+        foreach (int side in new[] { -1, 1 })
+            if (variant != 0 || side > 0)
+                k.Panel(new Vector3(side * (w + 0.005f), floor + 1.15f, 0), new Vector3(side, 0, 0), Vector3.UnitY, 2.2f, 2.1f);
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+        if (variant == 2)
+            // Slid off its runner: lying against the side, top out.
+            k.With(Matrix4x4.CreateRotationZ(0.35f) * Matrix4x4.CreateTranslation(w + 0.45f, 0.1f, 1.6f), () => k.Box(new Vector3(-0.04f, 0, -1.1f), new Vector3(0.04f, 2.2f, 1.1f)));
     }
 
     /// <summary>

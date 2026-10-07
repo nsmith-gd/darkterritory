@@ -365,6 +365,7 @@ What the game does with these rules today (ARCHITECTURE §8 notes 93–96 have t
 - **P1, the stop kinds:** yard only; yard and village (opposite, set back, or along the line); or a village on its own halt. Tiers weight the arrangements.
 - **P5–P8, the yard:** spur, ladder, fan and split forms. Shed rows stand between the tracks, and the hero stands at the far end, or along a fan's curve.
 - **P9–P12, the village:** blocks, street, crossroads and farmsteads. There are stub roads out to 1–2 outlier houses, and a village always has at least one find on its floor.
+- **A dead town** (the line plan's §11.3) is a village halt with its railway side: a station building behind the platform, and out past the rail buffer a goods siding (its points lifted) with derelict vans on it and a goods shed whose workbench may hold a find (ARCHITECTURE §8 note 301).
 - **P14, the loot:** the layout places containers, and the run's economy fills them when the train first stops there.
 - **P15, the score:** the planner is *supply-limited*. Each trip goes to the track with the most loadable loot left, and costs throws, couplings, reversals, blind moves, re-spots, hand cars, carrying, the switchman's walk and a blocked crossing. The village adds its walk and the odds of finding things.
 - **P16, a siding's size:** the cars that fit on its shared loading face, engine included.

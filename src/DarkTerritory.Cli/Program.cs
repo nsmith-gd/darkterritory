@@ -698,7 +698,8 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
     }
     else
-        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt));
+        // --town: a village halt as a dead town has it, with its station and goods yard (note 301).
+        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt) with { DeadTown = args.Contains("--town") });
     string plan = Str(args, "--out", $"out/stops/{tier}-{seed}-{kind}.png");
     int size = (int)Opt(args, "--size", 900);
     PngWriter.Write(plan, StopMap.Render(layout, size), size, size);
@@ -725,6 +726,10 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         layout.Moves,
         tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane, derelicts = t.Derelicts }),
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        // A dead town's railway side (note 301): where its station, goods shed and derelicts stand, and its goods siding.
+        railwaySide = layout.Buildings.Where(b => b.Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict)
+            .Select(b => new { kind = b.Kind.ToString(), s = Math.Round(b.S, 1), d = Math.Round(b.D, 1) }),
+        sidings = layout.Sidings.Select(x => x.Select(p => new { s = Math.Round(p.S, 1), d = Math.Round(p.D, 1) })),
         containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
         holdouts = layout.Holdouts.Select(h => new
@@ -749,17 +754,19 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
     return Enum.GetValues<RouteTier>().Select(tier =>
     {
         var result = new Dictionary<string, object>();
-        foreach (var kind in Enum.GetValues<StopKind>())
+        // Each kind, and a dead town (a village halt with its railway side, note 301).
+        foreach (var (kind, name, town) in Enum.GetValues<StopKind>().Select(k => (k, k.ToString(), false)).Append((StopKind.Village, "DeadTown", true)))
         {
             var first = new List<double>();
             var kept = new List<StopLayout>();
+            var kcx = cx with { DeadTown = town };
             for (int s = 1; s <= seeds; s++)
             {
-                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, cx, 0).Moves.Score);
-                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, cx));
+                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, kcx, 0).Moves.Score);
+                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, kcx));
             }
             double Q(IEnumerable<double> v, double q) { var a = v.OrderBy(x => x).ToList(); return a[(int)Math.Round(q * (a.Count - 1))]; }
-            result[kind.ToString()] = new
+            result[name] = new
             {
                 firstAttempt = new[] { 0.05, 0.25, 0.5, 0.75, 0.95 }.Select(q => Q(first, q)),
                 kept = new[] { 0.05, 0.5, 0.95 }.Select(q => Q(kept.Select(l => l.Moves.Score), q)),
@@ -2505,7 +2512,7 @@ static int Usage()
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
-          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village] [--route tier:seed --stop i] [--out file.png] [--size px]
+          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village [--town]] [--route tier:seed --stop i] [--out file.png] [--size px]
                      one stop's layout (docs/design/level-design.md): its tracks, buildings, loot containers, how hard it
                      is to work, every invariant, and a top-down plan PNG (default out/stops/)
           site sweep [--seeds n]                   n stops per tier and kind: difficulty, band hits, attempts, failing checks
