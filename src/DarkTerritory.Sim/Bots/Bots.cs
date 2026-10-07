@@ -2620,7 +2620,9 @@ public static class Heed
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
-        var holder = world.ActiveEnemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding >= 0 && e.Holding != selfId)
+        // A Choir ghost's seize is broken by quiet or a shut door, not blows (note 288): the bot's hush (Voice) is its rescue,
+        // and swinging at one only earns its hit back.
+        var holder = world.ActiveEnemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding >= 0 && e.Holding != selfId && !(e is ChoirGhost && et.Choir.DrivenOff))
             .Select(e => (e, At: e.WorldPosition(train))).Where(x => (x.At - me).Length <= 25).OrderBy(x => (x.At - me).Length).FirstOrDefault();
         if (holder.e is null)
             return intent;
