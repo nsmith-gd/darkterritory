@@ -116,6 +116,11 @@ public abstract class Enemy
     public virtual bool Reachable(World world) => true;
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
+    /// <summary>
+    /// Host: it stays until the crew deals with it, so the director never dismisses it for want of company (Cinder Hounds
+    /// aboard: GDD App. F, 6 Oct 2026, note 269).
+    /// </summary>
+    public virtual bool StaysAboard => false;
 
     /// <summary>
     /// A vehicle it drags on while the train's over <see cref="DragAbove"/> (the Car Hugger's speed cap), or −1. From
