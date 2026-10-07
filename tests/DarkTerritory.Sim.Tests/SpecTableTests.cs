@@ -55,6 +55,21 @@ public class SpecTableTests
     public void TwentyCarRoofTraverseTakesAboutNinetyFourSeconds() =>
         Assert.InRange(Consist.Uniform(T, 20, 1).LengthMetres / Tuning.Player.RoofRun, 93, 95);
 
+    /// <summary>
+    /// Spec B.8 (the director's decision of 6 Oct 2026, note 270): one route length for every tier, 24 km, so one dawn timer:
+    /// 24 km ÷ 11 m/s + 40% = 51 min. Transit at cruise (spec B.3's 14 m/s) is the total run's floor, 28.6 min.
+    /// </summary>
+    [Fact]
+    public void RunLengthMatchesSpecB8()
+    {
+        var r = Tuning.Route;
+        Assert.Equal(24, r.NightLengthKm);
+        Assert.Equal(11, r.DawnAverageSpeed);
+        Assert.Equal(0.4, r.DawnSlack, 6);
+        Assert.InRange(r.NightLengthKm * 1000 / r.DawnAverageSpeed * (1 + r.DawnSlack) / 60, 50.5, 51.5);
+        Assert.InRange(r.NightLengthKm * 1000 / 14 / 60, 28, 29);
+    }
+
     /// <summary>GDD v1.4 App. D.13: auto-bookmarks per run, cap 12 (range 8-20); priority derailment cinematic > PUNISH > GRAB start.</summary>
     [Fact]
     public void AutoBookmarksMatchGddD13()

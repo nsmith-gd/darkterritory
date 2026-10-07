@@ -216,12 +216,14 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 | Tier | Description |
 |---|---|
-| **Local routes** | Short, relatively safe connections between major towns |
-| **Frontier routes** | Longer lines through abandoned territory |
+| **Local routes** | Relatively safe connections between major towns: few creatures, few junctions and stops |
+| **Frontier routes** | Lines through abandoned territory: more creatures, more to do per kilometre |
 | **Dead lines** | Railways to settlements that have stopped responding |
-| **Deep territory** | Old industrial regions where Corruption is far more severe |
+| **Deep territory** | Old industrial regions where Corruption is far more severe: the most creatures and the densest line |
 
 You aren't picking a difficulty level. You're travelling farther from civilization.
+
+**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 24 km, dawn in 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
 
 ---
 
@@ -2138,10 +2140,10 @@ Further decisions (the director, 6 Oct 2026):
 - **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule. *Done (notes 268, 269).*
 - **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off. *Done (notes 263, 271).*
 - **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
-- **Run length** is to be set by simulation sweeps (T125).
-- **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later.
+- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270).*
+- **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later. *Tested (note 300): with two bot bugs fixed (a lone driver stranded on a car's landing, and a train stood on the points it needed thrown), a bot alone delivers every night swept: Local and Frontier at 3 and 6 cars, Frontier and Dead Lines at 10. What solo pays is income, about a third of a crew's. The bot never forgets the fire; people alone will find it harder. `balance.json` `solo` judges the target; what should make solo seriously hard is the director's call (four options in note 300).*
 
-- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
+- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
 
 **Direction** (the director, 6 Oct 2026; proposals in T133):
 - *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
@@ -2155,7 +2157,7 @@ Further decisions (the director, 6 Oct 2026):
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this. *Done (note 272; systems spec B.2): big hits only, rare healing finds, the edge flash. Caveat: creature health is not yet reworked; note 272 lists which creatures still die to blows, for the director.*
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
-**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
 

@@ -1221,6 +1221,13 @@ public sealed class World
     /// Counted from the gate (not in the yard, nor once the night's over). The director won't let it pass its pace.
     /// </summary>
     public double QuietSeconds { get; private set; }
+    /// <summary>
+    /// The same quiet in line travelled: metres the train has run since the last beat (the director's decision of 6 Oct 2026,
+    /// GDD App. F.1: "quiet stretches are counted in kilometres, not seconds": a stretch of line holds the same danger whatever
+    /// the train's speed, with <see cref="QuietSeconds"/> the time backstop for a stopped train). The pacing log's measure
+    /// (ARCHITECTURE §8 note 270); the director keeps its own, from the last threat engaged (enemies.json quietRampMetres).
+    /// </summary>
+    public double QuietMetres { get; private set; }
     DarkTerritory.Sim.Run.RunPhase _lastPhase;
 
     void Pace()
@@ -1251,7 +1258,9 @@ public sealed class World
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
             // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
             || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
-        QuietSeconds = !out_ || Beats.Count > 0 || active ? 0 : QuietSeconds + SimConstants.TickSeconds;
+        bool quiet = out_ && Beats.Count == 0 && !active;
+        QuietSeconds = quiet ? QuietSeconds + SimConstants.TickSeconds : 0;
+        QuietMetres = quiet ? QuietMetres + Train.Dynamics.Speed * SimConstants.TickSeconds : 0;
     }
 
     /// <summary>
