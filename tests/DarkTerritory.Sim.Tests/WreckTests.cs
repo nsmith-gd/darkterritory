@@ -73,4 +73,24 @@ public class WreckTests
             Assert.True(Double3.Dot(c.Up, f.Up) > 0.999, $"car {f.Index} lies differently");
         }
     }
+
+    [Fact]
+    public void AThirtyKilometreDerailGoesOverRatherThanGlidingOff()
+    {
+        // Note 330 (#69, the director, 7 Oct: "took a curve going into a yard at 30 kilometers an hour ... glided off the
+        // rails"): the kick was a share of the speed, so at 8 m/s nothing went past 9°. Now the engine and most of the
+        // train go over.
+        var w = Derailed(8.3);
+        var wreck = w.Train.Wreck!;
+        var rolled = new double[wreck.Bodies.Count];
+        for (int i = 0; i < 40 * SimConstants.TickRate && !wreck.Settled; i++)
+        {
+            w.Step(default);
+            for (int k = 0; k < wreck.Bodies.Count; k++)
+                rolled[k] = Math.Max(rolled[k], Math.Acos(Math.Clamp(Double3.Dot(wreck.Bodies[k].Up, Double3.Up), -1, 1)) * 180 / Math.PI);
+        }
+        Assert.True(wreck.Settled, "never came to rest");
+        Assert.True(rolled[0] > 60, $"the engine stayed up ({rolled[0]:0}°)");
+        Assert.True(rolled.Count(r => r > 35) * 2 > rolled.Length, $"most of the train stayed up ({string.Join(", ", rolled.Select(r => r.ToString("0")))})");
+    }
 }
