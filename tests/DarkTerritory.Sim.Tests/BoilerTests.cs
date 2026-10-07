@@ -206,4 +206,32 @@ public class BoilerTests
             train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
         Assert.True(train.Boiler.LowFireSeconds >= 45);
     }
+
+    [Fact]
+    public void AnEngineWhoseFireDiesSlowsWithItsSteam()
+    {
+        // Note 319, the director's test build (7 Oct 2026): with nobody firing, heat and pressure fell and the train held its
+        // speed; at 0.01 m/s² it was still at 17 m/s four minutes on with the fire long out. Pressure sets the speed both ways.
+        static List<(double V, double P)> Run(BoilerTuning b)
+        {
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(40000)])), 500, b);
+            var samples = new List<(double, double)>();
+            for (int i = 0; i <= SimConstants.TickRate * 300; i++)
+            {
+                if (i % (SimConstants.TickRate * 30) == 0)
+                    samples.Add((train.Dynamics.Velocity, train.Boiler.Pressure));
+                train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = 1, Reverser = 1 });
+            }
+            return samples;
+        }
+        var now = Run(Tuning.Boiler);
+        var coasting = Run(Tuning.Boiler with { StarvedDecel = 0 });
+        // In the working band, nothing changes.
+        for (int i = 0; i < now.Count && coasting[i].P >= Tuning.Boiler.WorkingBandMin; i++)
+            Assert.Equal(coasting[i].V, now[i].V, 6);
+        // The fire out (pressure gone by 240 s), it's slowing hard, and stopped by 300 s; coasting, it was still near 17 m/s.
+        Assert.True(coasting[8].V > 16, $"coasting at 240 s: {coasting[8].V:0.0} m/s");
+        Assert.True(now[8].V < 6, $"at 240 s: {now[8].V:0.0} m/s, pressure {now[8].P:0}");
+        Assert.True(now[10].V < 0.5, $"at 300 s: {now[10].V:0.0} m/s");
+    }
 }

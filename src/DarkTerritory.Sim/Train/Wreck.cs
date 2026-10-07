@@ -6,11 +6,18 @@ namespace DarkTerritory.Sim.Train;
 /// <param name="RackSeconds">E.9 "the rack": on the empty engineering-kit rack, in the cab.</param>
 /// <param name="PullBackSeconds">E.9 "the pull-back": up and back over the stopped consist to a high wide, the lamps going out from the last car forward, the engine last.</param>
 /// <param name="HeightM">How high the wide ends, and <paramref name="BackM"/> how far out behind and beside the train's middle.</param>
-/// <param name="SkipAfterSeconds">E.10's stranded skip delay: a majority (or the host) can skip it from here.</param>
+/// <param name="SkipAfterSeconds">E.10's stranded skip delay: it can be skipped from here (<see cref="SkipTuning"/>).</param>
 public sealed record StrandedOutroTuning(double RackSeconds = 1.5, double PullBackSeconds = 6, double HeightM = 42, double BackM = 55, double SkipAfterSeconds = 3)
 {
     public double Seconds => RackSeconds + PullBackSeconds;
 }
+
+/// <summary>
+/// GDD v1.4 App. E.5 "Skipping", after the director's answer to E.12 question 2 (note 315).
+/// </summary>
+/// <param name="Own">Each player skips the film (and the Stranded outro) on their own screen, whenever they want; false: the old majority-or-host vote.</param>
+/// <param name="HoldSeconds">How long the key's held to skip your own.</param>
+public sealed record SkipTuning(bool Own = true, double HoldSeconds = 0.5);
 
 public sealed record WreckTuning
 {
@@ -21,6 +28,8 @@ public sealed record WreckTuning
     public Music.MusicTuning Music { get; init; } = new();
     /// <summary>GDD v1.4 App. E: the derailment film's physics and shots.</summary>
     public FilmTuning Film { get; init; } = new();
+    /// <summary>GDD v1.4 App. E.5 "Skipping": each player's own, or the crew's vote (note 315).</summary>
+    public SkipTuning Skip { get; init; } = new();
     public int Substeps { get; init; } = 6;
     public double Gravity { get; init; } = 9.81;
     public double Restitution { get; init; } = 0.12;

@@ -15,6 +15,8 @@ public static class PlanHud
     static readonly Vector4 InkDark = new(0.10f, 0.09f, 0.08f, 1);
     static readonly Vector4 Rule = new(0.35f, 0.28f, 0.2f, 0.8f);
     static readonly Vector4 Stamp = new(0.55f, 0.12f, 0.08f, 1);
+    /// <summary>The crew's own pencil on the card: where the train is (note 285).</summary>
+    static readonly Vector4 Pencil = new(0.12f, 0.3f, 0.62f, 1);
     static readonly Vector4 Ink = new(0.88f, 0.84f, 0.74f, 1);
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
     static readonly Vector4 Panel = new(0.02f, 0.02f, 0.03f, 0.6f);
@@ -24,7 +26,9 @@ public static class PlanHud
     /// <returns>How many sides it has.</returns>
     /// <param name="rail">The night's line: with it, the card's first side carries the line's profile under its title,
     /// drawn as the depot would ink it (its height along the night, its stops ticked in red), the climbs read at a glance.</param>
-    public static int RouteCard(Overlay o, int width, int height, LinePlan plan, int page = 0, Sim.Rail.RailLine? rail = null)
+    /// <param name="at">Where the train is along the main line (m): pencilled on the profile. With the strip gone from the
+    /// top of the screen (note 285), the card is where a player finds where they are in the night.</param>
+    public static int RouteCard(Overlay o, int width, int height, LinePlan plan, int page = 0, Sim.Rail.RailLine? rail = null, double? at = null)
     {
         var card = plan.RouteCard;
         int line = o.Font.LineHeight;
@@ -78,7 +82,7 @@ public static class PlanHud
             ty += line;
         }
         if (profile)
-            Profile(o, rail!, plan, x + 6, y + 5 + 2 * line + 3, w - 12, profileH);
+            Profile(o, rail!, plan, x + 6, y + 5 + 2 * line + 3, w - 12, profileH, at);
         return pages;
     }
 
@@ -88,7 +92,14 @@ public static class PlanHud
     /// every posted bend (PostedSpeeds, the boards' own figures) its stretch ruled red along the foot and its km/h over it
     /// (the director's notes on the line plan: "speed ticks on derailment bends that show the max speed for those bends").
     /// </summary>
-    static void Profile(Overlay o, Sim.Rail.RailLine line, LinePlan plan, float x, float y, float w, float h)
+    /// <summary>
+    /// How far along the card's profile (0..1) a kilometre post is. The card's kilometres are the posts', from the outer gate
+    /// (km 0); the profile runs from the line's start, as the train's pencilled place does.
+    /// </summary>
+    public static double ProfileAt(LinePlan plan, Sim.Rail.RailLine line, double km) =>
+        line.Length <= 0 ? 0 : Math.Clamp((plan.GateM + km * 1000) / line.Length, 0, 1);
+
+    static void Profile(Overlay o, Sim.Rail.RailLine line, LinePlan plan, float x, float y, float w, float h, double? at = null)
     {
         var card = plan.RouteCard;
         int n = Math.Max(2, (int)w);
@@ -103,11 +114,11 @@ public static class PlanHud
             o.Rect(x + i, y + top, 1, h - top, InkDark with { W = 0.75f });
         }
         double km = line.Length / 1000;
-        for (int k = 5; k < km; k += 5)
-            o.Rect(x + (float)(k / km * w), y + h - 3, 1, 3, Paper);
+        for (int k = 5; plan.GateM / 1000 + k < km; k += 5)
+            o.Rect(x + (float)ProfileAt(plan, line, k) * w, y + h - 3, 1, 3, Paper);
         foreach (var stop in card.Timetable)
         {
-            float sx = x + (float)Math.Clamp(stop.Km / km, 0, 1) * (w - 1);
+            float sx = x + (float)ProfileAt(plan, line, stop.Km) * (w - 1);
             o.Rect(sx, y, 1, 4, Stamp);
         }
         // The bends: their stretch in red along the foot, a hairline up to the figure. Where two would print on each other,
@@ -128,6 +139,14 @@ public static class PlanHud
             o.Rect((b0 + b1) / 2, ty + o.Font.LineHeight - 2, 1, h - (ty + o.Font.LineHeight - 2 - y) - 2, Stamp with { W = 0.6f });
             o.Rect(tx - 1, ty - 1, tw + 1, o.Font.LineHeight - 1, Paper);
             o.Text(tx, ty, figure, Stamp, shadow: false);
+        }
+        // Where the train is (note 285), pencilled over the ink: a line down the profile and a mark over it.
+        if (at is { } here && line.Length > 0)
+        {
+            float px = MathF.Round(x + (float)Math.Clamp(here / line.Length, 0, 1) * (w - 1));
+            o.Rect(px, y, 1, h, Pencil);
+            o.Rect(px - 2, y - 3, 5, 1, Pencil);
+            o.Rect(px - 1, y - 2, 3, 1, Pencil);
         }
     }
 

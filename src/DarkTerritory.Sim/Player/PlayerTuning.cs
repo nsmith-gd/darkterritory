@@ -33,6 +33,9 @@ public sealed record PlayerTuning(
     /// <summary>How many the crew can be, and how a joiner past it is turned away (GDD §1 "2–8"; note 254).</summary>
     public CrewTuning Crew { get; init; } = new();
 
+    /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
+    public EmoteTuning Emotes { get; init; } = new();
+
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
     /// <summary>
@@ -66,6 +69,15 @@ public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody 
 public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 {
     public int Places => Math.Max(1, Cap);
+}
+/// <summary>
+/// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
+/// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
+/// </summary>
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
+{
+    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };
+    public double Longest => Math.Max(Dance, Math.Max(Wave, Point));
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>

@@ -279,11 +279,16 @@ public static partial class StopGenerator
             if (tr.Crane is { Bays: > 0 } rw)
                 lairs.Add(new StopLair(LairKind.GrumblerPerch, StopZone.Yard, new Pt((rw.From + rw.To) / 2, tr.FaceStart.D), (rw.To - rw.From) / 2, Track: tr.Index));
 
-        // The Whistler's nest: out on the side with the least built on it.
+        // The Whistler's nest: out on the side with the least built on it, abreast of where the train stands (note 314: it
+        // snatches from the train's gaps and runs there).
         int empty = g.Buildings.Count(b => b.D > 0) <= g.Buildings.Count(b => b.D < 0) ? 1 : -1;
+        double along = lt.WhistlerNestAlong;
         for (int tries = 0; tries < 60; tries++)
         {
-            var p = new Pt(R.Range(g.ZoneLength * 0.15, g.ZoneLength * 0.85), empty * R.Range(lt.WhistlerNest));
+            double s = along > 0
+                ? Math.Clamp(stopPoint.S + R.Range(-along, along), 0, g.ZoneLength)
+                : R.Range(g.ZoneLength * 0.15, g.ZoneLength * 0.85);
+            var p = new Pt(s, empty * R.Range(lt.WhistlerNest));
             if (!Open(p, 6))
                 continue;
             lairs.Add(new StopLair(LairKind.WhistlerNest, g.Tracks.Count > 0 ? StopZone.Yard : StopZone.Village, p, 4));
