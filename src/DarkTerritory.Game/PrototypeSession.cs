@@ -133,6 +133,7 @@ public sealed class PrototypeSession : IPlaySession
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
         World.Hand = _playerTuning.Value.Hand;
+        World.Bodies.FullHealth = _playerTuning.Value.Health; // a healing find is used only short of it (note 272)
         if (_combatTuning.Refresh(e => LastReloadError = e.Message))
         {
             World.Combat = _combatTuning.Value;
