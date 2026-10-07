@@ -192,6 +192,12 @@ public sealed class World
     /// </summary>
     public DrawAnswer Answer { get; set; }
 
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (note 327): eyes toward what lives at the stop, and its sound. The host's,
+    /// replicated on the world record; presentation only.
+    /// </summary>
+    public Watcher Watcher { get; set; }
+
     /// <summary>Host: a draw made (note 287), credited on the director's ledger; nothing in the safe yard.</summary>
     void Drew(DrawCause cause, int player, double amount)
     {
@@ -938,6 +944,9 @@ public sealed class World
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
+        // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
+        if (Authority && Run is { } searching)
+            searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -1288,6 +1297,8 @@ public sealed class World
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
         if (Authority && Answer.Showing)
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
+        if (Authority && Watcher.Showing)
+            Watcher = Watcher with { Seconds = Math.Max(0, Watcher.Seconds - SimConstants.TickSeconds) };
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -1562,6 +1573,9 @@ public sealed class World
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
             d.Listen(this);
+            // Note 327: the crew afoot off the train, watched (the pressure they draw, and a sign now and then).
+            if (d.Watch(this) is { } sign)
+                Watcher = sign;
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate

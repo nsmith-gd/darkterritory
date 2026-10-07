@@ -144,6 +144,14 @@ public static class Staging
     /// <paramref name="lateral"/> m to its right (enemies.json director.draw's answerDistance and answerLateral), at an animal's
     /// eye height off the ground, <paramref name="left"/> seconds still to show.
     /// </summary>
+    /// <summary>A point by line coordinates (as `dt screenshot --cam`): <paramref name="s"/> along the line, <paramref name="lateral"/> m to its right, <paramref name="height"/> m up.</summary>
+    public static Double3 LineAt(Sim.Rail.RailLine line, double s, double lateral, double height)
+    {
+        var t = line.Sample(s);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        return t.Position + right * lateral + Double3.Up * height;
+    }
+
     public static DrawAnswer Answer(TrainOnLine train, double left, double ahead = 60, double lateral = 12, double height = 0.7) =>
         new(left, DrawCause.Whistle, Sim.World.DrawAnswerAt(train, ahead, lateral, height), 0);
 
@@ -1024,7 +1032,9 @@ public static class Staging
         for (int i = 0; i < 3; i++)
         {
             var hound = new CinderHound(10 + i, 10);
-            hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), 0.6, 10, 0);
+            // At the sim's own height off the rail (Rear.cs: -0.3), on the ground: not the 0.6 they were staged at, which ran
+            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 337).
+            hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), -0.3, 10, 0);
             threats.Add(hound);
         }
         var boarded = new CinderHound(13, 10);

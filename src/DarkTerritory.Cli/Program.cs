@@ -78,6 +78,7 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
@@ -1251,6 +1252,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --searched (note 326): every open house's hiding spots searched, opened up, with what they kept out on the floor.
+    DarkTerritory.Sim.Physics.Bodies? searched = null;
+    if (args.Contains("--searched") && generated is not null)
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        if (run.HidingSpots.Count == 0)
+            run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, null);
+        searched = new();
+        foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
+            run.Stock(searched, k, searched: true);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1312,6 +1324,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // show (4: open, before the blink); --answer-at ahead,lateral moves them (default 60,-12: left of the rail, in the driver's window).
         Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
             ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
+        // --watcher s,lateral,height: a sign shown a crewmate afoot (note 327), its eyes there in line coordinates (as --cam;
+        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink).
+        Watcher = Str(args, "--watcher", "") is { Length: > 0 } ws && ws.Split(',').Select(double.Parse).ToArray() is var wp
+            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5), DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
+            : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
@@ -1384,6 +1401,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         });
         scene.Bodies = [.. scene.Bodies ?? [], .. posed];
     }
+    if (searched is not null)
+        scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -2096,7 +2115,7 @@ static object HudShot(string content, string[] args)
         // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
         string roofWarning = Str(args, "--roof-warning", "");
         // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
-        // warned. deepTerritory:2 if no --route: frontier:7 has no such bend.
+        // warned. deepTerritory:2 if no --route (every night has such bends since note 278; frontier:7's first is at km 8.8).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
         var solo = roofWarning == "bend-cab"
@@ -2518,6 +2537,17 @@ static object RenderAudio(string content, string[] args)
     if (Str(args, "--sound", "") is { Length: > 0 } sound)
         return RenderSound(content, sound, args);
     string scenario = Str(args, "--scenario", "chaos");
+    // A bend taken too fast (note 265): the stress telegraph built up to the derailment, a second at a time.
+    if (scenario == "bend")
+    {
+        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:2"), (int)Opt(args, "--cars", 6),
+            (int)Opt(args, "--listener", 0), Opt(args, "--seconds", 16));
+        string bendOut = Str(args, "--out", "out/audio/bend.wav");
+        Ballast.Audio.Wav.Write(bendOut, bent);
+        string bendPicture = Path.ChangeExtension(bendOut, ".png");
+        PngWriter.Write(bendPicture, DarkTerritory.Game.Sound.Spectrogram.Render(bent, 800, 300), 800, 300, 1);
+        return new { path = Path.GetFullPath(bendOut), spectrogram = Path.GetFullPath(bendPicture), report = bend };
+    }
     if (Str(args, "--listener", "") == "all")
         return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6),
             Str(args, "--space", "") is { Length: > 0 } everywhere ? everywhere : null);
@@ -2638,7 +2668,7 @@ static int Usage()
           boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
-          trailer [--route tier:seed] [--fps n] [--width w --height h] [--short]   the trailer cut from the game itself: frames to out/trailer, ffmpeg to trailer.mp4
+          trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
           art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet

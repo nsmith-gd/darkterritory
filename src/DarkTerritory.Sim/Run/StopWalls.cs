@@ -137,6 +137,30 @@ public sealed class StopWalls
         return (f * fx - s * fy, f * fy + s * fx);
     }
 
+    /// <summary>
+    /// What a find in an open house is kept in, in the house's own frame (note 326): the middle of the cupboard on the back
+    /// wall or the cabinet on a side wall (each with its find out in front of it), or the hatch or the boards (under it), and
+    /// the way it faces into the room (a unit vector). The art stands the furniture here, and a searched one is drawn opened.
+    /// </summary>
+    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index)
+    {
+        var (x, y) = InsideLocal(b, kind, index);
+        var (fx, fy) = Front(b);
+        double sign = index % 2 == 0 ? 1 : -1;
+        return kind switch
+        {
+            ContainerKind.Cupboard => (x - fx * CupboardBack, y - fy * CupboardBack, fx, fy),
+            ContainerKind.Cabinet => (x - fy * sign * CabinetBack, y + fx * sign * CabinetBack, fy * sign, -fx * sign),
+            _ => (x, y, fx, fy),
+        };
+    }
+
+    /// <summary>How far behind its find a cupboard's and a cabinet's middles stand (m): half their depth short of the wall.</summary>
+    public const double CupboardBack = FindOut - 0.25, CabinetBack = FindOut - 0.22;
+
+    /// <summary>A stop-frame point in an open house's own frame, out to the world's (for the art and the hiding spots).</summary>
+    public static Pt InHouse(StopBuilding b, double x, double y) => Plan.World(b, x, y);
+
     /// <summary>Where a stop's container's find is put out: inside an open house, on a shut one's step, else where it is.</summary>
     public static Pt FindAt(StopLayout stop, StopContainer c)
     {

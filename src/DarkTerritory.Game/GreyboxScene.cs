@@ -299,6 +299,9 @@ public sealed class GreyboxScene
                         mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
                         mesh.Billboard(at, 0.3f, 0, new Vector4(Palette.LampAmber * 1.2f, 1), -1, FxBlend.Additive);
                     }
+            // An open house's hiding spots once searched (note 326): opened up, so a crew sees what's been gone through.
+            if (Run is not null)
+                SearchedSpots(mesh, line, Run, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
@@ -412,6 +415,9 @@ public sealed class GreyboxScene
             // Something out past the lamp heard the crew (note 287).
             if (Answer.Showing)
                 Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
+            // Something that lives at this stop, watching the crew afoot (note 327).
+            if (Watcher.Showing)
+                Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -940,6 +946,13 @@ public sealed class GreyboxScene
     /// </summary>
     public Sim.Enemies.DrawAnswer Answer { get; set; }
     public double AnswerShowSeconds { get; set; } = 7;
+
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (World.Watcher, note 327): eyes toward what lives at the stop while it shows,
+    /// over <see cref="WatcherShowSeconds"/> (enemies.json director.afoot.signSeconds).
+    /// </summary>
+    public Sim.Enemies.Watcher Watcher { get; set; }
+    public double WatcherShowSeconds { get; set; } = 3.5;
 
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
@@ -2306,6 +2319,70 @@ public sealed class GreyboxScene
                     var p = outlet + new Double3(Math.Sin(i * 1.9) * 2.5 * t, -1.5 + 2.5 * t, Math.Cos(i * 1.3) * 2.5 * t);
                     mesh.Billboard(V(p, eye), 1.5f + 3f * (float)t, (float)(i + time * 0.3), new Vector4(0.55f, 0.65f, 0.25f, 0.5f * (1 - (float)t)), -1, FxBlend.Alpha);
                 }
+        }
+    }
+
+    /// <summary>
+    /// An open house's hiding spots that have been searched (note 326), drawn over the house's own furniture (TownKit.OpenHouse,
+    /// which stands it shut): a cupboard with its doors swung back and its inside dark, a cabinet with its drawer out, the
+    /// cellar's hatch up on its hinge over a black hole, the boards lifted out and laid by the gap. From the sim's spots and
+    /// what's searched, so a client sees what the host has.
+    /// </summary>
+    void SearchedSpots(MeshBuilder mesh, RailLine line, Sim.Run.Run run, Double3 eye)
+    {
+        // Weathered deal, paler than the furniture's faces so an opened door or a lifted board reads by a lamp.
+        var wood = new Vector3(0.26f, 0.19f, 0.12f);
+        var dark = new Vector3(0.012f, 0.01f, 0.008f);
+        IReadOnlyList<Sim.Route.RouteFeature>? stops = null;
+        foreach (var spot in run.HidingSpots)
+        {
+            if ((spot.Kept - eye).Length > 60 || !run.Searched(spot.Stop, spot.Container.Index))
+                continue;
+            stops ??= run.Stops;
+            if (stops[spot.Stop] is not { Stop: { } stop } f)
+                continue;
+            // The house's floor, as the art stands it: its frame 0.15 m under the ground at its middle, the boards 0.17 over that.
+            var b = stop.Buildings[spot.Container.Building];
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y);
+            var into = new Vector3((float)spot.Facing.X, 0, (float)spot.Facing.Z);
+            var up = Vector3.UnitY;
+            var side = Vector3.Cross(up, into);
+            Vector3 At(float out_, float height, float across = 0) =>
+                V(new Double3(spot.Kept.X, floor + height, spot.Kept.Z) + ToD(into * out_ + side * across), eye);
+            switch (spot.Container.Kind)
+            {
+                case Sim.Stops.ContainerKind.Cupboard:
+                    // Its face is 0.25 out from its middle, 1 m wide and up to 1.9: inside dark, a door swung back from each side
+                    // past square (115°), so it reads from in front, not edge on.
+                    mesh.Box(At(0.255f, 0.86f), side, up, into, new Vector3(0.46f, 0.66f, 0.005f), dark);
+                    foreach (float s in new[] { -1f, 1f })
+                    {
+                        float swing = 115 * MathF.PI / 180;
+                        // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about the hinge.
+                        var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
+                        var face = Vector3.Cross(up, along);
+                        var hinge = side * (s * 0.5f) + into * 0.25f;
+                        var middle = hinge + along * 0.25f;
+                        mesh.Box(V(new Double3(spot.Kept.X, floor + 0.88, spot.Kept.Z) + ToD(middle), eye), face, up, along, new Vector3(0.015f, 0.7f, 0.24f), wood);
+                    }
+                    break;
+                case Sim.Stops.ContainerKind.Cabinet:
+                    // A drawer pulled out of its face (0.22 out, up to 1.0), the slot it came from dark.
+                    mesh.Box(At(0.225f, 0.72f), side, up, into, new Vector3(0.36f, 0.09f, 0.005f), dark);
+                    mesh.Box(At(0.22f + 0.2f, 0.72f), side, up, into, new Vector3(0.36f, 0.08f, 0.2f), Palette.RustRed * 0.6f);
+                    break;
+                case Sim.Stops.ContainerKind.Cellar:
+                    // The hatch (1 m square, flush) gone: a black hole, and the lid stood up on its back edge.
+                    mesh.Box(At(0, 0.056f), side, up, into, new Vector3(0.46f, 0.004f, 0.46f), dark);
+                    mesh.Box(At(-0.52f, 0.5f), side, up, into, new Vector3(0.5f, 0.5f, 0.025f), Palette.SootBlack * 0.8f + wood * 0.3f);
+                    break;
+                case Sim.Stops.ContainerKind.UnderFloor:
+                    // The boards lifted out and laid beside the gap they came from.
+                    mesh.Box(At(0, 0.004f), side, up, into, new Vector3(0.3f, 0.004f, 0.55f), dark);
+                    for (int i = 0; i < 3; i++)
+                        mesh.Box(At(-0.15f + i * 0.17f, 0.02f + i * 0.004f, 0.75f + (i % 2) * 0.05f), side, up, into, new Vector3(0.08f, 0.015f, 0.55f), wood);
+                    break;
+            }
         }
     }
 
