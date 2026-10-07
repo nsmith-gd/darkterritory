@@ -404,11 +404,23 @@ public sealed partial class SceneArt(Look look)
         _ => FreightKinds[(int)((uint)b.Id * 2654435761u % (uint)FreightKinds.Length)],
     };
 
-    /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
+    /// <summary>The quiet toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
     static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
 
-    /// <summary>The toy a toy body is drawn as (by its id, as <see cref="Body"/> draws it), or null.</summary>
-    public MeshAsset? Toy(int bodyId) => PropArt.Of(Look).Get(Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)]);
+    /// <summary>
+    /// The model a toy's drawn as: a noisy one looks like what it sounds like (App. C.4, C.7; Body.Noise: the squeeze pig,
+    /// the music box, the wind-up drummer); a quiet one's picked by its id.
+    /// </summary>
+    public static string ToyModel(int bodyId, Sim.Physics.ToyNoise noise) => noise switch
+    {
+        Sim.Physics.ToyNoise.Squeaker => "toy_squeaker",
+        Sim.Physics.ToyNoise.MusicBox => "toy_musicbox",
+        Sim.Physics.ToyNoise.Drummer => "toy_drummer",
+        _ => Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)],
+    };
+
+    /// <summary>The toy a toy body is drawn as (as <see cref="Body"/> draws it), or null.</summary>
+    public MeshAsset? Toy(int bodyId, Sim.Physics.ToyNoise noise = default) => PropArt.Of(Look).Get(ToyModel(bodyId, noise));
 
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
@@ -467,7 +479,7 @@ public sealed partial class SceneArt(Look look)
         var piece = b.Kind switch
         {
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
-            Sim.Physics.BodyKind.Toy => props.Get(Toys[(int)((uint)b.Id * 2654435761u % (uint)Toys.Length)]) ?? PropArt.Of(Look).Get("hand_lantern")
+            Sim.Physics.BodyKind.Toy => props.Get(ToyModel(b.Id, b.Noise)) ?? PropArt.Of(Look).Get("hand_lantern")
                 ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
@@ -789,6 +801,41 @@ public sealed partial class SceneArt(Look look)
     /// A car: its body from the kit, its doors where the vehicle has them (shut in the doorway, or slid aside), and its gun
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
+    /// <summary>
+    /// The headlamp out (switched off, or smashed by a Climber: World.LampShining false): dark glass over the engine's lit
+    /// lens, a crack star across it, so from the line the train's eye reads shut.
+    /// </summary>
+    public void HeadlampOut(MeshBuilder mesh, in CarFrame engine, Double3 eye)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
+            return;
+        mesh.Instances.Add(new MeshInstance(Piece("headlamp-out", () =>
+        {
+            var k = new Kit(Look, 43);
+            k.Use("lamp_lens", new Vector3(0.05f, 0.045f, 0.04f), 0.3f, 0.8f, tile: 0.64f);
+            k.Tint = new Vector3(0.06f, 0.055f, 0.05f);
+            k.Panel(Vector3.Zero, -Vector3.UnitZ, Vector3.UnitY, 0.66f, 0.66f);
+            k.Use("iron_plate", new Vector3(0.5f, 0.5f, 0.5f), 0.3f, 0.5f);
+            k.Tint = new Vector3(0.35f, 0.35f, 0.36f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * MathF.Tau / 6 + 0.3f * (i % 2);
+                var tip = new Vector3(MathF.Cos(a), MathF.Sin(a), 0) * (0.18f + 0.1f * (i % 3));
+                k.Rod(new Vector3(0.04f, 0.06f, -0.004f), tip + new Vector3(0.04f, 0.06f, -0.004f), 0.004f);
+            }
+            return k.Build("headlamp-out");
+        }), Matrix4x4.CreateTranslation(0, TrainKit.HeadlampY, (float)-engine.Shape.HalfLength - 0.06f) * FrameMatrix(engine, eye)));
+    }
+
+    /// <summary>The boiler's torn flank while she's ruptured (TrainKit.RuptureTear at its seam; Effects.Rupture its steam).</summary>
+    public void RuptureTear(MeshBuilder mesh, in CarFrame engine, Double3 eye)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
+            return;
+        mesh.Instances.Add(new MeshInstance(Piece("rupture-tear", () => TrainKit.RuptureTear(Look)),
+            Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape)) * FrameMatrix(engine, eye)));
+    }
+
     /// <summary>
     /// The firebox door shut (the boiler's FireDoorOpen false; the Stoker's "keep it hot, keep it shut"): two iron leaves
     /// over the firehole, strapped and handled, meeting in the middle, the fire's light only at the seam between them and

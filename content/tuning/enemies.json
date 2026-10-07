@@ -49,7 +49,13 @@
     "biteDamage": 45,
     "biteEverySeconds": 2.5,
     "reach": 4,
-    // A boarded hound with nobody near for this long drops off.
+    // GDD App. F (the director, 6 Oct 2026): "Cinder Hounds that board stay aboard. They keep setting the car alight while
+    // they eat the supplies, which forces the crew to confront them" (ARCHITECTURE §8 note 269). Aboard with nobody near,
+    // each eats cargoPerSecond of its car's cargo, and sets the car alight (carFire below) every igniteEverySeconds it's
+    // left alone. They go only dead, or with their car cut loose. stayAboard false: v1.1's drop-off after boredSeconds.
+    "stayAboard": true,
+    "cargoPerSecond": 0.002,
+    "igniteEverySeconds": 20,
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
@@ -127,7 +133,12 @@
 
   // FIRE FLIES · light · interior (App. A.5, B.5). On a lit car lamp in a dark section; left igniteSeconds, the car
   // catches (carFire below). Break off: the lamp out, or the train over pullAwaySpeed m/s for pullAwaySeconds.
-  "fireFlies": { "igniteSeconds": 20, "pullAwaySpeed": 15, "pullAwaySeconds": 8, "depthWeight": 2 },
+  // GDD App. F (the director, 6 Oct 2026): "Car lamps start lit. Their pull on Fire Flies is rare, and only while the car
+  // is stopped." The director sends them only while the train's under stoppedBelow m/s, at stoppedWeight of their B.5
+  // weight; and A.5's "pulls away at speed" is getting under way: pullAwaySpeed was 15 (ARCHITECTURE §8 note 269).
+  "fireFlies": {
+    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5
+  },
 
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
   // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and

@@ -49,6 +49,30 @@ public class WreckDeathTests
         Assert.Contains(film.Frames[(int)Math.Round(death.At * WreckFilm.Rate)].Landings, l => l.Doll == 0);
     }
 
+    [Theory]
+    [InlineData(FilmTask.Driving)]
+    [InlineData(FilmTask.Firing)]
+    [InlineData(FilmTask.Carrying)]
+    public void EachGoesIntoTheWreckFromWhatTheyWereDoing(FilmTask task)
+    {
+        // App. F.2 take 4: "people mid-task", not every body from the one arms-up brace. Its pose keeps the skeleton's bones,
+        // and the film's first frame is it (turned to their yaw), held a moment before the brace takes over.
+        var pose = WreckFilm.TaskPose(task);
+        var stood = WreckFilm.TaskPose(FilmTask.None);
+        foreach (var (a, b) in new[] { (0, 1), (1, 2), (1, 3), (3, 4), (1, 5), (5, 6), (2, 7), (7, 8), (2, 9), (9, 10) })
+            Assert.Equal((stood[a] - stood[b]).Length, (pose[a] - pose[b]).Length, 6);
+        // Hands out in front at the work (−Z), not up over the head.
+        Assert.True(pose[4].Z < -0.2 && pose[6].Z < -0.2, $"{task}: the hands at {pose[4]}, {pose[6]}");
+        Assert.True(pose[4].Y < pose[0].Y && pose[6].Y < pose[0].Y, $"{task}: the hands under the head");
+        if (task == FilmTask.Firing)
+            Assert.True(pose[0].Z < -0.4 && pose[0].Y < 1.4, "bent into the shovel's swing");
+        var player = new FilmPlayer(5, "Ada", "at work", new Double3(0, 1.1, -1), new Double3(0, 0, -12), 0, 0, Task: task);
+        var film = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [player], "test", 12), Flat);
+        var first = film.Frames[0].Ragdolls[0];
+        for (int j = 0; j < 11; j++)
+            Assert.True((first[j] - (player.Position + pose[j])).Length < 0.25, $"{task}: joint {j} starts at {first[j]}, its pose has {player.Position + pose[j]}");
+    }
+
     [Fact]
     public void TheGunnerStartsClearOfTheGunAndIsThrownUpOutOfTheSeat()
     {

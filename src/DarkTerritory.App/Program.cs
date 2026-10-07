@@ -941,7 +941,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
+        {
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
+            // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).
+            if (scene.BendStrain is { } judder && session.Viewpoint.Parent is var on and >= 0 && on < judder.Count)
+                camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds);
+        }
         // E.5's film draws the crew as ragdolls, its cutaway and light rig; the replay, the crew as they were (DerailSequence.Dress).
         DerailSequence.Dress(scene, derailShot, session, camera.Position, derailShot.Replay is null && derailShot.Filming is null ? session.Crew(frames, clock.Alpha) : []);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
@@ -1005,6 +1010,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
+        scene.Ruptured = session.Train.Boiler.Ruptured;
+        scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
+        scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
         if (!session.World.LampShining)
             lighting.LampRange = 0.01f; // not 0: the shader divides by it
@@ -1037,7 +1045,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight);
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -1066,7 +1074,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);

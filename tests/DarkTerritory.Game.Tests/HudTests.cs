@@ -120,7 +120,8 @@ public class HudTests
         Assert.StartsWith("VENTING STEAM: PRESSURE", Hud.Prompt(s));
         s.Train.Boiler.Vented = false;
 
-        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, the boiler's read-out too.
+        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, nothing (hud-look: "too much
+        // UI ... not enough in world"): the driver's gauges are in the cab.
         static int TopLeft(Overlay o) => o.Vertices.Count(v => v.Position.X < 160 && v.Position.Y < 46);
         var hud = new Overlay();
         Hud.Build(hud, 480, 270, s);
@@ -128,7 +129,8 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 1, 0, s.PlayerTuning);
         Hud.Build(hud, 480, 270, s);
         int roof = TopLeft(hud);
-        Assert.True(cab < roof * 0.7, $"the cab's engine panel ({cab} vertices) isn't lighter than the roof's ({roof})");
+        Assert.True(cab > 0, "the cab has its panel");
+        Assert.Equal(0, roof);
     }
 
     [Fact]
