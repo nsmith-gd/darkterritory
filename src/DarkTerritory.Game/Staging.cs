@@ -67,6 +67,18 @@ public static class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
+        // outside the gate as the train leaves, its front wall either side of the gatehouse.
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside")
+        {
+            var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
+            return where switch
+            {
+                "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
+                "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
+            };
+        }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
         if (home is not null && where is "houses" or "house" or "kitchen" or "parlour")

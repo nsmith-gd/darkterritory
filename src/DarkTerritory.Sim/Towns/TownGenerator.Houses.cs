@@ -15,6 +15,10 @@ public static partial class TownGenerator
     {
         public readonly List<TownHouse> Houses = [];
         public readonly List<Spot> Residents = [];
+        /// <summary>The town's character (houses.json), its houses' designs drawn by it.</summary>
+        public string Character = "";
+        /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
+        public TownBounds? Bounds;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
         public void Open(int house, TownHousehold household, Dictionary<string, string> vars, Pcg32 rng)
@@ -54,22 +58,7 @@ public static partial class TownGenerator
         var w = content.Writing;
         var homes = new Homes();
 
-        // Where a house can stand: every st.Every m down the street on both sides, from st.FromGate inside the gate, out of
-        // the square's way and off the home platform (right of the line, note 107), nearest the square first.
-        int side = square.Side;
-        var lots = new List<(double S, int Side)>();
-        for (double s = Math.Floor((site.Gate - st.FromGate) / st.Every) * st.Every; s > 25; s -= st.Every)
-            foreach (int sd in new[] { side, -side })
-            {
-                if (sd == side && s > square.S0 - 6 && s < square.S1 + 6)
-                    continue;
-                if (sd == -side && s > 50 && s < site.Gate - 20)
-                    continue;
-                lots.Add((s, sd));
-            }
-        lots = [.. lots.OrderBy(l => Math.Abs(l.S - (square.S0 + square.S1) / 2)).ThenBy(l => l.Side == side ? 0 : 1)];
-
-        // The households: two to six apiece (towns.json "household"), more to a house where there aren't houses enough.
+        // The households: two to six apiece (towns.json "household").
         var hrng = rngFor("households");
         var sizes = new List<int>();
         for (int left = population; left > 0;)
@@ -78,16 +67,95 @@ public static partial class TownGenerator
             sizes.Add(n);
             left -= n;
         }
+        double average = (t.Household[0] + t.Household[1]) / 2.0;
+        // The houses of the people the town lost, no more than its share of the households (towns.json lostShare): a big
+        // town that lost most of itself leaves the rest as nothing at all.
+        int lostWanted = Math.Clamp((int)Math.Round((former - population) / average), 0, (int)Math.Min(int.MaxValue / 2, sizes.Count * t.LostShare));
+        int needed = sizes.Count + lostWanted;
+
+        // Where a house can stand. First the line's own street (note 107's: every st.Every m, st.Out out, from st.FromGate
+        // inside the gate, out of the square's way and off the home platform). Then, while that isn't lots enough, a walled
+        // town's streets beside the line (queue #74; towns.json "walled"), a row of houses either side of each, lanes across.
+        int side = square.Side;
+        var lots = new List<(double S, double D, int Side, double Frontage)>();
+        for (double s = Math.Floor((site.Gate - st.FromGate) / st.Every) * st.Every; s > 25; s -= st.Every)
+            foreach (int sd in new[] { side, -side })
+            {
+                if (sd == side && s > square.S0 - 6 && s < square.S1 + 6)
+                    continue;
+                if (sd == -side && s > 50 && s < site.Gate - 20)
+                    continue;
+                lots.Add((s, sd * st.Out, sd, st.Every));
+            }
+        var wt = t.Walled;
+        var lrng = rngFor("houses.lots");
+        double s0 = wt.From, s1 = site.Gate - wt.ToGate, depthMax = st.Depth[1];
+        var streets = new List<TownStreet>();
+        var laneAt = new List<double>();
+        if (lots.Count < needed)
+        {
+            // Lanes across, the ways from the line out to the streets: never through the square (its buildings back onto
+            // where its far wall was), so one that would be is moved to just past it. The line's own row leaves them clear.
+            double sqFrom = square.S0 - 6 - wt.LaneWidth / 2, sqTo = square.S1 + 6 + wt.LaneWidth / 2;
+            for (double s = s0 + lrng.Range(wt.LaneEvery[0], wt.LaneEvery[1]); s < s1 - wt.LaneEvery[0] / 2; s += lrng.Range(wt.LaneEvery[0], wt.LaneEvery[1]))
+            {
+                if (s > sqFrom && s < sqTo)
+                    s = sqTo;
+                if (s < s1 - wt.LaneEvery[0] / 2)
+                    laneAt.Add(Math.Round(s, 2));
+            }
+            lots.RemoveAll(l => laneAt.Any(a => Math.Abs(a - l.S) < l.Frontage / 2 + wt.LaneWidth / 2));
+        }
+        int count = 0;
+        while (lots.Count < needed && count < wt.MaxStreets)
+        {
+            count++;
+            double c = wt.First + (count - 1) * wt.Every, off = wt.Width / 2 + wt.Setback + depthMax / 2;
+            foreach (int sd in new[] { side, -side })
+            {
+                streets.Add(new TownStreet(sd * c, s0, s1, wt.Width));
+                // Its line-side row faces out from the line, its far row faces back toward it: both front the street.
+                foreach (var (d, facing) in new[] { (sd * (c - off), -sd), (sd * (c + off), sd) })
+                    for (double s = s0; ;)
+                    {
+                        double lot = lrng.Range(wt.Lot[0], wt.Lot[1]);
+                        if (s + lot > s1)
+                            break;
+                        double mid = s + lot / 2;
+                        bool lane = laneAt.Any(l => Math.Abs(l - mid) < lot / 2 + wt.LaneWidth / 2);
+                        bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
+                        if (!lane && !inSquare)
+                            lots.Add((Math.Round(mid, 3), d, facing, lot));
+                        s += lot;
+                    }
+            }
+        }
+        // Nearest the square first: the town grows out from its heart, its lost at its edges, nothing past them.
+        double heartS = (square.S0 + square.S1) / 2, heartD = side * 15;
+        lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
+        if (count > 0)
+        {
+            double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin;
+            homes.Bounds = new TownBounds(wt.Rear, site.Gate, reach, reach, streets,
+                [.. laneAt.Select(l => new TownLane(l, -reach, reach, wt.LaneWidth))]);
+        }
+
+        // More to a house where there aren't houses enough.
         while (sizes.Count > lots.Count && sizes.Count > 1)
         {
             sizes[^2] += sizes[^1];
             sizes.RemoveAt(sizes.Count - 1);
         }
-        double average = (t.Household[0] + t.Household[1]) / 2.0;
-        int lostHouses = Math.Clamp((int)Math.Round((former - population) / average), 0, lots.Count - sizes.Count);
+        int lostHouses = Math.Clamp(lostWanted, 0, lots.Count - sizes.Count);
         int open = Math.Min(sizes.Count, Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max));
 
         var looks = rngFor("houses");
+        // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
+        // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
+        var drng = rngFor("houses.design");
+        var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng);
+        homes.Character = character.Id;
+        HouseDesign? model = null;
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
         var families = new Deck<string>([.. content.Surnames], rngFor("houses.families"));
@@ -95,9 +163,10 @@ public static partial class TownGenerator
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";
         for (int i = 0; i < sizes.Count + lostHouses; i++)
         {
-            var (s, sd) = lots[i];
-            double width = looks.Range(st.Width[0], st.Width[1]), depth = looks.Range(st.Depth[0], st.Depth[1]);
-            int style = looks.RangeInclusive(0, 3), paint = looks.RangeInclusive(0, 6);
+            var (s, d0, sd, frontage) = lots[i];
+            bool gable = model?.GableFront ?? drng.Chance(character.GableFront);
+            double width = model is null ? looks.Range(gable ? st.GableWidth[0] : st.Width[0], gable ? st.GableWidth[1] : st.Width[1]) : homes.Houses[0].Width;
+            double depth = model is null ? looks.Range(st.Depth[0], st.Depth[1]) : homes.Houses[0].Depth;
             string family = families.Next() ?? looks.Pick(content.Surnames);
             HouseKind kind;
             string text;
@@ -112,8 +181,17 @@ public static partial class TownGenerator
                 kind = roll < st.Burnt ? HouseKind.Burnt : roll < st.Burnt + st.Open ? HouseKind.Empty : HouseKind.Boarded;
                 text = Empty(kind switch { HouseKind.Burnt => "burnt", HouseKind.Empty => "open", _ => "boarded" });
             }
+            // No wider than its lot (a street's lots run 13 to 17 m), with room either side for a wing before the next lot's
+            // house (whose wing may come this way).
+            width = Math.Min(width, frontage - 2);
+            double room = (frontage - width) / 2 - 0.6;
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
-            var house = new TownHouse(i, s, sd * st.Out, sd, width, depth, kind, style, paint, family, text, layout);
+            var design = model is not null && character.Uniform
+                ? HouseDesigner.Copy(content.Looks, character, model, layout?.DoorU, ref drng)
+                : HouseDesigner.Draw(content.Looks, character, gable, width, depth, room, layout is not null, layout?.DoorU, ref drng);
+            if (character.Uniform)
+                model ??= design;
+            var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout);
             homes.Houses.Add(house);
             if (layout is null || stories.Next() is not { } household)
                 continue;

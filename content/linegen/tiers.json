@@ -60,11 +60,13 @@
   // longest consist plus this; then the yard throat, then the inner gate this far before the outer one, towers from
   // towersFromM (thinning to the gate), the kill zone, the last light, and the dressing coming in to the tier's level.
   // The whole yard is at yard speed (spec B.3), so anyone can still catch the train. The threshold is straight or
-  // gently curved and nearly level.
+  // gently curved and nearly level. padM: how far either side of the yard the ground is level (and kept clear of lakes
+  // and shore), wide enough for a walled town's outermost street and its wall (tuning/towns.json "walled": five streets
+  // a side reach ~177 m; ARCHITECTURE §8 note 335). It was 70 while the yard was a corridor between two walls.
   "fortress": {
     "departureRoadExtraM": 100, "throatM": 150, "innerGateBeforeM": 600, "towersFromM": -400, "killZoneM": 500, "lastLightM": 300,
     "dressingTransitionM": [500, 2000], "yardSpeed": 2.5, "throatSwitches": [2, 3], "identities": ["coal", "farm", "foundry"],
-    "maxThresholdGrade": 0.5, "thresholdMinRadius": 1000
+    "maxThresholdGrade": 0.5, "thresholdMinRadius": 1000, "padM": 200
   },
 
   // Plan §11.4. Distances before the terminus's outer gate. Past the gate, an arrival yard with a stop road; it has to

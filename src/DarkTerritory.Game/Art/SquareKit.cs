@@ -34,13 +34,9 @@ public static class SquareKit
             "hall" => new Vector3(0.36f, 0.42f, 0.46f),
             _ => new Vector3(0.62f, 0.50f, 0.26f),
         };
-        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: form == "shed" ? 2 : 0.9f);
-        k.Tint = paint * 2.1f;
         bool clap = form != "shed";
-        if (clap)
-            MaritimeKit.Clap(k, new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
-        else
-            k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
+        Walls(k, paint, clap);
+        k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
         // Gable ends, and a slate roof over them.
         float ridge = h + d * (form == "church" ? 0.55f : 0.4f);
         foreach (float x in new[] { -w / 2, w / 2 })
@@ -48,7 +44,7 @@ public static class SquareKit
             var a = new Vector3(x, h, -d / 2);
             var b = new Vector3(x, h, d / 2);
             var c = new Vector3(x, ridge, 0);
-            Vector2 Uv(Vector3 p, float flip) => clap ? new(-p.Y, flip * p.Z) : new(flip * p.Z, -p.Y);
+            Vector2 Uv(Vector3 p, float flip) => new(flip * p.Z, -p.Y);
             if (x < 0)
                 k.Tri(a, c, b, Uv(a, 1), Uv(c, 1), Uv(b, 1));
             else
@@ -116,14 +112,24 @@ public static class SquareKit
         return k.Build($"square-{kind}-{form}-{w:0}x{d:0}");
     }
 
+    /// <summary>
+    /// A building's walls in its paint: painted clapboard (its boards across, tools/art's "clapboard"), or a shed's upright
+    /// boards (the boxcar siding's).
+    /// </summary>
+    static void Walls(Kit k, Vector3 paint, bool clap)
+    {
+        k.Use(clap ? "clapboard" : "wood_siding", paint, 0.85f, 0.05f, tile: clap ? 1.0f : 2.0f);
+        if (k.Tint == Vector3.One)
+            k.Tint = clap ? paint * (0.75f / 0.26f) : paint * 2.1f;
+    }
+
     /// <summary>A white church's tower over its door, flush with the front wall and inside the footprint, its belfry's louvres, the needle spire.</summary>
     static void Steeple(Kit k, float d, float h, float ridge, Vector3 paint)
     {
         const float half = 1.3f;
         float z0 = -d / 2, z1 = z0 + 2 * half, top = ridge + 1.6f, spire = top + 6.5f;
-        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: 0.9f);
-        k.Tint = paint * 2.1f;
-        MaritimeKit.Clap(k, new Vector3(-half, -0.4f, z0 - 0.04f), new Vector3(half, top, z1), Kit.Faces.Sides);
+        Walls(k, paint, true);
+        k.Box(new Vector3(-half, -0.4f, z0 - 0.04f), new Vector3(half, top, z1), Kit.Faces.Sides);
         // The belfry: dark louvres on each face below the spire.
         k.Use("paint_black", Palette.SootBlack, 0.7f, 0.1f);
         foreach (var (n, c) in new[] { (-Vector3.UnitZ, new Vector3(0, top - 1.1f, z0 - 0.06f)), (Vector3.UnitX, new Vector3(half + 0.02f, top - 1.1f, (z0 + z1) / 2)), (-Vector3.UnitX, new Vector3(-half - 0.02f, top - 1.1f, (z0 + z1) / 2)) })
@@ -146,9 +152,8 @@ public static class SquareKit
     {
         const float half = 0.6f;
         float y0 = ridge - 0.2f, y1 = ridge + 1.3f;
-        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: 0.9f);
-        k.Tint = paint * 2.1f;
-        MaritimeKit.Clap(k, new Vector3(-half, y0 - 0.4f, -half), new Vector3(half, y0 + 0.3f, half), Kit.Faces.Sides);
+        Walls(k, paint, true);
+        k.Box(new Vector3(-half, y0 - 0.4f, -half), new Vector3(half, y0 + 0.3f, half), Kit.Faces.Sides);
         k.Use("paint_black", new Vector3(0.80f, 0.78f, 0.72f), 0.6f, 0.1f);
         k.Tint = new Vector3(0.80f, 0.78f, 0.72f);
         foreach (float x in new[] { -half, half - 0.1f })

@@ -710,10 +710,10 @@ public sealed class World
         if (!content.Tuning.Enabled)
             return;
         var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
-        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        Town = new Towns.Town(plan, content.Tuning, Train.Line, content.Looks);
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
-            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
         Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
         Train.Walls.Add(Town.Walls);
     }
@@ -1204,7 +1204,11 @@ public sealed class World
         Train.Line.Nearest(world, ref hint);
         double along = hint;
         var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
-        if (((world - rail.Position) with { Y = 0 }).Length > forts.HalfWidthM)
+        double off = ((world - rail.Position) with { Y = 0 }).Length;
+        // A walled town's fort reaches its wall (queue #74, note 335), past the radius every other fort keeps.
+        if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
+            return off <= Math.Max(forts.HalfWidthM, Math.Max(walled.Left, walled.Right) + 5);
+        if (off > forts.HalfWidthM)
             return false;
         if (along <= run.YardLength)
             return true;

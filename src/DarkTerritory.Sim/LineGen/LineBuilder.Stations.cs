@@ -48,7 +48,7 @@ sealed partial class LineBuilder
                 lights.Add(Light(s, side * 16, 11, 0.8));
         lights.Add(Light(_gate + f.LastLightM, 6, 6, 0.6)); // the last light
         _fortress = new PlanFortress(fortressName, identity, R(_departureRoad), R(_innerGate), R(_gate), rng.RangeInclusive(f.ThroatSwitches[0], f.ThroatSwitches[1]), lights);
-        _pads.Add(LongPad("fortress", 0, _gate, 70));
+        _pads.Add(LongPad("fortress", 0, _gate, f.PadM));
         _markers.Add(new PlanMarker("gate_inner", "main", R(_innerGate)));
         _markers.Add(new PlanMarker("gate_outer", "main", R(_gate)));
         _markers.Add(new PlanMarker("last_light", "main", R(_gate + f.LastLightM)));
