@@ -28,6 +28,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
 | **B** | B1; its agents B1.1, … | Claude Code on the director's second account: **Level Design** (the line generator's set pieces, sites, and the world's solidity) | [docs/log/B1.md](log/B1.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
+| **F** | F1; its agents F1.1, F1.2, … | Claude Code on another of the director's accounts: **UI/UX 3**, the third UI/UX session beside B3 (the HUD overhaul, on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)) and UI/UX 2 (not yet registered). Takes the UI/UX items nobody holds: menus, settings, the screens around a night; builds on #206's HUD rules (GDD §32 "The HUD: your hands and the dark") and never edits B3's lines without saying so on #206 | [docs/log/F1.md](log/F1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
 
 Whatever an agent launched by A or B does counts as its owner's: the owner reviews it and opens the PR.
@@ -61,15 +62,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
+| 30 | **The in-night menu (Esc):** today Escape frees the mouse and a second Escape ends the night at once, the host's for everyone, with no word. Lethal Company's quick menu: RESUME, SETTINGS that take effect at once (volumes, the mouse, the HUD; B3's "settings take effect from the next night", #206), INVITE, LEAVE with a confirmation that says what leaving costs the crew (a host's leaving ends the night). The night never pauses (it's shared). **Overlaps:** `Settings.cs` and `FrontEnd.cs`'s settings list with #206 (CONTROL HINTS); `Program.cs`'s night loop | F1 | `claude/upbeat-hawking-58yczu` | 292 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **281**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **293** (counting claims on open PRs up to 291, and F1's 292). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 292 (F1's in-night menu). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
