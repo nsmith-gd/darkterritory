@@ -30,25 +30,29 @@
     "doorway": { "height": 2.1, "width": 0.9, "bayHeight": 3.5 },
     // Ladders sit on both sides at the rear end of every car.
     "ladderInset": 0.6,
-    // Engine + tender unit: boiler forward, walkable cab, coal tender behind (heights above rail).
+    // The engine, cab forward (ARCHITECTURE §8 note 276, the director's sketch: "controls at the front with full vis of the
+    // rail"), front to back: the pilot, the cab with the driver's controls at its front windows and the firebox in its back
+    // wall, the coal in a bunker in the cab beside the firebox, then the boiler with the smokebox and stack at the rear,
+    // where car 1 couples on. Heights above rail.
     "engine": {
       "deckHeight": 1.4,
-      // A 1.4 m boiler (T101: at 1.9 m it hid the line from the driver; past it from the cab window, the near rail's in
-      // sight from 30 m and the middle of the track from 40 m). T110 playtest ("have both sides be a gap we can get
-      // through"): at 1.6 m the way past it out of the cab's front was 0.6 m, a player's width exactly; at 1.4 it's 0.7.
+      // The pilot ahead of the cab: the buffer beam, the plough and the headlamp, this long.
+      "pilotLength": 0.6,
+      // The boiler's 1.4 m (T110: a 0.7 m way past it on each side), now behind the cab, so it hides nothing ahead.
       "boilerHalfWidth": 0.7,
       "boilerTop": 3.6,
-      "cabLength": 4.0,
-      "tenderLength": 4.0,
-      "tenderTop": 3.4,
-      // The running boards out past the cab sides (App. A.2 GREASE: "sanding from the running boards"), this wide, and the
-      // sandbox on each this far ahead of the cab front.
+      // The cab: the driver's end at the front windows, the fireman's at the back with the firebox door and the coal.
+      "cabLength": 5.0,
+      // The coal bunker (note 276, the director: "put a coal bunker in the cab"): against the cab's left wall ahead of its
+      // left doorway, this long, this deep in from the wall and this high over the floor. The fireman stands between it
+      // and the fire door, a quarter turn from one to the other.
+      "bunkerLength": 1.8,
+      "bunkerDepth": 0.85,
+      "bunkerHeight": 1.0,
+      // The running boards out past the body's sides (App. A.2 GREASE: "sanding from the running boards"), this wide, from
+      // the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over the drivers.
       "runningBoardWidth": 0.6,
-      "sandboxAhead": 2.5,
-      // A walkway this wide down the tender's left side at deck height, from the coupler behind it into the back of the
-      // cab (T90 playtest: there was no way into the cab from the train). A short ladder up the tender's front, beside the
-      // coal, reaches the cab roof and its gun.
-      "tenderGangway": 0.9
+      "sandboxBehind": 2.5
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps

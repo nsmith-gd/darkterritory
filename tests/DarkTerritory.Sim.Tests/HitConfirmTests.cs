@@ -306,11 +306,16 @@ public class HitConfirmTests
     [Fact]
     public void ABallIntoTheTrainsOwnBodyLandsOnTheTrain()
     {
-        // As GunTests' RoundsStopAtTheTrainsOwnBody: down over the boiler.
+        // As GunTests' RoundsStopAtTheTrainsOwnBody: the rear gun at the front of its rail, laid back down along its roof.
         var n = new Night(4, speed: 0);
-        var s = Gunner(n);
+        int last = n.Train.Frames.Count - 1;
+        n.Train.Vehicles[last].Gun.Z = n.Train.Frames[last].Shape.RoofRail!.Value.Front;
+        var mount = Guns.Mount(n.Train, last)!.Value;
+        var s = PlayerMotor.SpawnOnRoof(n.Train, last, mount.Position.Z - mount.Facing.Z * 0.7, P);
+        s.Yaw = Math.PI;
+        s.Flags |= PlayerFlags.Seated;
         n.Crew[1] = s with { Pitch = -11 * Math.PI / 180 };
-        n.Train.Vehicles[0].Gun.Elevation = -11 * Math.PI / 180;
+        n.Train.Vehicles[last].Gun.Elevation = -11 * Math.PI / 180;
         n.Run(1.0 / SimConstants.TickRate, id => Fire);
         var shot = Assert.Single(n.Shots);
         Assert.True(shot.BlockedByTrain);
