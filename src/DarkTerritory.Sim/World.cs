@@ -1477,8 +1477,14 @@ public sealed class World
     void StepEnemies(EnemyContext ctx)
     {
         var t = ctx.Tuning;
+        ctx.Landed.Clear();
         foreach (var shot in Shots)
+        {
             _recentRounds.Add((Tick, shot.Muzzle));
+            // On the ground, water, a wall or a creature; not a ball stopped by the train's own body.
+            if (shot.Surface != ImpactSurface.Train)
+                ctx.Landed.Add(shot.Impact);
+        }
         _recentRounds.RemoveAll(r => Tick - r.Tick > t.CinderHounds.SuppressWindowSeconds * SimConstants.TickRate);
         // Rounds fired this tick land first.
         if (Combat is { } c)
@@ -1547,6 +1553,8 @@ public sealed class World
             }
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
+            // Note 328: a train run fast draws the hound run, the guns' wave.
+            d.Runs(this, Run is { Tuning.YardIsSafe: true } rs ? rs.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
         }
 
         foreach (var e in _enemies.ToList())
