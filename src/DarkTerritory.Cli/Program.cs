@@ -2048,6 +2048,17 @@ static object HudShot(string content, string[] args)
             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
+        // --full-car (note 324): inside the first cargo car, loaded full, a crate from the first stop in hand.
+        if (args.Contains("--full-car") && solo.World.Run is { } stocked)
+        {
+            stocked.Stock(solo.World.Bodies, 0);
+            int car = Enumerable.Range(1, solo.Train.Vehicles.Count - 1).First(i => solo.Train.Vehicles[i].Kind == DarkTerritory.Sim.Train.VehicleKind.Cargo);
+            var room = solo.Train.Frames[car].Shape.Interior!.Value;
+            var middle = (room.Min + room.Max) * 0.5;
+            solo.Player = solo.Player with { Parent = car, Surface = DarkTerritory.Sim.Player.Surface.Deck, Position = middle with { Y = room.Min.Y + 0.1 }, Velocity = default };
+            solo.Train.Vehicles[car].Load = 1;
+            solo.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo).Carrier = ((IPlaySession)solo).PlayerId;
+        }
         // --cord (note 264): in the cab looking up at the whistle cord's handle, as the driver reaching for it does.
         if (args.Contains("--cord") && solo.Train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == DarkTerritory.Sim.Train.InteractableKind.Whistle) is { Aim: > 0 } cord)
         {
