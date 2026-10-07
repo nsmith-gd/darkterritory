@@ -164,6 +164,9 @@ public sealed class Gaunt(int id) : Enemy(id)
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Split;
     public override double MeleeRadius => Phase == SpinePhase.Dormant ? 0 : 0.8;
+    /// <summary>Asleep and curled up, or awake and following, or leaving with what it took: a body in the open (note 290).</summary>
+    public override bool Exposed => !Gone;
+    public override double Stoop(EnemyTuning t) => Phase is SpinePhase.Dormant or SpinePhase.Alert ? t.GauntAsleep : 1;
     public int? Waker => Extra >= 0 ? (int)Extra : null;
     public int Anger => (int)Extra2;
 
@@ -332,13 +335,6 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         base.Struck(ctx, by, damage);
         DropIfGone(ctx);
-    }
-
-    public override bool Hit(EnemyContext ctx, double damage)
-    {
-        bool killed = base.Hit(ctx, damage);
-        DropIfGone(ctx);
-        return killed;
     }
 
     /// <summary>At its waker's back, at arm's length: in their car's frame aboard, loose in the world off it.</summary>

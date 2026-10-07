@@ -404,7 +404,7 @@ public sealed class GreyboxScene
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
-            Strikes(mesh, Look.Art.Effects, frames, eye);
+            Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -537,7 +537,7 @@ public sealed class GreyboxScene
     /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
     /// down, and each blow or ball's pop and flash on the creature it landed on.
     /// </summary>
-    void Strikes(MeshBuilder mesh, Art.Effects fx, IReadOnlyList<CarFrame> frames, Double3 eye)
+    void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Tick < 0)
             return;
@@ -547,7 +547,14 @@ public sealed class GreyboxScene
                 double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
                 if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
                     continue;
-                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id);
+                // A creature's insides come down on the ground under it (note 290).
+                Vector3? ground = null;
+                if (i.Surface == Sim.Combat.ImpactSurface.Creature)
+                {
+                    double near = hint;
+                    ground = V(i.At with { Y = Sim.Player.PlayerMotor.GroundAt(i.At, line, ref near) }, eye);
+                }
+                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id, ground);
             }
         if (Hits is null)
             return;
