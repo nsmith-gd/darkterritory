@@ -90,7 +90,9 @@ public sealed class TerrainField
     static long Key(double x, double z) => ((long)Math.Floor(x / Cell) << 32) ^ ((long)Math.Floor(z / Cell) & 0xFFFFFFFF);
 
     /// <summary>A track near a point: which edge, how far along, how far out (positive right), and the rail's height there.</summary>
-    public readonly record struct Near(int Edge, double S, double Lateral, double Rail);
+    /// <param name="Past">The point lies off the edge's end, not beside it (past its start or its end along the tangent there):
+    /// the projection clamps to the end and finds it "beside" the line, so it stands no formation (note 317).</param>
+    public readonly record struct Near(int Edge, double S, double Lateral, double Rail, bool Past = false);
 
     /// <summary>For each edge within reach of (x, z), its nearest point.</summary>
     public List<Near> Nearby(double x, double z, double reach)
@@ -138,7 +140,11 @@ public sealed class TerrainField
         double rx = -at.Tangent.Z, rz = at.Tangent.X;
         double norm = Math.Sqrt(rx * rx + rz * rz);
         double lateral = ((x - Q(at.Position.X)) * rx + (z - Q(at.Position.Z)) * rz) / Math.Max(1e-9, norm);
-        return new Near(e.Index, s, lateral, Q(at.Position.Y));
+        // Off the end: a branch's toe 230 m on from a lake on frontier:5 laid its formation back along main's centreline
+        // and filled the lake under a trestle there (note 317).
+        double past = (x - Q(at.Position.X)) * at.Tangent.X + (z - Q(at.Position.Z)) * at.Tangent.Z;
+        bool off = s <= 0 && past < -1 || s >= e.Line.Length && past > 1;
+        return new Near(e.Index, s, lateral, Q(at.Position.Y), off);
     }
 
     /// <summary>The height of the land at (x, z) (plan §12.2).</summary>
@@ -164,7 +170,7 @@ public sealed class TerrainField
             // Inside an edge's formation that edge wins outright, blended over 2 m (§12.2 step 4). Inside two at once (an
             // alternate climbing up alongside main to rejoin it), the nearer rail's: the first edge's won before, and on
             // frontier:3 main's formation stood 2.8 m over the alternate's rail beside it (T107).
-            if (a < _r.ShoulderM + 2 && !Disabled(e, n.S))
+            if (a < _r.ShoulderM + 2 && !n.Past && !Disabled(e, n.S))
             {
                 double w = a <= _r.ShoulderM ? 1 : 1 - (a - _r.ShoulderM) / 2;
                 if (w > formationW || w == formationW && a < formationA)
@@ -288,7 +294,7 @@ public sealed class TerrainField
         double fill = double.NegativeInfinity;
         foreach (var q in near)
         {
-            if (Disabled(_edges[q.Edge], q.S))
+            if (q.Past || Disabled(_edges[q.Edge], q.S))
                 continue;
             double a = Math.Abs(q.Lateral);
             fill = Math.Max(fill, a <= _r.ShoulderM ? q.Rail : q.Rail - (a - _r.ShoulderM) * _r.Lakes.FillSlope);

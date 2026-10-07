@@ -88,6 +88,11 @@ public interface ITrackConditions
     int ColdStep(int path, double distance) => 0;
     /// <summary>How exposed to the wind it is there (GDD §22 "wind"; 0 sheltered, 1 a normal night's wind; note 183).</summary>
     double Wind(int path, double distance) => 0;
+    /// <summary>
+    /// How thick the fog is there against the night's (1 the night's; linegen plan §14's ×1.3 low ground, ×0.8 crests),
+    /// blended along the track so it never steps. For the eye only: authority plans at the night's thickest (note 313).
+    /// </summary>
+    double Fog(int path, double distance) => 1;
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>

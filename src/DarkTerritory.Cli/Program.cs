@@ -698,7 +698,8 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
     }
     else
-        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt));
+        // --town: a village halt as a dead town has it, with its station and goods yard (note 302).
+        layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt) with { DeadTown = args.Contains("--town") });
     string plan = Str(args, "--out", $"out/stops/{tier}-{seed}-{kind}.png");
     int size = (int)Opt(args, "--size", 900);
     PngWriter.Write(plan, StopMap.Render(layout, size), size, size);
@@ -725,6 +726,10 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         layout.Moves,
         tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane, derelicts = t.Derelicts }),
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+        // A dead town's railway side (note 302): where its station, goods shed and derelicts stand, and its goods siding.
+        railwaySide = layout.Buildings.Where(b => b.Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict)
+            .Select(b => new { kind = b.Kind.ToString(), s = Math.Round(b.S, 1), d = Math.Round(b.D, 1) }),
+        sidings = layout.Sidings.Select(x => x.Select(p => new { s = Math.Round(p.S, 1), d = Math.Round(p.D, 1) })),
         containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
         holdouts = layout.Holdouts.Select(h => new
@@ -749,17 +754,19 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
     return Enum.GetValues<RouteTier>().Select(tier =>
     {
         var result = new Dictionary<string, object>();
-        foreach (var kind in Enum.GetValues<StopKind>())
+        // Each kind, and a dead town (a village halt with its railway side, note 302).
+        foreach (var (kind, name, town) in Enum.GetValues<StopKind>().Select(k => (k, k.ToString(), false)).Append((StopKind.Village, "DeadTown", true)))
         {
             var first = new List<double>();
             var kept = new List<StopLayout>();
+            var kcx = cx with { DeadTown = town };
             for (int s = 1; s <= seeds; s++)
             {
-                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, cx, 0).Moves.Score);
-                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, cx));
+                first.Add(StopGenerator.Attempt(st, tier, (ulong)s, kind, kcx, 0).Moves.Score);
+                kept.Add(StopGenerator.Generate(st, tier, (ulong)s, kind, kcx));
             }
             double Q(IEnumerable<double> v, double q) { var a = v.OrderBy(x => x).ToList(); return a[(int)Math.Round(q * (a.Count - 1))]; }
-            result[kind.ToString()] = new
+            result[name] = new
             {
                 firstAttempt = new[] { 0.05, 0.25, 0.5, 0.75, 0.95 }.Select(q => Q(first, q)),
                 kept = new[] { 0.05, 0.5, 0.95 }.Select(q => Q(kept.Select(l => l.Moves.Score), q)),
@@ -1453,7 +1460,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.LampRange = 0.01f; // emergency lighting (or the lamp out): no light from the headlamp
     if (route is not null)
     {
-        lighting.FogDensity = (float)route.Weather.FogDensity;
+        lighting.FogDensity = Views.FogDensity(route, train);
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
         if (look?.Tuning.Atmosphere.Wind is { } wind)
             (lighting.Wind, lighting.Gusts) = (wind.Of(route.Weather.Wind), wind.Gusts);
@@ -1870,6 +1877,12 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     }
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
     menu.DefaultPlayerName = "Nick";
+    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
+    menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
+    {
+        Commendations = new() { ["Came Back For Me"] = 3, ["Held the Switch"] = 1, ["Kept the Fire"] = 5, ["Brought Them Home"] = 2 },
+    };
+    menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
@@ -1877,6 +1890,10 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
+    // --joined, someone else's.
+    if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
@@ -1932,6 +1949,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
 static object HudShot(string content, string[] args)
 {
+    Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
@@ -2063,7 +2081,7 @@ static object HudShot(string content, string[] args)
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
     {
-        lighting.FogDensity = (float)r.Weather.FogDensity;
+        lighting.FogDensity = Views.FogDensity(r, session.Train);
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
         lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
     }
@@ -2101,6 +2119,13 @@ static object HudShot(string content, string[] args)
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills);
+    // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
+    if (args.Contains("--emote-wheel"))
+    {
+        var wheel = new EmoteWheel();
+        wheel.Update(true, -60, 0);
+        wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
+    }
     // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
     // --radio-at s into the reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
@@ -2123,7 +2148,8 @@ static object HudShot(string content, string[] args)
     if (session.Route?.Plan is { } plan)
     {
         if (args.Contains("--card"))
-            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line);
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line,
+                session.Train.Line.MainDistance(session.Train.Dynamics.Path, session.Train.Dynamics.Distance));
         if (args.Contains("--overlay"))
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }
@@ -2133,6 +2159,8 @@ static object HudShot(string content, string[] args)
     {
         path = Path.GetFullPath(output),
         prompt = Hud.Prompt(session),
+        // Note 285: the corner, what's in your hands or the cab lets you do.
+        corner = Hud.Hints(session) is var (cornerHead, cornerLines) ? new { head = cornerHead, lines = cornerLines } : null,
         quads = hud.Count / 6,
         status = session.Status(),
         watching = session.Watching,
@@ -2143,11 +2171,12 @@ static object HudShot(string content, string[] args)
 
 // GDD v1.4 App. E.5 (note 177): a frame of the derailment film as the app plays it, cards and all. A hosted night with
 // --crew (4) aboard (the rest bots), run --seconds (12) and derailed at --speed (20 m/s); then --film s seconds into the
-// film's cut (after the first person and the replay). --plan prints the shot list instead of nothing extra.
+// film's cut (after the first person and the replay). --plan prints the shot list instead of nothing extra. --skip-hold h:
+// the skip held for the last h seconds before the frame (under wreck.json's skip.holdSeconds, so the prompt's fill shows; note 315).
 static object FilmStill(string content, string[] args)
 {
     int crew = (int)Opt(args, "--crew", 4), cars = (int)Opt(args, "--cars", 6);
-    double filmAt = Opt(args, "--film", 0);
+    double filmAt = Opt(args, "--film", 0), skipHold = Opt(args, "--skip-hold", 0);
     using var session = NetPlaySession.HostGame(content, new SessionSetup(Route: Str(args, "--route", "frontier:7"), Cars: cars, Enemies: false),
         port: 0, bots: Math.Max(0, crew - 1));
     for (int i = 0; i < Opt(args, "--seconds", 12) * SimConstants.TickRate; i++)
@@ -2165,7 +2194,8 @@ static object FilmStill(string content, string[] args)
     while ((session.WreckSeconds < Want() || session.Film is null) && clock.Elapsed.TotalSeconds < 120)
     {
         if (session.WreckSeconds < Want())
-            session.Step(default);
+            session.Step(skipHold > 0 && session.WreckSeconds >= Want() - skipHold && session.Film is not null
+                ? new PlayerIntent { Actions = PlayerActions.Skip } : default);
         Thread.Sleep(1);
     }
     var t = session.SequenceTuning;
@@ -2491,9 +2521,9 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
-          screenshot --hud [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
+          screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
@@ -2505,7 +2535,7 @@ static int Usage()
           route gen [--tier local|frontier|deadLines|deepTerritory] [--seed n] [--name generated] [--map file.png]
                      writes content/lines/<name>.json (+ .route.json) and a map; try `screenshot --line generated`
           route sweep [--seeds n]                  generate n routes per tier and report ranges
-          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village] [--route tier:seed --stop i] [--out file.png] [--size px]
+          site [--tier t] [--seed n] [--kind yard|yardAndVillage|village [--town]] [--route tier:seed --stop i] [--out file.png] [--size px]
                      one stop's layout (docs/design/level-design.md): its tracks, buildings, loot containers, how hard it
                      is to work, every invariant, and a top-down plan PNG (default out/stops/)
           site sweep [--seeds n]                   n stops per tier and kind: difficulty, band hits, attempts, failing checks
