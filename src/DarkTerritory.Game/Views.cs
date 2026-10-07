@@ -89,8 +89,9 @@ public static class Views
             "cab" => CabCamera(engine),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
-            // The fireman's side (T101): out of the left window down the running board to the blow-off by the smokebox.
-            "fireman" => CabCamera(engine, -1),
+            // The fireman's end of the cab (note 276): from the driver's side, back across the footplate at the fire door in the
+            // back wall and the coal bunker beside it, the gauges over the door.
+            "fireman" => FiremanCamera(engine),
             // T109: across the cab from the driver's place to the vent on its left side, and from the fireman's to the
             // engineering kit's rack on the right.
             "vent" => SideCamera(engine, InteractableKind.Vent, 1),
@@ -101,6 +102,9 @@ public static class Views
             "chase" => ChaseCamera(train),
             // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
+            // (Not one of Names.) Off the engine's right side ahead of it, the whole of it three-quarters on (note 276, the cab
+            // forward): the cab and its lamp leading, the boiler and the stack behind, car 1 coupled on.
+            "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
@@ -142,9 +146,11 @@ public static class Views
                 target.ToWorld(new Double3(-1.15, Floor(train) + 0.45, -target.Shape.HalfLength + 2.05)), 55),
             // (Not one of Names.) Off the engine's side, up at the tender under a coaling tower's spout (dt screenshot
             // --route tier:seed --coaling --view coaling: the chute pouring, Effects.CoalPour).
-            "coaling" => Camera.LookAt(engine.ToWorld(new Double3(9, 3.5, engineHalf - 1)), engine.ToWorld(new Double3(0, 5.5, engineHalf - 3)), 60),
-            // On the plate behind the tender, looking up its gangway into the cab and at the ladder to the cab roof (T90).
-            "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-0.9, 0.6, engineHalf - 8)), 75),
+            // (Cab forward, note 276: the bunker's in the cab, its hatch in the cab roof.)
+            "coaling" => Camera.LookAt(engine.ToWorld(new Double3(9, 3.5, BunkerZ(engine) + 2)), engine.ToWorld(new Double3(0, 5.5, BunkerZ(engine))), 60),
+            // On the plate behind the engine, looking forward along the boiler's left side to the cab, and at the ladders
+            // up the back onto the boiler and the cab roof (T90; note 276).
+            "gangway" => Camera.LookAt(engine.ToWorld(new Double3(-0.2, 2.9, engineHalf + 1.4)), engine.ToWorld(new Double3(-1.5, 1.6, engineHalf - 10)), 75),
             _ => throw new ArgumentException($"unknown view '{name}' (known: {string.Join(", ", Names)})"),
         };
     }
@@ -162,16 +168,35 @@ public static class Views
 
     static Camera FireboxCamera(in CarFrame engine)
     {
-        var door = Art.TrainKit.FireDoor(engine.Shape);
-        var at = new Double3(door.X, door.Y, door.Z);
-        return Camera.LookAt(engine.ToWorld(at + new Double3(0.12, 0.22, 0.8)), engine.ToWorld(at), 60);
+        // Out from the door into the cab, in the backhead's frame (it faces forward from the back wall: note 276).
+        var frame = Art.TrainKit.BackheadFrame(engine.Shape);
+        var door = Art.TrainKit.FireDoorLocal(engine.Shape);
+        var eye = System.Numerics.Vector3.Transform(door + new System.Numerics.Vector3(0.12f, 0.22f, 0.8f), frame);
+        var at = System.Numerics.Vector3.Transform(door, frame);
+        return Camera.LookAt(engine.ToWorld(new Double3(eye.X, eye.Y, eye.Z)), engine.ToWorld(new Double3(at.X, at.Y, at.Z)), 60);
     }
+
+    /// <summary>From the driver's side of the cab, back across the footplate at the fire door and the coal bunker (note 276).</summary>
+    static Camera FiremanCamera(in CarFrame engine)
+    {
+        var cab = engine.Shape.Cab!.Value;
+        var fire = engine.Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        var eye = new Double3(engine.Shape.HalfWidth - 0.45, cab.Min.Y + 1.75, fire.Z - 2.3);
+        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(new Double3(-0.45, cab.Min.Y + 1.0, fire.Z - 0.3)), 70);
+    }
+
+    /// <summary>The coal bunker's middle along the engine (its frame's Z).</summary>
+    static double BunkerZ(in CarFrame engine) => engine.Shape.Solids.First(s => s.Part == PartKind.Tender).Box.Centre.Z;
 
     /// <summary>From one side of the cab at a standing eye, across at an interactable on the other side.</summary>
     static Camera SideCamera(in CarFrame engine, InteractableKind kind, int from)
     {
         var at = engine.Shape.Interactables.First(i => i.Kind == kind).Position;
         var eye = CabEye(engine.Shape, from) with { Z = at.Z + 0.6 };
+        // Not stood in the coal (note 276: the bunker's along the left wall): at its face instead.
+        foreach (var bunker in engine.Shape.Solids.Where(s => s.Part == PartKind.Tender))
+            if (bunker.Box.ContainsXZ(eye))
+                eye = eye with { X = bunker.Box.Max.X + 0.35 };
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
     }
 
@@ -183,7 +208,7 @@ public static class Views
 
     /// <summary>
     /// A standing eye at the driver's place (T101), in the engine's frame: by the brake and the reverser on the right
-    /// (<paramref name="side"/> 1), in line with the window beside the boiler; −1 is the fireman's, across the cab.
+    /// (<paramref name="side"/> 1), behind them at the front windows (note 276); −1 is across the cab from it.
     /// </summary>
     public static Double3 CabEye(CarShape engine, int side = 1)
     {
