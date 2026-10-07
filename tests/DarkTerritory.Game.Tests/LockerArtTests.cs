@@ -54,9 +54,11 @@ public class LockerArtTests
         var open = Vector3.Transform(free, LockerKit.DoorAt(bay, open: true));
         Assert.Equal((float)bay.Box.Max.X, shut.X, 3);
         Assert.Equal((float)bay.Box.Max.Z, shut.Z, 3);
-        // Swung out off the cabinet's face and back towards the row, clear of the opening.
+        // Swung out off the cabinet's face, clear of the opening, standing out into the aisle: not laid back across the next
+        // locker's face (App. F.1: neighbouring lockers mustn't block each other).
         Assert.True(open.X > bay.Box.Max.X + 0.15, $"{open}");
         Assert.True(open.Z < bay.Box.Min.Z, $"{open}");
+        Assert.True(open.X - bay.Box.Max.X > 3 * (bay.Box.Min.Z - open.Z), $"{open}: lies back over its neighbour");
     }
 
     [Fact]
