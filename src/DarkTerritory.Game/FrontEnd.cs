@@ -56,7 +56,7 @@ public abstract record Launch
 /// <param name="Over">The night's over (the report's up): leaving costs nothing, so it isn't asked twice.</param>
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -132,6 +132,13 @@ public sealed class FrontEnd
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
     /// </summary>
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
+    /// <summary>
+    /// The player's profile (GDD App. D.12, note 293): the commendations their crews have given them, for the PROFILE page.
+    /// The app loads it at the start and again after each night.
+    /// </summary>
+    public PlayerProfile.Data Profile { get; set; } = new();
+    /// <summary>Where the nights' bookmark stills are kept (note 203), said on the PROFILE page; null, nowhere to say.</summary>
+    public string? StillsFolder { get; set; }
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -620,6 +627,7 @@ public sealed class FrontEnd
             new(new("HOST", "Open a lobby in the yard for a run. Friends join; you drive out when everyone's in."), () => { Show(Screen.Host); return null; }),
             new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
+            new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
             new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
@@ -701,6 +709,8 @@ public sealed class FrontEnd
             BackTo(Night is null ? Screen.Title : Screen.Night),
         ],
         // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        // The badges and their tally are drawn over the list (DrawProfile): BACK is all there is to choose.
+        Screen.Profile => [BackTo(Screen.Title)],
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.Credits =>
@@ -930,6 +940,47 @@ public sealed class FrontEnd
         }
     }
 
+    /// <summary>The PROFILE page's rows (note 293): each of D.12's starter set, in its order, with the times it's been given.</summary>
+    public IReadOnlyList<(UiStyle.Commendation Badge, int Given)> Tally =>
+        [.. Enum.GetValues<UiStyle.Commendation>().Select(c => (c, Profile.Commendations.GetValueOrDefault(Sim.Run.Commendations.StarterSet[(int)c])))];
+
+    /// <summary>The line over the PROFILE page's badges: how many in all, or how they're come by.</summary>
+    public string TallyLine => Tally.Sum(t => t.Given) is var total && total == 0
+        ? "NO COMMENDATIONS YET: A CREW GIVES THEM AT THE END OF A NIGHT." : $"GIVEN BY YOUR CREWS: {total} IN ALL";
+
+    /// <summary>
+    /// The PROFILE page (note 293; GDD App. D.12: "where it's kept: the player profile, not the character. Characters change
+    /// on death; the tally survives"): the five badges, a row each, with how many times a crew has given it; those not yet
+    /// given are drawn faint. Then where the nights' stills are kept. Returns where the list goes under it.
+    /// </summary>
+    float DrawProfile(Overlay o, float x, float y, int width)
+    {
+        var tally = Tally;
+        o.Text(x, y, TallyLine, Faint);
+        y += 17;
+        const float row = 22;
+        UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, 220), tally.Count * row + 8);
+        foreach (var (c, n) in tally)
+        {
+            // Not given yet: the badge greyed under a veil, its name faint.
+            float w = UiStyle.Badge(o, x, y, c, ribbon: n > 0 ? null : new Vector4(0.3f, 0.3f, 0.3f, 1));
+            if (n == 0)
+                o.Rect(x, y, w, w, new Vector4(0.08f, 0.08f, 0.09f, 0.6f));
+            o.Text(x + w + 8, y + 4, UiStyle.Name(c), n > 0 ? Ink : Faint);
+            o.Text(x + 178, y + 4, n > 0 ? $"x{n}" : "-", n > 0 ? Amber : Faint);
+            y += row;
+        }
+        y += 6;
+        if (StillsFolder is { Length: > 0 } folder)
+        {
+            int chars = (int)((width - x - 8) / o.Font.Advance);
+            o.Text(x, y, Fit("THE NIGHTS' STILLS ARE KEPT IN", chars), Faint);
+            o.Text(x, y + 9, Fit(folder, chars), Dim);
+            y += 22;
+        }
+        return y + 6;
+    }
+
     static string Fit(string s, int chars) => s.Length <= chars ? s : s[..Math.Max(0, chars - 3)] + "...";
 
     static string Name(RouteTier tier) => tier switch
@@ -984,6 +1035,7 @@ public sealed class FrontEnd
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
+            Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         o.Text(x, y, heading!, Dim);
@@ -1010,6 +1062,8 @@ public sealed class FrontEnd
             UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, CreditHints), height - 13, CreditHints, Dim);
             return;
         }
+        if (Screen == Screen.Profile)
+            y = DrawProfile(o, x, y, width);
         var entries = Entries();
         var items = entries.Select(e => e.Item).ToList();
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
@@ -1054,9 +1108,9 @@ public sealed class FrontEnd
             : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
             // The in-night menu's own pages have nothing to change (note 292); Escape on the first is back to the night.
             : Screen == Screen.Night ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] RESUME"
-            : Screen == Screen.Leave ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] BACK"
-            : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
-            : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK";
+            // LEFT/RIGHT only where there's a value to change (note 293).
+            : Headset ? arrows ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK" : "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [B] BACK"
+            : arrows ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK" : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] BACK";
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
     }
 }

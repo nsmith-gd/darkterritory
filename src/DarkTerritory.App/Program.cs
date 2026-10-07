@@ -91,6 +91,9 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
     // The settings' MICROPHONE: what there is to choose from.
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
+    // The PROFILE page (note 293): the commendations kept in the profile, and where the nights' stills go (note 203).
+    Profile = profile.Load(),
+    StillsFolder = BookmarkAlbum.DefaultDirectory,
 };
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -503,6 +506,8 @@ while (!window.CloseRequested && !QuitNow())
     campaign = Play(session, campaign);
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
+    // What the crew commended you for tonight, on the PROFILE page from now (note 293).
+    frontEnd.Profile = profile.Load();
     // B.6 (note 182): a night this host ran had a child's call in it; from now on every call is the dice's.
     if (session is NetPlaySession { Host.World.ChildCalled: true })
         profile.MarkChildCalled();
