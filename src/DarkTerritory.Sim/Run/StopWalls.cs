@@ -92,6 +92,13 @@ public sealed class StopWalls
         return walls;
     }
 
+    /// <summary>More walls standing beside the stops' (a fortress town's square: note 278).</summary>
+    public void Add(IEnumerable<Wall> walls)
+    {
+        foreach (var w in walls)
+            Add(w);
+    }
+
     void Add(Wall w)
     {
         int index = _walls.Count;

@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Towns;
 
 namespace DarkTerritory.Game.Art;
 
@@ -173,8 +174,10 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
+    /// <param name="square">The town's square (note 278): the walls on its side step back round it (<see cref="Square"/>
+    /// draws those), and no house stands in it.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0)
+        double time = 0, TownSquare? square = null)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
@@ -182,15 +185,24 @@ public sealed partial class WorldArt
         foreach (int side in new[] { -1, 1 })
         {
             var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            for (double s = Math.Floor(a / 10) * 10; s < b; s += 10)
+            if (square is { } sq && sq.Side == side)
             {
-                var t = line.Sample(s);
-                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * 14.8), eye, 0)));
+                // Up to the square and on from it, on the same ten-metre grid (the last piece past the gate as the other side's).
+                WallRun(mesh, line, eye, wall, start, sq.S0, side * 14.8, from, to);
+                WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / 10) * 10, side * 14.8, from, to);
             }
+            else
+                for (double s = Math.Floor(a / 10) * 10; s < b; s += 10)
+                {
+                    var t = line.Sample(s);
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * 14.8), eye, 0)));
+                }
             var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
             for (double s = Math.Ceiling(a / 120) * 120; s < b; s += 120)
             {
+                if (square is { } open && open.Side == side && s > open.S0 - 3 && s < open.S1 + 3)
+                    continue;
                 var t = line.Sample(s);
                 var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                 var at = t.Position + r * (side * 14.8);
@@ -218,7 +230,7 @@ public sealed partial class WorldArt
             }
         }
         if (lit)
-            FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform);
+            FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform, square);
         if (gateAt >= from && gateAt <= to)
         {
             var t = line.Sample(gateAt);
@@ -288,7 +300,8 @@ public sealed partial class WorldArt
     /// and there and the odd one lighting the ground in front, gaps between them. Laid out from where they stand, so it
     /// doesn't change as you pass.
     /// </summary>
-    void FortVillage(MeshBuilder mesh, RailLine line, Double3 eye, double a, double b, double start, double end, double gateAt, bool platform)
+    void FortVillage(MeshBuilder mesh, RailLine line, Double3 eye, double a, double b, double start, double end, double gateAt, bool platform,
+        TownSquare? square = null)
     {
         for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
         {
@@ -301,7 +314,7 @@ public sealed partial class WorldArt
             foreach (int side in new[] { -1, 1 })
             {
                 int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
-                if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform))
+                if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform) || square is { } sq && sq.Side == side && s > sq.S0 - 5 && s < sq.S1 + 5)
                     continue;
                 int v = h % 6;
                 var at = t.Position + r * (side * HouseOut);

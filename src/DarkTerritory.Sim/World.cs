@@ -597,6 +597,24 @@ public sealed class World
     }
 
     /// <summary>
+    /// The departure fortress's town (GDD §3.1; note 278): its square, its people and papers, and their walls, built alike
+    /// on every machine from the route and the content. Null where the content has no towns or they're switched off.
+    /// </summary>
+    public Towns.Town? Town { get; private set; }
+
+    /// <param name="roster">The edition's creatures (enemies.json director.roster; empty, all): a town keeps only a custom
+    /// for a creature this edition fields.</param>
+    /// <param name="last">The custom of the last night's town, which this one won't have (App. F.1: "different from the last").</param>
+    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null)
+    {
+        if (!content.Tuning.Enabled)
+            return;
+        var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
+        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        (Train.Walls ??= Sim.Run.StopWalls.Of(route, Train.Line)).Add(Town.Walls);
+    }
+
+    /// <summary>
     /// GDD App. D: the Holdouts at the route's halts, villages and yards, and the respawn queue, the only way back into
     /// a run once the gate has opened. The host steps them (<see cref="StepHoldouts"/>); clients mirror them.
     /// </summary>

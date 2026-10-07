@@ -9,6 +9,7 @@ using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Stops;
+using DarkTerritory.Sim.Towns;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -41,8 +42,11 @@ public static class Hud
     /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
     /// <param name="stills">The night's bookmark stills taken on this machine (GDD v1.4 App. D.12, <see cref="BookmarkStills"/>),
     /// by bookmark id: the report shows each beside its line.</param>
+    /// <param name="talk">This machine's talking and reading in a fortress town (note 278), and <paramref name="now"/> the
+    /// app's seconds, for its card.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
-        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null)
+        IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
+        TownTalk? talk = null, double now = 0)
     {
         _commendations = commendations;
         _stills = stills;
@@ -73,6 +77,9 @@ public static class Hud
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
+        // A fortress town's card (note 278): what somebody's saying to you, or the paper you're reading.
+        if (talk is not null && s.World.Town is { } town && talk.Card(town, now) is { } card)
+            TownCardOn(o, width, height, card, line);
         // (The night over, its report has the screen: no prompts over it.)
         if (s.World.Run?.Report is null && Prompt(s) is { } written)
         {
@@ -1161,6 +1168,55 @@ public static class Hud
         UiStyle.Keyed(o, width - 12 - UiStyle.MeasureKeyed(o, text), height - 18, text, Dim);
     }
 
+    /// <summary>
+    /// The fortress town's thing a Use press is for: what <see cref="Prompt"/> is offering, when what it offers is the
+    /// town's (note 278). The app keeps that press from the host (nothing in a town changes the night).
+    /// </summary>
+    public static TownTarget? TownTarget(IPlaySession s) =>
+        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
+
+    /// <summary>
+    /// A town card (note 278): a person's line on a plate over the prompt, their name and work above it; a paper as a
+    /// sheet at the top of the screen, like the route card; a thing looked at, on a plate.
+    /// </summary>
+    static void TownCardOn(Overlay o, int width, int height, TownCard card, int line)
+    {
+        bool paper = card.Kind == TownCardKind.Paper;
+        float w = paper ? Math.Min(width - 16, 260) : Math.Min(width - 24, 340);
+        int chars = Math.Max(16, (int)((w - 12) / o.Font.Advance));
+        var body = Wrap(card.Text.ToUpperInvariant(), chars).ToList();
+        int rows = 1 + body.Count + (card.Footer.Length > 0 ? 1 : 0) + (paper ? 1 : 0);
+        float h = rows * line + 10 + (paper ? 3 : 0), x = MathF.Round((width - w) / 2), y = paper ? MathF.Round((height - h) / 2) - 16 : height - 46 - 6 - h;
+        if (paper)
+        {
+            o.Rect(x, y, w, h, PaperSheet);
+            o.Outline(x, y, w, h, PaperRule);
+        }
+        else
+            UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
+        float ty = y + 5;
+        string heading = card.Heading.ToUpperInvariant();
+        o.Text(x + 6, ty, heading.Length > chars ? heading[..chars] : heading, paper ? PaperStamp : Dim, shadow: !paper);
+        ty += line * (paper ? 2 : 1);
+        foreach (var text in body)
+        {
+            o.Text(x + 6, ty, text, paper ? PaperInk : Ink, shadow: !paper);
+            ty += line;
+        }
+        if (card.Footer.Length > 0)
+        {
+            ty += paper ? 3 : 0;
+            string footer = Bound(card.Footer);
+            UiStyle.Keyed(o, x + w - 6 - UiStyle.MeasureKeyed(o, footer), ty, footer, paper ? PaperStamp : Dim);
+        }
+    }
+
+    // A paper's colours: the route card's (PlanHud).
+    static readonly Vector4 PaperSheet = new(0.80f, 0.76f, 0.64f, 0.94f);
+    static readonly Vector4 PaperInk = new(0.10f, 0.09f, 0.08f, 1);
+    static readonly Vector4 PaperRule = new(0.35f, 0.28f, 0.2f, 0.8f);
+    static readonly Vector4 PaperStamp = new(0.55f, 0.12f, 0.08f, 1);
+
     static IEnumerable<string> Wrap(string text, int chars)
     {
         var line = new System.Text.StringBuilder();
@@ -1422,6 +1478,10 @@ public static class Hud
                         : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
                 }
         }
+        // A fortress town (note 278): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
+        // so a lamp at somebody's feet doesn't take the press meant for them.
+        if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
+            return TownTalk.Prompt(town, there);
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
             return thing.Kind switch

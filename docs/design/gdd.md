@@ -113,6 +113,40 @@ This makes every town dependent on freight. One settlement produces coal. Anothe
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
 
+### 3.1 Fortress towns *(the director's direction of 2026-10-06, App. F.1 T133; first pass built for review, ARCHITECTURE §8 note 278)*
+
+The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a little posted on a board, a line from somebody at a door, never a speech.
+
+**A town is its custom.** The Corruption exaggerates whatever lets a thing survive (§2), and the towns did the same. Each one got through one bad winter by doing one thing, kept doing it, and did it harder until it was the town's custom. Every custom is the human answer to one creature's rule, said sideways: the crew hear the custom, and the rule is theirs to work out. In a hush town nobody raises their voice and the bell's clapper is bound in felt (the Choir). In a pairs town nobody stands still alone, and people walk in little circles while they wait (Tippy Toesie). In an offerings town the children have no toys, because the toys go on a shelf by the gate for her (the Track Doll). The towns name the creatures in their own words ("the little lights", "the thin one"), never the game's. A custom only ever answers a creature the edition fields. Fourteen customs are written (content/world/towns.json), one for each of the demo's five and the Choir among them.
+
+**Each town is different from the last.** It is made from the night's seed: the line's fortress name, its custom (never the one the crew left last night), one or two smaller habits (they wear their dead's coats; every clock stopped at the same minute; goats on the roofs), and what it makes (a pit town, a growing town, a foundry town).
+
+**The square** is where the walls step back, beside the engine as the night starts. It holds:
+- the custom's own hall, the clerk's office and the stores, lit;
+- the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
+- a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
+
+**People.** Sixteen to twenty townspeople, text only, no voices:
+- the gatekeeper says the town's law first;
+- the keeper of the hall and the folk round the centrepiece talk about the custom;
+- the clerk, the fitter, the lampman and the rest talk about their work;
+- some carry a scrap of something bigger.
+
+Use talks to someone, and Use again hears their next line. They turn to face you.
+
+**Papers.** The board carries three or four notices: the custom's orders first, then the town's trade and whatever else is posted. One or two notes lie about the square. A town's papers name its own people, so a line from one person and a notice about another can be put together.
+
+**Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (No. 41, the night mail, "still due"), the towns that stopped answering, the penal cars whose guards never came back, Dispatch, and the clerk's fees. None of them is ever explained.
+
+**Everything is solid and safe.** The square's walls, buildings, things and people stand where they're drawn. The yard is a safe space until the gate (§9).
+
+**Not yet** (for the next passes):
+- buying, upgrading and turning loot into scrip in the town itself, not the menu;
+- the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
+- townspeople who move about;
+- things everyone hears when one person does them (ringing the bell);
+- notes found out along the line.
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
@@ -2142,7 +2176,7 @@ Further decisions (the director, 6 Oct 2026):
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
 
-**Direction** (the director, 6 Oct 2026; proposals in T133):
+**Direction** (the director, 6 Oct 2026; proposals in T133; *first pass built for review: §3.1, note 278*):
 - *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
 - *Procedural, with people in them.* Each town has its own odd culture, different from the last.
 - *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.

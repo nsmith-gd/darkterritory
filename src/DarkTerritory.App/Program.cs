@@ -436,6 +436,7 @@ Launch? MenuLoop()
                     SpareLamps = campaign.Stores.Lamps,
                     SpareExtinguishers = campaign.Stores.Extinguishers,
                     FirstChildReal = profile.FirstChildReal,
+                    LastTown = campaign.LastTown,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
@@ -623,6 +624,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
+        Town = session.World.Town,
         Vehicles = session.Train.Vehicles,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
@@ -638,6 +640,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
+    // Talking and reading in the fortress town (note 278): on this machine alone. A press the town took isn't sent to the
+    // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
+    var townTalk = new TownTalk();
+    bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
     bool pendingReverser = false;
@@ -729,6 +735,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pendingCarLamp |= Hit(Control.CarLamp);
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
+        if (Hit(Control.Use) && session.World.Town is { } town && townTalk.Use(town, Hud.TownTarget(session), now))
+            useKept = true;
+        if (!Held(Control.Use))
+            useKept = false;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
@@ -784,7 +794,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             var buttons = PlayerButtons.None;
             if (Held(Control.Run)) buttons |= PlayerButtons.Run;
             if (Held(Control.Jump)) buttons |= PlayerButtons.Jump;
-            if (Held(Control.Use)) buttons |= PlayerButtons.Use;
+            if (Held(Control.Use) && !useKept) buttons |= PlayerButtons.Use;
             if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
             if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
             if (proto is null)
@@ -968,6 +978,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.PlayerId, Kit.Held(me));
         scene.Time = now;
+        // The town's card closes once you've walked off; whoever you're talking to turns to you.
+        if (session.World.Town is { } here)
+        {
+            var eye = PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight;
+            townTalk.Step(here, eye, now);
+            scene.TownFacing = townTalk.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } talking ? (talking.Index, eye) : null;
+        }
         lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
@@ -1036,7 +1053,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, talk: townTalk, now: now);
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
@@ -1065,7 +1082,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, talk: townTalk, now: now);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
@@ -1119,7 +1136,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     if (session.World.Run?.Report is { } report)
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music };
+        // Note 278: and the town it left, so the next night's isn't the same custom again.
+        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

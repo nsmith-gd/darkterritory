@@ -60,6 +60,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <summary>The host's only: the campaign's looks by player name (GDD v1.4 App. D.8; note 181), going into the night.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyDictionary<string, string>? Identities { get; init; }
+    /// <summary>
+    /// The custom of the town the crew left last night (note 278; App. F.1: "each town has its own odd culture, different
+    /// from the last"): tonight's town won't share it. Every machine makes the town, so a joiner is sent it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? LastTown { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -108,8 +114,15 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         if (Directory.Exists(linegen))
             hashes[LineGenKey] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
                 .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
+        // The world's words (note 278): the towns are made from them alike on every machine, and their walls are solid.
+        string world = Path.Combine(content, "world");
+        if (Directory.Exists(world))
+            hashes[WorldKey] = Hash(string.Concat(Directory.EnumerateFiles(world, "*.json").Order(StringComparer.Ordinal)
+                .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
         return hashes;
     }
+
+    const string WorldKey = "world";
 
     /// <summary>Files that differ between the host's content and this machine's.</summary>
     public IReadOnlyList<string> ContentDifferences(string content)
@@ -118,7 +131,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             return [];
         var mine = HashContent(content);
         return [.. Content.Keys.Union(mine.Keys).Where(k => Content.GetValueOrDefault(k) != mine.GetValueOrDefault(k)).Order()
-            .Select(k => k == LineGenKey ? "linegen/*.json" : $"tuning/{k}.json")];
+            .Select(k => k == LineGenKey ? "linegen/*.json" : k == WorldKey ? "world/*.json" : $"tuning/{k}.json")];
     }
 
     /// <summary>Why a joiner's refused: the files that differ, and the mods on each side when they're not the same.</summary>
@@ -171,6 +184,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
             // GDD App. D: once the gate has opened, the dead come back only through the route's Holdouts.
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
+            // The departure fortress's town (note 278), after the run: its walls go up beside the stops'.
+            if (Sim.Towns.TownContent.Load(content) is { } towns)
+                world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown);
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
