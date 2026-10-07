@@ -161,6 +161,8 @@ public sealed record WhistlerTuning
     public double NestDistance { get; init; } = 30;
     public double NestMinDistance { get; init; } = 8;
     public double NestStep { get; init; } = 4;
+    /// <summary>How far from its gap a stop's own nest may be and still be where it runs (note 314).</summary>
+    public double NestSiteReach { get; init; } = 110;
     public double NestMaxSlope { get; init; } = 0.4;
     public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;

@@ -46,24 +46,7 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     /// <paramref name="kind"/> at the generated stops round the train, in the world, on the ground there. None on a hand-laid
     /// route, whose stops have no layouts.
     /// </summary>
-    public List<(Double3 At, double Radius)> Sites(LairKind kind)
-    {
-        var found = new List<(Double3, double)>();
-        if (World.Route is not { } route)
-            return found;
-        double hint = 0;
-        foreach (var f in route.Features)
-        {
-            if (f.Stop is not { } stop || Front < f.Start - Tuning.Sites.Around || Front > f.End + Tuning.Sites.Around)
-                continue;
-            foreach (var lair in stop.Lairs.Where(l => l.Kind == kind))
-            {
-                var at = Run.Run.StopWorld(Train.Line, f, lair.At);
-                found.Add((at with { Y = PlayerMotor.GroundAt(at, Train.Line, ref hint) }, lair.Radius));
-            }
-        }
-        return found;
-    }
+    public List<(Double3 At, double Radius)> Sites(LairKind kind) => CreatureSites.Of(World, kind, Tuning.Sites.Around);
 
     /// <summary>
     /// The site of <paramref name="kind"/> nearest <paramref name="centre"/>, if it's within <paramref name="reach"/> and no

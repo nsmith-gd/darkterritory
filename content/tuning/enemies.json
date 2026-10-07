@@ -173,10 +173,12 @@
   // and wherever the land rose the player was stood up on the hillside when it let go), shorter by nestStep down to
   // nestMinDistance where the land won't have it. Its run there is over the ground, and the way has to be land a person can
   // run: no 2 m of it steeper than nestMaxSlope (rise over run), never more than nestMaxRise m above or below the rail, no
-  // water. Neither side has any: the formation's edge.
+  // water. Neither side has any: the formation's edge. At a generated stop it runs to the nest the layout put out on the
+  // stop's emptiest side (level-design H.2; note 314), the nearest within nestSiteReach of its gap that the same rules allow
+  // and whose way there misses every building. Nowhere does its run go through a wall.
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
-    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6,
+    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6, "nestSiteReach": 110,
     "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
   },
 
