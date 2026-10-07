@@ -89,6 +89,10 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
+    // MODS (note 323): what Mount found installed, and whether --no-mods left it all off.
+    InstalledMods = [.. Mods.Installed.Mods.Select(m => new InstalledMod(m.Name, m.Version, m.Description))],
+    ModProblems = Mods.Installed.Problems,
+    ModsOff = Mods.Off,
     // The settings' MICROPHONE: what there is to choose from.
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
     // OUTFIT (note 298): the crew's looks by name.
@@ -1119,6 +1123,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
         scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
+        // The dark answering a draw (note 287): eyes at the lamp's edge.
+        scene.Answer = session.World.Answer;
+        scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;

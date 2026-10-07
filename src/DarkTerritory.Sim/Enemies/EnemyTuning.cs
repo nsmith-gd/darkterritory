@@ -630,6 +630,8 @@ public sealed record DirectorTuning(
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
     public VoteTuning Vote { get; init; } = new();
+    /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
+    public DrawTuning Draw { get; init; } = new();
 }
 
 /// <summary>

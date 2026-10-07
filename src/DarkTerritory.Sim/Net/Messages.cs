@@ -46,7 +46,8 @@ public static class Protocol
     // 32: a find's body record carries how far its carrier has got using it, when it heals (App. F.1 damage model; note 272).
     // 33: emotes and outfits (note 298): an emote on the intent's hotbar byte and RecordKind.Emote; the Hello's outfit, the
     //     host's Outfits and a client's Wear.
-    public const int Version = 33;
+    // 34: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
+    public const int Version = 34;
 }
 
 public enum MessageType : byte

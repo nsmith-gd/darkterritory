@@ -427,6 +427,37 @@
     // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
     // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
     "vote": { "perVote": 1.2, "cap": 1.5, "options": 3, "botSeconds": 6 },
+    // The draw (ARCHITECTURE §8 note 287; GDD §14 "Noise", §23.1 "Owned", App. B.1, App. F.1 "Run start: nothing makes the
+    // player feel they've done something that draws a monster"): the night's first threat answers something the crew did.
+    // Every draw is credited to whoever made it on a ledger that halves every halfLifeSeconds (what drew most, lately). After
+    // the grace, the first time one crewmate's draw of one kind stands at answerAt or more, the dark answers it out loud (a
+    // call from answerDistance m ahead and answerLateral m off the line, at the lamp's edge; eyes there at answerHeight for
+    // showSeconds) and the first threat follows leadSeconds later, pressed for (the cooldown and the curve give way as at
+    // pressAt). With no draw that big the pressure, past its threshold, waits ("listening") up to holdUntil, and then the
+    // biggest draw standing takes the blame: a quiet crew buys itself time (holdFirst false: the pressure model as before).
+    // The Stoker is the firebox's own draw (note 263); the Choir the loudest's. Nothing here runs in the safe yard.
+    "draw": {
+      "enabled": true,
+      "halfLifeSeconds": 30, "answerAt": 3, "holdFirst": true, "holdUntil": 16, "leadSeconds": 5,
+      "showSeconds": 7, "answerDistance": 60, "answerLateral": 12, "answerHeight": 0.7,
+      // Raised voices only: the mic level (0..1) above voiceFloor, scaled to the rest (the bots' working chatter is 0.27).
+      // The firebox above fireboxFrom (of 6; the Stoker's heatFirebox). The engine at engineFullSpeed m/s or more.
+      "voiceFloor": 0.4, "fireboxFrom": 4.5, "engineFullSpeed": 20,
+      // A second of: the whistle 1.5 (a proper blast answers, a toot doesn't), voices 0.5 at full shout, a noisy toy carried
+      // 0.15, the firebox 0.25 full, the engine 0.03 at speed (it never answers alone: at most about 1.3 stands). An act of:
+      // a cannon round 3 (one shot answers), a car lamp lit 2, cargo aboard 4 a car-load × pressure.cargoValue.
+      "weights": { "whistle": 1.5, "voices": 0.5, "toy": 0.15, "firebox": 0.25, "engine": 0.03, "cannon": 3, "lamp": 2, "cargo": 4 },
+      // What answers each draw: these kinds weigh this much more for the first threat (only what the night could send anyway).
+      "answers": {
+        "whistle": { "whistler": 3, "cinderHounds": 2 },
+        "cannon": { "cinderHounds": 2, "ribbits": 2, "climbers": 2 },
+        "voices": { "sootChildren": 3, "tippyToesie": 2, "followers": 2 },
+        "toy": { "trackDoll": 4 },
+        "firebox": { "cinderHounds": 2 },
+        "lamp": { "fireFlies": 3 },
+        "cargo": { "carHugger": 3, "grumbler": 2, "cinderHounds": 2 }
+      }
+    },
     // App. B.1.
     "baseBudget": { "local": 90, "frontier": 150, "deadLines": 230, "deepTerritory": 330 },
     "lengthPerCarBeyondThird": 0.15,

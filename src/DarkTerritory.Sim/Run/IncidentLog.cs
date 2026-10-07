@@ -230,7 +230,7 @@ public static class IncidentLog
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
-    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck;
+    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck && kind != IncidentKind.Drawn;
 
     /// <summary>
     /// A record of something that happened to the train, not to a crewmate (note 190: C.9's rows that aren't deaths): what,
