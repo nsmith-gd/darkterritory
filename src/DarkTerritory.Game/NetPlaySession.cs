@@ -268,10 +268,29 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public WreckFilm? Film => _shooting is { IsCompletedSuccessfully: true } done ? done.Result : null;
 
     public bool Skippable =>
-        Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
+        (World.WreckTuning.Skip.Own ? OwnFilmSkippable : Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
             && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) >= film.SkippableFrom
-            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt
+            && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
         || StrandedOutro && OutroSeconds >= World.WreckTuning.Stranded.SkipAfterSeconds;
+
+    /// <summary>
+    /// Each player's own skip (E.5 after E.12 question 2; note 315): from the train coming off to the cause card, the first
+    /// person and the replay too, while the film's still being shot. Not once it's been taken (the jump waits for the film).
+    /// </summary>
+    bool OwnFilmSkippable => Train.Wreck is not null && !_skipped
+        && (Film is not { } film || WreckSeconds < SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt);
+
+    /// <summary>How far through holding the skip this player is, 0 to 1 (the prompt's fill; note 315). 0 under the crew's vote.</summary>
+    public double SkipHold => World.WreckTuning.Skip.Own && Skippable ? Math.Clamp(_skipHeld / Math.Max(World.WreckTuning.Skip.HoldSeconds, 1e-6), 0, 1) : 0;
+
+    double _skipHeld;
+    bool _skipped;
+
+    /// <summary>
+    /// A skip lands this far into the cause card, not on its first instant: <see cref="WreckFilm.CutAt"/> takes the shots'
+    /// lengths off one at a time, and at the exact boundary the rounding can leave the settle's last frame on screen.
+    /// </summary>
+    const double SkipLanding = 1e-3;
     public double OutroSeconds { get; private set; }
 
     public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
@@ -348,9 +367,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         _commended = true;
     }
 
-    List<string>? _manifest, _tally;
-    List<double>? _manifestTimes, _tallyTimes;
-    double _manifestSeconds = -1, _tallySeconds = -1;
+    List<string>? _manifest, _tally, _bulletin;
+    List<double>? _manifestTimes, _tallyTimes, _bulletinTimes;
+    double _manifestSeconds = -1, _tallySeconds = -1, _bulletinSeconds = -1;
+    /// <summary>How long the run's said the kit's lost (note 308): it's said once that's held a second (stranded.lostForSeconds).</summary>
+    double _kitLostFor;
+    bool _kitLostSaid;
+
+    /// <summary>A bulletin on the air (note 308: the kit lost), while it's being read.</summary>
+    bool Bulletin => _bulletin is not null && _bulletinSeconds >= 0 && _bulletinSeconds < Sim.Run.Radio.Length(_bulletin, RadioTuning, _bulletinTimes);
 
     /// <summary>
     /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 240), so the reading goes at its pace: the card
@@ -360,12 +385,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public IReadOnlyList<string>? RadioReading =>
         _tally is not null && _tallySeconds >= 0 ? _tally
+        : Bulletin ? _bulletin
         : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning, _manifestTimes) ? _manifest
         : null;
 
-    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
+    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : Bulletin ? _bulletinSeconds : _manifestSeconds;
 
-    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : _manifestTimes;
+    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : Bulletin ? _bulletinTimes : _manifestTimes;
 
     public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning, _tallyTimes);
 
@@ -391,6 +417,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         else if (_manifestSeconds >= 0)
             _manifestSeconds += SimConstants.TickSeconds;
+        // GDD App. E.12 question 5 (note 308): the last engineering kit lost, the yard says so, once.
+        _kitLostFor = run.Kit.Lost && !run.Over ? _kitLostFor + SimConstants.TickSeconds : 0;
+        if (!_kitLostSaid && RadioTuning.KitLost && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
+        {
+            _kitLostSaid = true;
+            _bulletin = Sim.Run.Radio.KitLost(run.Kit);
+            _bulletinTimes = RadioTimesOf(_bulletin);
+            _bulletinSeconds = 0;
+        }
+        else if (_bulletinSeconds >= 0)
+            _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report);
@@ -504,7 +541,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port));
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby) };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -664,7 +701,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 if (e.Kind == TransportEventKind.Connected)
                 {
                     var hello = new NetWriter();
-                    Messages.WriteHello(hello, LocalName(lobby));
+                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit);
                     transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
                 }
                 if (e.Kind == TransportEventKind.Disconnected)
@@ -711,7 +748,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby) };
+        { Name = LocalName(lobby), Outfit = Outfit };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -838,6 +875,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var sent = intent;
         if (Picker.Select(Ballot) is > 0 and var vote && !Player.Alive)
             sent.Select = vote;
+        // E.5 after E.12 question 2 (note 315): the skip is this player's own, held here and never sent.
+        if (World.WreckTuning.Skip.Own && Skippable)
+        {
+            _skipHeld = intent.Has(PlayerActions.Skip) ? _skipHeld + SimConstants.TickSeconds : 0;
+            if (_skipHeld >= World.WreckTuning.Skip.HoldSeconds - 1e-9)
+            {
+                _skipped = true;
+                _skipHeld = 0;
+            }
+            sent.Actions &= ~PlayerActions.Skip;
+        }
+        else
+            _skipHeld = 0;
         Client.Step(Spectate(sent));
         WreckSeconds = Train.Wreck is null ? 0 : WreckSeconds + SimConstants.TickSeconds;
         OutroSeconds = World.Run?.End == Sim.Run.RunEnd.Stranded ? OutroSeconds + SimConstants.TickSeconds : 0;
@@ -851,8 +901,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // E.5: voted off, the film cuts to the cause card (never past it); E.9: the outro to its end.
         if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
             && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
-            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt;
-        if (World.FilmSkipped && StrandedOutro)
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt + SkipLanding;
+        // Note 315: skipped on this screen alone, from anywhere before it, the first person and the replay too. Taken while
+        // the film's still being shot, the jump waits for it.
+        if (_skipped && Train.Wreck is not null && Film is { } mine
+            && WreckSeconds < SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt)
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt + SkipLanding;
+        if ((World.FilmSkipped || _skipped) && StrandedOutro)
             OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;
         if (Client.Dropped || (!_link.IsConnected && Client.Connected))
@@ -1052,6 +1107,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>The name set in the settings (the app sets it at start), for the crew and the report.</summary>
     public static string PlayerName { get; set; } = "";
+
+    /// <summary>The outfit set in the settings (note 298; the app sets it at start), or <see cref="Messages.NoOutfit"/>: their id's.</summary>
+    public static byte Outfit { get; set; } = Messages.NoOutfit;
+
+    /// <summary>
+    /// Tries an outfit on (note 298), the in-night menu's OUTFIT: asked of the host, which takes it only in the yard before
+    /// the gate (<see cref="CanWear"/>).
+    /// </summary>
+    public void Wear(byte outfit) => Client.Wear(outfit);
+
+    /// <summary>In the yard, where outfits are tried on (GDD §9; note 298).</summary>
+    public bool CanWear => World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
 
     /// <summary>What this player is called: the settings' name, else the online name, else the system's.</summary>
     static string LocalName(Lobby? lobby) =>

@@ -29,25 +29,37 @@ public static class PostedSpeeds
                     demand.Type == DemandType.Brass ? "BRASS" : "BRIDGE"));
                 continue;
             }
-            // The bend it stands before: the sharpest curve in the next 600 m, and as far either side as it's nearly as sharp.
-            double kMax = 0, sMax = b.S;
-            for (double s = b.S; s <= Math.Min(length, b.S + 600); s += 5)
+            // The bends it's for. A demand's board can govern more than one: an S-bend has a limit on each curve and one
+            // board before both (deepTerritory:2 at 33 km), and the director wants every stretch that can't take top speed
+            // on the map (note 285). So each curve limit of its figure in its reach is a bend; a board with none (one of
+            // Signage's own, a bend to a board) is for the sharpest curve in the next 600 m.
+            var stretches = demand is null ? [] : plan.Authority.Limits
+                .Where(l => l.Edge == "main" && l.Source == LimitSource.Curve && Math.Abs(l.VMs - b.Value!.Value) < 0.01 && l.S0 >= b.S - 1 && l.S0 <= b.S + 600)
+                .Select(l => (From: l.S0, To: Math.Min(length, l.S1))).ToList();
+            if (stretches.Count == 0)
+                stretches.Add((b.S, Math.Min(length, b.S + 600)));
+            foreach (var (from, to) in stretches)
             {
-                double k = Math.Abs(line.Sample(RailLine.MainPath, s).Curvature);
-                if (k > kMax)
-                    (kMax, sMax) = (k, s);
+                double kMax = 0, sMax = from;
+                for (double s = from; s <= to; s += 5)
+                {
+                    double k = Math.Abs(line.Sample(RailLine.MainPath, s).Curvature);
+                    if (k > kMax)
+                        (kMax, sMax) = (k, s);
+                }
+                // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
+                if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
+                    continue;
+                // As far either side as it's nearly as sharp.
+                double s0 = sMax, s1 = sMax;
+                while (s0 > Math.Max(b.S, from - 30) && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
+                    s0 -= 5;
+                while (s1 < length && s1 < Math.Max(b.S + 900, to + 30) && Math.Abs(line.Sample(RailLine.MainPath, s1 + 5).Curvature) > kMax * 0.6)
+                    s1 += 5;
+                // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
+                int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
+                bends.Add((s0, Math.Max(s1, s0 + 10), kmh, null));
             }
-            // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
-            if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
-                continue;
-            double s0 = sMax, s1 = sMax;
-            while (s0 > b.S && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
-                s0 -= 5;
-            while (s1 < length && s1 < b.S + 900 && Math.Abs(line.Sample(RailLine.MainPath, s1 + 5).Curvature) > kMax * 0.6)
-                s1 += 5;
-            // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
-            int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
-            bends.Add((s0, Math.Max(s1, s0 + 10), kmh, null));
         }
         return bends;
     }

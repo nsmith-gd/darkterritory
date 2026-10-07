@@ -228,7 +228,7 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 - the cold doesn't bite;
 - the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
 
-The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`).
+The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298.
 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
@@ -864,6 +864,21 @@ Because the game is voice- and communication-driven, the visuals exist to let pl
 
 Silhouette legibility is not an aesthetic preference here. It is a coordination mechanic, and it sits alongside the six-word enemy rule as one of the two things that make the shouting work.
 
+### The HUD: your hands and the dark
+
+*The director's decisions of 2026-10-07: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs." Then, on the overhaul: keep the speed figures, "PULL CORD : [E]", a setting to hide the corner's controls, and the max speed on the map for every stretch that can't take top speed; discard "long prompts that foretell the consequence of actions. Consequences need to be learned."* The screen is the night, and the voice channel carries the rest. The HUD keeps to the same rules as those two games:
+
+- **Only your hands are always there.** A dot to aim with, and the hotbar: small slots with a picture of each tool. A tool's name shows for a moment after a change of hands.
+- **What you look at is said at the crosshair.** The action and its key, in fine print: "PULL CORD : [E]", "SHOVEL COAL : HOLD [E]". A short state only when it stops you ("POINTS HELD", "NO SHOT"), and a hold's progress.
+- **Prompts never foretell.** Nothing says what an action will do: whether it's loud, what it mends, who hears it, that it needs two, or what happens if you don't. Consequences are learned, as in Lethal Company. The stop's status says what's there and what's under way, not how to work it.
+- **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
+- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby, and on the line only when it's bad. The noise meter only once the crew's loud.
+- **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
+- **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
+- **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
+
+The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 285.
+
 ### The screenshot test
 
 If a screenshot reads as *a rough, low-poly industrial horror game where a steam train full of desperate workers is crossing a diseased frontier at night, and the darkness itself feels operationally dangerous* — it is on target.
@@ -967,7 +982,7 @@ Embodied in-engine agents play the game headlessly. A fixed roster makes this an
 9. **The Gaunt: does talking lower its aggro, or only stop it rising? And whose voice counts** — only the waker's, or anyone within 8m?
 10. ~~**What can dead players do while observing?**~~ **Answered in Appendix D.** They spectate, talk on a dead channel the living never hear, call out from Holdouts with canned lines, and get one creature vote. Only the player about to be freed can speak to the living, over Live Mic at the Holdout door (D.15 tracks the Passenger risk).
 11. **Is hand-carried loot a second economy next to freight, or part of it?** A rescued child is both. v1.3 gives some loot a risk of its own, noise while carried (§19, C.4), which pushes it toward a second economy with its own decisions.
-12. **At crew 2, which group-based enemies are still fair?** Needs a harness sweep, especially Ribbits and Tippy Toesie.
+12. ~~**At crew 2, which group-based enemies are still fair?**~~ **Swept (note 305): all of them, played right.** Every grab can be broken by the one other crewmate at crew 2 (`dt audit grabs --crews 2`), Ribbits and Tippy Toesie included. Two were losing crew-2 nights, both to how the bots played them: the Choir took a gunner from a car with its door open (get behind a shut door), and the Car Hugger ate a gunner who went down to club it alone (with nobody but the driver, keep clear and let it take the car). Played so, none loses a crew-2 night. The bots never drew a Ribbit pack or Tippy Toesie at any crew size; people who split up will.
 13. **What counts toward the Choir's loudness threshold, and over what time window?** Too sensitive and the core shouting loop summons it constantly. Whatever the answer, shushing counts: a crew hissing "shut up" at each other is part of the noise, and the Choir takes the loudest contributor (A.7, C.7).
 
 ---
@@ -1864,7 +1879,7 @@ Every number in this appendix lives in data, not code.
 3. **Halt stop cost.** Is a main-line stop at a halt dangerous enough, with no facility lull, or does it need a dedicated director response?
 4. **Live Mic and the Passenger.** A spectator who noticed a silent crew member could name it over Live Mic to a rescuer at the door. The living have the same tell, and the 26 m range limits it to one listener mid-rescue, so it's accepted for now. Watch for it in playtests.
 5. **Commendation reel.** Bookmarks are stills, now including automatic captures at every GRAB and PUNISH. If they turn out to be the best part of the run-end screen, short clips may be worth the tech later.
-6. **Attribution tone.** Cause-of-death lines name players. Watch playtests for whether they read as a joke the crew shares or as a scoreboard someone resents. The fallback is to keep names on self-inflicted deaths (jumping, a Choir victim who was also the loudest) and replace another player's name with their role ("Throttle: conductor") where the cause was someone else's action.
+6. ~~**Attribution tone.** Cause-of-death lines name players. Watch playtests for whether they read as a joke the crew shares or as a scoreboard someone resents. The fallback is to keep names on self-inflicted deaths (jumping, a Choir victim who was also the loudest) and replace another player's name with their role ("Throttle: conductor") where the cause was someone else's action.~~ **Answered (the director, 7 Oct 2026): name players, forget roles.** Cause-of-death lines and the cause card always name the player, whoever caused it; there is no role fallback.
 
 ---
 
@@ -1958,7 +1973,7 @@ Shots may revisit the same sim time from new angles. The cinematic is edited, no
 - **Length.** From the first person to the cause card, with the replay between: about 36s at crew 4 and 52s at crew 8 (the first person 4.5–9s, the replay 9s, 4s a player, the settle 3s, the cause card 2s). *(5 Oct 2026, take 3; it was about 18s and 24s.)*
 - **Bookmarks.** Each player's death frame is captured as their auto-bookmark (D.12).
 - **The cause card**, for example: *Consist derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave. Recovery not scheduled.*
-- **Skipping.** After the first player shot, anyone can vote to skip, and a majority of the session skips to the cause card. The host can always skip. The cause card is never skipped.
+- **Skipping.** Each player skips their own film, whenever they want: holding the key half a second cuts their screen to the cause card, from the first frame on. Nobody else's film is skipped. The cause card is never skipped. *(The director's answer to E.12 question 2, 7 Oct 2026: "players should be able to skip whenever they want. It's up to each player if they want to skip their film". It was a majority vote after the first player's shot, or the host.)*
 
 ## E.6 Music
 
@@ -2036,7 +2051,7 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 - **Sound:** wind and the boiler ticking as it cools. No music.
 - **Voices:** the living keep proximity voice throughout. They're still alive, and they'll have things to say.
 - **Camera:** the rules in E.4 apply (O2, O3, O13).
-- **Skippable** after 3s by majority vote, or by the host.
+- **Skippable** after 3s, by each player for themselves, like the film (E.5).
 - **Bookmark:** the final frame is captured as an auto-bookmark (D.12).
 
 ## E.10 Tunables
@@ -2087,10 +2102,10 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 ## E.12 Open questions
 
 1. **Solo nights.** A single player gets one shot. Is a six-second film of one person funny enough, or should solo derails shorten to the establishing wide and their shot?
-2. **First-time skip.** Should a player's first derail be unskippable for them?
+2. ~~**First-time skip.** Should a player's first derail be unskippable for them?~~ **Answered (the director, 7 Oct 2026): no.** "Players should be able to skip whenever they want. It's up to each player if they want to skip their film." Each player skips their own, from the first frame, and nobody else's (E.5; ARCHITECTURE §8 note 315).
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
-5. **Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+5. ~~**Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?~~ **Answered (the director, 7 Oct 2026): a radio line.** When the train's last engineering kit is lost, the yard says so once, flat: "Engineering kit reported lost", with the car's number when it went with a car. The empty shelf stays (ARCHITECTURE §8 note 308).
 
 ---
 
@@ -2117,7 +2132,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
-- Far too much UI for what's on screen. *Done (notes 264, 277): the cab's panel cut to two lines, nothing out of the cab, prompts in fine print under the crosshair.*
+- Far too much UI for what's on screen. *Done (§32 "The HUD: your hands and the dark", the director's decision of 7 Oct; notes 264, 277 and 285): only the crosshair and the hotbar are always on screen, the prompts are in fine print under the crosshair, and the rest comes and goes.*
 - The hold-to-vent control feels off. *Done (note 264): one key held anywhere in the cab. How it feels is the director's to judge.*
 - There's no whistle cord, and people will want one. *Done (notes 264, 276): a cord in the driver's corner, worked by look and Use.*
 - The coal shovel is fun. *Keep.*
@@ -2207,7 +2222,7 @@ Further decisions (the director, 6 Oct 2026):
 - *Every culture is somewhat traumatised* by the events of the world.
 - *Towns of 20 to 350 people.*
 - Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
-- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #46, walled towns, note 307.)
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #60, walled towns, note 321.)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*

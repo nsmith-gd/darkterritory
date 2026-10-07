@@ -90,6 +90,8 @@ public sealed class GreyboxScene
     public IReadOnlyList<Sim.Combat.HitConfirm>? Hits { get; set; }
     /// <summary>Crewmates' swings, landed or not (note 197): the world's, for their swing clip.</summary>
     public IReadOnlyList<Sim.Combat.SwingEvent>? Swings { get; set; }
+    /// <summary>Everyone's outfit (note 298), for the Passenger wearing one of the crew's faces.</summary>
+    public IReadOnlyDictionary<int, byte>? Outfits { get; set; }
     /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.CannonImpact>? Impacts { get; set; }
 
@@ -460,7 +462,7 @@ public sealed class GreyboxScene
                 else if (e is Sim.Enemies.Passenger passenger)
                 {
                     // One of the crew, to look at (App. A.7 BLEND): drawn exactly as they are, their face and all.
-                    if (!e.Gone && AsCrewmate(passenger, frames) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
+                    if (!e.Gone && AsCrewmate(passenger, frames, Outfits) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
                         DrawCrewmate(mesh, double_, eye);
                 }
                 else if (!e.Gone)
@@ -1071,13 +1073,15 @@ public sealed class GreyboxScene
         return c with { Feet = at, Yaw = yaw };
     }
 
-    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames)
+    /// <param name="outfits">Everyone's outfits (note 298): the face it wears comes in its owner's outfit.</param>
+    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames, IReadOnlyDictionary<int, byte>? outfits = null)
     {
         if (p.Attached < 0 || p.Attached >= frames.Count)
             return null;
         var frame = frames[p.Attached];
         var forward = frame.DirToWorld(new Double3(-Math.Sin(p.Extra2), 0, -Math.Cos(p.Extra2)));
-        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: p.Looks,
+        int looks = outfits is not null && outfits.TryGetValue(p.Looks, out byte worn) ? worn : p.Looks;
+        return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: looks,
             Car: p.Attached, Local: p.Local);
     }
 
@@ -2697,7 +2701,7 @@ public sealed class GreyboxScene
         if (Route is { } route)
             foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
             {
-                var p = line.Sample(RailLine.MainPath, Math.Clamp(f.Start, 0, length)).Position;
+                var p = MapStop(line, f, length);
                 draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
             }
         // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
@@ -2757,12 +2761,21 @@ public sealed class GreyboxScene
             MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
         }
         mesh.Emissive = 1;
-        var at = line.Sample(RailLine.MainPath, Math.Clamp(_hint, 0, length)).Position;
+        // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
+        var at = frame.Origin;
         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
     }
+
+    /// <summary>
+    /// Where the run map marks a stop: where the train stands at it (its layout's stop point: a halt's platform, a yard's
+    /// working track), not where its zone begins, 150 to 450 m short of it on frontier:7; a hand-laid stop's middle.
+    /// </summary>
+    public static Double3 MapStop(RailLine line, RouteFeature f, double length) =>
+        f.Stop is { } stop ? Sim.Run.Run.StopWorld(line, f, stop.StopPoint)
+            : line.Sample(RailLine.MainPath, Math.Clamp((f.Start + f.End) / 2, 0, length)).Position;
 
     // The chart's room above and below the line for its title and its scale bar (m of plate).
     const double MapMargin = 0.11;
