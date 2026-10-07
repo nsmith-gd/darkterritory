@@ -2083,7 +2083,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *Open (queue #65, note 326, B4).*
 
 **Encounters**
-- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
+- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Done (note 327): off the train the crew are watched: now and then eyes at the lamp's edge toward where something that lives at the stop is, and its sound; and the night's pressure builds faster while anyone's afoot, so encounters come sooner (`enemies.json` `director.afoot`).*
 - A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *Open (queue #67, note 328).*
 
 **Pacing on the train**

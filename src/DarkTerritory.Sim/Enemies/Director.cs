@@ -20,7 +20,8 @@ public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Co
 /// <param name="Cargo">The cargo-aboard term, per second.</param>
 /// <param name="Relief">The crew's relief valve (1 all well; less with crew down or hurt).</param>
 /// <param name="Conditions">The conditions multiplier (dark, cold, wet, wind).</param>
-public readonly record struct PressureTerms(double Rate, double Escalation, double Quiet, double Loud, double Cargo, double Relief, double Conditions);
+/// <param name="Afoot">The crew-afoot term, per second (note 327).</param>
+public readonly record struct PressureTerms(double Rate, double Escalation, double Quiet, double Loud, double Cargo, double Relief, double Conditions, double Afoot = 0);
 
 /// <summary>
 /// The pressure director (GDD App. B.1). Enemies aren't rolled independently: a budget is spent across the
@@ -446,9 +447,11 @@ public sealed class Director
         }
         // Busy fades as the night goes on: late, the director no longer waits for the crew to finish what's on them.
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
-        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo);
+        // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
+        double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
+        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
-        Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions);
+        Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }
 
     /// <summary>A crewmate the train's left behind (T128, note 273): how long, their pressure, the hunts sent, the last hunt's pack.</summary>
@@ -553,6 +556,146 @@ public sealed class Director
         }
         foreach (int id in _left.Keys.Where(k => !seen.Contains(k)).ToList())
             _left.Remove(id);
+    }
+
+    /// <summary>The share of the living crew afoot off the train this second (note 327; <see cref="Watch"/>).</summary>
+    public double AfootShare { get; private set; }
+
+    /// <summary>Crew-seconds afoot off the train tonight (note 327), for the harness and the playthrough.</summary>
+    public double AfootSeconds { get; private set; }
+
+    /// <summary>Every sign shown tonight (note 327): when, to whom, what, and whether it came from a site at the stop.</summary>
+    public List<SignShown> Signs { get; } = new();
+
+    /// <summary>The director's spawns made while someone was afoot off the train (note 327).</summary>
+    public int SpawnsAfoot { get; private set; }
+
+    double _signIn = -1;
+    int _signTurn;
+    Pcg32 _signRng;
+    bool _signSeeded;
+
+    /// <summary>
+    /// Note 327 (GDD App. F.3, the director, 7 Oct 2026: "when they leave, there is this presence of threat at all times").
+    /// Once a second, out of the safe yard: who's afoot (alive on the ground, further than <see cref="AfootTuning.FromTrainM"/>
+    /// from every car, outside the forts), their share of the living (the pressure model's afoot term), and while anyone is,
+    /// now and then a sign shown one of them in turn: eyes at the lamp's edge toward a site of a creature that lives at this
+    /// stop (note 309), and its sound. Honest: only what lives here and the night could send (a Ribbit's, from away from the
+    /// train, where no site is in reach). Its own dice, so the night's draws are as they were. Null: no sign this second.
+    /// </summary>
+    public Watcher? Watch(World world)
+    {
+        var a = _t.Afoot;
+        AfootShare = 0;
+        if (!a.On)
+            return null;
+        if (!_signSeeded)
+        {
+            _signRng = new Pcg32(_seed, 0x5167);
+            _signSeeded = true;
+        }
+        var train = world.Train;
+        var afoot = new List<(int Id, Double3 At)>();
+        int alive = 0;
+        foreach (var (id, s) in world.CrewThisTick)
+        {
+            if (!s.Alive)
+                continue;
+            alive++;
+            if (s.Parent != PlayerState.World)
+                continue;
+            var at = PlayerMotor.WorldPosition(s, train);
+            if (FromTrain(train, at) > a.FromTrainM && !world.InFort(at))
+                afoot.Add((id, at));
+        }
+        if (afoot.Count == 0)
+        {
+            _signIn = -1;
+            return null;
+        }
+        AfootShare = (double)afoot.Count / Math.Max(1, alive);
+        AfootSeconds += afoot.Count;
+        // The first sign soon after someone steps off; then every so often while anyone's out.
+        if (_signIn < 0)
+            _signIn = a.FirstSign;
+        if ((_signIn -= 1) > 0)
+            return null;
+        _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]);
+        var (who, from) = afoot[_signTurn++ % afoot.Count];
+        // The sites of what lives here, in reach of them, of what the night could send: the nearest.
+        (Double3 At, EnemyKind Kind)? site = null;
+        double best = a.SignReach;
+        foreach (var lair in Enum.GetValues<Stops.LairKind>())
+        {
+            var kind = Lives(lair);
+            if (!Allows(kind))
+                continue;
+            foreach (var (at, _) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
+            {
+                double d = ((at - from) with { Y = 0 }).Length;
+                if (d < best)
+                {
+                    best = d;
+                    site = (at, kind);
+                }
+            }
+        }
+        Double3 toward;
+        EnemyKind what;
+        if (site is { } st)
+        {
+            toward = (st.At - from) with { Y = 0 };
+            what = st.Kind;
+        }
+        else if (Allows(EnemyKind.Ribbit))
+        {
+            // Away from the train: out where nobody's looking.
+            double hint = train.Dynamics.Distance;
+            train.Line.Nearest(from, ref hint);
+            toward = (from - train.Line.Sample(Rail.RailLine.MainPath, hint).Position) with { Y = 0 };
+            what = EnemyKind.Ribbit;
+        }
+        else
+            return null;
+        if (toward.Length < 1e-3)
+            toward = new Double3(1, 0, 0);
+        double turn = _signRng.Range(-a.SignSpread, a.SignSpread) * Math.PI / 180;
+        var dir = toward.Normalized;
+        dir = new Double3(dir.X * DMath.Cos(turn) - dir.Z * DMath.Sin(turn), 0, dir.X * DMath.Sin(turn) + dir.Z * DMath.Cos(turn));
+        // At the lamp's edge, or at the site itself if that's nearer.
+        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : Math.Max(a.SignOut[0] * 0.5, best));
+        var spot = from + dir * out_;
+        double gh = train.Dynamics.Distance;
+        spot = spot with { Y = PlayerMotor.GroundAt(spot, train.Line, ref gh) + a.SignHeight.GetValueOrDefault(Key(what), a.SignHeightDefault) };
+        if (world.InFort(spot))
+            return null;
+        Signs.Add(new SignShown(world.Tick, who, what, site is not null, out_));
+        return new Watcher(a.SignSeconds, what, spot, who);
+    }
+
+    /// <summary>What lives at a site of this kind (level-design H.2; note 309).</summary>
+    public static EnemyKind Lives(Stops.LairKind lair) => lair switch
+    {
+        Stops.LairKind.Warren => EnemyKind.Ribbit,
+        Stops.LairKind.GauntRoost => EnemyKind.Gaunt,
+        Stops.LairKind.FollowerGround => EnemyKind.Follower,
+        Stops.LairKind.SootCall => EnemyKind.SootChildren,
+        Stops.LairKind.GrumblerPerch => EnemyKind.Grumbler,
+        _ => EnemyKind.Whistler,
+    };
+
+    /// <summary>How far a world point is from the train, flat: to the nearest car's footprint.</summary>
+    public static double FromTrain(TrainOnLine train, Double3 at)
+    {
+        double best = double.MaxValue;
+        foreach (var f in train.Frames)
+        {
+            var l = f.ToLocal(at);
+            var b = f.Shape.Bounds;
+            double dx = Math.Max(0, Math.Max(b.Min.X - l.X, l.X - b.Max.X)), dz = Math.Max(0, Math.Max(b.Min.Z - l.Z, l.Z - b.Max.Z));
+            best = Math.Min(best, Math.Sqrt(dx * dx + dz * dz));
+        }
+        return best;
     }
 
     /// <summary>Where a hunt is put down: <paramref name="distance"/> from them, off the line's side they're on, on the ground, out of the forts.</summary>
@@ -756,6 +899,8 @@ public sealed class Director
         if (Completes(kind, world, active) is { } pair)
             Pairs.Add(pair);
         var zone = Profile(kind).Zone;
+        if (AfootShare > 0)
+            SpawnsAfoot++;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
             active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
     }

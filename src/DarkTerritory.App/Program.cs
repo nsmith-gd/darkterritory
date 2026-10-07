@@ -1126,6 +1126,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The dark answering a draw (note 287): eyes at the lamp's edge.
         scene.Answer = session.World.Answer;
         scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
+        // Watched afoot (note 327): eyes toward what lives at the stop.
+        scene.Watcher = session.World.Watcher;
+        scene.WatcherShowSeconds = session.World.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;

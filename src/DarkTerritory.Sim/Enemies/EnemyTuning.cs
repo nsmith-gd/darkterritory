@@ -561,6 +561,8 @@ public sealed record DirectorTuning(
     public PressureTuning Pressure { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
+    public AfootTuning Afoot { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -662,6 +664,26 @@ public sealed record AbandonedTuning
     public double[] SpawnOut { get; init; } = [35, 18];
     /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
     public int GauntFrom { get; init; } = 2;
+}
+
+/// <summary>
+/// Note 327 (GDD App. F.3, the director, 7 Oct 2026: "when they leave, there is this presence of threat at all times"). Field
+/// docs in enemies.json director.afoot.
+/// </summary>
+public sealed record AfootTuning
+{
+    public bool On { get; init; } = true;
+    public double FromTrainM { get; init; } = 20;
+    public double PerSecond { get; init; } = 0.08;
+    public double[] SignEvery { get; init; } = [12, 24];
+    public double FirstSign { get; init; } = 6;
+    public double[] SignOut { get; init; } = [14, 22];
+    public double SignReach { get; init; } = 160;
+    public double SignSeconds { get; init; } = 3.5;
+    public double SignSpread { get; init; } = 35;
+    /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
+    public Dictionary<string, double> SignHeight { get; init; } = new();
+    public double SignHeightDefault { get; init; } = 0.7;
 }
 
 /// <summary>
