@@ -486,7 +486,9 @@ public sealed class TrainOnLine
         Traction = Traction * (Line.Conditions?.Adhesion(rake.Path, rake.Distance) ?? 1),
         // The Weight's drag on the rake it holds (App. A.3); and a ruptured engine's seized cylinders (T109) on its own, hard
         // down to a coast.
-        Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0),
+        Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0)
+            // And an engine short of steam holds back the speed its steam can't make (boiler.json starvedDecel, note 319).
+            + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0),
     };
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>

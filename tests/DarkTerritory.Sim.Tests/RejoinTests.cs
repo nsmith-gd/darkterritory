@@ -74,8 +74,13 @@ public class RejoinTests
         Messages.WriteHello(w, "Dave", 42);
         r = new NetReader(w.Written);
         r.U8();
-        Assert.Equal(("Dave", 42ul), Messages.ReadHello(ref r));
-        Assert.Equal(32, Protocol.Version);
+        Assert.Equal(("Dave", 42ul, Messages.NoOutfit), Messages.ReadHello(ref r));
+        // Note 298: and the outfit they come in.
+        Messages.WriteHello(w, "Dave", 42, outfit: 5);
+        r = new NetReader(w.Written);
+        r.U8();
+        Assert.Equal(("Dave", 42ul, (byte)5), Messages.ReadHello(ref r));
+        Assert.Equal(33, Protocol.Version);
     }
 
     [Fact]

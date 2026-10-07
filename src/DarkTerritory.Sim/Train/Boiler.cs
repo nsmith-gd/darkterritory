@@ -36,6 +36,15 @@ public sealed record BoilerTuning(
     public double RuptureDecel { get; init; } = 1.5;
     public double RuptureCoastBelow { get; init; } = 4;
     /// <summary>
+    /// With steam driving: how hard an engine short of steam holds the train back (m/s²), while it's going faster than its
+    /// steam can make: none in the working band, all of it at the power floor (the director's test build, 7 Oct 2026).
+    /// </summary>
+    public double StarvedDecel { get; init; }
+
+    /// <summary>The drag (m/s²) on an engine going <paramref name="speed"/> with this boiler (see <see cref="StarvedDecel"/>).</summary>
+    public double StarvedDrag(in Boiler b, double speed, double topSpeed) =>
+        SteamDrive && !b.Ruptured && speed > b.SteamSpeed(this, topSpeed) ? StarvedDecel * (1 - b.PowerFactor(this)) : 0;
+    /// <summary>
     /// App. C.2, GDD §12 (note 275): coal goes on with the shovel in hand, the one off the cab's tool rack. Off, by hand as
     /// before (T29's stroke and the keyboard's hold alike).
     /// </summary>
