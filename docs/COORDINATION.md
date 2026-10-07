@@ -47,6 +47,28 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
   (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Audio Checklist (claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN) and the Look
   Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm). Read the live version first and change only your own rows or sections.
 
+## UI/UX notes and assignments (the director, 7 Oct 2026)
+
+"The notes should be accessible to all UI/UX workers who should then read logs in the coordination md and assign work
+based on notes. When work is assigned to an agent, the agent should mark it in the art checklist as assigned to them."
+
+- **The notes.** The director writes them in the Art Checklist's UI/UX notes panel (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu).
+  They're kept in its store's `uiux_notes` collection, which any agent reads (`ArtifactData list`, collection
+  `uiux_notes`). Send messages them, with their ids, to every UI/UX chat in `uiux_chats` at once.
+- **Every UI/UX agent lists its own chat** in `uiux_chats`: a row whose id is its agent id, with `agent`, `role` (what it
+  holds) and `session` (its Claude Code Remote session id). A new UI/UX session adds its row when it registers here;
+  one that stops sets `off: true`.
+- **Taking a note.** On a notes message, and when a session starts: read the notes nobody has taken, this file's queue
+  and the agents' logs, and take the ones that fit your work and nobody else's. Write `assignee` (your agent id),
+  `assignedAt` (UTC) and `queue` (the item it goes into: one you hold, or a new one claimed as rule 1 says) to its row,
+  pinned with `if_version` to the version you read, so that if another chat took it first your write fails and you leave
+  it. Log it. When the PR that answers it merges: `status: "done"`, `doneAt`, `pr`.
+- **Every agent marks the checklist lines it works on** (all agents, not only UI/UX): `assignee`, `queue` and
+  `assignedAt` on the line's `items` row, pinned the same way. Nothing else on C1's row changes; the line's status stays
+  as the checklist defines it. The page shows "Assigned: B3 · #21" beside the line's tags. Work that stops without
+  landing removes `assignee`.
+- A note or a line that already has someone else's `assignee` is theirs: ask on their PR.
+
 ## The queue
 
 Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
