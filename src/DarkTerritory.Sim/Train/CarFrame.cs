@@ -450,9 +450,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, roof, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck + g.Doorway.Height, doorFront), new Double3(x1, roof, cabBack - 0.15)), SurfaceKind.Deck, PartKind.CabWall));
-            // The back wall either side of the boiler, where it comes through: the firebox is in it.
+            // The back wall either side of the boiler, where it comes through, is open under a lintel (the director, 7 Oct
+            // 2026, note 338: "cut open on both sides so players can walk straight to the cab"): the walkway between the
+            // boiler and the cab's side runs on into the cab, the standard doorway's height, as wide as the walkway is.
             double b0 = side < 0 ? -w + 0.1 : e.BoilerHalfWidth, b1 = side < 0 ? -e.BoilerHalfWidth : w - 0.1;
-            solids.Add(new(new Box(new Double3(b0, deck, cabBack - 0.15), new Double3(b1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
+            solids.Add(new(new Box(new Double3(b0, deck + g.Doorway.Height, cabBack - 0.15), new Double3(b1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
         }
         // The running boards (App. A.2 GREASE: "sends someone onto the running boards at speed"): a walkway each side at
         // deck height, out past the body's side, from partway across the cab's doorway (out of it and back onto it) back

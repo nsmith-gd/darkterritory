@@ -118,10 +118,14 @@ public class InteriorTests
         // The cab's doorways: open, but under the same lintel, and the cab roof well over it.
         var engine = CarShape.Build(g, VehicleKind.Engine, true);
         var lintels = engine.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > g.Engine.DeckHeight + 1.5).ToList();
-        Assert.Equal(2, lintels.Count);
+        Assert.Equal(4, lintels.Count);
         Assert.All(lintels, l => Assert.Equal(g.Engine.DeckHeight + h, l.Box.Min.Y, 6));
-        // The standard's width (cab forward, note 276; before, the back corner pillar took 0.15 of it).
-        Assert.All(lintels, l => Assert.Equal(g.Doorway.Width, l.Box.Max.Z - l.Box.Min.Z, 6));
+        // The side doorways the standard's width (cab forward, note 276; before, the back corner pillar took 0.15 of it);
+        // the back wall's openings (note 338) the walkway's, from the boiler to the cab's side.
+        var side = lintels.Where(l => l.Box.Max.Z - l.Box.Min.Z > 0.5).ToList();
+        Assert.Equal(2, side.Count);
+        Assert.All(side, l => Assert.Equal(g.Doorway.Width, l.Box.Max.Z - l.Box.Min.Z, 6));
+        Assert.All(lintels.Except(side), l => Assert.Equal(g.RoofWidth / 2 - 0.1 - g.Engine.BoilerHalfWidth, l.Box.Max.X - l.Box.Min.X, 6));
     }
 
     [Fact]

@@ -32,6 +32,32 @@ public class CabWalkTests
         Assert.True(s.Position.Z > plan.CabBack + 3.5 && Math.Abs(s.Position.X - board) < 0.2, $"stuck at {s.Position} (the cab's back is {plan.CabBack:0.00})");
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void AlongTheWalkwayBesideTheBoilerYouWalkStraightIntoTheCab(int side)
+    {
+        // Note 338 (the director, 7 Oct 2026: "cut open on both sides so players can walk straight to the cab"): the back
+        // wall either side of the boiler is open under a lintel, so the walkway between the boiler and the cab's side runs
+        // on into the cab, no turn out onto the board and in at the side doorway.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(2000)])), 500);
+        var shape = train.Frames[0].Shape;
+        var g = Tuning.Train.Geometry;
+        var plan = EnginePlan.Of(g);
+        double walk = side * (g.Engine.BoilerHalfWidth + (shape.HalfWidth - 0.1 - g.Engine.BoilerHalfWidth) / 2);
+        var s = PlayerMotor.SpawnInCab(train, Tuning.Player, side * 0.3);
+        s = s with { Position = new Double3(walk, s.Position.Y, plan.CabBack + 3) };
+        for (int i = 0; i < 1.5 * SimConstants.TickRate; i++)
+            PlayerMotor.Step(ref s, default, train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+        Assert.Equal(Surface.Deck, s.Surface);
+        // Forward along the walkway, through the back wall, into the cab.
+        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+            PlayerMotor.Step(ref s, Toward(s, new Double3(walk, 0, plan.CabBack - 1.2)), train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+        Assert.True(PlayerMotor.InCab(s, train), $"stuck at {s.Position} (the cab's back is {plan.CabBack:0.00})");
+        // Through the wall and in (on the left the bunker stands a pace inside: in, and up against the coal).
+        Assert.True(s.Position.Z < plan.CabBack - 0.6, $"at {s.Position}");
+    }
+
     static PlayerIntent Toward(in PlayerState s, Double3 to)
     {
         var d = (to - s.Position) with { Y = 0 };
