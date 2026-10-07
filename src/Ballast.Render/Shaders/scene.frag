@@ -203,6 +203,15 @@ float moonShadowAt(vec3 p, vec3 n) {
     return mix(s, 1.0, smoothstep(0.85, 1.0, max(edge.x, edge.y)));
 }
 
+// The 4x4 ordered-dither threshold at a pixel (0..1): a ghost's screen-door transparency, as the era's games drew one.
+float bayer2(vec2 q) {
+    return q.y < 0.5 ? (q.x < 0.5 ? 0.0 : 2.0) : (q.x < 0.5 ? 3.0 : 1.0);
+}
+float bayer4(vec2 px) {
+    vec2 q = mod(floor(px), 4.0);
+    return (4.0 * bayer2(mod(q, 2.0)) + bayer2(floor(q / 2.0)) + 0.5) / 16.0;
+}
+
 // 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line.
 float indoors(vec3 p) {
     float best = 0.0;
@@ -223,6 +232,15 @@ void main() {
     if (bitten > 0.0)
         discard;
     vec3 n = normalize(vNormal);
+    // A ghost's membrane (wear under -0.5: a ghost material, CreatureArt.Resolve): screen-door transparent by the
+    // view, thin and see-through face on, dense at its rim where the eye looks through more of it, and there it gives
+    // off a faint cold of its own (GDD 26: the corruption palette, never neon).
+    float ghostRim = -1.0;
+    if (vWear < -0.5) {
+        ghostRim = 1.0 - abs(dot(n, normalize(-vPos)));
+        if (mix(0.2, 1.0, pow(ghostRim, 1.4)) < bayer4(gl_FragCoord.xy))
+            discard;
+    }
     if (!gl_FrontFacing)
         n = -n; // two-sided cards (pine boughs, grass) light from whichever side you see
     // A layer past what's loaded (a renderer not given the look's textures) draws as flat colour, not garbage.
@@ -383,6 +401,8 @@ void main() {
     }
     float emissive = max(vEmissive, specMap.b);
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);
+    if (ghostRim >= 0.0)
+        colour += vec3(0.32, 0.4, 0.5) * pow(ghostRim, 2.5) * 0.35 * vGlow;
 
     // Light sources punch through fog further than lit surfaces: the lamp is the last thing you lose.
     colour = mix(colour, frame.fog.rgb, fogAmount(vPos) * (1.0 - 0.6 * emissive * min(vGlow, 1.0)));

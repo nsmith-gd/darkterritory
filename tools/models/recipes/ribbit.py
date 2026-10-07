@@ -40,6 +40,7 @@ DRESS = {
     "skin.ribbit": (lambda: make.flat("ribbit_skin", (0.22, 0.18, 0.175), rough=0.3), 3),
     "glass_dirty.ribbit_eye": (lambda: make.flat("ribbit_eye", (0.3, 0.31, 0.27), rough=0.05), 2),
     "flesh.ribbit_gum": (lambda: make.flat("ribbit_gum", (0.05, 0.015, 0.015), rough=0.2), 2),
+    "flesh.ribbit_tongue": (lambda: make.flat("ribbit_tongue", (0.2, 0.07, 0.07), rough=0.12), 2),
     "tar.ribbit_mouth": (lambda: make.flat("ribbit_mouth", (0.02, 0.006, 0.006), rough=0.1), 1),
 }
 
@@ -83,7 +84,7 @@ def veins_of(p):
 
 SHAPE = {"skin.ribbit_belly": belly_shape, "skin.ribbit_ear": ear_shape, "skin.ribbit_teeth": lambda p, n: 0 * p[:, 0],
          "skin.ribbit": skin_shape}
-BAKED = ["body", "skull", "head", "paws"]   # (the legs grown into the body, the head's skin one: rig.fuse)
+BAKED = ["body", "jaw", "head", "paws"]   # (the legs and the skull grown into the body, the jaw its own skin: rig.fuse)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] ribbit highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
@@ -94,7 +95,7 @@ def marks(p, kind):
     if kind.startswith("skin.ribbit") and not kind.startswith("skin.ribbit_teeth"):
         out[:, 0] = warts_of(p) * (not kind.startswith("skin.ribbit_belly"))
         out[:, 1] = smooth01(0.1, 0.7, cook.noise_np(p, 1041, 5.0)) * smooth01(0.25, 0.5, p[:, 2])
-        sac = np.linalg.norm((p - THROAT) / np.array([0.13, 0.12, 0.08], np.float32), axis=1) < 1.3
+        sac = np.linalg.norm((p - THROAT) / np.array([0.12, 0.115, 0.07], np.float32), axis=1) < 1.3
         out[:, 2] = veins_of(p) * (kind.startswith("skin.ribbit_ear") | sac)
     return out
 
@@ -126,13 +127,13 @@ FACE = 1
 
 
 def kind_of(m):
-    return FACE if m.name.startswith(("glass_dirty.ribbit_eye", "skin.ribbit_teeth", "flesh.ribbit_gum")) else 0
+    return FACE if m.name.startswith(("glass_dirty.ribbit_eye", "skin.ribbit_teeth", "flesh.ribbit_gum", "flesh.ribbit_tongue")) else 0
 
 
 atlas = overbake.Atlas("ribbit", parts, BAKED, kind_of)
 atlas.unwrap(boosts={FACE: 2.5})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"body": (0.008, 0.03), "skull": (0.006, 0.02), "head": (0.006, 0.02), "paws": (0.004, 0.012)}, height=1.2,
+atlas.bake(groups, cages={"body": (0.008, 0.03), "jaw": (0.006, 0.02), "head": (0.006, 0.02), "paws": (0.004, 0.012)}, height=1.2,
            masks={"marks": marks, "eyes": eyes_and_teeth})
 
 M = atlas.maps
