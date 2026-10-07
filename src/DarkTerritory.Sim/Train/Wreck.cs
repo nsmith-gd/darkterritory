@@ -41,6 +41,15 @@ public sealed record WreckTuning
     public double KickLateral { get; init; } = 0.22;
     public double KickYaw { get; init; } = 0.55;
     public double KickRoll { get; init; } = 0.9;
+    /// <summary>Note 330 (#69): the first car's sideways throw is never under this (m/s), however slow it came off.</summary>
+    public double KickMin { get; init; }
+    /// <summary>... and it's popped up this much (m/s) as its flange climbs the rail.</summary>
+    public double KickUp { get; init; }
+    /// <summary>The rest: each is thrown sideways at least this (m/s) as its wheels drop, ...</summary>
+    public double JostleMin { get; init; }
+    /// <summary>... hops up this much (m/s), and tips this much (rad/s) the way it's thrown.</summary>
+    public double JostleUp { get; init; }
+    public double JostleRoll { get; init; }
     public double Jostle { get; init; } = 0.06;
     public double JostleYaw { get; init; } = 0.35;
     public double DigIn { get; init; } = 2.0;
@@ -225,7 +234,7 @@ public sealed class Wreck
             double speed = b.Velocity.Length;
             if (b.Vehicle == first)
             {
-                b.Velocity += b.Right * (side * t.KickLateral * speed);
+                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * t.KickUp;
                 // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign).
                 b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll);
             }
@@ -295,8 +304,14 @@ public sealed class Wreck
     void Drop(WreckBody b)
     {
         double speed = b.Velocity.Length;
-        b.Velocity += b.Right * ((_rng.NextDouble() * 2 - 1) * _t.Jostle * speed);
-        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw);
+        // Note 330 (#69): however slow, it's thrown, not set down: at least jostleMin sideways, a hop, and a tip that way.
+        double draw = _rng.NextDouble() * 2 - 1;
+        double sideways = draw * _t.Jostle * speed;
+        int way = draw < 0 ? -1 : 1;
+        if (Math.Abs(sideways) < _t.JostleMin)
+            sideways = way * _t.JostleMin;
+        b.Velocity += b.Right * sideways + b.Up * _t.JostleUp;
+        b.Spin += b.Up * ((_rng.NextDouble() * 2 - 1) * _t.JostleYaw) + b.Back * (-way * _t.JostleRoll);
     }
 
     /// <summary>The points a box meets the ground by: its bottom and top edges, every quarter of its length.</summary>

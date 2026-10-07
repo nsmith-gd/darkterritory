@@ -133,7 +133,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 66 | **A presence of threat off the train (App. F.3):** leaving the train should feel dangerous at all times: raise the perceived threat in villages and yards (tells, signs, sounds, things glimpsed), and more encounters off the train | D1 (D1.1) | (D1.1's branch) | 327 | claimed |
 | 67 | **The threat orchestrator, and the run between stops (App. F.3):** a design outline: threats orchestrated to the number of players currently active; things to do on the train between stops (maintenance while it runs, threats that board at speed, tower-defense-style attacks for the gunners); then the first piece of it | D1 (D1.2) | (D1.2's branch) | 328 | claimed |
 | 68 | **The cannon's traverse sound (App. F.3):** "a weird high repeated sound" when the gun turns: gone, or low and slow. **Overlaps:** AU1 owns audio; a small change, told on AU1's PR | D1 | `claude/relaxed-franklin-xkfjgb`, [#252](https://github.com/nsmith-gd/darkterritory/pull/252) | 329 | done |
-| 69 | **A derailment that commits (App. F.3):** a 30 km/h curve into a yard and the train "glided off the rails"; more impulse and drama at the derail, whatever the speed | D1 | `claude/relaxed-franklin-xkfjgb` | 330 | claimed |
+| 69 | **A derailment that commits (App. F.3):** a 30 km/h curve into a yard and the train "glided off the rails"; more impulse and drama at the derail, whatever the speed | D1 | `claude/relaxed-franklin-xkfjgb` | 330 | done |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
 17:33 UTC (D1, main at 8ebf15e, version 12); whoever lands a gdd.md change republishes it (A1 when it's about).
