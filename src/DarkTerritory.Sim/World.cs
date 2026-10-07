@@ -715,8 +715,13 @@ public sealed class World
             if (!s.Alive)
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
+            // What they were at (App. F.2 take 4): the film starts their body in it.
+            var task = s.Has(PlayerFlags.Seated) ? FilmTask.Gunning
+                : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
+                : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
+                : FilmTask.None;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
         }
         return crew;
     }

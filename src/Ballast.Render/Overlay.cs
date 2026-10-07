@@ -130,13 +130,23 @@ public sealed class Overlay
     }
 
     /// <summary>Draws text with its top-left at (x, y); a one-pixel shadow keeps it readable over anything. Returns its width.</summary>
-    public float Text(float x, float y, string text, Vector4 colour, int scale = 1, bool shadow = true)
+    public float Text(float x, float y, string text, Vector4 colour, int scale = 1, bool shadow = true) =>
+        Text(x, y, text, colour, (float)scale, shadow);
+
+    /// <summary>
+    /// Text at a fractional scale: 0.5 is fine print, a canvas pixel's half per font pixel (a 480-wide canvas on a 1080p
+    /// screen still gives each font pixel two screen pixels).
+    /// </summary>
+    public float Text(float x, float y, string text, Vector4 colour, float scale, bool shadow = true)
     {
         if (shadow)
             Glyphs(x + scale, y + scale, text, new Vector4(0, 0, 0, colour.W * 0.8f), scale);
         Glyphs(x, y, text, colour, scale);
-        return Font.Measure(text, scale);
+        return Measure(text, scale);
     }
+
+    /// <summary>The width of <paramref name="text"/> at <paramref name="scale"/>.</summary>
+    public float Measure(string text, float scale = 1) => text.Length == 0 ? 0 : (text.Length * Font.Advance - 1) * scale;
 
     /// <summary>Text centred on x.</summary>
     public float TextCentred(float x, float y, string text, Vector4 colour, int scale = 1) =>
@@ -146,7 +156,7 @@ public sealed class Overlay
     public float TextRight(float x, float y, string text, Vector4 colour, int scale = 1) =>
         Text(x - Font.Measure(text, scale), y, text, colour, scale);
 
-    void Glyphs(float x, float y, string text, Vector4 colour, int scale)
+    void Glyphs(float x, float y, string text, Vector4 colour, float scale)
     {
         for (int i = 0; i < text.Length; i++)
         {

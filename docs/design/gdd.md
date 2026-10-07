@@ -2065,14 +2065,14 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
-- Far too much UI for what's on screen. *In progress (T126).*
+- Far too much UI for what's on screen. *In progress (T126): the cab's panel cut to two lines (note 264), nothing out of the cab, and the prompts in fine print under the crosshair (note 277).*
 - The hold-to-vent control feels off. *In progress (T126).*
 - There's no whistle cord, and people will want one. *In progress (T126).*
 - The coal shovel is fun. *Keep.*
 - The firebox door shutting by itself is OK. *Keep.*
 
 **Lockers (§12)**
-- The lockers are cute, but neighbouring lockers block each other. *In progress (T126).*
+- The lockers are cute, but neighbouring lockers block each other. *Done: an open door stands out into the aisle (ARCHITECTURE.md note 277).*
 - Stowing a held item in a locker doesn't work well. *In progress (T126).*
 - The lockers are mostly empty; only the fitter's had the engineering kit. *In progress (T126).*
 - A locker with something in it should say so. *In progress (T126).*
@@ -2097,7 +2097,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Line and derailment**
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
-- The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *In progress (T127: telegraph the debris and over-speed).*
+- The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *The Sleepers are gone (note 265); a bend taken too fast is heard (note 265) and now seen: flange sparks off the outer rail, and a judder (note 277).*
 - The train's lights and lanterns were all off. *In progress (T127).*
 
 **Second session (same build, continued)**
