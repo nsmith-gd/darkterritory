@@ -1533,7 +1533,7 @@ public sealed class CreatureArt
                 {
                     // The porcelain doll (GDD v1.2 §21, App. A.2; tools/blender/track_doll.py). On the rail it stands stock
                     // still. Aboard it stands over the cargo admiring it and then giggles, by turns; at the empty cab's
-                    // controls (extra2) it tampers; cornered (extra) it cowers. Its face and glass eyes draw under a material of
+                    // controls (extra2 over 0: her escalation, note 268) it tampers; cornered (extra, in a car) it cowers. Its face and glass eyes draw under a material of
                     // their own, lit a little from within, so the white face reads in the lamp out to 200 m through the fog
                     // (§21); aboard, close to, it's barely there.
                     // Whatever it's doing, its head turns to the one looking at it (the eye: the model's translation is from
@@ -1546,8 +1546,9 @@ public sealed class CreatureArt
                     if (phase == SpinePhase.Punish)
                     {
                         double turn = t % (DollAdmires + DollGiggles);
-                        (clip, ct) = extra > 0.5 ? ("cower", t)
-                            : extra2 > 0.5 ? ("tamper", t)
+                        // At the controls extra is how long she's been there (note 268), so the cab's checked first.
+                        (clip, ct) = extra2 > 0.5 ? ("tamper", t)
+                            : extra > 0.5 ? ("cower", t)
                             : turn < DollAdmires ? ("admire", turn) : ("giggle", turn - DollAdmires);
                         watch = clip switch { "cower" => false, "admire" => dist < DollNotices, "tamper" => t % 5 < 1.2, _ => true };
                     }
