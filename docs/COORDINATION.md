@@ -64,15 +64,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
 | 30 | **The in-night menu (Esc):** today Escape frees the mouse and a second Escape ends the night at once, the host's for everyone, with no word. Lethal Company's quick menu: RESUME, SETTINGS that take effect at once (volumes, the mouse, the HUD; B3's "settings take effect from the next night", #206), INVITE, LEAVE with a confirmation that says what leaving costs the crew (a host's leaving ends the night). The night never pauses (it's shared). **Overlaps:** `Settings.cs` and `FrontEnd.cs`'s settings list with #206 (CONTROL HINTS); `Program.cs`'s night loop | F1 | `claude/upbeat-hawking-58yczu` | 292 | claimed |
 | 31 | **The profile screen:** the commendations a player's been given, kept in their profile (GDD App. D.12: "where it's kept: the player profile, not the character"), have nowhere to be seen (the art checklist's commendations row: "there's no profile screen showing the tally yet"). A PROFILE page on the title: the five badges with how many times each was given, and where the nights' bookmark stills are kept (note 203) | F1 | `claude/upbeat-hawking-58yczu` (after #30) | 293 | claimed |
+| 32 | **Comfort settings:** FIELD OF VIEW (fixed at 75° vertical now), INVERT MOUSE, and CAMERA SHAKE (the boiler's shake and a strained car's judder, notes 263 and 277, scaled down or off), in the settings and the in-night menu (#30). Presentation only: the sim never sees them | F1 | `claude/upbeat-hawking-58yczu` (after #31) | 294 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **294** (counting claims on open PRs up to 291, and F1's 292–293). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **295** (counting claims on open PRs up to 291, and F1's 292–294). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 292 (F1's in-night menu), 293 (F1's profile screen). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 292 (F1's in-night menu), 293 (F1's profile screen), 294 (F1's comfort settings). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
