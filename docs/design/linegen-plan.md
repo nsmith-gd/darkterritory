@@ -251,6 +251,7 @@ All pieces live in `setpieces.json` with tier gates, parameter ranges, cost and 
 | **Brass Field** | 1.0 | Growth across the rail for 50–200 m | Lineside growth ramps up over the approach | 1 | `brass` |
 | **Momentum Bank** | 1.3 | Level run-up, then a short grade above g_main | Length ≤ 0.7 × the length the consist can carry momentum over | 4 | `climb`, `momentum` |
 | **Dead Settlement** | 0 | Abandoned halt or dead town (§11.3) | 300–900 m | 0 | `dead_settlement`, `landmark` |
+| **Hard Bend** | 0 | Straight, one curve of 40–90°, straight | Radius from the tier's derailing speeds (`bendDerail`), never under its minimum; laid only by the tier's count (`bends`), never by the budget. Where its stretch is full, cut into a connector or laid on a climb or descent (ARCHITECTURE §8 note 278; level-design.md Part B) | 2 | `curve_tight`, `pre_curve` |
 
 **Terrain-gated enemy requirements are geometry rules, not spawn rules.** The Weight cannot spawn on grades, so Causeways and River Crossing approaches are level. The Ferryman needs a long clear straight, so Open Plains produce `straight_long`. The Gaunt watches tunnel exits, so every tunnel emits `tunnel_exit`.
 
@@ -322,7 +323,7 @@ For a curve of radius `R`:
 - **Derail threshold:** `v_derail = √(a_derail × R)`, with `a_derail = 1.0 m/s²`
 - **Posted limit:** `v_posted = floor(√(a_post × R))`, with `a_post = 0.7 m/s²`
 
-At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
+At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. **Every night carries its tier's count of these** (the Hard Bend, §7.2; ARCHITECTURE §8 note 278): Local 1–2, Frontier 3–4, Dead Lines 3–4, Deep 4–5 (5–6 at its deepest), and the validator holds it to the least (§16.3). A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
 
 ## 8.6 Output
 
@@ -679,6 +680,7 @@ Every edge carries tag intervals by chainage. The director queries tags ahead of
 | `straight_long` | The Ferryman, Sleepers |
 | `blind_curve_exit` | Sleepers |
 | `pre_grade`, `pre_curve` (400–900 m before either) | The Long Whistle |
+| `curve_tight` (every bend that derails the train under its top speed; ARCHITECTURE §8 note 278) | The places a train slows, where things board (GDD App. F: "slowing opens the doors"); nothing reads it yet |
 | `climb`, `climb_long` | Cinder Hounds (gain on grades), The Drift + grade pair, Clingers + grade pair |
 | `descent` | Grease preference |
 | `marsh`, `low_ground`, `water_crossing` | The Weight, The Drift |
@@ -747,6 +749,8 @@ Drives at communicated speed +10% with `t_react = 6 s`. It must still survive ev
 | Dawn | Ideal transit + 4 min per facility slot ≤ dawn timer (see §22.1). Taking every facility is allowed to run late; that is the slack decision the GDD wants. |
 | Coaling | Coaling tower present when required |
 | Quotas | Affordance quotas met |
+| Hard bends | At least the tier's least count of main-line bends that derail the train under its top speed (`bends`; ARCHITECTURE §8 note 278) |
+| Crossings | No alternate or dead line crosses to the main line's other side away from its turnouts (each is refused when laid; ARCHITECTURE §8 note 278) |
 | Separation | No corridor overlap except at shared junctions |
 | Walkability | Ledge and ravine drop sides meet §12.6 |
 

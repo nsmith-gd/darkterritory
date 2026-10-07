@@ -670,29 +670,30 @@ public sealed class Director
         // The sites of what lives here, in reach of them, of what the night could send: the nearest.
         // Each kind's nearest site in reach; one kind drawn from them, so a village with a warren, a roost and a child's call
         // shows all three in time, not only the nearest over and over.
-        var near = new List<(Double3 At, EnemyKind Kind, double D)>();
+        var near = new List<(Double3 At, EnemyKind Kind, double D, double Radius)>();
         foreach (var lair in Enum.GetValues<Stops.LairKind>())
         {
             var kind = Lives(lair);
             if (!Allows(kind))
                 continue;
-            (Double3 At, double D)? nearest = null;
-            foreach (var (at, _) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
+            (Double3 At, double D, double Radius)? nearest = null;
+            foreach (var (at, radius) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
             {
                 double d = ((at - from) with { Y = 0 }).Length;
                 if (d < a.SignReach && (nearest is null || d < nearest.Value.D))
-                    nearest = (at, d);
+                    nearest = (at, d, radius);
             }
             if (nearest is { } n)
-                near.Add((n.At, kind, n.D));
+                near.Add((n.At, kind, n.D, n.Radius));
         }
         (Double3 At, EnemyKind Kind)? site = null;
-        double best = a.SignReach;
+        double best = a.SignReach, edge = 0;
         if (near.Count > 0)
         {
             var pick = near[(int)Math.Min(near.Count - 1, _signRng.NextDouble() * near.Count)];
             site = (pick.At, pick.Kind);
             best = pick.D;
+            edge = pick.Radius;
         }
         Double3 toward;
         EnemyKind what;
@@ -714,8 +715,9 @@ public sealed class Director
         if (toward.Length < 1e-3)
             toward = new Double3(1, 0, 0);
         double turn = _signRng.Range(-a.SignSpread, a.SignSpread);
-        // At the lamp's edge, or at the site itself if that's nearer.
-        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : Math.Max(a.SignOut[0] * 0.5, best));
+        // At the lamp's edge, or at the site's edge if that's nearer: outside a roost or a warren, never in it (a Gaunt's roost is
+        // a house the art draws whether or not the sim walls it).
+        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : best - edge - 1);
         // Seen, not through a wall: the bearing drawn, then others across the spread, the first with a clear line out that far
         // past the stop's walls; with none, the drawn one, as far as its first wall (something at the corner of a house).
         Double3 spot = default;
@@ -723,7 +725,7 @@ public sealed class Director
         foreach (double deg in new[] { turn, 0, -a.SignSpread, a.SignSpread, -a.SignSpread / 2, a.SignSpread / 2 })
         {
             var dir = Turned(toward.Normalized, deg * Math.PI / 180);
-            double clear = Clear(train.Walls, from, dir, out_);
+            double clear = Clear(world, from, dir, out_);
             if (clear > clearest)
                 (spot, clearest) = (from + dir * clear, clear);
             if (clear >= out_)
@@ -744,22 +746,55 @@ public sealed class Director
     static Double3 Turned(Double3 d, double rad) =>
         new(d.X * DMath.Cos(rad) - d.Z * DMath.Sin(rad), 0, d.X * DMath.Sin(rad) + d.Z * DMath.Cos(rad));
 
-    /// <summary>How far out along <paramref name="dir"/> from <paramref name="from"/> is clear of the stop's walls, to <paramref name="out_"/> (a metre short of the first wall).</summary>
-    static double Clear(Run.StopWalls? walls, Double3 from, Double3 dir, double out_)
+    /// <summary>
+    /// How far out along <paramref name="dir"/> from <paramref name="from"/> is clear, to <paramref name="out_"/>: a metre short of
+    /// the first of the stop's walls, or of a building's footprint (an open house's door gap isn't a way through it, and the art
+    /// draws buildings the sim doesn't wall).
+    /// </summary>
+    static double Clear(World world, Double3 from, Double3 dir, double out_)
     {
-        if (walls is null)
-            return out_;
+        var walls = world.Train.Walls;
         for (double d = 1; d <= out_; d += 1)
         {
             var p = from + dir * d + Double3.Up * 1;
-            foreach (var w in walls.Near(p))
-            {
-                var l = w.ToLocal(p);
-                if (Math.Abs(l.X) <= w.HalfLength + 0.3 && Math.Abs(l.Z) <= w.HalfWidth + 0.3 && l.Y >= w.Bottom && l.Y <= w.Top)
-                    return Math.Max(1, d - 1);
-            }
+            if (walls is not null)
+                foreach (var w in walls.Near(p))
+                {
+                    var l = w.ToLocal(p);
+                    if (Math.Abs(l.X) <= w.HalfLength + 0.3 && Math.Abs(l.Z) <= w.HalfWidth + 0.3 && l.Y >= w.Bottom && l.Y <= w.Top)
+                        return Math.Max(1, d - 1);
+                }
+            if (d >= 2 && InBuilding(world, p))
+                return Math.Max(1, d - 1);
         }
         return out_;
+    }
+
+    /// <summary>Whether a world point is inside the footprint of a stop's building (in the stop's rail frame, S along and D out).</summary>
+    static bool InBuilding(World world, Double3 p)
+    {
+        if (world.Route is not { } route)
+            return false;
+        var line = world.Train.Line;
+        double h = world.Train.Dynamics.Distance;
+        line.Nearest(p, ref h);
+        foreach (var f in route.Features)
+        {
+            if (f.Stop is not { } stop || h < f.Start - 50 || h > f.End + 50)
+                continue;
+            var r = line.Sample(f.Start + (h - f.Start));
+            var right = Double3.Cross(r.Tangent, Double3.Up).Normalized;
+            double ps = h - f.Start, pd = Double3.Dot(p - r.Position, right);
+            foreach (var b in stop.Buildings)
+            {
+                double c = DMath.Cos(b.Yaw), sn = DMath.Sin(b.Yaw), ds = ps - b.S, dd = pd - b.D;
+                // Axis u = (cos, sin), across v = (−sin, cos), in (S, D), as StopWalls.Doorstep has it.
+                double x = ds * c + dd * sn, y = -ds * sn + dd * c;
+                if (Math.Abs(x) <= b.Length / 2 + 0.5 && Math.Abs(y) <= b.Width / 2 + 0.5)
+                    return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>A creature met on foot off the train (note 327): the outside zone's, or one that lives at the stops' sites.</summary>
