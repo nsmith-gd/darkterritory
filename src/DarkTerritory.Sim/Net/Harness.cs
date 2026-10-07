@@ -196,7 +196,16 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public PressureReport? Pressure { get; init; }
     /// <summary>The dead's votes cast (GDD v1.4 App. D.11; the bots' too, note 202), by creature.</summary>
     public IReadOnlyDictionary<string, int> Votes { get; init; } = new Dictionary<string, int>();
+    /// <summary>The night's first threat and what drew it (note 287), if one came.</summary>
+    public FirstThreatReport? FirstThreat { get; init; }
 }
+
+/// <summary>
+/// The night's first threat (note 287): when (run seconds, and how long after the grace), what, what drew it and who, and
+/// whether the dark answered out loud first (and when).
+/// </summary>
+public sealed record FirstThreatReport(double Seconds, double AfterGrace, double Km, string Kind, string Cause, int Actor, double Draw, bool Answered,
+    double AnsweredAt, string Line);
 
 /// <summary>
 /// The director's pressure (design decision 2026-10, note 266): the night's grace and threshold, its spawns (the director's
@@ -510,6 +519,10 @@ public static class Harness
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
+                FirstThreat = d.First is { } first ? new FirstThreatReport(Math.Round(first.Seconds, 1), Math.Round(first.Seconds - d.Grace, 1),
+                    Math.Round(first.Distance / 1000, 2), first.Kind.ToString(), Enemies.DrawLedger.Key(first.Cause),
+                    first.Actor, Math.Round(first.Amount, 2), first.Answered, Math.Round(first.AnsweredAt, 1),
+                    DarkTerritory.Sim.Run.IncidentLog.Lines(host.World, 0, 0, _ => false).FirstOrDefault(l => l.Kind == DarkTerritory.Sim.Run.IncidentKind.Drawn)?.Text ?? "") : null,
             };
         }
         if (o.Udp || o.Network is not null)
