@@ -677,7 +677,8 @@ public sealed class World
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone));
+        Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -694,6 +695,31 @@ public sealed class World
         }
         Authority |= authority;
     }
+
+    /// <summary>
+    /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
+    /// on every machine from the route and the content. Null where the content has no towns or they're switched off.
+    /// </summary>
+    public Towns.Town? Town { get; private set; }
+
+    /// <param name="roster">The edition's creatures (enemies.json director.roster; empty, all): a town keeps only a custom
+    /// for a creature this edition fields.</param>
+    /// <param name="last">The custom of the last night's town, which this one won't have (App. F.1: "different from the last").</param>
+    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null)
+    {
+        if (!content.Tuning.Enabled)
+            return;
+        var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
+        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
+        if (Forts is { Count: > 0 } forts)
+            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
+        Train.Walls.Add(Town.Walls);
+    }
+
+    /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
+    public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
 
     /// <summary>
     /// GDD App. D: the Holdouts at the route's halts, villages and yards, and the respawn queue, the only way back into
