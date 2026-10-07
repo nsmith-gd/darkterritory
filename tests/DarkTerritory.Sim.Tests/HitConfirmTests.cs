@@ -358,7 +358,8 @@ public class HitConfirmTests
         Assert.Equal(-1, grumbler.Holding);
         Assert.Equal(1, grumbler.LastHitBy);
         Assert.False(grumbler.Gone);
-        Assert.Equal(E.Grumbler.Health - G.DamagePerRound, grumbler.Health, 1);
+        // Note 288: a gunner alone is one striker, and only a gang wears a Grumbler down; the old rule's ball took 4 of its 6.
+        Assert.Equal(E.Grumbler.Health, grumbler.Health, 1);
     }
 
     // ---- Where every ball comes down.
