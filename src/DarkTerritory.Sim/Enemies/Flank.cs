@@ -640,8 +640,19 @@ public sealed class Climber(int id) : Enemy(id)
             Rescued(ctx, by);
     }
 
-    /// <summary>Clubbed off: back to lurking in its car (the committed interior threat).</summary>
+    /// <summary>
+    /// A ball (note 290: a blow by the gunner). Note 288: it rides the blow's rule, and one that doesn't kill it knocks it off
+    /// the roof or the gap where the gun found it: driven off, back alongside for another gap.
+    /// </summary>
+    public override bool Hit(EnemyContext ctx, int by, double damage)
+    {
+        if (!base.Hit(ctx, by, damage) && ctx.Tuning.Climbers.DrivenOff && Exposed && Attached >= 0 && Extra >= 0
+            && Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            Retry(ctx, ctx.Tuning.Climbers);
+        return Gone;
+    }
 
+    /// <summary>Clubbed off: back to lurking in its car (the committed interior threat).</summary>
     protected override void Rescued(EnemyContext ctx, int by)
     {
         base.Rescued(ctx, by);

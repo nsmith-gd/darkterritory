@@ -279,11 +279,13 @@ public class CargoTests
         Assert.NotEqual(hips, body.Pbd.Particles[2].Position);
         Assert.False(n.World.Bodies.Handle(n.Crew[1] with { Position = gaunt.Local }, new PlayerIntent { Buttons = PlayerButtons.Use }, 1, n.Train)
             && body.Carrier == 1);
-        // Run down and killed on its way out: it drops the body where it is.
+        // Run down and killed on its way out: it drops the body where it is. Note 288: killed by the crew together, two
+        // swinging while one of them talks to it (a lone player's blows don't wear it down).
         gaunt.Health = 0.01;
         var near = gaunt.Attached == car ? gaunt.Local : n.Train.Frames[car].ToLocal(gaunt.Local);
         n.Crew[1] = n.Crew[1] with { Parent = car, Position = near with { Y = room.Min.Y } + new Double3(0, 0, 1.2), Yaw = 0 };
-        n.Run(0.5, _ => new PlayerIntent { Actions = PlayerActions.Swing });
+        n.Crew[2] = n.Crew[1] with { Position = near with { Y = room.Min.Y } + new Double3(0, 0, -1.2), Yaw = Math.PI };
+        n.Run(1.0, id => new PlayerIntent { Actions = PlayerActions.Swing, Voice = id == 1 ? (byte)120 : (byte)0 });
         Assert.True(gaunt.Gone, $"{gaunt.Phase} at {gaunt.Local}, crew at {n.Crew[1].Position}");
         Assert.Contains(body, n.World.Bodies.All);
         Assert.Equal(-1, body.TakenBy);

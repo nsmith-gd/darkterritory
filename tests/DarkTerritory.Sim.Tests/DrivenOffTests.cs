@@ -225,9 +225,12 @@ public class DrivenOffTests
         Assert.Equal(SpinePhase.Telegraph, g.Phase);
         // Kept talking to, calm, it loses interest and goes (carrying nothing), and it may wake again somewhere tonight.
         r.Run(g, E.Gaunt.SilenceSeconds * E.Gaunt.AttackAt + E.Gaunt.TalkedDownSeconds + 1);
-        Assert.Equal(SpinePhase.BreakOff, g.Phase);
+        // (Off the train, it's soon out of sight of it and gone.)
+        Assert.Contains(r.Ctx.Events, e => e.EnemyId == g.Id && e.To == SpinePhase.BreakOff);
+        Assert.True(g.Phase is SpinePhase.BreakOff or SpinePhase.Gone, $"{g.Phase}");
         Assert.Equal(-1, g.Extra);
         Assert.Contains(EnemyKind.Gaunt, r.World.DrivenOff);
+        Assert.Empty(r.World.Slain);
         // Silence instead and it climbs back, as ever.
         var s = new Rig();
         s.Ground(1, 0);
@@ -348,12 +351,12 @@ public class DrivenOffTests
         r.InCar(1, 2, 0);
         var v = r.Train.Vehicles[2];
         var door = r.Train.Frames[2].Shape.DoorList.First(d => d.Index != CarShape.HatchBit);
-        v.ToggleDoor(door.Index);
+        v.DoorsOpen = (byte)(1 << door.Index);
         var g = Seizing(r, 1);
         r.World.Choir.Loudness = Tuning.Combat.Choir.Threshold * 2;
         r.Run(g, 1);
         Assert.Equal(SpinePhase.Grab, g.Phase);
-        v.ToggleDoor(door.Index);
+        v.DoorsOpen = 0;
         r.Run(g, 0.1);
         Assert.Equal(SpinePhase.Telegraph, g.Phase);
         Assert.Equal(-1, g.Holding);

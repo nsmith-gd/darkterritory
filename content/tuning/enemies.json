@@ -359,10 +359,10 @@
   "passenger": {
     "walkSpeed": 1.3, "aloneRadius": 8, "stalkSeconds": 5, "reach": 1.2, "dragSpeed": 1.3, "uncoupleSeconds": 4, "health": 5,
     "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2,
-    // Note 288 (drivenOff; "make everyone speak"): found out, it's done: a crewmate's blow (not its victim's) makes it let go
-    // and bolt off the back of the train at fleeSpeed; it may board again at a later stop. Only the gang's blows (run down
-    // before it's off) take its health.
-    "drivenOff": true, "fleeSpeed": 2.2
+    // Note 288 (drivenOff; "make everyone speak"): found out, it's done: a crewmate's blow (not its victim's) makes it let go,
+    // stand unmaskedSeconds facing them, and bolt off the back of the train at fleeSpeed; it may board again at a later stop.
+    // Only the gang's blows (on it as it's found out, or run down before it's off) take its health.
+    "drivenOff": true, "fleeSpeed": 2.2, "unmaskedSeconds": 2.5
   },
 
 

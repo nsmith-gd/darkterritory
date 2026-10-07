@@ -13,8 +13,8 @@ namespace DarkTerritory.Sim.Enemies;
 /// caboose it uncouples it and rolls away into the dark to eat: victim and caboose lost. Rule: make everyone speak.
 /// <para>
 /// Driven off by its rule (note 288, enemies.json <c>passenger.drivenOff</c>; the director's clarification of 7 Oct 2026):
-/// found out, it's done. A crewmate's blow (anyone but its victim, who can't break free alone) unmasks it: it lets go and
-/// bolts for the back of the train at <c>fleeSpeed</c> and off it into the dark. Driven off isn't the end of it: it can
+/// found out, it's done. A crewmate's blow (anyone but its victim, who can't break free alone) unmasks it: it lets go, stands
+/// <c>unmaskedSeconds</c>, then bolts for the back of the train at <c>fleeSpeed</c> and off it into the dark. Driven off isn't the end of it: it can
 /// board again at a later stop (<see cref="World.DrivenOff"/>). Killed only by the crew together: blows from two or more
 /// crewmates inside <c>coordinatedKill</c>'s window, run down before it's off the back; killed, it's gone for the night.
 /// </para>
@@ -125,8 +125,11 @@ public sealed class Passenger(int id) : Enemy(id)
                 }
             case SpinePhase.BreakOff when t.DrivenOff:
                 {
-                    // Found out: off the back of the train at a run (out of the car's end into the dark), or, with no way
+                    // Found out, it lets go and stands there a moment, face to face with the crew (their one chance to kill it
+                    // together), then it's off the back of the train at a run (out of the car's end into the dark), or, with no way
                     // through, gone anyway once it's had the time.
+                    if (PhaseSeconds < t.UnmaskedSeconds)
+                        return;
                     int rear = train.Dynamics.Consist.Vehicles[^1].Id;
                     if (Attached != rear && PhaseSeconds < FleeGiveUpSeconds)
                     {
@@ -388,6 +391,7 @@ public sealed class Grumbler(int id) : Enemy(id)
 {
     readonly List<(int By, uint Tick)> _hits = [];
     double _bite, _outnumbered;
+    Double3 _fleeWay;
 
     public override EnemyKind Kind => EnemyKind.Grumbler;
     public override PressureZone Zone => PressureZone.Corrupted;
@@ -474,6 +478,13 @@ public sealed class Grumbler(int id) : Enemy(id)
         if (_outnumbered < t.OutnumberedSeconds)
             return false;
         _outnumbered = 0;
+        // Away from the crew about it (straight across their line, if it's in the middle of them), and it keeps to it.
+        var crew = ctx.LivingCrew().Where(c => (c.World - here).Length <= t.GangRadius * 3).Select(c => c.World).ToList();
+        var middle = crew.Aggregate(Double3.Zero, (a, b) => a + b) * (1.0 / Math.Max(1, crew.Count));
+        var away = (here - middle) with { Y = 0 };
+        if (away.Length < 0.2 && crew.Count > 0)
+            away = Double3.Cross((crew[0] - here) with { Y = 0 }, Double3.Up);
+        _fleeWay = away.Length > 1e-6 ? away.Normalized : new Double3(1, 0, 0);
         Extra2 = 0; // calmed: when it comes back, it's to gnaw
         Extra = -1;
         if (Attached != Loose)
@@ -485,7 +496,7 @@ public sealed class Grumbler(int id) : Enemy(id)
         return true;
     }
 
-    /// <summary>Driven off: away from the nearest of the crew at its hunting pace, for a while; then back to gnawing, calmed.</summary>
+    /// <summary>Driven off: away from the crew at its hunting pace, for a while; then back to gnawing, calmed.</summary>
     void Flee(EnemyContext ctx, GrumblerTuning t)
     {
         if (PhaseSeconds >= t.FleeSeconds)
@@ -494,12 +505,8 @@ public sealed class Grumbler(int id) : Enemy(id)
             return;
         }
         var here = WorldPosition(ctx.Train);
-        var near = ctx.LivingCrew().Select(c => c.World).OrderBy(w => (w - here).Length).Select(w => (Double3?)w).FirstOrDefault();
-        var away = near is { } n ? (here - n) with { Y = 0 } : new Double3(1, 0, 0);
-        if (away.Length < 1e-6)
-            away = new Double3(1, 0, 0);
         Attached = Loose;
-        Local = here + away.Normalized * t.HuntSpeed * SimConstants.TickSeconds;
+        Local = here + _fleeWay * t.HuntSpeed * SimConstants.TickSeconds;
     }
 
     /// <summary>FERAL: after whoever hit it last, biting; one it's beaten down, it mauls (a grab the gang can break).</summary>

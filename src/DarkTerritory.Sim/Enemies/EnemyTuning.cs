@@ -309,6 +309,7 @@ public sealed record PassengerTuning
     /// <summary>Note 288: a blow finds it out and drives it off; killed only by a gang. False: the old five blows to kill.</summary>
     public bool DrivenOff { get; init; } = true;
     public double FleeSpeed { get; init; } = 2.2;
+    public double UnmaskedSeconds { get; init; } = 2.5;
 }
 
 /// <summary>A car fire (the in-car incidents). Field docs live in enemies.json.</summary>
