@@ -338,7 +338,7 @@ static class FilmCommands
         }
         if (session.Route is { } r)
         {
-            lighting.FogDensity = (float)r.Weather.FogDensity;
+            lighting.FogDensity = Views.FogDensity(r, session.Train);
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold);
             if (look.Tuning.Atmosphere.Wind is { } wind)

@@ -1460,7 +1460,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.LampRange = 0.01f; // emergency lighting (or the lamp out): no light from the headlamp
     if (route is not null)
     {
-        lighting.FogDensity = (float)route.Weather.FogDensity;
+        lighting.FogDensity = Views.FogDensity(route, train);
         lighting.Wetness = route.Weather.Wet ? 1 : 0;
         if (look?.Tuning.Atmosphere.Wind is { } wind)
             (lighting.Wind, lighting.Gusts) = (wind.Of(route.Weather.Wind), wind.Gusts);
@@ -2081,7 +2081,7 @@ static object HudShot(string content, string[] args)
     var lighting = Views.Lighting(frames[0], look);
     if (session.Route is { } r)
     {
-        lighting.FogDensity = (float)r.Weather.FogDensity;
+        lighting.FogDensity = Views.FogDensity(r, session.Train);
         lighting.Wetness = r.Weather.Wet ? 1 : 0;
         lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
     }

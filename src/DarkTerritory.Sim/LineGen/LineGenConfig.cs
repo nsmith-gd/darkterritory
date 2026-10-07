@@ -212,7 +212,7 @@ public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double C
 
 /// <summary>§14.</summary>
 public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,
-    double WetBiasAdhesion, double FogDensityPerInverseMetre, double CrestLengthM);
+    double WetBiasAdhesion, double FogDensityPerInverseMetre, double CrestLengthM, double FogWater = 1, double FogWaterM = 0, double FogBlendM = 0, bool FogAlongLine = false);
 
 /// <summary>§15.</summary>
 public sealed record DirectorRules(double[] PreGradeM, double TunnelExitM, double NearFacilityM, double GreaseWetCold, double GreasePerKm,

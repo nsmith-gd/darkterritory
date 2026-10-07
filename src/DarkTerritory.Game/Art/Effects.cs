@@ -413,6 +413,8 @@ public sealed partial class Effects(Look look)
             if (s < 0 || s > line.Length)
                 continue;
             float h = Hash((float)(s * 0.071));
+            // Each bank as thick as the fog where it lies (note 313): the low ground ahead is seen filling before the train's in it.
+            float local = density * (float)(line.Conditions?.Fog(Sim.Rail.RailLine.MainPath, s) ?? 1);
             for (int k = 0; k < 3; k++)
             {
                 float hk = Hash((float)s + k * 13.1f);
@@ -425,7 +427,7 @@ public sealed partial class Effects(Look look)
                 if (dist < 6)
                     continue;
                 // Faint up close (a card in your face reads as a card), strongest mid-distance.
-                float a = 0.16f * density / 0.016f * Math.Clamp((dist - 6) / 20, 0, 1) * (0.5f + 0.5f * h);
+                float a = 0.16f * local / 0.016f * Math.Clamp((dist - 6) / 20, 0, 1) * (0.5f + 0.5f * h);
                 mesh.Billboard(p, 12 + hk * 10, hk * 0.5f - 0.25f, new Vector4(fogColour * 1.25f, MathF.Min(a, 0.28f)), _fog, FxBlend.Alpha, stretch: 0.45f);
             }
         }
