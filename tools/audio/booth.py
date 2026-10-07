@@ -196,6 +196,20 @@ def disguises(line):
     return CREATURES.get(cue, ANY)
 
 
+def preview(path, y):
+    """The page's .mp4, never clipping: AAC drops a driven take's top harmonics and its peaks come back up to 4 dB higher
+    than they went in (the roughened prisoners clipped), and not in step with the level (2 dB down came out 0.4 dB under
+    full scale), so it's decoded and measured, and made again lower till it's under -0.5 dB."""
+    g = 1.0
+    for _ in range(8):
+        dsp.write_preview(path, y * g)
+        peak = 20 * np.log10(np.abs(dsp.load(path)).max() + 1e-9)
+        if peak <= -0.5:
+            return
+        g *= 10 ** (-(peak + 1.0) / 20)
+    raise SystemExit(f"{path}: the preview still peaks at {peak:.1f} dB")
+
+
 def make(line_path, take_path, out):
     line = json.load(open(line_path))
     line = line.get("data", line)
@@ -208,7 +222,7 @@ def make(line_path, take_path, out):
         y = dsp.level(dsp.fade(dsp.trim_silence(np.asarray(fn(x, rng), np.float32), db=-50, pad=0.05)), -18)
         wav, mp4 = os.path.join(out, key + ".wav"), os.path.join(out, key + ".mp4")
         dsp.write_wav(wav, y)
-        dsp.write_preview(mp4, y)
+        preview(mp4, y)
         made.append({"key": key, "label": label, "how": how, "order": i + 1, "wav": wav, "mp4": mp4,
                      "seconds": round(len(y) / SR, 2)})
         print(f"{key:10s} {label} ({len(y) / SR:.1f} s)")
