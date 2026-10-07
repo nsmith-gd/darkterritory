@@ -90,7 +90,7 @@ static class TrailerCommands
             new(4, Shot: (t, _) => Views.Get("board", t, 2), Stage: "threats", Heard: [EnemyKind.CarHugger]),
             // The Choir's ghosts over the guard van, and the swarm's voices.
             new(4, Shot: (t, _) => Views.Get("choir", t, 2), Stage: "choir", Heard: []),
-            // The cannon off the guard van, at the hounds behind.
+            // The cannon off the guard van, from the gunner's seat: at the pack running behind (the same close pack).
             new(3.5, Shot: (t, _) => Views.Get("cannon", t, 2), Stage: "cannon", Heard: [EnemyKind.CinderHound]),
             new(3, ["KEEP THE FIRE.", "KEEP THE LAMPS LIT.", "BRING THEM HOME."]),
             // The dawn coming up, from beside the line as the train goes by.
@@ -196,8 +196,10 @@ static class TrailerCommands
             var choir = world.Choir;
             if (staged is not null && beat.Heard is { } kinds)
                 world.MirrorEnemies(staged.Where(e => kinds.Contains(e.Kind)));
+            // The Choir gathering (App. A.7's telegraph, five voices of eight), not the full swarm: that's for a crew to bring on
+            // themselves, and at the guard van it drowns the cut.
             if (beat.Stage == "choir")
-                world.Choir = new ChoirState { Present = true, Build = 1, Loudness = combat.Choir.MaxLoudness };
+                world.Choir = new ChoirState { Build = 0.8, Loudness = combat.Choir.Threshold };
             var roof = train.Frames[Math.Min(1, train.Frames.Count - 1)];
             var (ear, yaw) = camera is { } c ? (c.Position, c.Yaw) : (roof.ToWorld(new Double3(0, roof.Shape.RoofHeight + 1.7, 0)), roof.Heading);
             bool inside = beat.Stage == "tippy";
@@ -216,7 +218,9 @@ static class TrailerCommands
 
         string wav = Path.Combine(dir, "trailer.wav");
         int samples = (int)Math.Min(mix.Count, Math.Round(frame / (double)fps * Audio.SampleRate) * 2);
-        Wav.Write(wav, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(mix)[..samples]);
+        var heard = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(mix)[..samples];
+        Master(heard, Opt(args, "--level", -18));
+        Wav.Write(wav, heard);
         string spectrogram = Path.ChangeExtension(wav, ".png");
         PngWriter.Write(spectrogram, Spectrogram.Render([.. mix.Take(samples)], 1200, 300), 1200, 300, 1);
         var (video, sheet, error) = Encode(args, dir, frames, fps, frame);
@@ -237,6 +241,26 @@ static class TrailerCommands
         };
     }
 
+    /// <summary>
+    /// The trailer's master: the whole cut brought to --level dBFS RMS (-18; the game's mix leaves headroom for its tells,
+    /// a trailer's played louder), then soft-limited over a knee at 0.8, so a gunshot or a tell up close rounds off under
+    /// full scale instead of clipping.
+    /// </summary>
+    static void Master(Span<float> mix, double levelDb)
+    {
+        double sum = 0;
+        foreach (float v in mix)
+            sum += v * v;
+        double rms = Math.Sqrt(sum / Math.Max(1, mix.Length));
+        float gain = rms > 0 ? (float)(Math.Pow(10, levelDb / 20) / rms) : 1;
+        const float Knee = 0.8f;
+        for (int i = 0; i < mix.Length; i++)
+        {
+            float v = mix[i] * gain, a = Math.Abs(v);
+            mix[i] = a <= Knee ? v : MathF.CopySign(Knee + (1 - Knee) * MathF.Tanh((a - Knee) / (1 - Knee)), v);
+        }
+    }
+
     /// <summary>The beat's creatures, staged as the screenshots stage them (dt screenshot --threats and its modes).</summary>
     static List<Enemy>? Staged(Beat beat, TrainOnLine train) => beat.Stage switch
     {
@@ -244,7 +268,7 @@ static class TrailerCommands
         "tippy" => Staging.Tippy(Staging.Threats(train), train, "in"),
         // His hand on the lever (COMMIT): waiting to throw it under the train.
         "switchman" => Staging.Switchman(Staging.Threats(train), "grip"),
-        "hounds" => Pack(Staging.Threats(train), train),
+        "hounds" or "cannon" => Pack(Staging.Threats(train), train),
         _ => Staging.Threats(train),
     };
 
