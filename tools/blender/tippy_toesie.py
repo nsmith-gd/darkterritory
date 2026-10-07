@@ -352,12 +352,14 @@ def face_front(pose, forward=0.12, down=0.11):
 
 
 # Hunched to creep: the back curled over, the neck out, the head up to watch the back it's creeping on.
-HUNCH = over(BASE, spine_01=(-8, 0, 0), spine_02=(-12, 0, 0), spine_03=(-10, 0, 0), neck=(-18, 0, 0), head=(26, 0, 0))
+# (Creepier, the Look Review asked, 6 Oct: curled tighter, the neck craned out and the head cocked over too far.)
+# (Still over a door's height stood on its points: TippyToesieTests.)
+HUNCH = over(BASE, spine_01=(-8, 0, 0), spine_02=(-13, 0, 0), spine_03=(-10, 0, 0), neck=(-24, 0, 0), head=(34, 22, 0))
 
 
-def shush(pose):
+def shush(pose, forward=0.2, down=0.18):
     """The right hand up, its longest finger laid upright against where its mouth should be."""
-    p = arm_to(pose, "r", face_front(pose, forward=0.2, down=0.18), curl=0.0, avoid=elbow_down)
+    p = arm_to(pose, "r", face_front(pose, forward=forward, down=down), curl=0.0, avoid=elbow_down)
     p["hand_r"] = (0, -30, 70)
     return p
 
@@ -381,47 +383,79 @@ def bent(pose, knee=22):
 
 
 def step(pose, side, lift):
-    """A leg lifted high on the step (`lift` 0..1): the thigh up, the knee folded, the point hanging."""
-    return over(pose, **{f"thigh_{side}": (6 + 58 * lift, 0, 0), f"calf_{side}": (-10 - 80 * lift, 0, 0),
-                         f"foot_{side}": (-58 + 10 * lift, 0, 0)})
+    """A leg lifted high on the step (`lift` 0..1): the knee drawn right up, folded, the point hanging under it."""
+    return over(pose, **{f"thigh_{side}": (6 + 74 * lift, 0, 0), f"calf_{side}": (-10 - 96 * lift, 0, 0),
+                         f"foot_{side}": (-58 + 4 * lift, 0, 0)})
 
 
-# Stalk (3.2 s, loop): a step on the right, placed with the point and weighted, then a long hold, dead still, the
-# finger to its face and the other hand drifting out; a step on the left; the hold again. (The sim moves it on.)
+# Stalk (3.2 s, loop): the exaggerated slow tiptoe of a thing creeping up on a sleeper (the checklist): the knee drawn
+# right up to its chest and held there, the point hanging, then let down slow, slower, and weighted; a long hold, dead
+# still, the finger to where its mouth should be, the other hand out with the long fingers spread and closing on
+# nothing; the head cocked over the other way at each step, all at once. (The sim moves it on.)
 S = shush(HUNCH)
+
+
+def cocked(pose, roll, turn=0.0):
+    """Cocked over by `roll`, then the finger put to its face where the face now is (dt art clearance)."""
+    return shush(over(pose, head=(34, roll, turn)), forward=0.31, down=0.21)
+
+
 stalk = Clip("stalk")
-stalk.key(0, reaching(S, 0.3), "CONSTANT")
-stalk.key(6, reaching(step(S, "r", 0.6), 0.35), "LINEAR")
-stalk.key(12, reaching(step(S, "r", 1.0), 0.4), "BEZIER")
-stalk.key(20, reaching(over(step(S, "r", 0.3), pelvis=(0, 0, -4)), 0.45), "CONSTANT")
-stalk.key(22, reaching(over(S, pelvis=(0, 0, -4)), 0.5), "CONSTANT")
-stalk.key(48, reaching(over(S, pelvis=(0, 0, -4), head=(26, 0, 8)), 0.55), "CONSTANT")
-stalk.key(54, reaching(step(S, "l", 0.6), 0.5), "LINEAR")
-stalk.key(60, reaching(step(S, "l", 1.0), 0.45), "BEZIER")
-stalk.key(68, reaching(over(step(S, "l", 0.3), pelvis=(0, 0, 4)), 0.4), "CONSTANT")
-stalk.key(70, reaching(over(S, pelvis=(0, 0, 4)), 0.35), "CONSTANT")
-stalk.key(90, reaching(over(S, pelvis=(0, 0, 4), head=(26, 0, -6)), 0.3), "CONSTANT")
+for f, side, lift, reach, roll, interp in (
+        (0, None, 0.0, 0.3, 18, "CONSTANT"),
+        (4, "r", 0.7, 0.35, 18, "BEZIER"),       # up, quick
+        (8, "r", 1.0, 0.4, 18, "CONSTANT"),      # held at the top
+        (16, "r", 0.95, 0.42, -24, "BEZIER"),    # the head pops over, still held
+        (26, "r", 0.35, 0.48, -24, "BEZIER"),    # let down, slow
+        (32, None, 0.0, 0.55, -24, "CONSTANT"),  # weighted
+        (48, None, 0.0, 0.6, -28, "CONSTANT"),
+        (52, "l", 0.7, 0.5, -28, "BEZIER"),
+        (56, "l", 1.0, 0.45, -28, "CONSTANT"),
+        (64, "l", 0.95, 0.42, 18, "BEZIER"),
+        (74, "l", 0.35, 0.36, 18, "BEZIER"),
+        (80, None, 0.0, 0.3, 18, "CONSTANT"),
+        (94, None, 0.0, 0.3, 18, "CONSTANT")):
+    body = cocked(HUNCH, roll)
+    if side:
+        body = over(step(body, side, lift), pelvis=(0, 0, 5 if side == "l" else -5))
+    stalk.key(f, reaching(body, reach), interp)
 stalk.close(96)
 
-# Wait (4 s, loop): stood on its points, upright, arms hanging, the fingers down past its knees; dead still. Now and
-# then its head tips over to one side, all at once; once, the fingers of a hand ripple.
-W = over(BASE, spine_03=(-4, 0, 0), neck=(-6, 0, 0), head=(4, 0, 0),
-         upperarm_r=(2, 82, 0), upperarm_l=(2, -82, 0), lowerarm_r=(0, 4, 0), lowerarm_l=(0, -4, 0))
+# Wait (4 s, loop): stood on its points, bowed, the arms hanging with the fingers down past its knees, the head cocked
+# over on its side, much too far, and going further, slowly, as if the neck had nothing in it; swaying, barely, on its
+# points. Then all at once it's upright, turned full on whoever's there, and dead still; then, slowly, over again. The
+# fingers of a hand ripple, one after another, as if counting.
+W = over(BASE, spine_02=(-6, 0, 0), spine_03=(-8, 0, 0), neck=(-10, 0, 0), head=(6, 0, 0),
+         upperarm_r=(2, 82, 0), upperarm_l=(2, -76, 0), lowerarm_r=(0, 4, 0), lowerarm_l=(0, -10, 0))
 wait = Clip("wait")
-wait.key(0, W, "CONSTANT")
-wait.key(50, over(W, head=(6, 0, -34)), "CONSTANT")
-wait.key(80, W, "CONSTANT")
-for f, c in ((96, 0.4), (99, -0.2), (102, 0.5), (105, 0.0)):
-    wait.key(f, W | {"fingers_r": (0, 12 + 60 * c, 0)}, "CONSTANT")
+for f, roll, sway, interp in ((0, 44, 0.0, "BEZIER"), (24, 52, 1.0, "BEZIER"), (48, 60, 0.0, "CONSTANT"),
+                              (50, 0, 0.0, "CONSTANT"), (72, 0, -1.0, "BEZIER"), (96, 30, 0.0, "BEZIER")):
+    pose = over(W, head=(6 + roll * 0.1, roll, 0 if roll else 26), neck=(-10, 0, 0 if roll else 14),
+                pelvis=(0, 0, 3 * sway), spine_03=(-8, 2 * sway, 0))
+    wait.key(f, pose, interp)
+for f, c in ((84, 0.5), (86, 0.1), (88, 0.6), (90, 0.2), (92, 0.7), (95, 0.0)):
+    wait.key(f, over(W, head=(9, 27 + 3 * (f - 84) / 11, 0), neck=(-10, 0, 0)) | {"fingers_r": (0, 12 + 70 * c, 0)}, "CONSTANT")
 wait.close(120)
 
-# Flee (0.6 s, loop): seen, and off, low, fast, the points ticking, the arms up and back like a thing ducking under a
-# blow, the head down.
-FL = over(BASE, spine_01=(-20, 0, 0), spine_02=(-14, 0, 0), neck=(-10, 0, 0), head=(-12, 0, 0),
-          upperarm_r=(-40, 30, 20), upperarm_l=(-40, -30, -20), lowerarm_r=(0, 40, 0), lowerarm_l=(0, -40, 0))
+# Flee (0.6 s, loop): seen, and off, scuttling low and too fast on its points, the long arms folded up tight against
+# its chest like a mantis's, the fingers twitching; and the head turned right round over its shoulder, still on you as
+# it goes.
+FL = over(BASE, spine_01=(-24, 0, 0), spine_02=(-16, 0, 0), spine_03=(-4, 0, 40), neck=(10, 0, 40), head=(8, -20, 50),
+          upperarm_r=(30, 60, 0), upperarm_l=(30, -60, 0), lowerarm_r=(0, 105, 0), lowerarm_l=(0, -105, 0),
+          fingers_r=(0, 40, 0), fingers_l=(0, -40, 0))
+def folded(pose, twitch=0.0):
+    """The arms folded up like a mantis's, each hand held up before its own shoulder (never across: dt art clearance)."""
+    for side, k in (("r", 1), ("l", -1)):
+        sh, = rig.pose_points(sk, pose, [(f"upperarm_{side}", "head")])
+        pose = arm_to(pose, side, sh + Vector((0.06 * k, 0.2, -0.3)), curl=0.6 + 0.2 * twitch)
+    return pose
+
+
+FL = folded(FL)
 flee = Clip("flee")
 for f, (r, l) in enumerate(((1.0, 0.0), (0.4, 0.4), (0.0, 1.0), (0.4, 0.4))):
-    flee.key(f * 4.5, over(step(step(FL, "r", r), "l", l), pelvis=(0, 0, 8 * (r - l)), spine_03=(-8, 0, -6 * (r - l))), "LINEAR")
+    flee.key(f * 4.5, folded(over(step(step(FL, "r", r * 0.8), "l", l * 0.8), pelvis=(0, 0, 8 * (r - l)), spine_02=(-16, 0, -6 * (r - l))),
+                             abs(r - l)), "LINEAR")
 flee.close(18)
 
 # Smother (1.6 s, loop): stood close behind its victim, bent over them, its head beside theirs; the right hand over
@@ -497,7 +531,8 @@ RC = over(BASE, spine_01=(14, 0, 0), spine_02=(10, 0, 0), spine_03=(8, 0, 0), ne
 recoil = Clip("recoil", loop=False)
 recoil.key(0, RC, "CONSTANT")
 recoil.key(7, over(RC, head=(26, 0, 12)), "CONSTANT")
-recoil.key(9, over(RC, head=(26, 0, 12)), "LINEAR")
+# (It drops into the flee's crouch all at once, a pop: blended, the flung arms swept down through its hips.)
+recoil.key(9, over(RC, head=(26, 0, 12)), "CONSTANT")
 recoil.key(12, FL, "CONSTANT")
 
 # Hit: struck, it folds away from the blow with a jerk and comes back up too fast.

@@ -565,11 +565,12 @@ class Kit:
         # Parts to fuse into one skin after build (`fuse`): [(name, parts, voxel, faces, cut)].
         self.fusions = []
 
-    def fuse(self, name, parts, voxel=0.004, faces=3000, cut=None):
+    def fuse(self, name, parts, voxel=0.004, faces=3000, cut=None, lose=0.015):
         """After build, `parts` become one continuous skin called `name` (see `fuse`): for a creature whose limbs grow
         out of its body rather than bolt on. `cut(point) -> bool` opens the skin again where the parts were open on
-        purpose (a mouth): the faces whose centres it's true for are taken out."""
-        self.fusions.append((name, list(parts), voxel, faces, cut))
+        purpose (a mouth): the faces whose centres it's true for are taken out. `lose`: how much of the union QuadriFlow's
+        skin may leave off it (a crease smoothed over) before the collapse is used instead."""
+        self.fusions.append((name, list(parts), voxel, faces, cut, lose))
 
     def part(self, name, **kw):
         p = Part(self, name, **kw)
@@ -627,14 +628,14 @@ class Kit:
                     g.add([i], wt, "REPLACE")
             mod = ob.modifiers.new("Armature", "ARMATURE")
             mod.object = rig
-        for name, parts, voxel, faces, cut in self.fusions:
-            fuse(self, name, parts, voxel, faces, cut)
+        for name, parts, voxel, faces, cut, lose in self.fusions:
+            fuse(self, name, parts, voxel, faces, cut, lose)
         if self.target_tris:
             densify(self, self.target_tris)
         return self
 
 
-def fuse(kit, name, parts, voxel, faces, cut=None):
+def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015):
     """One skin from several built parts (a Look Review ask: the kit's limbs were tubes pushed into a body, a seam and
     often a gap at every hip and shoulder). The crew body's way (tools/blender/crewbody.py), for any creature:
       1. the parts' union, voxel-remeshed at `voxel` m: the solids flow into one another, a haunch into a flank, a
@@ -728,6 +729,10 @@ def fuse(kit, name, parts, voxel, faces, cut=None):
     bm = bmesh.new()
     bm.from_mesh(skin.data)
     bmesh.ops.dissolve_degenerate(bm, dist=0.0003, edges=bm.edges)
+    # (And any edge left with no face on it, a wire the dissolve leaves where a fold closed up: not a surface, and enough
+    # on its own for QuadriFlow to call the whole skin not manifold.)
+    bmesh.ops.delete(bm, geom=[e for e in bm.edges if not e.link_faces], context="EDGES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
     if cut is not None:
         # Opened again where it was meant to be open, on the dense union so the opening's edge is the voxel's fine one.
@@ -757,9 +762,9 @@ def fuse(kit, name, parts, voxel, faces, cut=None):
         probe = [v.co for v in dense.vertices][::max(1, len(dense.vertices) // 4000)]
         lost = sum(1 for p in probe if got.find_nearest(p)[3] > max(4 * voxel, 0.008)) / len(probe)
         print(f"[dt] fuse {name}: QuadriFlow (seed {seed}) {len(skin.data.polygons)} quads, {lost:.1%} of the union off it")
-        if lost <= 0.015:
+        if lost <= lose:
             break
-    if lost is None or lost > 0.015:
+    if lost is None or lost > lose:
         why = "not manifold" if not ready else "it failed" if lost is None else f"it lost {lost:.1%} of the form"
         print(f"[dt] fuse {name}: no QuadriFlow ({why}), collapsing instead")
         skin.data = dense
