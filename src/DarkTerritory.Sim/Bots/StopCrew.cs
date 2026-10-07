@@ -1376,12 +1376,13 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     public PlayerIntent LetGo() => Press();
 
     /// <summary>On a car's landing or inside it at a stop: out by its side door and down its steps. Null when it isn't.</summary>
-    PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p)
+    PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p) => OffTheCar(self, world.Train, p.Site.Side);
+
+    /// <summary>On a car's landing or inside it: out by its side door on one side (+1 right) and down its steps.</summary>
+    PlayerIntent? OffTheCar(in PlayerState self, TrainOnLine train, int side)
     {
-        var train = world.Train;
         if (self.Surface != Surface.Deck || self.Parent <= 0 || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
             return null;
-        int side = p.Site.Side;
         double w = train.Frames[self.Parent].Shape.Bounds.Max.X, sd = layout.SideDoorWidth / 2;
         var landing = new Double3(side * (w + layout.StepWidth / 2), layout.FloorHeight, 0);
         double facingIn = side > 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -2263,6 +2264,10 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return null;
         if (self.Surface == Surface.Air || Math.Abs(train.Dynamics.Velocity) > 0.05)
             return new PlayerIntent();
+        // Still up on a car (the last door it shut, on that car's landing): off it by the side it's on first. The walk to the
+        // cab is on the ground; from a car's deck it went nowhere, and a crew of one stood there while the fire died (note 300).
+        if (self.Parent > 0 && (OffTheCar(self, train, self.Position.X < 0 ? -1 : 1) ?? GetDown(self, train, self.Position.X < 0 ? -1 : 1)) is { } off)
+            return off;
         return IntoCab(self, train, self.LineHint >= 0 && self.Parent == PlayerState.World ? Side(train, self.Position, self.LineHint) : 1);
     }
 
