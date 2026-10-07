@@ -1596,6 +1596,7 @@ public sealed class World
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
+            d.Census(this);
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
             d.Listen(this);

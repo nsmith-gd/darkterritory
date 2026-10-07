@@ -1334,7 +1334,7 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's pressed spawns: after the 100-night playtest the director would not let the line go quiet for long, and under the pressure model (below) a long quiet still presses it to send something.
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
-**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
+**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6. *The crew counted is the crew alive now, each second, not the crew the night started with (the orchestrator, 7 Oct 2026, App. F.3; ARCHITECTURE §8 note 336): a crew that has lost players spends like the smaller crew it is.*
 
 Budget is spent across the run against a rising curve, not evenly. Roughly 15% before the first facility, 45% across the middle, 40% in the final approach.
 
@@ -1398,7 +1398,7 @@ Enforced regardless of budget:
 | Concurrent interior threats | 2 |
 | Concurrent outside threats | 2 |
 | Corrupted humans | **1** active at a time |
-| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 |
+| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336) |
 | Same tell type, overlapping range | **1** — tells must stay distinguishable |
 
 ### Pacing rules
