@@ -2128,7 +2128,7 @@ static object HudShot(string content, string[] args)
         path = Path.GetFullPath(output),
         prompt = Hud.Prompt(session),
         // Note 281: the corner, what's in your hands or the cab lets you do.
-        corner = Hud.Hints(session) is var (head, lines) ? new { head, lines } : null,
+        corner = Hud.Hints(session) is var (cornerHead, cornerLines) ? new { head = cornerHead, lines = cornerLines } : null,
         quads = hud.Count / 6,
         status = session.Status(),
         watching = session.Watching,
