@@ -579,7 +579,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - A Steam invite accepted in the menus joins at once.
     - **Settings** (`Settings`, `settings.json` beside the save slots in the user's app data): sound, open mic or push to talk, the HUD, VR snap or smooth turning and the comfort vignette (over `tuning/vr.json`), and mouse speed. A file that can't be read is the defaults.
     - **Input:** the window gained arrow keys, Enter and typed text (SDL text input, on only while the join screen wants it).
-    - **Not yet:** the menus in the headset (they're on the window); a lobby screen that shows who's aboard before the night starts; renaming a crew or deleting a slot from the menu (`dt campaign` does both); rebinding keys.
+    - **Not yet:** the menus in the headset (they're on the window); a lobby screen that shows who's aboard before the night starts; ~~renaming a crew or deleting a slot from the menu~~ (note 319); rebinding keys.
 34. **Bots keep warm by themselves (T31, spec B.2).**
     - **`WarmUp` does it the way a person would.** A walker or the gunner:
       1. Walks off the roof's end onto a coupler plate. It's always the plate of the car it'll enter, and never the engine's: the cab is the fireman's.
@@ -4477,7 +4477,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The form is the ballot's** (note 285): fine print (`Hud.Fine`) on a dark backing, lit along its top in the title's colour, no rivets, no trim, a fifth of the way down the middle (`Hud.Panel`). The roster's title is in ink and the supplies' in amber, as before.
     - **What they say is unchanged:** the roster's names and SPEAKING; the supplies' rows (`SuppliesLines`, which C1's #39 rewrites for the wrenches; untouched here). The close key reads in the prompts' form, "CLOSE : [I]".
     - **Verified:** `QuietHudTests.ThePanelsYouOpenAreFinePrintWithNoRivets` (no rivet, brass or bevel; the roster under 200 px wide, the supplies under 60% of the screen; SPEAKING still green). `dt screenshot --hud --supplies` and `--roster`, before and after, looked at.
-
 317. **A trestle across a lake's neck (B4, queue #56; maritime-rules §4's "not yet": "a crossed lake is always a fill").** Some crossed lakes are now taken on a low timber trestle, the water running on under it.
     - **Which** (`LineBuilder.TrestleAcross`). `terrain.lakes.trestleChance` (0.4) of crossed lakes, each from its own dice (`Rng("lakeTrestle", lake id)`), so a line whose lakes all stay fills is laid exactly as before. The span is where the main line is over the water, plus `trestleAbutmentM` (6 m) each end. It's not laid when that's over `trestleMaxM` (240 m), or within `trestleClearM` (50 m) of another structure.
     - **What** it is: a `Trestle` in timber, no weak limit, its height the rail over the lake's floor. It's named like any bridge ("Bramwell Trestle") and is a landmark. It's laid before the tags, the exposure, the authority and the signage, so it's tagged a bridge (×1.5 wind, §14) and boarded as any bridge. The terrain already leaves a span's ground open, so the lake's basin runs under the deck. The art draws the timber trestle that the ravines' weak trestles use, its bents standing in the water.
@@ -4498,3 +4497,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `TheRunMapMarksEachStopWhereTheTrainStandsAtIt`: every stop on frontier:7 is marked within its stop point's offset of where the train stands, and never at its zone's start.
         - `TheRouteCardTicksEachPlaceWhereTheTrainsPencilWillBeThere`: every main-line landmark's tick is within 60 m of the pencil for a train standing there.
       Both fail without this. `dt screenshot --route frontier:7 --at 10243 --view cab`, standing at Maddox's halt: the red mark covers the halt's.
+
+319. **A crew renamed, and deleted, from the fortress (F1, UI/UX 3; queue #58; GDD §9 "each host has three campaign slots"; note 33's "not yet").** A slot's crew was "Crew 1" for good, and a slot once used was used for good: renaming a crew or emptying a slot was `dt campaign`'s alone.
+    - **The name is a field on the fortress** (`TextField.CrewName`), as the lobby's is (note 267): chosen, it takes no typing; Enter starts it, Enter or Esc ends it. Each key is kept to the slot at once, as every fortress change is. Up to 24 characters (`FrontEnd.MaxCrewName`, the lobby's). Erased to nothing and left, it's the slot's name again ("Crew 2"); the slot list and the fortress's heading say the slot's name for a blank one either way.
+    - **DELETE THIS CREW asks first,** as leaving a night does (note 292): a screen of its own (`Screen.DeleteCrew`, "DELETE NIGHTJARS?"), KEEP IT first so a second Enter keeps it, and what goes said under both: the cars, the scrip, the nights, and a night under way. Confirmed, the slot's file goes (`SaveSlots.Delete`) and the slot list says "Slot 2 is empty."
+    - **Verified:** `FrontEndTests.TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice`; `dt screenshot --menu fortress` and `--menu deletecrew`, looked at.
+
