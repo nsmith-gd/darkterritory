@@ -4448,7 +4448,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 
       Tails are cut at −50 dB. Each version is a .wav for the game and an .mp4 preview for the page.
     - **What's kept** becomes a candidate on the audio checklist, like any recipe's, and goes into the game through `install.py`.
-    - **Not yet:** no takes are recorded. The director's own script wasn't found (not in the repo, Drive or the artifacts), so the page holds a 31-line draft (`tools/audio/booth/script.json`) and takes lines pasted in.
+    - **Not yet:**
+        - The director's first 11 takes (7 Oct: prisoners, the Soot Children's call, the clerk's lists, the Track Doll) are on the page. Their versions, and installing what's kept, are #42's next PR.
+        - The director's own script wasn't found (not in the repo, Drive or the artifacts), so the page holds a 31-line draft (`tools/audio/booth/script.json`) and takes lines pasted in.
 
 305. **Crew 2 and the group creatures: GDD Part Eleven, open question 12 swept (queue #43, D1: "At crew 2, which group-based enemies are still fair? Needs a harness sweep, especially Ribbits and Tippy Toesie").** Each creature whose rule counts the crew, alone (`dt balance --pairs --only <kind>`), on frontier:7 and deadLines:2, at crews 2 and 4, three seeds a cell, the clear hazard set, on the line and at stops (168 short nights). And each grab rigged at crew 2 (`dt audit grabs --crews 2`).
     - **Every grab breaks at crew 2.** The one other crewmate frees each: a Ribbit pack of two broken off in 0.2 s (of 8), Tippy Toesie in 1.3 s (of 20), Soot Children killed in 3.9 s (of 14), a woken Gaunt broken off in 1.9 s (of 8), the Car Hugger in 0.3 s (of 10), the Choir fled in 0.8 s (of 12). The Passenger never comes at fewer than three (`minCrew`).
