@@ -319,7 +319,8 @@ public class StopGeneratorTests
     [Fact]
     public void AFindStowedAboardPaysOnDelivery()
     {
-        // P12: stop at a village halt, its finds come out; one carried into a car and left there is scrip in the report.
+        // P12: stop at a village halt, its finds come out (an open house's once it's searched, note 326); one carried into a
+        // car and left there is scrip in the report.
         var (route, halt) = WithHalt();
         var line = route.Build();
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), line, (halt.Start + halt.End) / 2, Tuning.Boiler);
@@ -327,8 +328,12 @@ public class StopGeneratorTests
         world.EnableBodies();
         world.EnableRun(Tuning.Run, route, 600, authority: true, FacilityTests.F, L);
         Tick(world, 0.5);
+        int k = world.Run!.Stops.ToList().IndexOf(halt), hidden = world.Run.HidingSpots.Count(h => h.Stop == k);
+        int village = halt.Stop!.Containers.Count(c => c.Zone == StopZone.Village);
+        Assert.Equal(village - hidden, world.Bodies.All.Count(b => b.Kind == BodyKind.Loot));
+        world.Run.Stock(world.Bodies, k, searched: true);
         var loot = world.Bodies.All.Where(b => b.Kind == BodyKind.Loot).ToList();
-        Assert.Equal(halt.Stop!.Containers.Count(c => c.Zone == StopZone.Village), loot.Count);
+        Assert.Equal(village, loot.Count);
         var body = loot[0];
         var find = world.Run!.FindOf(body)!.Value;
         Assert.False(string.IsNullOrEmpty(world.Run.FindName(body)));
