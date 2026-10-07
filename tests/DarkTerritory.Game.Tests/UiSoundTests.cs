@@ -222,6 +222,8 @@ public sealed class UiSoundTests : IDisposable
         {
             Parent = car,
             Position = Breaches.StandAt(w.Train, car),
+            Kit = P.StartingKit,
+            HeldSlot = 1,
             Surface = Surface.Deck,
             Health = P.Health,
             ActionProgress = T.Breach.BoardSeconds / 2,
