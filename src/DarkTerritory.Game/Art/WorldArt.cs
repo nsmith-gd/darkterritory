@@ -432,6 +432,7 @@ public sealed partial class WorldArt(Look look)
         {
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
             Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
+            Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
             Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }
@@ -505,6 +506,7 @@ public sealed partial class WorldArt(Look look)
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
         Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
+        Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
         // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
         if (Scene(route) is not null)
             return;
