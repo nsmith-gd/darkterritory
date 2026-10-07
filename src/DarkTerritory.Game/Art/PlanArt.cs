@@ -871,9 +871,11 @@ public sealed partial class WorldArt
             var board = rules.Boards.GetValueOrDefault(sign.Type);
             float width = (float)(board?.WidthM ?? 0.8), height = (float)(board?.HeightM ?? 2.2);
             var piece = Piece($"sign-{sign.Type}-{sign.Text}", () => SignKit.Board(_look, sign.Type, sign.Text, width, height));
-            var at = sign.Type == "tunnelPlate" ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
-            // Turned a little toward the track, so the lamp catches it square.
-            var m = Basis(t.Tangent, at, eye, -sign.Side * 0.18f);
+            bool plate = sign.Type == "tunnelPlate";
+            var at = plate ? t.Position : t.Position + right * (sign.Side * rules.SignOffsetM) - Double3.Up * 0.25;
+            // Turned a little toward the track, so the lamp catches it square; a tunnel's plate square on its portal's face, the
+            // far portal's turned round as its portal is (WorldFeatures.Tunnel).
+            var m = Basis(t.Tangent, at, eye, plate ? sign.Side > 0 ? 0 : MathF.PI : -sign.Side * 0.18f);
             if (sign.State == SignState.Fallen)
                 m = Matrix4x4.CreateRotationZ(sign.Side * 1.35f) * Matrix4x4.CreateTranslation(0, 0.15f, 0) * m;
             mesh.Instances.Add(new MeshInstance(piece, m));

@@ -658,7 +658,7 @@ The run rolls one weather profile (fog distance, rain probability, temperature, 
 
 | Modifier | Terrain rule |
 |---|---|
-| **Fog density** | ×1.3 in `low_ground` and `marsh`, ×0.8 on crests |
+| **Fog density** | ×1.3 in `low_ground` and `marsh`, and beside water (a shore, or within 40 m of a lake), ×0.8 on crests. The renderer's fog follows it along the line, blended over 150 m either side (ARCHITECTURE §8 note 313) |
 | **Wet rail (adhesion)** | Rain lowers adhesion everywhere; `wet_bias` segments (cuttings, forest, near portals) are worse |
 | **Wind exposure** | ×1.5 on `exposed` segments (bridges, ledges, crests, open plains). Gunfire carries further there (GDD §22). |
 | **Cold** | Deeper with altitude above the departure fortress (one step per 150 m) and on `exposed` segments |

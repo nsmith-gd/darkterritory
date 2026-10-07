@@ -1,0 +1,31 @@
+// The flat-screen HUD's timings and thresholds (GDD §32 "The HUD: your hands and the dark"; ARCHITECTURE §8 note 285).
+// The director, 7 Oct: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs."
+// Only the crosshair and your hands are always there; everything else comes up when it matters and fades when it doesn't.
+// Not in the systems spec: these are presentation, not rules.
+{
+  // How long anything that comes and goes takes to fade in or out (s).
+  "fadeSeconds": 0.35,
+
+  // After you change what's in your hand, how long its name stays over the hotbar (s), as Lethal Company's slots do.
+  "toolNameSeconds": 1.6,
+
+  // A place coming up (a stop, a junction, a bridge): its name fades in at the top of the screen once the train is this
+  // close to it (m), and stays this long (s). The route card (C) has the whole night, with where you are on it.
+  "placeAheadMetres": 1200,
+  "placeSeconds": 4.5,
+
+  // Going out into a deeper step of the cold (GDD §22, note 201): its line, for this long (s). Getting chilled says how
+  // long you've got for as long as it lasts.
+  "coldSeconds": 5,
+
+  // The dawn clock (GDD §11) comes up at the top of the screen in the night's last stretch (s before dawn), as Lethal
+  // Company's clock does when it matters. Before that, the route card has it.
+  "dawnClockSeconds": 600,
+
+  // Spec E: ping is shown prominently in the lobby (the yard). Out on the line, only once it's this bad (ms), or lost.
+  "pingWarnMs": 150,
+
+  // The crew's noise meter (T113) shows once the crew's this loud, as a share of the Choir's threshold, or the Choir's
+  // gathering or here; quiet, it's gone.
+  "noiseShowAt": 0.5
+}

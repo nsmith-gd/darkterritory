@@ -180,7 +180,11 @@
     // a fill across its narrows (the South Shore line's way). radiusM is the minor semi-axis, stretch the long one's
     // share; offM from the track to the near shore in radii; the water levelBelowRailM under the lowest rail near it.
     "lakes": { "radiusM": [35, 150], "stretch": [1.3, 2.6], "offM": [0.1, 0.9], "crossChance": 0.3, "crossRadiusM": [45, 110], "turnDeg": 25,
-      "depthM": 3.5, "levelBelowRailM": 2.2, "shoreSlope": 0.22, "wobble": 0.35, "clearM": 30, "fillSlope": 0.55 },
+      "depthM": 3.5, "levelBelowRailM": 2.2, "shoreSlope": 0.22, "wobble": 0.35, "clearM": 30, "fillSlope": 0.55,
+      // A crossed lake's neck taken on a low timber trestle instead of a fill, the water on under it (maritime-rules §4;
+      // ARCHITECTURE §8 note 317): this share of them, each from its own dice; the span is the water plus trestleAbutmentM
+      // either end, no longer than trestleMaxM, and no nearer than trestleClearM to another structure.
+      "trestleChance": 0.4, "trestleAbutmentM": 6, "trestleMaxM": 240, "trestleClearM": 50 },
     // A shore along the line: its edge nearM out plus coves up to coveM deeper every coveWavelengthM (the Atlantic's
     // drowned coast); a beach up from the water, a cliff where the rail stands over cliffAboveM above it (Fundy's
     // sandstone, 30 m at Joggins); Fundy's mudflats flatM wide at low water (a 12-16 m tide leaves kilometres); drowned
@@ -209,10 +213,13 @@
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse
   // where exposed; cold a step per 150 m climbed and on exposed track; wet rail's adhesion, worse where wet-biased.
-  // The renderer's fog density is this over the fog distance.
+  // The renderer's fog density is this over the fog distance. Fog fills the coves first (maritime-rules §4): beside a
+  // shore, or within fogWaterM of a lake's edge, it's as thick as low ground. The renderer's fog follows the factor
+  // along the line, averaged over fogBlendM either side so it thickens and thins, never steps; fogAlongLine false
+  // keeps the night's one density everywhere (note 313).
   "weather": {
     "fogLowGround": 1.3, "fogCrest": 0.8, "windExposed": 1.5, "coldStepPerM": 150, "coldExposedStep": 1, "wetAdhesion": 0.85, "wetBiasAdhesion": 0.75,
-    "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400
+    "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400, "fogWater": 1.3, "fogWaterM": 40, "fogBlendM": 150, "fogAlongLine": true
   },
 
   // Plan §15. The Long Whistle's pre-grade/pre-curve window; tunnel exits; near a facility; Grease doubled in wet or

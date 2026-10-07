@@ -3,6 +3,7 @@ using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
@@ -40,6 +41,25 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
         var at = centre + dir * distance;
         return at with { Y = centre.Y };
     }
+    /// <summary>
+    /// Where the stops' layouts say this kind of creature lives (level-design H.2; GDD B.6; note 309): every site of
+    /// <paramref name="kind"/> at the generated stops round the train, in the world, on the ground there. None on a hand-laid
+    /// route, whose stops have no layouts.
+    /// </summary>
+    public List<(Double3 At, double Radius)> Sites(LairKind kind) => CreatureSites.Of(World, kind, Tuning.Sites.Around);
+
+    /// <summary>
+    /// The site of <paramref name="kind"/> nearest <paramref name="centre"/>, if it's within <paramref name="reach"/> and no
+    /// closer than <c>sites.minOut</c> (nothing comes out from under the crew's feet). Null when there is none that near.
+    /// </summary>
+    public Double3? NearestSite(LairKind kind, Double3 centre, double reach)
+    {
+        double Flat(Double3 a) => Math.Sqrt((a.X - centre.X) * (a.X - centre.X) + (a.Z - centre.Z) * (a.Z - centre.Z));
+        var best = Sites(kind).Select(s => s.At).Where(a => Flat(a) >= Tuning.Sites.MinOut && Flat(a) <= reach)
+            .OrderBy(Flat).Select(a => (Double3?)a).FirstOrDefault();
+        return best;
+    }
+
     public int NextId => World.NextEnemyId;
     public T Add<T>(Func<int, T> make) where T : Enemy => World.AddEnemy(make);
 }
@@ -227,7 +247,15 @@ public static class Spawns
             if (c.GroundCentre() is not { } centre)
                 return false;
             int size = Math.Min(c.Crew, (int)Math.Round(c.Director.NextRange(t.PackSize[0], t.PackSize[1] + 0.49)));
-            var at = c.Out(centre, t.SpawnOut);
+            // Out of their warren (level-design H.2, note 309): the one nearest the ground crew. A stop with warrens and none
+            // near has none to come; one without a layout sends them from out in the dark, as before.
+            Double3 at;
+            if (c.NearestSite(LairKind.Warren, centre, c.Tuning.Sites.WarrenReach) is { } warren)
+                at = warren;
+            else if (c.Sites(LairKind.Warren).Count > 0)
+                return false;
+            else
+                at = c.Out(centre, t.SpawnOut);
             int pack = c.NextId;
             for (int i = 0; i < size; i++)
             {
@@ -248,7 +276,8 @@ public static class Spawns
         {
             if (c.GroundCentre() is not { } centre)
                 return false;
-            var at = c.Out(centre, c.Tuning.Gaunt.SpawnOut);
+            // Asleep in its roost (level-design H.2, note 309): the building furthest from the train on foot. You go to it.
+            var at = c.NearestSite(LairKind.GauntRoost, centre, c.Tuning.Sites.RoostReach) is { } roost ? roost : c.Out(centre, c.Tuning.Gaunt.SpawnOut);
             c.Add(i => Gaunt.Asleep(i, at, c.Tuning.Gaunt));
             return true;
         }),
@@ -256,13 +285,13 @@ public static class Spawns
         new(EnemyKind.Follower, c =>
         {
             var t = c.Tuning.Followers;
-            var free = Follower.Excursions(c.World);
+            var free = OnFollowerGround(c, Follower.Excursions(c.World));
             if (free.Count == 0 || !c.AtFacility || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) >= t.MaxActive)
                 return null;
             return 1 + t.PerGroundWeight * (c.OnGround.Count() - 1);
         }, c =>
         {
-            var free = Follower.Excursions(c.World);
+            var free = OnFollowerGround(c, Follower.Excursions(c.World));
             if (free.Count == 0)
                 return false;
             int on = free[(int)c.Director.NextRange(0, free.Count - 1e-9)];
@@ -286,7 +315,8 @@ public static class Spawns
             bool soot = !c.World.NextChildReal && c.Director.NextRange(0, 1) >= t.RealChance;
             c.World.NextChildReal = false;
             c.World.ChildCalled = true;
-            var at = c.Out(centre, t.CallOut);
+            // From the open beyond the stop's built edge, where the train can see it (level-design H.2, note 309).
+            var at = c.NearestSite(LairKind.SootCall, centre, c.Tuning.Sites.CallReach) is { } call ? call : c.Out(centre, t.CallOut);
             c.Add(i => SootChildren.Calls(i, at, soot, t));
             return true;
         }),
@@ -351,6 +381,22 @@ public static class Spawns
     /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).</summary>
     static List<int> LitCars(SpawnContext c) =>
         [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null).Select(v => v.Id)];
+
+    /// <summary>
+    /// Followers ride the facility's grounds (level-design H.2, note 309): of the crew on an excursion, those standing in one of
+    /// the stop's follower grounds (its radius and <c>sites.groundMargin</c>). All of them where the stop has no layout.
+    /// </summary>
+    static List<int> OnFollowerGround(SpawnContext c, List<int> free)
+    {
+        var grounds = c.Sites(LairKind.FollowerGround);
+        if (grounds.Count == 0)
+            return free;
+        return [.. free.Where(id =>
+        {
+            var at = PlayerMotor.WorldPosition(c.World.CrewThisTick.First(p => p.Id == id).State, c.Train);
+            return grounds.Any(g => Math.Sqrt((at.X - g.At.X) * (at.X - g.At.X) + (at.Z - g.At.Z) * (at.Z - g.At.Z)) <= g.Radius + c.Tuning.Sites.GroundMargin);
+        })];
+    }
 
     public static SpawnRule? For(EnemyKind kind) => Rules.FirstOrDefault(r => r.Kind == kind);
 }
