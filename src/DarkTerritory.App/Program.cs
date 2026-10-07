@@ -657,8 +657,36 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     Hud.Headset = vr is not null;
     var nightKeys = new VrMenuInput();
     NetPlaySession.PlayerName = settings.PlayerName;
-    bool Held(Control c) => input.Down(keyOf[c]);
-    bool Hit(Control c) => input.Pressed(keyOf[c]);
+    // The in-night menu (note 292) open this frame: the night goes on, but nothing pressed reaches it.
+    bool inMenu = false;
+    bool Held(Control c) => !inMenu && input.Down(keyOf[c]);
+    bool Hit(Control c) => !inMenu && input.Pressed(keyOf[c]);
+    bool Pressed(Key k) => !inMenu && input.Pressed(k);
+    // The settings as this night last took them up: changed in the menu, they're taken up at once (note 292).
+    var takenUp = settings;
+    void TakeUp(Settings now)
+    {
+        settings = takenUp = now;
+        sensitivity = 0.0025 * now.MouseSpeed;
+        foreach (var c in Enum.GetValues<Control>())
+            keyOf[c] = Enum.TryParse<Key>(now.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]);
+        Hud.Keys = now;
+        showHud = now.Hud && !args.Contains("--no-hud");
+        if (voice is not null)
+        {
+            voice.PushToTalk = now.PushToTalk || args.Contains("--push-to-talk");
+            voice.MicLevel = (float)now.MicLevel;
+        }
+        ApplyDisplay();
+    }
+    // What the menu's LEAVE has to say about this night (note 292): whose it is, and who else is in it.
+    NightMenu NightNow() => new(
+        Hosting: net is null || net.Host is not null,
+        Others: net?.Host is { } h ? Math.Max(0, h.Players.Count() - (net.BotCrew?.Bots.Count ?? 0) - 1) : 0,
+        Campaign: campaign is not null,
+        Invites: net?.Lobby is { Status: Ballast.Online.Lobby.State.Open } && session.Link is not { Full: true },
+        JoinAt: session.Link?.JoinAt,
+        Over: session.World.Run?.Over == true);
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
@@ -681,13 +709,68 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         double dt = now - last;
         last = now;
 
-        if (input.Pressed(Key.Escape))
+        // Escape opens the in-night menu (note 292), and the menu's own keys and the mouse work it, as the front end's do:
+        // before, a second Escape left the night at once, a host's for the whole crew. In a headset the window's mirror
+        // keeps the old way (VR's on the backburner): Escape frees the mouse, and again leaves.
+        inMenu = frontEnd.Night is not null;
+        if (vr is not null)
         {
-            if (window.MouseCaptured) window.MouseCaptured = false;
-            else break;
+            if (input.Pressed(Key.Escape))
+            {
+                if (window.MouseCaptured) window.MouseCaptured = false;
+                else break;
+            }
+        }
+        // --night-menu (headless checks with --capture): the in-night menu open from the first frame.
+        else if (!inMenu && (input.Pressed(Key.Escape) || frames0 == 1 && args.Contains("--night-menu")))
+        {
+            frontEnd.OpenNight(NightNow());
+            window.MouseCaptured = false;
+            window.CaptureOnClick = false;
+            inMenu = true;
+        }
+        else if (inMenu)
+        {
+            Launch? chosen = null;
+            window.TextInput = frontEnd.WantsText;
+            if (frontEnd.Capturing is not null)
+            {
+                // Binding a control, as on the front end's CONTROLS: the next key or button, Escape keeps the old.
+                window.MouseCaptured = true;
+                if (input.Pressed(Key.Escape)) frontEnd.Back();
+                else if (input.AnyPressed is { } bound) frontEnd.Bind(bound.ToString());
+                if (frontEnd.Capturing is null)
+                    window.MouseCaptured = false;
+            }
+            else
+            {
+                var keys = MenuInput.Keys(name => Enum.TryParse<Key>(name, out var k) && input.Pressed(k), frontEnd.WantsText);
+                var mouse = new MenuMouse(new Vector2(input.MouseX * UiWidth, input.MouseY * UiHeight), input.MouseMoved,
+                    input.Pressed(Key.MouseLeft), input.Pressed(Key.MouseRight), input.Wheel);
+                chosen = MenuInput.Apply(frontEnd, keys, frontEnd.WantsText ? input.Text : "", mouse);
+            }
+            if (!frontEnd.Settings.Equals(takenUp))
+                TakeUp(frontEnd.Settings);
+            if (chosen is Launch.Invite)
+                net?.ShowInviteDialog();
+            if (chosen is Launch.Leave)
+            {
+                frontEnd.CloseNight();
+                window.TextInput = false;
+                if (net is not null && session.World.Run?.Over == true && session.World.Commendations.Count > 0)
+                    profile.Record(session.World.Commendations, net.PlayerId);
+                break;
+            }
+            // RESUME, or Escape on the menu's first page: back in the night, the mouse its again.
+            if (frontEnd.Night is null)
+            {
+                window.TextInput = false;
+                window.MouseCaptured = true;
+                window.CaptureOnClick = true;
+            }
         }
         // The night's over: Enter goes back (to the fortress, for a campaign night).
-        if (session.World.Run?.Over == true && input.Pressed(Key.Enter))
+        if (session.World.Run?.Over == true && Pressed(Key.Enter))
         {
             // D.12: what the crew commended you for goes in your profile, whatever becomes of the character.
             if (net is not null && session.World.Commendations.Count > 0)
@@ -699,18 +782,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // GDD v1.4 App. D.12: on the run-end screen, a commendation for a crewmate: the arrows pick who and which, Space gives
         // it; in a headset the stick picks and its click gives.
         if (session.World.Run?.Over == true && net is not null)
-            net.Commend((input.Pressed(Key.Right) || vrPress.HasFlag(VrMenuPress.Right) ? 1 : 0) - (input.Pressed(Key.Left) || vrPress.HasFlag(VrMenuPress.Left) ? 1 : 0),
-                (input.Pressed(Key.Down) || vrPress.HasFlag(VrMenuPress.Down) ? 1 : 0) - (input.Pressed(Key.Up) || vrPress.HasFlag(VrMenuPress.Up) ? 1 : 0),
-                input.Pressed(Key.Space) || vrPress.HasFlag(VrMenuPress.Click));
+            net.Commend((Pressed(Key.Right) || vrPress.HasFlag(VrMenuPress.Right) ? 1 : 0) - (Pressed(Key.Left) || vrPress.HasFlag(VrMenuPress.Left) ? 1 : 0),
+                (Pressed(Key.Down) || vrPress.HasFlag(VrMenuPress.Down) ? 1 : 0) - (Pressed(Key.Up) || vrPress.HasFlag(VrMenuPress.Up) ? 1 : 0),
+                Pressed(Key.Space) || vrPress.HasFlag(VrMenuPress.Click));
         // D.11 (note 202): dead with a ballot to cast, a number key picks a creature and the same again (or Enter) casts it;
         // in a headset the stick's up and down pick (its left and right still change whom you watch) and its click casts.
         if (net is { Voting: true, Ballot: { } ballot })
         {
             int options = ballot.Options.Count;
             for (var k = Key.D1; k < Key.D1 + options; k++)
-                if (input.Pressed(k))
+                if (Pressed(k))
                     net.Picker.Key(k - Key.D1 + 1, options);
-            if (input.Pressed(Key.Enter))
+            if (Pressed(Key.Enter))
                 net.Picker.Cast();
             net.Picker.Headset(vrPress, options);
         }
@@ -737,9 +820,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
-            if (input.Pressed(k) && net is not { Voting: true })
+            if (Pressed(k) && net is not { Voting: true })
                 pendingSelect = (byte)(k - Key.D1 + 1);
-        if (window.MouseCaptured)
+        if (window.MouseCaptured && !inMenu)
             pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
         pendingNotch += notch;
@@ -748,20 +831,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             if (notch != 0) proto.Notch(notch);
             if (reverser) proto.FlipReverser();
-            if (input.Pressed(Key.Backspace)) proto.Respawn(0);
+            if (Pressed(Key.Backspace)) proto.Respawn(0);
             proto.BrakeHeld(Held(Control.Brake));
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
         if (Hit(Control.Chase)) chase = !chase;
-        if (input.Pressed(Key.F1)) showHud = !showHud;
-        if (input.Pressed(Key.F2)) net?.ShowInviteDialog();
+        if (Pressed(Key.F1)) showHud = !showHud;
+        if (Pressed(Key.F2)) net?.ShowInviteDialog();
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
-        if (input.Pressed(Key.F5)) net?.Reconnect();
+        if (Pressed(Key.F5)) net?.Reconnect();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
         if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
         if (Hit(Control.Supplies)) showSupplies = !showSupplies;
-        if (input.Pressed(Key.F3)) showPlan = !showPlan;
+        if (Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)
         {
@@ -769,8 +852,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             break;
         }
 
-        pendingYaw -= input.MouseDX * sensitivity;
-        pendingPitch -= input.MouseDY * sensitivity;
+        if (!inMenu)
+        {
+            pendingYaw -= input.MouseDX * sensitivity;
+            pendingPitch -= input.MouseDY * sensitivity;
+        }
         if (locomotion is not null)
         {
             // In a headset the head looks; the mouse only turns the room.
@@ -1064,9 +1150,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                     overlay.TextCentred(UiWidth / 2f, UiHeight - 12, $"{album.Kept} STILLS KEPT IN YOUR BOOKMARKS FOLDER", new Vector4(0.6f, 0.6f, 0.6f, 1));
             }
         }
+        // The in-night menu (note 292) in place of the HUD: the night dimmed behind its list, nothing else over it.
+        bool menuShown = frontEnd.Night is not null && vr is null;
+        if (menuShown)
+        {
+            overlay.Clear();
+            frontEnd.Draw(overlay, UiWidth, UiHeight);
+        }
         if (vr is null)
         {
-            renderer.Prepare(mesh, showHud ? overlay : null);
+            renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
             Present(camera, lighting);
         }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
@@ -1110,7 +1203,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 
     if (capture is not null)
     {
-        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud ? overlay : null);
+        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || frontEnd.Night is not null ? overlay : null);
         PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
         Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }

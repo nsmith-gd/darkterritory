@@ -38,9 +38,25 @@ public abstract record Launch
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch;
     public sealed record Quit : Launch;
+    /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
+    public sealed record Invite : Launch;
+    /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
+    public sealed record Leave : Launch;
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits }
+/// <summary>
+/// The night the in-night menu was opened over (note 292): what LEAVE's confirmation has to say about leaving it, and
+/// whether there's anyone to invite. The app reads it off the session as Escape opens the menu.
+/// </summary>
+/// <param name="Hosting">This machine runs the night (solo nights too): leaving it ends it for everyone on it.</param>
+/// <param name="Others">The other people aboard, bots not counted: who a host's leaving ends the night for.</param>
+/// <param name="Campaign">A campaign night: its slot carries on from the last stop the train left.</param>
+/// <param name="Invites">A platform lobby with room, that takes invites (Steam's overlay).</param>
+/// <param name="JoinAt">Hosting on the network: the address friends type on JOIN.</param>
+/// <param name="Over">The night's over (the report's up): leaving costs nothing, so it isn't asked twice.</param>
+public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false);
+
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave }
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -222,12 +238,19 @@ public sealed class FrontEnd
         // From the title there's nowhere to back out to.
         if (Screen != Screen.Title)
             Cue?.Invoke(UiCue.Back);
+        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it.
+        if (Night is not null && Screen == Screen.Night)
+        {
+            CloseNight();
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades or Screen.Stores => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
             Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
+            Screen.Leave or Screen.Settings when Night is not null => Screen.Night,
             _ => Screen.Title,
         });
     }
@@ -319,6 +342,9 @@ public sealed class FrontEnd
 
     public void Show(Screen screen)
     {
+        // The in-night menu's pages are only there over a night (note 292).
+        if (screen is Screen.Night or Screen.Leave && Night is null)
+            screen = Screen.Title;
         _blankName = false;
         Editing = null;
         Screen = screen;
@@ -336,6 +362,81 @@ public sealed class FrontEnd
     {
         Show(from);
         Message = why.ToUpperInvariant();
+    }
+
+    /// <summary>
+    /// The night the in-night menu is open over (note 292), or null: the menu's shut (or this is the front end proper).
+    /// </summary>
+    public NightMenu? Night { get; private set; }
+
+    /// <summary>
+    /// Opens the in-night menu (note 292, Escape in a night): RESUME, SETTINGS, INVITE and LEAVE, over the night, which goes
+    /// on (it's the crew's, not this player's to stop). Where the menus were before the night is put back as it closes.
+    /// </summary>
+    public void OpenNight(NightMenu night)
+    {
+        _before ??= (Screen, Selected, Message);
+        Night = night;
+        Message = null;
+        Show(Screen.Night);
+        Cue?.Invoke(UiCue.Select);
+    }
+
+    /// <summary>Shuts the in-night menu (RESUME, or Escape on its first page): back to the night.</summary>
+    public void CloseNight()
+    {
+        if (Night is null)
+            return;
+        Night = null;
+        Editing = null;
+        Capturing = null;
+        if (_before is var (screen, selected, message))
+        {
+            Show(screen);
+            Selected = selected;
+            Message = message;
+        }
+        _before = null;
+    }
+
+    (Screen Screen, int Selected, string? Message)? _before;
+
+    /// <summary>The in-night menu's first page (note 292).</summary>
+    List<Entry> NightEntries(NightMenu n)
+    {
+        var list = new List<Entry>
+        {
+            new(new("RESUME", "The night goes on while this is open."), () => { CloseNight(); return null; }),
+            new(new("SETTINGS"), Go(Screen.Settings)),
+        };
+        // Someone to ask along: a platform lobby that takes invites (its overlay), or a host on the network (its address,
+        // to type on JOIN). A night nobody can join (alone, on this machine only) has no INVITE.
+        if (n.Invites)
+            list.Add(new(new("INVITE", "Your friends, through Steam."), () => new Launch.Invite()));
+        else if (n.Hosting && n.JoinAt is { } at)
+            list.Add(new(new("INVITE", "Friends on your network join by its address."),
+                () => { Message = $"Friends join at {at}: JOIN, then type it."; return null; }));
+        // Over, there's nothing to lose by leaving: it goes at once, as Enter does.
+        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE"), n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
+        return list;
+    }
+
+    /// <summary>
+    /// LEAVE's confirmation (note 292): STAY first, so the Enter that chose LEAVE and the next one don't take you out, and
+    /// LEAVE saying what it costs the crew. A menu's plain word on the session, not a prompt foretelling the night (§32).
+    /// </summary>
+    static List<Entry> LeaveEntries(NightMenu n, Func<Launch?> stay)
+    {
+        // Said under both, so it's read before LEAVE is reached.
+        string cost = n.Hosting && n.Others > 0 ? $"You're the host: the night ends for {(n.Others == 1 ? "the other one" : $"all {n.Others} others")} aboard."
+            : !n.Hosting ? "The crew carries on without you. JOIN finds them again."
+            : n.Campaign ? "The slot carries on from the last stop the train left."
+            : "Nothing from tonight is kept.";
+        return
+        [
+            new(new("STAY", cost), stay, Back: true),
+            new(new(n.Hosting && n.Others > 0 ? "END THE NIGHT FOR EVERYONE" : "LEAVE", cost), () => new Launch.Leave()),
+        ];
     }
 
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
@@ -564,10 +665,11 @@ public sealed class FrontEnd
         ],
         Screen.Settings =>
         [
-            // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name).
-            new(new($"PLAYER NAME: {(Editing == TextField.PlayerName ? Settings.PlayerName + "_" : Settings.PlayerName is { Length: > 0 } me ? me.ToUpperInvariant() : DefaultPlayerName.ToUpperInvariant())}",
+            // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name). Not in a
+            // night (note 292): the crew have it already, from when you joined.
+            .. Night is not null ? (Entry[])[] : [new Entry(new($"PLAYER NAME: {(Editing == TextField.PlayerName ? Settings.PlayerName + "_" : Settings.PlayerName is { Length: > 0 } me ? me.ToUpperInvariant() : DefaultPlayerName.ToUpperInvariant())}",
                 Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
-                    : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName),
+                    : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName)],
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             // The audio checklist's mix-settings: the volumes, the microphone and its level.
@@ -580,9 +682,13 @@ public sealed class FrontEnd
             new(new($"MIC LEVEL: {Settings.MicLevel * 100:0}%", "Left and right to change: up if the crew can't hear you."), null,
                 by => Change(Settings with { MicLevel = Math.Clamp(Math.Round(Settings.MicLevel + by * 0.1, 1), 0, 3) })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
-            new(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
-                _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
-            new(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
+            // The headset's comfort is set as a night starts: not in a night's menu (note 292), which is the window's.
+            .. Night is not null ? (Entry[])[] :
+            [
+                new Entry(new($"VR TURNING: {(Settings.VrTurn == VrTurn.Snap ? "SNAP" : "SMOOTH")}"), Toggle(s => s with { VrTurn = s.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap }),
+                    _ => Change(Settings with { VrTurn = Settings.VrTurn == VrTurn.Snap ? VrTurn.Smooth : VrTurn.Snap })),
+                new Entry(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
+            ],
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
             // T83: the display.
             new(new($"DISPLAY: {(Settings.Fullscreen ? "FULLSCREEN" : "WINDOWED")}"), Toggle(s => s with { Fullscreen = !s.Fullscreen }), _ => Change(Settings with { Fullscreen = !Settings.Fullscreen })),
@@ -592,9 +698,11 @@ public sealed class FrontEnd
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
             new(new("CONTROLS", "Rebind the keys."), Go(Screen.Controls)),
-            BackTo(Screen.Title),
+            BackTo(Night is null ? Screen.Title : Screen.Night),
         ],
         // A row a track (its work and composer), its performers, licence and source drawn under it (DrawCredits).
+        Screen.Night when Night is { } n => NightEntries(n),
+        Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.Credits =>
         [
             .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
@@ -838,20 +946,34 @@ public sealed class FrontEnd
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
     static readonly Vector4 Faint = new(0.40f, 0.39f, 0.36f, 1);
     static readonly Vector4 Amber = new(1.00f, 0.70f, 0.30f, 1);
+    /// <summary>The night behind the in-night menu (note 292): dimmed, not hidden.</summary>
+    static readonly Vector4 Veil = new(0.02f, 0.02f, 0.03f, 0.62f);
 
     /// <summary>Draws the screen in the frame's own pixels, over whatever the frame shows behind it.</summary>
     public void Draw(Overlay o, int width, int height)
     {
-        o.Clear();
         _hits.Clear();
         float x = 20, y = 14;
-        // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
-        float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
-        if (_edition.Tag is { Length: > 0 } tag)
-            o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 24, y + board - 9, tag, Amber);
-        y += board + 8;
+        if (Night is null)
+        {
+            o.Clear();
+            // The title on a station's nameboard (UiStyle), the edition's tag hung under its end.
+            float board = UiStyle.Nameboard(o, x - 6, y, "DARK TERRITORY", 3);
+            if (_edition.Tag is { Length: > 0 } tag)
+                o.Text(x + o.Font.Measure("DARK TERRITORY", 3) + 24, y + board - 9, tag, Amber);
+            y += board + 8;
+        }
+        else
+        {
+            // In a night (note 292): over the HUD as it's drawn, the night dimmed behind the list, and no nameboard (it's
+            // the game you're in). The night goes on in the dark behind it: Lethal Company's quick menu, not a pause.
+            o.Rect(0, 0, width, height, Veil);
+            y += 10;
+        }
         string? heading = Screen switch
         {
+            Screen.Night => "THE NIGHT GOES ON",
+            Screen.Leave => Night is { Hosting: true, Others: > 0 } ? "END THE NIGHT?" : "LEAVE THE NIGHT?",
             Screen.Slots => "CAMPAIGN",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{s.Name.ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
@@ -930,6 +1052,9 @@ public sealed class FrontEnd
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
             : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
+            // The in-night menu's own pages have nothing to change (note 292); Escape on the first is back to the night.
+            : Screen == Screen.Night ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] RESUME"
+            : Screen == Screen.Leave ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] BACK"
             : Headset ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK"
             : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK";
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);

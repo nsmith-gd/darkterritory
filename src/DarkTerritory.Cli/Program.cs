@@ -1873,6 +1873,10 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
+    // --joined, someone else's.
+    if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
@@ -2483,7 +2487,7 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
