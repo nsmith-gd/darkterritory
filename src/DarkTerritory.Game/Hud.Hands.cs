@@ -159,6 +159,17 @@ public static partial class Hud
     /// (the speed when you can drive, what you're carrying, the gun and its shot, the crane) over lines of a key and a few
     /// words. Null head and no lines when there's nothing to say, which is most of the time.
     /// </summary>
+    /// <summary>The cargo car you're inside, if it's full (note 324): a crate put down in it would never load.</summary>
+    static int? FullCarAround(IPlaySession s)
+    {
+        var p = s.Player;
+        var train = s.Train;
+        if (p.Parent <= 0 || p.Parent >= train.Vehicles.Count || !PlayerMotor.Indoors(p, train))
+            return null;
+        var car = train.Vehicles[p.Parent];
+        return car.Kind == VehicleKind.Cargo && car.Load >= 1 ? p.Parent : null;
+    }
+
     public static (string? Head, List<string> Lines) Hints(IPlaySession s)
     {
         var p = s.Player;
@@ -173,6 +184,10 @@ public static partial class Hud
             // A healing find, hurt (note 272): held, Use uses it.
             if (CanHeal(s, carried))
                 lines.Add("USE : HOLD [E]");
+            // Note 324 (note 37's "not yet"): a crate set down in a full car never loads. That stops you, so it's said (§32: a
+            // short state only when it stops you); what a car will take is learned, as ever.
+            if (carried.Kind is BodyKind.Cargo or BodyKind.Heavy && FullCarAround(s) is { } car)
+                lines.Add($"CAR {car} IS FULL");
             if (carried.Kind == BodyKind.Heavy)
                 lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
             else
