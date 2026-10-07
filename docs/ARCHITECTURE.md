@@ -4270,3 +4270,29 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Views:** `prow` (low off the front quarter), `prowside` (square off the left), `wayin` (on the left running board, a crewmate's eye, looking forward to the door).
     - **Found on the way:** a tapered `Kit.Cylinder` (`radiusB`) with its caps drew a black square seen from the side (its cap's face). The pillars are plain cylinders now.
     - **Verified:** `dt screenshot` prow, prowside, wayin, engine, trackside, gangway; `DarkTerritory.Game.Tests` 463 of 464 passed, none failed, one skipped (the runner itself reported a session error after the last test); `art show engine` 18,762 triangles of its 45,000.
+
+312. **The Cinder Hound, remodelled and re-rigged to the director's concept sheet (queue #51, E1; the director, 7 Oct 2026: "I want to get a remodel done and a re-rigging done of this particular style of model … make sure that it still aligns with the look of the game, but try to base what you have for the Cinder Hound off of this look moving forward").** The sheet (front, side and top views) shows a hound burnt to its frame and grown over by what burnt it; `tools/blender/cinder_hound.py` is rebuilt to it and its docstring describes it.
+    - **The frame (SK_Quad, re-rigged).**
+      - The same 40 bones by the same names and hierarchy, so the game's code and every clip's IK drive it unchanged.
+      - The proportions are the sheet's: stilt-legged, the withers 0.72 m (0.55 m before), the hocks high, the chest a deep narrow keel and the waist tucked up hard.
+      - The skull is long and narrow and carried low, nose to rump 1.6 m; with the tail, 1.88 m all told (CreatureArtTests: 1.25 to 1.9).
+      - The forelegs stand out past the keel (`FORE`, 0.115 m from the middle), so their elbows clear it.
+    - **The hide.** Charred plates (`char`: the library's pine bark, burnt dark brown; the baked high copy crazes it into scales split by cracks, lifted at their edges). It's overrun by thorn ridges that branch over the flanks like roots (`thorn`: the library's slag), each with a thorn.
+      - Between them the cracks glow, a branching network (`ember_core`, forked) over the ember faces of the flanks and haunches.
+      - Black crystal shards rake back up the spine (`mineral_growth`), tallest over the withers, with flame streaming off the tallest five. Shards also stand on the skull and the haunches.
+      - Singed fur in tufts: a ruff at the neck and shoulders, a beard under the chest, and the haunches and elbows (`fur`: the library's fleece, burnt brown).
+    - **The head, legs and tail.**
+      - The skull is its own flat-shaded piece (`skull`), its planes catching the light like a carved thing: a blade of a nasal ridge, the brow over sunk ember eyes, tall burnt-card ears, teeth long at the front.
+      - The lower legs are cased in scutes, with a spur back off each elbow and hock.
+      - The paws are big and splayed: four toes each, with long black hooked claws (`claw`).
+      - The tail is a burnt thorn branch, its twigs and thorns off it and its tip split three ways.
+    - **The clips** are the IK gaits and poses of note 291, re-fitted:
+      - the strides are longer and the paws lift higher for the longer legs (`GAITS`);
+      - the prowl, crouch and bite sink lower or higher to suit the body;
+      - the bite's body sits higher so the forelegs stay clear of the keel.
+    - **The bake** (`tools/models/recipes/cinder_hound.py`): dresses for the new materials; the high copy's charred plates replace the matted hair; the body, the skull, the thorn and the fur are baked; the cracks, the flame and the eyes keep their own layers.
+    - **Verified:**
+      - 7,852 triangles of 8,000, 40 bones, every clip present.
+      - `dt art clearance --only cinder_hound` clean (the bite and the hit first put an upper arm into the keel by up to 7 cm).
+      - `dt art clip` side, front quarter and front.
+      - `dt art reel --only cinder_hound` (run, prowl, crouch, lunge, board, hit, bite).

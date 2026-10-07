@@ -11,7 +11,7 @@ still on the neck, the shoulders, the chest and the haunches (fur); the lower le
 and the hock; big splayed paws with long black claws; a tail like a burnt thorn branch. Silhouette first (§26.1): at
 distance in fog, a tall, spiked, long-legged shape with a smoulder along its side.
 
-0.72 m at the withers, 1.6 m nose to rump (the tail hangs on behind, 1.85 m all told), head forward (-Z in the engine).
+0.72 m at the withers, 1.6 m nose to rump (the tail hangs on behind, 1.88 m all told), head forward (-Z in the engine).
 SK_Quad. Clips: prowl (loop), run (gallop loop), crouch (telegraph: low, ready, trembling), lunge (commit), board, hit,
 bite. Motion (§31): "unnaturally still when observed, disturbing changes in pace, abrupt turns, lurches, too-fast
 corrections": holds and CONSTANT-key pops, the head snapping round a beat before the body.
@@ -56,11 +56,11 @@ def quad():
     for side, sx in (("l", -1), ("r", 1)):
         b += [
             Bone(f"ear_{side}", "head", (sx * 0.045, 0.645, 0.85), (sx * 0.07, 0.605, 1.0)),
-            Bone(f"scapula_{side}", "chest", (sx * 0.075, 0.28, 0.7), (sx * 0.1, 0.34, 0.52)),
-            Bone(f"upperarm_{side}", f"scapula_{side}", (sx * 0.1, 0.34, 0.52), (sx * 0.1, 0.265, 0.36)),
-            Bone(f"lowerarm_{side}", f"upperarm_{side}", (sx * 0.1, 0.265, 0.36), (sx * 0.1, 0.28, 0.12)),
-            Bone(f"hand_{side}", f"lowerarm_{side}", (sx * 0.1, 0.28, 0.12), (sx * 0.1, 0.31, 0.035)),
-            Bone(f"finger_{side}", f"hand_{side}", (sx * 0.1, 0.31, 0.035), (sx * 0.1, 0.38, 0.014)),
+            Bone(f"scapula_{side}", "chest", (sx * 0.075, 0.28, 0.7), (sx * 0.115, 0.34, 0.52)),
+            Bone(f"upperarm_{side}", f"scapula_{side}", (sx * 0.115, 0.34, 0.52), (sx * 0.115, 0.265, 0.36)),
+            Bone(f"lowerarm_{side}", f"upperarm_{side}", (sx * 0.115, 0.265, 0.36), (sx * 0.115, 0.28, 0.12)),
+            Bone(f"hand_{side}", f"lowerarm_{side}", (sx * 0.115, 0.28, 0.12), (sx * 0.115, 0.31, 0.035)),
+            Bone(f"finger_{side}", f"hand_{side}", (sx * 0.115, 0.31, 0.035), (sx * 0.115, 0.38, 0.014)),
             Bone(f"thigh_{side}", "pelvis", (sx * 0.085, -0.5, 0.62), (sx * 0.1, -0.36, 0.42)),
             Bone(f"calf_{side}", f"thigh_{side}", (sx * 0.1, -0.36, 0.42), (sx * 0.095, -0.55, 0.21)),
             Bone(f"foot_{side}", f"calf_{side}", (sx * 0.095, -0.55, 0.21), (sx * 0.095, -0.51, 0.035)),
@@ -175,7 +175,7 @@ def hide(pts, n):
     flank = abs(n.x) > 0.55 and -0.22 < c.y < 0.36 and 0.46 < c.z < 0.68
     haunch = abs(n.x) > 0.6 and -0.56 < c.y < -0.4 and 0.55 < c.z < 0.67
     back = n.z > 0.75 and -0.45 < c.y < 0.3 and abs(c.x) < 0.035
-    return EMBER if (flank and noise3(c, 5, 9.0) > -0.35) or haunch or back else CHAR
+    return EMBER if (flank and noise3(c, 5, 9.0) > 0.1) or (haunch and noise3(c, 6, 9.0) > 0) or back else CHAR
 
 
 body.sections(finer(TRUNK, 3), 24, CHAR, trunk, cap0=True, shape=ribs, fmat=hide)
@@ -185,7 +185,7 @@ body.sections(finer(TRUNK, 3), 24, CHAR, trunk, cap0=True, shape=ribs, fmat=hide
 skull_part = kit.part("skull", smooth=False)
 HEAD = [(0.56, 0.06, 0.83, 0.68, 0.9), (0.62, 0.07, 0.862, 0.69, 0.7), (0.68, 0.066, 0.852, 0.7, 0.7),
         (0.75, 0.05, 0.815, 0.705, 0.75), (0.82, 0.04, 0.778, 0.7, 0.8), (0.89, 0.032, 0.75, 0.695, 0.85),
-        (0.95, 0.024, 0.73, 0.69, 0.9), (0.985, 0.013, 0.716, 0.692, 1.0)]
+        (0.94, 0.024, 0.73, 0.69, 0.9), (0.965, 0.013, 0.716, 0.692, 1.0)]
 
 
 def skull(i, j, a, p):
@@ -201,7 +201,7 @@ def skull(i, j, a, p):
 
 skull_part.sections(HEAD, 8, CHAR, "head", cap1=True, shape=skull)
 skull_part.sections([(0.64, 0.05, 0.705, 0.66, 0.8), (0.74, 0.044, 0.703, 0.665, 0.8), (0.84, 0.034, 0.7, 0.67, 0.85),
-                     (0.935, 0.02, 0.695, 0.675, 1.0)], 6, CHAR, "jaw", cap1=True)
+                     (0.92, 0.02, 0.695, 0.675, 1.0)], 6, CHAR, "jaw", cap1=True)
 # Teeth along both jaws: dead ivory in a black mouth, long ones at the front.
 for sx in (-1, 1):
     for k in range(6):
@@ -223,9 +223,11 @@ for sx in (-1, 1):
     skull_part.box((sx * 0.054, 0.69, 0.812), (0.009, 0.014, 0.007), EYE, "head")
 
 # --- legs: long and thin as sticks, knobbed at the joints, the lower legs cased in plates ------------------------
+# (The forelegs stand out past the deep keel of the chest, FORE from the middle.)
+FORE = 0.115
 for sx in (-1, 1):
     s = "r" if sx > 0 else "l"
-    x = sx * 0.1
+    x = sx * FORE
     front = along("z", [(0.02, "finger_{s}"), (0.05, "hand_{s}"), (0.13, "lowerarm_{s}"), (0.3, "lowerarm_{s}"),
                         (0.37, "upperarm_{s}"), (0.5, "upperarm_{s}"), (0.6, "scapula_{s}")])
     fw = lambda p, f=front: {k.format(s=s): v for k, v in f(p).items()}  # noqa: E731
@@ -265,15 +267,15 @@ for sx in (-1, 1):
         by = pts[m].y
         bpts = [pts[m]] + [on_trunk(by - 0.03 * i * sx * (1 if k % 2 else -1), angs[m] + 0.18 * i, 0.006, sx) for i in (1, 2, 3)]
         thorn.tube(bpts, [0.01, 0.008, 0.006, 0.004], 4, THORN, trunk, ref=(sx, 0, 0), cap1="point")
-        # Thorns off it, standing out of the hide.
-        for i in (1, 3):
+        # A thorn off it, standing out of the hide (one each: the budget's the crack network's).
+        for i in (2,):
             root = pts[i]
             out = on_trunk(root.y, angs[i], 0.06, sx)
             spike(thorn, root, out + Vector((0, -0.02, 0.01)), 0.011, THORN, trunk)
 # The legs' plates: charred scutes down the fronts of the forearms and the cannons, a spur back off each elbow and hock.
 for sx in (-1, 1):
     s = "r" if sx > 0 else "l"
-    x = sx * 0.1
+    x = sx * FORE
     for k, z in enumerate((0.31, 0.24, 0.17)):
         thorn.box((x * 1.02, 0.262 + 0.004 * k, z), (0.03, 0.014, 0.036), THORN, f"lowerarm_{s}", taper=(0.75, 0.9),
                   rot=rig.Matrix.Rotation(-0.25, 4, "X"))
@@ -285,7 +287,7 @@ for sx in (-1, 1):
     spike(thorn, Vector((xr, -0.56, 0.22)), Vector((xr * 1.05, -0.64, 0.27)), 0.018, THORN, f"calf_{s}")
     # Paws: big and splayed, four long toes, the claws long and black and hooked.
     for y0, bone, root in ((0.33, f"finger_{s}", f"hand_{s}"), (-0.47, f"toe_{s}", f"foot_{s}")):
-        px = x * (0.98 if y0 > 0 else 0.95)
+        px = x * 0.98 if y0 > 0 else sx * 0.095
         body.box((px, y0, 0.02), (0.036, 0.05, 0.018), CHAR, {bone: 0.7, root: 0.3}, taper=(0.85, 0.75))
         for t in (-1.5, -0.5, 0.5, 1.5):
             tx = px + t * 0.017
@@ -359,7 +361,7 @@ for sx in (-1, 1):
         p = on_trunk(y, ang, 0.0, sx)
         k += 1
         tuft(p, (sx, -0.2, -0.3), trunk(p), length=0.07, seed=k)
-    tuft((sx * 0.11, 0.3, 0.44), (sx, -0.3, -0.5), {f"upperarm_{s}": 1.0}, n=3, length=0.06, seed=50 + sx)
+    tuft((sx * (FORE + 0.012), 0.3, 0.44), (sx, -0.3, -0.5), {f"upperarm_{s}": 1.0}, n=3, length=0.06, seed=50 + sx)
 # The chest's beard, hanging under the neck.
 for y in (0.4, 0.47):
     k += 1
@@ -392,11 +394,15 @@ for sx in (-1, 1):
         y, a = y0, a0
         for i in range(n):
             # Wander: each step jinks by a fixed hash, so the cracks look torn, not drawn.
-            y += dy + 0.02 * noise3(Vector((sx * 3 + k, i, 0)), 131, 1.7)
-            a += da + 0.08 * noise3(Vector((sx * 5 + k, i, 1)), 132, 1.9)
-            pts.append(on_trunk(y, a, 0.006, sx))
-        cracks.tube(pts, [0.009 if i % 2 else 0.006 for i in range(len(pts))], 4, CORE, trunk, ref=(sx, 0, 0), cap0="point",
+            y += dy + 0.035 * noise3(Vector((sx * 3 + k, i, 0)), 131, 1.7)
+            a += da + 0.16 * noise3(Vector((sx * 5 + k, i, 1)), 132, 1.9)
+            pts.append(on_trunk(y, a, 0.005, sx))
+        cracks.tube(pts, [0.006 if i % 2 else 0.004 for i in range(len(pts))], 4, CORE, trunk, ref=(sx, 0, 0), cap0="point",
                     cap1="point")
+        # A fork off its middle, the way a crack runs off another.
+        f = pts[len(pts) // 2]
+        fork = [f] + [on_trunk(f.y + 0.03 * i * (1 if k % 2 else -1), a - 0.12 * i, 0.005, sx) for i in (1, 2)]
+        cracks.tube(fork, [0.004, 0.003, 0.002], 4, CORE, trunk, ref=(sx, 0, 0), cap1="point")
 spine_crack = [on_trunk(y, 0.0, 0.004) + Vector((0.006 * noise3(Vector((y, 0, 0)), 133, 20.0), 0, 0)) for y in
                [-0.4 + 0.07 * i for i in range(10)]]
 cracks.tube(spine_crack, [0.008] * len(spine_crack), 4, CORE, trunk, ref=(0, 0, 1), cap0="point", cap1="point")
@@ -491,7 +497,7 @@ def paw(p, group, side, y, z, mid_pitch, end_pitch, spread=1.0):
     The stifle always forward of the line from the hip to the hock, the elbow always behind the shoulder's to the wrist
     (a dog's legs fold one way): a hard penalty on the wrong side, a pole to settle the rest."""
     upper, lower, mid, end = (f"{n}_{side}" for n in LEGS[group])
-    x = (0.1 if side == "r" else -0.1) * (0.95 if group == "rear" else 1.0) * spread
+    x = (1 if side == "r" else -1) * (0.095 if group == "rear" else FORE) * spread
     pm, lm = bone_pitch(mid)
     pe, le = bone_pitch(end)
     am, ae = math.radians(mid_pitch), math.radians(end_pitch)
@@ -712,7 +718,7 @@ hit.key(12, STAND, "CONSTANT")
 # hauling back, the jaws clamped; the head wrenching side to side in hard pops, the whole body thrown the other way
 # behind it, held, wrenched again; a hind paw losing its footing and stamping back down; the tail lashing.
 def biting(w, back, slip=0.0):
-    p = posed(root__loc=(0.01 * w / 30, -0.05 - back, -0.14), root=(0, 0, -0.2 * w), pelvis=(-14, 0, 0.3 * w),
+    p = posed(root__loc=(0.01 * w / 30, -0.05 - back, -0.08), root=(0, 0, -0.2 * w), pelvis=(-14, 0, 0.3 * w),
              spine_01=(6, 0, 0.2 * w), spine_02=(4, 0, -0.2 * w), chest=(-6, 0, -0.3 * w),
              neck_01=(-14, 0, w * 0.5), neck_02=(-12, 0, w * 0.5), head=(10, w * 0.4, w * 0.3), jaw=(-8, 0, 0),
              ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(-10, 0, -w), tail_02=(0, 0, -0.6 * w), tail_03=(0, 0, 0.5 * w),

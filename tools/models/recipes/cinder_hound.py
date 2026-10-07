@@ -38,9 +38,9 @@ make._mats.clear()
 make.LOW.clear()
 
 DRESS = {
-    "char.hound": ("pine_bark", 7.0, (0.16, 0.14, 0.13), 0.85, 2),
-    "thorn.hound": ("slag", 6.0, (0.42, 0.26, 0.2), 0.7, 0),
-    "fur.hound": ("fleece", 9.0, (0.55, 0.38, 0.24), 0.95, 0),
+    "char.hound": ("pine_bark", 7.0, (0.34, 0.29, 0.25), 0.85, 2),
+    "thorn.hound": ("slag", 6.0, (0.55, 0.34, 0.25), 0.7, 0),
+    "fur.hound": ("fleece", 9.0, (0.78, 0.55, 0.34), 0.95, 0),
     "claw.hound": ("slag", 10.0, (0.12, 0.11, 0.11), 0.35, 0),
     "mineral_growth.hound": ("mineral_growth", 4.0, (0.42, 0.4, 0.46), 0.35, 0),
     "flesh.gums": ("flesh", 8.0, (0.55, 0.3, 0.3), 0.4, 1),
