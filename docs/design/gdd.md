@@ -2148,7 +2148,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*

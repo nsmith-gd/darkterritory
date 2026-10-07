@@ -1372,6 +1372,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
+    // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
+    if (Str(args, "--breached", "") is { Length: > 0 } holes)
+        foreach (int i in holes.Split(',').Select(int.Parse))
+            if (i > 0 && i < train.Vehicles.Count && Breaches.EndWall(train.Frames[i].Shape) is { } wall)
+                train.Vehicles[i].Breach(wall);
+    {
+        var breaks = RepairCallouts.Of(train);
+        if (scene.Ruptured && !train.Boiler.Ruptured && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { Kind: InteractableKind.Firebox } fire)
+            breaks.Insert(0, new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        scene.Breaks = breaks;
+        if (args.Contains("--mending"))
+            scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
+    }
     // --phase s: how far through a timed act the staged crew are (the cannon's reload: 1.5 s a beat; Crewmate.Phase).
     if (args.Contains("--phase") && scene.Crew is { } phased)
         scene.Crew = [.. phased.Select(c => c with { Phase = Opt(args, "--phase", 0) })];
