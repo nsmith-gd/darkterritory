@@ -63,15 +63,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
 | 28 | **The guns' effect on creatures:** rounds land on what they hit and a hit creature shows it: the strike seen and heard where it lands, the creature reacting by its own rule (GDD App. F.1: "the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters"). **Overlaps:** A1's #25 (creatures killable by a coordinated team, on #198) owns whether a creature dies; #28 makes the hit land, read and drive off by the creature's rule, and leaves the kill rules to #25 | D1 | `claude/relaxed-franklin-xkfjgb` (PR next) | 290 | in review |
+| 34 | **T128's caveats, the forts and the left-behind:** the Choir's meter stilled while the train's in a fort (note 273: "the Choir's meter isn't stilled in the terminus"); more than Ribbits hunt a crewmate left behind (note 273: "only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground"; GDD App. F.1 "Abandoned player") | D1 | `claude/relaxed-franklin-xkfjgb` (after #28) | 296 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **291** (counting claims on open PRs up to 289, and D1's 290). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **297** (counting claims on open PRs: #209 B4 294–295, #210 E1 291, #211 F1 292–294; D1's 290 and 296). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 290 (D1's guns on creatures). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 290 (D1's guns on creatures), 296 (D1's T128 caveats). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
