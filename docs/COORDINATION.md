@@ -70,10 +70,10 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 28 | **The guns' effect on creatures:** rounds land on what they hit and a hit creature shows it: the strike seen and heard where it lands, the creature reacting by its own rule (GDD App. F.1: "the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters"). **Overlaps:** A1's #25 (creatures killable by a coordinated team, on #198) owns whether a creature dies; #28 makes the hit land, read and drive off by the creature's rule, and leaves the kill rules to #25 | D1 | `claude/relaxed-franklin-xkfjgb`, [#212](https://github.com/nsmith-gd/darkterritory/pull/212) | 290 | done |
 | 32 | **Blocked sidings:** derelict cars standing on a yard's sidings, by tier (level-design D.2: 0 / 0–1 / 1–2 / 1–3, never all), scored as clearances (D.1: +2 throws, ×5) in the stop's difficulty, laid in the world as standing rakes the crew must pull clear (note 187's `Stand`), and worked by the bots' stop crew. Level-design I.4's "derelict cars on the sidings" | B4 | `claude/friendly-davinci-y7imvb` (after #209) | 294 | claimed |
 | 33 | **Tunnel name plates:** a named tunnel's plate on both portals (linegen-plan §13.3; the signage skips tunnels today) | B4 | `claude/friendly-davinci-y7imvb` (after #32) | 295 | claimed |
-| 34 | **T128's caveats, the forts and the left-behind:** the Choir's meter stilled while the train's in a fort (note 273: "the Choir's meter isn't stilled in the terminus"); more than Ribbits hunt a crewmate left behind (note 273: "only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground"; GDD App. F.1 "Abandoned player") | D1 | `claude/relaxed-franklin-xkfjgb` (after #28) | 296 | claimed |
+| 34 | **T128's caveats, the forts and the left-behind:** the Choir's meter stilled while the train's in a fort (note 273: "the Choir's meter isn't stilled in the terminus"); more than Ribbits hunt a crewmate left behind (note 273: "only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground"; GDD App. F.1 "Abandoned player") | D1 | `claude/relaxed-franklin-xkfjgb` (PR next) | 296 | in review |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
-23:38 UTC; A1 republishes it whenever gdd.md changes on main.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
+14:45 UTC (D1, main at 8caabe7, version 8); whoever lands a gdd.md change republishes it (A1 when it's about).
 
 ## ARCHITECTURE §8 note numbers
 

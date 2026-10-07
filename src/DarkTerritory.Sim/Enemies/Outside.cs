@@ -172,6 +172,17 @@ public sealed class Gaunt(int id) : Enemy(id)
 
     public static Gaunt Asleep(int id, Double3 world, GauntTuning t) => new(id) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
 
+    /// <summary>
+    /// Already awake and after <paramref name="waker"/> (note 296: one sent at a crewmate left behind): it follows them from
+    /// where it's put down, as if they'd come too close to it there.
+    /// </summary>
+    public static Gaunt WokenBy(int id, Double3 world, int waker, GauntTuning t)
+    {
+        var g = Asleep(id, world, t);
+        g.Restore(SpinePhase.Telegraph, 0, t.Health, Loose, world, 0, 0, 0, waker, 0);
+        return g;
+    }
+
     protected override void Tick(EnemyContext ctx)
     {
         var t = ctx.Tuning.Gaunt;
@@ -342,7 +353,9 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         var train = ctx.Train;
         var behind = new Double3(DMath.Sin(w.Yaw), 0, DMath.Cos(w.Yaw)) * t.FollowAt;
-        if (w.Parent >= 0)
+        // Onto the train with them only from at their back: one still walking up after them (note 296: woken from far off)
+        // comes the rest of the way on foot, and is left standing if the train pulls away.
+        if (w.Parent >= 0 && (PlayerMotor.WorldPosition(w, train) - WorldPosition(train)).Length <= t.FollowAt * 3)
         {
             Attached = w.Parent;
             Local = w.Position + behind;

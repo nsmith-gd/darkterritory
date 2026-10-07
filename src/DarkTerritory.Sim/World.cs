@@ -1136,8 +1136,17 @@ public sealed class World
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
                 }
-                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather.
-                bool swarm = !SafeYard && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather. Nor with the train in
+                // a fort (GDD §9; note 273's caveat, note 296): what it had gathered falls away as in the quiet, and a swarm
+                // that followed the train in is gone (its ghosts are driven off by the fort, below).
+                bool fort = !SafeYard && TrainInFort;
+                if (fort)
+                {
+                    if (Choir.Present)
+                        Choir.Disperse(false, c.Choir.RestSeconds);
+                    Choir.Build = Math.Max(0, Choir.Build - c.Choir.QuietDecayPerSecond * SimConstants.TickSeconds);
+                }
+                bool swarm = !SafeYard && !fort && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
