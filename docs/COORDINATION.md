@@ -39,6 +39,11 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
 - **VR is on the backburner.** No new VR features or art; keep the existing VR tests green.
 - **Audio** belongs to the audio chat, except the derailment opera.
 - PRs can be merged by whoever opened them once they're green.
+- **Keep the shared artifacts current** (the director, 7 Oct): every time you land something or get an instruction, update the
+  artifacts that track it: the GDD (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx; A1 republishes it from gdd.md), the Wiki
+  (claude.ai/artifact/WPsKWpHkYctBbpGGFutbjA: what a crew sees, page by page), the Art Checklist
+  (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Audio Checklist (claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN) and the Look
+  Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm). Read the live version first and change only your own rows or sections.
 
 ## The queue
 
@@ -61,15 +66,15 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
-| 30 | **Blocked sidings:** derelict cars standing on a yard's sidings, by tier (level-design D.2: 0 / 0–1 / 1–2 / 1–3, never all), scored as clearances (D.1: +2 throws, ×5) in the stop's difficulty, laid in the world as standing rakes the crew must pull clear (note 187's `Stand`), and worked by the bots' stop crew. Level-design I.4's "derelict cars on the sidings" | B4 | `claude/friendly-davinci-y7imvb` (after #209) | 292 | claimed |
-| 31 | **Tunnel name plates:** a named tunnel's plate on both portals (linegen-plan §13.3; the signage skips tunnels today) | B4 | `claude/friendly-davinci-y7imvb` (after #30) | 293 | claimed |
+| 32 | **Blocked sidings:** derelict cars standing on a yard's sidings, by tier (level-design D.2: 0 / 0–1 / 1–2 / 1–3, never all), scored as clearances (D.1: +2 throws, ×5) in the stop's difficulty, laid in the world as standing rakes the crew must pull clear (note 187's `Stand`), and worked by the bots' stop crew. Level-design I.4's "derelict cars on the sidings" | B4 | `claude/friendly-davinci-y7imvb` (after #209) | 294 | claimed |
+| 33 | **Tunnel name plates:** a named tunnel's plate on both portals (linegen-plan §13.3; the signage skips tunnels today) | B4 | `claude/friendly-davinci-y7imvb` (after #32) | 295 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **294**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290 on #208; E1 291 on #210). Reserved by B4: 292 (blocked sidings), 293 (tunnel name plates). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **296**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290 on #208; E1 291 on #210; F1 292–293 on #211). Reserved by B4: 294 (blocked sidings), 295 (tunnel name plates). Next free queue item: **#34**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
 renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward). Take a number by adding it here and to your queue row.
 
