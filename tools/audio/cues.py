@@ -579,7 +579,7 @@ CUES = {
         L("nest-smash", "A nest being smashed, for as long as someone's at it"),
         O("nest-burst", "The nest finally destroyed", vars=2),
         # Note 290: pain sounds for a ball are the audio chat's.
-        O("hit", "A ball or a blow landing on one off a back: a chittering squeal", vars=3),
+        O("hit", "A ball or a blow landing on one that isn't on a back (on the boards or the nest): a chittering squeal", vars=3),
     ],
     "cs-soot-children": [
         O("turn", "Turning inhuman"),

@@ -288,7 +288,12 @@ public sealed partial class GameAudio
                 var under = frame.ToWorld(new Double3(0, 0.5, 0));
                 // A derelict off a blocked siding (note 294), shunted out on its seized axles: its own grind and thump (note 322).
                 if (v.Derelict && speed > 0.3)
+                {
                     HoldLevel("place-derelict.roll", v.Id, under, Occlusion(PlayerMotor.Outside), Math.Clamp(speed / 4, 0.35, 1));
+                    // Its flats thump once a turn, so the loop runs with the car (install.py's rate on "speed").
+                    if (_held.TryGetValue(("place-derelict.roll", v.Id), out var seized))
+                        seized.Params.Set("speed", speed);
+                }
                 if (rolling)
                     // Louder all the way up to full speed (was full by 12 m/s), so speed is heard as well as felt (note 265).
                     HoldCrossfade("bed-wheel-rail.roll-slow", "bed-wheel-rail.roll-fast", v.Id, (speed - 8) / 10, under, 0,

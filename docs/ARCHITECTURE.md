@@ -4585,7 +4585,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `ui-menus.delete`, the stamp for a crew deleted (the entry's own `Sound`, in place of select);
         - `ui-panels.open`, `close` and `page` for the route card, the supplies and the roster (App);
         - `ui-film.skip`, this player's own film skipped (the session's `SkipHold` reaching its end; `Choices`).
-    - **Not yet:** the mail crane's catch and miss (host-only today: it needs a replicated field first).
+    - **The sounds:** 46 candidates, two per cue where the approach was open, uploaded to the audio checklist and installed first-choice (L1 until kept):
+        - foley built from the CC0 packs, the real thing where they have it (`recipes/heard_foley.py`);
+        - each creature's hurt from its own established voice and body (`recipes/heard_creatures_ui.py`);
+        - the interface matched to the existing paperwork set (ledger, card, typewriter, rubber stamp, the projector's shutter).
+    - **Tuning in install.py:**
+        - the starved engine's first choice is the beatless one (`FIRST_CHOICE`), since the chuff already beats;
+        - a derelict's flats thump once a turn, built at 2.4 m/s, so its loop's rate follows the car's speed (`LAYER_EXTRAS`, the "speed" param `BedWheels` sets).
+    - **Not yet:**
+        - The mail crane's catch and miss: host-only today, so it needs a replicated field first.
+        - The jig is on wood only; a dance on the ballast or a roof wants its own surfaces.
+        - Breaths, swallows, the cork, the syrette's tube, the Switchman's lamp chain and the projector are stand-ins until the Sonniss library.
     - **Verified:**
         - `FeatureSoundTests` (the healing find on a generated night, emotes and outfits, the shovel's rack, the starved engine's level, a derelict shunted, a ball by surface);
         - `CreatureSoundTests.TheCarHuggerIsHeardSpittingOutACrewmatePulledFreeButNotOneEaten` and `ABallOrABlowThatDoesntKillACreatureIsItsOwnHurt`;

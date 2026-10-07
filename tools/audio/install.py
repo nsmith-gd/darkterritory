@@ -190,7 +190,9 @@ def candidates(line, cue, stored):
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
 FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
-                "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter"}
+                "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
+                # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
+                "state-starved.labour": "drag"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -293,6 +295,9 @@ VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+    # A derelict's flat wheels thump once a turn, built at 1.2 s a turn (a 0.9 m wheel at 2.4 m/s): faster or slower with
+    # the car (GameAudio.BedWheels sets "speed"; note 322).
+    "place-derelict.roll": {"rate": {"param": "speed", "points": [[0.6, 0.6], [2.4, 1.0], [4.0, 1.35]]}},
     # The bed's air and wheels kept under the tells' bands, as the synths they replace were (wind.json lowpassed at 650 Hz,
     # wheel-rail.json under 420 Hz): recorded, their hiss over 2 kHz buried the Climbers' scrabble (AudioTests' chaos bench).
     "bed-wind.wind-slow": {"filters": [{"type": "lowPass", "frequency": 1500}]},
