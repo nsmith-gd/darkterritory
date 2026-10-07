@@ -40,6 +40,14 @@ public static class Staging
     }
 
     /// <summary>
+    /// The dark answering a draw (note 287, `dt screenshot --answer left`): eyes <paramref name="ahead"/> m out from the engine's nose and
+    /// <paramref name="lateral"/> m to its right (enemies.json director.draw's answerDistance and answerLateral), at an animal's
+    /// eye height off the ground, <paramref name="left"/> seconds still to show.
+    /// </summary>
+    public static DrawAnswer Answer(TrainOnLine train, double left, double ahead = 60, double lateral = 12, double height = 0.7) =>
+        new(left, DrawCause.Whistle, Sim.World.DrawAnswerAt(train, ahead, lateral, height), 0);
+
+    /// <summary>
     /// The roof warning (note 260, `dt screenshot --hud --roof-warning tunnel|bend`): a solo night on <paramref name="route"/>
     /// with the train <paramref name="seconds"/> short of its first tunnel's mouth (or its first posted bend, taken fast
     /// enough to throw roof riders off), the player up on car 2's roof facing ahead, warned.
@@ -895,7 +903,7 @@ public static class Staging
         {
             var hound = new CinderHound(10 + i, 10);
             // At the sim's own height off the rail (Rear.cs: -0.3), on the ground: not the 0.6 they were staged at, which ran
-            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 323).
+            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 331).
             hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), -0.3, 10, 0);
             threats.Add(hound);
         }

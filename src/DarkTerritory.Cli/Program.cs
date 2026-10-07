@@ -1285,6 +1285,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         SinceShovel = args.Contains("--flare") ? Opt(args, "--flare", 0.15) : double.PositiveInfinity,
         // --gathering g: the Choir that far through its gathering (0-1), its frost in the air and the crew's breath (A.7).
         ChoirGathering = (float)Opt(args, "--gathering", 0),
+        // --answer left: the dark answering a draw (note 287), its eyes at the lamp's edge up the line, left seconds still to
+        // show (4: open, before the blink); --answer-at ahead,lateral moves them (default 60,-12: left of the rail, in the driver's window).
+        Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
+            ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
@@ -1888,6 +1892,14 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
+    // --menu mods (note 323): the example mod as installed (tools/mods), and one that can't load for want of another.
+    if (screen == DarkTerritory.Game.Screen.Mods)
+    {
+        var tools = Path.Combine(Path.GetDirectoryName(DataFile.FindContentRoot())!, "tools", "mods");
+        menu.InstalledMods = [.. ContentMods.Find(tools).Select(m => new DarkTerritory.Game.InstalledMod(m.Name, m.Version, m.Description))];
+        menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
+        menu.ModsOff = args.Contains("--no-mods");
+    }
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
@@ -2035,6 +2047,17 @@ static object HudShot(string content, string[] args)
             };
             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
+        }
+        // --full-car (note 324): inside the first cargo car, loaded full, a crate from the first stop in hand.
+        if (args.Contains("--full-car") && solo.World.Run is { } stocked)
+        {
+            stocked.Stock(solo.World.Bodies, 0);
+            int car = Enumerable.Range(1, solo.Train.Vehicles.Count - 1).First(i => solo.Train.Vehicles[i].Kind == DarkTerritory.Sim.Train.VehicleKind.Cargo);
+            var room = solo.Train.Frames[car].Shape.Interior!.Value;
+            var middle = (room.Min + room.Max) * 0.5;
+            solo.Player = solo.Player with { Parent = car, Surface = DarkTerritory.Sim.Player.Surface.Deck, Position = middle with { Y = room.Min.Y + 0.1 }, Velocity = default };
+            solo.Train.Vehicles[car].Load = 1;
+            solo.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo).Carrier = ((IPlaySession)solo).PlayerId;
         }
         // --cord (note 264): in the cab looking up at the whistle cord's handle, as the driver reaching for it does.
         if (args.Contains("--cord") && solo.Train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == DarkTerritory.Sim.Train.InteractableKind.Whistle) is { Aim: > 0 } cord)

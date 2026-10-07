@@ -1302,6 +1302,8 @@ pressure per second = tier × conditions × relief × busy × escalation × (bas
 
 The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
 
+**The first threat is drawn** (*design decision, 2026-10*; ARCHITECTURE §8 note 287). The night's first threat answers something a crewmate did: the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard. Each is credited to whoever did it, and fades over half a minute. Past the grace, the first draw big enough is answered from the dark, a distant call and eyes at the lamp's edge, and the threat follows a few seconds later, weighted toward what that draw calls (the whistle the Whistler, a lamp the Fire Flies, the cargo the Car Hugger). A crew that draws nothing is listened for longer, until the pressure presses. The incident report names the draw and who made it (C.9, §23.1 "Owned").
+
 Past the **threshold** the director spends: on what its weights, wants, pairs, gates and caps pick, as before. **Spending relieves the pressure** by the spawn's cost. Well past the threshold (a long quiet, or a night the budget's curve can't keep up with) the post-event cooldown gives way and the curve may be overdrawn a little. The dead's votes move weight between creatures and never touch the pressure. All the coefficients are in `director.pressure` in `content/tuning/enemies.json`; the systems spec (B.9) has the numbers.
 
 ### Pressure cost per enemy
@@ -2064,6 +2066,39 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.3 2026-10-07 — main at 8442eee, and the integration test builds
+
+*Numbered F.3 so that "App. F.1" stays the build 1121 review it has always meant; newest first all the same.*
+
+**Played:** the director, the day's Windows test builds (main with the open PRs merged on top) and CI's build of main at 8442eee (everything merged up to 4 pm EDT).
+
+**Boiler**
+- Heat and pressure both fell and the train held its top speed. *Done (note 319, #243): an engine short of steam holds the train back below the working band (`boiler.json` `starvedDecel`).*
+
+**Towns and world building**
+- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #62, #194).*
+- The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
+
+**Level design**
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *Open (queue #65, note 326, B4).*
+
+**Encounters**
+- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
+- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *Open (queue #67, note 328).*
+
+**Pacing on the train**
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Open (queue #67, note 328).*
+- A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Open (queue #67, note 328).*
+
+**Repairs**
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+
+**Audio**
+- A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Open (queue #68, note 329).*
+
+**Derailment**
+- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Open (queue #69, note 330).*
+
 ## F.1 2026-10-06 — build 1121
 
 **Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
@@ -2120,7 +2155,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Second session (same build, continued)**
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *Done (note 264): dropped.*
-- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Done (note 287): the night's first threat answers something a crewmate did (the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard). Past the grace, a draw big enough is answered from the dark: a distant call and a pair of eyes at the lamp's edge, and the threat follows five seconds later. A quiet crew is listened for longer. The incident report names it: "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *Done (notes 264, 276).*
 - *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *Done (note 265): the Sleepers are retired.*

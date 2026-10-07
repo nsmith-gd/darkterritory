@@ -498,6 +498,32 @@ public class HudTests
     }
 
     [Fact]
+    public void ACrateCarriedIntoAFullCarSaysTheCarsFull()
+    {
+        // Note 324: a crate put down in a full car never loads (Run: Load < 1), which stops you; said as a short state in the
+        // corner, the car by its stencilled number. Room to spare, and nothing's said.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        for (int k = 0; k < run.Stops.Count; k++)
+            run.Stock(s.World.Bodies, k);
+        var crate = s.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo);
+        crate.Carrier = ((IPlaySession)s).PlayerId;
+        int car = Enumerable.Range(1, s.Train.Vehicles.Count - 1).First(i => s.Train.Vehicles[i].Kind == VehicleKind.Cargo);
+        var room = s.Train.Frames[car].Shape.Interior!.Value;
+        var middle = (room.Min + room.Max) * 0.5;
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, car, middle.Z, s.PlayerTuning) with { Position = middle with { Y = room.Min.Y + 0.1 }, Surface = Surface.Deck };
+        Assert.True(PlayerMotor.Indoors(s.Player, s.Train));
+        s.Train.Vehicles[car].Load = 0.5;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("FULL"));
+        s.Train.Vehicles[car].Load = 1;
+        Assert.Equal($"CAR {car} IS FULL", Hud.Hints(s).Lines[0]);
+        // Empty-handed, or carrying what isn't freight, a full car is nothing to say.
+        crate.Carrier = -1;
+        Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("FULL"));
+    }
+
+    [Fact]
     public void AHealingFindInHandSaysHoldUseWhenYoureHurt()
     {
         // Note 272 in note 285's form: the find's name and keys are the corner's, "USE : HOLD [E]" only when hurt; what it
