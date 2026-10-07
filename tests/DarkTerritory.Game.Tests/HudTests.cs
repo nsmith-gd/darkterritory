@@ -80,10 +80,14 @@ public class HudTests
         Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("[E] HOLD: VENT STEAM (SLOWER)   OR [VENT] ANYWHERE IN THE CAB", Hud.Prompt(s));
+        // At the controls looking at nothing (note 281): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
-        Assert.StartsWith(s.Train.BoilerTuning?.SteamDrive == true ? "[R] RELEASE BRAKE" : "[R/F] REGULATOR", Hud.Prompt(s));
+        Assert.Null(Hud.Prompt(s));
+        Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "[R] RELEASE BRAKE" : "[R/F] REGULATOR", Hud.Hints(s).Lines[0]);
         s.Player = s.Player with { Health = 0, Death = DeathCause.Cold };
         Assert.Null(Hud.Prompt(s));
+        Assert.Null(Hud.Hints(s).Head);
+        Assert.Empty(Hud.Hints(s).Lines);
     }
 
     /// <summary>Stood in the cab at <paramref name="at"/>, looking at <paramref name="kind"/>'s handle.</summary>
@@ -102,7 +106,7 @@ public class HudTests
     public void TheCabSaysTheCordTheVentAndTheBrakeAndLittleElse()
     {
         // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says what it is and that it's loud;
-        // the vent's one key is on the driving prompt with the brake's, and held, the prompt says it's working.
+        // the vent's one key is in the corner with the brake's (note 281), and held, the prompt says it's working.
         var s = new PrototypeSession(Content, "test-loop", 4);
         // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
         var shape = s.Train.Frames[0].Shape;
@@ -113,23 +117,32 @@ public class HudTests
         s.Player = LookingAt(s, firebox.Position + new Double3(0.35, 0, -0.45), InteractableKind.Firebox);
         Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
-        Assert.Contains("[VENT] HOLD: VENT", Hud.Prompt(s));
-        Assert.DoesNotContain("REVERSER", Hud.Prompt(s));
-        Assert.Contains("[LEFT CTRL]", Hud.Bound(Hud.Prompt(s)!));
+        var (head, lines) = Hud.Hints(s);
+        Assert.Contains("[VENT] HOLD: VENT", lines);
+        // Forward goes without saying; the reverser's said only when it's back.
+        Assert.DoesNotContain(lines, l => l.Contains("REVERSE"));
+        s.Controls.Reverser = -1;
+        Assert.Contains("[X] IN REVERSE", Hud.Hints(s).Lines);
+        s.Controls.Reverser = 1;
+        Assert.Contains("[LEFT CTRL]", Hud.Bound(string.Join("   ", lines)));
+        // The corner's head is the speed, for the driver to read against the boards.
+        Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;
         Assert.StartsWith("VENTING STEAM: PRESSURE", Hud.Prompt(s));
         s.Train.Boiler.Vented = false;
 
-        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, nothing (hud-look: "too much
-        // UI ... not enough in world"): the driver's gauges are in the cab.
-        static int TopLeft(Overlay o) => o.Vertices.Count(v => v.Position.X < 160 && v.Position.Y < 46);
+        // The corner is the cab's alone (hud-look: "too much UI ... not enough in world"): on a roof with empty hands, it
+        // says nothing, and nothing's drawn at the bottom right.
+        static int BottomRight(Overlay o) => o.Vertices.Count(v => v.Position.X > 360 && v.Position.Y > 200);
         var hud = new Overlay();
         Hud.Build(hud, 480, 270, s);
-        int cab = TopLeft(hud);
+        int cab = BottomRight(hud);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 1, 0, s.PlayerTuning);
+        Assert.Null(Hud.Hints(s).Head);
+        Assert.Empty(Hud.Hints(s).Lines);
         Hud.Build(hud, 480, 270, s);
-        int roof = TopLeft(hud);
-        Assert.True(cab > 0, "the cab has its panel");
+        int roof = BottomRight(hud);
+        Assert.True(cab > 0, "the cab's controls are in the corner");
         Assert.Equal(0, roof);
     }
 
@@ -283,8 +296,12 @@ public class HudTests
         Assert.Equal($"[E] HOLD: MEND YOUR RADIO WITH THE KIT ({s.TrainTuning.Kit.RadioMendSeconds:0}S)   [E] PUT DOWN", Hud.Prompt(s));
         radio.MendTicks = (int)(s.TrainTuning.Kit.RadioMendSeconds * DarkTerritory.Sim.SimConstants.TickRate / 2);
         Assert.Equal("[E] HOLD: MENDING YOUR RADIO WITH THE KIT (50%)", Hud.Prompt(s));
+        // Mended, nothing at the crosshair: what the kit in your hands is for, and how to be rid of it, is the corner's.
         radio.Broken = false;
-        Assert.StartsWith("THE REPAIR KIT:", Hud.Prompt(s));
+        Assert.Null(Hud.Prompt(s));
+        var (head, lines) = Hud.Hints(s);
+        Assert.Equal("THE REPAIR KIT", head);
+        Assert.Equal(["MENDS THE BOILER, OPENS A LOCK QUIETLY", "[E] PUT DOWN", "[RMB] THROW"], lines);
     }
 
     [Fact]

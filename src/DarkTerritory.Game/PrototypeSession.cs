@@ -394,7 +394,8 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
-        return " — " + string.Join(", ", parts);
+        // "; " between them (each has its own commas): the HUD puts each on a line of its own (note 281).
+        return " — " + string.Join("; ", parts);
     }
 
     /// <summary>

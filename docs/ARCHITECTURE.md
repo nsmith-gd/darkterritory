@@ -4050,3 +4050,41 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - No in-world toy staging for `dt screenshot`; the toys are reviewed on `dt art show prop-toy_*`.
         - The tear isn't left as a patch after a mend.
     - **Verified:** `EffectsTests` (`TheBoilerTearsInItsFlankAndTheBurstBlowsOutOfItThenHisses`, `ABendTakenTooFastGrindsSparksOffTheOuterRailHarderTheNearerItIsToOff`), `WreckDeathTests.EachGoesIntoTheWreckFromWhatTheyWereDoing` (and the gunner's test unchanged), `LockerArtTests`, `HudTests`; every view above looked at.
+281. **The HUD: your hands and the dark (B2; the director, 7 Oct 2026: "UI/UX needs a serious overhaul. There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs").** In the cab in the yard, nine things were on screen at once, each on a riveted iron plate at the HUD's full size: the engine panel, the route strip, the link block, "NO RADIO", the cold line, the noise meter, the driving prompt, the night block and the hotbar, plus the lobby list for a networked night. (A 5×7 font on the 480×270 canvas is 28 screen pixels a letter at 1080p.) Note 277 took the panel off out of the cab and put the prompt in fine print. This note takes the rest down to what Lethal Company and R.E.P.O. keep. The design is GDD §32 "The HUD: your hands and the dark".
+    - **What those two do, and the rules taken from them:**
+        - Always there: a dot to aim with and your hands (Lethal Company's four slots, R.E.P.O.'s three). Nothing else.
+        - What you're looking at is said at the crosshair, short. What you're holding lets you do is said in a corner in small print (Lethal Company's "Drop : [G]").
+        - The rest comes up when it matters, then goes: Lethal Company's clock only outdoors, a moon's name once on landing; R.E.P.O.'s haul goal at the extraction point.
+        - The world says it first: the ship's monitor and terminal, R.E.P.O.'s map as a thing you hold. Here that's the cab's gauges and run map (note 276), the route card (C), the supplies (I) and the roster (Q).
+        - No frames in play: text sits on the picture with a shadow.
+    - **Element by element** (`Hud`, `Hud.Hands`):
+        - **The engine panel** is gone. The driver gets the speed as the corner's head (the one number read against the boards); the rest is the backhead's gauges.
+        - **The route strip** is gone. The next place's name comes up at the top centre for `placeSeconds` once it's within `placeAheadMetres` (`Hud.Ahead`, the landmarks `NextPlace` reads). The route card pencils where the train is on its profile (`PlanHud.RouteCard(..., at)`).
+        - **The link:** in the lobby the ping stays big (spec E: "shown prominently in browser and lobby"), with PING TO HOST under it. On the line it shows only past `pingWarnMs`, or when the link's lost, with what's being done about it. The host shows nothing. The crew's count and roles are the roster's.
+        - **The radio:** "NO RADIO" and "RADIO [T]" are gone. A radio you wear is a slot of its own at the hotbar's right, with its key; a broken one is drawn red. With no radio, nothing is drawn.
+        - **The cold step** is said at the top centre for `coldSeconds` when you go into a deeper one. The countdown once you're chilled stays an alarm.
+        - **The noise meter** shows only once the crew's at `noiseShowAt` of the Choir's threshold, or while the Choir's gathering or here.
+        - **The driving prompt** moved to the corner (`Hud.Hints`): the brake, the vent and the lamp, and the reverser only when it's in reverse. Carrying something, the corner says what it is, what it's for, and put down and throw. Sat at the gun, its shot, fire and get up. At the crane, its controls. `Hud.Prompt` is now only what's in front of you; carrying, it's null (Use puts the thing down).
+        - **The night block** is gone. The dawn clock comes up at the top centre in the last `dawnClockSeconds`. What a stop's waiting on is top left in fine print while the train's at one, and the solo yard's way out is there too. The route's name, the next place and IN TUNNEL are dropped.
+        - **The hotbar** is small squares at the bottom centre. Each has an 11×11 picture of its tool (`Hud.Pictures`) and its number in the corner, and the one in hand is lit. The tool's name shows for `toolNameSeconds` after a change of hands. With something in both hands, the slots dim.
+        - **The lobby** is fine print, top left, with no plate.
+        - **The crosshair** is a dot, with four dots round it when something under it can be used.
+        - **Alarms** have a double-size headline only when urgent: a rupture counting, a grab, a bend you're coming off on, a tunnel mouth. Others are at the HUD's size. What to do is in fine print with keycaps.
+        - **The dead** get no plate: DEAD is big and the rest is fine print. The ballot is fine print on a dark backing, lit along its top while there's a vote to cast.
+        - **The panels you open** (supplies, roster, route card) and the run's end keep their plates: you asked for them.
+    - **Timings** are in `content/tuning/hud.json` (`HudTuning`; `Hud.Tuning`, loaded by the app and `dt screenshot`). A thing pops up at once, as a call should, and fades over `fadeSeconds`. The HUD remembers per session what changed and when (`Hud.Memory`, on the session's tick), so a still frame and a test see what a player would at that moment.
+    - **VR** passes `pixels: 2`, so the panel's fine print is the HUD's own size (`PromptScaleAt`). Nothing else changes for the headset.
+    - **Not yet / the director's call:**
+        - The driver's speed as a number. The cab has a speed gauge (note 276), but it can't be read against a board at 720p; if the gauge gets readable, the number can go.
+        - Health isn't drawn. The damage model's edge flash and sound (note 272) are the feedback, as in Lethal Company.
+        - The supplies and roster panels are still riveted plates at the HUD's size.
+        - The corner's hints are always shown. A setting to hide them once a player knows the keys would be the next step.
+    - **Verified:** `QuietHudTests`:
+        - on a roof with empty hands, only the crosshair and the hotbar are drawn;
+        - a change of hands is named, then gone;
+        - the ping is big in the lobby, and on the line only when bad or lost;
+        - a place is named coming up, then gone;
+        - the noise meter shows only when loud;
+        - hud.json is the record's defaults.
+
+      `HudTests` pins the prompt and corner split. Before and after shots at 1080p (`dt screenshot --hud --scale 4`) were looked at: the cab, the roof under a tunnel warning, the cab's bend warning, a locker with the kit in hand, the dead with a ballot, the lobby, the cold, the supplies, the cord.

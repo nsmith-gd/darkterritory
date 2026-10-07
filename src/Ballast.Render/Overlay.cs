@@ -156,6 +156,21 @@ public sealed class Overlay
     public float TextRight(float x, float y, string text, Vector4 colour, int scale = 1) =>
         Text(x - Font.Measure(text, scale), y, text, colour, scale);
 
+    /// <summary>Text centred on x at a fractional scale, its left edge on that scale's own grid so fine print stays crisp.</summary>
+    public float TextCentred(float x, float y, string text, Vector4 colour, float scale) =>
+        Text(Snap(x - Measure(text, scale) / 2f, scale), y, text, colour, scale);
+
+    /// <summary>Text ending at x at a fractional scale, its left edge on that scale's own grid.</summary>
+    public float TextRight(float x, float y, string text, Vector4 colour, float scale) =>
+        Text(Snap(x - Measure(text, scale), scale), y, text, colour, scale);
+
+    /// <summary>Rounds to a font pixel at this scale: a canvas pixel, or half of one in fine print.</summary>
+    public static float Snap(float v, float scale)
+    {
+        float grid = MathF.Min(1, scale);
+        return MathF.Round(v / grid) * grid;
+    }
+
     void Glyphs(float x, float y, string text, Vector4 colour, float scale)
     {
         for (int i = 0; i < text.Length; i++)

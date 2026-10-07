@@ -813,6 +813,20 @@ Because the game is voice- and communication-driven, the visuals exist to let pl
 
 Silhouette legibility is not an aesthetic preference here. It is a coordination mechanic, and it sits alongside the six-word enemy rule as one of the two things that make the shouting work.
 
+### The HUD: your hands and the dark
+
+*The director's decision of 2026-10-07: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs."* The screen is the night, and the voice channel carries the rest. The HUD keeps to the same rules as those two games:
+
+- **Only your hands are always there.** A dot to aim with, and the hotbar: small slots with a picture of each tool. A tool's name shows for a moment after a change of hands.
+- **What you look at is said at the crosshair.** Short, in fine print, with its key.
+- **What you hold is said in the corner.** The bottom right, in fine print: what the thing in your hands, the cab's controls or the gun lets you do, a key and a few words to a line. In the cab, the speed sits over them.
+- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby, and on the line only when it's bad. The noise meter only once the crew's loud.
+- **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen.
+- **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
+- **Alarms are rare and short.** The headline is big only when it's urgent, and what to do sits under it in fine print.
+
+The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 281.
+
 ### The screenshot test
 
 If a screenshot reads as *a rough, low-poly industrial horror game where a steam train full of desperate workers is crossing a diseased frontier at night, and the darkness itself feels operationally dangerous* — it is on target.
@@ -2065,7 +2079,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
-- Far too much UI for what's on screen. *In progress (T126): the cab's panel cut to two lines (note 264), nothing out of the cab, and the prompts in fine print under the crosshair (note 277).*
+- Far too much UI for what's on screen. *Done (§32 "The HUD: your hands and the dark", the director's decision of 7 Oct; notes 264, 277 and 281): only the crosshair and the hotbar are always on screen, the prompts are in fine print under the crosshair, and the rest comes and goes.*
 - The hold-to-vent control feels off. *In progress (T126).*
 - There's no whistle cord, and people will want one. *In progress (T126).*
 - The coal shovel is fun. *Keep.*
