@@ -60,6 +60,12 @@ public static class Mods
     /// <summary>The base content with an edition baked in, written to <paramref name="into"/> (<c>dt edition bake</c>).</summary>
     public static string Bake(string content, string edition, string into) => ContentMods.Mount(content, [EditionMod(content, edition)], into);
 
+    /// <summary>The mods <see cref="Mount"/> found installed (laid over or not), in load order, and what couldn't load.</summary>
+    public static ModScan Installed { get; private set; } = new([], []);
+
+    /// <summary><see cref="Mount"/> was told <c>--no-mods</c>: whatever's installed, the base game is playing.</summary>
+    public static bool Off { get; private set; }
+
     public static string[] Folders(string content)
     {
         var folders = new List<string> { Path.Combine(Path.GetDirectoryName(Path.GetFullPath(content))!, "mods"), UserFolder };
@@ -78,7 +84,10 @@ public static class Mods
     /// </summary>
     public static string Mount(string content, bool enabled = true, string? into = null)
     {
-        var scan = enabled ? ContentMods.Scan(Folders(content)) : new ModScan([], []);
+        // What's installed is scanned either way, for the MODS screen (note 321); with --no-mods none of it is laid over.
+        Installed = ContentMods.Scan(Folders(content));
+        Off = !enabled;
+        var scan = enabled ? Installed : new ModScan([], []);
         foreach (var problem in scan.Problems)
             Console.Error.WriteLine($"mods: {problem}");
         IReadOnlyList<Mod> mods = Edition is { } edition ? [EditionMod(content, edition), .. scan.Mods] : scan.Mods;

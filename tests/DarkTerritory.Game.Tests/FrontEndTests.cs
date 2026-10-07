@@ -182,6 +182,43 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad()
+    {
+        // Note 321: nothing installed, and the title has no MODS.
+        var m = Menu();
+        Assert.DoesNotContain(m.Items, i => i.Label == "MODS");
+
+        m = Menu();
+        m.InstalledMods = [new("LateDispatch", "1.0.0", "Dispatch holds the main line ten minutes past dawn."), new("Fog_Banks", "0.3.1", "")];
+        m.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
+        Pick(m, "MODS");
+        Assert.Equal("2 laid over the game, 1 problem.", m.Items[m.Selected].Detail);
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        Assert.Equal(["LATE DISPATCH 1.0.0", "FOG BANKS 0.3.1", "NIGHTJAR-LONGER NIGHTS: NOT LOADED", "BACK"], m.Items.Select(i => i.Label));
+        Assert.Equal("Dispatch holds the main line ten minutes past dawn.", m.Items[0].Detail);
+        Assert.Equal("No description.", m.Items[1].Detail);
+        // A long description (Thunderstore allows 250 characters) wraps inside the frame.
+        var wordy = Menu();
+        wordy.InstalledMods = [new("LateDispatch", "1.0.0", string.Join(' ', Enumerable.Repeat("Dispatch holds the main line past dawn.", 6)))];
+        wordy.Show(Screen.Mods);
+        var o = new Overlay();
+        wordy.Draw(o, 480, 270);
+        Assert.All(o.Vertices, v => Assert.InRange(v.Position.X, -2, 482));
+        Assert.Contains("SharedCore", m.Items[2].Detail);
+        // Read, not changed: Enter on a mod does nothing; BACK and Esc go back to the title.
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        m.Back();
+        Assert.Equal(Screen.Title, m.Screen);
+
+        // Started with --no-mods: listed, and said to be off.
+        m.ModsOff = true;
+        Pick(m, "MODS");
+        Assert.Equal("2 installed, all off tonight (--no-mods), 1 problem.", m.Items[m.Selected].Detail);
+    }
+
+    [Fact]
     public void AContractStartsACampaignNightAloneOrHosted()
     {
         var m = Menu();
