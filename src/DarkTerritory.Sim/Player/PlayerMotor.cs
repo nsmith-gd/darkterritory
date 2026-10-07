@@ -172,7 +172,9 @@ public enum DeathCause : byte
     // GDD §18 (WP15, note 185): a powder keg at the depot going up; a chemical works' hose leaking.
     Keg, Leak,
     // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
-    Wreckage
+    Wreckage,
+    // GDD §21, App. A.6 (note 311): pinned under the Moose's rack and ground into the peat.
+    Trampled
 }
 
 /// <summary>Conditions a player carries.</summary>

@@ -11,7 +11,9 @@ public enum EnemyKind : byte
     // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
     Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
-    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30
+    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
+    // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 311).
+    Moose = 31
 }
 
 /// <summary>

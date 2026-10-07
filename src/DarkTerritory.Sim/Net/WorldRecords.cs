@@ -498,6 +498,7 @@ public static class WorldRecords
             EnemyKind.FireFlies => new FireFlies(r.Id),
             EnemyKind.Ribbit => new Ribbit(r.Id, 0),
             EnemyKind.Grumbler => new Grumbler(r.Id),
+            EnemyKind.Moose => new Moose(r.Id),
             _ => new ChoirGhost(r.Id),
         };
 
