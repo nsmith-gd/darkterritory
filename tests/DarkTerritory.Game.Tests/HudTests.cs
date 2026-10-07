@@ -71,7 +71,7 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            // On the cab's side of it (cab forward, note 268: the firebox is in the back wall, the cab ahead of it).
+            // On the cab's side of it (cab forward, note 276: the firebox is in the back wall, the cab ahead of it).
             double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
             p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
@@ -104,7 +104,7 @@ public class HudTests
         // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says what it is and that it's loud;
         // the vent's one key is on the driving prompt with the brake's, and held, the prompt says it's working.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        // (Cab forward, note 268: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
+        // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
         var shape = s.Train.Frames[0].Shape;
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);

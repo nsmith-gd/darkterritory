@@ -7,7 +7,7 @@ namespace DarkTerritory.Game.Tests;
 /// <summary>
 /// T101 (playtest: "there also needs to be a way for the driver to see the track ahead and the front of the train on
 /// their own ... players should clearly see the firebox, map, gauges, speed, brake, and vent"), cab forward (ARCHITECTURE
-/// §8 note 268, the director's sketch: "controls at the front with full vis of the rail"): from the driver's place the line
+/// §8 note 276, the director's sketch: "controls at the front with full vis of the rail"): from the driver's place the line
 /// ahead is in sight through the front window from a few metres past the plough, with nothing of the engine in the way;
 /// the driver's gauges, the map and the brake are in front of them, and turned round, the fire door's in plain view.
 /// </summary>
@@ -77,7 +77,7 @@ public class CabSightTests
     [Fact]
     public void TheDriversPlaceIsAtTheFrontOfTheTrain()
     {
-        // Cab forward (note 268): nothing of the engine ahead of the cab but the pilot under its nose.
+        // Cab forward (note 276): nothing of the engine ahead of the cab but the pilot under its nose.
         Assert.True(CabFront - -Engine.HalfLength <= Tuning.Geometry.Engine.PilotLength + 1e-9);
         foreach (var s in Engine.Solids.Where(s => s.Part is PartKind.Boiler or PartKind.Stack))
             Assert.True(s.Box.Min.Z >= Engine.Cab!.Value.Max.Z - 1e-9, $"the {s.Part} is behind the cab");

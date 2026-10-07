@@ -61,7 +61,7 @@ public class CabPickTests
     [Fact]
     public void WhereTwoAreInReachTheOneLookedAtIsWorked()
     {
-        // Cab forward (note 268) the cord's at the driver's end and the firebox at the fireman's, a cab apart: the
+        // Cab forward (note 276) the cord's at the driver's end and the firebox at the fireman's, a cab apart: the
         // neighbours now are the tool rack and the points lever on the driver's wall.
         var world = World();
         var rack = Thing(world, InteractableKind.ToolRack);
@@ -105,7 +105,7 @@ public class CabPickTests
         var controls = new TrainControls();
         WorldRecords.Apply(WorldRecords.Capture(world, controls, []), client, ref controls, []);
         Assert.Equal(1, client.WhistleBy);
-        // At the firebox instead (cab forward, note 268: across the cab at the fireman's end), the same press shovels, and
+        // At the firebox instead (cab forward, note 276: across the cab at the fireman's end), the same press shovels, and
         // the whistle's let go.
         for (int i = 0; i < 2 * SimConstants.TickRate; i++)
         {

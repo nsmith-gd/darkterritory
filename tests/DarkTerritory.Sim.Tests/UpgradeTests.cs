@@ -76,7 +76,7 @@ public class UpgradeTests
             var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000 } };
             var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
             var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 6, 1)), line, 5_000), combat);
-            w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+            w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
             var mount = w.Train.Frames[0].Shape.Gun!.Value;
             var s = PlayerMotor.SpawnOnRoof(w.Train, 0, mount.Position.Z - mount.Facing.Z * 0.7, P);
             s.Yaw = mount.Facing.Z < 0 ? 0 : Math.PI;
@@ -114,7 +114,7 @@ public class UpgradeTests
             world.Train.Boiler.Ruptured = true;
             var firebox = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var s = PlayerMotor.SpawnInCab(world.Train, P);
-            s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 }; // in front of the fire door (cab forward, note 268)
+            s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 }; // in front of the fire door (cab forward, note 276)
             var kit = world.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
             kit.Carrier = 1;
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)

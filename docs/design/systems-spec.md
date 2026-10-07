@@ -233,7 +233,7 @@ At 20 cars, crossing the train takes a minute and a half in each direction. That
 | 15 cars | 0.27 m/s² | 0.67 m/s² | 33s / 361m |
 | **20 cars** | **0.18 m/s²** | **0.49 m/s²** | **45s / 494m** |
 
-**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: both in the cab since T109, a few steps apart (cab forward, note 268: the brake at the front windows, the vent on the left wall). At 20 cars you begin braking 500–600 m before a stop.
+**T97 (playtest): the brakes were doubled from the first pass** ("braking needs to reduce speed significantly faster"); **T121 (playtest): then cut to 0.7 of that** ("brakes are maybe a bit too strong, lets reduce their efficiency by 30%"). The stop column is a stop with the steam off. With steam driving (B.6) the engine pulls against the brake until its pressure's down, so a stop on the brake alone takes longer, and the quickest stop is brake *and* vent: both in the cab since T109, a few steps apart (cab forward, note 276: the brake at the front windows, the vent on the left wall). At 20 cars you begin braking 500–600 m before a stop.
 
 ### Grade
 
@@ -282,7 +282,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 | Parameter | Value |
 |---|---|
 | Fire rate | 3/s |
-| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 268, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
+| Effective range | 220m (T121: the forward gun covers the Track Doll from the 200 m it shows in the lamp; cab forward since note 276, nothing of the engine masks the rail: the driver sees it from 8 m past the plough) |
 | Traverse | 200° |
 | **Dead zone** | **20° each side along the train's own body** |
 | Ammunition | 200 rounds/gun, resupply at POI |
@@ -318,6 +318,31 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
 | Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
+
+## B.10 Director pacing
+
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+
+| Parameter | Value |
+|---|---|
+| **Grace period** | **20–90 s**, per night from its seed; the draw above 20 s × 1 Local, 0.85 Frontier, 0.7 Dead Lines, 0.55 Deep Territory |
+| Pressure at the end of the grace | 4 |
+| **Threshold** (spends) | **10** |
+| Pressed (cooldown gives way, curve overdrawn by up to 3) | 16 |
+| Most banked | 18 |
+| **Relief per spawn** | **3 × its cost** |
+| Base | 0.03 /s |
+| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
+| Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
+| Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
+| Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
+| Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
+| **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
+| Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
+| Post-spawn cooldown | 25–45 s (gives way when pressed) |
+
+Early in a night the pressure takes about a minute after a spawn to reach the threshold again; near the end about twenty seconds, and the cooldown sets the pace. In the harness (8 bots, 1,800 s, ARCHITECTURE §8 note 266) that is 4–5 of the director's spawns in the first five minutes against 11–12 in the last, and no quiet over about 30 s.
 
 ## B.11 Fire grid
 

@@ -666,13 +666,13 @@ public sealed partial class SceneArt(Look look)
             return;
         var m = FrameMatrix(engine, eye);
         // The gauge lamp under the cab roof (T101): the backhead and its dials lit enough to read whatever the fire's doing;
-        // cab forward (note 268), at the back wall (the map at the front has the cab lamp).
+        // cab forward (note 276), at the back wall (the map at the front has the cab lamp).
         var cab = engine.Shape.Cab!.Value;
         mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Max.Z - 0.9)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
         // Everything on the backhead is placed in its frame (it faces forward from the back wall).
         var bh = TrainKit.BackheadFrame(engine.Shape) * m;
         var needle = Piece("needle", () => TrainKit.Needle(Look));
-        // Two sets (note 268): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
+        // Two sets (note 276): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
         // back into the cab as the engine's frame does.
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
@@ -787,7 +787,7 @@ public sealed partial class SceneArt(Look look)
     {
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 40)
             return;
-        // In the backhead's frame: the door's leaves face out of the back wall into the cab (note 268).
+        // In the backhead's frame: the door's leaves face out of the back wall into the cab (note 276).
         var m = TrainKit.BackheadFrame(engine.Shape) * FrameMatrix(engine, eye);
         var at = TrainKit.FireDoorLocal(engine.Shape);
         mesh.Instances.Add(new MeshInstance(Piece("firedoor-shut", () =>

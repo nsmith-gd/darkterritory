@@ -171,7 +171,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
     public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind) => kind switch
     {
-        // The engine's rail is the cab roof's (T93; note 268): the gun stands at its front, and behind it is the boiler.
+        // The engine's rail is the cab roof's (T93; note 276): the gun stands at its front, and behind it is the boiler.
         VehicleKind.Engine => Engine(g, hasCarBehind) with
         {
             RoofRail = (EnginePlan.Of(g).CabFront + RailEnd, EnginePlan.Of(g).CabBack - RailEnd),
@@ -417,7 +417,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     }
 
     /// <summary>
-    /// The engine, cab forward (ARCHITECTURE §8 note 268, the director's sketch: "controls at the front with full vis of the
+    /// The engine, cab forward (ARCHITECTURE §8 note 276, the director's sketch: "controls at the front with full vis of the
     /// rail"), as one 20 m unit (spec B.4), front to back: the pilot; the walkable cab, the driver's controls at its front
     /// windows over the line and the firebox in its back wall with the coal bunker beside it; then the boiler, its stack
     /// at the rear, where car 1 couples on. The cab is where GDD §12's Conductor and Boiler roles are: whoever stands there.
@@ -434,7 +434,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(new Box(new Double3(-e.BoilerHalfWidth, deck, cabBack), new Double3(e.BoilerHalfWidth, e.BoilerTop, l - BoilerToEnd)), SurfaceKind.Roof, PartKind.Boiler),
             new(new Box(new Double3(-0.35, e.BoilerTop, plan.StackZ - 0.35), new Double3(0.35, e.BoilerTop + 1.0, plan.StackZ + 0.35)), SurfaceKind.Roof, PartKind.Stack),
             new(new Box(new Double3(-w - 0.1, roof, cabFront), new Double3(w + 0.1, g.EngineHeight, cabBack)), SurfaceKind.Roof, PartKind.CabRoof),
-            // The coal bunker, in the cab against its left wall (note 268).
+            // The coal bunker, in the cab against its left wall (note 276).
             new(plan.Bunker, SurfaceKind.Deck, PartKind.Tender),
         };
         // The cab's front: waist-high under its windows, the driver's console behind it; pillars at its corners hold the
@@ -531,13 +531,13 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
     /// <summary>
     /// The whistle cord's footing in the engine's frame (note 264): the driver's front corner, over the brake valve, hung
-    /// against the cab side (note 268: cab forward, further in it hung in the driver's window, across the line).
+    /// against the cab side (note 276: cab forward, further in it hung in the driver's window, across the line).
     /// </summary>
     public static Double3 WhistleCordAt(double halfWidth, double deck, double cabFront) => new(halfWidth - 0.24, deck, cabFront + 0.9);
 }
 
 /// <summary>
-/// The cab-forward engine's plan (ARCHITECTURE §8 note 268) in its frame, from train.json: where the cab's front windows and
+/// The cab-forward engine's plan (ARCHITECTURE §8 note 276) in its frame, from train.json: where the cab's front windows and
 /// back wall are, where its doorways start, the coal bunker, and the stack. The sim, the bots and the art all read it here.
 /// </summary>
 public readonly record struct EnginePlan(double Half, double CabFront, double CabBack, double DoorFront, Box Bunker, double StackZ)

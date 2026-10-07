@@ -186,7 +186,7 @@ public static class TrainKit
     public const float DriverRadius = 0.7f;
 
     /// <summary>
-    /// The four pairs of drivers (note 268): under the boiler, from just behind the cab, so its weight's over them and the
+    /// The four pairs of drivers (note 276): under the boiler, from just behind the cab, so its weight's over them and the
     /// cab rides on the pilot truck ahead.
     /// </summary>
     public static float[] Drivers(CarShape shape)
@@ -218,11 +218,11 @@ public static class TrainKit
     /// <summary>The steam cylinders' middle along the engine: ahead of the drivers, under the cab's back.</summary>
     static float CylinderZ(CarShape shape) => Drivers(shape)[0] - 2.15f;
 
-    /// <summary>How high over the rail the headlamp's lens is: on the cab's nose under the front windows (note 268).</summary>
+    /// <summary>How high over the rail the headlamp's lens is: on the cab's nose under the front windows (note 276).</summary>
     public static float HeadlampY => (float)Sim.World.LampHeight;
 
     /// <summary>
-    /// The engine, cab forward (ARCHITECTURE §8 note 268, the director's sketch): an armoured 2-8-0 run cab first. The cab
+    /// The engine, cab forward (ARCHITECTURE §8 note 276, the director's sketch): an armoured 2-8-0 run cab first. The cab
     /// leads over the pilot and its plough, the lamp in an armoured box on its nose under the front windows like an eye;
     /// behind it the boiler, cased in riveted plate (an octagon, so it reads as heavy and hand-made), runs back to the
     /// smokebox and the tapered funnel at the rear, where car 1 couples on. The coal is in the cab, in a bunker by the fire.
@@ -456,7 +456,7 @@ public static class TrainKit
     ];
 
     /// <summary>
-    /// The cab, at the front (note 268): waist-high armoured sides with the doorways at the back, pillars, a visor over the
+    /// The cab, at the front (note 276): waist-high armoured sides with the doorways at the back, pillars, a visor over the
     /// side openings; across its front, the windows the driver looks down the line through, the run map's plate over them;
     /// an arched roof; and in its back wall, where the boiler comes through, the backhead: the firebox door's frame, four
     /// gauges, the water glass and pipework (GDD §12, the Conductor's and the Boiler's place), facing forward into the cab.
@@ -480,7 +480,7 @@ public static class TrainKit
             k.Box(new Vector3(MathF.Min(xo, xo - side * 0.14f), waist, cabFront), new Vector3(MathF.Max(xo, xo - side * 0.14f), waist + 0.05f, doorFront));
             k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
             k.Box(new Vector3(MathF.Min(xo, xo - side * 0.08f), roofLow - 0.32f, cabFront + 0.1f), new Vector3(MathF.Max(xo, xo - side * 0.08f), roofLow, cabBack - 0.1f));
-            // The side windows (note 268): two posts between the front pillar and the doorway, so the side reads as a cab's
+            // The side windows (note 276): two posts between the front pillar and the doorway, so the side reads as a cab's
             // glazed side and not an open shed; nothing to walk into (the waist under them is the wall).
             float span = doorFront - (cabFront + 0.15f);
             for (int i = 1; i <= 2; i++)
@@ -496,7 +496,7 @@ public static class TrainKit
             k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, doorFront + 0.12f), new Vector3(xo + side * 0.02f, deck, doorFront + 0.12f), 0.015f);
             k.Rod(new Vector3(xo + side * 0.24f, deck - 1.03f, cabBack - 0.12f), new Vector3(xo + side * 0.02f, deck, cabBack - 0.12f), 0.015f);
         }
-        // The front windows (note 268: "controls at the front with full vis of the rail"): two tall openings either side of a
+        // The front windows (note 276: "controls at the front with full vis of the rail"): two tall openings either side of a
         // narrow middle post, from the waist to the run map's plate, their frames thin. Over them, the plate the map hangs on.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         float z0 = cabFront, z1 = cabFront + 0.08f;
@@ -625,7 +625,7 @@ public static class TrainKit
     public const float FireDoorHalfWidth = 0.32f, FireDoorHalfHeight = 0.22f;
 
     /// <summary>
-    /// The backhead's frame in the engine's (note 268): its local x across as you face it, y up from the rail, and +Z out of
+    /// The backhead's frame in the engine's (note 276): its local x across as you face it, y up from the rail, and +Z out of
     /// the cab's back wall into the cab, 0 at the wall's face. Cab forward, the fireman faces the back of the engine to it,
     /// so it's the engine's frame turned round. Everything on the backhead (its gauges' needles, the shut fire door, the
     /// firebox camera) is placed in it.
@@ -664,7 +664,7 @@ public static class TrainKit
     }
 
     /// <summary>
-    /// The opening in the cab's front either side of the middle post (note 268), in the engine's frame: from the post to the
+    /// The opening in the cab's front either side of the middle post (note 276), in the engine's frame: from the post to the
     /// cab side's pillar, from the waist to the run map's plate.
     /// </summary>
     public static (float X0, float X1, float Y0, float Y1) FrontWindow(CarShape shape, int side)
@@ -689,7 +689,7 @@ public static class TrainKit
 
     /// <summary>
     /// The centre of the driver's dial <paramref name="index"/> (pressure, heat, water, speed), in the engine's frame, facing
-    /// back into the cab (+Z). Cab forward (note 268), the backhead's behind the driver: as on the real cab-forwards, a
+    /// back into the cab (+Z). Cab forward (note 276), the backhead's behind the driver: as on the real cab-forwards, a
     /// second set stands in front of them, over the right-hand window in two rows of two, where a look up from the line
     /// reads them.
     /// </summary>
@@ -894,7 +894,7 @@ public static class TrainKit
     };
 
     /// <summary>
-    /// The coal bunker in the cab (note 268, the director: "put a coal bunker in the cab"): an iron box against the left wall
+    /// The coal bunker in the cab (note 276, the director: "put a coal bunker in the cab"): an iron box against the left wall
     /// ahead of the left doorway, the coal heaped in it, its gate low in the inner side by the fire door where the coal runs
     /// out onto the shovelling plate; over it in the cab roof, the coaling hatch a tower's spout pours through.
     /// </summary>
@@ -944,7 +944,7 @@ public static class TrainKit
     }
 
     /// <summary>
-    /// The engine's rear, where car 1 couples on (note 268): the rear beam, the coupler, the ladders up the back (onto the
+    /// The engine's rear, where car 1 couples on (note 276): the rear beam, the coupler, the ladders up the back (onto the
     /// boiler, and on up the cab's back wall to its roof and gun), and the tail lamp on the smokebox's corner.
     /// </summary>
     static void RearEnd(Kit k, CarShape shape, float w, float l, float deck, float boilerBack)

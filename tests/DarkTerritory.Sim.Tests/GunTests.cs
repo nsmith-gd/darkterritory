@@ -18,7 +18,7 @@ public class GunTests
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
         var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), C);
         // The host's (the loudness meter is the host's to keep), with nothing sent.
-        w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+        w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
         return w;
     }
 
@@ -206,7 +206,7 @@ public class GunTests
     public void RoundsStopAtTheTrainsOwnBody()
     {
         // The rear gun slid to the front of its rail, laid back down along its own roof: the round hits the van before it
-        // goes anywhere. (Cab forward, note 268, the forward gun leads the train: nothing of it is ahead to aim down over.)
+        // goes anywhere. (Cab forward, note 276, the forward gun leads the train: nothing of it is ahead to aim down over.)
         var w = World();
         int last = w.Train.Frames.Count - 1;
         w.Train.Vehicles[last].Gun.Z = w.Train.Frames[last].Shape.RoofRail!.Value.Front;

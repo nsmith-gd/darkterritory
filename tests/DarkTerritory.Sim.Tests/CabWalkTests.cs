@@ -7,7 +7,7 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// T110 playtest ("I like being able to walk to the front of the train, have both sides be a gap we can get through"), cab
-/// forward (ARCHITECTURE §8 note 268): the cab is the front of the train now, and the way out of it is either side, through
+/// forward (ARCHITECTURE §8 note 276): the cab is the front of the train now, and the way out of it is either side, through
 /// its doorway onto the running board and back along the boiler. Nothing of the engine stands ahead of the cab to walk to.
 /// </summary>
 public class CabWalkTests

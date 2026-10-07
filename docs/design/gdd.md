@@ -1258,12 +1258,33 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 | Dead lines | 230 |
 | Deep territory | 330 |
 
-These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's paced spawns: after the 100-night playtest, the director sends something whenever the line has been quiet too long.
+These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's pressed spawns: after the 100-night playtest the director would not let the line go quiet for long, and under the pressure model (below) a long quiet still presses it to send something.
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
 **Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
 
 Budget is spent across the run against a rising curve, not evenly. Roughly 15% before the first facility, 45% across the middle, 40% in the final approach.
+
+### Pressure: when the director spends
+
+*Design decision, 2026-10.* The budget says how much; **pressure** says when. Monster spawns are algorithmic, driven by escalating pressures, never by fixed timers. Once a second after the grace period the director's pressure builds:
+
+```
+pressure per second = tier × conditions × relief × busy × escalation × (base + quiet + loudness + cargo)
+```
+
+| Input | What raises it |
+|---|---|
+| **Escalation** | How far into the night: along the line or toward dawn, whichever is further. ×1 at the gate, ×4 at the end |
+| **Quiet** | Seconds since a threat last came at the crew. Quiet builds pressure, faster the longer it lasts |
+| **Loudness** | The Choir meter. A crew loud enough to draw the Choir draws everything else too |
+| **Cargo** | Each car-load aboard, by what it's worth. Cargo lost stops drawing them |
+| **Tier** | Harder tiers build faster |
+| **Conditions** | Dark (the lamp out), cold, rain and wind add a little |
+
+The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
+
+Past the **threshold** the director spends: on what its weights, wants, pairs, gates and caps pick, as before. **Spending relieves the pressure** by the spawn's cost. Well past the threshold (a long quiet, or a night the budget's curve can't keep up with) the post-event cooldown gives way and the curve may be overdrawn a little. The dead's votes move weight between creatures and never touch the pressure. All the coefficients are in `director.pressure` in `content/tuning/enemies.json`; the systems spec (B.9) has the numbers.
 
 ### Pressure cost per enemy
 
@@ -1307,11 +1328,11 @@ Enforced regardless of budget:
 
 ### Pacing rules
 
-**Grace period.** No threats for the first 90 seconds past the gate. The tonal transition needs room, and the crew needs to settle into stations.
+**Grace period.** No threats for the first 20–90 seconds past the gate (design decision, 2026-10): the length is picked per night from the night's seed, shorter on the harder tiers, so a crew can't count the seconds. The tonal transition needs room, and the crew needs to settle into stations. Pressure starts building when the grace ends.
 
 **Facility lull.** ~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to a plan before it falls apart.
 
-**Post-event cooldown.** After any punish resolves, a 30–60s trough. Sustained pressure reads as noise; pressure with troughs reads as rhythm.
+**Post-event cooldown.** After a spawn, a trough of at least 25–45 s (design decision, 2026-10; was 30–60 s). Sustained pressure reads as noise; pressure with troughs reads as rhythm. The spawn's relief of the pressure makes the trough; the cooldown gives way only when the pressure is well past its threshold.
 
 **Terminus approach.** One deliberate spike, then a hard stop 500m out. Nothing may spawn inside the final approach — the last stretch is for surviving what's already aboard.
 
@@ -1434,7 +1455,7 @@ Comet material is the high-risk contract: it is the best freight payout and it m
 | **Contradiction quality** | Every seeded pair is solvable — hard, not impossible |
 | **Rescue windows** | Every GRAB is interruptible by the crew present, at every crew size |
 | **Want balance** | Generated runs land near the target shares |
-| **Pacing shape** | Grace period, troughs and terminus silence all present |
+| **Pacing shape** | Grace period, troughs and terminus silence all present; the director's own spawns rise toward the end of the night (the harness's pressure trace) |
 | **Tier progression** | Deep territory is meaningfully harder than Local at matched crew and length |
 | **Vote bounds** | Dead-vote weighting never exceeds ×1.5, keeps want-tag shares, and never bypasses a gate, cap or once-per-run limit |
 
@@ -2083,7 +2104,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
 - *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
-- *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 268): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
+- *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
 - *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
 - *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
@@ -2129,7 +2150,7 @@ Further decisions (the director, 6 Oct 2026):
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden.
-- **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt.
+- **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt. *Done (note 271): the boarding half in note 263, the firebox half in 271; the hose is an extinguisher for now.*
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 

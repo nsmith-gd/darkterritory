@@ -1653,7 +1653,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         double w = g.RoofWidth / 2, doorFront = EnginePlan.Of(g).DoorFront;
         double outside = w + Math.Min(0.32, e.RunningBoardWidth / 2);
         var box = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Sandbox && i.Position.X > 0).Position;
-        // Out at the back of the right doorway, where the board begins (note 268: the boards run back along the boiler).
+        // Out at the back of the right doorway, where the board begins (note 276: the boards run back along the boiler).
         double door = doorFront + g.Doorway.Width * 0.75;
         return
         [
@@ -1771,7 +1771,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>
     /// Its firing place, <paramref name="side"/> of the firebox door (+1 the driver's right): out from the door into the cab.
-    /// Cab forward (note 268), the firebox is in the cab's back wall, so that's forward (−Z) of it.
+    /// Cab forward (note 276), the firebox is in the cab's back wall, so that's forward (−Z) of it.
     /// </summary>
     internal static Double3 FiringSpot(Double3 firebox, int side) => new(side * FiringSide, 0, firebox.Z - FiringOut);
 
@@ -1780,9 +1780,6 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>At a stand, the gauge it fires to hold: comfortably over the Stoker's low-pressure mark (enemies.json, 40).</summary>
     const double StandingPressure = 60;
-
-    /// <summary>Health below which the cab's crew leave a Stoker to burn itself out (each blow at it burns the swinger).</summary>
-    const int StokerHealth = 40;
 
     /// <summary>At its own side of the firebox door, facing it, swinging, with the brake held: null if there's no Stoker to fight.</summary>
     /// <summary>
@@ -1810,17 +1807,22 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     PlayerIntent? FightStoker(in PlayerState self, World world)
     {
         var train = world.Train;
-        if (!self.Alive || self.Health < StokerHealth || !PlayerMotor.InCab(self, train)
-            || !world.ActiveEnemies.OfType<Stoker>().Any(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit))
+        if (!self.Alive || !PlayerMotor.InCab(self, train)
+            || world.ActiveEnemies.OfType<Stoker>().FirstOrDefault(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit) is not { } stoker)
             return null;
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
-        // App. A.5: open the firebox, then club it (note 263: through a shut door a blow doesn't reach it). A shovelful opens it.
-        // On its way in from the tender (note 263) it's in the open: club it there.
-        bool reach = train.Boiler.FireDoorOpen || world.ActiveEnemies.OfType<Stoker>().Any(st => st.Boarding);
-        var intent = !there ? step : reach ? new PlayerIntent { Actions = PlayerActions.Swing } : new PlayerIntent { Buttons = PlayerButtons.Use };
-        intent.Buttons |= PlayerButtons.Brake;
-        intent.ThrottleNotch = -4;
+        // On its way in from the bunker (note 263) it's in the open: at the fire, club it there.
+        if (stoker.Boarding)
+        {
+            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+            var club = there ? new PlayerIntent { Actions = PlayerActions.Swing } : step;
+            club.Buttons |= PlayerButtons.Brake;
+            club.ThrottleNotch = -4;
+            return club;
+        }
+        // In the firebox (Stoker v3, note 271): never the door (it burns), never a shovelful; vent and starve it out, the brake
+        // held against its runaway.
+        var intent = new PlayerIntent { Actions = PlayerActions.Vent, Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         return intent;
     }
 
@@ -1970,7 +1972,7 @@ public static class KitRun
     }
 
     /// <summary>
-    /// Out of the engine (cab forward, note 268): back down the middle of the cab past the coal bunker on the left wall; left
+    /// Out of the engine (cab forward, note 276): back down the middle of the cab past the coal bunker on the left wall; left
     /// to the doorway at the cab's back corner; out onto the left running board; back along it beside the boiler; in onto the
     /// rear deck past the smokebox; the footplate off it; the plate at car 1's door. Each point's further back than the last
     /// (the way out takes the next one that is, more than <see cref="RouteStep"/> on).

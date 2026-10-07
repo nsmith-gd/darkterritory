@@ -34,7 +34,7 @@ public class BreachTests
             var t = new TrainOnLine(new TrainDynamics(Consist.Uniform(train ?? T, cars, 1)), line, 2_000);
             t.Dynamics.Velocity = speed;
             World = new World(t, Tuning.Combat);
-            World.EnableEnemies(E with { Director = E.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 2, authority: true);
+            World.EnableEnemies(E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 2, authority: true);
         }
 
         public TrainOnLine Train => World.Train;
