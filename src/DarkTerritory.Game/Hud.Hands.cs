@@ -167,32 +167,13 @@ public static partial class Hud
         var lines = new List<string>();
         if (!p.Alive || world.Run?.Report is not null)
             return (null, lines);
-        // Carried in both hands (spec D.2, note 264): what it is, what it's for, and how to be rid of it.
+        // Carried in both hands (spec D.2, note 264): what it is, and how to be rid of it. What it's for is learned.
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
         {
-            switch (carried.Kind)
-            {
-                case BodyKind.Heavy when !carried.Lifted:
-                    lines.AddRange(["IT NEEDS TWO", "[E] LET GO"]);
-                    break;
-                case BodyKind.Heavy:
-                    lines.AddRange(["TOGETHER, INTO A CAR", "[E] PUT IT DOWN"]);
-                    break;
-                case BodyKind.RepairKit when train.Boiler.Ruptured:
-                    lines.AddRange(["TO THE FIREBOX WITH IT", "[E] PUT DOWN"]);
-                    break;
-                default:
-                    lines.AddRange(carried.Kind switch
-                    {
-                        BodyKind.Cargo => ["INTO A CAR TO LOAD IT"],
-                        // A village find (level-design P12): it pays once it's put down aboard, in any car.
-                        BodyKind.Loot => ["INTO ANY CAR TO KEEP IT"],
-                        BodyKind.RepairKit => ["MENDS THE BOILER, OPENS A LOCK QUIETLY"],
-                        _ => Array.Empty<string>(),
-                    });
-                    lines.AddRange(["[E] PUT DOWN", "[RMB] THROW"]);
-                    break;
-            }
+            if (carried.Kind == BodyKind.Heavy)
+                lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
+            else
+                lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
             return (Called(world, carried), lines);
         }
         // T112: sat at the gun, its own controls.
@@ -201,17 +182,17 @@ public static partial class Hud
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
             if (!gun.Jammed && gun.ReloadNeeded == 0 && gun.Ammo > 0 && steam)
-                lines.Add("[LMB] FIRE");
-            lines.Add("[SPACE] GET UP");
+                lines.Add("FIRE : [LMB]");
+            lines.Add("GET UP : [SPACE]");
             return ($"THE GUN: {gun.Ammo} SHOT", lines);
         }
         // The crane (T48), from its cab.
         if (p.Has(PlayerFlags.Operating) && world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)
         {
-            lines.AddRange(["[WASD] BRIDGE AND TROLLEY", "[SPACE] HOOK"]);
+            lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK : [SPACE]"]);
             if (crane.Hooked is not null)
-                lines.Add("[LMB] LET GO (SET IT DOWN FIRST)");
-            lines.Add("LET GO OF [E] TO STEP DOWN");
+                lines.Add("LET GO : [LMB]");
+            lines.Add("STEP DOWN : LET GO OF [E]");
             return ("THE CRANE", lines);
         }
         if (CabControls.CanDrive(p, train))
@@ -219,26 +200,33 @@ public static partial class Hud
             // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
             bool steam = train.BoilerTuning?.SteamDrive == true;
             if (!steam)
-                lines.AddRange(["[R/F] REGULATOR", "[B] BRAKE"]);
+                lines.AddRange(["REGULATOR : [R/F]", "BRAKE : [B]"]);
             else
-                lines.Add(s.Controls.Brake > 0 && train.Dynamics.Speed < CabControls.StandingBelow ? "[R] RELEASE BRAKE" : "[B] BRAKE");
+                lines.Add(s.Controls.Brake > 0 && train.Dynamics.Speed < CabControls.StandingBelow ? "RELEASE BRAKE : [R]" : "BRAKE : [B]");
             // Note 267: the brake and the vent, one key each, held.
             if (train.BoilerTuning is not null)
-                lines.Add("[VENT] HOLD: VENT");
-            lines.Add(world.LampOutSeconds > 0 ? $"LAMP SMASHED ({world.LampOutSeconds:0}S)" : $"[L] LAMP {(world.LampLit ? "OFF" : "ON")}");
+                lines.Add("VENT : HOLD [VENT]");
+            lines.Add(world.LampOutSeconds > 0 ? "LAMP SMASHED" : $"LAMP {(world.LampLit ? "OFF" : "ON")} : [L]");
             // The reverser only when it's back: forward goes without saying, and going backwards shouldn't.
             if (s.Controls.Reverser < 0)
-                lines.Add("[X] IN REVERSE");
+                lines.Add("IN REVERSE : [X]");
+            // The speed stays a figure (the director, 7 Oct: "keep speed numbers"): it's read against the boards.
             string speed = $"{Math.Abs(train.Dynamics.Speed) * 3.6:0} KM/H";
             return (steam ? speed : $"{speed}  REG {s.Controls.Throttle * 100:0}%", lines);
         }
         return (null, lines);
     }
 
-    /// <summary>The corner, drawn: bottom right, the head at the HUD's size over the lines in fine print, no plate.</summary>
+    /// <summary>
+    /// The corner, drawn: bottom right, the head at the HUD's size over the lines in fine print, no plate; the lines only
+    /// with the player's control hints on (<see cref="Settings.ControlHints"/>).
+    /// </summary>
     static void Corner(Overlay o, int width, int height, IPlaySession s)
     {
         var (head, lines) = Hints(s);
+        // The player's setting (note 281): with the hints off, the corner's only what it's about.
+        if (!Keys.ControlHints)
+            lines = [];
         if (head is null && lines.Count == 0)
             return;
         float k = Fine, right = width - 6, row = (o.Font.LineHeight + 4) * k;

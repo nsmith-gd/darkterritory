@@ -142,6 +142,29 @@ public class QuietHudTests
     }
 
     [Fact]
+    public void WithTheControlHintsOffTheCornerKeepsOnlyWhatItsAbout()
+    {
+        // The director (note 281): "a setting to hide corner controls". In the cab, the corner's the speed over the keys;
+        // with the hints off, the speed alone.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        static int Corner(Overlay o) => In(o, W * 0.6f, H * 0.6f, W, H);
+        var keys = Hud.Keys;
+        try
+        {
+            int on = Corner(Drawn(s));
+            Hud.Keys = keys with { ControlHints = false };
+            int off = Corner(Drawn(s));
+            Assert.True(off > 0, "the speed went with the hints");
+            Assert.True(off < on / 2, $"the hints are still drawn ({off} of {on} vertices)");
+        }
+        finally
+        {
+            Hud.Keys = keys;
+        }
+    }
+
+    [Fact]
     public void TheTuningFileIsTheDefaults()
     {
         // The record's defaults are the file's, so a session that never loads it (a test, a film frame) looks the same.

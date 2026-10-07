@@ -815,15 +815,16 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 
 ### The HUD: your hands and the dark
 
-*The director's decision of 2026-10-07: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs."* The screen is the night, and the voice channel carries the rest. The HUD keeps to the same rules as those two games:
+*The director's decisions of 2026-10-07: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs." Then, on the overhaul: keep the speed figures, "PULL CORD : [E]", a setting to hide the corner's controls, and the max speed on the map for every stretch that can't take top speed; discard "long prompts that foretell the consequence of actions. Consequences need to be learned."* The screen is the night, and the voice channel carries the rest. The HUD keeps to the same rules as those two games:
 
 - **Only your hands are always there.** A dot to aim with, and the hotbar: small slots with a picture of each tool. A tool's name shows for a moment after a change of hands.
-- **What you look at is said at the crosshair.** Short, in fine print, with its key.
-- **What you hold is said in the corner.** The bottom right, in fine print: what the thing in your hands, the cab's controls or the gun lets you do, a key and a few words to a line. In the cab, the speed sits over them.
+- **What you look at is said at the crosshair.** The action and its key, in fine print: "PULL CORD : [E]", "SHOVEL COAL : HOLD [E]". A short state only when it stops you ("POINTS HELD", "NO SHOT"), and a hold's progress.
+- **Prompts never foretell.** Nothing says what an action will do: whether it's loud, what it mends, who hears it, that it needs two, or what happens if you don't. Consequences are learned, as in Lethal Company. The stop's status says what's there and what's under way, not how to work it.
+- **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
 - **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby, and on the line only when it's bad. The noise meter only once the crew's loud.
-- **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen.
+- **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
-- **Alarms are rare and short.** The headline is big only when it's urgent, and what to do sits under it in fine print.
+- **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
 
 The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 281.
 

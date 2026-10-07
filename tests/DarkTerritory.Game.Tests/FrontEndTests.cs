@@ -481,11 +481,15 @@ public sealed class FrontEndTests : IDisposable
         Choose(m, "SETTINGS");
         Choose(m, "VOICE");
         Choose(m, "VR TURNING");
+        // Note 281: the corner's control hints, on unless turned off.
+        Assert.True(m.Settings.ControlHints);
+        Choose(m, "CONTROL HINTS");
         Pick(m, "MOUSE SPEED");
         m.Right();
         m.Right();
         Assert.True(m.Settings.PushToTalk);
         Assert.Equal(VrTurn.Smooth, m.Settings.VrTurn);
+        Assert.False(m.Settings.ControlHints);
         Assert.Equal(1.2, m.Settings.MouseSpeed, 6);
         // A new session reads them back, and they reach the VR comfort tuning.
         var again = Settings.Load(SettingsPath);
