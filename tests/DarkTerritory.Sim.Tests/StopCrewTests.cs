@@ -496,6 +496,54 @@ public class StopCrewTests
         Assert.Equal(Surface.Roof, night.Crew[person].Surface);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public void ADriverAloneOnACarsLandingGetsDownAndBackUpIntoTheCab(int side)
+    {
+        // Note 300 (#38, a crew of one): the last door it shut at a stop left the driver on that car's landing, and the walk back
+        // to the cab is on the ground: from a car's deck it went nowhere. Solo Frontier nights stood at the stop till the fire
+        // died. Off the car by the side it's on, then round to the cab's steps and up.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var hand = new StopHand(StopJob.Driver, new CrewCalls(), 0);
+        var layout = T.Geometry.Interior!;
+        double w = train.Frames[1].Shape.Bounds.Max.X;
+        var s = PlayerMotor.SpawnOnRoof(train, 1, 0, P) with
+        {
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(side * (w + layout.StepWidth / 2), layout.FloorHeight, 0),
+        };
+        var doing = new HashSet<string>();
+        for (uint tick = 0; tick < 60 * SimConstants.TickRate; tick++)
+        {
+            world.BeginTick();
+            if (hand.SetBackAlone(s, world, null) is not { } intent)
+                break;
+            doing.Add(hand.Doing);
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Brake = 1 });
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+        }
+        Assert.True(PlayerMotor.InCab(s, train), $"{s.Surface} on {s.Parent} after a minute; did {string.Join(", ", doing)}");
+    }
+
+    [Fact]
+    public void ATrainStoodAsFarPastItsHoldAsItMayLeavesThePointsFree()
+    {
+        // Note 300: the hold is two metres short of the points, and the driver took a stand up to three past it as there. Its
+        // front on the points, they wouldn't go over, and a crew of one stood at the lever till the cold took it.
+        var night = new Night(cars: 3, walkers: 0, hands: 0, modules: ModuleKind.Crates);
+        night.Until(() => false, 1); // the driver says it'll work the stop itself
+        var plan = StopPlan.Ahead(night.World, night.Train.Dynamics.Distance, new HashSet<int>(), night.Calls);
+        Assert.NotNull(plan);
+        var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), night.Train.Line, plan.Hold + StopDriver.HoldOver, Tuning.Boiler);
+        Assert.False(standing.PointsOccupied(plan.Spur.Index, Tuning.Route.Junctions.PointsLength));
+        Assert.True(plan.StandingAt(standing));
+    }
+
     [Fact]
     public void WithTheDawnCloseItRunsPast()
     {
