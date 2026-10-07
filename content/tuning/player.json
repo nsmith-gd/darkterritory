@@ -118,5 +118,14 @@
   "crew": {
     "cap": 8,
     "refuseLingerSeconds": 3
+  },
+  // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
+  // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
+  // how soon after one another can be picked. Presentation only: nothing in the sim acts on an emote.
+  "emotes": {
+    "dance": 8,
+    "wave": 2.5,
+    "point": 2.5,
+    "cooldown": 0.5
   }
 }

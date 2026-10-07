@@ -44,6 +44,22 @@ public sealed class ClientSession
     /// <summary>The name this player goes by, sent to the host once welcomed (the roster, the report).</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>The outfit this player comes in (note 298), sent with the name; <see cref="Messages.NoOutfit"/> for their id's.</summary>
+    public byte Outfit { get; set; } = Messages.NoOutfit;
+
+    /// <summary>
+    /// Tries an outfit on (note 298): asked of the host, which takes it only in the yard; the crew see it once it's sent
+    /// back. Kept for the next Hello, too (a rejoin comes back in it).
+    /// </summary>
+    public void Wear(byte outfit)
+    {
+        Outfit = outfit;
+        if (!_helloSent)
+            return;
+        Messages.WriteWear(_writer, outfit);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     readonly Dictionary<int, byte[]> _reportChunks = [];
     int _reportCount;
     readonly Dictionary<int, byte[]> _filmChunks = [];
@@ -52,6 +68,8 @@ public sealed class ClientSession
     public ClientSession(ITransport transport, World world, TrainTuning trainTuning, PlayerTuning playerTuning)
     {
         World = world;
+        // How long the host keeps an emote is how long it's drawn (note 298).
+        world.EmoteTuning = playerTuning.Emotes;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
 
@@ -170,7 +188,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token);
+        Messages.WriteHello(_writer, Name, Token, Outfit);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
@@ -306,6 +324,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Looks:
                     Messages.ReadLooks(ref r, World.Looks);
+                    break;
+                case MessageType.Outfits:
+                    Messages.ReadOutfits(ref r, World.Outfits);
                     break;
                 case MessageType.Ballot:
                     if (Ballot is null)

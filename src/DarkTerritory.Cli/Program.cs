@@ -1877,6 +1877,12 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     }
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
     menu.DefaultPlayerName = "Nick";
+    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
+    menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
+    {
+        Commendations = new() { ["Came Back For Me"] = 3, ["Held the Switch"] = 1, ["Kept the Fire"] = 5, ["Brought Them Home"] = 2 },
+    };
+    menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
@@ -1884,6 +1890,10 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
+    // --joined, someone else's.
+    if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
     menu.Show(screen);
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
@@ -1939,6 +1949,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
 static object HudShot(string content, string[] args)
 {
+    Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
@@ -2108,6 +2119,13 @@ static object HudShot(string content, string[] args)
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills);
+    // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
+    if (args.Contains("--emote-wheel"))
+    {
+        var wheel = new EmoteWheel();
+        wheel.Update(true, -60, 0);
+        wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
+    }
     // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
     // --radio-at s into the reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
@@ -2130,7 +2148,8 @@ static object HudShot(string content, string[] args)
     if (session.Route?.Plan is { } plan)
     {
         if (args.Contains("--card"))
-            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line);
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line,
+                session.Train.Line.MainDistance(session.Train.Dynamics.Path, session.Train.Dynamics.Distance));
         if (args.Contains("--overlay"))
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }
@@ -2140,6 +2159,8 @@ static object HudShot(string content, string[] args)
     {
         path = Path.GetFullPath(output),
         prompt = Hud.Prompt(session),
+        // Note 285: the corner, what's in your hands or the cab lets you do.
+        corner = Hud.Hints(session) is var (cornerHead, cornerLines) ? new { head = cornerHead, lines = cornerLines } : null,
         quads = hud.Count / 6,
         status = session.Status(),
         watching = session.Watching,
@@ -2498,9 +2519,9 @@ static int Usage()
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
-          screenshot --hud [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
+          screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
