@@ -2103,7 +2103,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
 
 **Derailment**
-- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Open (queue #69, note 330).*
+- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Done (queue #69, note 330): however slow it comes off, the first car is thrown and popped up and every car after is thrown, hops and tips, so a 30 km/h derail rolls the whole train over, one car after another.*
 
 ## F.1 2026-10-06 — build 1121
 
