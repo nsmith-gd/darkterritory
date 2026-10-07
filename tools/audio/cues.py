@@ -603,6 +603,18 @@ CUES = {
     "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
+    # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
+    # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
+    # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
+    # are silent till they're on you: their sign is the eyes alone.
+    "sign": [
+        O("ribbits", "A Ribbit out in the dark: a wet shift in the grass and one soft hop away, not its croak", vars=3),
+        O("sootChildren", "A Soot Child out there: small bare feet running off over cinders, a breath of soot, never its call", vars=3),
+        O("whistler", "The Whistler out there: something long-legged moving off fast through brush, never its whistle", vars=3),
+        O("grumbler", "A Grumbler out there: a heavy scuttle behind a wall and a low mutter, not its gnaw", vars=3),
+        O("gaunt", "The Gaunt: silent, the eyes alone (its silence is its tell)", vars=1, silent=True),
+        O("followers", "The Followers: silent, the eyes alone", vars=1, silent=True),
+    ],
     "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
                     O("howl-near", "The pack howling close behind (40-100 m), as it closes", vars=4)],
     "tell-climbers": [O("scrabble", "Scrabbling at the gap", vars=4)],
