@@ -149,10 +149,12 @@ sealed partial class LineBuilder
                 double fog = 1, wind = 1, adhesion = 1;
                 int cold = 0;
                 var why = new List<string>();
-                if (HasTag("low_ground", e.Id, mid) || HasTag("marsh", e.Id, mid))
+                bool water = BesideWater(e.Id, mid, line.Sample(mid).Position);
+                if (HasTag("low_ground", e.Id, mid) || HasTag("marsh", e.Id, mid) || water)
                 {
-                    fog *= w.FogLowGround;
-                    why.Add("low");
+                    // Fog fills the coves first (maritime-rules §4): water is as foggy as the low ground, and the two don't stack.
+                    fog *= Math.Max(HasTag("low_ground", e.Id, mid) || HasTag("marsh", e.Id, mid) ? w.FogLowGround : 1, water ? w.FogWater : 1);
+                    why.Add(water ? "water" : "low");
                 }
                 else if (HasTag("crest", e.Id, mid))
                 {
@@ -185,6 +187,21 @@ sealed partial class LineBuilder
             if (run is not null)
                 _exposure.Add(run);
         }
+    }
+
+    /// <summary>Whether the track at <paramref name="s"/> runs along a shore, or within the weather's fogWaterM of a lake's edge (or across one).</summary>
+    bool BesideWater(string edge, double s, Double3 at)
+    {
+        if (_shores.Any(sh => sh.Edge == edge && s >= sh.S0 && s <= sh.S1))
+            return true;
+        double reach = _t.Weather.FogWaterM;
+        foreach (var lake in _lakes)
+        {
+            double far = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + reach;
+            if (Math.Abs(at.X - lake.X) <= far && Math.Abs(at.Z - lake.Z) <= far && (TerrainField.LakeMetric(lake, at.X, at.Z) - 1) * lake.RadiusM < reach)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>The worst adhesion fairness plans against over [a, b] (§14: worst-case weather, so rain later can't make obeying unsafe).</summary>

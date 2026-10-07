@@ -93,10 +93,10 @@ After the first renders read more like moor than Nova Scotia, three changes:
   - The sightlines authority reads the terrain after the water is placed.
 - **The formation is never flooded.** Wherever water lowers the land, it's held at or above a fill slope down from every track it's near, except under a bridge span. The ballast either side stays at rail height (`WatersideTests`).
 - **Walkable.** The land beyond the formation is only lowered toward water, never raised, except for a dyke's fields and bank, which are set outright.
+- **Fog fills the coves first.** Track along a shore, or within 40 m of a lake, is as foggy as low ground (×1.3, linegen plan §14), and the renderer's fog follows the line's factor, blended so it comes and goes (ARCHITECTURE §8 note 313).
 
 ## 4. Not yet
 
-- **Fog filling the coves first (§5).** The per-segment exposure has a fog factor, but nothing reads it: the renderer's fog is one density for the night. Varying it along the line (thicker on a shore, in the low ground) is the next step.
 - **A trestle across a lake's neck.** A crossed lake is always a fill for now.
 - **Boats on the mud at low tide, lobster traps along the wharf, aboiteaux (the dykes' sluices), red maple.**
 - **The Tantramar railway grade doubling as the dyke.** The line runs a low bank beside its dyke rather than on it.
