@@ -235,12 +235,16 @@ public sealed class Whistler(int id) : Enemy(id)
                             continue;
                         if (ctx.LivingCrew().Any(o => o.Player.Id != p.Id && (o.World - w).Length <= t.PairRadius))
                             continue;
-                        var away = train.Frames[Attached].DirToWorld(new Double3(train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1, 0, 0)) with { Y = 0 };
-                        _nest = gap + away.Normalized * t.NestDistance;
+                        int side = train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1;
+                        var (nest, run) = NestSite(train, gap, train.Frames[Attached].Right, side, t);
+                        _nest = nest;
                         var victim = p.Id;
                         Local = w;
+                        LineDistance = train.Dynamics.Distance;
                         Attached = Loose;
-                        Grab(ctx, victim, t.NestDistance / t.RunSpeed + t.NestSeconds);
+                        // How long the run to it takes (replicated: the nest's drawn under it once it's there).
+                        Extra2 = run / t.RunSpeed;
+                        Grab(ctx, victim, run / t.RunSpeed + t.NestSeconds);
                         return;
                     }
                     return;
@@ -248,10 +252,13 @@ public sealed class Whistler(int id) : Enemy(id)
             case SpinePhase.Grab:
                 {
                     // Carried off at a run to the nest; there, paralysed.
-                    var to = _nest - Local;
+                    // Over the land, not through it (T128): it runs on the ground, whatever the ground does.
+                    var to = (_nest - Local) with { Y = 0 };
                     double step = t.RunSpeed * SimConstants.TickSeconds;
-                    if (to.Length > step)
-                        Local += to.Normalized * step;
+                    var next = to.Length > step ? Local + to.Normalized * step : _nest;
+                    double hint = LineDistance;
+                    Local = next with { Y = PlayerMotor.GroundAt(next, train.Line, ref hint) };
+                    LineDistance = hint;
                     ctx.Carry(Holding, Local);
                     return;
                 }
@@ -259,6 +266,47 @@ public sealed class Whistler(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>
+    /// Where it carries someone (T128, build 1121: "a creature carried the director up a mountainside"; note 273): straight
+    /// out from its gap across the line, the side they were taken from first, as far as <see cref="WhistlerTuning.NestDistance"/>
+    /// (inside Line Plan §12.6's walkable corridor, so a friend can follow and a body can be found), shorter if it must,
+    /// never under <see cref="WhistlerTuning.NestMinDistance"/>. The way there has to be land a person can run over: no
+    /// stretch of it steeper than <see cref="WhistlerTuning.NestMaxSlope"/>, never more than <see cref="WhistlerTuning.NestMaxRise"/>
+    /// above or below the rail (not up a mountainside, not down a ravine, not into a cutting's wall or a tunnel's hill), and
+    /// no water. Nowhere on either side is: the formation's edge on the side they were on, the nearest walkable point there
+    /// is. Returns the nest (on the ground) and how far it runs to it.
+    /// </summary>
+    public static (Double3 Nest, double Run) NestSite(TrainOnLine train, Double3 gap, Double3 right, int side, WhistlerTuning t)
+    {
+        var across = (right with { Y = 0 }).Normalized;
+        double hint = train.Dynamics.Distance;
+        double rail = PlayerMotor.GroundAt(gap, train.Line, ref hint);
+        var water = (train.Line.Conditions as LineGen.PlanConditions)?.Terrain;
+        foreach (int s in new[] { side, -side })
+            for (double d = t.NestDistance; d >= t.NestMinDistance - 1e-6; d -= Math.Max(1, t.NestStep))
+                if (Runnable(train, gap, across * s, d, rail, water, t, ref hint) is { } nest)
+                    return (nest, ((nest - gap) with { Y = 0 }).Length);
+        var edge = gap + across * (side * train.Dynamics.Tuning.Recovery.EdgeM);
+        return (edge with { Y = PlayerMotor.GroundAt(edge, train.Line, ref hint) }, train.Dynamics.Tuning.Recovery.EdgeM);
+    }
+
+    static Double3? Runnable(TrainOnLine train, Double3 gap, Double3 dir, double distance, double rail, LineGen.TerrainField? water, WhistlerTuning t, ref double hint)
+    {
+        const double Pace = 2;
+        double last = rail;
+        for (double x = Pace; x <= distance + 1e-6; x += Pace)
+        {
+            var at = gap + dir * Math.Min(x, distance);
+            double ground = PlayerMotor.GroundAt(at, train.Line, ref hint);
+            if (Math.Abs(ground - rail) > t.NestMaxRise || Math.Abs(ground - last) > t.NestMaxSlope * Pace
+                || water?.WaterNear(at.X, at.Z, 1) is not null)
+                return null;
+            last = ground;
+        }
+        var nest = gap + dir * distance;
+        return nest with { Y = last };
     }
 
     protected override void Punish(EnemyContext ctx, int victim)
@@ -301,7 +349,8 @@ public sealed class Climber(int id) : Enemy(id)
     /// <summary>On the roofs or in a car, a tool can reach it.</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.6 : 0;
     /// <summary>Out on the roofs (or scrabbling at the gap), it's in the open: the guns can take it.</summary>
-    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0 ? 0.55 : 0;
+    public override bool Exposed => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0;
+    public override bool GunAnswers => true;
 
     public int Gap => (int)Extra;
     public int Side => Extra2 < 0 ? -1 : 1;

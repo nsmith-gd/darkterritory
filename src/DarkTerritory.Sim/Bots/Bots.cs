@@ -79,7 +79,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
         // From the first howl (the telegraph): back to the gun, it's a long walk from the front cars and the pack's closing.
         bool hounds = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish);
-        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds);
+        // The mail cranes' bags are the walkers' to catch, not the gun's (note 299: with a bag always ahead the gunner went in
+        // for each and never reached its gun all night); only with no other hand aboard but the driver does it go for them.
+        bool alone = _legs.Crew.Count(c => c.State.Alive && c.Id != Me) < 2;
+        _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone);
         // T103 (T93 playtest: "so a cannon can be saved before decoupling a car"): a car the Car Hugger has hold of is a car
         // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
         if (SaveGun(self, world) is { } saving)
@@ -133,8 +136,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
         var muzzle = frame.ToWorld(Guns.Mount(world.Train, gun)!.Value.Position);
-        var target = world.ActiveEnemies.Where(e => e.HitRadius > 0 && !e.Gone)
-            .Select(e => (e, offset: e.HitCentre(world.Train) - muzzle))
+        // What the gun answers (GDD §21), and anything holding a crewmate: a ball frees them as a friend's blow would (note 290).
+        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null)
+            .Select(e => (e, offset: e.AimPoint(world.Train, world.Enemies!) - muzzle))
             .Where(x => x.offset.Length <= guns.Range)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
         if (target.e is null)
@@ -222,9 +226,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     bool _looked;
 
     /// <summary>The gunner has read the line for its legs this tick already (it knows whether it's at the gun).</summary>
-    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true)
+    internal void Looked(World world, in PlayerState self, bool safe, bool tend = true, bool catches = true)
     {
-        Look(world, self, safe, tend);
+        Look(world, self, safe, tend, catches);
         _looked = true;
     }
 
@@ -265,7 +269,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// or the train still in it) means off the roofs and indoors (sight.json: the mouth takes anyone standing up there). <paramref name="safe"/>: where it
     /// stands is clear anyway (a gun's crew are down behind its shield).
     /// </summary>
-    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true)
+    /// <param name="catches">Whether it goes in for the mail cranes' bags (the gunner leaves them to the walkers, note 299).</param>
+    public void Look(World world, in PlayerState self, bool safe = false, bool tend = true, bool catches = true)
     {
         if (_warm is null)
             return;
@@ -284,7 +289,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             .ThenBy(e => e.Id).FirstOrDefault() : null;
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
-        _drop = tend && _trouble is null ? NextDrop(world) : null;
+        _drop = tend && catches && _trouble is null ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar;
         if (_trouble is { } trouble)
@@ -1442,7 +1447,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (_alone is not null && calls is not null)
             {
                 _aloneHand ??= new StopHand(StopJob.None, calls, member);
-                if (_aloneHand.SetBackAlone(self, world, _alone, _aloneTo) is { } getting)
+                // The stop's given the spur up (its Held give-up: the points wouldn't go over) with the switch still for the
+                // main: back up into the cab, not at the lever all night (note 300).
+                var to = _aloneTo && !train.Diverging(_alone.Index) && stops.ThrowAlone(world) is null ? null : _alone;
+                if (_aloneHand.SetBackAlone(self, world, to, _aloneTo) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
                     return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };
@@ -1852,7 +1860,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Its brake fading against the steam (note 231): no more than steam that doesn't pull at the cruise, as it's vented to.
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
+        // Only with the shovel to hand (note 275): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.

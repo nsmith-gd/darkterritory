@@ -39,9 +39,11 @@ public class AudioTests
         Assert.True(First("bed-wheel-rail.flange") < First("state-derail.flange-scream"), "the squeal comes before the scream");
         Assert.True(First("state-derail.flange-scream") < First("warn-overspeed"), "the scream comes before the bell");
         Assert.True(First("bed-groan.creak") < report.DerailedAt);
-        // Each stage is heard, not just there: the squeal's first second within 20 dB of the cab's mix, and the scream
-        // louder where the train is about to come off than where it began.
-        var squeal = before.First(s => s.StemsDb.ContainsKey("bed-wheel-rail.flange"));
+        // Each stage is heard, not just there: the squeal, at its loudest while it's the only stage, within 20 dB of the cab's
+        // mix (its first second can be only the edge of its fade-in), and the scream louder where the train is about to come
+        // off than where it began.
+        var squeal = before.Where(s => s.StemsDb.ContainsKey("bed-wheel-rail.flange") && !s.StemsDb.ContainsKey("state-derail.flange-scream"))
+            .MaxBy(s => Db(s, "bed-wheel-rail.flange"))!;
         Assert.True(Db(squeal, "bed-wheel-rail.flange") > squeal.MixDb - 20, $"the squeal is {Db(squeal, "bed-wheel-rail.flange")} dB under a {squeal.MixDb} dB mix");
         var screaming = before.Where(s => s.StemsDb.ContainsKey("state-derail.flange-scream")).ToList();
         Assert.True(Db(screaming[^1], "state-derail.flange-scream") >= Db(screaming[0], "state-derail.flange-scream") + 4, "the scream builds");

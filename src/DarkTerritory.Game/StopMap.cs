@@ -29,6 +29,26 @@ public static class StopMap
             Dashed(px, size, tr.Path, At, 0.9 * k, 3, 3, 225, 220, 205);
         foreach (var r in l.Roads)
             Line(px, size, r.Points, At, (r.Kind == RoadKind.Through ? 1.3 : 1.0) * k, r.Kind == RoadKind.Lane ? (byte)150 : (byte)225, 222, 210);
+        // Blocked sidings (D.2; note 294): their derelicts in rust, back from the buffer stop, a car's pitch each with a gap.
+        foreach (var tr in l.Tracks.Where(tr => tr.Blocked))
+        {
+            double pitch = 15.5, along = 0;
+            for (int i = tr.Path.Count - 1; i > 0; i--)
+            {
+                double seg = Pt.Distance(tr.Path[i], tr.Path[i - 1]);
+                for (double u = 0; u < seg; u += 0.5)
+                {
+                    double m = along + u;
+                    if (m >= 1 && m < 1 + tr.Derelicts * pitch && (m - 1) % pitch < pitch - 1.5)
+                    {
+                        var a = tr.Path[i];
+                        var b = tr.Path[i - 1];
+                        Disc(px, size, At(new Pt(a.S + (b.S - a.S) * u / seg, a.D + (b.D - a.D) * u / seg)), 1.6 * k, 150, 72, 44);
+                    }
+                }
+                along += seg;
+            }
+        }
         foreach (var tr in l.Tracks)
             if (tr.Crane is { } rw)
             {

@@ -72,13 +72,43 @@ public abstract class Enemy
     public double LineDistance { get; set; }
     public double Lateral { get; set; }
     public double Height { get; set; }
-    /// <summary>Hit volume radius; 0 means it can't be shot (Clingers, Sleepers, the Hollow in the stack).</summary>
-    public virtual double HitRadius => 0;
-    /// <summary>How far over where it stands its hit volume is centred (the Track Doll's body, over the rail she stands on).</summary>
-    public virtual double HitHeight => 0;
+    /// <summary>
+    /// Whether its body stands in the open now, where a cannonball can find it (GDD App. F.1 "the guns do nothing"; note
+    /// 290): by default wherever a tool's blow can land on it. Its body is enemies.json <c>bodies</c>; a ball that finds it
+    /// lands as a blow (<see cref="Hit"/>). From replicated state, so a client's prediction finds the same bodies.
+    /// </summary>
+    public virtual bool Exposed => MeleeRadius > 0 && !Gone;
 
-    /// <summary>The centre of its hit volume (world): what's aimed at, and what a round has to pass through.</summary>
-    public Double3 HitCentre(TrainOnLine train) => WorldPosition(train) + Double3.Up * HitHeight;
+    /// <summary>How much of its body's height it stands at now (a sleeping Gaunt, curled up); 1 upright.</summary>
+    public virtual double Stoop(EnemyTuning t) => 1;
+
+    /// <summary>
+    /// Its body as a ball finds it now (world): enemies.json <c>bodies</c>' spheres over where it stands, or none when it
+    /// isn't <see cref="Exposed"/> (or its kind has no body).
+    /// </summary>
+    public IEnumerable<Combat.HitTarget> Body(TrainOnLine train, EnemyTuning t)
+    {
+        if (!Exposed)
+            yield break;
+        var at = WorldPosition(train);
+        double stoop = Stoop(t);
+        foreach (var (radius, height) in t.Body(Kind))
+            yield return new Combat.HitTarget(Id, at + Double3.Up * (height * stoop), radius);
+    }
+
+    /// <summary>Where a gunner lays on it: the middle of its body (world); where it stands, with no body.</summary>
+    public Double3 AimPoint(TrainOnLine train, EnemyTuning t)
+    {
+        var body = t.Body(Kind);
+        double height = body.Length == 0 ? 0 : body.Average(s => s.Height) * Stoop(t);
+        return WorldPosition(train) + Double3.Up * height;
+    }
+
+    /// <summary>
+    /// The cannon is its answer (GDD §21, App. A): the gunner's own work, laid on whenever it's in range (a bot gunner's
+    /// targets). Anything else a ball can still find, but the gun is no answer to it, save to free a crewmate it holds.
+    /// </summary>
+    public virtual bool GunAnswers => false;
     /// <summary>
     /// Lies on the main line wherever the train is (Sleepers across the rail). Everything else off the train is
     /// placed along the engine's path: it's after the train, down a branch too.
@@ -333,16 +363,17 @@ public abstract class Enemy
         return true;
     }
 
-    /// <summary>Takes damage from a round; returns true if that killed it.</summary>
-    public virtual bool Hit(EnemyContext ctx, double damage)
+    /// <summary>
+    /// A cannonball fired by <paramref name="by"/> found its body (note 290): it lands as a heavy blow, answered by the
+    /// creature's own rule for one (<see cref="Struck"/>: hurt, a friend's blow breaking its grab, a Grumbler gone feral on
+    /// whoever struck it). Returns true if that finished it.
+    /// </summary>
+    public virtual bool Hit(EnemyContext ctx, int by, double damage)
     {
-        if (HitRadius <= 0 || Gone)
+        if (!Exposed)
             return false;
-        Health -= damage;
-        if (Health > 0)
-            return false;
-        Enter(ctx, SpinePhase.Gone);
-        return true;
+        Struck(ctx, by, damage);
+        return Gone;
     }
 
     /// <summary>Copies replicated state onto a client-side stand-in.</summary>

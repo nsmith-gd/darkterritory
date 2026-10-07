@@ -65,6 +65,8 @@ public sealed class Director
     double _pressure;
     bool _building;
     double _sinceThreat;
+    /// <summary>The line run since a threat was last engaged or sent (note 270: quiet counted in kilometres).</summary>
+    double _quietMetres;
 
     /// <summary>This night's grace: no spawns of the director's own before it (seconds into the night).</summary>
     public double Grace { get; }
@@ -233,6 +235,9 @@ public sealed class Director
             return Held("grace");
         if (_route is not null && s > _route.Length - noSpawnFinal)
             return Held("final stretch");
+        // GDD §9, T128 (note 273): nothing comes for a train that's in one of the forts.
+        if (world.TrainInFort)
+            return Held("in a fort");
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the terminus), and
         // none of its own while the terrain is already at its hardest there (§15.4). The pressure waits with it: the terrain's
         // the problem there, not the quiet.
@@ -375,7 +380,12 @@ public sealed class Director
         // nobody walked into held the night's pressure flat).
         int engaged = active.Count(Confronting);
         _sinceThreat = engaged > 0 ? 0 : _sinceThreat + 1;
-        double quiet = p.QuietPerSecond * Math.Min(1, _sinceThreat / Math.Max(1, p.QuietRampSeconds));
+        _quietMetres = engaged > 0 ? 0 : _quietMetres + world.Train.Dynamics.Speed;
+        // GDD App. F.1 (note 270): a stretch of line holds the same danger whatever the train's speed; time is the backstop.
+        double ramp = p.QuietRampMetres > 0
+            ? Math.Max(_quietMetres / p.QuietRampMetres, _sinceThreat / Math.Max(1, p.QuietBackstopSeconds))
+            : _sinceThreat / Math.Max(1, p.QuietRampSeconds);
+        double quiet = p.QuietPerSecond * Math.Min(1, ramp);
         // The meter's loudness against its threshold (App. C.7): a crew loud enough to draw the Choir draws everything else too.
         double loud = world.Combat is { } combat && combat.Choir.Threshold > 0
             ? p.LoudPerSecond * Math.Min(p.LoudCap, world.Choir.Loudness / combat.Choir.Threshold) : 0;
@@ -408,6 +418,130 @@ public sealed class Director
         double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions);
+    }
+
+    /// <summary>A crewmate the train's left behind (T128, note 273): how long, their pressure, the hunts sent, the last hunt's pack.</summary>
+    sealed class LeftBehind
+    {
+        public double Seconds, Pressure;
+        public int Hunts, Pack = -1;
+    }
+
+    readonly SortedDictionary<int, LeftBehind> _left = [];
+    Pcg32 _huntRng;
+    bool _huntSeeded;
+
+    /// <summary>A hunt sent at a crewmate left behind (T128): when, at whom, its pack and size, how long and how far behind they'd been.</summary>
+    public readonly record struct Hunt(uint Tick, int Player, int Pack, int Size, double Seconds, double Behind, int Gaunt = -1);
+
+    /// <summary>Every hunt sent at a crewmate left behind tonight (T128, note 273).</summary>
+    public List<Hunt> Hunts { get; } = new();
+
+    /// <summary>A left-behind crewmate's own pressure now (0 for anyone the train hasn't left).</summary>
+    public double AbandonedPressure(int player) => _left.TryGetValue(player, out var l) ? l.Pressure : 0;
+
+    /// <summary>
+    /// T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
+    /// difficulty spiking for that player. They needn't die at once"; GDD §7, §23; note 273). Once a second, with the night's
+    /// own pressure (whatever holds it: the grace, a ban, the caps). Each crewmate alive on the ground further than
+    /// <see cref="AbandonedTuning.BehindM"/> along the line from the train, and outside the forts, builds a pressure of their own,
+    /// on the night's tier and conditions, rising the longer and the further they're left; past its threshold a Ribbit pack
+    /// comes for them alone (App. A.6: it hops in on whoever it outnumbers, and can be outrun), each bigger and put down closer
+    /// than the last, never two at once. Not from the budget, not on the caps: it's theirs, not the train's. Its own dice, so
+    /// the night's draws are as they were.
+    /// </summary>
+    public void Abandoned(World world, IReadOnlyList<Enemy> active)
+    {
+        var a = _t.Abandoned;
+        if (!a.On || world.Enemies is not { } et || !Allows(EnemyKind.Ribbit))
+        {
+            _left.Clear();
+            return;
+        }
+        if (!_huntSeeded)
+        {
+            _huntRng = new Pcg32(_seed, 0xAB4D0);
+            _huntSeeded = true;
+        }
+        var train = world.Train;
+        double front = train.Dynamics.Distance, rear = train.Dynamics.RearDistance;
+        var crew = world.CrewThisTick;
+        var seen = new HashSet<int>();
+        foreach (var (id, s) in crew)
+        {
+            if (!s.Alive || s.Parent != PlayerState.World)
+                continue;
+            var at = PlayerMotor.WorldPosition(s, train);
+            if (world.InFort(at))
+                continue;
+            double hint = s.LineHint;
+            train.Line.Nearest(at, ref hint);
+            double behind = Math.Max(rear - hint, hint - front);
+            if (behind <= a.BehindM)
+                continue;
+            seen.Add(id);
+            if (!_left.TryGetValue(id, out var l))
+                _left[id] = l = new LeftBehind();
+            l.Seconds += 1;
+            double conditions = Terms.Conditions > 0 ? Terms.Conditions : 1;
+            l.Pressure += _tierRate * conditions
+                * (a.PerSecond + a.RampPerSecond * Math.Min(1, l.Seconds / Math.Max(1, a.RampSeconds)) + a.PerKm * behind / 1000);
+            bool hunted = l.Pack >= 0 && active.Any(e => e is Ribbit r && !r.Gone && r.Pack == l.Pack);
+            if (hunted || l.Pressure < a.Threshold)
+                continue;
+            // More than the group they're in (Ribbits only take the outnumbered), one more each time, to the most.
+            var r = et.Ribbits;
+            int group = crew.Count(c => c.State.Alive && c.State.Parent == PlayerState.World
+                && ((PlayerMotor.WorldPosition(c.State, train) - at) with { Y = 0 }).Length <= r.GroupRadius);
+            int size = Math.Max(group + 1, Math.Min(a.Pack[1], a.Pack[0] + l.Hunts));
+            double k = a.Pack[1] > a.Pack[0] ? Math.Min(1, (double)l.Hunts / (a.Pack[1] - a.Pack[0])) : 1;
+            double out_ = a.SpawnOut[0] + (a.SpawnOut[1] - a.SpawnOut[0]) * k;
+            if (HuntSpot(world, at, hint, out_) is not { } spot)
+                continue;
+            int pack = world.NextEnemyId;
+            for (int i = 0; i < size; i++)
+            {
+                var p = spot + new Double3(i * 1.2, 0, (i % 2) * 1.2);
+                world.AddEnemy(e => Ribbit.At(e, pack, p, r));
+            }
+            // From the hunt numbered gauntFrom on, a Gaunt woken on them comes with it (note 296): one at a time each, never
+            // where the crew's too small for one or the night bans it.
+            int gaunt = -1;
+            var g = et.Gaunt;
+            if (a.GauntFrom >= 0 && l.Hunts >= a.GauntFrom && Allows(EnemyKind.Gaunt) && crew.Count(c => c.State.Alive) >= g.MinCrew
+                && !active.Any(e => e is Gaunt { Gone: false } w && w.Waker == id)
+                && HuntSpot(world, at, hint, g.SpawnOut) is { } far)
+            {
+                gaunt = world.NextEnemyId;
+                world.AddEnemy(e => Gaunt.WokenBy(e, far, id, g));
+            }
+            l.Pack = pack;
+            l.Hunts++;
+            l.Pressure = Math.Max(0, l.Pressure - a.Relief);
+            Hunts.Add(new Hunt(world.Tick, id, pack, size, l.Seconds, behind, gaunt));
+        }
+        foreach (int id in _left.Keys.Where(k => !seen.Contains(k)).ToList())
+            _left.Remove(id);
+    }
+
+    /// <summary>Where a hunt is put down: <paramref name="distance"/> from them, off the line's side they're on, on the ground, out of the forts.</summary>
+    Double3? HuntSpot(World world, Double3 at, double along, double distance)
+    {
+        var line = world.Train.Line;
+        var rail = line.Sample(Rail.RailLine.MainPath, along);
+        var right = Double3.Cross(rail.Tangent, Double3.Up).Normalized;
+        double side = Double3.Dot(at - rail.Position, right) >= 0 ? 1 : -1;
+        double jitter = _huntRng.Range(-0.8, 0.8);
+        foreach (double s in new[] { side, -side })
+        {
+            var dir = (right * s + rail.Tangent * jitter).Normalized;
+            var spot = at + dir * distance;
+            double hint = along;
+            spot = spot with { Y = PlayerMotor.GroundAt(spot, line, ref hint) };
+            if (!world.InFort(spot))
+                return spot;
+        }
+        return null;
     }
 
     /// <summary>A threat engaged with the crew now: telegraphing, committing, grabbing or punishing (note 266).</summary>
@@ -492,6 +626,7 @@ public sealed class Director
         // counts again from the threat's coming.
         _pressure = Math.Max(0, _pressure - _t.Pressure.ReliefPerCost * Cost(kind));
         _sinceThreat = 0;
+        _quietMetres = 0;
         string want = WantOf(kind).ToString().ToLowerInvariant();
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)

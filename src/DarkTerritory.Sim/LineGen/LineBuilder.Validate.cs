@@ -251,8 +251,6 @@ sealed partial class LineBuilder
         Check("dawn", transitFits && (stopsFit || !v.DawnWithStopsHard), $"{planned / 60:0.0} min with every stop, {_idealTransit / 60:0.0} without, against dawn at {_dawn / 60:0.0}");
         if (transitFits && !stopsFit)
             Warn($"§22.1: taking all {_facilities.Count} stops runs {(planned - _dawn) / 60:0.0} min past dawn ({_dawn / 60:0} min by the spec's formula)");
-        if (_p.Tier == RouteTier.DeepTerritory && _dawn > 45 * 60)
-            Warn($"§22.1: a {Km(_terminus):0} km Deep route's dawn timer is {_dawn / 60:0} min, past the spec's 45 min run (design decides)");
 
         // Coaling: a tower when the night needs one (spec B.6).
         bool needCoal = planned > v.CoalingEnduranceShare * _l.TenderEnduranceS;

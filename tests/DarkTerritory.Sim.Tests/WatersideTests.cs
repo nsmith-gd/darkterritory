@@ -63,7 +63,7 @@ public class WatersideTests
     [Theory]
     [InlineData("local:3")]
     [InlineData("frontier:7")]
-    [InlineData("frontier:2")]
+    [InlineData("deadLines:3")]
     public void ShoresAreWetPastTheirEdgeAndDykedFieldsLieFlat(string spec)
     {
         var (plan, line, terrain) = Night(spec);
@@ -87,6 +87,11 @@ public class WatersideTests
                         double h = terrain.Height(t.Position.X + sea.X * l, t.Position.Z + sea.Z * l) - t.Position.Y;
                         if (plan.Structures.Any(x => x.Edge == "main" && s > x.S0 - 150 && s < x.S1 + 150))
                             continue;
+                        // A branch's own formation across the fields is its ground (frontier:7's dead line off into the marsh).
+                        double fx = t.Position.X + sea.X * l, fz = t.Position.Z + sea.Z * l;
+                        if (line.Branches.Any(b => Enumerable.Range(0, (int)(b.Definition.Length / 10) + 1).Any(k =>
+                            b.Local.Sample(k * 10.0).Position is var q && (q.X - fx) * (q.X - fx) + (q.Z - fz) * (q.Z - fz) < 30 * 30)))
+                            continue;
                         Assert.InRange(h, -rules.Dykes.FieldsBelowRailM - 0.4, -rules.Dykes.FieldsBelowRailM + 0.4);
                     }
                 }
@@ -96,8 +101,8 @@ public class WatersideTests
     [Fact]
     public void TheWatersideIsPartOfThePlanAndTheSameEveryRun()
     {
-        var a = Night("deadLines:3").Plan;
-        var b = Routes.Generate(Content, "deadLines:3", 6).Plan!;
+        var a = Night("deadLines:2").Plan;
+        var b = Routes.Generate(Content, "deadLines:2", 6).Plan!;
         Assert.Equal(a.Lakes, b.Lakes);
         Assert.Equal(a.Shores, b.Shores);
         // And a client's copy round-trips it.

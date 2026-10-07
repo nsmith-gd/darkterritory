@@ -21,6 +21,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// </summary>
     public bool YardIsSafe { get; init; } = true;
 
+    /// <summary>The forts are safe from creatures all night (GDD §9, T128; ARCHITECTURE §8 note 273): run.json <c>forts</c>.</summary>
+    public FortTuning Forts { get; init; } = new();
+
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
 
@@ -55,6 +58,13 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
 
 /// <summary>GDD §9: FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS.</summary>
 public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
+
+/// <summary>
+/// GDD §9 "forts must be safe spaces that monsters never enter" (T128; note 273): the departure fortress (the line up to its
+/// outer gate) and the terminus (from its gate on, unless it's a silent settlement whose gate linegen doesn't keep safe), out
+/// to <paramref name="HalfWidthM"/> either side of the line. Field docs live in run.json <c>forts</c>.
+/// </summary>
+public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
@@ -676,7 +686,8 @@ public sealed partial class Run
         double perCar = e.PerCar.GetValueOrDefault(tier, 700);
         // A switchyard's cars nobody coupled up to were never the crew's to lose (note 187).
         var standing = train.Rakes.Where(train.Standing).SelectMany(r => r.Consist.Vehicles).Select(v => v.Id).ToHashSet();
-        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && !standing.Contains(v.Id)).ToList();
+        // Nor a blocked siding's derelicts (note 294), unless they're brought home on the train.
+        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && !standing.Contains(v.Id) && (!v.Derelict || attached.Contains(v.Id))).ToList();
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
@@ -688,7 +699,8 @@ public sealed partial class Run
         double gross = delivered ? freightPay + childPay + Scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
-        double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
+        // A derelict was battered before the night began (note 294): not the crew's to mend.
+        double repairs = train.Vehicles.Where(v => attached.Contains(v.Id) && !v.Derelict).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
         // Home is aboard, or at least with the train: someone mid-jump between roofs, or who stepped down at
         // the terminus, made it. Anyone further than this from every attached car didn't.
         const double WithTheTrain = 40;
@@ -745,7 +757,8 @@ public sealed partial class Run
         var train = world.Train;
         foreach (var rake in train.Rakes.Where(r => r != train.Dynamics && !train.Standing(r)))
         {
-            var ids = rake.Consist.Vehicles.Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
+            // A blocked siding's derelicts (note 294) were never the crew's: left anywhere, they're not lost.
+            var ids = rake.Consist.Vehicles.Where(v => !v.Derelict).Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
             if (ids.Count == 0)
                 continue;
             var vehicles = ids.Select(id => train.Vehicles[id]).ToList();
