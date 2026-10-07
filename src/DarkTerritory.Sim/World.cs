@@ -46,8 +46,13 @@ public sealed class World
             Switches = new Rail.SwitchStands(tuning);
     }
 
-    /// <summary>Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests).</summary>
-    public bool SetSwitch(int branch, bool diverge) => Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
+    /// <summary>
+    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
+    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// </summary>
+    public bool SetSwitch(int branch, bool diverge) =>
+        Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
 
     public TrainOnLine Train { get; }
     /// <summary>
@@ -263,6 +268,21 @@ public sealed class World
 
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
+
+    /// <summary>The last of the swarm killed by the crew together (note 288): the Choir is done for the run, as when it takes its one.</summary>
+    public void ChoirSlain() => _choirTook = true;
+
+    /// <summary>
+    /// Host: the kinds the crew have killed together tonight (note 288, the director's clarification of 7 Oct 2026): a kill is
+    /// for the night, so the director doesn't send that kind again. Driven off, a creature can come back.
+    /// </summary>
+    public HashSet<EnemyKind> Slain { get; } = [];
+
+    /// <summary>
+    /// Host: once-a-run kinds the crew drove off tonight rather than killed (the Passenger, note 288): driven off isn't the end
+    /// of it, so the director may send it again (Spawns' once-a-run rule lets it).
+    /// </summary>
+    public HashSet<EnemyKind> DrivenOff { get; } = [];
     bool _choirTook;
     double _hotFor;
     bool _stokerWasIn;
@@ -1462,8 +1482,14 @@ public sealed class World
     void StepEnemies(EnemyContext ctx)
     {
         var t = ctx.Tuning;
+        ctx.Landed.Clear();
         foreach (var shot in Shots)
+        {
             _recentRounds.Add((Tick, shot.Muzzle));
+            // On the ground, water, a wall or a creature; not a ball stopped by the train's own body.
+            if (shot.Surface != ImpactSurface.Train)
+                ctx.Landed.Add(shot.Impact);
+        }
         _recentRounds.RemoveAll(r => Tick - r.Tick > t.CinderHounds.SuppressWindowSeconds * SimConstants.TickRate);
         // Rounds fired this tick land first.
         if (Combat is { } c)
@@ -1532,6 +1558,8 @@ public sealed class World
             }
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
+            // Note 328: a train run fast draws the hound run, the guns' wave.
+            d.Runs(this, Run is { Tuning.YardIsSafe: true } rs ? rs.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
         }
 
         foreach (var e in _enemies.ToList())

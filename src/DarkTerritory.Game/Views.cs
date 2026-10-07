@@ -142,6 +142,8 @@ public static class Views
             // (Not one of Names.) Sat in the cannon's seat (note 137), the gunner's eye over the breech, along the barrel;
             // and off its side, close, the whole of it.
             "cannon" => CannonCamera(train, side: false),
+            // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
+            "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
@@ -356,6 +358,20 @@ public static class Views
         var f = train.Frames[v];
         double floor = Floor(train), l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(0.1, floor + 1.5, -l + 1.5)), f.ToWorld(new Double3(-0.95, floor + 0.2, -l + 0.6)), 65);
+    }
+
+    /// <summary>
+    /// The hound run's view (note 328, --run): off the line's left, back past the last of the staged runners, looking up the
+    /// line at them closing on the train's rear and its gun.
+    /// </summary>
+    static Camera RunCamera(TrainOnLine train)
+    {
+        Double3 At(double behind, double lateral, double height)
+        {
+            var t = train.Line.Sample(train.Dynamics.Path, train.Dynamics.RearDistance - behind);
+            return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral + Double3.Up * height;
+        }
+        return Camera.LookAt(At(48, -9, 3.2), At(4, 1, 1.6), 60);
     }
 
     static Camera CannonCamera(TrainOnLine train, bool side)

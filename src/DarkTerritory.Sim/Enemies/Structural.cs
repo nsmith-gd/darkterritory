@@ -10,6 +10,14 @@ namespace DarkTerritory.Sim.Enemies;
 /// by killing the one holding them (many blows, and they hit back hard). With nobody to seize they besiege the shut doors,
 /// rattling and banging until the crew's quiet. Quiet held, they disperse; one crew member taken and the Choir's gone for the
 /// rest of the run. Rule: hush, and shut every door. Fighting it is possible and almost always a mistake.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>choir.drivenOff</c>; the director's clarification of 7 Oct 2026): a
+/// seize breaks when the crew hushes (the meter under its threshold for <c>hushBreakSeconds</c>: the ghost lets go and goes)
+/// or a door's shut on it (its catch behind a shut door: it lets go and goes back to the doors). Blows don't break it. Killed
+/// only by the crew together while they hold quiet: blows from two or more crewmates inside <c>coordinatedKill</c>'s window
+/// with the meter under its threshold, and each striker still takes its hit back. The last of the swarm killed, the Choir's
+/// done for the run; driven off by quiet, it rests and can gather again (combat.json <c>restSeconds</c>).
+/// </para>
 /// </summary>
 /// <remarks>Loose in the world. <see cref="Enemy.Extra"/> is who it's after (−1: besieging).</remarks>
 public sealed class ChoirGhost(int id) : Enemy(id)
@@ -70,12 +78,42 @@ public sealed class ChoirGhost(int id) : Enemy(id)
                 }
             case SpinePhase.Grab:
                 if (ctx.Crew.FirstOrDefault(c => c.Player.Id == Holding).Player.State is { Alive: true } held)
+                {
                     Local = PlayerMotor.WorldPosition(held, train) + Double3.Up * 1.4;
+                    if (t.DrivenOff && LetsGo(ctx, t, held))
+                        return;
+                }
                 return;
             default:
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    double _hushed;
+
+    /// <summary>The crew's quiet: the meter (App. C.7) under the Choir's threshold (combat.json).</summary>
+    static bool Quiet(EnemyContext ctx) => ctx.World.Combat is not { } c || ctx.World.Choir.Loudness < c.Choir.Threshold;
+
+    /// <summary>
+    /// HUSH, AND SHUT EVERY DOOR (note 288): its catch behind a shut door, it lets go and goes back to the doors; the crew quiet
+    /// for <see cref="ChoirSwarmV11.HushBreakSeconds"/>, it lets go and goes. True the tick it lets go.
+    /// </summary>
+    bool LetsGo(EnemyContext ctx, ChoirSwarmV11 t, in PlayerState held)
+    {
+        if (PlayerMotor.Space(held, ctx.Train) != PlayerMotor.Outside)
+        {
+            _hushed = 0;
+            Extra = -1;
+            Enter(ctx, SpinePhase.Telegraph);
+            return true;
+        }
+        _hushed = Quiet(ctx) ? _hushed + SimConstants.TickSeconds : 0;
+        if (_hushed < t.HushBreakSeconds)
+            return false;
+        Enter(ctx, SpinePhase.BreakOff);
+        Enter(ctx, SpinePhase.Gone);
+        return true;
     }
 
     /// <summary>Wheeling about over the train, around the engine's rake.</summary>
@@ -104,8 +142,24 @@ public sealed class ChoirGhost(int id) : Enemy(id)
             _hitBack = ctx.Tick;
             ctx.Bite(by, t.HitBackDamage, DeathCause.Choir);
         }
-        base.Struck(ctx, by, damage);
+        if (!t.DrivenOff)
+        {
+            base.Struck(ctx, by, damage);
+            return;
+        }
+        // Note 288: only the gang, holding quiet, wears it down; and nothing breaks its seize but the quiet or a door.
+        Marked(ctx, by);
+        if (!Quiet(ctx) || !Ganged(ctx, except: Holding))
+            return;
+        Health -= damage;
+        if (Health > 0)
+            return;
+        Slay(ctx, forTheNight: false);
+        // The last of the swarm killed: the Choir's done for the run.
+        if (!ctx.World.ActiveEnemies.Any(e => e is ChoirGhost && e != this && !e.Gone))
+            ctx.World.ChoirSlain();
     }
+
 
     /// <summary>Seized: the Choir's one for the run (the world disperses the rest, and it's spent).</summary>
     protected override void Punish(EnemyContext ctx, int victim)

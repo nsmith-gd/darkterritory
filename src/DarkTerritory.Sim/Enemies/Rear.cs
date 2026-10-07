@@ -27,6 +27,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// <summary>Aboard, it's in reach of a tool (App. A.3 PACK FIGHT).</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.8 : 0;
     public int Pack { get; } = pack;
+    /// <summary>
+    /// A runner in the hound run (note 328): sent at a fast train, faster than it, and answered one at a time by a ball landing
+    /// near it, not by any round fired near the pack. Host only (the director's; a client's mirror never steps it).
+    /// </summary>
+    public bool Runner { get; init; }
     public override bool StaysAboard => _stays && Attached >= 0;
 
     protected override void Tick(EnemyContext ctx)
@@ -35,8 +40,21 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         _stays = t.StayAboard;
         Extra = Pack;
         var train = ctx.Train.Dynamics;
+        // A runner (note 328) is sent off by a ball landing near it, and only that: the guns answer the run one hound at a time.
+        if (Runner && Attached < 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+        {
+            var at = WorldPosition(ctx.Train);
+            double scatter = ctx.World.Director?.Tuning.Run.Scatter ?? 0;
+            if (ctx.Landed.Any(l => (l - at).Length <= scatter))
+            {
+                ctx.World.Director?.RunnerEnded(Pack, 0);
+                Enter(ctx, SpinePhase.BreakOff);
+                Enter(ctx, SpinePhase.Gone);
+                return;
+            }
+        }
         // Sustained fire from a gun in range drives a running pack off, dead or not (App. A.3 break off).
-        if (Attached < 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit && ctx.World.Combat is { } combat
+        else if (Attached < 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit && ctx.World.Combat is { } combat
             && ctx.RoundsNear(WorldPosition(ctx.Train), combat.Guns.Range, t.SuppressWindowSeconds) >= t.SuppressRounds)
         {
             Enter(ctx, SpinePhase.BreakOff);
@@ -75,12 +93,12 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                     Enter(ctx, SpinePhase.Gone);
                     break;
                 }
-                if (gap <= t.LeapDistance && train.Speed <= t.MaxSpeed)
+                if (gap <= t.LeapDistance && (Runner || train.Speed <= t.MaxSpeed))
                 {
                     Board(ctx);
                     break;
                 }
-                Run(ctx, t, t.ClosingSpeed);
+                Run(ctx, t, Runner ? ctx.World.Director?.Tuning.Run.Closing ?? t.ClosingSpeed : t.ClosingSpeed);
                 break;
             case SpinePhase.Grab:
                 break;
@@ -89,12 +107,15 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
 
     void Run(EnemyContext ctx, HoundTuning t, double closing)
     {
-        double speed = Math.Min(t.MaxSpeed, ctx.Train.Dynamics.Speed + closing);
+        // A runner keeps up with any train and closes on it (note 328: a hot train can't outrun the run).
+        double speed = Runner ? ctx.Train.Dynamics.Speed + closing : Math.Min(t.MaxSpeed, ctx.Train.Dynamics.Speed + closing);
         LineDistance += speed * SimConstants.TickSeconds;
     }
 
     void Board(EnemyContext ctx)
     {
+        if (Runner)
+            ctx.World.Director?.RunnerEnded(Pack, 2);
         int rear = ctx.Train.Dynamics.Consist.Vehicles[^1].Id;
         var shape = ctx.Train.Frames[rear].Shape;
         Attached = rear;
@@ -155,6 +176,15 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double along = Local.Z;
         // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+    }
+
+    /// <summary>A runner killed on the line (note 328: a ball on it) is counted for the run's report.</summary>
+    public override void Struck(EnemyContext ctx, int by, double damage)
+    {
+        bool running = Runner && Attached < 0 && !Gone;
+        base.Struck(ctx, by, damage);
+        if (running && Gone)
+            ctx.World.Director?.RunnerEnded(Pack, 1);
     }
 
     /// <summary>Mauled: it takes its kill and leaves the fight.</summary>

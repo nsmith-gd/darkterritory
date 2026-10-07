@@ -22,7 +22,11 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
-    public bool Once(EnemyKind kind) => !Director.Log.Any(l => l.Kind == kind) && !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
+    /// <summary>
+    /// Once a run: not drawn yet tonight, or drawn and driven off rather than killed (note 288: driven off, it can come back),
+    /// and none about now.
+    /// </summary>
+    public bool Once(EnemyKind kind) => (World.DrivenOff.Contains(kind) || !Director.Log.Any(l => l.Kind == kind)) && !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
     public bool None(EnemyKind kind) => !World.ActiveEnemies.Any(e => !e.Gone && e.Kind == kind);
     /// <summary>The ground crew's middle, for what comes at them out of a yard.</summary>
     public Double3? GroundCentre()

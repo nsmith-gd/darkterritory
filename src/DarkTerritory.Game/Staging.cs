@@ -890,6 +890,28 @@ public static class Staging
         train.Vehicles[fire.Attached].Char = burnt;
     }
 
+    /// <summary>
+    /// A hound run coming up behind a fast train (note 328; <c>dt screenshot --run --view run</c>): three pairs of runners on
+    /// alternating flanks, the nearest closing on the rear car, the furthest still howling. Only them, so the gun's view of
+    /// the line behind is clear.
+    /// </summary>
+    public static List<Enemy> Run(TrainOnLine train)
+    {
+        double rear = train.Dynamics.RearDistance;
+        var runners = new List<Enemy>();
+        (double Behind, double Side, SpinePhase Phase)[] pairs = [(8, 1, SpinePhase.Commit), (20, -1, SpinePhase.Commit), (34, 1, SpinePhase.Telegraph)];
+        int id = 60;
+        foreach (var (behind, side, phase) in pairs)
+            for (int k = 0; k < 2; k++)
+            {
+                var hound = new CinderHound(id, 60) { Runner = true };
+                hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear - behind - k * 3, side * (k == 0 ? 4 : 8), 0.6, 60, 0);
+                runners.Add(hound);
+                id++;
+            }
+        return runners;
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;
@@ -903,7 +925,7 @@ public static class Staging
         {
             var hound = new CinderHound(10 + i, 10);
             // At the sim's own height off the rail (Rear.cs: -0.3), on the ground: not the 0.6 they were staged at, which ran
-            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 331).
+            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 335).
             hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), -0.3, 10, 0);
             threats.Add(hound);
         }

@@ -266,7 +266,8 @@ public class EnemyTests
         // Gathered and out over the train; a fouled bore or two (GDD §23, note 183) can hold the swarm off past the 90 s.
         if (n.Crew[1].Alive && n.World.Choir.Present)
             n.Run(30, _ => default);
-        Assert.True(n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
+        // It seized him. (Note 288: held, he stops firing, and his quiet is what lets him go; under the old rule it took him.)
+        Assert.True(n.Events.Any(e => e.Kind == EnemyKind.Choir && e.To == SpinePhase.Grab) || n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
     }
 
     [Fact]
@@ -297,7 +298,7 @@ public class EnemyTests
     public void TheChoirSeizesOnlyWhoeverIsExposed()
     {
         // GDD v1.1 App. A.7: it seizes "anyone outside, on the roofs, or behind no closed door"; a seize is a grab, and
-        // nobody kills the one holding them, so it's a death.
+        // nobody kills the one holding them, so it's a death. Note 288: the crew stay loud (a hush would break the seize).
         var n = new Night(6, speed: 10);
         var inside = new PlayerState { Parent = 3, Position = new Double3(-0.45, Tuning.Train.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
         n.Crew[1] = inside;
@@ -306,7 +307,7 @@ public class EnemyTests
         n.Run(0.2);
         Assert.True(n.World.Choir.Present);
         Assert.Equal(E.Choir.Ghosts, n.World.ActiveEnemies.Count(e => e is ChoirGhost));
-        n.Run(E.Choir.SeizeSeconds + 15);
+        n.Run(E.Choir.SeizeSeconds + 15, _ => new PlayerIntent { Voice = 255 });
         Assert.Equal(P.Health, n.Crew[1].Health);
         Assert.Equal(DeathCause.Seized, n.Crew[2].Death);
         // One taken and it's gone for the run.

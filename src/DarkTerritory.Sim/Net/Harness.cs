@@ -175,6 +175,9 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
 }
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
+/// <summary>A hound run (note 328): when (s into the night, km along), its size, the crew alive, and its runners scattered by a ball, killed, and aboard.</summary>
+public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded);
+
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
     IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
 {
@@ -198,6 +201,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Votes { get; init; } = new Dictionary<string, int>();
     /// <summary>The night's first threat and what drew it (note 287), if one came.</summary>
     public FirstThreatReport? FirstThreat { get; init; }
+    /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
+    public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
 }
 
 /// <summary>
@@ -518,6 +523,8 @@ public static class Harness
                 Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
+                HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
+                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded))],
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 FirstThreat = d.First is { } first ? new FirstThreatReport(Math.Round(first.Seconds, 1), Math.Round(first.Seconds - d.Grace, 1),
                     Math.Round(first.Distance / 1000, 2), first.Kind.ToString(), Enemies.DrawLedger.Key(first.Cause),
