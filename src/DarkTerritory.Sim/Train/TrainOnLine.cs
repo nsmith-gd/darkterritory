@@ -239,11 +239,16 @@ public sealed class TrainOnLine
     /// <summary>Whether a branch's switch is set for the branch (true) or for the main line (false, as they start).</summary>
     public bool Diverging(int branch) => _diverging[branch];
 
-    /// <summary>A wheel is on a switch's points (within <paramref name="pointsLength"/> of the toe): they won't move.</summary>
+    /// <summary>
+    /// A wheel is on a switch's points (within <paramref name="pointsLength"/> of the toe): they won't move. On either leg:
+    /// a car stood just inside the branch is over the blades as much as one on the main line (note 289: only the main
+    /// line's leg was counted, so the points went over under a car left at the mouth of a spur).
+    /// </summary>
     public bool PointsOccupied(int branch, double pointsLength)
     {
         double toe = Line.Branches[branch].Toe;
-        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength);
+        return _rakes.Any(r => On(r, RailLine.MainPath) is { } o && o.Rear < toe + pointsLength && o.Front > toe - pointsLength
+            || On(r, branch) is { } d && d.Rear < pointsLength);
     }
 
     /// <summary>Throws a switch, unless a wheel is on its points. Returns whether it moved.</summary>

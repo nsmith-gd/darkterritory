@@ -75,6 +75,8 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
+    ["town", ..] => Print(TownCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
     // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
     ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") => AuditCommands.Combinations(content, args),
@@ -927,6 +929,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
+    // --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]: the departure fortress's town (GDD §3.1;
+    // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
+    // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
+    DarkTerritory.Sim.Towns.Town? town = null;
+    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
+    {
+        var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
+        if (!args.Contains("--at"))
+            at = runTuning.DepartFrom(gate, consist.LengthMetres);
+        run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
+        var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
+            towns.Tuning, line);
+    }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -997,6 +1014,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    if (town is not null && !args.Contains("--view"))
+        camera = Staging.TownCamera(town, Str(args, "--town", "square"));
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1249,6 +1268,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Route = route,
         Run = run,
         Holdouts = holdouts,
+        Town = town,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
@@ -1260,7 +1280,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
         Time = 0.37,
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--run") ? Staging.Run(train) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
@@ -2019,7 +2039,7 @@ static object HudShot(string content, string[] args)
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deepTerritory:2", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
         if (roofWarning.Length == 0)
-            solo.Controls.Throttle = Opt(args, "--throttle", 0.6);
+            solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // --hazards name: one of balance.json's hazard sets laid over the line (note 186), e.g. cold: the HUD's cold step (note 201).
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
@@ -2082,6 +2102,31 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
+    // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it.
+    TownTalk? talk = null;
+    double talkNow = 0;
+    if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here && here.World.Town is { } town)
+    {
+        talk = new TownTalk();
+        var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
+        var eyeAt = stand + Double3.Up * here.Train.Dynamics.Tuning.Pick.EyeHeight;
+        var to = lookAt - eyeAt;
+        here.Player = here.Player with
+        {
+            Parent = DarkTerritory.Sim.Player.PlayerState.World,
+            Surface = DarkTerritory.Sim.Player.Surface.Ground,
+            Position = stand,
+            Yaw = Math.Atan2(-to.X, -to.Z),
+            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            Velocity = default,
+        };
+        talk.Use(town, Hud.TownTarget(here), 0);
+        // --again n: that many more presses (the next lines, the next notices).
+        for (int i = 0; i < (int)Opt(args, "--again", 0); i++)
+            talk.Use(town, Hud.TownTarget(here), 0);
+        talkNow = 30;
+    }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/hud.png");
     // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
@@ -2101,6 +2146,8 @@ static object HudShot(string content, string[] args)
         Route = session.Route,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
+        Town = session.World.Town,
+        TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
         Vehicles = session.Train.Vehicles,
         Bodies = session.World.Bodies.All,
         Time = 0.37,
@@ -2149,7 +2196,7 @@ static object HudShot(string content, string[] args)
     Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
-        : null, stills: stills.Stills);
+        : null, stills: stills.Stills, talk: talk, now: talkNow);
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
     {
@@ -2525,7 +2572,7 @@ static int Usage()
           boiler run <cars> [--seconds t] [--throttle 0..1] [--fire-at p | --no-fireman] [--pressure p] [--firebox u] [--vent]
           line info <name> [--every m]             position/grade profile of content/lines/<name>.json
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
-          trailer [--route tier:seed] [--fps n] [--width w --height h] [--short]   the trailer cut from the game itself: frames to out/trailer, ffmpeg to trailer.mp4
+          trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
           art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
@@ -2550,6 +2597,7 @@ static int Usage()
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
+             [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]

@@ -1,0 +1,95 @@
+namespace DarkTerritory.Sim.Towns;
+
+/// <summary>
+/// What a house in a town is now (the director, 7 Oct 2026: towns of 20 to 350, "fully interior modeled and explorable
+/// for some of them with residents"; every town has lost people): lived in and shut, standing open with its household
+/// inside, or nobody's (boarded, burnt, or left open).
+/// </summary>
+public enum HouseKind : byte { Lived, Open, Boarded, Burnt, Empty }
+
+/// <summary>
+/// A house down the yard's street (note 281): where it stands (its middle, S along the line and D out to the
+/// <see cref="Side"/>), how big, what it is now, its look (<see cref="Style"/>, <see cref="Paint"/>), whose it is, what a
+/// knock or a look at it tells you, and for an open one the rooms inside. It fronts the line.
+/// </summary>
+public sealed record TownHouse(int Id, double S, double D, int Side, double Width, double Depth, HouseKind Kind, int Style, int Paint,
+    string Family, string Text, HouseLayout? Layout)
+{
+    /// <summary>The front wall's line, out from the line: the side's offset less half the depth.</summary>
+    public double FrontD => D - Side * Depth / 2;
+
+    /// <summary>A point in the house's own frame (u along the line from its middle, v in from its front) in the rail frame.</summary>
+    public (double S, double D) Rail(double u, double v) => (S + u, FrontD + Side * v);
+
+    /// <summary>A direction in the house's frame (along, in) as the rail frame's (along the line, across it).</summary>
+    public (double S, double D) Facing(double fu, double fv) => (fu, Side * fv);
+}
+
+/// <summary>
+/// The ground floor of an open house (note 281): a kitchen and a parlour either side of a partition, the front door into
+/// the kitchen, a doorway through to the parlour, a boxed stair in the parlour's back corner with its door shut, and the
+/// furniture. <see cref="Kitchen"/> is the side (+1 or −1 along u) the kitchen's on. Everything in the house's frame (u, v).
+/// </summary>
+public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadOnlyList<HouseThing> Things, IReadOnlyList<HouseSpot> Spots)
+{
+    /// <summary>The front door's width, the doorway's through the partition, the walls' thickness, the ceiling's height (m).</summary>
+    public const double DoorWidth = 1.0, PassWidth = 0.95, Wall = 0.15, Ceiling = 2.5;
+
+    /// <summary>
+    /// The layout of a house <paramref name="width"/> along the street by <paramref name="depth"/> deep, the kitchen to the
+    /// <paramref name="kitchen"/> side. Not design numbers: where a stove, a table and a stair go in a Maritime kitchen and
+    /// parlour of this size, clear of the doors and each other.
+    /// </summary>
+    public static HouseLayout For(double width, double depth, int kitchen)
+    {
+        double w = width / 2, k = kitchen;
+        var things = new List<HouseThing>
+        {
+            // The kitchen: the range against the side wall at the back, the table, the dresser against the back wall.
+            new("stove", k * (w - 0.55), depth - 1.1, 0.42, 0.35, 0.9, true),
+            new("table", k * width / 4, depth * 0.6, 0.7, 0.45, 0.75, true),
+            new("chair", k * width / 4, depth * 0.6 + 0.75, 0.22, 0.22, 0.9, false),
+            new("dresser", k * 0.85, depth - 0.3, 0.6, 0.22, 1.9, true),
+            // The parlour: the stair boxed in its back corner (its door toward the partition), a cabinet against the back
+            // wall, a chair with the parlour's lamp on a stand beside it, a photograph on the partition.
+            new("stairs", -k * (w - 0.5), depth - 1.4, 0.5, 1.4, 2.5, true),
+            new("cabinet", -k * (w - 1.75), depth - 0.28, 0.5, 0.22, 1.1, true),
+            new("armchair", -k * width / 4, depth * 0.4, 0.35, 0.35, 0.9, false),
+            new("lampstand", -k * (width / 4 - 0.45), depth * 0.4 - 0.75, 0.2, 0.2, 1.0, true),
+            new("photo", -k * 0.1, depth * 0.72, 0.2, 0.02, 1.6, false),
+        };
+        var spots = new List<HouseSpot>
+        {
+            new("stove", k * (w - 1.35), depth - 1.1, k, 0, "crouch"),
+            new("table", k * width / 4, depth * 0.6 + 0.75, 0, -1, "seated"),
+            new("chair", -k * width / 4, depth * 0.4, 0, -1, "seated"),
+            new("window", -k * (width / 4 + 0.4), 0.8, 0, -1, "idle"),
+            new("stairs", -k * (w - 1.55), depth - 1.4, -k, 0, "idle"),
+            new("door", k * (width / 4 + 0.9), 1.2, 0, -1, "idle"),
+        };
+        return new HouseLayout(kitchen, k * width / 4, depth * 0.35, things, spots);
+    }
+
+    /// <summary>Where the household's own thing goes, by its kind: on the table, by the stairs, on the cabinet, by the door.</summary>
+    public (double U, double V, double H) Place(string kind, double width, double depth)
+    {
+        double w = width / 2, k = Kitchen;
+        return kind switch
+        {
+            "table" or "letters" => (k * width / 4 + 0.2, depth * 0.6, 0.8),
+            "anklebell" => (-k * (w - 1.2), depth - 0.5, 0.9),
+            "timetable" => (-k * width / 4, Wall + 0.03, 1.6),
+            "boots" => (DoorU + k * 0.75, 0.45, 0.1),
+            "boards" => (k * width / 4, depth - Wall - 0.03, 1.5),
+            "suitcase" => (-k * (w - 1.3), depth - 0.35, 0.3),
+            "cradle" => (-k * (width / 4 - 0.6), depth * 0.62, 0.7),
+            _ => (-k * (w - 1.75), depth - 0.28, 1.15),
+        };
+    }
+}
+
+/// <summary>A thing in an open house: its kind, its middle (u, v), half its size each way, its height, and whether it's solid.</summary>
+public sealed record HouseThing(string Kind, double U, double V, double HalfU, double HalfV, double Height, bool Solid);
+
+/// <summary>Where somebody in an open house is (u, v), which way they face (along u, in v), and how ("idle", "seated", "crouch").</summary>
+public sealed record HouseSpot(string Name, double U, double V, double FaceU, double FaceV, string Pose);
