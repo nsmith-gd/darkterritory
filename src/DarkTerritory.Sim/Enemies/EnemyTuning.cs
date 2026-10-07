@@ -27,6 +27,8 @@ public sealed record EnemyTuning(
     public RibbitTuning Ribbits { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
+    public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
@@ -52,18 +54,44 @@ public sealed record EnemyTuning(
     }
 }
 
+/// <summary>
+/// enemies.json <c>damage</c> (GDD App. F.1, "a few big hits, never chip damage"; note 272): the least a creature's hit on a
+/// player may be, and the least gap between its hits. Not read by the creatures: DamageModelTests holds every creature's
+/// <c>...Damage</c> and its interval to them, so a chip number fails CI.
+/// </summary>
+public sealed record DamageModelTuning
+{
+    public int MinHit { get; init; } = 30;
+    public double MinGapSeconds { get; init; } = 2.5;
+}
+
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
 public sealed record MeleeTuning
 {
     public double Reach { get; init; } = 2.2;
     public double ConeDegrees { get; init; } = 70;
     public double SwingSeconds { get; init; } = 0.8;
-    public double Damage { get; init; } = 1;
+    /// <summary>
+    /// What a blow does with each tool in hand, in blows (App. C.2: "the boiler player's shovel doubling as the crew's best
+    /// club"; note 275). Enemy health is counted in the crowbar's.
+    /// </summary>
+    public double Shovel { get; init; } = 1.5;
+    public double Crowbar { get; init; } = 1;
+    public double Wrench { get; init; } = 0.75;
     /// <summary>T108: a blow with nothing in hand (enemies.json).</summary>
     public double Barehanded { get; init; } = 0.25;
 
-    /// <summary>A blow with this in hand: any tool a full one, nothing a fraction.</summary>
-    public double Blow(Player.Tool held) => held == Player.Tool.None ? Barehanded : Damage;
+    /// <summary>The hardest blow any tool lands (note 275): what a client takes to be within one blow of a kill.</summary>
+    public double Hardest => Math.Max(Shovel, Math.Max(Crowbar, Wrench));
+
+    /// <summary>A blow with this in hand: the shovel the best of the train's tools, a fist a fraction of one.</summary>
+    public double Blow(Player.Tool held) => held switch
+    {
+        Player.Tool.Shovel => Shovel,
+        Player.Tool.Crowbar => Crowbar,
+        Player.Tool.Wrench => Wrench,
+        _ => Barehanded,
+    };
 }
 
 /// <summary>The Track Doll (v1.1 App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -198,9 +226,9 @@ public sealed record GrumblerTuning
     public double GangSeconds { get; init; } = 5;
     public double HuntSpeed { get; init; } = 3.5;
     public double Reach { get; init; } = 1.4;
-    public int BiteDamage { get; init; } = 15;
-    public double BiteEvery { get; init; } = 1.5;
-    public double GrabBelowHealth { get; init; } = 30;
+    public int BiteDamage { get; init; } = 35;
+    public double BiteEvery { get; init; } = 3;
+    public double GrabBelowHealth { get; init; } = 35;
     public double MaulSeconds { get; init; } = 8;
     public double CargoPerSecond { get; init; } = 0.004;
     public double FoodWeight { get; init; } = 2;
@@ -213,7 +241,9 @@ public sealed record ChoirSwarmV11
     public double Health { get; init; } = 6;
     public double SeizeSeconds { get; init; } = 12;
     public double FlySpeed { get; init; } = 6;
-    public int HitBackDamage { get; init; } = 15;
+    public int HitBackDamage { get; init; } = 35;
+    /// <summary>Note 272 (App. F.1, no chip damage): a ghost hits back at most once in this long, however fast it's struck.</summary>
+    public double HitBackEvery { get; init; } = 3;
     public double DisperseQuietSeconds { get; init; } = 10;
     public double Around { get; init; } = 12;
 }
@@ -235,8 +265,8 @@ public sealed record DriftTuning
     public double StillSpeed { get; init; } = 0.3;
     public double SurgeSpeed { get; init; } = 2.2;
     public double ContactReach { get; init; } = 1.2;
-    public int Damage { get; init; } = 6;
-    public double DamageSeconds { get; init; } = 1;
+    public int Damage { get; init; } = 35;
+    public double DamageSeconds { get; init; } = 2.5;
     public double StillSeconds { get; init; } = 4;
     public double ExitMargin { get; init; } = 60;
     public double LingerSeconds { get; init; } = 600;
@@ -338,8 +368,8 @@ public sealed record GauntTuning
     public bool AnyVoiceCounts { get; init; } = true;
     public int AttackAt { get; init; } = 4;
     public double Reach { get; init; } = 1.6;
-    public int HitDamage { get; init; } = 35;
-    public double HitEvery { get; init; } = 2;
+    public int HitDamage { get; init; } = 60;
+    public double HitEvery { get; init; } = 4;
     public double GrabBelowHealth { get; init; } = 35;
     public double CrushSeconds { get; init; } = 8;
     public double Health { get; init; } = 8;
@@ -370,8 +400,8 @@ public sealed record ClimberTuning
     public int MaxTries { get; init; } = 3;
     public double TraverseSpeed { get; init; } = 2.2;
     public double Reach { get; init; } = 1.8;
-    public int BiteDamage { get; init; } = 25;
-    public double BiteEvery { get; init; } = 1.5;
+    public int BiteDamage { get; init; } = 35;
+    public double BiteEvery { get; init; } = 3;
     public double BoredSeconds { get; init; } = 120;
     public double Health { get; init; } = 3;
     public int MinGaps { get; init; } = 2;
@@ -617,6 +647,13 @@ public sealed record PressureTuning
     public int EscalationPower { get; init; } = 1;
     public double QuietPerSecond { get; init; } = 0.1;
     public double QuietRampSeconds { get; init; } = 90;
+    /// <summary>
+    /// GDD App. F.1 (the director, 6 Oct 2026; note 270): quiet counted in line run, not seconds. Over 0, the quiet ramps over
+    /// this many metres run since a threat was engaged, or over <see cref="QuietBackstopSeconds"/> if that's sooner (a
+    /// stopped train can't wait it out); 0 keeps the ramp in seconds (<see cref="QuietRampSeconds"/>).
+    /// </summary>
+    public double QuietRampMetres { get; init; }
+    public double QuietBackstopSeconds { get; init; } = 120;
     public double LoudPerSecond { get; init; } = 0.1;
     public double LoudCap { get; init; } = 1.5;
     public double CargoPerLoad { get; init; } = 0.01;
