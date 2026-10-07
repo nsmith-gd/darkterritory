@@ -43,7 +43,7 @@ public sealed record WreckTuning
     public double KickRoll { get; init; } = 0.9;
     /// <summary>Note 330 (#69): the first car's sideways throw is never under this (m/s), however slow it came off.</summary>
     public double KickMin { get; init; }
-    /// <summary>... and it's popped up this much (m/s) as its flange climbs the rail.</summary>
+    /// <summary>... and, that slow, it's popped up this much (m/s) as its flange climbs the rail.</summary>
     public double KickUp { get; init; }
     /// <summary>The rest: each is thrown sideways at least this (m/s) as its wheels drop, ...</summary>
     public double JostleMin { get; init; }
@@ -234,7 +234,9 @@ public sealed class Wreck
             double speed = b.Velocity.Length;
             if (b.Vehicle == first)
             {
-                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * t.KickUp;
+                // A slow derail's share is nothing (note 330): thrown at kickMin instead, and popped up off the rail.
+                bool slow = t.KickLateral * speed < t.KickMin;
+                b.Velocity += b.Right * (side * Math.Max(t.KickLateral * speed, t.KickMin)) + b.Up * (slow ? t.KickUp : 0);
                 // Rolling over the way it slides (about +Back a car's top swings to its left, so the roll is the other sign).
                 b.Spin += b.Up * (-side * t.KickYaw) + b.Back * (-side * t.KickRoll);
             }

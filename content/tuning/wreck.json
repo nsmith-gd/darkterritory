@@ -26,7 +26,7 @@
   "kickRoll": 1.6,
   // Note 330 (#69, the director, 7 Oct: "took a curve going into a yard at 30 kilometers an hour ... glided off the rails ...
   // add a little bit of impulse there ... more drama"): a share of a slow speed is nothing, so the first car's thrown at
-  // least kickMin sideways, popped up kickUp (m/s) as its flange climbs the rail, and goes over at any speed.
+  // least kickMin sideways (m/s), and, that slow, popped up kickUp as its flange climbs the rail; it goes over at any speed.
   "kickMin": 4,
   "kickUp": 3,
   // The rest come off one after another down the train, this many seconds apart: until then each rolls on, held to the
