@@ -44,7 +44,7 @@ public static class Hud
     /// by bookmark id: the report shows each beside its line.</param>
     /// <param name="pixels">How many of the drawn image's pixels each of the canvas's is (the renderer's height over the
     /// canvas's): the prompt's fine print is as small as stays crisp at that (<see cref="PromptScaleAt"/>).</param>
-    /// <param name="talk">This machine's talking and reading in a fortress town (note 304), and <paramref name="now"/> the
+    /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
@@ -80,7 +80,7 @@ public static class Hud
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
-        // A fortress town's card (note 304): what somebody's saying to you, or the paper you're reading. While it's open its
+        // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
         if (townCard is not null)
@@ -1167,13 +1167,13 @@ public static class Hud
 
     /// <summary>
     /// The fortress town's thing a Use press is for: what <see cref="Prompt"/> is offering, when what it offers is the
-    /// town's (note 304). The app keeps that press from the host (nothing in a town changes the night).
+    /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
         s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
 
     /// <summary>
-    /// A town card (note 304): a person's line on a plate over the prompt, their name and work above it; a paper as a
+    /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
     /// sheet at the top of the screen, like the route card; a thing looked at, on a plate.
     /// </summary>
     static void TownCardOn(Overlay o, int width, int height, TownCard card, int line)
@@ -1469,6 +1469,9 @@ public static class Hud
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
                 return $"BOILER RUPTURED: {RepairKitWhere(world, s.PlayerId)}";
+            // Note 275: coal goes on with the shovel, and there's the one.
+            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
+                return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT: WHOEVER HAS IT FIRES" : "HANDS FULL: NO ROOM FOR THE SHOVEL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL COAL: FILL IT AT THE TENDER FIRST" : "[E] HOLD: SHOVEL COAL (FASTER)";
             // Only a reaching hand finds the coal face (T29).
@@ -1479,7 +1482,7 @@ public static class Hud
                 return "[E] HOLD: VENT STEAM (SLOWER)   OR [VENT] ANYWHERE IN THE CAB";
             // T109: the engineering kit's rack.
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
-                return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
+                return Kit.Held(p) == Tool.Wrench ? "[E] PUT THE WRENCH BACK" : Kit.Held(p) == Tool.Shovel ? "[E] HANG THE SHOVEL BACK" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
                     : "[E] TAKE THE WRENCH";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "[E] HOLD: HANDBRAKE";
@@ -1505,7 +1508,7 @@ public static class Hud
                         : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
                 }
         }
-        // A fortress town (note 304): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
+        // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
             return TownTalk.Prompt(town, there);

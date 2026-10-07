@@ -113,7 +113,7 @@ This makes every town dependent on freight. One settlement produces coal. Anothe
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
 
-### 3.1 Fortress towns *(the director's direction of 2026-10-06, App. F.1 T133; first pass built for review, ARCHITECTURE §8 note 304)*
+### 3.1 Fortress towns *(the director's direction of 2026-10-06, App. F.1 T133; first pass built for review, ARCHITECTURE §8 note 281)*
 
 The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a little posted on a board, a line from somebody at a door, never a speech.
 
@@ -250,12 +250,14 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 | Tier | Description |
 |---|---|
-| **Local routes** | Short, relatively safe connections between major towns |
-| **Frontier routes** | Longer lines through abandoned territory |
+| **Local routes** | Relatively safe connections between major towns: few creatures, few junctions and stops |
+| **Frontier routes** | Lines through abandoned territory: more creatures, more to do per kilometre |
 | **Dead lines** | Railways to settlements that have stopped responding |
-| **Deep territory** | Old industrial regions where Corruption is far more severe |
+| **Deep territory** | Old industrial regions where Corruption is far more severe: the most creatures and the densest line |
 
 You aren't picking a difficulty level. You're travelling farther from civilization.
+
+**Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 24 km, dawn in 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
 
 ---
 
@@ -2087,8 +2089,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Front end**
 - The updated menu looks good, and so do the menu sound effects. *Keep.*
-- The mouse should work in the menus. *In progress (T126).*
-- The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *In progress (T126).*
+- The mouse should work in the menus. *Done (note 264).*
+- The lobby name field starts typing as soon as WASD reaches it. It should need Enter or a click. *Done (note 264): it needs Enter or a click.*
 
 **Audio**
 - Turning on the spot shouldn't make a sound; only walking should. *Open.*
@@ -2100,22 +2102,22 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
-- Far too much UI for what's on screen. *In progress (T126): the cab's panel cut to two lines (note 264), nothing out of the cab, and the prompts in fine print under the crosshair (note 277).*
-- The hold-to-vent control feels off. *In progress (T126).*
-- There's no whistle cord, and people will want one. *In progress (T126).*
+- Far too much UI for what's on screen. *Done (notes 264, 277): the cab's panel cut to two lines, nothing out of the cab, prompts in fine print under the crosshair.*
+- The hold-to-vent control feels off. *Done (note 264): one key held anywhere in the cab. How it feels is the director's to judge.*
+- There's no whistle cord, and people will want one. *Done (notes 264, 276): a cord in the driver's corner, worked by look and Use.*
 - The coal shovel is fun. *Keep.*
 - The firebox door shutting by itself is OK. *Keep.*
 
 **Lockers (§12)**
 - The lockers are cute, but neighbouring lockers block each other. *Done: an open door stands out into the aisle (ARCHITECTURE.md note 277).*
-- Stowing a held item in a locker doesn't work well. *In progress (T126).*
-- The lockers are mostly empty; only the fitter's had the engineering kit. *In progress (T126).*
-- A locker with something in it should say so. *In progress (T126).*
-- It isn't clear how to hold the kit in the inventory. *In progress (T126).*
+- Stowing a held item in a locker doesn't work well. *Done (note 264): one tap opens the locker and stows what's in your hands.*
+- The lockers are mostly empty; only the fitter's had the engineering kit. *Done (note 264): stocked by grade.*
+- A locker with something in it should say so. *Done (note 264).*
+- It isn't clear how to hold the kit in the inventory. *Done (note 264): "IN HANDS" on the hotbar.*
 
 **Train and world**
 - It's good that every car has an extinguisher (C.5). *Keep.*
-- The toys in the guard van at spawn should be found in the world instead (C.4). *In progress (T126).*
+- The toys in the guard van at spawn should be found in the world instead (C.4). *Done (note 264): found at the stops.*
 - There's a walkie-talkie aboard. *Noted.*
 
 **The fort**
@@ -2123,28 +2125,28 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Forts must be safe spaces that monsters never enter (§9). *Done (T128, note 273): both forts, all night (`run.json` `forts`): the departure fortress up to its outer gate and the terminus from its gate on, 80 m either side of the line. Nothing is sent while the train is in one, and a creature that comes into one is driven off. Caveat: the fort buildings still have no collision (T124), and the Choir's meter isn't stilled in the terminus.* *The fort buildings: done (T124, note 274). The Choir: done (note 296): with the train in a fort the meter doesn't gather, and a swarm that followed it in is gone.*
 
 **Bugs**
-- The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
-- The rupture message said the train had no engineering kit, though it had been dropped in the front car (§23.2: a kit in a reachable car is never lost). *In progress (T129).*
-- The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
+- The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *Done (note 263).*
+- The rupture message said the train had no engineering kit, though it had been dropped in the front car (§23.2: a kit in a reachable car is never lost). *Done (note 263).*
+- The Stoker was killed by crowbar through a shut firebox door (A.5). *Done (notes 263, 271).*
 
 **Abandoned player**
 - A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Done (T128, note 273): past 150 m from the train, on the ground and outside the forts, a player builds a pressure of their own (`enemies.json` `director.abandoned`). About 45 s in, a Ribbit pack comes for them alone. Each pack after is bigger (2 to 5) and starts closer (35 m to 18 m). Ribbits can be outrun, and running back into a fort saves them. Caveat: only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground.* *The Gaunt: done (note 296): from the third hunt a Gaunt comes with the pack, woken on them, following at their back (talking holds it off), and home onto the train with them. The Cinder Hounds still hunt only the train.*
 
 **Line and derailment**
-- The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
+- The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *Done (notes 265, 277): boards only on bends that can derail, inked red on the map and on the route card.*
 - The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *The Sleepers are gone (note 265); a bend taken too fast is heard (note 265) and now seen: flange sparks off the outer rail, and a judder (note 277).*
-- The train's lights and lanterns were all off. *In progress (T127).*
+- The train's lights and lanterns were all off. *Done (note 265): a smashed lamp can be relit.*
 
 **Second session (same build, continued)**
-- *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
+- *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *Done (note 264): dropped.*
 - *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
-- *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
+- *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *Done (notes 264, 276).*
 - *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
-- *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
+- *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *Done (note 265): the Sleepers are retired.*
 - *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *Done (T128, note 273): it was the Whistler, running 60 m straight out at rail height. Wherever the land rose, the player was stood up on the slope. Its nest is now 30 m out at most, inside the walkable corridor, reached over runnable land (no steep stretch, within 6 m of the rail's height, no water), and on the far side of the line if theirs is a mountainside.*
-- *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
-- *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *In progress (T129).*
-- *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *In progress (T129: a cooldown after it's driven off).*
+- *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *Done (notes 263, 267): each car's fire, and each cell of it, is its own.*
+- *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *Done (note 263): it burns by the second; standing in it kills.*
+- *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *Done (notes 263, 271): a break of 150 s.*
 - *Falling:* far too easy to fall off the train. *Done (T128, note 273): a roof's edge now holds you while you're only walking (`player.json` `edge`). In 20 minutes of careless roof walking (looking aside with the key held, a normal night's wind), falls went from 42 to 0. You still go over if you walk straight at the side, jump short, are pulled off by a creature, or take a bend you were warned of too fast. Caveat: the wind no longer takes you over the edge (`windOverLip` puts it back).*
 - *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
 - *Overall:* the director hasn't finished a run yet.
@@ -2160,24 +2162,24 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **A hauling train is safe from most monsters, not all.** A fast, flying class may come later to answer the top-speed strategy.
 - **Slowing opens the doors.** Stops, facilities and tight curves are where things board or the yards attack. These are the heightened scares; the train between them is a relative break. Loot and progress pull players into them.
 - **Benchmark every creature** against how it feels in Lethal Company and R.E.P.O.
-- **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map.
+- **The Sleepers go.** "The game is forcing a tactical point of derailment on its own behalf, not against the player's control." A derailment must clearly be the driver's mistake: someone not paying attention to the map. *Done (note 265).*
 - **Cinder Hounds that board stay aboard.** They keep setting the car alight while they eat the supplies, which forces the crew to confront them. *Done (note 269).*
 - **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
-- **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
-- **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
+- **UI.** It's still too heavy overall, but players need a way to track all the supplies on board. *Done (notes 264, 277): a supplies panel on I.*
+- **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship). *Done (note 263).*
 - **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*
 
 Further decisions (the director, 6 Oct 2026):
 - **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
-- **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule.
-- **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off.
+- **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule. *Done (notes 268, 269).*
+- **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off. *Done (notes 263, 271).*
 - **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
-- **Run length** is to be set by simulation sweeps (T125).
+- **Run length** is to be set by simulation sweeps (T125). *Set: 24 km, every tier, a 51 min dawn; `dt linegen sweep` passes at it (note 270).*
 - **Solo:** a solo player can finish one to three runs before it gets seriously hard and they realise they need friends. You can teach yourself the game solo, but you can't really advance solo. The solo finish target will be tested later.
 
-- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *In progress (T125).*
+- **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
 
-**Direction** (the director, 6 Oct 2026; proposals in T133; *first pass built for review: §3.1, note 304*):
+**Direction** (the director, 6 Oct 2026; proposals in T133; *first pass built for review: §3.1, note 281*):
 - *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
 - *Procedural, with people in them.* Each town has its own odd culture, different from the last.
 - *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
@@ -2189,7 +2191,7 @@ Further decisions (the director, 6 Oct 2026):
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this.
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
-**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *In progress (T125).*
+**Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
 

@@ -39,6 +39,8 @@ public sealed class GreyboxScene
     public bool CordPulled { get; set; }
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
+    /// <summary>Note 275: the fireman's shovel is home by the rack (the boiler's ShovelOut, the other way about).</summary>
+    public bool ShovelRacked { get; set; } = true;
     /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
     public Sim.Train.Wreck? Wreck { get; set; }
 
@@ -101,7 +103,7 @@ public sealed class GreyboxScene
     public Sim.Run.Run? Run { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
-    /// <summary>The departure fortress's town (GDD §3.1; note 304): its square, and its people where the town's folk stand.</summary>
+    /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
     public Sim.Towns.Town? Town { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
@@ -2056,7 +2058,7 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            // The departure fortress is a town (note 304): its square, and its people where note 107's folk stood.
+            // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             var town = start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
             if (town is not null)
@@ -2872,7 +2874,7 @@ public sealed class GreyboxScene
                 fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
             }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of

@@ -47,7 +47,7 @@ public sealed class PrototypeSession : IPlaySession
             DataFile.Load<FacilityTuning>(Path.Combine(contentRoot, FacilityTuning.File)),
             DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
-        // The departure fortress's town (note 304): the customs of the creatures this edition fields.
+        // The departure fortress's town (note 281): the customs of the creatures this edition fields.
         if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
             World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
                 DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster);
@@ -201,7 +201,7 @@ public sealed class PrototypeSession : IPlaySession
             (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}{Condition(Player, PlayerTuning)}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| {boiler} |{Gunnery()}{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} |{Gunnery()}{(Train.TrainRakes > 1 ? $" {Train.TrainRakes} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                RouteStatus() + Threats() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
     }

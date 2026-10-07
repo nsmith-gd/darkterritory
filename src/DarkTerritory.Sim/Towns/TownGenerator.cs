@@ -22,7 +22,7 @@ public sealed record TownSite(string Name, string Industry, double Gate, ulong S
 }
 
 /// <summary>
-/// Makes a fortress town (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 304). Each part draws from its own seeded stream
+/// Makes a fortress town (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281). Each part draws from its own seeded stream
 /// (linegen's <see cref="Streams"/>), so changing how people are placed never changes what the town's custom is.
 /// </summary>
 public static class TownGenerator

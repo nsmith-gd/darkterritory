@@ -72,10 +72,13 @@
   // the GDD has no solo rule (ARCHITECTURE §8 note 92, a tuning flag).
   "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 6 },
 
-  // App. C.2 melee with train tools: any tool (shovel, bar, lamp) swings; a blow is 1 health. Enemy health below is in blows.
-  // T108: the tools are the shovel, wrench and crowbar (GDD §1322), carried on the hotbar; with nothing in hand, a fist does
-  // barehanded of a blow.
-  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "damage": 1, "barehanded": 0.25 },
+  // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
+  // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
+  // the crew's best club is intended tension": it's the shovel's blow that's the best (note 275), and there's the one, by the
+  // firebox (boiler.json shovelInHand). The wrench in the cab is short in the haft, "nothing but a wrench" (§13). T108: with
+  // nothing in hand, a fist does barehanded of a blow. DESIGN-TODO: the GDD gives no numbers; these are a first pass that
+  // keeps every creature's health a whole number of crowbar blows and takes a 3-health one in two of the shovel's.
+  "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "shovel": 1.5, "crowbar": 1, "wrench": 0.75, "barehanded": 0.25 },
 
   // Every creature's body as a cannonball finds it (GDD App. F.1, build 1121: "the guns do nothing. Rounds don't collide
   // where they land and have no visible effect on the monsters"; ARCHITECTURE §8 note 290). A stack of spheres, each
@@ -401,7 +404,11 @@
       // Quiet builds pressure: + quietPerSecond × (seconds since a threat was engaged (telegraphing, committing, grabbing,
       // punishing) or sent / quietRampSeconds, to 1), so no
       // stretch goes much past a minute and a half without something, even at the gate.
-      "quietPerSecond": 0.1, "quietRampSeconds": 90,
+      // GDD App. F.1 (the director, 6 Oct 2026; note 270): "quiet stretches are counted in kilometres, not seconds." With
+      // quietRampMetres set, the ramp is the line run since then over quietRampMetres (1,260 m: the old 90 s at spec B.3's
+      // 14 m/s cruise), or the seconds over quietBackstopSeconds if that's sooner, so a stopped train can't wait it out.
+      // quietRampSeconds is the ramp only with quietRampMetres 0.
+      "quietPerSecond": 0.1, "quietRampSeconds": 90, "quietRampMetres": 1260, "quietBackstopSeconds": 120,
       // The crew's loudness (App. C.7, the Choir meter): + loudPerSecond × (meter / the Choir's threshold, to at most loudCap).
       "loudPerSecond": 0.1, "loudCap": 1.5,
       // Cargo aboard (App. B.9): + cargoPerLoad per car-load (load × cargo integrity × cargoValue, 1 for what isn't listed).

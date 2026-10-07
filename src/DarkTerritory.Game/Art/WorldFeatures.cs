@@ -175,7 +175,7 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
-    /// <param name="square">The town's square (note 304): the walls on its side step back round it (<see cref="Square"/>
+    /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
     /// draws those), and no house stands in it.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
         double time = 0, TownSquare? square = null)

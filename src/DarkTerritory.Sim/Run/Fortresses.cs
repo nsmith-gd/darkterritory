@@ -7,7 +7,7 @@ namespace DarkTerritory.Sim.Run;
 /// One fortress along the line (GDD §9: "lights, then walls, then gun towers"): its walls from <see cref="Start"/> to
 /// <see cref="End"/>, its gatehouse over the line at <see cref="Gate"/>, the home fortress's platform behind its gate, and
 /// the lived-in village between the line and the walls while the town still answers (T100; linegen plan §22.4). A town's
-/// fortress (GDD §3.1; note 304) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
+/// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
 /// walls), and no tower or house stands in it.
 /// </summary>
 public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null);
@@ -61,7 +61,7 @@ public static class Fortresses
     public static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) =>
         platform && side > 0 && s > start + 50 && s < gateAt - 20;
 
-    /// <summary>A town's square (note 304) on <paramref name="side"/> at <paramref name="s"/>, give or take <paramref name="pad"/>.</summary>
+    /// <summary>A town's square (note 281) on <paramref name="side"/> at <paramref name="s"/>, give or take <paramref name="pad"/>.</summary>
     public static bool InTheSquare(Towns.TownSquare? square, double s, int side, double pad) =>
         square is { } sq && sq.Side == side && s > sq.S0 - pad && s < sq.S1 + pad;
 

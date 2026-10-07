@@ -373,7 +373,7 @@ public sealed partial class WorldArt(Look look)
     /// </summary>
     public (double YardEnd, double HomeGate)? Walls { get; set; }
 
-    /// <summary>The departure town's square (note 304), where the walls step back: nothing wild grows in it either.</summary>
+    /// <summary>The departure town's square (note 281), where the walls step back: nothing wild grows in it either.</summary>
     public Sim.Towns.TownSquare? TownSquare { get; set; }
 
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out), with a little room.</summary>

@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Towns;
 
 /// <summary>
-/// `dt town`: a night's departure fortress town (GDD §3.1; ARCHITECTURE §8 note 304) as it's made, without a window: its
+/// `dt town`: a night's departure fortress town (GDD §3.1; ARCHITECTURE §8 note 281) as it's made, without a window: its
 /// custom, people and their lines, papers and fixtures, where each stands. `dt town sweep`: many towns' customs and their
 /// words, checked against what the HUD's cards can show.
 /// </summary>

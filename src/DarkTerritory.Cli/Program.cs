@@ -75,7 +75,7 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
-    // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 304).
+    // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
     // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
@@ -495,8 +495,8 @@ static object FacilityDrill(TrainTuning t, string content, RouteTuning rt, strin
         timeline = drill.Timeline.Select(x => new { step = x.Step.ToString(), atS = x.Seconds }),
         done = drill.Step == DarkTerritory.Sim.Run.DrillStep.Done,
         seconds = Math.Round(ticks * SimConstants.TickSeconds, 1),
-        rakes = train.Rakes.Count,
-        inOrder = train.Rakes.Count == 1 && train.Dynamics.Consist.Vehicles.Select(v => v.Id).SequenceEqual(order),
+        rakes = train.TrainRakes,
+        inOrder = train.TrainRakes == 1 && train.Dynamics.Consist.Vehicles.Select(v => v.Id).SequenceEqual(order),
         onMain = train.OnMain,
         switchBack = !train.Diverging(spur.Index),
         departures = world.Run!.Departures,
@@ -725,7 +725,7 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         layout.InBand,
         band = StopGenerator.Band(st, layout),
         layout.Moves,
-        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane }),
+        tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane, derelicts = t.Derelicts }),
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         containers = layout.Containers.GroupBy(c => c.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
         // Where a dead player waits to be freed (App. D.4), and where the outside creatures live (B.6, B.8).
@@ -770,6 +770,9 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
                 valid = Math.Round(kept.Average(l => l.Valid ? 1.0 : 0), 3),
                 meanAttempts = Math.Round(kept.Average(l => l.Attempt + 1.0), 2),
                 forms = kept.Where(l => l.Form is not null).GroupBy(l => l.Form!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                // Blocked sidings (D.2; note 294): how many a kept stop has, and how many its measure cleared.
+                blocked = kept.Where(l => l.HasYard).GroupBy(l => l.Tracks.Count(t => t.Blocked)).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+                clearances = Math.Round(kept.Where(l => l.HasYard).Select(l => (double)l.Moves.Clearances).DefaultIfEmpty(0).Average(), 2),
                 villages = kept.Where(l => l.VillageForm is not null).GroupBy(l => l.VillageForm!.Value).ToDictionary(g => g.Key.ToString(), g => g.Count()),
                 failing = kept.SelectMany(l => l.Checks.Where(c => c.Applies && !c.Pass)).GroupBy(c => c.Name).ToDictionary(g => g.Key, g => g.Count()),
                 examples = kept.Where(l => !l.Valid).Take(4).Select(l => new { l.Seed, failed = l.Checks.Where(c => c.Applies && !c.Pass).Select(c => $"{c.Name}: {c.Detail}") }),
@@ -917,7 +920,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
-    // --town [square|centre|board|hall|gate|street]: the departure fortress's town (GDD §3.1; note 304), the train at the gate as a
+    // --town [square|centre|board|hall|gate|street]: the departure fortress's town (GDD §3.1; note 281), the train at the gate as a
     // night starts, the camera standing in it (square: at the way in from the engine, looking at the centrepiece).
     DarkTerritory.Sim.Towns.Town? town = null;
     if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
@@ -1640,7 +1643,8 @@ static object ArtClip(string content, string name, string clip, string[] args)
         // (--tool tool_crowbar: the crew with a hand tool in their fist, as SceneArt hangs it, for the clip's pose by its name.)
         if (Str(args, "--tool", "") is { Length: > 0 } tool && name == "crew"
             && Enum.TryParse<DarkTerritory.Game.Art.CrewPose>(clip.Replace("_idle", "").Replace("_", ""), true, out var pose))
-            art.Crewmate(mesh, placed, pose, time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
+            art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
+                    or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
@@ -2048,7 +2052,7 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
-    // --talk person|board|paper|fixture|door [--who i] (note 304): stood in the departure fortress's town in front of one
+    // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
     // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it.
     TownTalk? talk = null;
     double talkNow = 0;
@@ -2527,7 +2531,7 @@ static int Usage()
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
-             [--route tier:seed --town [square|centre|board|hall|gate|street]]   the departure fortress's town (note 304), standing in it
+             [--route tier:seed --town [square|centre|board|hall|gate|street]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]

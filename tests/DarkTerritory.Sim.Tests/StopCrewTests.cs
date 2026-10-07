@@ -311,7 +311,7 @@ public class StopCrewTests
         Assert.True(crane.Castings.All(c => c.State == CastingState.Loaded),
             $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; loads {string.Join(",", night.Train.Vehicles.Select(v => v.Load.ToString("0.00")))}; did {string.Join(", ", doing)}");
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
-        Assert.Single(night.Train.Rakes);
+        Assert.Equal(1, night.Train.TrainRakes);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public class StopCrewTests
         double loadAfter = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
         Assert.Equal(loadBefore + F.Winch.Sleds * F.Winch.LoadPerSled, loadAfter, 6);
         // Back together, the switch set for the main line, and everyone alive and aboard.
-        Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
         Assert.False(train.Diverging(night.Site.Spur));
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
@@ -379,7 +379,7 @@ public class StopCrewTests
         bool cut = false, diverged = false;
         night.Until(() => train.Dynamics.Distance > zone.End + 50, 300, () =>
         {
-            cut |= train.Rakes.Count > 1;
+            cut |= train.TrainRakes > 1;
             diverged |= train.Diverging(night.Site.Spur);
         });
         Assert.True(train.Dynamics.Distance > zone.End + 50, $"still at {train.Dynamics.Distance:0} (zone ends {zone.End:0})");
@@ -415,7 +415,7 @@ public class StopCrewTests
         Assert.True(train.Vehicles.Sum(v => v.Load) - before >= F.Crates.LoadPerCrate - 1e-6, $"loaded nothing; did {string.Join(", ", doing)}");
         Assert.Contains("picking one up", doing);
         // Back together, the switch set back by the shunter, the doors shut, everyone aboard and the driver at the controls.
-        Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
         Assert.False(train.Diverging(night.Site.Spur));
         Assert.Empty(OpenSideDoors(train, night.Site.Side));
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
@@ -446,7 +446,7 @@ public class StopCrewTests
         Assert.Contains("cranking", steps);
         Assert.Equal(0, night.Site.SledsLeft);
         Assert.Equal(F.Winch.Sleds, Assert.Single(night.Driver.Stops!.Log).SledsHauled);
-        Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
         Assert.False(train.Diverging(night.Site.Spur));
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.True(PlayerMotor.InCab(night.Crew[0], train), $"the driver's {night.Crew[0].Surface} on {night.Crew[0].Parent}");
@@ -487,7 +487,7 @@ public class StopCrewTests
         Assert.Contains(StopDriver.Leg.Loading, legs);
         Assert.Contains("picking one up", steps);
         Assert.True(train.Vehicles.Sum(v => v.Load) - before >= F.Crates.LoadPerCrate - 1e-6, "loaded nothing");
-        Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
         Assert.False(train.Diverging(night.Site.Spur));
         Assert.True(OpenSideDoors(train, night.Site.Side).Count == 0, $"doors open {string.Join(",", OpenSideDoors(train, night.Site.Side))}; did {string.Join(", ", steps)}; legs {string.Join(", ", night.Driver.Stops!.Log[0].Legs)}; loads {string.Join(",", train.Vehicles.Select(v => $"{v.Kind}:{v.Load:0.00}"))}");
         Assert.True(PlayerMotor.InCab(night.Crew[0], train), $"the driver's {night.Crew[0].Surface} on {night.Crew[0].Parent}");
@@ -521,7 +521,7 @@ public class StopCrewTests
         night.Until(() => night.Train.Dynamics.Distance > zone.End + 50, 300);
         Assert.True(night.Train.Dynamics.Distance > zone.End + 50);
         Assert.Empty(night.Driver.Stops!.Log);
-        Assert.Single(night.Train.Rakes);
+        Assert.Equal(1, night.Train.TrainRakes);
     }
 
     [Fact]
@@ -546,7 +546,7 @@ public class StopCrewTests
         // Nobody left behind on the ballast (in the air over a gap is aboard), and the doors shut before it moved.
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Empty(OpenSideDoors(train, night.Site.Side));
-        Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
     }
 
     [Fact]

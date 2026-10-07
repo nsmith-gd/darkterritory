@@ -61,7 +61,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyDictionary<string, string>? Identities { get; init; }
     /// <summary>
-    /// The custom of the town the crew left last night (note 304; App. F.1: "each town has its own odd culture, different
+    /// The custom of the town the crew left last night (note 281; App. F.1: "each town has its own odd culture, different
     /// from the last"): tonight's town won't share it. Every machine makes the town, so a joiner is sent it.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -114,7 +114,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         if (Directory.Exists(linegen))
             hashes[LineGenKey] = Hash(string.Concat(Directory.EnumerateFiles(linegen, "*.json").Order(StringComparer.Ordinal)
                 .Select(f => Path.GetFileName(f) + "\n" + File.ReadAllText(f))));
-        // The world's words (note 304): the towns are made from them alike on every machine, and their walls are solid.
+        // The world's words (note 281): the towns are made from them alike on every machine, and their walls are solid.
         string world = Path.Combine(content, "world");
         if (Directory.Exists(world))
             hashes[WorldKey] = Hash(string.Concat(Directory.EnumerateFiles(world, "*.json").Order(StringComparer.Ordinal)
@@ -184,7 +184,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
             // GDD App. D: once the gate has opened, the dead come back only through the route's Holdouts.
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
-            // The departure fortress's town (note 304), after the run: its walls go up beside the stops'.
+            // The departure fortress's town (note 281), after the run: its walls go up beside the stops'.
             if (Sim.Towns.TownContent.Load(content) is { } towns)
                 world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown);
         }

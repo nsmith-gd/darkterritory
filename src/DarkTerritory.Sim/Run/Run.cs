@@ -686,7 +686,8 @@ public sealed partial class Run
         double perCar = e.PerCar.GetValueOrDefault(tier, 700);
         // A switchyard's cars nobody coupled up to were never the crew's to lose (note 187).
         var standing = train.Rakes.Where(train.Standing).SelectMany(r => r.Consist.Vehicles).Select(v => v.Id).ToHashSet();
-        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && !standing.Contains(v.Id)).ToList();
+        // Nor a blocked siding's derelicts (note 294), unless they're brought home on the train.
+        var cargo = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && !standing.Contains(v.Id) && (!v.Derelict || attached.Contains(v.Id))).ToList();
         var home = cargo.Where(v => attached.Contains(v.Id)).ToList();
         bool delivered = End == RunEnd.Delivered;
         double cargoValue = home.Sum(v => v.Load * v.CargoIntegrity);
@@ -698,7 +699,8 @@ public sealed partial class Run
         double gross = delivered ? freightPay + childPay + Scavenged + Mail : 0;
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
-        double repairs = train.Vehicles.Where(v => attached.Contains(v.Id)).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
+        // A derelict was battered before the night began (note 294): not the crew's to mend.
+        double repairs = train.Vehicles.Where(v => attached.Contains(v.Id) && !v.Derelict).Sum(v => 1 - v.Integrity) * e.RepairPerIntegrity;
         // Home is aboard, or at least with the train: someone mid-jump between roofs, or who stepped down at
         // the terminus, made it. Anyone further than this from every attached car didn't.
         const double WithTheTrain = 40;
@@ -755,7 +757,8 @@ public sealed partial class Run
         var train = world.Train;
         foreach (var rake in train.Rakes.Where(r => r != train.Dynamics && !train.Standing(r)))
         {
-            var ids = rake.Consist.Vehicles.Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
+            // A blocked siding's derelicts (note 294) were never the crew's: left anywhere, they're not lost.
+            var ids = rake.Consist.Vehicles.Where(v => !v.Derelict).Select(v => v.Id).Where(id => !attached.Contains(id)).ToList();
             if (ids.Count == 0)
                 continue;
             var vehicles = ids.Select(id => train.Vehicles[id]).ToList();

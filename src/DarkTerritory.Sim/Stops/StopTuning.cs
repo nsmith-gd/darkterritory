@@ -19,6 +19,7 @@ public sealed record StopTuning
     public required PowerhouseTuning Powerhouse { get; init; }
     public required HoldoutPlacementTuning Holdouts { get; init; }
     public required LairTuning Lairs { get; init; }
+    public required DerelictTuning Derelict { get; init; }
     public required ScoreTuning Score { get; init; }
     public required int MaxAttempts { get; init; }
     public required StopTierTable Tiers { get; init; }
@@ -35,6 +36,9 @@ public sealed record TrackLayoutTuning
     public required double[] FanAngle { get; init; }
     public required double[] SplitToe { get; init; }
 }
+
+/// <summary>Derelict cars on a blocked siding (level-design D.1, D.2; ARCHITECTURE §8 note 294). Field docs in stops.json.</summary>
+public sealed record DerelictTuning(int[] Cars);
 
 /// <summary>A yard's powerhouse at its throat (level-design P6, D.2). Field docs in stops.json.</summary>
 public sealed record PowerhouseTuning(double[] Size, double[] Throat, double[] Offset);
@@ -177,6 +181,7 @@ public sealed record ScoreTuning
     public required double HandCar { get; init; }
     public required double MetresPerPoint { get; init; }
     public required double BlockedCrossing { get; init; }
+    public required double Clearance { get; init; }
     public required double VillageMetresPerPoint { get; init; }
     public required double FindOdds { get; init; }
     public required double PerHouse { get; init; }
@@ -218,6 +223,8 @@ public sealed record StopTier
     public required int[] Halts { get; init; }
     public required IReadOnlyList<Choice> Forms { get; init; }
     public required int[] Sidings { get; init; }
+    /// <summary>Sidings with derelict cars standing on them, [min, max] (level-design D.2).</summary>
+    public required int[] Blocked { get; init; }
     public required int[] FaceCars { get; init; }
     public required double Crane { get; init; }
     public required double[] Runway { get; init; }

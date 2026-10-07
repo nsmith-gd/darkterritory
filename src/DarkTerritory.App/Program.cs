@@ -640,7 +640,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
-    // Talking and reading in the fortress town (note 304): on this machine alone. A press the town took isn't sent to the
+    // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
     bool useKept = false;
@@ -1011,6 +1011,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         DerailSequence.Fog(ref lighting, derailShot);
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
@@ -1144,7 +1145,7 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     if (session.World.Run?.Report is { } report)
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
-        // Note 304: and the town it left, so the next night's isn't the same custom again.
+        // Note 281: and the town it left, so the next night's isn't the same custom again.
         var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");

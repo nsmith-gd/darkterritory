@@ -106,7 +106,7 @@ public sealed class StopWalls
         return walls;
     }
 
-    /// <summary>More walls standing beside the stops' (a fortress town's square: note 304).</summary>
+    /// <summary>More walls standing beside the stops' (a fortress town's square: note 281).</summary>
     public void Add(IEnumerable<Wall> walls)
     {
         foreach (var w in walls)

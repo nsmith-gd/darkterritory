@@ -12,7 +12,7 @@ public enum TownTargetKind : byte { Person, Board, Paper, Fixture, Door }
 public readonly record struct TownTarget(TownTargetKind Kind, int Index);
 
 /// <summary>
-/// A fortress town put down on its line (GDD §3.1; ARCHITECTURE §8 note 304): its plan in world space, the walls that
+/// A fortress town put down on its line (GDD §3.1; ARCHITECTURE §8 note 281): its plan in world space, the walls that
 /// make it solid (App. F.1: "the world is solid"), and what a crewmate standing in it is looking at. Talking and reading
 /// change nothing in the night, so nothing here is replicated: every machine builds the same town from the route, and
 /// a card opened on one shows on that one alone.

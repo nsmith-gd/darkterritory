@@ -12,7 +12,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 304): each its own custom, people with lines, papers
+/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): each its own custom, people with lines, papers
 /// to read, made alike on every machine, solid where they stand.
 /// </summary>
 public class TownTests
@@ -51,7 +51,7 @@ public class TownTests
     [InlineData("local:3")]
     public void TheFortressStandsBackRoundTheSquare(string spec)
     {
-        // T124's solid fortress (note 274) and the town's square (note 304): no wall bay across the square's mouth, no gun
+        // T124's solid fortress (note 274) and the town's square (note 281): no wall bay across the square's mouth, no gun
         // tower or village house in it, and the walls either side of it still there.
         var route = Routes.Generate(Content, spec, 6);
         var line = route.Build();
