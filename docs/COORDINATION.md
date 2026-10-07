@@ -57,24 +57,26 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools` | 275 | claimed |
 | 10 | **Towns (T133):** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople) | — | — | — | open |
 | 11 | **The cab redesign:** cab forward, the controls at the front with the whole line in view, the coal bunker in the cab (the director's sketch) | C1 | `claude/busy-carson-0i3g8d`, [#190](https://github.com/nsmith-gd/darkterritory/pull/190) | 276 | done |
-| 12 | **Art checklist L1s:** the boiler rupture's burst and seized engine, the noisy toys' models, the headlamp out, lockers that don't block each other, bend limits on the route card, smaller prompts, a lighter HUD out of the cab, the overspeed telegraph's flange sparks, the crew in the wreck mid-task | C1 | `claude/busy-carson-0i3g8d` | 277 | in review |
+| 12 | **Art checklist L1s:** the boiler rupture's burst and seized engine, the noisy toys' models, the headlamp out, lockers that don't block each other, bend limits on the route card, smaller prompts, a lighter HUD out of the cab, the overspeed telegraph's flange sparks, the crew in the wreck mid-task | C1 | `claude/busy-carson-0i3g8d`, [#195](https://github.com/nsmith-gd/darkterritory/pull/195) | 277 | done |
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
-| 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
+| 15 | **The cab, everything facing forward, run by one:** the director (7 Oct): "the controls and firebox need to be in front not facing the back"; "firebox at the front but no need to turn around for coal, the whole cab being operable by one person". The crew is the driver, gunners and labourmen (no fireman); lockers numbered 1-12, no role names | C1 | `claude/busy-carson-0i3g8d` | 280 | claimed |
+| 16 | **Wrenches are the repair tool:** the director (7 Oct): repairs like Sea of Thieves, a click with the wrench in hand near the break; every repairable breakage has a clear VFX callout; the repair kit goes, wrenches fix the rupture too. Touches the wrench's Swing (A1.7's WP19 owns the tools as swings: a wrench's swing at a break repairs instead of hitting) | C1 | `claude/busy-carson-0i3g8d` (after #15) | 281 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **281**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **282**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 281 (C1's wrench repairs). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
 | Item | PR | Note |
 |---|---|---|
+| Art checklist L1s: the rupture, noisy toys, the lamp out, lockers, bend limits on the card, small prompts, flange sparks, the crew mid-task | [#195](https://github.com/nsmith-gd/darkterritory/pull/195) | 277 |
 | The engine, cab forward: controls at the front with the rail in full view, coal in the cab | [#190](https://github.com/nsmith-gd/darkterritory/pull/190) | 276 |
 | Fire is a grid: cells on the floor, walls and roof; spray the cell you aim at; burnt cells char | [#188](https://github.com/nsmith-gd/darkterritory/pull/188) | 267 |
 | Director pacing by pressure; a 20–90 s quiet spell per night | [#189](https://github.com/nsmith-gd/darkterritory/pull/189) | 266 |
