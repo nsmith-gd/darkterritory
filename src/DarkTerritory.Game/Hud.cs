@@ -255,19 +255,37 @@ public static partial class Hud
     /// </summary>
     public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
     {
-        int line = o.Font.LineHeight;
-        float w = 260, h = (lines.Count + 2) * line + 8;
-        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
-        UiStyle.Plate(o, x, y, w, h);
-        o.Text(x + 6, y + 4, "THE CREW. ROLL CALL IS SHOUTED", Ink);
-        y += 4 + 2 * line;
+        const string title = "THE CREW. ROLL CALL IS SHOUTED";
+        float k = Fine;
+        float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
+        var (x, y, w) = Panel(o, width, height, title, Math.Max(o.Measure(title, k), names + 12 * k + o.Measure("SPEAKING", k)), lines.Count, Ink, k);
         foreach (var l in lines)
         {
-            o.Text(x + 6, y, l.Name, Ink);
-            bool speaking = !l.You && heard?.Invoke(l.Id) is < 2;
-            o.TextRight(x + w - 6, y, speaking ? "SPEAKING" : "", Green);
-            y += line;
+            o.Text(x + PanelPad * k, y, l.Name, Ink, k);
+            if (!l.You && heard?.Invoke(l.Id) is < 2)
+                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
+            y += PanelRow(o, k);
         }
+    }
+
+    const float PanelPad = 6;
+
+    static float PanelRow(Overlay o, float k) => (o.Font.LineHeight + 2) * k;
+
+    /// <summary>
+    /// A panel you open (the roster, the supplies; note 316): note 285's form, as the ballot is. Fine print on a dark
+    /// backing lit along its top, no rivets, a fifth of the way down the middle. Draws the backing and the title and returns
+    /// where its rows start, and its width, for <paramref name="rows"/> rows under a title in <paramref name="titleColour"/>.
+    /// </summary>
+    static (float X, float Y, float W) Panel(Overlay o, int width, int height, string title, float content, int rows, Vector4 titleColour, float k)
+    {
+        float pad = PanelPad * k;
+        float w = MathF.Round(content + 2 * pad), h = MathF.Round((o.Font.LineHeight + 4) * k + rows * PanelRow(o, k) + 2 * pad);
+        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
+        o.Rect(x, y, w, h, UiStyle.Iron with { W = 0.6f });
+        o.Rect(x, y, w, 1, titleColour with { W = 0.8f });
+        o.Text(x + pad, y + pad, title, titleColour, k);
+        return (x, y + pad + (o.Font.LineHeight + 4) * k, w);
     }
 
     /// <summary>
@@ -278,20 +296,18 @@ public static partial class Hud
     public static void Supplies(Overlay o, int width, int height, IPlaySession s)
     {
         var lines = SuppliesLines(s.World, s.PlayerId);
-        int line = o.Font.LineHeight;
-        float col = lines.Max(l => o.Font.Measure(l.Item)) + 12;
-        float w = Math.Max(240, col + lines.Max(l => o.Font.Measure(l.Value))) + 12;
-        float h = (lines.Count + 2) * line + 8;
-        float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
-        UiStyle.Plate(o, x, y, w, h);
-        o.Text(x + 6, y + 4, "SUPPLIES ABOARD", Amber);
-        UiStyle.Keyed(o, x + w - 6 - UiStyle.MeasureKeyed(o, Bound("[I] CLOSE")), y + 4, Bound("[I] CLOSE"), Dim);
-        y += 4 + 2 * line;
+        const string title = "SUPPLIES ABOARD";
+        string close = Bound("CLOSE : [I]");
+        float k = Fine, pad = PanelPad * k;
+        float col = lines.Max(l => o.Measure(l.Item, k)) + 12 * k;
+        float content = Math.Max(o.Measure(title, k) + 12 * k + UiStyle.MeasureKeyed(o, close, k), col + lines.Max(l => o.Measure(l.Value, k)));
+        var (x, y, w) = Panel(o, width, height, title, content, lines.Count, Amber, k);
+        UiStyle.Keyed(o, Overlay.Snap(x + w - pad - UiStyle.MeasureKeyed(o, close, k), k), y - (o.Font.LineHeight + 4) * k, close, Dim, k);
         foreach (var (item, value, warn) in lines)
         {
-            o.Text(x + 6, y, item, Dim);
-            o.Text(x + 6 + col, y, value, warn ? Amber : Ink);
-            y += line;
+            o.Text(x + pad, y, item, Dim, k);
+            o.Text(Overlay.Snap(x + pad + col, k), y, value, warn ? Amber : Ink, k);
+            y += PanelRow(o, k);
         }
     }
 

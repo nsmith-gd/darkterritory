@@ -4323,8 +4323,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **Verified:** `HudTests.PromptsNameTheActionAndItsKeyAndNeverWhatItDoes` (every cab control, the vent held, the kit's locker shut and open, the kit carried: each key is an action's, nothing foretold, at most 48 characters), the restated prompt tests, `QuietHudTests.WithTheControlHintsOffTheCornerKeepsOnlyWhatItsAbout`, `FrontEndTests.SettingsAreSavedAsTheyChange` (the row), and `MapSpeedTests` (four tiers: every 5 m that derails under top speed has a figure, and each figure is under its bend's derailing speed; a sweep of 24 lines, four tiers by six seeds, had none bare).
     - **Not yet / the director's call:**
         - Health isn't drawn. The damage model's edge flash and sound (note 272) are the feedback, as in Lethal Company.
-        - The supplies and roster panels are still riveted plates at the HUD's size.
-        - The settings take effect from the next night, as the rest do (the app reads them as a night starts).
+        - ~~The supplies and roster panels are still riveted plates at the HUD's size.~~ Done, note 316.
+        - ~~The settings take effect from the next night, as the rest do (the app reads them as a night starts).~~ Done, note 292: the in-night menu's settings take effect at once.
     - **Verified:** `QuietHudTests`:
         - on a roof with empty hands, only the crosshair and the hotbar are drawn;
         - a change of hands is named, then gone;
@@ -4473,3 +4473,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **A flag:** wreck.json `skip.own` (true); false puts back the crew's vote, which `HostSession` still counts and `FilmTests` still pins.
     - **Bookmarks are untouched:** a derailment's stills come from the film's peaks (note 203), not from how far a screen has played it, so skipping doesn't lose them.
     - **Verified:** `WreckSessionTests.TheFilmIsTheCrewsAndEachPlayerSkipsTheirOwnToTheCauseCard` (skippable in the first person; a tap skips nothing; held, it lands on the cause card once the film's in; the crew's film isn't voted off) and `FilmTests.EachPlayersOwnSkipIsNeverTheCrewsVote` (the whole crew holding it, the host's player too: no vote, nothing skipped). The vote tests run with `skip.own` false. `dt screenshot --film 1 --skip-hold 0.3` shows the prompt part-filled (looked at, beside one with nothing held).
+
+316. **The panels you open, in note 285's form (F1, UI/UX 3; queue #55; GDD §32; note 285's "not yet").** The roster (held Q) and the supplies (I) were the last riveted plates in a night: the HUD's full-size text on iron with brass trim and four rivets, 260 px of a 480 px screen for the roster. Note 285 kept the panels you open on plates ("you asked for them") and listed them as not yet done; the director's word on the overhaul was that there's too much UI on screen.
+    - **The form is the ballot's** (note 285): fine print (`Hud.Fine`) on a dark backing, lit along its top in the title's colour, no rivets, no trim, a fifth of the way down the middle (`Hud.Panel`). The roster's title is in ink and the supplies' in amber, as before.
+    - **What they say is unchanged:** the roster's names and SPEAKING; the supplies' rows (`SuppliesLines`, which C1's #39 rewrites for the wrenches; untouched here). The close key reads in the prompts' form, "CLOSE : [I]".
+    - **Verified:** `QuietHudTests.ThePanelsYouOpenAreFinePrintWithNoRivets` (no rivet, brass or bevel; the roster under 200 px wide, the supplies under 60% of the screen; SPEAKING still green). `dt screenshot --hud --supplies` and `--roster`, before and after, looked at.
+
