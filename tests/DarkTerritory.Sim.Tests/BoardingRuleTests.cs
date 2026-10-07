@@ -87,10 +87,13 @@ public class BoardingRuleTests
     {
         // "Car lamps start lit. Their pull on Fire Flies is rare, and only while the car is stopped."
         var rule = Spawns.For(EnemyKind.FireFlies)!;
+        // Car 3's door open: a car shut up tight keeps them out whatever the speed (note 286).
         var moving = new Night(5, speed: E.FireFlies.StoppedBelow + 0.5);
+        moving.Train.Vehicles[3].ToggleDoor(0);
         Assert.True(moving.Train.Vehicles[3].LampLit);
         Assert.Null(rule.Weight(new SpawnContext(moving.World, E, moving.World.Director!)));
         var stopped = new Night(5, speed: 0);
+        stopped.Train.Vehicles[3].ToggleDoor(0);
         Assert.Equal(E.FireFlies.StoppedWeight, rule.Weight(new SpawnContext(stopped.World, E, stopped.World.Director!)));
         Assert.True(E.FireFlies.StoppedWeight < 1); // rare
     }
