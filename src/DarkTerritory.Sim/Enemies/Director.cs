@@ -432,7 +432,7 @@ public sealed class Director
     bool _huntSeeded;
 
     /// <summary>A hunt sent at a crewmate left behind (T128): when, at whom, its pack and size, how long and how far behind they'd been.</summary>
-    public readonly record struct Hunt(uint Tick, int Player, int Pack, int Size, double Seconds, double Behind);
+    public readonly record struct Hunt(uint Tick, int Player, int Pack, int Size, double Seconds, double Behind, int Gaunt = -1);
 
     /// <summary>Every hunt sent at a crewmate left behind tonight (T128, note 273).</summary>
     public List<Hunt> Hunts { get; } = new();
@@ -504,10 +504,21 @@ public sealed class Director
                 var p = spot + new Double3(i * 1.2, 0, (i % 2) * 1.2);
                 world.AddEnemy(e => Ribbit.At(e, pack, p, r));
             }
+            // From the hunt numbered gauntFrom on, a Gaunt woken on them comes with it (note 296): one at a time each, never
+            // where the crew's too small for one or the night bans it.
+            int gaunt = -1;
+            var g = et.Gaunt;
+            if (a.GauntFrom >= 0 && l.Hunts >= a.GauntFrom && Allows(EnemyKind.Gaunt) && crew.Count(c => c.State.Alive) >= g.MinCrew
+                && !active.Any(e => e is Gaunt { Gone: false } w && w.Waker == id)
+                && HuntSpot(world, at, hint, g.SpawnOut) is { } far)
+            {
+                gaunt = world.NextEnemyId;
+                world.AddEnemy(e => Gaunt.WokenBy(e, far, id, g));
+            }
             l.Pack = pack;
             l.Hunts++;
             l.Pressure = Math.Max(0, l.Pressure - a.Relief);
-            Hunts.Add(new Hunt(world.Tick, id, pack, size, l.Seconds, behind));
+            Hunts.Add(new Hunt(world.Tick, id, pack, size, l.Seconds, behind, gaunt));
         }
         foreach (int id in _left.Keys.Where(k => !seen.Contains(k)).ToList())
             _left.Remove(id);

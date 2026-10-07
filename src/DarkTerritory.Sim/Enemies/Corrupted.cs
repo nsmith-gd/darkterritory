@@ -178,8 +178,9 @@ public sealed class Switchman(int id) : Enemy(id)
     public override Sense Sense => Sense.Vibration;
     public override Want Want => Want.Cargo;
     public override bool OnMainLine => true;
-    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.6 : 0;
+    /// <summary>At his lever, revealed (the telegraph on): "one cannon shot, or stop and club it" (GDD §21).</summary>
     public override double MeleeRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.7 : 0;
+    public override bool GunAnswers => true;
     public int Branch => (int)Extra;
     public bool Derailer => Extra2 > 0.5;
 
