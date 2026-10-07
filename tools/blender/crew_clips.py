@@ -42,7 +42,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
   wave, point, dance  the yard's emotes (GDD §9, note 298's wheel): a wave over the shoulder, a point straight ahead at the
-                      shoulder's height, a workman's jig (queue #41, note 303)
+                      shoulder's height, a workman's jig (queue #44, note 306)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -1064,7 +1064,7 @@ reload_.key(122, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.
 reload_.key(135, hands(SEATED, WHEEL_KNOB, TILLER))
 clips.append(reload_)
 
-# --- emotes (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298's wheel, queue #41, note 303) ----------
+# --- emotes (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298's wheel, queue #44, note 306) ----------
 # The game loops each from a beat of its own per crewmate (CreatureArt.Crewmate: time + the variant's offset), so the wave
 # and the point are holds that loop anywhere, not a start and an end.
 SHOULDER_R, SHOULDER_L = rig.pose_points(sk, STAND, [("upperarm_r", "head"), ("upperarm_l", "head")])
