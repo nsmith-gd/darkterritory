@@ -4545,3 +4545,26 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The corner says it** while you carry freight (a crate, or a heavy one) inside a full cargo car: "CAR 3 IS FULL" under the crate's name, over its keys (`Hud.Hints`). The car by its stencilled number, so it can be shouted ("car three's full, take it to four").
     - **Only what stops you** (§32): not which car has room, how much is left, or what a crate is worth. Empty-handed, or carrying what isn't freight, a full car says nothing.
     - **Verified:** `HudTests.ACrateCarriedIntoAFullCarSaysTheCarsFull` (half full: nothing; full: the line; empty-handed: nothing); `dt screenshot --hud --full-car --route frontier:7`, looked at.
+
+326. **Explorable village interiors, a first slice (B4, queue #65; GDD App. F.3, the director, 7 Oct 2026: "right now the villages don't have explorable interiors, so we want to see those be things that we can search through in order to find things. This is going to be a big part of the game ... do we split up and try and get more loot that way, or do we focus on just the yard together, or do we focus on just the village together?").** The village houses were solid boxes since T114 ("collisions"), and a find in one was put out on its step.
+    - **Which stand open** (`StopBuilding.Open`; stops.json `village.openHouses`). The plain houses, a rectangle or a square, are about half of every village. The L, cross and paired houses stay shut: their parts overlap, and a hollow one needs a plan of its own. No dice decide it, so every stop is laid exactly as before.
+    - **The walls** (`StopWalls.OpenWalls`). An open house stands as four walls (`WallThickness` 0.2 m), the one in its `Front` split either side of a door (`DoorWidth` 1.2 m). `Front` is the face that looks most toward the line, the face a shut house's finds are put out on. A crewmate, a cannon ball and a charging creature meet the walls as they met the box, and go in at the door.
+    - **The finds** (`StopWalls.FindAt`, `InsideLocal`). A find in an open house lies inside, `FindOut` (0.65 m) out from the wall it was kept against, by kind:
+        - at the foot of a cupboard on the back wall, or of a cabinet on a side wall;
+        - on the cellar's hatch, or on a run of prised-up boards, out on the floor;
+        - a second of a kind across the room from the first.
+      A shut house's finds and repair kits go on its step as before.
+    - **The art** (`TownKit.OpenHouse`). The sim's walls in plaster with a lintel over the door, a boarded floor, gables and a slate roof, and the cupboard, cabinet, hatch or boards where each find lies. Shut houses keep their modelled props. An open house is drawn from the kit's boxes, so it reads plainer from outside than its modelled neighbours (the art checklist's to take further).
+    - **Not yet:**
+        - Searching: the finds lie in plain sight in the lamplight. A held search of a cupboard, with what it held unknown until then, is the next step, and it needs a replicated state per container.
+        - Furniture the crew bump into: the cupboards aren't solid.
+        - Rooms and a stair: one room, ground floor.
+        - Doors that shut.
+        - The L, cross and paired houses.
+        - B2's walk-in town houses (#194) are a fortress's, built separately; when they land, the two can share a kit.
+    - **Verified:** `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` (frontier:7, deadLines:2):
+        - every plain house is open and no other kind is;
+        - from the step to the middle is walkable for a crewmate's width, and from behind the back wall it isn't;
+        - every find in an open house is inside it and walkable to from the step;
+        - a shut house's finds are outside it.
+      Seen in `dt screenshot --route frontier:7 --at 10200 --cam 10156,88,2.2 --target 10152,101.9,1.4 --dawn 0.6` (Maddox's house 20 from the street: the doorway dark in its front wall) and `--cam 10154.5,99.5,1.7 --target 10151,104.5,0.6 --lantern --fov 80` (inside: the boards, the cupboard against the back wall, the cabinet against the side).
