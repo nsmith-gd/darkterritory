@@ -1888,6 +1888,14 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
+    // --menu mods (note 323): the example mod as installed (tools/mods), and one that can't load for want of another.
+    if (screen == DarkTerritory.Game.Screen.Mods)
+    {
+        var tools = Path.Combine(Path.GetDirectoryName(DataFile.FindContentRoot())!, "tools", "mods");
+        menu.InstalledMods = [.. ContentMods.Find(tools).Select(m => new DarkTerritory.Game.InstalledMod(m.Name, m.Version, m.Description))];
+        menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
+        menu.ModsOff = args.Contains("--no-mods");
+    }
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
