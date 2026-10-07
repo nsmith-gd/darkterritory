@@ -67,9 +67,9 @@ public class SpawnSiteTests
         // A crew standing nowhere near any warren: the stop has none to send.
         var far = At(LairKind.Warren);
         var away = far.Stop.Stop!.Lairs.Where(l => l.Kind == LairKind.Warren).ToList();
-        var spot = new Pt(far.Stop.Stop.StopPoint.S, -Math.Sign(away[0].At.D) * 60);
-        if (away.Any(l => Pt.Distance(l.At, spot) <= E.Sites.WarrenReach))
-            return;
+        // A spot in the stop's zone, out on the ground, further than any warren's reach.
+        var spot = Enumerable.Range(0, 40).SelectMany(i => new[] { 25.0, -25, 50, -50, 80, -80 }.Select(d => new Pt(far.Stop.Stop.ZoneLength * i / 40, d)))
+            .First(p => away.All(l => Pt.Distance(l.At, p) > E.Sites.WarrenReach + 5));
         Stand(far.Night, far.Stop, 1, spot);
         Stand(far.Night, far.Stop, 2, spot + new Pt(2, 0));
         Assert.False(rule.Spawn(new SpawnContext(far.Night.World, E, far.Night.World.Director!)));
@@ -78,19 +78,22 @@ public class SpawnSiteTests
     [Fact]
     public void TheGauntSleepsInItsRoostAndAChildCallsFromItsCall()
     {
+        int seen = 0;
         foreach (var (kind, enemy) in new[] { (LairKind.GauntRoost, EnemyKind.Gaunt), (LairKind.SootCall, EnemyKind.SootChildren) })
         {
             var (n, stop, lair) = At(kind);
             var site = SiteOf(n, stop, lair);
-            Stand(n, stop, 1, stop.Stop!.StopPoint + new Pt(0, Math.Sign(lair.At.D) * 8));
-            Stand(n, stop, 2, stop.Stop!.StopPoint + new Pt(3, Math.Sign(lair.At.D) * 8));
+            // 30 m short of it, toward the line: the crew out at the edge of things.
+            var toward = lair.At + new Pt(0, -Math.Sign(lair.At.D) * 30);
+            Stand(n, stop, 1, toward);
+            Stand(n, stop, 2, toward + new Pt(3, 0));
             int before = n.World.ActiveEnemies.Count;
-            if (Flat(site, n.Crew[1].Position) > (kind == LairKind.GauntRoost ? E.Sites.RoostReach : E.Sites.CallReach))
-                continue;
             Assert.True(Spawns.For(enemy)!.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
             var e = n.World.ActiveEnemies.Skip(before).Single();
             Assert.True(Flat(e.Local, site) < 0.5, $"{enemy} {Flat(e.Local, site):0.0} m from its {kind}");
+            seen++;
         }
+        Assert.Equal(2, seen);
     }
 
     [Fact]
@@ -100,12 +103,10 @@ public class SpawnSiteTests
         var rule = Spawns.For(EnemyKind.Follower)!;
         // Off every ground: nobody to take.
         var grounds = stop.Stop!.Lairs.Where(l => l.Kind == LairKind.FollowerGround).ToList();
-        var off = new Pt(stop.Stop.StopPoint.S, -Math.Sign(ground.At.D) * 30);
-        if (grounds.All(g => Pt.Distance(g.At, off) > g.Radius + E.Sites.GroundMargin + 2))
-        {
-            Stand(n, stop, 1, off);
-            Assert.False(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
-        }
+        var off = Enumerable.Range(0, 40).SelectMany(i => new[] { 25.0, -25, 50, -50 }.Select(d => new Pt(stop.Stop.ZoneLength * i / 40, d)))
+            .First(p => grounds.All(g => Pt.Distance(g.At, p) > g.Radius + E.Sites.GroundMargin + 2));
+        Stand(n, stop, 1, off);
+        Assert.False(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
         // In the middle of one: they're taken.
         Stand(n, stop, 1, ground.At);
         int before = n.World.ActiveEnemies.Count;
