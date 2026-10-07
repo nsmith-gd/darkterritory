@@ -4595,8 +4595,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - a second of a kind across the room from the first.
       A shut house's finds and repair kits go on its step as before.
     - **The art** (`TownKit.OpenHouse`). The sim's walls in plaster with a lintel over the door, a boarded floor, gables and a slate roof, and the cupboard, cabinet, hatch or boards where each find lies. Shut houses keep their modelled props. An open house is drawn from the kit's boxes, so it reads plainer from outside than its modelled neighbours (the art checklist's to take further).
+    - **The search, a second slice** (`Run.SpotInReach`, `SearchAct`, `Reveal`; loot.json `search`). Level-design P14 already said village loot sits in "hiding spots ... that take time to search", and the first slice left every find in plain sight in the lamplight. Now each spot in an open house (the cupboard, the cabinet, the cellar's hatch, the boards; `Run.HidingSpots`) keeps its find, and a toy with it, until it's been searched:
+        - a crewmate on foot, empty-handed and within `reach` (1 m) of the spot, holds Use for the kind's `seconds`: a cabinet 2, a cupboard 2.5, the cellar 4, the boards 5. Letting go starts it again. Something in hand, Use is that thing's (put down, used), so it's no search;
+        - then the find and the toy come out where they'd have lain, the spot is searched, and it's never searched again. Crewmates at one spot don't add up: the furthest through is the spot's progress;
+        - the repair kit at a spot still lies out beside it: the bots go for a kit wherever it is (E.12 question 4), and they don't search;
+        - shut houses' finds stay on the step, and a barn's hayloft and a shed's bench as they were;
+        - with `search` unset, nothing's hidden, as in the first slice. Not in the spec's numbers: a house's few spots take a crewmate about ten seconds, a village a few minutes alone, which is what splitting up buys back.
+      The host searches, in `World.CrewAct` after the hands have had their go (a press that picks something up isn't a search). A `Search` record per stop with its loot out carries the containers searched and each spot under way with its progress, so every crewmate's HUD reads "SEARCH THE CUPBOARD : HOLD [E]", then "SEARCHING THE CUPBOARD (40%)". Nothing a client predicts: the player and the train are unchanged by it, and the finds are bodies the host puts out. A spot's searched where it stands, never through a wall: nowhere a crewmate can stand outside a house is within reach of what's kept in it. `Run.Stock(bodies, stop, searched: true)` puts every find out, for tools and tests.
     - **Not yet:**
-        - Searching: the finds lie in plain sight in the lamplight. A held search of a cupboard, with what it held unknown until then, is the next step, and it needs a replicated state per container.
+        - A searched cupboard that looks searched (its doors open, the boards up): the art reads the layout, not the search.
+        - Bots that search: a bot crew works the yard and leaves the village's houses alone.
         - Furniture the crew bump into: the cupboards aren't solid.
         - Rooms and a stair: one room, ground floor.
         - Doors that shut.
@@ -4607,6 +4615,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - from the step to the middle is walkable for a crewmate's width, and from behind the back wall it isn't;
         - every find in an open house is inside it and walkable to from the step;
         - a shut house's finds are outside it.
+      `SearchTests` (frontier:7): an open house's spots keep their finds through a held search that's let go short and starts again, and give them up held through, once; a crewmate carrying something doesn't search; nowhere a crewmate can stand outside a house reaches a spot in it; a client sees the search under way and then done.
       Seen in `dt screenshot --route frontier:7 --at 10200 --cam 10156,88,2.2 --target 10152,101.9,1.4 --dawn 0.6` (Maddox's house 20 from the street: the doorway dark in its front wall) and `--cam 10154.5,99.5,1.7 --target 10151,104.5,0.6 --lantern --fov 80` (inside: the boards, the cupboard against the back wall, the cabinet against the side).
 
 328. **The threat orchestrator, and the run between stops (D1.2 for D1, queue #67; GDD App. F.3, the director, 7 Oct 2026: "on the train, still relatively boring from point A to point B ... more threats that can board the train at speed ... tower defense style that gives our gunners things to do ... a threat orchestrator that takes into account how many players are on").** The design outline is [docs/design/orchestrator.md](design/orchestrator.md), linked from GDD App. B.1.
