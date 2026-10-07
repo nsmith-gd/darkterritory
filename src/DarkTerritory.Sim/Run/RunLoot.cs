@@ -177,8 +177,7 @@ public sealed partial class Run
             // A repair kit (E.12 question 4), lying beside what the container holds: not the crew's until one of them picks it up.
             if (kits.Contains(c.Index))
             {
-                var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                    ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                var put = StopWalls.FindAt(stop, c);
                 bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
             }
             switch (c.Kind)
@@ -195,9 +194,9 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
-                    // A find in a shut house is put out on its step (T114: the houses are walls now, with no way in).
-                    var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                        ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                    // A find in a shut house is put out on its step (T114: the houses are walls, with no way in); in an open
+                    // one it's inside, where it'd be kept (note 326).
+                    var put = StopWalls.FindAt(stop, c);
                     if (finds.Any(x => x.Container == c.Index))
                         bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     // A toy with it (note 264), beside the find: GDD §19's hand loot, for the Track Doll or the meter.
