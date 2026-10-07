@@ -2086,7 +2086,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *Open (queue #65, note 326, B4).*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *First slice in (queue #65, note 326, B4): the plain village houses stand open with their finds inside; a held search of what they're kept in is next.*
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*

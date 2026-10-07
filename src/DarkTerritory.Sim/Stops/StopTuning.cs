@@ -132,6 +132,8 @@ public sealed record VillageTuning
     public required FarmsteadsTuning Farmsteads { get; init; }
     public required double[] Extent { get; init; }
     public required HaltTuning Halt { get; init; }
+    /// <summary>Whether the plain houses (a rectangle or a square) stand open to walk into and search (note 326).</summary>
+    public bool OpenHouses { get; init; }
 }
 
 public sealed record BlocksTuning
