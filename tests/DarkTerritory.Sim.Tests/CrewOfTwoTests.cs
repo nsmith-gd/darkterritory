@@ -15,9 +15,9 @@ public class CrewOfTwoTests
 {
     static readonly string Content = DataFile.FindContentRoot();
 
-    /// <summary>A crew of two on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
-    static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind insist, double? start = null,
-        Action<World>? each = null)
+    /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
+    internal static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind insist, double? start = null,
+        Action<World>? each = null, int bots = 2, int seed = 1)
     {
         var route = LineGen.Routes.Generate(Content, routeName, cars);
         double gate = route.GateOr(Tuning.Route.YardLength);
@@ -25,10 +25,10 @@ public class CrewOfTwoTests
         return Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
         {
             Observe = each is null ? null : (_, _, world) => each(world),
-            Bots = 2,
+            Bots = bots,
             Cars = cars,
             Seconds = seconds,
-            Seed = 1,
+            Seed = seed,
             Link = new Ballast.Net.LinkConditions(0.09, 0.02, 0.03),
             StartDistance = from,
             WalkAboard = from < gate,

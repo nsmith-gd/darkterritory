@@ -2624,6 +2624,15 @@ public static class Heed
             .Select(e => (e, At: e.WorldPosition(train))).Where(x => (x.At - me).Length <= 25).OrderBy(x => (x.At - me).Length).FirstOrDefault();
         if (holder.e is null)
             return intent;
+        // The Car Hugger's mouth is at the end of its car, under the roof's edge (App. A.3): the one it has is on the end ladder
+        // or the platform below. From that car's roof, to the top of the ladder over them, and haul from there. On the roof
+        // above, walking at them got no nearer, and a crew of four watched a walker eaten under their feet (note 310).
+        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && self.Surface == Surface.Roof
+            && train.Frames[hugger.Attached].Shape.Platform is { } platform)
+        {
+            var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
+            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : toLadder;
+        }
         // Where the held one is: the holder's side of them is close enough (they're pinned together).
         var go = Strike(self, train, holder.At, et.Grab.PullReach * 0.8);
         if (go is not { } step)
