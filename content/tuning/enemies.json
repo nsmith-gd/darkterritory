@@ -127,9 +127,17 @@
   // whistle for whistleSeconds (it feeds the loudness meter). A player passing within passReach of its gap with nobody
   // else within pairRadius is snatched and carried off at runSpeed to a nest nestDistance m out, eaten nestSeconds after.
   // Two players within spotReach of the gap and it flees. B.4: stopWeight: it's weighted toward routes with stops.
+  // T128 (build 1121: "a creature carried the director up a mountainside"; ARCHITECTURE §8 note 273): the nest is straight
+  // out from the gap across the line, on the side they were taken from if it can be, at nestDistance (60 → 30: inside
+  // train.json recovery.corridorM, Line Plan §12.6's walkable corridor; it went 60 m out in a straight line at rail height,
+  // and wherever the land rose the player was stood up on the hillside when it let go), shorter by nestStep down to
+  // nestMinDistance where the land won't have it. Its run there is over the ground, and the way has to be land a person can
+  // run: no 2 m of it steeper than nestMaxSlope (rise over run), never more than nestMaxRise m above or below the rail, no
+  // water. Neither side has any: the formation's edge.
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
-    "runSpeed": 4.5, "nestDistance": 60, "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
+    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6,
+    "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -383,6 +391,22 @@
       // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
       // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.
       "downPower": 2, "hurtBelow": 35, "hurtRelief": 0.25, "busy": 0.5, "busyFade": 1
+    },
+    // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
+    // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
+    // A crewmate alive on the ground, further than behindM (m) along the line from the nearest end of the train and not in a
+    // fort (run.json forts), has a pressure of their own, built once a second by
+    //   tier × conditions (the night's pressure terms, above) × (perSecond + rampPerSecond × min(1, seconds left / rampSeconds)
+    //   + perKm × km from the train)
+    // and past threshold the director sends a hunt at them alone: a Ribbit pack (App. A.6: it hops in on whoever it
+    // outnumbers on the ground, and can be outrun) of pack[0] the first time, one more each time after to pack[1], and always
+    // more than the group they're in; put down spawnOut[0] m from them the first time, closer each time to spawnOut[1]. Each
+    // takes relief off; while one's still after them, no other comes. Outside the budget, the caps and the night's own
+    // pressure (it's theirs, not the train's): about 45 s left behind to the first, then every half minute or so, bigger.
+    // Back aboard (or in a fort), it's gone.
+    "abandoned": {
+      "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
+      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18]
     },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
