@@ -55,7 +55,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind; forts safe from creatures | A1.5 | `t128` | 273 | claimed |
 | 8 | **T124:** fort collision, and the guns hitting at the forts | A1.6 | `t124` | 274 | claimed |
 | 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools` | 275 | claimed |
-| 10 | **Towns (T133) and world building:** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople), much more interactable | B1 | `ccr-e37431e3-bzfu8i` | 278 | claimed |
+| 10 | **Towns (T133) and world building:** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople), much more interactable | B1 | `ccr-e37431e3-bzfu8i`, [#194](https://github.com/nsmith-gd/darkterritory/pull/194) (the claim and the first pass) | 278 | in review |
 | 11 | **The cab redesign:** cab forward, the controls at the front with the whole line in view, the coal bunker in the cab (the director's sketch) | C1 | `claude/busy-carson-0i3g8d`, [#190](https://github.com/nsmith-gd/darkterritory/pull/190) | 276 | in review |
 | 12 | **Art checklist L1s:** the boiler rupture's burst and seized engine, the noisy toys' models, the headlamp out, lockers that don't block each other, bend limits on the route card, smaller prompts, a lighter HUD out of the cab, the overspeed telegraph's flange sparks | C1 | `claude/busy-carson-0i3g8d` (after #190) | 277 | claimed |
 
