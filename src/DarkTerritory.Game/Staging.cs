@@ -13,10 +13,14 @@ public static class Staging
     /// <summary>
     /// A cannonball come down (T121, `dt screenshot --impact`): <paramref name="ahead"/> metres up the line from the engine's
     /// front and <paramref name="lateral"/> to its right, on the ground there (water: as if over it; train and structure: a
-    /// metre and a half up a face; creature: a body's height up). "doll" is the staged Track Doll's spot, shattered.
+    /// metre and a half up a face; creature: a body's height up, "creature:gaunt" a kind's, for its insides; note 290). "doll"
+    /// is the staged Track Doll's spot, shattered.
     /// </summary>
     public static Sim.Combat.CannonImpact Impact(TrainOnLine train, string surface, double ahead, double lateral, IReadOnlyList<Enemy>? staged = null)
     {
+        EnemyKind struck = 0;
+        if (surface.Split(':') is [var on, var what])
+            (surface, struck) = (on, Enum.Parse<EnemyKind>(what, ignoreCase: true));
         bool doll = surface.Equals("doll", StringComparison.OrdinalIgnoreCase);
         if (doll && staged?.FirstOrDefault(e => e is TrackDoll { Attached: < 0 }) is { } d)
             ahead = d.LineDistance - train.Dynamics.Distance;
@@ -32,7 +36,7 @@ public static class Staging
             at += Double3.Up * (doll ? 0.7 : 0.8);
         // Fired from the engine's gun, behind and above: the way the ball was going.
         var muzzle = train.Frames[0].ToWorld(new Double3(0, 5.3, -train.Frames[0].Shape.HalfLength + 12.8));
-        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : 0);
+        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : struck);
     }
 
     /// <summary>

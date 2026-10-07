@@ -133,8 +133,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
         var muzzle = frame.ToWorld(Guns.Mount(world.Train, gun)!.Value.Position);
-        var target = world.ActiveEnemies.Where(e => e.HitRadius > 0 && !e.Gone)
-            .Select(e => (e, offset: e.HitCentre(world.Train) - muzzle))
+        // What the gun answers (GDD §21), and anything holding a crewmate: a ball frees them as a friend's blow would (note 290).
+        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null)
+            .Select(e => (e, offset: e.AimPoint(world.Train, world.Enemies!) - muzzle))
             .Where(x => x.offset.Length <= guns.Range)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
         if (target.e is null)
