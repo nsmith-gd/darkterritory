@@ -129,6 +129,7 @@ public sealed class PrototypeSession : IPlaySession
         if (_playerTuning.Refresh(e => LastReloadError = e.Message))
             LastReloadError = null;
         World.Hand = _playerTuning.Value.Hand;
+        World.Bodies.FullHealth = _playerTuning.Value.Health; // a healing find is used only short of it (note 272)
         if (_combatTuning.Refresh(e => LastReloadError = e.Message))
         {
             World.Combat = _combatTuning.Value;
@@ -197,7 +198,7 @@ public sealed class PrototypeSession : IPlaySession
             (Player.ActionProgress > 0 ? $" shovel {Player.ActionProgress:0.0}s" : "");
         string state = Player.Alive ? $"{Player.Surface} {where} hp {Player.Health}{Condition(Player, PlayerTuning)}" : $"DEAD ({Player.Death}) — Backspace to respawn";
         return $"{d.Speed,5:0.0} m/s {SpeedBands.Classify(TrainTuning, d.Speed),-7} | thr {Controls.Throttle:0.00} brk {Controls.Brake:0} rev {(Controls.Reverser > 0 ? "F" : "R")} " +
-               $"| {boiler} |{Gunnery()}{(Train.Rakes.Count > 1 ? $" {Train.Rakes.Count} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
+               $"| {boiler} |{Gunnery()}{(Train.TrainRakes > 1 ? $" {Train.TrainRakes} rakes |" : "")} grade {Train.AverageGrade(),4:0.0}% | {d.Distance / 1000:0.00}/{Train.Line.Length / 1000:0.0} km | {state}" +
                RouteStatus() + Threats() +
                (LastReloadError is null ? "" : $" | TUNING ERROR: {LastReloadError}");
     }

@@ -35,12 +35,28 @@
     "noises": ["none", "none", "squeaker", "musicBox", "drummer"]
   },
 
-  // What each kind of container can hold, and how much of the budget it draws.
+  // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Healing items are
+  // rare loot." A find in `heals` is used, not just sold: carried, with Use held standing for useSeconds (a tap still puts
+  // it down), it gives its carrier that much health back, up to full (player.json health), and it's gone, its scrip with
+  // it. A bot uses one it's carrying below botBelow. Not in the spec's numbers: a bandage is about a hit (enemies.json
+  // damage), medicine more, morphine near the whole bar.
+  "healing": {
+    "useSeconds": 2,
+    "heals": { "bandages": 30, "medicine": 50, "morphine": 80 },
+    "botBelow": 50
+  },
+
+  // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely), and how
+  // much of the budget it draws. Note 272 ("healing items are rare loot"): a cabinet was all medicine, bandages and
+  // morphine and a floor's cache a third medicine, about six on a frontier night, a quarter of every find. Now a cabinet
+  // holds them one time in four, bandages the likeliest, and nothing else does: about one a frontier night (the
+  // DamageModelTests pin it).
   "kinds": {
     "cupboard":   { "weight": 1.0, "items": ["treats", "tinnedFood", "candles"] },
-    "cabinet":    { "weight": 1.3, "items": ["medicine", "bandages", "morphine"] },
+    "cabinet":    { "weight": 1.3, "items": ["bandages", "bandages", "medicine", "morphine", "candles", "candles", "candles", "lampOil",
+      "lampOil", "pocketWatch", "pocketWatch", "treats", "treats", "tinnedFood", "rope", "lampParts"] },
     "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
-    "underFloor": { "weight": 1.6, "items": ["valuableTools", "medicine", "pocketWatch"] },
+    "underFloor": { "weight": 1.6, "items": ["valuableTools", "pocketWatch", "preserves"] },
     "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },
     "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] }
   },

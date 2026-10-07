@@ -23,6 +23,8 @@ public sealed record LootTuning
     public double RepairKitChance { get; init; }
     /// <summary>Toys found at the stops (note 264: none ride from the fortress now). Unset, none.</summary>
     public ToyLootTuning? Toys { get; init; }
+    /// <summary>The finds that heal when used (GDD App. F.1, the damage model; note 272). Unset, none do.</summary>
+    public HealingTuning? Healing { get; init; }
 
     public LootKindTuning Of(ContainerKind kind) =>
         Kinds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var k) ? k : throw new KeyNotFoundException($"loot.json has no kind {kind}");
@@ -49,6 +51,17 @@ public sealed record ToyLootTuning
     public string[] Kinds { get; init; } = [];
     /// <summary>Each toy's noise drawn evenly from these (App. C item 4: most quiet, some not).</summary>
     public Physics.ToyNoise[] Noises { get; init; } = [];
+}
+
+/// <summary>loot.json <c>healing</c> (GDD App. F.1: "healing items are rare loot"; note 272). Field docs live in that file.</summary>
+public sealed record HealingTuning
+{
+    public double UseSeconds { get; init; } = 2;
+    /// <summary>Health each healing find gives back, by item key (looked up, never iterated).</summary>
+    public Dictionary<string, int> Heals { get; init; } = [];
+    public int BotBelow { get; init; } = 50;
+
+    public int Of(string item) => Heals.GetValueOrDefault(item);
 }
 
 public sealed record LootKindTuning

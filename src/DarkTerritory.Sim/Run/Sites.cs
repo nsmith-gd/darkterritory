@@ -18,6 +18,7 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public KegTuning Kegs { get; init; } = new();
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
+    public DerelictsTuning Derelicts { get; init; } = new();
     public WreckYardTuning Wreck { get; init; } = new();
     /// <summary>Who works a stop (note 261, spec D.2's "Crew" column): the driver getting down, people playing as hands.</summary>
     public StopCrewTuning Crew { get; init; } = new();
@@ -184,6 +185,14 @@ public sealed record RakesTuning
     public string[] Cargoes { get; init; } = ["goods"];
     public double Back { get; init; } = 1;
     public int Spare { get; init; } = 1;
+}
+
+/// <summary>A blocked siding's derelict cars as they stand in the world (level-design D.2; note 294). Field docs in facilities.json.</summary>
+public sealed record DerelictsTuning
+{
+    public double Back { get; init; } = 1;
+    public double Integrity { get; init; } = 0.4;
+    public double Pays { get; init; } = 0.3;
 }
 
 /// <summary>The wreck yard's derailed train (GDD §18 "unstable, unlit"; WP15b). Field docs in facilities.json.</summary>
