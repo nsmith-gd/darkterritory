@@ -18,6 +18,8 @@ python3 tools/audio/assets.py record < result.txt   # remember the asset ids the
 python3 tools/audio/cues.py --store NEW --from DIR  # the store's cues, built candidates joined, verdicts carried over
 python3 tools/audio/storesync.py changed NEW DIR    # which lines to write back (pinned to the versions just read)
 python3 tools/audio/install.py --from DIR           # kept (or, on L0 lines, first) candidates -> content/audio
+python3 tools/audio/swaplevel.py                    # the SWAPS' takes against the synths they replaced -> SWAP_GAIN_DB
+dotnet run --project src/DarkTerritory.Cli -- audio render --scenario bend [--listener 0|n]   # a bend taken too fast, by ear
 ```
 
 DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
@@ -38,6 +40,17 @@ DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
   (until then, the tuned synth definition saved in `synth-defs/`); `TELL_GAIN_DB` lifts one that sits under the bed.
   Kept takes that are single bursts or steps rather than a loop (`PACED`) are fired again at an uneven pace by
   `GameAudio.Repeat`; a cue split by surface gives `<sound>.<surface>` variants the game picks by what's underfoot.
+- **Main's other synth sounds** (the line's warnings, notes 260 and 265; the gun's laying; the cannon's landings; the
+  noisy toys; the depot's blast; the stranded ending) are swapped the same way, cue by cue: `SWAPS` in install.py maps
+  `line.cue` to the game's sound and the param the game drives on it. `swaplevel.py` renders each synth and its takes
+  through the game's mixer and prints the `SWAP_GAIN_DB` that puts the takes at the synth's loudness, which main tuned
+  its mix against. A definition that already says the same isn't rewritten, so files tidied by hand keep their notes.
+- **The bend's stress** (note 265; build 1121, "telegraph ... that the train is going under stress"): the flange squeal
+  from a third of the derailing pull to the board, the creaks, the slack's lurch, the scream climbing with the stress
+  (`LAYER_EXTRAS`' rate on "stress"), the cab's bell. `dt audio render --scenario bend` runs a 6-car train onto
+  deepTerritory:2's first bend that can derail it at its board and on past its derailing speed, and reports each of
+  those a second at a time: read it before changing any of them (`recipes/stress.py` has the squeal and scream that
+  were made for it).
 - `CUE_DEF` (install.py) overrides one cue's tier or range where it isn't like its line (the low-steam whistle is still
   the train's whistle, tier 1; the startled livestock are the world's); `FIRST_CHOICE` names the candidate that plays
   while nothing's kept, where the director's brief already says which (the tunnel's bonk).

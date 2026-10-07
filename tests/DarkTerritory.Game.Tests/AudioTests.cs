@@ -26,6 +26,30 @@ public class AudioTests
     }
 
     [Fact]
+    public void ABendTakenTooFastIsHeardBuildingInOrderFromTheCab()
+    {
+        // Note 265 (the director on build 1121: "telegraph using sound design that the train is going under stress"): run
+        // onto a bend that can derail the train at its board and on past its derailing speed, the driver hears it build.
+        var (report, _) = AudioBench.RenderBend(Content);
+        Assert.NotNull(report.DerailedAt);
+        var before = report.Seconds.Where(s => s.At < report.DerailedAt!.Value - 1).ToList();
+        double First(string sound) => before.FirstOrDefault(s => s.StemsDb.ContainsKey(sound))?.At ?? double.PositiveInfinity;
+        double Db(BendSecond s, string sound) => s.StemsDb.GetValueOrDefault(sound, double.NegativeInfinity);
+        // The squeal first, then the scream with the creaks, then the bell; all before it comes off.
+        Assert.True(First("bed-wheel-rail.flange") < First("state-derail.flange-scream"), "the squeal comes before the scream");
+        Assert.True(First("state-derail.flange-scream") < First("warn-overspeed"), "the scream comes before the bell");
+        Assert.True(First("bed-groan.creak") < report.DerailedAt);
+        // Each stage is heard, not just there: the squeal's first second within 20 dB of the cab's mix, and the scream
+        // louder where the train is about to come off than where it began.
+        var squeal = before.First(s => s.StemsDb.ContainsKey("bed-wheel-rail.flange"));
+        Assert.True(Db(squeal, "bed-wheel-rail.flange") > squeal.MixDb - 20, $"the squeal is {Db(squeal, "bed-wheel-rail.flange")} dB under a {squeal.MixDb} dB mix");
+        var screaming = before.Where(s => s.StemsDb.ContainsKey("state-derail.flange-scream")).ToList();
+        Assert.True(Db(screaming[^1], "state-derail.flange-scream") >= Db(screaming[0], "state-derail.flange-scream") + 4, "the scream builds");
+        // The bell only while the warning's up.
+        Assert.All(before.Where(s => s.StemsDb.ContainsKey("warn-overspeed")), s => Assert.True(s.Warning));
+    }
+
+    [Fact]
     public void AWreckIsHeardCrashingAndGrinding()
     {
         // T117: "loud, spectacular" (GDD §23). The train comes off half a second in; beside the line you hear the cars
