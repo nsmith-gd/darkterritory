@@ -298,7 +298,8 @@ public sealed class Director
             var ctx = new SpawnContext(world, et, this);
             foreach (var rule in Spawns.Rules)
             {
-                if (!Allows(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                // Killed by the crew together tonight (note 288): it's done for the night.
+                if (!Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
                 options.Add((rule.Kind, w));
             }
@@ -553,6 +554,112 @@ public sealed class Director
         }
         foreach (int id in _left.Keys.Where(k => !seen.Contains(k)).ToList())
             _left.Remove(id);
+    }
+
+    /// <summary>A hound run sent (note 328): when, how many in all, the crew alive it was sized to, and whether the boiler's heat drew it.</summary>
+    public readonly record struct HoundRun(uint Tick, int Pack, int Size, int Active, bool Hot, double TrainSpeed, double Distance);
+
+    /// <summary>Every hound run sent tonight (note 328).</summary>
+    public List<HoundRun> HoundRuns { get; } = new();
+
+    readonly SortedDictionary<int, (int Scattered, int Killed, int Boarded)> _runOutcomes = [];
+
+    /// <summary>How a run's runners have ended so far (note 328): scattered by a ball landing near, killed by one, or aboard.</summary>
+    public (int Scattered, int Killed, int Boarded) RunOutcome(int pack) => _runOutcomes.GetValueOrDefault(pack);
+
+    /// <summary>A runner of <paramref name="pack"/> ended: <paramref name="how"/> 0 scattered, 1 killed, 2 aboard.</summary>
+    public void RunnerEnded(int pack, int how)
+    {
+        var o = _runOutcomes.GetValueOrDefault(pack);
+        _runOutcomes[pack] = how switch { 0 => o with { Scattered = o.Scattered + 1 }, 1 => o with { Killed = o.Killed + 1 }, _ => o with { Boarded = o.Boarded + 1 } };
+    }
+
+    /// <summary>The line run fast since the train last slowed, the last run or the grace (note 328).</summary>
+    public double RunMetres => _runMetres;
+
+    double _runMetres, _nextPair;
+    int _runPack = -1, _pairsLeft, _runnersLeft, _pairsSent;
+    Pcg32 _runRng;
+    bool _runSeeded;
+
+    /// <summary>
+    /// The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3, §6.1; GDD App. F.3, the director, 7 Oct
+    /// 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").
+    /// Once a second. A train that's run <see cref="HoundRunTuning.AfterMetres"/> fast since it last slowed (sooner with the
+    /// boiler hot) draws a stream of Cinder Hounds faster than it, sized to the crew alive, in pairs a few seconds apart on
+    /// alternating flanks; the guns answer them one at a time (<see cref="CinderHound.Runner"/>). Not from the budget, not on
+    /// the caps: the fast train's own, as the left-behind's hunts are theirs. Never in the grace, a fort, the final approach
+    /// or at a stop, one run at a time; its own dice, so the night's other draws are as they were.
+    /// </summary>
+    public void Runs(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
+    {
+        var r = _t.Run;
+        if (!r.On || world.Enemies is not { } et || !Allows(EnemyKind.CinderHound))
+            return;
+        if (!_runSeeded)
+        {
+            _runRng = new Pcg32(_seed, 0x4A11);
+            _runSeeded = true;
+        }
+        var train = world.Train;
+        double speed = train.Dynamics.Speed, front = train.Dynamics.Distance;
+        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool open = elapsed >= Grace && !world.TrainInFort && !home && train.Dynamics.Consist.CarCount >= 1
+            && world.Run?.Phase is null or Run.RunPhase.Underway;
+        if (!open || speed < r.StopSpeed)
+        {
+            // Slowed, stopped or somewhere nothing comes: the count starts again, and no more pairs of this run are sent
+            // (what's already running keeps coming).
+            _runMetres = 0;
+            _pairsLeft = 0;
+            return;
+        }
+        if (_pairsLeft > 0)
+        {
+            if (elapsed >= _nextPair)
+                SendPair(world, et, r);
+            return;
+        }
+        if (_runPack >= 0 && active.Any(e => e is CinderHound { Runner: true, Gone: false } h && h.Pack == _runPack))
+            return; // one run at a time: the count starts once the last runner's dealt with
+        if (speed >= r.FromSpeed)
+            _runMetres += speed;
+        bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1))
+            return;
+        int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
+        int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
+        _runMetres = 0;
+        _runPack = world.NextEnemyId;
+        _runnersLeft = size;
+        _pairsLeft = (size + 1) / 2;
+        _pairsSent = 0;
+        HoundRuns.Add(new HoundRun(world.Tick, _runPack, size, alive, hot, speed, front));
+        SendPair(world, et, r);
+
+        void SendPair(World w, EnemyTuning t, HoundRunTuning rt)
+        {
+            var h = t.CinderHounds;
+            double side = _pairsSent % 2 == 0 ? 1 : -1;
+            int n = Math.Min(2, _runnersLeft);
+            for (int i = 0; i < n; i++)
+            {
+                int k = i;
+                double lateral = side * (k == 0 ? rt.Lateral[0] : rt.Lateral[1]) + _runRng.Range(-0.5, 0.5);
+                w.AddEnemy(id => new CinderHound(id, _runPack)
+                {
+                    Runner = true,
+                    LineDistance = w.Train.Dynamics.RearDistance - rt.SpawnBehind - k * 3,
+                    Lateral = lateral,
+                    Height = 0.6,
+                    Health = h.Health,
+                });
+            }
+            _runnersLeft -= n;
+            _pairsSent++;
+            _pairsLeft--;
+            _nextPair = elapsed + rt.Spacing;
+        }
     }
 
     /// <summary>Where a hunt is put down: <paramref name="distance"/> from them, off the line's side they're on, on the ground, out of the forts.</summary>

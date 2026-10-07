@@ -276,7 +276,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
         (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
         (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving with something: run it down before it's off the train",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving: if it took something, run it down before it's off the train",
         // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
         (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
         (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
@@ -284,16 +284,18 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.SootChildren, SpinePhase.Grab) => "it's got someone and it's drinking: kill it",
         (EnemyKind.SootChildren, SpinePhase.BreakOff) => "the calling stops",
         // The Passenger's telegraph is silence (App. A.8): it says nothing, and neither does this, until it moves.
-        (EnemyKind.Passenger, SpinePhase.Grab) => "someone's being dragged toward the caboose: kill it",
+        // Note 288: a blow finds it out and it runs; only the crew together can kill it.
+        (EnemyKind.Passenger, SpinePhase.Grab) => "someone's being dragged toward the caboose: hit it and it runs",
         (EnemyKind.Passenger, SpinePhase.Punish) => "the caboose is rolling away with someone",
-        (EnemyKind.Passenger, SpinePhase.BreakOff) => "the one who never spoke is dead",
+        (EnemyKind.Passenger, SpinePhase.BreakOff) => "the one who never spoke is found out: it's running for the back",
         (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong: shoot it or stop",
         (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes the wrong line",
         (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points is down",
         (EnemyKind.Grumbler, SpinePhase.Telegraph) => "gnawing in the crates: check before every lift",
         (EnemyKind.Grumbler, SpinePhase.Commit) => "it's feral: gang up on it",
         (EnemyKind.Grumbler, SpinePhase.Punish) => "it came aboard with a crate: it's eating the cargo",
-        (EnemyKind.Grumbler, SpinePhase.BreakOff) => "the Grumbler's dead",
+        (EnemyKind.Grumbler, SpinePhase.BreakOff) => "the Grumbler's backing off: let it be",
+
         (EnemyKind.Choir, SpinePhase.Grab) => "the ghosts have someone: hush and shut the doors",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",

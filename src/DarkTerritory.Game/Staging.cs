@@ -978,6 +978,28 @@ public static class Staging
         train.Vehicles[fire.Attached].Char = burnt;
     }
 
+    /// <summary>
+    /// A hound run coming up behind a fast train (note 328; <c>dt screenshot --run --view run</c>): three pairs of runners on
+    /// alternating flanks, the nearest closing on the rear car, the furthest still howling. Only them, so the gun's view of
+    /// the line behind is clear.
+    /// </summary>
+    public static List<Enemy> Run(TrainOnLine train)
+    {
+        double rear = train.Dynamics.RearDistance;
+        var runners = new List<Enemy>();
+        (double Behind, double Side, SpinePhase Phase)[] pairs = [(8, 1, SpinePhase.Commit), (20, -1, SpinePhase.Commit), (34, 1, SpinePhase.Telegraph)];
+        int id = 60;
+        foreach (var (behind, side, phase) in pairs)
+            for (int k = 0; k < 2; k++)
+            {
+                var hound = new CinderHound(id, 60) { Runner = true };
+                hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear - behind - k * 3, side * (k == 0 ? 4 : 8), 0.6, 60, 0);
+                runners.Add(hound);
+                id++;
+            }
+        return runners;
+    }
+
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
     {
         var d = train.Dynamics;
