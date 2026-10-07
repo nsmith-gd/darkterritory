@@ -32,10 +32,13 @@ public class WreckDeathTests
         var later = Centre(film.Frames[45].Ragdolls[0]);
         // Carried and thrown on ahead of the car, the way it was going: well past where it stood (it only hopped by itself).
         Assert.True(later.Z < first.Z - 5, $"from z {first.Z:0.0} to {later.Z:0.0}");
-        // Never inside the car: every joint stays ahead of its front face (or over its roof).
+        // Never inside the car while it ploughs on upright: every joint stays ahead of its front face (or over its roof).
+        // When its wheels drop it goes over (note 330), and a car coming down on a body crushes it (note 258's point 4).
         for (int f = 0; f < film.Frames.Count; f++)
         {
             var (o, right, carUp, back) = film.Frames[f].Cars[0];
+            if (carUp.Y < 0.95)
+                break;
             foreach (var j in film.Frames[f].Ragdolls[0])
             {
                 double along = Double3.Dot(j - o, back), up = Double3.Dot(j - o, carUp), across = Double3.Dot(j - o, right);
