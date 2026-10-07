@@ -26,7 +26,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | Name | Agent ids | What it is | Log |
 |---|---|---|---|
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
-| **B** | B1, B2, B3, B4; their agents B1.1, B2.1, B3.1, B4.1, … | Claude Code on the director's second account, several sessions: B1 **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 **Towns** (the fortress towns and the world's story; registered on [#194](https://github.com/nsmith-gd/darkterritory/pull/194)); B3 **UI/UX** (the HUD overhaul; registered on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)); B4 **Level Design 3**, the third level-design session, beside B1 and B2 | [docs/log/B1.md](log/B1.md), docs/log/B2.md (on #194), docs/log/B3.md (on #206), [docs/log/B4.md](log/B4.md) |
+| **B** | B1, B2, B3, B4; their agents B1.1, B2.1, B3.1, B4.1, … | Claude Code on the director's second account, several sessions: B1 **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 **Towns** (the fortress towns and the world's story; registered on [#194](https://github.com/nsmith-gd/darkterritory/pull/194)); B3 **UI/UX** (the HUD overhaul; registered on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)); B4 **Level Design 3**, the third level-design session, beside B1 and B2 | [docs/log/B1.md](log/B1.md), docs/log/B2.md (on #194), [docs/log/B3.md](log/B3.md), [docs/log/B4.md](log/B4.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
 | **F** | F1; its agents F1.1, F1.2, … | Claude Code on another of the director's accounts: **UI/UX 3**, the third UI/UX session beside B3 (the HUD overhaul, on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)) and UI/UX 2 (not yet registered). Takes the UI/UX items nobody holds: menus, settings, the screens around a night; builds on #206's HUD rules (GDD §32 "The HUD: your hands and the dark") and never edits B3's lines without saying so on #206 | [docs/log/F1.md](log/F1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
@@ -46,6 +46,28 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
   (claude.ai/artifact/WPsKWpHkYctBbpGGFutbjA: what a crew sees, page by page), the Art Checklist
   (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Audio Checklist (claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN) and the Look
   Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm). Read the live version first and change only your own rows or sections.
+
+## UI/UX notes and assignments (the director, 7 Oct 2026)
+
+"The notes should be accessible to all UI/UX workers who should then read logs in the coordination md and assign work
+based on notes. When work is assigned to an agent, the agent should mark it in the art checklist as assigned to them."
+
+- **The notes.** The director writes them in the Art Checklist's UI/UX notes panel (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu).
+  They're kept in its store's `uiux_notes` collection, which any agent reads (`ArtifactData list`, collection
+  `uiux_notes`). Send messages them, with their ids, to every UI/UX chat in `uiux_chats` at once.
+- **Every UI/UX agent lists its own chat** in `uiux_chats`: a row whose id is its agent id, with `agent`, `role` (what it
+  holds) and `session` (its Claude Code Remote session id). A new UI/UX session adds its row when it registers here;
+  one that stops sets `off: true`.
+- **Taking a note.** On a notes message, and when a session starts: read the notes nobody has taken, this file's queue
+  and the agents' logs, and take the ones that fit your work and nobody else's. Write `assignee` (your agent id),
+  `assignedAt` (UTC) and `queue` (the item it goes into: one you hold, or a new one claimed as rule 1 says) to its row,
+  pinned with `if_version` to the version you read, so that if another chat took it first your write fails and you leave
+  it. Log it. When the PR that answers it merges: `status: "done"`, `doneAt`, `pr`.
+- **Every agent marks the checklist lines it works on** (all agents, not only UI/UX): `assignee`, `queue` and
+  `assignedAt` on the line's `items` row, pinned the same way. Nothing else on C1's row changes; the line's status stays
+  as the checklist defines it. The page shows "Assigned: B3 · #21" beside the line's tags. Work that stops without
+  landing removes `assignee`.
+- A note or a line that already has someone else's `assignee` is theirs: ask on their PR.
 
 ## The queue
 
@@ -74,7 +96,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 24 | **Fire Flies credit and the bubbles:** the incident line names what drew them now lamps start lit; the swarm reads as flies | A1.8 | `boarding-first` | 286 | claimed |
 | 25 | **Driven off by their rules, killable by a coordinated team:** the Grumbler, Gaunt, Passenger, Climbers and Choir ghosts (the director, 7 Oct: "driven off by rules but … able to be killed like in Lethal Company if the team coordinates effectively"). **Overlaps:** D1's #28 (done) makes a hit land and read; #25 owns whether a creature dies | A1.10 | `driven-off` | 288 | claimed |
 | 26 | **Switch audit:** generated junctions, player-thrown levers, facility and switchyard shunting, replication and bots, end to end (the director: "I felt like they weren't working"). **Overlaps:** #22's Switchman behaviour; B4's #32 sidings | A1.11 | `switch-audit` | 289 | claimed |
-| 27 | **Screenshots in the art checklist:** the director (7 Oct): "The Art Checklist really needs screenshots integrated for review." Each line gets its shots from `dt`, under the line, click to enlarge; images in the artifact's asset store, a separate `shots` collection (C1's `items` untouched), each shot with the `dt` command that made it so anyone can re-render it. C1's artifact: told on #203 | B3 | `ccr-7c2927a4-nh28k9` (docs only; the work is in the artifact) | — | claimed |
+| 27 | **Screenshots in the art checklist:** the director (7 Oct): "The Art Checklist really needs screenshots integrated for review." Each line gets its shots from `dt` (237 for 151 lines; a clip as `dt art reel`'s frames), as thumbnails under the line, click to enlarge; the images published beside the page (`shots/<id>.jpg`, thumbnails in `shots/thumb/`; E1's shots of #29 are in the asset store, so the page keeps `assets`), a separate `shots` collection (C1's `items` untouched), each shot with the `dt` command that made it so anyone can re-render it. Only B3's script and the strip's styles change on the page; C1's lines, F1's UI/UX notes routing and everyone's rows untouched. C1's artifact: told on #203 | B3 | `ccr-7c2927a4-nh28k9` (docs only; the work is in the artifact, version 11) | — | done: 237 shots under 151 lines |
 | 28 | **The guns' effect on creatures:** rounds land on what they hit and a hit creature shows it: the strike seen and heard where it lands, the creature reacting by its own rule (GDD App. F.1: "the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters"). **Overlaps:** A1's #25 (creatures killable by a coordinated team, on #198) owns whether a creature dies; #28 makes the hit land, read and drive off by the creature's rule, and leaves the kill rules to #25 | D1 | `claude/relaxed-franklin-xkfjgb`, [#212](https://github.com/nsmith-gd/darkterritory/pull/212) | 290 | done |
 | 30 | **The in-night menu (Esc):** today Escape frees the mouse and a second Escape ends the night at once, the host's for everyone, with no word. Lethal Company's quick menu: RESUME, SETTINGS that take effect at once (volumes, the mouse, the HUD; B3's "settings take effect from the next night", #206), INVITE, LEAVE with a confirmation that says what leaving costs the crew (a host's leaving ends the night). The night never pauses (it's shared). **Overlaps:** `Settings.cs` and `FrontEnd.cs`'s settings list with #206 (CONTROL HINTS); `Program.cs`'s night loop | F1 | `claude/upbeat-hawking-58yczu`, [#217](https://github.com/nsmith-gd/darkterritory/pull/217) | 292 | done |
 | 31 | **The profile screen:** the commendations a player's been given, kept in their profile (GDD App. D.12: "where it's kept: the player profile, not the character"), have nowhere to be seen (the art checklist's commendations row: "there's no profile screen showing the tally yet"). A PROFILE page on the title: the five badges with how many times each was given, and where the nights' bookmark stills are kept (note 203) | F1 | `claude/upbeat-hawking-58yczu`, [#217](https://github.com/nsmith-gd/darkterritory/pull/217) | 293 | done |
