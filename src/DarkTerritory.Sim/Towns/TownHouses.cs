@@ -37,6 +37,17 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
             yield return (d.DoorU - HouseDesign.VestibuleHalf, d.DoorU + HouseDesign.VestibuleHalf, -HouseDesign.VestibuleDepth, 0, 3.5);
     }
 
+    /// <summary>
+    /// What stands in its yard (ARCHITECTURE §8 note 335, the director's references: the picket fence out front, the board
+    /// fence at the back, the woodpile, the shed, the privy, the traps and the dory), in its own frame. Empty on the
+    /// line's own street of a town that's still the yard (no room behind the houses).
+    /// </summary>
+    public IReadOnlyList<YardThing> Yard { get; init; } = [];
+
+    /// <summary>Everything of it that stops you: <see cref="Parts"/>, and its yard's solid things.</summary>
+    public IEnumerable<(double U0, double U1, double V0, double V1, double Height)> Solids() =>
+        Parts().Concat(Yard.Where(y => y.Solid).Select(y => (y.U0, y.U1, y.V0, y.V1, y.Height)));
+
     /// <summary>How far its front door is out from its front wall: an enclosed porch's door, else the front's.</summary>
     public double DoorV => Design.Porch == HousePorch.Vestibule ? -HouseDesign.VestibuleDepth : 0;
 
@@ -48,6 +59,19 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
 
     /// <summary>A direction in the house's frame (along, in) as the rail frame's (along the line, across it).</summary>
     public (double S, double D) Facing(double fu, double fv) => (fu, Side * fv);
+}
+
+/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335).</summary>
+public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel }
+
+/// <summary>
+/// A thing in a house's yard, in the house's frame (u along its front from its middle, v in from its front): its footprint,
+/// its height, and which of its kind it is. A picket fence's gate is the gap between two of them, in front of the door.
+/// </summary>
+public sealed record YardThing(YardKind Kind, double U0, double U1, double V0, double V1, double Height, int Variant = 0)
+{
+    /// <summary>Whether it stops you: everything but the clothesline (you walk under the washing).</summary>
+    public bool Solid => Kind != YardKind.Clothesline;
 }
 
 /// <summary>

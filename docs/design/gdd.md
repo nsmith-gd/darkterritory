@@ -174,6 +174,10 @@ The towns are where the world is built. They tell the story of what happened and
 
 Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
 
+**Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
+
+**A town that's lived in.** Smoke rises from the chimneys of the houses people live in, and the watch walk the wall with their lanterns, up and back between the towers all night.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;

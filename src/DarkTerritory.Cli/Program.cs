@@ -1853,6 +1853,10 @@ static object ArtHouses(string content, string[] args)
         if (character.Uniform)
             model ??= design;
         var house = new DarkTerritory.Sim.Towns.TownHouse(i, 0, 0, 1, width, depth, kind, design, "Lineup", "", null);
+        // --yard: on a walled town's street lot (note 335): 15 m of frontage, the street 3.6 m out front, the back line
+        // 5.5 m behind (fenced), its yard as the town draws it.
+        if (args.Contains("--yard"))
+            house = house with { Yard = DarkTerritory.Sim.Towns.TownGenerator.Yard(house, character.Yard, 15, house.FrontD - 3.6, depth / 2 + 5.5, true, ref rng) };
         if (i == 0)
             first = (width, depth);
         var piece = DarkTerritory.Game.Art.MaritimeKit.House(look, house, looks, null, true);
@@ -1861,7 +1865,8 @@ static object ArtHouses(string content, string[] args)
         var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
         var centre = (min + max) / 2;
         float radius = (max - min).Length() / 2;
-        double yaw = (i % 2 == 0 ? -1 : 1) * 32 * Math.PI / 180, pitch = 8 * Math.PI / 180, dist = radius / Math.Sin(28 * Math.PI / 180) * 0.82;
+        // --back: from behind, over the yard.
+        double yaw = (i % 2 == 0 ? -1 : 1) * 32 * Math.PI / 180 + (args.Contains("--back") ? Math.PI : 0), pitch = (args.Contains("--back") ? 22 : 8) * Math.PI / 180, dist = radius / Math.Sin(28 * Math.PI / 180) * 0.82;
         var target = new Double3(centre.X, centre.Y * 0.85, centre.Z);
         var eye = target + new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch)) * dist;
         var camera = Camera.LookAt(eye, target, 56);
@@ -1872,9 +1877,11 @@ static object ArtHouses(string content, string[] args)
         float f = radius * 4;
         mesh.Quad(o + new System.Numerics.Vector3(-f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, -f), o + new System.Numerics.Vector3(-f, -0.01f, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
         // A lamp out in the street before it, its door lamp, and a cold fill from the sky.
-        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3((float)Math.Sin(yaw) * 5, 3.5f, min.Z - 6), DarkTerritory.Game.Palette.LampAmber * 2.6f, 22));
+        // (From behind, the lamp's behind too: over the yard.)
+        float lampZ = args.Contains("--back") ? max.Z + 3 : min.Z - 6;
+        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3((float)Math.Sin(yaw) * 5, 3.5f, lampZ), DarkTerritory.Game.Palette.LampAmber * 2.6f, 22));
         mesh.PointLights.Add(new PointLight(o + DarkTerritory.Game.Art.MaritimeKit.Porch(house, (float)look.Doorway.Height), DarkTerritory.Game.Palette.LampAmber * 1.0f, 7));
-        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3(-(float)Math.Sin(yaw) * 9, 12, min.Z - 3), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 40));
+        mesh.PointLights.Add(new PointLight(o + new System.Numerics.Vector3(-(float)Math.Sin(yaw) * 9, 12, args.Contains("--back") ? max.Z + 3 : min.Z - 3), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 40));
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.002f;
         light.LampRange = 0.01f;
@@ -1883,7 +1890,7 @@ static object ArtHouses(string content, string[] args)
         for (int y = 0; y < h; y++)
             px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
     }
-    string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}.png");
+    string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}{(args.Contains("--yard") ? "-yard" : "")}{(args.Contains("--back") ? "-back" : "")}.png");
     PngWriter.Write(output, sheet, w * cols, h * rows, 1);
     return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
 }

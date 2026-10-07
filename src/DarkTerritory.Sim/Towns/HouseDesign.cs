@@ -93,6 +93,24 @@ public sealed record HouseCharacter
     public double Own { get; init; }
     /// <summary>A company town's: one design, its paint and wear each house's own.</summary>
     public bool Uniform { get; init; }
+    /// <summary>What its yards hold (note 335).</summary>
+    public YardOdds Yard { get; init; } = new();
+}
+
+/// <summary>
+/// What a character's yards hold (houses.json <c>yard</c>; note 335): the share of houses on a street with a picket fence
+/// out front, the share of back lines with a board fence, how many things in a yard, and how often each thing is picked
+/// (by <see cref="YardKind"/> name, camel case) against the rest.
+/// </summary>
+public sealed record YardOdds
+{
+    public double Picket { get; init; } = 0.5;
+    public double Boards { get; init; } = 0.8;
+    public int[] Count { get; init; } = [1, 3];
+    public Dictionary<string, double> Things { get; init; } = new() { ["woodpile"] = 4, ["shed"] = 2, ["privy"] = 1, ["clothesline"] = 2, ["barrel"] = 2 };
+
+    /// <summary>A thing's weight, in <see cref="YardKind"/>'s order whatever order the file lists them in.</summary>
+    public double Weight(YardKind kind) => Things.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out double w) ? w : 0;
 }
 
 /// <summary>Draws a town's character and its houses' designs, each from the stream it's given.</summary>

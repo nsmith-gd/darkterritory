@@ -29,6 +29,8 @@ public static class Fortresses
     public const double WallOut = 14.8;
     /// <summary>A wall piece's length along the line (one StructureKit.Wall), its half-thickness, and its height to the crenellations' tops.</summary>
     public const double WallBay = 10, WallHalf = 0.8, WallHeight = 8.9;
+    /// <summary>The walk along the wall's top, behind its merlons (the art's, StructureKit.Wall), where the watch walks.</summary>
+    public const double WallWalk = 8.0;
     /// <summary>A gun tower every 120 m of wall, its half-width over the plinth, and its height to the parapet's top.</summary>
     public const double TowerEvery = 120, TowerHalf = 2.7, TowerHeight = 14.4;
     /// <summary>The gatehouse's two towers, from the line out (each side), their half-depth along it, height; the arch between them over the line.</summary>

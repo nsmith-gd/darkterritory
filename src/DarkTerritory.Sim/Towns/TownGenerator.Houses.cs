@@ -77,7 +77,8 @@ public static partial class TownGenerator
         // inside the gate, out of the square's way and off the home platform). Then, while that isn't lots enough, a walled
         // town's streets beside the line (queue #74; towns.json "walled"), a row of houses either side of each, lanes across.
         int side = square.Side;
-        var lots = new List<(double S, double D, int Side, double Frontage)>();
+        // Each lot's row: 0 the line's own street, 2k - 1 and 2k the line side and the far side of the k-th street out.
+        var lots = new List<(double S, double D, int Side, double Frontage, int Row)>();
         for (double s = Math.Floor((site.Gate - st.FromGate) / st.Every) * st.Every; s > 25; s -= st.Every)
             foreach (int sd in new[] { side, -side })
             {
@@ -85,7 +86,7 @@ public static partial class TownGenerator
                     continue;
                 if (sd == -side && s > 50 && s < site.Gate - 20)
                     continue;
-                lots.Add((s, sd * st.Out, sd, st.Every));
+                lots.Add((s, sd * st.Out, sd, st.Every, 0));
             }
         var wt = t.Walled;
         var lrng = rngFor("houses.lots");
@@ -115,7 +116,7 @@ public static partial class TownGenerator
             {
                 streets.Add(new TownStreet(sd * c, s0, s1, wt.Width));
                 // Its line-side row faces out from the line, its far row faces back toward it: both front the street.
-                foreach (var (d, facing) in new[] { (sd * (c - off), -sd), (sd * (c + off), sd) })
+                foreach (var (d, facing, row) in new[] { (sd * (c - off), -sd, 2 * count - 1), (sd * (c + off), sd, 2 * count) })
                     for (double s = s0; ;)
                     {
                         double lot = lrng.Range(wt.Lot[0], wt.Lot[1]);
@@ -125,7 +126,7 @@ public static partial class TownGenerator
                         bool lane = laneAt.Any(l => Math.Abs(l - mid) < lot / 2 + wt.LaneWidth / 2);
                         bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
                         if (!lane && !inSquare)
-                            lots.Add((Math.Round(mid, 3), d, facing, lot));
+                            lots.Add((Math.Round(mid, 3), d, facing, lot, row));
                         s += lot;
                     }
             }
@@ -133,11 +134,23 @@ public static partial class TownGenerator
         // Nearest the square first: the town grows out from its heart, its lost at its edges, nothing past them.
         double heartS = (square.S0 + square.S1) / 2, heartD = side * 15;
         lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
+        double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin;
         if (count > 0)
-        {
-            double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin;
             homes.Bounds = new TownBounds(wt.Rear, site.Gate, reach, reach, streets,
                 [.. laneAt.Select(l => new TownLane(l, -reach, reach, wt.LaneWidth))]);
+        // A row's yards (note 335): the street's edge in front of it (none on the line's own street), and the back line its
+        // yards run to: halfway to the row behind, or short of the wall. The line-side rows fence the back line between them
+        // and the row behind (one fence, not two). Distances out from the line.
+        double offRow = wt.Width / 2 + wt.Setback + depthMax / 2;
+        (double? Edge, double Back, bool Fenced) RowYards(int row)
+        {
+            if (row == 0)
+                return (null, count > 0 ? (st.Out + wt.First - offRow) / 2 : Run.Fortresses.WallOut - Run.Fortresses.WallHalf - 0.3, false);
+            int k = (row + 1) / 2;
+            double c = wt.First + (k - 1) * wt.Every;
+            return row % 2 == 1
+                ? (c - wt.Width / 2, k == 1 ? (st.Out + c - offRow) / 2 : c - wt.Every / 2, true)
+                : (c + wt.Width / 2, k < count ? c + wt.Every / 2 : reach - 1.5, false);
         }
 
         // More to a house where there aren't houses enough.
@@ -150,6 +163,8 @@ public static partial class TownGenerator
         int open = Math.Min(sizes.Count, Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max));
 
         var looks = rngFor("houses");
+        // The yards on a stream of their own, so the houses are as they were (note 335).
+        var yrng = rngFor("houses.yards");
         // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
         // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
         var drng = rngFor("houses.design");
@@ -163,7 +178,7 @@ public static partial class TownGenerator
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";
         for (int i = 0; i < sizes.Count + lostHouses; i++)
         {
-            var (s, d0, sd, frontage) = lots[i];
+            var (s, d0, sd, frontage, row) = lots[i];
             bool gable = model?.GableFront ?? drng.Chance(character.GableFront);
             double width = model is null ? looks.Range(gable ? st.GableWidth[0] : st.Width[0], gable ? st.GableWidth[1] : st.Width[1]) : homes.Houses[0].Width;
             double depth = model is null ? looks.Range(st.Depth[0], st.Depth[1]) : homes.Houses[0].Depth;
@@ -192,6 +207,12 @@ public static partial class TownGenerator
             if (character.Uniform)
                 model ??= design;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout);
+            var (edge, back, fenced) = RowYards(row);
+            var yard = Yard(house, character.Yard, frontage, edge * Math.Sign(d0), back * Math.Sign(d0), fenced, ref yrng);
+            // A lot beside the square can reach past its end (the lots keep out of it by their middles): nothing of its yard
+            // stands in the square.
+            yard.RemoveAll(y => InSquare(house, y, square));
+            house = house with { Yard = yard };
             homes.Houses.Add(house);
             if (layout is null || stories.Next() is not { } household)
                 continue;
@@ -229,5 +250,100 @@ public static partial class TownGenerator
             }
         }
         return homes;
+    }
+
+    /// <summary>Whether a yard thing stands in the square (along it, on its side, short of its far wall).</summary>
+    static bool InSquare(TownHouse h, YardThing y, TownSquare sq)
+    {
+        var (sa, da) = h.Rail(y.U0, y.V0);
+        var (sb, db) = h.Rail(y.U1, y.V1);
+        return Math.Sign(da) == sq.Side && Math.Max(sa, sb) > sq.S0 - 0.5 && Math.Min(sa, sb) < sq.S1 + 0.5
+            && Math.Min(Math.Abs(da), Math.Abs(db)) < Math.Abs(sq.WallD) + 0.5;
+    }
+
+    /// <summary>
+    /// A house's yard (the director's references, 7 Oct 2026: the picket fences of Lunenburg, the woodpiles, sheds and traps
+    /// behind Peggy's Cove's houses; note 335), in its own frame. On a street, a picket fence along the street's edge with
+    /// its gate in front of the door; on a line-side row, the board fence along the back line it shares with the row
+    /// behind; and along the back, what a yard keeps (the character's <see cref="YardOdds"/>), as much as there's room
+    /// for, clear of the house and a step behind it. The houses nobody lives in keep less, their fences more often down.
+    /// </summary>
+    public static List<YardThing> Yard(TownHouse h, YardOdds odds, double frontage, double? edgeD, double backD, bool fenced, ref Pcg32 rng)
+    {
+        var things = new List<YardThing>();
+        bool lived = h.Kind is HouseKind.Lived or HouseKind.Open;
+        double half = frontage / 2;
+        if (edgeD is { } edge && rng.Chance(lived ? odds.Picket : odds.Picket / 2))
+        {
+            double v = h.Side * (edge - h.FrontD) + 0.25, gate = h.Design.DoorU;
+            int worn = lived ? 0 : 1;
+            if (gate - 0.75 > -half + 0.6)
+                things.Add(new(YardKind.Picket, -half + 0.15, gate - 0.75, v, v + 0.06, 1.0, worn));
+            if (gate + 0.75 < half - 0.6)
+                things.Add(new(YardKind.Picket, gate + 0.75, half - 0.15, v, v + 0.06, 1.0, worn));
+        }
+        double vBack = h.Side * (backD - h.FrontD);
+        if (fenced && rng.Chance(odds.Boards))
+            things.Add(new(YardKind.Boards, -half, half, vBack - 0.03, vBack + 0.03, 1.7));
+        // Behind the house (its wing too) and a step clear of it, to just short of the back line.
+        double v0 = h.Parts().Select(p => p.V1).Append(h.Depth).Max() + 0.5, v1 = vBack - 0.15, room = v1 - v0;
+        if (room < 0.7 || h.Kind == HouseKind.Burnt)
+            return things;
+        int n = rng.RangeInclusive(odds.Count[0], odds.Count[1]) - (lived ? 0 : 1);
+        var kinds = new[] { YardKind.Woodpile, YardKind.Shed, YardKind.Privy, YardKind.Traps, YardKind.Dory, YardKind.Clothesline, YardKind.Barrel };
+        var picked = new List<(YardKind Kind, double L, double D, double H, int Variant)>();
+        for (int i = 0; i < n; i++)
+        {
+            // Its size (along the back, deep, high): what fits the room behind the house, each of the one-off things once.
+            (double L, double D, double H) Size(YardKind k) => k switch
+            {
+                YardKind.Woodpile => (2.6, 0.8, 1.4),
+                YardKind.Shed => (2.4, 2.0, 2.7),
+                YardKind.Privy => (1.3, 1.3, 2.3),
+                YardKind.Traps => (1.0, 0.65, 1.0),
+                YardKind.Dory => (4.3, 1.4, 0.8),
+                YardKind.Barrel => (0.65, 0.65, 0.95),
+                _ => (0, 1.2, 2.1),
+            };
+            var fits = kinds.Where(k => Size(k).D <= room && odds.Weight(k) > 0
+                && (k is YardKind.Woodpile or YardKind.Traps or YardKind.Barrel || picked.All(p => p.Kind != k))).ToList();
+            if (fits.Count == 0)
+                break;
+            double total = fits.Sum(odds.Weight), roll = rng.NextDouble() * total;
+            var kind = fits.Last();
+            foreach (var k in fits)
+                if ((roll -= odds.Weight(k)) < 0)
+                {
+                    kind = k;
+                    break;
+                }
+            var (l, d, ht) = Size(kind);
+            int variant = rng.RangeInclusive(0, 2);
+            if (kind == YardKind.Woodpile)
+                l = rng.Range(2.2, 3.4);
+            if (kind == YardKind.Traps)
+                (l, ht) = (variant % 2 + 1.0, 0.5 * (variant + 1));
+            picked.Add((kind, l, d, ht, variant));
+        }
+        // Along the back line from one end, a few steps between them.
+        double uLo = -half + 0.35, uHi = half - 0.35, deepest = 0;
+        bool fromLeft = rng.Chance(0.5);
+        double cursor = fromLeft ? uLo + rng.Range(0, 0.8) : uHi - rng.Range(0, 0.8);
+        foreach (var (kind, l, d, ht, variant) in picked.Where(p => p.Kind != YardKind.Clothesline))
+        {
+            double a = fromLeft ? cursor : cursor - l, b = a + l;
+            if (a < uLo || b > uHi)
+                continue;
+            things.Add(new(kind, Math.Round(a, 3), Math.Round(b, 3), Math.Round(v1 - d, 3), Math.Round(v1, 3), ht, variant));
+            deepest = Math.Max(deepest, d);
+            cursor = fromLeft ? b + rng.Range(0.6, 1.4) : a - rng.Range(0.6, 1.4);
+        }
+        // The washing across the yard between the house and what's at the back, where there's room to pass under it.
+        if (picked.Any(p => p.Kind == YardKind.Clothesline) && room - deepest >= 1.2 && uHi - uLo > 4)
+        {
+            double v = Math.Round(v0 + (room - deepest) / 2, 3);
+            things.Add(new(YardKind.Clothesline, uLo + 0.4, uHi - 0.4, v - 0.04, v + 0.04, 2.1, rng.RangeInclusive(0, 2)));
+        }
+        return things;
     }
 }

@@ -154,6 +154,65 @@ public sealed partial class WorldArt
     Dictionary<string, (MeshAsset Mesh, long Used)> _housePieces = [];
     long _houseFrame;
 
+    /// <summary>
+    /// Where wood smoke rises in a town (App. F.3, the director: the fortresses feel static): the chimneys of the houses
+    /// lived in (and stood open) within <paramref name="reach"/> of you, relative to the eye. Nobody's fire in a house
+    /// nobody lives in.
+    /// </summary>
+    public IEnumerable<Vector3> Chimneys(RailLine line, Double3 eye, Town town, double reach)
+    {
+        foreach (var h in town.Plan.Houses)
+        {
+            if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
+                continue;
+            var at = town.World(h.S, h.D);
+            if ((at - eye).Length > reach)
+                continue;
+            var m = Place(line, eye, at, h.S, 0, -h.Side);
+            foreach (var top in MaritimeKit.ChimneyTops(h))
+                yield return Vector3.Transform(top, m);
+        }
+    }
+
+    /// <summary>
+    /// The watch on a town's wall (App. F.3: the fortresses feel static): a guard with a lantern walking each stretch of
+    /// wall between two towers, or most of them, up and back at a walk with a pause at each end, out of reach on the
+    /// wall's walk. A walled town's side walls (note 335), or the yard's two (T124). Where each is now, by the clock: the
+    /// feet, the way they face, and which of the crew's looks.
+    /// </summary>
+    public static IEnumerable<(Double3 Feet, Double3 Facing, int Variant)> Watch(Town town, double gate, double time)
+    {
+        var plan = town.Plan;
+        var walls = plan.Bounds is { } b
+            ? new[] { (-b.Left, b.Rear), (b.Right, b.Rear) }.Select(w => (D: w.Item1, From: w.Item2, To: b.Gate))
+            : new[] { (-Sim.Run.Fortresses.WallOut, 0.0), (Sim.Run.Fortresses.WallOut, 0.0) }.Select(w => (D: w.Item1, From: w.Item2, To: gate));
+        int n = 0;
+        foreach (var (d, from, to) in walls)
+            for (double s0 = from + 6; s0 + 30 < to - 6; s0 += Sim.Run.Fortresses.TowerEvery)
+            {
+                n++;
+                double s1 = Math.Min(s0 + Sim.Run.Fortresses.TowerEvery - 12, to - 6);
+                // Not every stretch has its man (one in four's empty), and not on a yard wall the square steps back from.
+                if (n % 4 == 3 || plan.Bounds is null && Math.Sign(d) == plan.Square.Side && s1 > plan.Square.S0 && s0 < plan.Square.S1)
+                    continue;
+                double len = s1 - s0, speed = 0.9 + n % 3 * 0.12, pause = 4 + n % 5;
+                // Up the stretch, a pause, back, a pause: a round of 2 (len / speed + pause) seconds, each on its own phase.
+                double round = 2 * (len / speed + pause), t = (time + n * 37.3) % round;
+                double along, dir;
+                if (t < len / speed)
+                    (along, dir) = (t * speed, 1);
+                else if (t < len / speed + pause)
+                    (along, dir) = (len, 1);
+                else if (t < 2 * len / speed + pause)
+                    (along, dir) = (len - (t - len / speed - pause) * speed, -1);
+                else
+                    (along, dir) = (0, -1);
+                // On the walk's inner half, behind the parapet.
+                double s = s0 + along;
+                yield return (town.World(s, d - Math.Sign(d) * Sim.Run.Fortresses.WallHalf / 2, Sim.Run.Fortresses.WallWalk), town.Direction(s, dir, 0), n % 7 + 1);
+            }
+    }
+
     /// <summary>How long a block of houses is along the line (m), for drawing it as one mesh past the near houses.</summary>
     const double Block = 60;
 

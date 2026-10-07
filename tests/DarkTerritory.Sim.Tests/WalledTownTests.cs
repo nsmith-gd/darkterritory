@@ -50,14 +50,14 @@ public class WalledTownTests
     [InlineData("frontier:7", 3000)]
     [InlineData("local:3", 1200)]
     [InlineData("deadLines:3", 600)]
-    public void EveryHouseStandsInsideTheWallOffTheStreetsAndClearOfTheNext(string spec, int people)
+    public void EveryHouseAndYardStandsInsideTheWallOffTheStreetsAndClearOfTheNext(string spec, int people)
     {
         var (_, town) = Night(spec, people);
         var plan = town.Plan;
         var b = plan.Bounds;
         var sq = plan.Square;
-        // What stands of each house, in the rail frame.
-        var boxes = plan.Houses.SelectMany(h => h.Parts().Select(p =>
+        // What stands of each house and its yard, in the rail frame.
+        var boxes = plan.Houses.SelectMany(h => h.Solids().Select(p =>
         {
             var (s0, d0) = h.Rail(p.U0, p.V0);
             var (s1, d1) = h.Rail(p.U1, p.V1);
@@ -88,6 +88,35 @@ public class WalledTownTests
                 bool overlap = p.S1 > q.S0 + 0.01 && q.S1 > p.S0 + 0.01 && p.D1 > q.D0 + 0.01 && q.D1 > p.D0 + 0.01;
                 Assert.False(overlap, $"houses {p.Id} and {q.Id} overlap");
             }
+    }
+
+    [Theory]
+    [InlineData("frontier:7", 3000)]
+    [InlineData("local:3", 800)]
+    public void AYardIsFencedAtTheStreetWithItsGateAtTheDoorAndKeepsItsThingsBehindTheHouse(string spec, int people)
+    {
+        // The director's references (note 335): the picket fence out front, the board fence and the yard's things behind.
+        var (_, town) = Night(spec, people);
+        var houses = town.Plan.Houses;
+        Assert.True(houses.Count(h => h.Yard.Count > 0) > houses.Count / 2, $"{houses.Count(h => h.Yard.Count > 0)} of {houses.Count} houses with a yard");
+        Assert.Contains(houses, h => h.Yard.Any(y => y.Kind == YardKind.Picket));
+        Assert.Contains(houses, h => h.Yard.Any(y => y.Kind == YardKind.Boards));
+        Assert.Contains(houses, h => h.Yard.Any(y => y.Kind is YardKind.Woodpile or YardKind.Shed or YardKind.Privy or YardKind.Traps or YardKind.Dory));
+        double lot = Towns.Tuning.Walled.Lot[1] / 2;
+        foreach (var h in houses)
+        {
+            double back = h.Parts().Select(p => p.V1).Append(h.Depth).Max();
+            var pickets = h.Yard.Where(y => y.Kind == YardKind.Picket).ToList();
+            foreach (var y in h.Yard)
+            {
+                Assert.True(y.U0 >= -lot && y.U1 <= lot && y.U0 < y.U1 && y.V0 < y.V1, $"house {h.Id}'s {y.Kind} out of its lot: u {y.U0:0.0}..{y.U1:0.0}");
+                if (y.Kind is not (YardKind.Picket or YardKind.Boards))
+                    Assert.True(y.V0 >= back + 0.4, $"house {h.Id}'s {y.Kind} at v {y.V0:0.0}, against the house (its back's at {back:0.0})");
+            }
+            // The fence out front leaves the gate in front of the door, a body and more wide.
+            Assert.All(pickets, y => Assert.True(y.V1 < -2.5, $"house {h.Id}'s fence {y.V1:0.0} m out, on its step"));
+            Assert.False(pickets.Any(y => y.U1 > h.Design.DoorU - 0.7 && y.U0 < h.Design.DoorU + 0.7), $"house {h.Id}'s fence across its gate");
+        }
     }
 
     [Fact]

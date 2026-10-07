@@ -216,8 +216,9 @@ public sealed class Town
     /// </summary>
     IEnumerable<Wall> HouseWalls(TownHouse h)
     {
-        // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign).
-        foreach (var (u0, u1, v0, v1, height) in h.Parts())
+        // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign), and its yard's
+        // fences, sheds, woodpiles and the rest (note 335).
+        foreach (var (u0, u1, v0, v1, height) in h.Solids())
         {
             var (s, d) = h.Rail((u0 + u1) / 2, (v0 + v1) / 2);
             yield return Box(s, d, (u1 - u0) / 2, (v1 - v0) / 2, height);

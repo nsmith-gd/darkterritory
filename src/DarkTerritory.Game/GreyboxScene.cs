@@ -2345,13 +2345,13 @@ public sealed class GreyboxScene
         var right = Vector3.Cross(Vector3.UnitY, back);
         var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
         drab += variant % 3 * 0.05f;
-        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" };
         var creatures = Look!.Art.Creatures;
         if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
             adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
             return;
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        if (pose is "lantern" or "walk" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -2372,6 +2372,13 @@ public sealed class GreyboxScene
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
+                // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
+                // its watch walking the wall with their lanterns.
+                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
+                    if ((feet - eye).Length < 260)
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk");
                 foreach (var p in town.Plan.People)
                 {
                     var feet = town.Feet(p);

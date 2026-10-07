@@ -5147,8 +5147,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             - `TheWholeTownIsTheFortAndItsWallIsSolid` (every street in the fort; the wall down both sides and across the back in the train's walls; no corridor wall left in the yard).
         - `TownTests` over towns to 3000: everybody inside a walled town's wall; houses within it and apart in their rows; the house-variety test round the square.
         - The views above looked at: the square opening onto the first street, the street's painted houses, the town from over the gate and from outside it.
+    - **The yards** (a second pass; the director's references: Lunenburg's picket fences, the woodpiles, sheds, traps and dories behind Peggy's Cove's and Blue Rocks' houses). Each house has its `TownHouse.Yard` (`TownGenerator.Yard`, on its own `houses.yards` stream so the houses are as they were):
+        - on a street, a picket fence along the street's edge, its gate in front of the door (the house's trim colour; grey, gapped and short where nobody lives);
+        - a board fence on the back line the line-side row shares with the row behind (one row owns it, so there's one fence, not two);
+        - along the back, what the yard keeps, as much as there's room for, clear of the house by a step: a woodpile, a shed, a privy, lobster traps, a dory turned over on its blocks, the washing pegged out, a rain barrel. A row's back line is halfway to the row behind, or short of the wall; the line's own street in a town that's still the yard has no room behind its houses.
+        - Each character weights them (houses.json `yard`): a cove's yards are traps and dories with few pickets, Lunenburg's are fenced and full of washing, a farm's has its woodpile and shed, a company row has the same picket and privy at every house.
+        - All solid where drawn but the washing (`TownHouse.Solids`, `Town`'s walls); nothing of a yard stands in the square, a street or a lane.
+        - Drawn into the house's own mesh (`MaritimeKit.Yard`), so a yard costs no draws; its far form keeps the shed, privy, dory and woodpile as blocks.
+        - `dt screenshot --route r --town yard|yardtop|fence`, `dt art houses --character c --yard [--back]`.
+        - Verified: `WalledTownTests.AYardIsFencedAtTheStreetWithItsGateAtTheDoorAndKeepsItsThingsBehindTheHouse` (most houses have a yard; pickets, board fences and things all turn up; everything in its lot, behind the house by a step but the fences; the gate clear in front of the door), and the house-overlap test over the yards too. The biggest town's street with its fences: 853K triangles, 614 draws.
+    - **A town that's lived in** (App. F.3, the director: "the fortresses feel static and lame"). Presentation only (nothing in the Sim; every machine draws it from the clock, alike enough):
+        - **Smoke from the chimneys** of the houses lived in, within 160 m of you (`WorldArt.Chimneys`, `MaritimeKit.ChimneyTops` as the kit builds the chimneys; `Effects.Chimney`: a puff a second or so, pale, rising slowly and leaning with the air).
+        - **The watch on the wall**: a guard with a lantern walking each stretch of wall between two towers (three stretches in four), up and back at a walk with a pause at each end (`WorldArt.Watch`), a walled town's side walls or the yard's two. The crew's `lantern_walk` clip with the lamp hung and lit. The wall kit's merlons now stand on the wall's outer half (`StructureKit.Wall`, T124's) so the walk behind them is open and the watch shows over the parapet from inside; the Sim's wall is the same box as before.
+        - `dt screenshot --route r --town watch` (from below the wall, up at the nearest of the watch).
     - **Not yet:**
-        - fish sheds, fences, granite, gardens and lobster traps between the houses;
+        - granite, gardens, fish sheds on stilts by the water;
+        - folk walking the streets (talking to someone who walks needs them to stop for you alone, and talk isn't replicated);
         - cross streets other than the lanes, and streets that bend with the land;
         - more lines for the street (`anyone`, the jobs, the threads), so a big town can open more houses and put more people out;
         - the roofs and steeple over the wall from outside;

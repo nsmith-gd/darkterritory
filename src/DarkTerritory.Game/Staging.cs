@@ -69,15 +69,37 @@ public static class Staging
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
             {
                 "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
                 "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                // Below the wall, inside it, up at one of the watch on its walk (from a street, the houses' roofs hide it).
+                "watch" when Art.WorldArt.Watch(town, wall.Gate, 0.37).Select(g => g.Feet).OrderBy(f => (f - town.World(mid, wall.Right)).Length).ToList() is { Count: > 0 } guards
+                    => guards[0] is var g && town.Direction(mid, 1, 0) is var along && town.Direction(mid, 0, 1) is var across
+                        ? Ballast.Render.Camera.LookAt(g - Double3.Up * (Sim.Run.Fortresses.WallWalk - 1.7) - across * (Math.Sign(across.X * (g - town.World(mid, 0)).X + across.Z * (g - town.World(mid, 0)).Z) * 6) + along * 34, g + Double3.Up * 1.1, 40) : default,
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
+        }
+        // A walled town's yards (note 335): behind a house with things in its yard, and out on a street at a picket fence.
+        if (where is "yard" or "fence" or "yardtop")
+        {
+            var pick = where == "yard"
+                ? plan.Houses.Where(h => h.Yard.Count(y => y.Kind is not (Sim.Towns.YardKind.Picket or Sim.Towns.YardKind.Boards)) >= 2).OrderByDescending(h => h.Yard.Count).FirstOrDefault()
+                : plan.Houses.FirstOrDefault(h => h.Yard.Any(y => y.Kind == Sim.Towns.YardKind.Picket) && h.Kind == Sim.Towns.HouseKind.Lived);
+            if (pick is not null)
+            {
+                Double3 At(double u, double v, double up) => pick.Rail(u, v) is var (s, d) ? town.World(s, d, up) : default;
+                double back = pick.Yard.Where(y => y.Kind is not (Sim.Towns.YardKind.Picket or Sim.Towns.YardKind.Boards)).Select(y => y.V1).DefaultIfEmpty(pick.Depth + 3).Max();
+                return where switch
+                {
+                    "yard" => Ballast.Render.Camera.LookAt(At(-pick.Width / 2 - 1.5, pick.Depth + 0.6, 2.4), At(1.5, back - 0.6, 0.6), 78),
+                    "yardtop" => Ballast.Render.Camera.LookAt(At(pick.Width / 2 + 3, back + 5, 6), At(-1, pick.Depth + 1.2, 0.3), 72),
+                    _ => Ballast.Render.Camera.LookAt(At(9, -6.5, 1.7), At(-1, -2.5, 1.0), 72),
+                };
+            }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
