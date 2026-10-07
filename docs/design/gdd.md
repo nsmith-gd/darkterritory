@@ -2094,7 +2094,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
 
 **Audio**
-- A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Open (queue #68, note 329).*
+- A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
 
 **Derailment**
 - Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Open (queue #69, note 330).*
