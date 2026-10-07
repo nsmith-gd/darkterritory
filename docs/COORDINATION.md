@@ -26,7 +26,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | Name | Agent ids | What it is | Log |
 |---|---|---|---|
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
-| **B** | B1, … (to choose) | Claude Code on the director's second account (to start soon) | docs/log/B1.md |
+| **B** | B1; its agents B1.1, … | Claude Code on the director's second account | [docs/log/B1.md](log/B1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
 
 Whatever an agent launched by A or B does counts as its owner's: the owner reviews it and opens the PR.
@@ -54,7 +54,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind; forts safe from creatures | A1.5 | `t128` | 273 | claimed |
 | 8 | **T124:** fort collision, and the guns hitting at the forts | A1.6 | `t124` | 274 | claimed |
 | 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools` | 275 | claimed |
-| 10 | **Towns (T133):** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople) | — | — | — | open |
+| 10 | **Towns (T133) and world building:** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople), much more interactable | B1 | `ccr-e37431e3-bzfu8i` | 278 | claimed |
 | 11 | **The cab redesign** | — | — | — | waiting on the director's sketch |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
@@ -62,8 +62,10 @@ The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished fro
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **276**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
-(Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191). Take a number by adding it here and to your queue row.
+The next free number is **279**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+(Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 and 277 (C1's
+cab forward and art L1s, [#190](https://github.com/nsmith-gd/darkterritory/pull/190)), 278 (towns). Take a number by
+adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
