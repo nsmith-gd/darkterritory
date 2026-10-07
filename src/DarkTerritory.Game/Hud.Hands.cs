@@ -170,6 +170,9 @@ public static partial class Hud
         // Carried in both hands (spec D.2, note 264): what it is, and how to be rid of it. What it's for is learned.
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
         {
+            // A healing find, hurt (note 272): held, Use uses it.
+            if (CanHeal(s, carried))
+                lines.Add("USE : HOLD [E]");
             if (carried.Kind == BodyKind.Heavy)
                 lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
             else

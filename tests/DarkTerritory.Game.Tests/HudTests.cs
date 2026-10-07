@@ -465,4 +465,68 @@ public class HudTests
         }
     }
 
+    [Fact]
+    public void AHitFlashesTheEdgeByItsSizeAndFades()
+    {
+        // GDD App. F.1 (note 272): "damage feedback is minimal: an edge flash and a sound".
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Equal(0, Hud.HurtStrength(s));
+        s.Player = s.Player with { Health = s.Player.Health - (int)Hud.HurtFlashFullAt };
+        Assert.Equal(1, Hud.HurtStrength(s), 6);
+        for (int i = 0; i < Hud.HurtFlashSeconds / 2 * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(default);
+        double half = Hud.HurtStrength(s);
+        Assert.InRange(half, 0.05, 0.5);
+        for (int i = 0; i < Hud.HurtFlashSeconds * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(default);
+        Assert.Equal(0, Hud.HurtStrength(s));
+        // A smaller hit, a smaller flash; healing none.
+        s.Player = s.Player with { Health = s.Player.Health - 20 };
+        double small = Hud.HurtStrength(s);
+        Assert.InRange(small, Hud.HurtFlashLeast, 0.5);
+        var other = new PrototypeSession(Content, "test-loop", 4) { };
+        other.Player = other.Player with { Health = 40 };
+        Hud.HurtStrength(other);
+        other.Player = other.Player with { Health = 90 };
+        Assert.Equal(0, Hud.HurtStrength(other));
+        // Drawn round the rim only, and nothing at all unhurt.
+        var o = new Overlay();
+        Hud.EdgeFlash(o, 480, 270, 0);
+        Assert.Equal(0, o.Count);
+        Hud.EdgeFlash(o, 480, 270, 1);
+        Assert.True(o.Count > 0);
+    }
+
+    [Fact]
+    public void AHealingFindInHandSaysHoldUseWhenYoureHurt()
+    {
+        // Note 272 in note 285's form: the find's name and keys are the corner's, "USE : HOLD [E]" only when hurt; what it
+        // gives back isn't said (learned). At the crosshair, only the use under way.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        for (int k = 0; k < run.Stops.Count; k++)
+            run.Stock(s.World.Bodies, k);
+        var find = s.World.Bodies.All.First(b => run.HealOf(b) > 0);
+        find.Carrier = ((IPlaySession)s).PlayerId;
+        // Whole: a find like any other.
+        Assert.False(Hud.CanHeal(s, find));
+        Assert.Null(Hud.Prompt(s));
+        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        // Hurt, out on the ballast beside the train (at nothing Use works).
+        double along = s.Train.Dynamics.Distance - 20, hint = along;
+        var t = s.Train.Line.Sample(along);
+        var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * 8;
+        s.Player = PlayerMotor.SpawnOnGround(at with { Y = PlayerMotor.GroundAt(at, s.Train.Line, ref hint) }, s.Train.Line, along, s.PlayerTuning) with { Health = 40 };
+        Assert.Null(CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand));
+        Assert.True(Hud.CanHeal(s, find));
+        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Null(Hud.Prompt(s));
+        find.MendTicks = (int)(DarkTerritory.Sim.SimConstants.TickRate * run.Healing!.UseSeconds / 2);
+        Assert.Equal("USING IT (50%)", Hud.Prompt(s));
+        Assert.DoesNotContain(Hud.Hints(s).Lines.Concat([Hud.Prompt(s)!]), l => l.Contains('+') || l.Contains("WHEN HURT"));
+        // Anything else isn't medicine.
+        Assert.Null(Hud.HealPrompt(s, s.World.Bodies.All.First(b => run.HealOf(b) == 0)));
+    }
+
 }
