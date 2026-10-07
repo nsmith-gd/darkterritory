@@ -2100,6 +2100,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
 - The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *The Sleepers are gone (note 265); a bend taken too fast is heard (note 265) and now seen: flange sparks off the outer rail, and a judder (note 277).*
 - The train's lights and lanterns were all off. *In progress (T127).*
+- With the Sleepers gone, a Frontier night may have had nowhere the train could derail: frontier:7's sharpest bend was 707 m, over what the engine can reach (note 265). *Done (note 278): every night carries its tier's count of hard bends that derail the train under its top speed (Frontier 3–4, at 58–68 km/h), spread through the night, each boarded, on the cab map and going round a hill. The rules are in docs/design/level-design.md Part B.*
 
 **Second session (same build, continued)**
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*

@@ -258,6 +258,12 @@ sealed partial class LineBuilder
         bool needCoal = planned > v.CoalingEnduranceShare * _l.TenderEnduranceS;
         Check("coaling", !needCoal || _facilities.Any(f => f.Kind == FacilityKind.CoalingTower), $"{planned / 60:0} min planned, tender lasts {_l.TenderEnduranceS / 60:0}");
 
+        // Hard bends (note 278): the night has the tier's least count of bends that derail the train under its top speed,
+        // so there's always somewhere a driver who isn't watching the map comes off.
+        var hard = HardBendSpans(_line!).Where(b => b.S0 > _gate).ToList();
+        int leastBends = (int)Math.Floor(_l.Bends[0]);
+        Check("hard bends", hard.Count >= leastBends, $"{hard.Count} against the tier's {leastBends}");
+
         // Quotas (§15.3).
         var missing = Quotas();
         Check("quotas", missing.Count == 0, string.Join(", ", missing));
@@ -344,6 +350,9 @@ sealed partial class LineBuilder
             if (Math.Abs(_line!.Sample(s).Curvature) > 1e-9)
                 tight = Math.Min(tight, 1 / Math.Abs(_line.Sample(s).Curvature));
         _metrics["minRadius"] = Math.Round(Math.Min(tight, 99999));
+        var bends = HardBendSpans(_line!).Where(b => b.S0 > _gate).ToList();
+        _metrics["hardBends"] = bends.Count;
+        _metrics["hardBendSlowestMs"] = bends.Count == 0 ? 0 : Math.Round(Math.Sqrt(_t.Curves.ADerail * bends.Min(b => b.R)), 1);
         _metrics["tunnelM"] = Math.Round(_structures.Where(s => s.Type == StructureType.Tunnel).Sum(s => s.S1 - s.S0));
         _metrics["bridgeM"] = Math.Round(_structures.Where(s => s.Type is StructureType.Trestle or StructureType.Viaduct or StructureType.Girder or StructureType.Truss).Sum(s => s.S1 - s.S0));
         _metrics["junctions"] = 2 * _alts.Count + _deads.Count;
