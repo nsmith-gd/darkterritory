@@ -393,11 +393,23 @@ public sealed partial class SceneArt(Look look)
         _ => FreightKinds[(int)((uint)b.Id * 2654435761u % (uint)FreightKinds.Length)],
     };
 
-    /// <summary>The toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
+    /// <summary>The quiet toys (App. C.4), one each by its id: the rag bear, the pull-along horse, the porcelain doll.</summary>
     static readonly string[] Toys = ["toy_bear", "toy_horse", "toy_doll"];
 
-    /// <summary>The toy a toy body is drawn as (by its id, as <see cref="Body"/> draws it), or null.</summary>
-    public MeshAsset? Toy(int bodyId) => PropArt.Of(Look).Get(Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)]);
+    /// <summary>
+    /// The model a toy's drawn as: a noisy one looks like what it sounds like (App. C.4, C.7; Body.Noise: the squeeze pig,
+    /// the music box, the wind-up drummer); a quiet one's picked by its id.
+    /// </summary>
+    public static string ToyModel(int bodyId, Sim.Physics.ToyNoise noise) => noise switch
+    {
+        Sim.Physics.ToyNoise.Squeaker => "toy_squeaker",
+        Sim.Physics.ToyNoise.MusicBox => "toy_musicbox",
+        Sim.Physics.ToyNoise.Drummer => "toy_drummer",
+        _ => Toys[(int)((uint)bodyId * 2654435761u % (uint)Toys.Length)],
+    };
+
+    /// <summary>The toy a toy body is drawn as (as <see cref="Body"/> draws it), or null.</summary>
+    public MeshAsset? Toy(int bodyId, Sim.Physics.ToyNoise noise = default) => PropArt.Of(Look).Get(ToyModel(bodyId, noise));
 
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
@@ -456,7 +468,7 @@ public sealed partial class SceneArt(Look look)
         var piece = b.Kind switch
         {
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
-            Sim.Physics.BodyKind.Toy => props.Get(Toys[(int)((uint)b.Id * 2654435761u % (uint)Toys.Length)]) ?? PropArt.Of(Look).Get("hand_lantern")
+            Sim.Physics.BodyKind.Toy => props.Get(ToyModel(b.Id, b.Noise)) ?? PropArt.Of(Look).Get("hand_lantern")
                 ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
@@ -665,40 +677,49 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
             return;
         var m = FrameMatrix(engine, eye);
-        // The gauge lamp under the cab roof (T101): the backhead, its dials and the map over it lit enough to read whatever
-        // the fire's doing.
+        // The gauge lamp under the cab roof (T101): the backhead and its dials lit enough to read whatever the fire's doing;
+        // cab forward (note 276), at the back wall (the map at the front has the cab lamp).
         var cab = engine.Shape.Cab!.Value;
-        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)cab.Min.Z + 0.9f), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
+        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Max.Z - 0.9)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
+        // Everything on the backhead is placed in its frame (it faces forward from the back wall).
+        var bh = TrainKit.BackheadFrame(engine.Shape) * m;
         var needle = Piece("needle", () => TrainKit.Needle(Look));
+        // Two sets (note 276): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
+        // back into the cab as the engine's frame does.
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
-            if (i == 2)
-            {
-                // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
-                // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
-                // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
-                var g = TrainKit.GaugeCentre(engine.Shape, i);
-                float gr = TrainKit.GaugeRadius, f = Math.Clamp(fractions[i], 0, 1);
-                float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
-                float y1 = bottom + (top - bottom) * f;
-                if (y1 - bottom > 0.002f)
-                {
-                    var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), m);
-                    var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
-                    var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
-                    var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
-                    float e = mesh.Emissive;
-                    mesh.Emissive = 0.35f;
-                    mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
-                    mesh.Emissive = e;
-                }
-                continue;
-            }
-            // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
-            float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
-            var c = TrainKit.GaugeCentre(engine.Shape, i);
-            mesh.Append(needle, Matrix4x4.CreateScale(TrainKit.GaugeRadius / 0.11f) * Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(c) * m);
+            Dial(mesh, needle, TrainKit.GaugeLocal(engine.Shape, i), TrainKit.GaugeRadius, bh, i, fractions[i]);
+            Dial(mesh, needle, TrainKit.DriverGauge(engine.Shape, i), TrainKit.DriverGaugeRadius, m, i, fractions[i]);
         }
+    }
+
+    /// <summary>One dial's reading: its needle, or (the tender's, <paramref name="index"/> 2) the coal's level in its glass.</summary>
+    static void Dial(MeshBuilder mesh, MeshAsset needle, Vector3 g, float gr, Matrix4x4 frame, int index, float fraction)
+    {
+        if (index == 2)
+        {
+            // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
+            // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
+            // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
+            float f = Math.Clamp(fraction, 0, 1);
+            float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
+            float y1 = bottom + (top - bottom) * f;
+            if (y1 - bottom > 0.002f)
+            {
+                var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), frame);
+                var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, frame));
+                var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, frame));
+                var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, frame));
+                float e = mesh.Emissive;
+                mesh.Emissive = 0.35f;
+                mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
+                mesh.Emissive = e;
+            }
+            return;
+        }
+        // From 7:30 round to 4:30, clockwise as you face it: the dial faces its frame's +Z (out into the cab).
+        float angle = (0.75f - 1.5f * Math.Clamp(fraction, 0, 1)) * MathF.PI;
+        mesh.Append(needle, Matrix4x4.CreateScale(gr / 0.11f) * Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(g) * frame);
     }
 
     /// <summary>
@@ -770,6 +791,41 @@ public sealed partial class SceneArt(Look look)
     /// turned the way it faces. Returns false when the kit can't draw this car (so the greybox does).
     /// </summary>
     /// <summary>
+    /// The headlamp out (switched off, or smashed by a Climber: World.LampShining false): dark glass over the engine's lit
+    /// lens, a crack star across it, so from the line the train's eye reads shut.
+    /// </summary>
+    public void HeadlampOut(MeshBuilder mesh, in CarFrame engine, Double3 eye)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
+            return;
+        mesh.Instances.Add(new MeshInstance(Piece("headlamp-out", () =>
+        {
+            var k = new Kit(Look, 43);
+            k.Use("lamp_lens", new Vector3(0.05f, 0.045f, 0.04f), 0.3f, 0.8f, tile: 0.64f);
+            k.Tint = new Vector3(0.06f, 0.055f, 0.05f);
+            k.Panel(Vector3.Zero, -Vector3.UnitZ, Vector3.UnitY, 0.66f, 0.66f);
+            k.Use("iron_plate", new Vector3(0.5f, 0.5f, 0.5f), 0.3f, 0.5f);
+            k.Tint = new Vector3(0.35f, 0.35f, 0.36f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * MathF.Tau / 6 + 0.3f * (i % 2);
+                var tip = new Vector3(MathF.Cos(a), MathF.Sin(a), 0) * (0.18f + 0.1f * (i % 3));
+                k.Rod(new Vector3(0.04f, 0.06f, -0.004f), tip + new Vector3(0.04f, 0.06f, -0.004f), 0.004f);
+            }
+            return k.Build("headlamp-out");
+        }), Matrix4x4.CreateTranslation(0, TrainKit.HeadlampY, (float)-engine.Shape.HalfLength - 0.06f) * FrameMatrix(engine, eye)));
+    }
+
+    /// <summary>The boiler's torn flank while she's ruptured (TrainKit.RuptureTear at its seam; Effects.Rupture its steam).</summary>
+    public void RuptureTear(MeshBuilder mesh, in CarFrame engine, Double3 eye)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
+            return;
+        mesh.Instances.Add(new MeshInstance(Piece("rupture-tear", () => TrainKit.RuptureTear(Look)),
+            Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape)) * FrameMatrix(engine, eye)));
+    }
+
+    /// <summary>
     /// The firebox door shut (the boiler's FireDoorOpen false; the Stoker's "keep it hot, keep it shut"): two iron leaves
     /// over the firehole, strapped and handled, meeting in the middle, the fire's light only at the seam between them and
     /// through the peephole. Open, the backhead's own leaves stand ajar (tools/models cab_backhead) and the fire shows.
@@ -778,8 +834,9 @@ public sealed partial class SceneArt(Look look)
     {
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 40)
             return;
-        var m = FrameMatrix(engine, eye);
-        var at = TrainKit.FireDoor(engine.Shape);
+        // In the backhead's frame: the door's leaves face out of the back wall into the cab (note 276).
+        var m = TrainKit.BackheadFrame(engine.Shape) * FrameMatrix(engine, eye);
+        var at = TrainKit.FireDoorLocal(engine.Shape);
         mesh.Instances.Add(new MeshInstance(Piece("firedoor-shut", () =>
         {
             var k = new Kit(Look, 61);

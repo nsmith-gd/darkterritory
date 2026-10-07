@@ -74,8 +74,9 @@ public class CarFireTests
     [Fact]
     public void AWalkerPutsASwarmedLampOutBeforeTheFliesSetTheCarAlight()
     {
-        // v1.1 App. A.5: "lamps off when they swarm". Car 3's lamp lit, the flies on it, a walker on car 2's roof.
-        var n = new Night(5, speed: 10);
+        // v1.1 App. A.5: "lamps off when they swarm". Car 3's lamp lit, the flies on it, a walker on car 2's roof. Stopped: they
+        // come to nothing else, and go on their own once it's under way (note 269).
+        var n = new Night(5, speed: 0);
         var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
@@ -144,9 +145,9 @@ public class CarFireTests
     public void TheDriverDrivesAwayFromFireFliesWhereTheLineAllows()
     {
         // GDD §21 "lamps off when they swarm. Or drive away"; App. A.5 BREAK OFF "the train pulls away at speed" (note 188).
-        // The cruise (14 m/s) is under the flies' pull-away speed (15): nobody in the car, the driver puts the train over it
-        // until they've gone, and the car never catches.
-        var n = new Night(5, speed: 14, boiler: true);
+        // They come only to a stopped train, and getting under way is pulling away (note 269): nobody in the car, the driver
+        // gets the train moving, they go, and the car never catches.
+        var n = new Night(5, speed: 0, boiler: true);
         n.Train.Boiler.Pressure = 85;
         var driver = new Bots.ConductorBot(null, 0);
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
@@ -171,8 +172,8 @@ public class CarFireTests
         Assert.True(n.Train.Vehicles[3].LampLit);
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire && !e.Gone);
         Assert.InRange(top, Tuning.Enemies.FireFlies.PullAwaySpeed, n.Train.Dynamics.Tuning.MaxSpeed - 3);
-        // And back down to the cruise after.
-        Drive(40);
+        // And on to the cruise after, no faster (from a stand it overshoots before it settles).
+        Drive(90);
         Assert.InRange(n.Train.Dynamics.Speed, 12, 15);
     }
 

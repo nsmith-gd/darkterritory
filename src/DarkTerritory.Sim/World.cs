@@ -94,8 +94,14 @@ public sealed class World
     /// </summary>
     public double LampOutSeconds { get; set; }
 
-    /// <summary>Where the engine's forward lamp is (world): high on the smokebox door, at the very front.</summary>
-    public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, 2.8, -engine.Shape.HalfLength - 0.3));
+    /// <summary>Where the engine's forward lamp is (world): on the cab's nose under its front windows, at the very front (note 276).</summary>
+    public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, LampHeight, -engine.Shape.HalfLength - 0.3));
+
+    /// <summary>
+    /// The forward lamp's height over the rail (m): cab forward (note 276), on the cab's nose under the front windows, clear of
+    /// the driver's view down the line (it was 2.8, high on the smokebox door, with the boiler in front).
+    /// </summary>
+    public const double LampHeight = 2.0;
 
     /// <summary>Smashed: out, and no lighting it for a while.</summary>
     public void SmashLamp(double seconds)
@@ -348,12 +354,15 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The radios (T41, train.json kit): one on the cab floor at the back, clear of the firebox, the rest in the guard van.
+        // The radios (T41, train.json kit): one on the cab floor against its right wall ahead of the right doorway, out of
+        // the reach of a crewmate arriving in the cab, the driver at the controls, the cord, the vent and the fire door (cab
+        // forward, note 276); the rest in the guard van.
         int radios = Train.Dynamics.Tuning.Kit.Radios;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
-            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, cab.Max.Z - 0.5), Physics.BodyKind.Radio);
+            double doorFront = EnginePlan.Of(Train.Dynamics.Tuning.Geometry).DoorFront;
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, doorFront - 0.8), Physics.BodyKind.Radio);
             radios--;
         }
         StowRepairKits();
@@ -574,7 +583,7 @@ public sealed class World
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone));
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -706,8 +715,13 @@ public sealed class World
             if (!s.Alive)
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
+            // What they were at (App. F.2 take 4): the film starts their body in it.
+            var task = s.Has(PlayerFlags.Seated) ? FilmTask.Gunning
+                : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
+                : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
+                : FilmTask.None;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
         }
         return crew;
     }
@@ -1042,7 +1056,9 @@ public sealed class World
         // Build 1121 (note 263): a train standing on the brake it was left on stays on it, whatever's at the controls. With
         // steam driving (T97) a standing engine off its brake pulls away, so a Stoker's runaway took a train held in the yard
         // off with nobody in the cab. (Clients alike, from the same replicated state: prediction holds the brake as the host does.)
-        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow)
+        // The one exception is the director's (note 268): a Track Doll left alone to her last stage, at the controls a while.
+        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow
+            && !_enemies.Any(e => !e.Gone && e.ReleasesStandingBrake(this)))
             applied.Brake = Math.Max(applied.Brake, controls.Brake);
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
@@ -1230,7 +1246,11 @@ public sealed class World
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
             // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
             // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
+            // Nor is what stays aboard until it's dealt with (Cinder Hounds, note 269): that's the point of it. Nor a haunting
+            // Track Doll (the director's decision of 6 Oct 2026, note 268): being left alone is what makes her worse, and only
+            // getting her off the train ends her, so she can't give up and go for want of company.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire || e.StaysAboard
+                || e is DarkTerritory.Sim.Enemies.TrackDoll { Haunting: true })
             {
                 _unmet.Remove(e.Id);
                 continue;

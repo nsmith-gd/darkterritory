@@ -12,8 +12,11 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 public static class LockerKit
 {
-    /// <summary>How far an open door swings out on its hinge: well past square, back towards the row (an iron door left open hangs on its hinge).</summary>
-    public const float OpenSwing = MathF.PI * 150 / 180;
+    /// <summary>
+    /// How far an open door swings out on its hinge: a little past square, standing out into the aisle. (At 150° it lay
+    /// back across the next locker's face, and neighbours blocked each other: App. F.1.)
+    /// </summary>
+    public const float OpenSwing = MathF.PI * 105 / 180;
 
     /// <summary>How thick a door is (it stands this far proud of the cabinet's face when shut).</summary>
     public const float DoorThickness = 0.02f;

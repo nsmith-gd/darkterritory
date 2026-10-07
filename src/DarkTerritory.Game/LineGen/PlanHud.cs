@@ -53,7 +53,13 @@ public static class PlanHud
         const int profileH = 34;
         bool profile = rail is not null && page == 0 && rail.Length > 100;
         if (profile)
+        {
             rows.InsertRange(2, Enumerable.Repeat(("", InkDark), (profileH + line - 1) / line + 1));
+            // The key to the profile's red figures (as the cab's run map keys its own), under it.
+            var why = PostedSpeeds.Of(plan, rail!, rail!.Length).Select(b => b.Why).ToHashSet();
+            var keys = new[] { why.Contains("BRASS") ? "B BRASS" : null, why.Contains("BRIDGE") ? "W WEAK BRIDGE" : null }.OfType<string>();
+            rows.Insert(2 + (profileH + line - 1) / line + 1, (string.Join(". ", keys.Prepend("IN RED: KM/H OR OFF")), Stamp));
+        }
         // Wrapped to the sheet; what doesn't fit the screen is cut off at the foot, as a real card is folded.
         int chars = (int)((w - 12) / o.Font.Advance);
         var wrapped = rows.SelectMany(r => Wrap(r.Text, chars).Select(t => (t, r.Colour))).ToList();
@@ -72,16 +78,19 @@ public static class PlanHud
             ty += line;
         }
         if (profile)
-            Profile(o, rail!, card, x + 6, y + 5 + 2 * line + 3, w - 12, profileH);
+            Profile(o, rail!, plan, x + 6, y + 5 + 2 * line + 3, w - 12, profileH);
         return pages;
     }
 
     /// <summary>
     /// The line's height along the night in a box (<paramref name="x"/>, <paramref name="y"/>, w by h): a column of ink per
-    /// pixel up to the ground's height there, the timetable's stops ticked in red above it, km marks along the foot.
+    /// pixel up to the ground's height there, the timetable's stops ticked in red above it, km marks along the foot; and
+    /// every posted bend (PostedSpeeds, the boards' own figures) its stretch ruled red along the foot and its km/h over it
+    /// (the director's notes on the line plan: "speed ticks on derailment bends that show the max speed for those bends").
     /// </summary>
-    static void Profile(Overlay o, Sim.Rail.RailLine line, PlanRouteCard card, float x, float y, float w, float h)
+    static void Profile(Overlay o, Sim.Rail.RailLine line, LinePlan plan, float x, float y, float w, float h)
     {
+        var card = plan.RouteCard;
         int n = Math.Max(2, (int)w);
         var heights = new double[n];
         for (int i = 0; i < n; i++)
@@ -100,6 +109,25 @@ public static class PlanHud
         {
             float sx = x + (float)Math.Clamp(stop.Km / km, 0, 1) * (w - 1);
             o.Rect(sx, y, 1, 4, Stamp);
+        }
+        // The bends: their stretch in red along the foot, a hairline up to the figure. Where two would print on each other,
+        // the slower one's figure wins (it's the one that'll have you off); the other keeps its red rule.
+        var bends = PostedSpeeds.Of(plan, line, line.Length);
+        var printed = new List<(float X0, float X1)>();
+        foreach (var (s0, s1, kmh, why) in bends.OrderBy(b => b.Kmh))
+        {
+            float b0 = x + (float)(s0 / line.Length) * (w - 1), b1 = x + (float)(s1 / line.Length) * (w - 1);
+            o.Rect(b0, y + h - 2, MathF.Max(1, b1 - b0), 2, Stamp);
+            string figure = why switch { "BRASS" => $"{kmh}B", "BRIDGE" => $"{kmh}W", _ => $"{kmh}" };
+            float tw = figure.Length * o.Font.Advance, tx = MathF.Round(Math.Clamp((b0 + b1) / 2 - tw / 2, x, x + w - tw));
+            if (printed.Any(p => tx < p.X1 + 2 && tx + tw > p.X0 - 2))
+                continue;
+            printed.Add((tx, tx + tw));
+            // Above the ground's line there, where it's paper: a white ground under the figure so it reads over the ink.
+            float ty = y + 5;
+            o.Rect((b0 + b1) / 2, ty + o.Font.LineHeight - 2, 1, h - (ty + o.Font.LineHeight - 2 - y) - 2, Stamp with { W = 0.6f });
+            o.Rect(tx - 1, ty - 1, tw + 1, o.Font.LineHeight - 1, Paper);
+            o.Text(tx, ty, figure, Stamp, shadow: false);
         }
     }
 

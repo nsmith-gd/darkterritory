@@ -167,6 +167,19 @@ public sealed class GreyboxScene
     /// <summary>The blow-off's open (the boiler's <c>Vented</c>), and the safety valve's lifting: their steam (T101).</summary>
     public bool Venting { get; set; }
     public bool SafetyValve { get; set; }
+    /// <summary>
+    /// The boiler's ruptured (spec B.6, GDD §23): its torn flank, the burst's steam timed from the frame the scene first saw
+    /// it (presentation only, like <see cref="Derailed"/>), a dead stack; and with <see cref="DriversLocked"/>, the drivers
+    /// seized, not turning, sliding on the rail in sparks.
+    /// </summary>
+    public bool Ruptured { get; set; }
+    /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
+    public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
+    /// <summary>The cylinders seized and the train still dragging down to coasting speed (boiler.json ruptureCoastBelow).</summary>
+    public bool DriversLocked { get; set; }
+    /// <summary>For a still: how long ago the rupture was (the burst's moment in it).</summary>
+    public double StagedRuptureSeconds { get; set; }
+    double? _rupturedAt;
     /// <summary>The art pass's surfaces (T39, look.json). Unset, the greybox is flat colour.</summary>
     public Look? Look { get; set; }
     /// <summary>
@@ -213,7 +226,8 @@ public sealed class GreyboxScene
         mesh.Clear();
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
         // How far the engine's rolled, for its turning wheels (Art.SceneArt.Gear): its speed run on over the frames' time.
-        if (_wheelClock is { } then && Time > then && Time - then < 1)
+        // (Seized, they slide: they don't turn, and take up turning where they stopped once she's down to coasting.)
+        if (_wheelClock is { } then && Time > then && Time - then < 1 && !DriversLocked)
             _travelled += _speed * (Time - then);
         _wheelClock = Time;
         // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
@@ -302,9 +316,9 @@ public sealed class GreyboxScene
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
-            Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
-            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
+            // (Where the sim stands their solids, T124.)
+            foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
+                Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -354,9 +368,18 @@ public sealed class GreyboxScene
         if (Look is not null)
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
-            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting, SafetyValve,
+            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
-                whistle: CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true);
+                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
+            if (BendStrain is { } bends)
+                Look.Art.Effects.Flanges(mesh, frames, eye, Time, bends);
+            if (Ruptured && frames.Count > 0)
+            {
+                _rupturedAt ??= Time - StagedRuptureSeconds;
+                Look.Art.Effects.Rupture(mesh, frames[0], eye, Time - _rupturedAt.Value, DriversLocked);
+            }
+            else
+                _rupturedAt = null;
             // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
             if (Derailed)
             {
@@ -407,9 +430,10 @@ public sealed class GreyboxScene
         {
             var f0 = frames[0];
             var o = V(f0.ToWorld(new Double3(0, stack.Max.Y, stack.Centre.Z)), eye);
-            // Facing back down the engine (+Z, its back): the model faces its −Z.
-            var r = -ToF(f0.Right);
-            var b = -ToF(f0.Back);
+            // Facing forward along the boiler at the cab (note 276: the stack's at the rear now): the model faces its −Z, as
+            // the engine does.
+            var r = ToF(f0.Right);
+            var b = ToF(f0.Back);
             var basis = Art.CreatureArt.Basis(o, r, ToF(f0.Up), b);
             if (down < 0 || !perching.Draw(mesh, "stoker", "descend", down, false, basis))
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
@@ -778,7 +802,7 @@ public sealed class GreyboxScene
             if (age < DollFlicker && (int)(age * 30) % 2 == 0)
             {
                 if (creatures is not null)
-                    creatures.DollHolding = toy >= 0 ? Look?.Art.Toy(toy) : null;
+                    creatures.DollHolding = toy >= 0 ? Look?.Art.Toy(toy, Bodies?.FirstOrDefault(b => b.Id == toy)?.Noise ?? default) : null;
                 DrawEnemy(mesh, line, frames, was, eye, from, to, creatures);
                 if (creatures is not null)
                     creatures.DollHolding = null;
@@ -2440,6 +2464,11 @@ public sealed class GreyboxScene
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);
+            if (engine && Ruptured)
+                Look.Art.RuptureTear(mesh, frame, eye);
+            // The lamp out (switched off, or a Climber's smashed it): the lens dark glass over the art's lit one.
+            if (engine && !LampLit)
+                Look.Art.HeadlampOut(mesh, frame, eye);
             CarWorkings(mesh, frame, eye, Draw);
             if (engine)
             {
@@ -2482,9 +2511,10 @@ public sealed class GreyboxScene
         double half = shape.HalfLength;
         if (engine)
         {
-            // The headlamp: dark under emergency lighting.
-            mesh.Emissive = 1;
-            Draw(Box.FromCentre(new Double3(0, 2.8, -half - 0.05), new Double3(0.35, 0.35, 0.1)), Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
+            // The headlamp, on the cab's nose (note 276): dark under emergency lighting, and out when it's switched off or smashed.
+            mesh.Emissive = LampLit ? 1 : 0;
+            Draw(Box.FromCentre(new Double3(0, Sim.World.LampHeight, -half - 0.05), new Double3(0.35, 0.35, 0.1)),
+                !LampLit ? Palette.SootBlack : Emergency ? Palette.LampAmber * 0.08f : Palette.LampAmber);
             mesh.Emissive = 0;
         }
         CarWorkings(mesh, frame, eye, Draw);
@@ -2731,43 +2761,7 @@ public sealed class GreyboxScene
         _bendsFor = Route?.Plan;
         _bends = [];
         if (Route?.Plan is { } plan)
-        {
-            foreach (var b in plan.Signage.Where(b => b is { Type: "speedBoard", Edge: "main", Required: true, Value: > 0 }))
-            {
-                // Note 266 (build 1121, "a maximum speed ... not on curves"): a board for something that isn't a bend (brass,
-                // a weak bridge) is inked over its own stretch, with what it's for; it was put on the nearest curve, however gentle.
-                var demand = b.For is null ? null : plan.Authority.Demands.FirstOrDefault(d => d.Id == b.For);
-                if (demand is { Type: DemandType.Brass or DemandType.WeakBridge })
-                {
-                    var limit = plan.Authority.Limits.FirstOrDefault(l => l.Edge == "main" && Math.Abs(l.S0 - demand.SReq) < 1);
-                    if (limit is null)
-                        continue;
-                    int posted = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int p0) ? p0 : (int)(b.Value!.Value * 3.6);
-                    _bends.Add((Math.Clamp(limit.S0, 0, length), Math.Clamp(Math.Max(limit.S1, limit.S0 + 10), 0, length), posted,
-                        demand.Type == DemandType.Brass ? "BRASS" : "BRIDGE"));
-                    continue;
-                }
-                // The bend it stands before: the sharpest curve in the next 600 m, and as far either side as it's nearly as sharp.
-                double kMax = 0, sMax = b.S;
-                for (double s = b.S; s <= Math.Min(length, b.S + 600); s += 5)
-                {
-                    double k = Math.Abs(line.Sample(RailLine.MainPath, s).Curvature);
-                    if (k > kMax)
-                        (kMax, sMax) = (k, s);
-                }
-                // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
-                if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
-                    continue;
-                double s0 = sMax, s1 = sMax;
-                while (s0 > b.S && Math.Abs(line.Sample(RailLine.MainPath, s0 - 5).Curvature) > kMax * 0.6)
-                    s0 -= 5;
-                while (s1 < length && s1 < b.S + 900 && Math.Abs(line.Sample(RailLine.MainPath, s1 + 5).Curvature) > kMax * 0.6)
-                    s1 += 5;
-                // The board's own figure (rounded down to the 5 the boards are painted in), so the map and the board agree.
-                int kmh = int.TryParse(b.Text, System.Globalization.CultureInfo.InvariantCulture, out int painted) ? painted : (int)(b.Value!.Value * 3.6);
-                _bends.Add((s0, Math.Max(s1, s0 + 10), kmh, null));
-            }
-        }
+            _bends = LineGen.PostedSpeeds.Of(plan, line, length);
         else
             foreach (var sign in BoardList().Where(b => b.Kind == SignKind.SpeedLimit && b.Limit > 0))
                 if (Math.Clamp(sign.End, 0, length) > Math.Clamp(sign.Start, 0, length))
@@ -2809,12 +2803,13 @@ public sealed class GreyboxScene
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
+            // (Placed through the backhead's frame: behind its face is in the fire, wherever the backhead stands: note 276.)
+            if (shape.Cab is not null && shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox) && FireGlow > 0)
             {
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
+                draw(Box.FromCentre(Art.TrainKit.InFirebox(shape, 0, 0.09), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
                 // (Open, with the art pass's fire, the bed is its heap of coals: Art.Effects.Furnace.)
                 if (!FireDoorOpen || Look?.Art.Effects is not { HasFlames: true })
-                    draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+                    draw(Box.FromCentre(Art.TrainKit.InFirebox(shape, -0.15, 0.07), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
             // A Stoker in the fire: soot coming down in the cab (Art.Effects.SootFall).
@@ -2829,12 +2824,14 @@ public sealed class GreyboxScene
             if (!FireDoorOpen && Look is not null)
                 Look.Art.FireDoorShut(mesh, frame, eye, FireGlow, FireColour(1));
             // The door open, the art pass's fire: flames off the bed, cinders out of the hole, its light into the cab.
-            if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx)
-                foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                {
-                    var bed = frame.ToWorld(i.Position + new Double3(0, 0.6, -0.17)).RelativeTo(eye);
-                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time, SinceShovel);
-                }
+            // (Its "back", towards the cab, is out of the backhead's face: the engine's −Z, cab forward, note 276.)
+            if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx && shape.Cab is not null && shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox))
+            {
+                var bed = frame.ToWorld(Art.TrainKit.InFirebox(shape, -0.1, -0.03)).RelativeTo(eye);
+                var toCab = ToF(frame.DirToWorld(Art.TrainKit.OutOfBackhead(shape)));
+                var across = Vector3.Cross(ToF(frame.Up), toCab);
+                fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
+            }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))

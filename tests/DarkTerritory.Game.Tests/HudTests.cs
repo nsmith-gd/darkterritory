@@ -71,7 +71,9 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 };
+            // On the cab's side of it (cab forward, note 276: the firebox is in the back wall, the cab ahead of it).
+            double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
+            p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
         }
         s.Player = At(InteractableKind.Firebox);
@@ -102,11 +104,13 @@ public class HudTests
         // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says what it is and that it's loud;
         // the vent's one key is on the driving prompt with the brake's, and held, the prompt says it's working.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        var firebox = s.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
-        var at = new Double3(0.55, 0, firebox.Position.Z + 0.6);
-        s.Player = LookingAt(s, at, InteractableKind.Whistle);
+        // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
+        var shape = s.Train.Frames[0].Shape;
+        var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
+        var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);
+        s.Player = LookingAt(s, cord.Position + new Double3(-0.3, 0, 0.4), InteractableKind.Whistle);
         Assert.Equal("[E] HOLD: WHISTLE (LOUD: THE CHOIR HEARS IT)   OR [H]", Hud.Prompt(s));
-        s.Player = LookingAt(s, at, InteractableKind.Firebox);
+        s.Player = LookingAt(s, firebox.Position + new Double3(0.35, 0, -0.45), InteractableKind.Firebox);
         Assert.Equal("[E] HOLD: SHOVEL COAL (FASTER)", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         Assert.Contains("[VENT] HOLD: VENT", Hud.Prompt(s));
@@ -116,7 +120,8 @@ public class HudTests
         Assert.StartsWith("VENTING STEAM: PRESSURE", Hud.Prompt(s));
         s.Train.Boiler.Vented = false;
 
-        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, the boiler's read-out too.
+        // The engine's panel in the cab is the speed and the levers, two lines; out of the cab, nothing (hud-look: "too much
+        // UI ... not enough in world"): the driver's gauges are in the cab.
         static int TopLeft(Overlay o) => o.Vertices.Count(v => v.Position.X < 160 && v.Position.Y < 46);
         var hud = new Overlay();
         Hud.Build(hud, 480, 270, s);
@@ -124,7 +129,8 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 1, 0, s.PlayerTuning);
         Hud.Build(hud, 480, 270, s);
         int roof = TopLeft(hud);
-        Assert.True(cab < roof * 0.7, $"the cab's engine panel ({cab} vertices) isn't lighter than the roof's ({roof})");
+        Assert.True(cab > 0, "the cab has its panel");
+        Assert.Equal(0, roof);
     }
 
     [Fact]

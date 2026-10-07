@@ -50,33 +50,36 @@ public static class UiStyle
     }
 
     /// <summary>A keycap with <paramref name="key"/> on it, its top-left at (x, y); returns its width.</summary>
-    public static float Keycap(Overlay o, float x, float y, string key)
+    public static float Keycap(Overlay o, float x, float y, string key, float scale = 1)
     {
-        float w = o.Font.Measure(key) + 6, h = o.Font.Height + 5;
-        x = MathF.Round(x);
-        y = MathF.Round(y);
-        o.Rect(x, y + 1, w, h, Shadow);
-        o.Rect(x, y, w, h - 1, Enamel with { W = 0.92f });
-        o.Rect(x, y, w, 1, new Vector4(1, 0.97f, 0.88f, 0.95f));
-        o.Rect(x, y + h - 2, w, 1, new Vector4(0.5f, 0.47f, 0.4f, 1));
-        o.Text(x + 3, y + 2, key, EnamelInk, shadow: false);
+        float w = o.Measure(key, scale) + 6 * scale, h = (o.Font.Height + 5) * scale;
+        x = Snap(x, scale);
+        y = Snap(y, scale);
+        o.Rect(x, y + scale, w, h, Shadow);
+        o.Rect(x, y, w, h - scale, Enamel with { W = 0.92f });
+        o.Rect(x, y, w, scale, new Vector4(1, 0.97f, 0.88f, 0.95f));
+        o.Rect(x, y + h - 2 * scale, w, scale, new Vector4(0.5f, 0.47f, 0.4f, 1));
+        o.Text(x + 3 * scale, y + 2 * scale, key, EnamelInk, scale, shadow: false);
         return w;
     }
+
+    /// <summary>Rounds to the font's pixel at this scale (half a canvas pixel in fine print), so glyphs stay crisp.</summary>
+    static float Snap(float v, float scale) => MathF.Round(v / MathF.Min(1, scale)) * MathF.Min(1, scale);
 
     /// <summary>
     /// Text with its keys as keycaps: each "[KEY]" in <paramref name="text"/> drawn as a keycap, the rest as text. Returns
     /// the width; <see cref="MeasureKeyed"/> measures it without drawing.
     /// </summary>
-    public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour)
+    public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour, float scale = 1)
     {
         float at = x;
         foreach (var (part, key) in Parts(text))
-            at += key ? Keycap(o, at, y - 2, part) + 3 : o.Text(at, y, part, colour) + 1;
+            at += key ? Keycap(o, at, y - 2 * scale, part, scale) + 3 * scale : o.Text(at, y, part, colour, scale) + scale;
         return at - x;
     }
 
-    public static float MeasureKeyed(Overlay o, string text) =>
-        Parts(text).Sum(p => p.Key ? o.Font.Measure(p.Text) + 6 + 3 : o.Font.Measure(p.Text) + 1);
+    public static float MeasureKeyed(Overlay o, string text, float scale = 1) =>
+        Parts(text).Sum(p => p.Key ? o.Measure(p.Text, scale) + 9 * scale : o.Measure(p.Text, scale) + scale);
 
     static IEnumerable<(string Text, bool Key)> Parts(string text)
     {

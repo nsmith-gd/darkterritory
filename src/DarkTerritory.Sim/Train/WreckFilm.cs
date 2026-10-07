@@ -30,6 +30,8 @@ namespace DarkTerritory.Sim.Train;
 /// <param name="FirstPersonRate">The first-person beat plays the recording this slowly (recorded seconds a real second), from
 /// the derail to <paramref name="FirstPersonAfter"/> real seconds past your own death, within
 /// <paramref name="FirstPersonMin"/>-<paramref name="FirstPersonMax"/> s.</param>
+/// <param name="TaskHold">A body goes into the wreck as it was at its work (<see cref="FilmTask"/>, App. F.2 take 4): its muscles
+/// hold that pose this long (recorded s) before they go over to the brace.</param>
 /// <param name="ShotFill">A player's shot frames them this tall (a share of the frame's height; E.4 O6 asks 25-60%), by its
 /// field of view, between <paramref name="FovMin"/> and <paramref name="FovMax"/> degrees.</param>
 public sealed record FilmTuning(
@@ -40,7 +42,7 @@ public sealed record FilmTuning(
     double SimRadius = 300, double SeatKick = 6, double SeatClear = 0.25, double ImpactSpeed = 6, double ThudSpeed = 2, double ThudGap = 0.25,
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
-    double ShotFill = 0.45, double FovMin = 22, double FovMax = 60)
+    double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -66,7 +68,16 @@ public sealed record FilmCar(int Vehicle, Double3 Origin, Double3 Right, Double3
 /// <summary>A crewmate at the derail tick: where, how fast, which car they were in (−1 out of one), and what they were doing.</summary>
 /// <param name="Role">For the name card: "on the throttle", "at the firebox", "on the roof".</param>
 /// <param name="Seated">In the gun's seat (T112): thrown out of it (<see cref="FilmTuning.SeatKick"/>).</param>
-public sealed record FilmPlayer(int Id, string Name, string Role, Double3 Position, Double3 Velocity, double Yaw, int Inside, bool Seated = false);
+/// <param name="Task">What they were at (App. F.2 take 4: "people mid-task"): their body starts the film in its pose.</param>
+public sealed record FilmPlayer(int Id, string Name, string Role, Double3 Position, Double3 Velocity, double Yaw, int Inside, bool Seated = false,
+    FilmTask Task = FilmTask.None);
+
+/// <summary>
+/// What a crewmate was doing as the train came off (App. F.2, take 4: the third-person poses read "arms-up and awkward, not
+/// people mid-task"): each goes into the wreck from it, its body in that pose, held a moment (FilmTuning.TaskHold) before
+/// the brace takes over: on the throttle, at the shovel, in the gun's seat, carrying something in both arms.
+/// </summary>
+public enum FilmTask : byte { None, Driving, Firing, Gunning, Carrying }
 
 /// <summary>
 /// Everything the film is shot from (E.2 step 2): the cars, the couplings, the crew, the seed, and the cause card's words.
@@ -341,7 +352,7 @@ public sealed class WreckFilm
                     if (d.Body.Asleep)
                         continue;
                     var ps = d.Body.Particles;
-                    if (d.Alive && !d.Bystander)
+                    if (d.Alive && !d.Bystander && d.TaskUntil <= 0)
                         Reach(d, t, h);
                     Span<Double3> before = [ps[0].Position - ps[0].Previous, ps[1].Position - ps[1].Previous, ps[2].Position - ps[2].Previous];
                     var middle = Middle(ps);
@@ -377,6 +388,8 @@ public sealed class WreckFilm
                 int id = start.Players[k].Id;
                 if (!d.Alive)
                     continue;
+                if (d.TaskUntil > 0 && now >= d.TaskUntil)
+                    ToBrace(d);
                 // Alive till the hit that kills them (the director, take 3): they take their first hits, braced, and the
                 // next hard one kills; a crushing, or a hit past all surviving, kills whenever it comes.
                 bool hardened = d.Survived >= t.SurviveHits;
@@ -444,6 +457,8 @@ public sealed class WreckFilm
         public (double At, double Speed) LastHit;
         /// <summary>Where its muscles start in its constraints (the bones before them).</summary>
         public int Muscles;
+        /// <summary>Holding its work's pose till then (recorded s); then its muscles go over to the brace.</summary>
+        public double TaskUntil;
     }
 
     /// <summary>
@@ -471,6 +486,72 @@ public sealed class WreckFilm
         foreach (var p in ps)
             sum += p.Position - p.Previous;
         return sum * (1.0 / ps.Length);
+    }
+
+    /// <summary>Its work's pose given up: the muscles pull to the brace from here (and the hands go out, Reach).</summary>
+    static void ToBrace(Doll d)
+    {
+        d.TaskUntil = 0;
+        var cs = d.Body.Constraints;
+        for (int i = d.Muscles; i < cs.Length; i++)
+            cs[i] = cs[i] with { Length = (Brace[cs[i].A] - Brace[cs[i].B]).Length };
+    }
+
+    /// <summary>
+    /// The 11 joints (<see cref="Bodies.Skeleton"/>'s order: head, chest, pelvis, left elbow and hand, right elbow and hand,
+    /// left knee and foot, right knee and foot) of a body at its work, in its own frame (−Z ahead, feet at 0): laid bone by
+    /// bone from the pelvis along each bone's way, at the skeleton's own bone lengths, so the bones hold it as it is.
+    /// </summary>
+    public static Double3[] TaskPose(FilmTask task)
+    {
+        if (task == FilmTask.None)
+            return [.. Bodies.Skeleton.Select(j => j.At)];
+        // Per task: the pelvis, then each bone's way (normalised here): spine, neck, left upper arm and forearm, right upper
+        // arm and forearm, left thigh and shin, right thigh and shin.
+        (Double3 Pelvis, Double3[] Ways) p = task switch
+        {
+            // On the throttle: stood at the console, the right hand forward on the regulator, the left up on the brake.
+            FilmTask.Driving => (new(0, 0.95, 0.05),
+            [
+                new(0, 1, -0.15), new(0, 1, -0.1), new(-0.55, -0.4, -0.6), new(0.15, 0.25, -1), new(0.45, -0.55, -0.6), new(-0.05, 0.05, -1),
+                new(-0.15, -1, -0.15), new(0, -1, 0.1), new(0.15, -1, 0.05), new(0, -1, 0),
+            ]),
+            // At the shovel: bent into the swing, the blade low and forward, the knees bent, feet apart.
+            FilmTask.Firing => (new(0, 0.8, 0.15),
+            [
+                new(0, 0.6, -0.8), new(0, 0.5, -1), new(-0.3, -0.8, -0.5), new(0.25, -0.55, -0.8), new(0.4, -0.9, -0.2), new(-0.1, -0.5, -0.9),
+                new(-0.35, -0.8, -0.5), new(0, -1, 0.3), new(0.3, -0.9, 0.3), new(0, -1, 0.2),
+            ]),
+            // In the gun's seat: sat, the knees apart either side of the breech, the hands out either side of the breech on its handles (clear of the gun:
+            // the film holds it a solid).
+            FilmTask.Gunning => (new(0, 0.62, 0.1),
+            [
+                new(0, 1, -0.25), new(0, 1, -0.2), new(-0.5, -0.6, -0.3), new(-0.8, 0, -0.4), new(0.5, -0.6, -0.3), new(0.8, 0, -0.4),
+                new(-0.6, -0.3, -0.75), new(0, -1, 0.1), new(0.6, -0.3, -0.75), new(0, -1, 0.1),
+            ]),
+            // Carrying in both arms: leaned back against the load, the forearms under it in front.
+            _ => (new(0, 0.95, 0),
+            [
+                new(0, 1, 0.12), new(0, 1, 0.02), new(-0.35, -0.75, -0.55), new(0.2, 0.15, -1), new(0.35, -0.75, -0.55), new(-0.2, 0.15, -1),
+                new(-0.12, -1, -0.05), new(0, -1, 0), new(0.12, -1, 0.05), new(0, -1, 0),
+            ]),
+        };
+        var sk = Bodies.Skeleton;
+        double L(int a, int b) => (sk[a].At - sk[b].At).Length;
+        var j = new Double3[11];
+        var w = p.Ways;
+        j[2] = p.Pelvis;
+        j[1] = j[2] + w[0].Normalized * L(1, 2);
+        j[0] = j[1] + w[1].Normalized * L(0, 1);
+        j[3] = j[1] + w[2].Normalized * L(1, 3);
+        j[4] = j[3] + w[3].Normalized * L(3, 4);
+        j[5] = j[1] + w[4].Normalized * L(1, 5);
+        j[6] = j[5] + w[5].Normalized * L(5, 6);
+        j[7] = j[2] + w[6].Normalized * L(2, 7);
+        j[8] = j[7] + w[7].Normalized * L(7, 8);
+        j[9] = j[2] + w[8].Normalized * L(2, 9);
+        j[10] = j[9] + w[9].Normalized * L(9, 10);
+        return j;
     }
 
     /// <summary>Dead: its muscles let go, and it's a ragdoll (the bones hold, nothing else).</summary>
@@ -523,11 +604,15 @@ public sealed class WreckFilm
             var behind = gun.Car.Right * DMath.Sin(gun.Start.GunYaw) + gun.Car.Back * DMath.Cos(gun.Start.GunYaw);
             at += behind * t.SeatClear;
         }
-        var particles = Bodies.Skeleton.Select(j => new Particle(at + new Double3(j.At.X * c + j.At.Z * s, j.At.Y, -j.At.X * s + j.At.Z * c), 1, j.Radius)).ToArray();
+        var task = p.Seated ? FilmTask.Gunning : p.Task;
+        var pose = TaskPose(task);
+        var particles = Bodies.Skeleton.Select((j, i) => new Particle(at + new Double3(pose[i].X * c + pose[i].Z * s, pose[i].Y, -pose[i].X * s + pose[i].Z * c), 1, j.Radius)).ToArray();
         var bones = Bodies.Bones.Select(b => new DistanceConstraint(b.A, b.B, (Bodies.Skeleton[b.A].At - Bodies.Skeleton[b.B].At).Length, b.Stiffness)).ToArray();
         bool bystander = cars.All(car => Outside(car, p.Position) > t.Bystander);
         // Alive, braced: the muscles hold the brace's shape over the bones (a bystander stands, then goes limp with no muscles).
-        var muscles = MusclePairs.Select(m => new DistanceConstraint(m.A, m.B, (Brace[m.A] - Brace[m.B]).Length, bystander ? 0 : t.Muscle)).ToArray();
+        // (At work, they hold the work's pose first: TaskHold, then the brace.)
+        var held = task == FilmTask.None ? Brace : pose;
+        var muscles = MusclePairs.Select(m => new DistanceConstraint(m.A, m.B, (held[m.A] - held[m.B]).Length, bystander ? 0 : t.Muscle)).ToArray();
         var body = new PbdBody(particles, [.. bones, .. muscles]) { Friction = 0.3, Bounce = 0.2, Iterations = 6 };
         double kick = rng.Range(t.KickMin, t.KickMax), spin = rng.Range(Math.Min(t.SpinMin, t.Spin), t.Spin);
         var axis = new Double3(rng.Range(-1, 1), rng.Range(-0.3, 0.3), rng.Range(-1, 1));
@@ -556,7 +641,7 @@ public sealed class WreckFilm
             var tumble = Double3.Cross(axis * spin, particles[i].Position - centre);
             particles[i].SetVelocity(bystander ? Double3.Zero : v + tumble, Dt / t.Substeps);
         }
-        return new Doll(body, p.Inside, bystander ? 0.8 : 0) { Muscles = bones.Length };
+        return new Doll(body, p.Inside, bystander ? 0.8 : 0) { Muscles = bones.Length, TaskUntil = task == FilmTask.None ? 0 : t.TaskHold };
     }
 
     /// <summary>The car whose gun a point is at (within 2.5 m of its pivot), for the gunner's start.</summary>

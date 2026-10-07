@@ -297,17 +297,35 @@ public static class PlayerMotor
     /// <summary>Stands a player on the cab floor, facing forward: where the conductor and fireman work.</summary>
     public static PlayerState SpawnInCab(TrainOnLine train, PlayerTuning p, double localX = 0)
     {
-        var cab = train.Frames[0].Shape.Cab ?? throw new InvalidOperationException("engine has no cab");
+        var shape = train.Frames[0].Shape;
+        var cab = shape.Cab ?? throw new InvalidOperationException("engine has no cab");
         return new PlayerState
         {
             Parent = 0,
-            Position = new Double3(localX, cab.Min.Y + 0.1, cab.Centre.Z),
+            Position = new Double3(localX, cab.Min.Y + 0.1, CabFloorZ(shape)),
             Surface = Surface.Deck,
             Health = p.Health,
             LineHint = train.Cars[0].FrontDistance,
             Kit = p.StartingKit,
         };
     }
+
+    /// <summary>
+    /// Where along the cab a crewmate's put in it: on the footplate's open floor, clear across the cab's width, so a spawn
+    /// to either side lands on the boards. Cab forward (note 276), that's the strip between the driver's console and the
+    /// coal bunker, which stands along the left wall at the cab's middle; a cab without one, its middle.
+    /// </summary>
+    public static double CabFloorZ(CarShape shape)
+    {
+        var cab = shape.Cab!.Value;
+        foreach (var solid in shape.Solids)
+            if (solid.Part == PartKind.Tender && cab.ContainsXZ(solid.Box.Centre))
+                return (cab.Min.Z + ConsoleDepth + solid.Box.Min.Z) / 2;
+        return cab.Centre.Z;
+    }
+
+    /// <summary>How far back from the cab's front the driver's console stands (m): the floor starts behind it.</summary>
+    const double ConsoleDepth = 0.6;
 
     /// <summary>True when standing inside the engine's cab.</summary>
     public static bool InCab(in PlayerState s, TrainOnLine train) =>
@@ -699,14 +717,10 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
-        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame.
         if (train.Walls is { } walls)
             foreach (var w in walls.Near(world))
-            {
-                var local = w.ToLocal(world);
-                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
-                world = w.ToWorld(PushOut(local, box, p));
-            }
+                world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
         return world;
     }
 

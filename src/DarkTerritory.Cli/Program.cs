@@ -847,7 +847,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (args.Contains("--coaling") && generated is not null && tower is not null)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
-        at = run.ChuteAt(tower, line).SpoutAlong + t.Geometry.EngineLength - t.Geometry.Engine.TenderLength / 2;
+        at = run.ChuteAt(tower, line).SpoutAlong + EnginePlan.Of(t.Geometry).CoalFromFront;
         int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
         run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
     }
@@ -955,6 +955,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Uncouple((int)cutAt);
         for (int i = 0; i < SimConstants.TickRate * 12; i++)
             train.Step(SimConstants.TickSeconds, new TrainControls { Throttle = i < SimConstants.TickRate * 6 ? 1 : 0, Brake = i < SimConstants.TickRate * 6 ? 0 : 1, Reverser = 1 });
+    }
+    // --ruptured s: the train as the rupture leaves it s seconds on: dragged down from --speed (20) at ruptureDecel to
+    // coasting speed (boiler.json; the drivers sliding till then), so the burst's steam and the sparks are laid back right.
+    if (args.Contains("--ruptured"))
+    {
+        var rbt = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
+        train.Dynamics.Velocity = Math.Max(Math.Min(rbt.RuptureCoastBelow, Opt(args, "--speed", 20)), Opt(args, "--speed", 20) - rbt.RuptureDecel * Opt(args, "--ruptured", 0.8));
+        train.RefreshFrames();
     }
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
@@ -1259,6 +1267,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
         LampRange = strandedAt >= 0 ? 400 : 60,
+        // --headlamp-out: the engine's lamp switched off or smashed (World.LampShining false): its lens dark, no beam.
+        LampLit = !args.Contains("--headlamp-out"),
         RoofGlow = strandedAt >= 0,
         FireDoorOpen = args.Contains("--firedoor") || args.Contains("--stoker") || args.Contains("--flare"),
         // --flare s: s seconds after a shovelful landed (default 0.15), the firebox flaring (§31).
@@ -1271,7 +1281,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
-        FireGlow = args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
+        FireGlow = args.Contains("--ruptured") ? 0 : args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
         StagedSpray = args.Contains("--spray"),
         // --derailed s: off the rails s seconds ago (its sparks, dust and boiler burst).
@@ -1282,6 +1292,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),
+        // --ruptured s: the boiler burst s seconds ago (default 0.8: the blast at its height; 30 for the hiss after), spec
+        // B.6, GDD §23; the drivers seized and sliding while she's still dragging down to coasting speed.
+        // --strain x: every car straining round a bend that hard (0..1, BendStrain: 1 is coming off), its outer rail on the
+        // right; the flange sparks of the overspeed telegraph.
+        BendStrain = args.Contains("--strain") ? [.. train.Frames.Select(_ => ((float)Opt(args, "--strain", 0.8), 1))] : null,
+        Ruptured = args.Contains("--ruptured"),
+        StagedRuptureSeconds = Opt(args, "--ruptured", 0.8),
+        DriversLocked = args.Contains("--ruptured") && Opt(args, "--speed", 20) - DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).RuptureDecel * Opt(args, "--ruptured", 0.8)
+            > DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).RuptureCoastBelow,
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
@@ -1312,6 +1331,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
         scene.Bodies = Staging.GauntLoad(train, content, leaving).All;
+    // --wreck-poses: the derailment film's crew as each goes into the wreck from their work (App. F.2 take 4; WreckFilm.TaskPose):
+    // on the throttle, at the shovel, in the gun's seat, carrying; stood in a row on the ballast off car --car's right (--view flanges).
+    if (args.Contains("--wreck-poses"))
+    {
+        var by = train.Frames[Math.Min((int)Opt(args, "--car", 2), train.Frames.Count - 1)];
+        var tasks = new[] { FilmTask.Driving, FilmTask.Firing, FilmTask.Gunning, FilmTask.Carrying };
+        var posed = tasks.Select((task, k) =>
+        {
+            var at = new Double3(2.6, 0, -by.Shape.HalfLength * 0.6 + k * 1.3);
+            var joints = WreckFilm.TaskPose(task).Select(j => new Ballast.Physics.Particle(by.ToWorld(at + j), 1, 0.1)).ToArray();
+            return new DarkTerritory.Sim.Physics.Body(-1 - k, DarkTerritory.Sim.Physics.BodyKind.Ragdoll, DarkTerritory.Sim.Player.PlayerState.World,
+                new Ballast.Physics.PbdBody(joints))
+            { Owner = k + 1 };
+        });
+        scene.Bodies = [.. scene.Bodies ?? [], .. posed];
+    }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -1411,8 +1446,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
     // --dawn t: the dawn that far up (0 night .. 1 dawn; look.json atmosphere.dawn).
     var lighting = Views.Lighting(train, look, (float)Opt(args, "--dawn", 0));
-    if (args.Contains("--emergency"))
-        lighting.LampRange = 0.01f; // emergency lighting: no power to the headlamp
+    if (args.Contains("--emergency") || args.Contains("--headlamp-out"))
+        lighting.LampRange = 0.01f; // emergency lighting (or the lamp out): no light from the headlamp
     if (route is not null)
     {
         lighting.FogDensity = (float)route.Weather.FogDensity;
@@ -2002,7 +2037,9 @@ static object HudShot(string content, string[] args)
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
     using var gpu = new GpuContext("dt screenshot --hud");
-    using var renderer = new GreyboxRenderer(gpu, width, height);
+    // Drawn at the scaled size with the HUD's canvas laid over it, as the app draws it at a window's size: the prompt's fine
+    // print (Hud.PromptScaleAt) only shows as it will with real pixels under it.
+    using var renderer = new GreyboxRenderer(gpu, width * scale, height * scale) { OverlaySize = new System.Numerics.Vector2(width, height) };
     var mesh = new MeshBuilder();
     var look = Looked(content, args);
     look?.Dress(renderer);
@@ -2044,7 +2081,7 @@ static object HudShot(string content, string[] args)
             var still = new MeshBuilder();
             Scene([.. figures.Where(f => f.Id != b.Viewer).Select(f => DarkTerritory.Game.Art.CrewActs.Crewmate((byte)f.Id, f.State, session.World, frames))])
                 .Build(still, session.Train.Line, frames, session.Train.Dynamics.Distance, shot.Position);
-            stills.Keep(b, renderer.Render(still, shot, lighting, lighting.FogColor), width, height);
+            stills.Keep(b, renderer.Render(still, shot, lighting, lighting.FogColor), width * scale, height * scale);
         }
         // --stills dir: the night's stills kept as the app keeps them past the run end (note 203), a folder for the night in dir.
         if (Str(args, "--stills", "") is { Length: > 0 } dir)
@@ -2052,7 +2089,7 @@ static object HudShot(string content, string[] args)
     }
     var hud = new Overlay();
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
-    Hud.Build(hud, width, height, session, commendations: args.Contains("--commend")
+    Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills);
@@ -2083,7 +2120,7 @@ static object HudShot(string content, string[] args)
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, hud);
-    PngWriter.Write(output, pixels, width, height, scale);
+    PngWriter.Write(output, pixels, width * scale, height * scale, 1);
     return new
     {
         path = Path.GetFullPath(output),

@@ -310,8 +310,10 @@ public sealed class PrototypeSession : IPlaySession
                 parts.Add("a switch ahead set wrong");
             else if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
                 parts.Add("the rear car's being eaten");
-            else if (e is TrackDoll { Phase: SpinePhase.Punish, Extra2: 1 } && !parts.Contains("THE DOLL'S IN THE CAB"))
+            else if (e is TrackDoll { Tampering: true } && !parts.Contains("THE DOLL'S IN THE CAB"))
                 parts.Add("THE DOLL'S IN THE CAB");
+            else if (e is TrackDoll { Restless: true } doll && !parts.Contains("the doll's restless: get her off the train"))
+                parts.Add(doll.Stage == 1 ? "the doll's restless: she's eyeing the cab" : "the doll's restless: get her off the train");
         }
         return parts.Count == 0 ? "" : " | " + string.Join(" · ", parts);
     }

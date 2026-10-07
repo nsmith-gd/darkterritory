@@ -231,7 +231,8 @@ public class EnemyTests
             // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
             if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed)
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
-            var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
+            // Any running hound: the director's own pack too (its dice can send one in the 90 s).
+            var target = n.World.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
             // Nothing to shoot at: a gunner with no restraint fires anyway.
             if (target is null)
                 return fireAtRange(double.PositiveInfinity) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;

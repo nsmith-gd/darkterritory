@@ -82,6 +82,9 @@ static class PlaythroughCommands
             scene.Wreck = train.Wreck;
             scene.Derailed = world.Derailed;
             scene.FireDoorOpen = train.Boiler.FireDoorOpen;
+            scene.Ruptured = train.Boiler.Ruptured;
+            scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
+            scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
             scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
