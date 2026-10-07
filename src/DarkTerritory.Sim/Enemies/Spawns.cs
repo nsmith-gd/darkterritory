@@ -110,14 +110,20 @@ public static class Spawns
             c.Add(i => CarHugger.Lurking(i, at, c.Director.NextRange(0, 1) < 0.5 ? -1 : 1, c.Tuning.CarHugger));
             return true;
         }),
-        // B.4 · Climbers: at least two coupling gaps and a minimum speed; weight scales with the gap count.
+        // B.4 · Climbers: at least two coupling gaps and a minimum speed; weight scales with the gap count. Boarding-first
+        // (GDD App. F.1, note 286): they get a grip only on a slow train, so at speed they come rarely (and pace it, waiting
+        // for it to slow), and slow on a tight bend more often.
         new(EnemyKind.Climber, c =>
         {
             var t = c.Tuning.Climbers;
             var gaps = CrewSense.Gaps(c.Train);
-            if (gaps.Count < t.MinGaps || c.Train.Dynamics.Speed < t.MinSpeed || !c.None(EnemyKind.Climber))
+            double v = c.Train.Dynamics.Speed;
+            if (gaps.Count < t.MinGaps || v < t.MinSpeed || !c.None(EnemyKind.Climber))
                 return null;
-            return t.PerGapWeight * gaps.Count;
+            double w = t.PerGapWeight * gaps.Count;
+            if (v >= t.MountBelow)
+                return w * t.AtSpeedWeight;
+            return Boarding.OnTightBend(c.Train, t.TightBendRadius, t.BendAheadM) ? w * t.BendWeight : w;
         }, c =>
         {
             var t = c.Tuning.Climbers;
@@ -141,21 +147,39 @@ public static class Spawns
             return true;
         }),
         // B.4 · Draggers: a train of two or more, dormant until someone's on the roofs; weight up per roof walker.
+        // Boarding-first (GDD App. F.1, note 286): they get under a car only while the train's slow (a stop, a tight bend),
+        // and wait there for someone to walk its roof; on a train at speed they can't get on at all.
         new(EnemyKind.Dragger, c =>
         {
             var t = c.Tuning.Draggers;
             int onRoofs = c.Living.Count(p => p.State.Surface == Surface.Roof && p.State.Parent > 0);
-            if (c.Train.Dynamics.Consist.CarCount < t.MinCars || onRoofs == 0
+            bool boardsSlow = t.BoardBelow < double.MaxValue;
+            if (c.Train.Dynamics.Consist.CarCount < t.MinCars || !boardsSlow && onRoofs == 0
+                || boardsSlow && c.Train.Dynamics.Speed >= t.BoardBelow
                 || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Dragger) >= t.MaxAttached)
                 return null;
-            return onRoofs;
+            if (!boardsSlow)
+                return onRoofs;
+            var climbers = c.Tuning.Climbers;
+            return (1 + onRoofs) * (Boarding.OnTightBend(c.Train, climbers.TightBendRadius, climbers.BendAheadM) ? t.BendWeight : 1);
         }, c =>
         {
             var walked = c.Living.Where(p => p.State.Surface == Surface.Roof && p.State.Parent > 0 && p.State.Parent < c.Train.Frames.Count).ToList();
-            if (walked.Count == 0)
-                return false;
-            var on = walked[(int)c.Director.NextRange(0, walked.Count - 1e-9)].State;
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+            if (walked.Count == 0)
+            {
+                if (c.Tuning.Draggers.BoardBelow == double.MaxValue)
+                    return false;
+                // Nobody up yet: under any car of the rake, to wait for whoever walks it.
+                var cars = c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0).Select(v => v.Id).ToList();
+                if (cars.Count == 0)
+                    return false;
+                int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+                double along = c.Director.NextRange(-0.4, 0.4) * c.Train.Frames[car].Shape.HalfLength * 2;
+                c.Add(i => Dragger.Under(i, c.Train, car, side, along));
+                return true;
+            }
+            var on = walked[(int)c.Director.NextRange(0, walked.Count - 1e-9)].State;
             c.Add(i => Dragger.Under(i, c.Train, on.Parent, side, on.Position.Z + c.Director.NextRange(-4, 4)));
             return true;
         }),
@@ -182,7 +206,8 @@ public static class Spawns
         new(EnemyKind.TippyToesie, c =>
         {
             var t = c.Tuning.TippyToesie;
-            if (c.Crew < t.MinCrew || !c.None(EnemyKind.TippyToesie))
+            // Boarding-first (GDD App. F.1, note 286): it slips aboard at a stop, and stays hidden aboard after.
+            if (c.Crew < t.MinCrew || !c.None(EnemyKind.TippyToesie) || c.Train.Dynamics.Speed >= t.BoardBelow)
                 return null;
             int idle = c.Living.Count(p => c.World.IdleSeconds.GetValueOrDefault(p.Id) >= t.IdleSeconds
                 && !c.Living.Any(o => o.Id != p.Id && (PlayerMotor.WorldPosition(o.State, c.Train) - PlayerMotor.WorldPosition(p.State, c.Train)).Length <= t.AloneRadius));
@@ -324,7 +349,9 @@ public static class Spawns
         {
             if (Switchman.Junction(c.World, c.Tuning.Switchman) is not { } junction)
                 return false;
-            bool derail = c.Director.NextRange(0, 1) < c.Tuning.Switchman.DerailChance;
+            // The director's decision of 7 Oct 2026 (note 286): it never throws points under the train unless a mod asks it to
+            // (the draw is kept either way, so the director's dice run as they did).
+            bool derail = c.Director.NextRange(0, 1) < c.Tuning.Switchman.DerailChance && c.Tuning.Switchman.ThrowsUnderTrain;
             c.Add(i => Switchman.At(i, junction, c.Tuning.Switchman, c.World.Switches?.Tuning.LeverOffset ?? 2.6, derail));
             return true;
         }),
@@ -348,9 +375,12 @@ public static class Spawns
         }),
     ];
 
-    /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).</summary>
+    /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).
+    /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
+    /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
     static List<int> LitCars(SpawnContext c) =>
-        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null).Select(v => v.Id)];
+        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null
+            && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
 
     public static SpawnRule? For(EnemyKind kind) => Rules.FirstOrDefault(r => r.Kind == kind);
 }

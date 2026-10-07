@@ -429,10 +429,9 @@ public sealed class FireFlies(int id) : Enemy(id)
                 int into = Attached;
                 double along = Local.Z;
                 ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
-                // C.9's Fire Flies row (note 190): who last lit that car's lamp.
-                int lit = ctx.World.Attribution.LampLitBy(into);
-                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit,
-                    lit >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.", into));
+                // C.9's Fire Flies row (note 190): what drew them, the car's lamp, and who relit it if anyone did (T131, note 286).
+                var (lit, drawn) = Run.IncidentLog.FireFliesDrawn(ctx.World, into);
+                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit, drawn, into));
             }
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);

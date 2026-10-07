@@ -139,7 +139,11 @@
   "tippyToesie": {
     "idleSeconds": 5, "idleBelow": 0.3, "aloneRadius": 8, "startBehind": 9, "approachSpeed": 0.6, "approachSpeedCrewOfTwo": 0.4,
     "seenDegrees": 50, "reach": 0.8, "suffocateSeconds": 20, "waitAfterSeen": 20, "maxFlees": 3, "health": 2, "minCrew": 2,
-    "perIdleWeight": 1
+    "perIdleWeight": 1,
+    // Boarding-first (GDD App. F.1, note 286): "nothing acts inside the train unless it boarded". It slips aboard only with
+    // the train under boardBelow (m/s: a stop), and stays hidden aboard after it until it's fled maxFlees times. Shut doors
+    // don't stop it: it opens them without a sound.
+    "boardBelow": 0.3
   },
 
   // FIRE FLIES · light · interior (App. A.5, B.5). On a lit car lamp in a dark section; left igniteSeconds, the car
@@ -148,7 +152,10 @@
   // is stopped." The director sends them only while the train's under stoppedBelow m/s, at stoppedWeight of their B.5
   // weight; and A.5's "pulls away at speed" is getting under way: pullAwaySpeed was 15 (ARCHITECTURE §8 note 269).
   "fireFlies": {
-    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5
+    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5,
+    // Boarding-first (GDD App. F.1, note 286): "shut doors stop some boarders". A lit car with every door and its hatch shut
+    // (and no breach) keeps them off its lamp: at a stop, it's the cars left open with their lamps lit that draw them.
+    "shutCarKeepsOut": true
   },
 
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
@@ -173,12 +180,17 @@
   // disperseQuietSeconds and they go.
   "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 15, "disperseQuietSeconds": 10, "around": 12 },
 
-  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
-  // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
-  // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
+  // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
+  // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
+  // cannon round (4 blows) or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that
+  // lead nowhere." throwsUnderTrain false: it never throws points under a train. True (a mod) brings back v1.1's derailing
+  // kind: derailChance of them grip the lever at gripAt m and throw it under the engine. A derailment comes only from
+  // running off the dead line's end (train.json overspeed.deadEndDerailAbove, warned in the cab a full lead ahead).
   "switchman": {
     "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5,
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5, "throwsUnderTrain": false, "killedSetsBack": true,
     // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
     // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
     "derailAbove": 6.9, "runThroughDamage": 0.25
@@ -197,7 +209,11 @@
   "draggers": {
     "grabRange": 1.0, "fastFrom": 14, "fastAt": 22, "fastGrabScale": 1.5, "reachAlong": 1.5, "creepSpeed": 1.2,
     "telegraphSeconds": 1.0, "allyRadius": 4, "freeSeconds": 2, "freeReach": 1.5, "aloneSeconds": 0.4, "pullSpeed": 3,
-    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2
+    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2,
+    // Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under boardBelow (m/s, 50 km/h: a
+    // stop, a slow bend), with or without anyone up top, and wait there lingerSeconds for someone to walk its roof; a train
+    // at speed never takes one on. bendWeight: as often again on a tight bend (climbers.tightBendRadius).
+    "boardBelow": 14, "bendWeight": 2
   },
 
   // STOKER · heat · interior (App. A.5, B.5; the Hollow merged in). The director's decision of 6 Oct 2026 (build 1121
@@ -240,7 +256,17 @@
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
-    "breachLitCars": false
+    "breachLitCars": false,
+    // Boarding-first (the director's decisions of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 286): "slowing opens the
+    // doors ... tight curves are where things board". They get a grip at the gap only with the train under mountBelow (m/s,
+    // 50 km/h). Faster, they run on alongside, pacing it (the telegraph: a pack beside the train, waiting for it to slow),
+    // and give it up waitForSlowSeconds after their pace; and the director sends them at speed at atSpeedWeight of their
+    // weight. Slow on a tight bend (radius tightBendRadius m or less under the train or within bendAheadM ahead: a frontier
+    // line's tightest, 300 m, is boarded at 14 m/s) they come bendWeight times as often. The counter: keep her over 50, or
+    // hold the gaps as she takes the bend. And the door rule: litShutCarKeepsOut, a lit car with every door and its hatch
+    // shut keeps them out (they go over it); a dark one they force through the roof, as above.
+    "mountBelow": 14, "waitForSlowSeconds": 30, "atSpeedWeight": 0.25, "tightBendRadius": 350, "bendAheadM": 300, "bendWeight": 3,
+    "litShutCarKeepsOut": true
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its

@@ -746,6 +746,13 @@ public static class Hud
             Big(bend.Head, bend.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber);
             Small(bend.Line, Ink);
         }
+        // Note 286 (the director, 7 Oct 2026: "lines that lead nowhere"): down a dead line, to whoever's in the cab; and its
+        // buffers coming up too fast to stop under the speed that goes through them, urgent, as a bend's warning is.
+        else if (DeadEndLines(s) is { } dead)
+        {
+            Big(dead.Head, dead.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber);
+            Small(dead.Line, Ink);
+        }
         // T113: the Choir's long telegraph, said plainly once it's well along, and what to do about it.
         if (p.Alive && world.Combat is not null && !world.Choir.Present && world.Choir.Build > 0.25)
             Small("THE CHOIR IS GATHERING: GO QUIET", world.Tick / 15 % 2 == 0 ? Red : Amber);
@@ -1216,6 +1223,25 @@ public static class Hud
         if (b.Stress >= t.LurchAt)
             return ("THE BEND IS PULLING HARD", $"{kmh} KM/H, OVER ITS BOARD: EASE OFF", false);
         return null;
+    }
+
+    /// <summary>
+    /// The cab's dead-line warning (note 286), or null: in the cab with the engine down a dead line (the Switchman's work, or
+    /// a switch set wrong), what to do; and with its buffers coming up faster than it can stop under the speed that goes
+    /// through them (Sim.Train.DeadEnds.Assess), urgent. From the line and the train as this machine has them.
+    /// </summary>
+    public static (string Head, string Line, bool Urgent)? DeadEndLines(IPlaySession s)
+    {
+        var world = s.World;
+        if (world.Derailed || !s.Player.Alive || !PlayerMotor.InCab(s.Player, s.Train))
+            return null;
+        var d = Sim.Train.DeadEnds.Assess(s.Train, s.Train.Dynamics.Tuning.Overspeed);
+        if (!d.OnDeadLine)
+            return null;
+        int kmh = (int)Math.Round(s.Train.Dynamics.Speed * 3.6), over = (int)Math.Round(d.DerailMs * 3.6);
+        if (d.Warning)
+            return ("BUFFERS AHEAD: THE LINE ENDS", $"END OF THE LINE IN {d.AheadM:0} M, OFF IT OVER {over} KM/H. YOU'RE AT {kmh}: BRAKE", true);
+        return ("DOWN A DEAD LINE", $"THE LINE ENDS IN {d.AheadM:0} M. STOP, BACK UP, SET THE POINTS BACK BY HAND", false);
     }
 
     /// <summary>

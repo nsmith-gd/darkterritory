@@ -166,9 +166,15 @@ public sealed class Passenger(int id) : Enemy(id)
 /// <summary>
 /// THE SWITCHMAN · vibration · corrupted human (GDD v1.1 §21, App. A.8). Half railway worker, half something spindly and
 /// wrong, waiting at a junction ahead: a tall figure at the lever in the headlamp, the junction lamp showing the wrong signal
-/// (it's thrown it). The train takes the wrong route as it passes (a dead line: the clock's cost). Sometimes, instead, it
-/// throws the switch under the train to derail it, and that telegraphs too: it grips the lever and the lamp flickers, always
-/// in time to brake or fire. Rule: kill the Switchman before the switch. One cannon shot, or stop and club it.
+/// (it's thrown it). The train takes the wrong route as it passes: a dead line that leads nowhere, the clock's cost (stop,
+/// back out, and set the points back by hand). Rule: kill the Switchman before the switch. One cannon shot, or stop and
+/// club it; killed before the train's over its points, its lever falls back to the main line.
+/// <para>
+/// The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that lead
+/// nowhere." It never throws points under the train (v1.1's derailing kind is behind enemies.json
+/// <c>switchman.throwsUnderTrain</c>, off, for a mod). A derailment comes only from the driver running off the end of the
+/// dead line through its buffers, warned in the cab in time to stop (<see cref="Train.DeadEnds"/>).
+/// </para>
 /// </summary>
 /// <remarks><see cref="Enemy.Extra"/> is the branch whose switch it works; <see cref="Enemy.Extra2"/> is 1 when it means to derail.</remarks>
 public sealed class Switchman(int id) : Enemy(id)
@@ -195,6 +201,23 @@ public sealed class Switchman(int id) : Enemy(id)
         string what = Derailer ? "Split the Switchman's points under the engine" : "Switchman threw the train down the dead line";
         return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Points, what, gunner, cannon);
     }
+    /// <summary>
+    /// Killed (a cannon round, or clubbed) before the train's over its points: the lever falls back and the points go back to
+    /// the main line (note 286, enemies.json <c>switchman.killedSetsBack</c>): "kill the Switchman before the switch".
+    /// </summary>
+    public override void Struck(EnemyContext ctx, int by, double damage)
+    {
+        var was = Phase;
+        base.Struck(ctx, by, damage);
+        var train = ctx.Train;
+        if (!Gone || Derailer || !ctx.Tuning.Switchman.KilledSetsBack || was is not (SpinePhase.Dormant or SpinePhase.Telegraph)
+            || Branch < 0 || Branch >= train.Line.Branches.Count)
+            return;
+        var rake = train.Dynamics;
+        if (rake.Path == Rail.RailLine.MainPath && rake.Distance < train.Line.Branches[Branch].Toe - 1 && train.Diverging(Branch))
+            ctx.World.SetSwitch(Branch, false);
+    }
+
     /// <summary>Gripping the lever to throw it under the train (the derail's telegraph: the lamp flickers).</summary>
     public bool Gripping => Derailer && Phase == SpinePhase.Commit;
 
@@ -240,6 +263,8 @@ public sealed class Switchman(int id) : Enemy(id)
                     Enter(ctx, SpinePhase.Gone);
                     return;
                 }
+                if (!Derailer)
+                    ctx.World.SwitchmanThrew.Add(Branch);
                 if (ahead <= t.RevealAt)
                     Enter(ctx, SpinePhase.Telegraph);
                 return;
