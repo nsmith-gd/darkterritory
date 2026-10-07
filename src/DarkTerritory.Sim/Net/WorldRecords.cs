@@ -223,6 +223,8 @@ public static class WorldRecords
                 Physics.BodyKind.Toy => (long)body.Noise,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
+                // How far its carrier has got using a healing find (note 272), for their HUD.
+                Physics.BodyKind.Loot => body.MendTicks,
                 _ => (long)body.Cargo,
             };
             f[9] = body.Locker < 0 ? -1 : body.Locker * 256 + body.Slot;
@@ -461,10 +463,11 @@ public static class WorldRecords
             Yaw = D(f[5], Ang),
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] == Physics.BodyKind.Ragdoll ? (ulong)f[8] : 0,
-            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio ? CargoKind.None : (CargoKind)f[8],
+            Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot
+                ? CargoKind.None : (CargoKind)f[8],
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,
-            MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : 0,
+            MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)f[8] : 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
             TakenBy = (int)f[10],
