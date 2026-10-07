@@ -150,12 +150,12 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        Assert.Equal("THE FITTER'S LOCKER: THE REPAIR KIT   [E] OPEN", Hud.Prompt(s));
+        Assert.Equal("LOCKER 8: THE REPAIR KIT   [E] OPEN", Hud.Prompt(s));
         s.Train.Vehicles[car].ToggleLocker(bay.Index);
         Assert.Equal("[E] TAKE THE REPAIR KIT INTO YOUR HANDS   HOLD: SHUT", Hud.Prompt(s));
-        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
-        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class HudTests
         var s = new PrototypeSession(Content, "test-loop", 4);
         var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
         Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
-        Assert.Equal("THE FITTER'S LOCKER, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        Assert.Equal("LOCKER 8, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
         Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
         var hud = new Overlay();
         Hud.Supplies(hud, 480, 270, s);

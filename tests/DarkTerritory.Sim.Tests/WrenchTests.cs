@@ -66,7 +66,7 @@ public class WrenchTests
         Assert.False(Kit.Has(other.Kit, Tool.Wrench));
         // At the firebox with the wrench, held as long as a mend takes: nothing. It's a tool to swing (GDD §12).
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 }; // in front of the fire door (cab forward, note 276)
+        s.Position = s.Position with { X = firebox.X + 0.15, Z = firebox.Z + 0.45 }; // behind the fire door (note 280: at the cab's front)
         Hold(world, ref s, Tuning.Boiler.RepairSeconds + 1);
         Assert.True(train.Boiler.Ruptured);
         // With the repair kit in hand there: mended, cold and empty, and the kit still in hand.
@@ -93,7 +93,7 @@ public class WrenchTests
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
         // Note 151: on the fitter's bottom shelf, its door shut, ahead of the side door and clear of the aisle.
         var bay = shape.Lockers[kit.Locker];
-        Assert.Equal("FITTER", bay.Name);
+        Assert.Equal("8", bay.Name);
         Assert.Equal(0, kit.Slot);
         Assert.True(bay.Box.Contains(kit.Centre));
         Assert.False(world.Train.Vehicles[1].LockerOpen(bay.Index));

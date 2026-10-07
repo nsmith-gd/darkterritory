@@ -2025,9 +2025,9 @@ public sealed class CreatureArt
                     return true;
                 }
             case EnemyKind.Stoker when _models.ContainsKey("stoker") && FireDoorOpen is { } door:
-                // At the open door, looking out of it into the cab: cab forward (note 276), the firebox is in the cab's back
-                // wall, so the cab's ahead of it, the way the model faces (−Z).
-                m = Matrix4x4.CreateTranslation(door) * model;
+                // At the open door, looking out of it into the cab: the firebox stands against the cab's front wall (note
+                // 280), so the cab's behind it (+Z), and the model (facing −Z) is turned round to it.
+                m = Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(door) * model;
                 break;
             case EnemyKind.Follower when _models.ContainsKey("follower") && prey is { } carrier && e.Phase is SpinePhase.Dormant or SpinePhase.Telegraph:
                 {

@@ -114,7 +114,7 @@ public class UpgradeTests
             world.Train.Boiler.Ruptured = true;
             var firebox = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var s = PlayerMotor.SpawnInCab(world.Train, P);
-            s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 }; // in front of the fire door (cab forward, note 276)
+            s.Position = s.Position with { X = firebox.X + 0.15, Z = firebox.Z + 0.45 }; // behind the fire door (note 280: at the cab's front)
             var kit = world.Bodies.All.Single(b => b.Kind == BodyKind.RepairKit);
             kit.Carrier = 1;
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)

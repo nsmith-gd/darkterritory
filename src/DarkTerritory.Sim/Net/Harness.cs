@@ -426,7 +426,6 @@ public static class Harness
             if (t == 30 && !walk)
             {
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
-                PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
             }
             if (t == 60)
                 foreach (var c in clients)
@@ -603,18 +602,6 @@ public static class Harness
             _ => "",
         };
         return doing.Length > 0 ? $"{bot.Name}[{doing}] {where}" : $"{bot.Name} {where}";
-    }
-
-    /// <summary>The crew size from which one of them rides in the cab as fireman (T75).</summary>
-    public const int FiremanFrom = 6;
-
-    /// <summary>The fireman into the cab beside the driver, on the left (a host-side respawn at their post, as the gunner's).</summary>
-    static void PostFireman(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
-    {
-        var fireman = clients.FirstOrDefault(c => c.Bot is ConductorBot { Fireman: true });
-        if (fireman.Session?.PlayerId is not { } id)
-            return;
-        host.SetPlayerState(id, PlayerMotor.SpawnInCab(host.Train, host.PlayerTuning, -0.8));
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)

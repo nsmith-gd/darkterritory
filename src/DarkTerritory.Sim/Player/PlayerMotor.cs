@@ -312,20 +312,19 @@ public static class PlayerMotor
 
     /// <summary>
     /// Where along the cab a crewmate's put in it: on the footplate's open floor, clear across the cab's width, so a spawn
-    /// to either side lands on the boards. Cab forward (note 276), that's the strip between the driver's console and the
-    /// coal bunker, which stands along the left wall at the cab's middle; a cab without one, its middle.
+    /// to either side lands on the boards. Cab forward with its work at the front (note 280), that's the floor between the
+    /// coal bunker's end and the doorways.
     /// </summary>
     public static double CabFloorZ(CarShape shape)
     {
         var cab = shape.Cab!.Value;
+        double front = cab.Min.Z;
         foreach (var solid in shape.Solids)
-            if (solid.Part == PartKind.Tender && cab.ContainsXZ(solid.Box.Centre))
-                return (cab.Min.Z + ConsoleDepth + solid.Box.Min.Z) / 2;
-        return cab.Centre.Z;
+            if (solid.Part is PartKind.Tender or PartKind.Firebox && cab.ContainsXZ(solid.Box.Centre))
+                front = Math.Max(front, solid.Box.Max.Z);
+        double door = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > cab.Min.Y + 1.5).Select(s => s.Box.Min.Z).DefaultIfEmpty(cab.Max.Z).Min();
+        return (front + door) / 2;
     }
-
-    /// <summary>How far back from the cab's front the driver's console stands (m): the floor starts behind it.</summary>
-    const double ConsoleDepth = 0.6;
 
     /// <summary>True when standing inside the engine's cab.</summary>
     public static bool InCab(in PlayerState s, TrainOnLine train) =>

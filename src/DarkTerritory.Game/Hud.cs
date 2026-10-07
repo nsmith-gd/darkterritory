@@ -306,7 +306,7 @@ public static class Hud
             return $"WITH {IncidentLog.NameOf(world, kit.Carrier).ToUpperInvariant()}";
         int car = consist.IndexOf(kit.Parent);
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
-            return $"THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
+            return $"LOCKER {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}, CAR {car}";
         return car > 0 ? $"ON THE FLOOR, CAR {car}" : car == 0 ? "ON THE ENGINE" : "OFF THE TRAIN";
     }
 
@@ -425,7 +425,7 @@ public static class Hud
         int car = consist.IndexOf(kit.Parent);
         // In its locker (note 173): the crew learn which.
         if (car > 0 && kit.Stowed && kit.Locker < world.Train.Frames[kit.Parent].Shape.Lockers.Count)
-            return $"THE REPAIR KIT MENDS IT. IT'S IN THE {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}'S LOCKER, CAR {car}";
+            return $"THE REPAIR KIT MENDS IT. IT'S IN LOCKER {world.Train.Frames[kit.Parent].Shape.Lockers[kit.Locker].Name}, CAR {car}";
         return car > 0 ? $"THE REPAIR KIT MENDS IT. IT'S IN CAR {car}" : car == 0 ? "THE REPAIR KIT MENDS IT. IT'S HERE ON THE ENGINE"
             : "THE REPAIR KIT MENDS IT. IT'S OFF THE TRAIN";
     }
@@ -477,7 +477,7 @@ public static class Hud
         var carried = world.Bodies.CarriedBy(playerId);
         if (carried is not null && !Lockers.Holds(train, carried.Kind))
             return null;
-        string name = $"THE {at.Bay.Name}'S LOCKER";
+        string name = $"LOCKER {at.Bay.Name}";
         bool full = Lockers.FreeSlot(world.Bodies, train, at.Car, at.Bay.Index) < 0;
         // Note 267 ("there needs to be some telegraphing that there's a repair kit inside"): the tag on its door says
         // what's in it, shut or open; a tap opens a shut one, and puts what's in your hands in.

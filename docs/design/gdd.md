@@ -229,22 +229,21 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ## 12. Roles
 
-**Four roles, none of them assigned.** You are whatever the train needs where you happen to be standing.
+**Three roles, none of them assigned** *(the director's decision, 7 Oct 2026: "the whole cab being operable by one person … the rest of the crew is gunners and labourmen")*. You are whatever the train needs where you happen to be standing.
 
 | Role | Where | Does | Blind to |
 |---|---|---|---|
-| **Conductor** | Engine car | Throttle, brake, whistle, reverse | Everything mechanical, everything behind |
-| **Boiler** | Engine car | Fuel, pressure, heat, water | Outside entirely. No windows. |
+| **Driver** | Engine cab | Everything at the cab's front, alone: throttle, brake, reverser, whistle, the vent, and the fire (the coal at the left hand, the fire door ahead, the controls at the right) | Everything behind |
 | **Gunner** | Engine or guard car | Crude cannon: arc-limited, slow to reload, loud | Whichever direction they aren't facing |
-| **Engineer** | Anywhere | Carries the engineering kit | Nothing — but has no firing arc |
+| **Labourer** | Anywhere | Loading and hauling at the stops, the couplings and the brakes, mending what breaks, fighting off what boards | Nothing — but has no firing arc |
 
 ### Fluidity
 
-**The engineering kit is an item, not a station.** It's a carried kit, kept in the fitter's locker in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The fitter's empty shelf shows whether the kit is home.
+**The engineering kit is an item, not a station.** It's a carried kit, kept in locker 8 in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. Locker 8's empty shelf shows whether the kit is home.
 
-**The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, each with a crew grade on an enamel plate: DRIVER, FIREMAN, GUARD, SHUNTER, SIGNALMAN, BRAKESMAN, LAMPMAN, FITTER, GANGER, WHEELTAPPER, PORTER, YARDMASTER. Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in the **fitter's**: the fitter is the shed's mechanic, who mends engines.
+**The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, numbered 1 to 12 on their enamel plates (no role names: the director, 7 Oct 2026). Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in **locker 8**.
 
-**Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on the fitter's other shelf, then in the lockers after his. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
+**Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on locker 8's other shelf, then in the lockers after it. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
 
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
 

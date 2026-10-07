@@ -622,7 +622,8 @@ public static class TrainKit
         }
         // The driver's console under the right-hand window: a shelf the regulator and the brake valve stand out of.
         k.Use("iron_plate", Palette.IronGrey * 0.8f, 0.9f, 0.35f);
-        k.Box(new Vector3(0.1f, deck + 0.95f, cabFront + 0.15f), new Vector3(w - 0.12f, waist + 0.04f, cabFront + 0.55f), Kit.Faces.All & ~Kit.Faces.NegZ);
+        float console = (float)shape.Solids.First(s => s.Part == PartKind.Firebox).Box.Max.X + 0.1f;
+        k.Box(new Vector3(console, deck + 0.95f, cabFront + 0.15f), new Vector3(w - 0.12f, waist + 0.04f, cabFront + 0.55f), Kit.Faces.All & ~Kit.Faces.NegZ);
 
         // The driver's gauges over the right-hand window (DriverGauge): the backhead's four again, in brass bezels.
         string[] dials = ["pressure", "heat", "water", "speed"];
@@ -637,8 +638,6 @@ public static class TrainKit
         }
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
 
-        // The back wall over the boiler, up to the roof.
-        k.Box(new Vector3(-bw, top, cabBack - 0.15f), new Vector3(bw, roofLow, cabBack));
 
         // The roof: shallowly arched, overhanging, with a vent on top.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f, tile: 1.5f);
@@ -659,86 +658,86 @@ public static class TrainKit
         // Inside: the floor, and the backhead, turned to face forward from the back wall.
         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
         k.Box(new Vector3(-w + 0.1f, deck - 0.02f, cabFront), new Vector3(w - 0.1f, deck + 0.005f, cabBack), Kit.Faces.PosY);
-        k.With(BackheadFrame(shape), () => Backhead(k, shape, deck, top, bw));
+        k.With(BackheadFrame(shape), () => Backhead(k, shape, deck));
     }
 
     /// <summary>
-    /// The backhead, in its own frame (<see cref="BackheadFrame"/>: x across as you face it, +Z out of the back wall into the
-    /// cab, 0 at the wall): the plate round the firebox door's opening, the firehole's brick, the door's frame, the four
-    /// gauges, the water glass and pipework, and the modelled fittings.
+    /// The firebox (note 280), in the backhead's frame (<see cref="BackheadFrame"/>: x as the engine's, y up from the rail,
+    /// +Z out of its face into the cab, 0 behind the face): a squat riveted iron box against the cab's front wall under the
+    /// windows, beside the coal; on its face the firehole's plate, the firebrick round the hole, the door's frame and the
+    /// water glass; on its top a hot plate, and the steam pipe up the front wall from it; under it the ashpan's damper.
     /// </summary>
-    static void Backhead(Kit k, CarShape shape, float deck, float top, float bw)
+    static void Backhead(Kit k, CarShape shape, float deck)
     {
+        var fb = shape.Solids.First(s => s.Part == PartKind.Firebox).Box;
+        float x0 = (float)fb.Min.X, x1 = (float)fb.Max.X, top = (float)fb.Max.Y, back = -(float)(fb.Max.Z - fb.Min.Z) + BackheadDepth;
         float face = BackheadDepth;
-        float fy = FireDoorUp + deck;
-        // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
-        // glow by the scene, and a Stoker if one's in there): riveted boiler plate, sooted, its seams and rivet rows on it.
+        var door = FireDoorLocal(shape);
+        float fx = door.X, fy = door.Y;
+        // The box: its sides and top in sooted boiler plate, a rolled lip round the top, rivet rows down its corners.
+        k.Use("iron_smokebox", Palette.SootBlack * 1.5f, 0.8f, 0.35f, tile: 0.9f);
+        k.Box(new Vector3(x0, deck, back), new Vector3(x1, top, 0), Kit.Faces.PosX | Kit.Faces.NegX | Kit.Faces.PosY);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        k.Box(new Vector3(x0 - 0.02f, top - 0.04f, back), new Vector3(x1 + 0.02f, top + 0.015f, face + 0.02f));
+        // The face, round the firehole (a hole: the fire's drawn through it by the scene, and a Stoker if one's in there).
         k.Use("iron_plate", Palette.SootBlack * 1.6f, 0.8f, 0.35f, tile: 0.9f);
         float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
-        k.Box(new Vector3(-bw, deck, 0), new Vector3(-ox, top, face), Kit.Faces.PosZ);
-        k.Box(new Vector3(ox, deck, 0), new Vector3(bw, top, face), Kit.Faces.PosZ);
-        k.Box(new Vector3(-ox, deck, 0), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
-        k.Box(new Vector3(-ox, fy + oy, 0), new Vector3(ox, top, face), Kit.Faces.PosZ);
-        // The firehole's sides, back to the fire: the firebox's lining of firebrick, black with soot, lit by the fire.
+        k.Box(new Vector3(x0, deck, 0), new Vector3(fx - ox, top, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(fx + ox, deck, 0), new Vector3(x1, top, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(fx - ox, deck, 0), new Vector3(fx + ox, fy - oy, face), Kit.Faces.PosZ);
+        k.Box(new Vector3(fx - ox, fy + oy, 0), new Vector3(fx + ox, top, face), Kit.Faces.PosZ);
+        // The firehole's sides, back to the fire: firebrick, black with soot, lit by the fire.
         k.Use("brick_soot", Palette.SootBlack * 2.2f, 0.9f, 0.1f, tile: 2.2f);
-        k.Box(new Vector3(-ox - 0.02f, fy - oy, -0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
-        k.Box(new Vector3(ox, fy - oy, -0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
-        k.Box(new Vector3(-ox, fy - oy - 0.02f, -0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);
-        k.Box(new Vector3(-ox, fy + oy, -0.1f), new Vector3(ox, fy + oy + 0.02f, face), Kit.Faces.NegY);
-        // The firebox door's frame (the glow itself is drawn with the fire).
+        k.Box(new Vector3(fx - ox - 0.02f, fy - oy, -0.1f), new Vector3(fx - ox, fy + oy, face), Kit.Faces.PosX);
+        k.Box(new Vector3(fx + ox, fy - oy, -0.1f), new Vector3(fx + ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
+        k.Box(new Vector3(fx - ox, fy - oy - 0.02f, -0.1f), new Vector3(fx + ox, fy - oy, face), Kit.Faces.PosY);
+        k.Box(new Vector3(fx - ox, fy + oy, -0.1f), new Vector3(fx + ox, fy + oy + 0.02f, face), Kit.Faces.NegY);
+        // The door's frame (the glow itself is drawn with the fire), its hinge bosses either side.
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
-        k.Box(new Vector3(-0.42f, fy - 0.3f, face), new Vector3(0.42f, fy - 0.22f, face + 0.08f));
-        k.Box(new Vector3(-0.42f, fy + 0.22f, face), new Vector3(0.42f, fy + 0.3f, face + 0.08f));
-        k.Box(new Vector3(-0.42f, fy - 0.22f, face), new Vector3(-0.32f, fy + 0.22f, face + 0.08f));
-        k.Box(new Vector3(0.32f, fy - 0.22f, face), new Vector3(0.42f, fy + 0.22f, face + 0.08f));
-        // Gauges: pressure, heat, water, speed (the gauge atlas's four quarters), in brass bezels at eye height.
-        string[] order = ["pressure", "heat", "water", "speed"];
-        for (int i = 0; i < 4; i++)
-        {
-            var c = GaugeLocal(shape, i) - new Vector3(0, 0, 0.012f);
-            k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
-            k.Cylinder(c - new Vector3(0, 0, 0.05f), c + new Vector3(0, 0, 0.01f), GaugeRadius + 0.025f, 12);
-            k.Use("gauge_face", Palette.TarnishedBrass * 1.6f, 0.2f, 0.3f, tile: 1);
-            var cell = GaugeCell(order[i]);
-            k.Disc(c + new Vector3(0, 0, 0.012f), Vector3.UnitZ, GaugeRadius, 16, cell.Centre, cell.Radius);
-        }
-        // The water glass, right of the door, and pipes.
+        k.Box(new Vector3(fx - 0.42f, fy - 0.3f, face), new Vector3(fx + 0.42f, fy - 0.22f, face + 0.08f));
+        k.Box(new Vector3(fx - 0.42f, fy + 0.22f, face), new Vector3(fx + 0.42f, fy + 0.3f, face + 0.08f));
+        k.Box(new Vector3(fx - 0.42f, fy - 0.22f, face), new Vector3(fx - 0.32f, fy + 0.22f, face + 0.08f));
+        k.Box(new Vector3(fx + 0.32f, fy - 0.22f, face), new Vector3(fx + 0.42f, fy + 0.22f, face + 0.08f));
+        foreach (float side in new[] { -1f, 1f })
+            k.Cylinder(new Vector3(fx + side * 0.44f, fy - 0.12f, face + 0.04f), new Vector3(fx + side * 0.44f, fy + 0.12f, face + 0.04f), 0.03f, 6);
+        // The ashpan damper's notched quadrant and handle, low on the face by the floor.
+        k.Box(new Vector3(fx - 0.25f, deck + 0.04f, face), new Vector3(fx + 0.25f, deck + 0.1f, face + 0.05f));
+        k.Rod(new Vector3(fx + 0.15f, deck + 0.08f, face + 0.04f), new Vector3(fx + 0.2f, deck + 0.22f, face + 0.14f), 0.012f, 5);
+        // The water glass on the face's right, its brass cocks top and bottom.
+        float gx = MathF.Min(x1 - 0.06f, fx + 0.5f);
         k.Use("glass_dirty", Palette.BlueGrey, 0.2f, 0.9f, tile: 0.3f);
-        k.Box(new Vector3(0.62f, fy + 0.05f, face), new Vector3(0.68f, fy + 0.6f, face + 0.06f));
+        k.Box(new Vector3(gx - 0.03f, fy - 0.2f, face), new Vector3(gx + 0.03f, top - 0.12f, face + 0.06f));
+        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
+        foreach (float y in new[] { fy - 0.23f, top - 0.09f })
+            k.Box(new Vector3(gx - 0.045f, y - 0.03f, face), new Vector3(gx + 0.045f, y + 0.03f, face + 0.08f));
+        // The steam pipe off its top, up the front wall to the turret over the windows' post, in copper.
         k.Use("copper_pipe", Palette.TarnishedBrass, 0.6f, 0.6f);
-        k.Rod(new Vector3(-0.8f, deck + 0.2f, face + 0.05f), new Vector3(-0.8f, top - 0.2f, face + 0.05f), 0.025f, 6);
-        k.Rod(new Vector3(-0.8f, top - 0.2f, face + 0.05f), new Vector3(0.7f, top - 0.2f, face + 0.05f), 0.025f, 6);
-        k.Rod(new Vector3(0.75f, deck + 0.3f, face + 0.05f), new Vector3(0.75f, top - 0.2f, face + 0.05f), 0.02f, 6);
-        // The backhead's fittings, modelled (tools/models cab_backhead: the firebox doors ajar, the steam turret and its
-        // valves, the injectors, the whistle, the damper), set on the face at the firebox door's centre.
-        if (k.Look is { } look && PropArt.Of(look).Get("cab_backhead") is { } fittings)
-            k.Append(fittings, Matrix4x4.CreateTranslation(0, fy, face));
+        float px = MathF.Max(x0 + 0.08f, fx - 0.36f);
+        k.Rod(new Vector3(px, top, back + 0.08f), new Vector3(px, top + 0.25f, back + 0.08f), 0.03f, 6);
+        k.Rod(new Vector3(px, top + 0.25f, back + 0.08f), new Vector3(0, top + 0.35f, back + 0.06f), 0.03f, 6);
     }
 
-    // The backhead's face stands this far into the cab from the back wall (m); the firebox door's centre is this far
-    // over the cab floor.
-    const float BackheadDepth = 0.085f, FireDoorUp = 0.7f;
-
-    /// <summary>How thick the cab's back wall is (the sim's: CarShape.Engine), the backhead's plate standing off its face.</summary>
-    const float BackWall = 0.15f;
+    // The firebox's face plate stands this far out of its box's front (m); the firebox door's centre is this far over the
+    // cab floor (note 280: under the window sill).
+    const float BackheadDepth = 0.085f, FireDoorUp = 0.55f;
 
     /// <summary>The firebox door's opening, half its width and half its height (m), inside its frame.</summary>
     public const float FireDoorHalfWidth = 0.32f, FireDoorHalfHeight = 0.22f;
 
     /// <summary>
-    /// The backhead's frame in the engine's (note 276): its local x across as you face it, y up from the rail, and +Z out of
-    /// the cab's back wall into the cab, 0 at the wall's face. Cab forward, the fireman faces the back of the engine to it,
-    /// so it's the engine's frame turned round. Everything on the backhead (its gauges' needles, the shut fire door, the
-    /// firebox camera) is placed in it.
+    /// The firebox's frame in the engine's (note 280): its local x and y as the engine's, and +Z out of its face into the
+    /// cab, 0 a plate's depth behind the face. The firebox stands against the cab's front wall facing back into the cab, so
+    /// the crew face forward to it, down the line. Everything on it (the shut fire door, the fire seen through the hole, the
+    /// furnace's light, a Stoker in it, the firebox camera) is placed in it.
     /// </summary>
     public static Matrix4x4 BackheadFrame(CarShape shape) =>
-        Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, (float)shape.Cab!.Value.Max.Z - BackWall);
+        Matrix4x4.CreateTranslation(0, 0, (float)shape.Solids.First(s => s.Part == PartKind.Firebox).Box.Max.Z - BackheadDepth);
 
     /// <summary>The firebox door's centre on the backhead's face, in the backhead's frame.</summary>
     public static Vector3 FireDoorLocal(CarShape shape)
     {
         var fire = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        return new Vector3(-(float)fire.X, (float)fire.Y + FireDoorUp, BackheadDepth);
+        return new Vector3((float)fire.X, (float)fire.Y + FireDoorUp, BackheadDepth);
     }
 
     /// <summary>
@@ -810,15 +809,6 @@ public static class TrainKit
         return (new Vector3(-half - 0.1f, (float)roof.Min.Y - MapHeight - 0.03f, (float)shape.Cab!.Value.Min.Z + 0.1f), 2 * half, MapHeight - 0.02f);
     }
 
-    /// <summary>A dial's face radius on the backhead (T101: big enough to read from anywhere on the footplate).</summary>
-    public const float GaugeRadius = 0.15f;
-
-    /// <summary>The centre of dial <paramref name="index"/>'s face (pressure, heat, water, speed), in the backhead's frame.</summary>
-    public static Vector3 GaugeLocal(CarShape shape, int index) =>
-        new(-0.6f + index * 0.4f, (float)shape.Cab!.Value.Min.Y + 0.1f + 1.85f + index % 2 * 0.06f, BackheadDepth + 0.072f);
-
-    /// <summary>The centre of dial <paramref name="index"/>'s face on the backhead, in the engine's frame.</summary>
-    public static Vector3 GaugeCentre(CarShape shape, int index) => Vector3.Transform(GaugeLocal(shape, index), BackheadFrame(shape));
 
     /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
     /// <summary>
@@ -1003,13 +993,16 @@ public static class TrainKit
     {
         var b = shape.Solids.First(s => s.Part == PartKind.Tender).Box;
         var (min, max) = (F(b.Min), F(b.Max));
-        // The box: iron plate, strapped, open at the top; the inner side stops short of the back end for the gate.
-        float gate0 = max.Z - 0.75f, gateTop = deck + 0.55f;
+        // The box: iron plate, strapped, open at the top; its inner side has the gate low in it just behind the firebox
+        // (note 280), so the coal comes out at the fireman's left hand as they face the fire door.
+        float firebox = (float)shape.Solids.First(s => s.Part == PartKind.Firebox).Box.Max.Z;
+        float gate0 = firebox + 0.05f, gate1 = MathF.Min(max.Z - 0.1f, gate0 + 0.75f), gateTop = deck + 0.55f;
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
         k.Box(new Vector3(min.X, deck, min.Z), new Vector3(max.X, max.Y, min.Z + 0.05f));
         k.Box(new Vector3(min.X, deck, max.Z - 0.05f), new Vector3(max.X, max.Y, max.Z));
         k.Box(new Vector3(max.X - 0.05f, deck, min.Z), new Vector3(max.X, max.Y, gate0));
-        k.Box(new Vector3(max.X - 0.05f, gateTop, gate0), new Vector3(max.X, max.Y, max.Z));
+        k.Box(new Vector3(max.X - 0.05f, gateTop, gate0), new Vector3(max.X, max.Y, gate1));
+        k.Box(new Vector3(max.X - 0.05f, deck, gate1), new Vector3(max.X, max.Y, max.Z));
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
         k.Box(new Vector3(min.X, max.Y - 0.04f, min.Z), new Vector3(max.X + 0.02f, max.Y + 0.02f, max.Z));
         for (float z = min.Z + 0.45f; z < gate0; z += 0.6f)
@@ -1028,10 +1021,10 @@ public static class TrainKit
             for (int j = 0; j < nz; j++)
                 k.Quad(Coal(i + 1, j + 1), Coal(i, j + 1), Coal(i, j), Coal(i + 1, j));
         // The coal run out of the gate, and the shovelling plate under it.
-        k.Quad(new Vector3(max.X - 0.05f, gateTop - 0.05f, max.Z - 0.08f), new Vector3(max.X - 0.05f, gateTop - 0.05f, gate0),
-            new Vector3(max.X + 0.3f, deck + 0.04f, gate0 - 0.05f), new Vector3(max.X + 0.3f, deck + 0.04f, max.Z - 0.05f));
+        k.Quad(new Vector3(max.X - 0.05f, gateTop - 0.05f, gate1), new Vector3(max.X - 0.05f, gateTop - 0.05f, gate0),
+            new Vector3(max.X + 0.3f, deck + 0.04f, gate0 + 0.02f), new Vector3(max.X + 0.3f, deck + 0.04f, gate1));
         k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.4f);
-        k.Box(new Vector3(max.X, deck, gate0 - 0.15f), new Vector3(max.X + 0.7f, deck + 0.02f, max.Z + 0.1f), Kit.Faces.PosY);
+        k.Box(new Vector3(max.X, deck, gate0), new Vector3(max.X + 0.7f, deck + 0.02f, gate1 + 0.2f), Kit.Faces.PosY);
         // The coaling hatch over it in the roof: a raised coaming round a lid, hinged on its outer edge.
         float rw = w + 0.12f;
         float RoofY(float x) { float t = x / rw; return roofTop - (roofTop - roofLow - 0.08f) * t * t * 0.9f; }
