@@ -83,7 +83,7 @@
   // TRACK DOLL · sight · forward (App. A.2, B.2). Revealed in the lamp at lampRevealDistance, or in the dark only this close.
   // Stopped (below stoppedBelow m/s) short of it: gone for the run. Hit: it haunts. Cornered (players within cornerWithin at
   // both ends of its car) it can be clubbed; approached from one side it vanishes when anyone's within vanishNear and moves
-  // car every hauntMoveSeconds. An empty cab for tamperAfterEmpty s and it's at the controls. A toy within toyReach: it
+  // car every hauntMoveSeconds. Past stage 1 (below), an empty cab for tamperAfterEmpty s and it's at the controls. A toy within toyReach: it
   // takes it and leaves. DESIGN-TODO: how much cargo "admiring" costs is unstated; cargoPerSecond is a guess.
   "trackDoll": {
     "lampRevealDistance": 200, "darkRevealDistance": 25, "spawnAhead": 700, "stoppedBelow": 0.3, "health": 2,
@@ -96,7 +96,21 @@
     // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
     // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
     // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
-    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7
+    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7,
+    // The director's decision of 6 Oct 2026 (GDD App. F.1, "The Track Doll escalates if ignored"; ARCHITECTURE §8 note
+    // 268): aboard, she's no problem at first and gets worse only for being left alone. Her neglect clock runs a second a
+    // second while no living crewmate is in her car or within attendRadius m of her, and attended it winds back at
+    // attendedEase a second. Stage 1 (from the strike): she haunts the cars, admires the cargo and giggles; she never goes
+    // to the cab. Stage 2 at controlsAfter s of neglect: an empty cab (tamperAfterEmpty) and she's at the controls, but
+    // only nudging the regulator up to nudgeThrottle on one beat in three; she never touches the brake. Stage 3 at
+    // releaseAfter s: the full tampering (the regulator open, the brake on and off), and once she's been at the controls
+    // releaseAfterAtControls s at that stage on a visit, a standing train's held brake too (finalStageReleasesBrake; the
+    // one exception to tamperReleasesStandingBrake above). A haunting doll is never dismissed for want of company (the
+    // director's lingerSeconds). Each stage is telegraphed warnSeconds before it comes (she's restless: replicated,
+    // her giggle quickens, and at stage 2 she rattles the brake handle without moving it). Getting her off the train (a
+    // toy, or cornered and clubbed) ends it; a new doll starts at stage 1.
+    "controlsAfter": 120, "releaseAfter": 300, "warnSeconds": 30, "attendRadius": 8, "attendedEase": 0.5,
+    "nudgeThrottle": 0.25, "releaseAfterAtControls": 12, "finalStageReleasesBrake": true
   },
 
   // CAR HUGGER · vibration · rear (App. A.3, B.3). Latched: the train's top speed capped at speedCap m/s (the train drags

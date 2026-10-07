@@ -63,8 +63,10 @@ public class DemoRosterTests
         n.Run(8);
         Assert.True(doll.Haunting);
         Assert.True(doll.Attached > 0, $"in car {doll.Attached}");
-        // Nobody in the cab: before long it's at the controls.
+        // Nobody in the cab, but at first she leaves it alone (note 268); left alone long enough, she's at the controls.
         n.Run(E.TrackDoll.TamperAfterEmpty + 1);
+        Assert.False(doll.Tampering);
+        n.Run(E.TrackDoll.ControlsAfter);
         Assert.True(doll.Tampering);
         // Someone gets back in the cab and it's off to a car again.
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);

@@ -229,10 +229,11 @@ public sealed partial class GameAudio
     // ---- The kinds ------------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// The Track Doll haunting (App. A.2). At the controls of an empty cab it moves the regulator and the brake in beats of
-    /// three seconds (TrackDoll.Tamper); those moves only reach the train through World.Step's own copy of the controls, never
-    /// the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as the crew's own levers. Come at,
-    /// it vanishes to another car; cornered and clubbed, its porcelain cracks.
+    /// The Track Doll haunting (App. A.2). At the controls of an empty cab it moves the regulator (and at its last stage the
+    /// brake) in beats of three seconds (TrackDoll.Tamper; note 268); those moves only reach the train through World.Step's
+    /// own copy of the controls, never the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as
+    /// the crew's own levers. Restless at stage 2 (her last stage coming), she rattles the brake handle on the beat she'd
+    /// take it, without moving it. Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
     /// </summary>
     void DollSounds(World world, TrackDoll e, Creature was, Double3 at, float occ, bool struck)
     {
@@ -240,13 +241,16 @@ public sealed partial class GameAudio
         bool wasTampering = was.Phase == SpinePhase.Punish && was.Attached == 0 && was.Extra2 > 0.5;
         if (e.Tampering)
         {
-            var (throttle, brake) = DollHands(DollBeat(e.PhaseSeconds));
-            var (before, held) = wasTampering ? DollHands(DollBeat(was.PhaseSeconds)) : (world.Controls.Throttle, world.Controls.Brake);
+            double nudge = (world.Enemies?.TrackDoll ?? new()).NudgeThrottle;
+            var set = world.Controls;
+            var now = TrackDoll.Hands(e.Escalation, e.PhaseSeconds, nudge, set);
+            var before = wasTampering ? TrackDoll.Hands(Math.Abs(was.Extra2), was.PhaseSeconds, nudge, set) : set;
             var levers = train.Frames[0].Shape.Levers;
-            if (Math.Abs(throttle - before) > 0.01)
-                Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(throttle)) : at);
-            if (Math.Abs(brake - held) > 0.01)
-                Tamper("brake-handle", levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(brake)) : at);
+            if (Math.Abs(now.Throttle - before.Throttle) > 0.01)
+                Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(now.Throttle)) : at);
+            bool rattle = e.Stage == 2 && e.Restless && DollBeat(e.PhaseSeconds) == 2 && (!wasTampering || DollBeat(was.PhaseSeconds) != 2);
+            if (Math.Abs(now.Brake - before.Brake) > 0.01 || rattle)
+                Tamper("brake-handle", levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at);
         }
         // Gone from where it stood to another car (or to the cab's controls): approached, or bored of the car.
         if (was.Phase == SpinePhase.Punish && e.Phase == SpinePhase.Punish && (e.Attached != was.Attached || (e.Local - was.Local).Length > 0.75))
@@ -257,8 +261,6 @@ public sealed partial class GameAudio
     }
 
     static int DollBeat(double phaseSeconds) => (int)(phaseSeconds / 3) % 3;
-    /// <summary>Where TrackDoll.Tamper puts the regulator and brake on each beat.</summary>
-    static (double Throttle, double Brake) DollHands(int beat) => (beat == 0 ? 1 : 0, beat == 2 ? 1 : 0);
 
     /// <summary>A cab lever moved by nobody: the doll's own cue once it has one (the director kept one), else the crew's lever.</summary>
     void Tamper(string lever, Double3 where)

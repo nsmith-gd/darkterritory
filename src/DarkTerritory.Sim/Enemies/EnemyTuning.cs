@@ -83,6 +83,18 @@ public sealed record TrackDollTuning
     public bool CannonShatters { get; init; } = true;
     public double RailHitRadius { get; init; } = 0.55;
     public double RailHitHeight { get; init; } = 0.7;
+    /// <summary>Her escalation when ignored (the director, 6 Oct 2026; note 268): stage 2's neglect, stage 3's, the warning before each.</summary>
+    public double ControlsAfter { get; init; } = 120;
+    public double ReleaseAfter { get; init; } = 300;
+    public double WarnSeconds { get; init; } = 30;
+    /// <summary>A crewmate this close (or in her car) is attending her: the neglect clock winds back at <see cref="AttendedEase"/>.</summary>
+    public double AttendRadius { get; init; } = 8;
+    public double AttendedEase { get; init; } = 0.5;
+    /// <summary>Stage 2 at the controls: the regulator nudged up to this, never the brake.</summary>
+    public double NudgeThrottle { get; init; } = 0.25;
+    /// <summary>Stage 3: this long at the controls at that stage, on a visit, before a standing train's held brake goes too.</summary>
+    public double ReleaseAfterAtControls { get; init; } = 12;
+    public bool FinalStageReleasesBrake { get; init; } = true;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
