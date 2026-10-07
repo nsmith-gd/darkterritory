@@ -60,6 +60,58 @@ public class StopGeneratorTests
             Assert.True(medians[i] > medians[i - 1], $"{kind}: {string.Join(" → ", medians)}");
     }
 
+    [Theory]
+    [InlineData(RouteTier.Local)]
+    [InlineData(RouteTier.Frontier)]
+    [InlineData(RouteTier.DeadLines)]
+    [InlineData(RouteTier.DeepTerritory)]
+    public void BlockedSidingsFollowTheTierAndNeverTheFacilitysOwn(RouteTier tier)
+    {
+        // Level-design D.2 (note 294): 0, 0–1, 1–2, 1–3 sidings with derelicts on them, never all, never the facility's own.
+        var range = S.Tiers[tier].Blocked;
+        int seen = 0;
+        for (ulong seed = 1; seed <= 40; seed++)
+        {
+            var stop = StopGenerator.Generate(S, tier, seed, StopKind.Yard, Cx);
+            var blocked = stop.Tracks.Where(t => t.Blocked).ToList();
+            int open = stop.Tracks.Count(t => !t.Primary && t.Capacity > 0);
+            Assert.InRange(blocked.Count, Math.Min(range[0], open), Math.Min(range[1], open));
+            Assert.DoesNotContain(blocked, t => t.Primary);
+            Assert.All(blocked, t => Assert.InRange(t.Derelicts, 1, Math.Min(S.Derelict.Cars[1], t.Capacity)));
+            Assert.Contains(stop.Checks, c => c.Name == "Blocked sidings leave a way in" && c.Pass);
+            seen += blocked.Count;
+            // A switchyard's sidings have its standing cars instead (note 187).
+            Assert.DoesNotContain(StopGenerator.Generate(S, tier, seed, StopKind.Yard, Cx with { Facility = FacilityKind.Switchyard }).Tracks, t => t.Blocked);
+        }
+        if (range[1] == 0)
+            Assert.Equal(0, seen);
+        else
+            Assert.True(seen > 0, $"{tier}: no blocked siding in 40 yards");
+    }
+
+    [Fact]
+    public void ClearingABlockedSidingCostsTwoThrowsAReversalAndTheClearance()
+    {
+        // D.1: "two more [throws] for every blocked siding that has to be cleared", "one [reversal] per clearance", ×5.
+        var w = S.Score;
+        int checkedStops = 0;
+        for (ulong seed = 1; seed <= 60 && checkedStops < 5; seed++)
+        {
+            var stop = StopGenerator.Generate(S, RouteTier.DeepTerritory, seed, StopKind.Yard, Cx);
+            if (stop.Moves.Clearances == 0)
+                continue;
+            var open = stop with { Tracks = [.. stop.Tracks.Select(t => t with { Derelicts = 0 })] };
+            var without = StopGenerator.Measure(S, S.Tiers[RouteTier.DeepTerritory], open);
+            int n = stop.Moves.Clearances;
+            Assert.Equal(without.Trips, stop.Moves.Trips);
+            Assert.Equal(without.Throws + 2 * n, stop.Moves.Throws);
+            Assert.Equal(without.Reversals + n, stop.Moves.Reversals);
+            Assert.Equal(without.Yard + n * (w.Clearance + 2 * w.Throw + w.Reversal), stop.Moves.Yard, 1);
+            checkedStops++;
+        }
+        Assert.True(checkedStops > 0, "no deep-territory yard cleared a siding");
+    }
+
     [Fact]
     public void TheSameSeedIsTheSameStop()
     {
