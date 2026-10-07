@@ -170,11 +170,18 @@ sealed partial class LineBuilder
                     if (g >= sg.GradientPostMinShare * _l.MainGrade || -g >= sg.GradientPostMinShare * _l.DescentGrade)
                         Sign("gradientPost", e.Id, s - 20, $"{(g > 0 ? "UP" : "DOWN")} {Math.Abs(g):0.0}", true, g, p.Id, ref rng);
                 }
-        // Whistle boards before tunnels and dead settlements; bridge plates; station name boards; dead signals.
+        // Whistle boards before tunnels and dead settlements; tunnel and bridge plates; station name boards; dead signals.
         foreach (var st in _structures)
         {
             if (st.Type == StructureType.Tunnel)
                 Sign("whistle", st.Edge, st.S0 - sg.WhistleBeforeM, "W", false, null, st.Id, ref rng);
+            // §13.3 "Tunnel 2 — Blackwell", plate on both portals: over the arch, cut in the stone, so always there. A plate's
+            // side is the way it faces, not the side of the line: +1 the train coming in (s rising), −1 the far portal's.
+            if (st.Type == StructureType.Tunnel && st.Name is not null)
+            {
+                Sign("tunnelPlate", st.Edge, st.S0, st.Name, true, null, st.Id, ref rng, 1);
+                Sign("tunnelPlate", st.Edge, st.S1, st.Name, true, null, st.Id, ref rng, -1);
+            }
             if (st.Name is not null && st.Type != StructureType.Tunnel)
             {
                 Sign("bridge", st.Edge, st.S0 - 8, st.Name, false, null, st.Id, ref rng);
