@@ -682,7 +682,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `WarmUpTests`: a walker warming up shuts a side door left open.
       - `StopCrewTests`: at a crates-only stop a crew of five loads every crate the cars have room for, shuts the doors, and leaves with nobody left behind; a full train runs straight past.
       - `dt screenshot --route frontier:7 --site` shows the doors and steps by the crate stack.
-    - **Not yet:** heavy items that need two (D.2); crates at the coaling tower; a human-facing prompt for which car has room (the HUD still says only "INTO A CAR TO LOAD IT").
+    - **Not yet:** heavy items that need two (D.2); crates at the coaling tower; ~~a human-facing prompt for which car has room~~ (note 324: a full car says so).
 38. **The crew coals up (T35, spec B.6, D.2 gravity chute).**
     - **Why.** Spec B.6's tender endurance is finite, and the bots never stopped at the coaling tower. A long night's tender could run dry, with the Hollow close behind.
     - **When it stops.** The driver stops at a coaling tower that has coal left, when the tender has a quarter of its capacity to fill and there's a shunter (`CoalPlan`). Of that and a spur stop, it takes whichever comes first.
@@ -4512,3 +4512,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The screen** lists the mods in load order, a row each: its name as it reads (Thunderstore's "LateDispatch" or "Late_Dispatch" as LATE DISPATCH) and version, its description under it. Then each problem from `ContentMods.Scan` ("… isn't loaded: it needs …", "… is installed 2 times …") as a row of its own, the sentence under it. It changes nothing: mods are laid over as the game starts, from its folders or a manager's profile, and BACK's line says so.
     - **`--no-mods`:** the mods are still listed and the heading says they're off. `Mods.Mount` now scans what's installed either way (`Mods.Installed`) and keeps `Mods.Off`; only the enabled scan is laid over, as before.
     - **Verified:** `FrontEndTests.TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad`; `dt screenshot --menu mods` (the example mod from `tools/mods`, and a made-up one missing its dependency), looked at.
+
+324. **A full car says so (F1, UI/UX 3; queue #63; note 37's "not yet": "a human-facing prompt for which car has room"; GDD §32 "a short state only when it stops you").** A crate set down inside a cargo car that's full (`Run`: it loads only while the car's `Load` is under 1) lies there and never loads, and nothing said why: the crew learnt it by watching a crate not go.
+    - **The corner says it** while you carry freight (a crate, or a heavy one) inside a full cargo car: "CAR 3 IS FULL" under the crate's name, over its keys (`Hud.Hints`). The car by its stencilled number, so it can be shouted ("car three's full, take it to four").
+    - **Only what stops you** (§32): not which car has room, how much is left, or what a crate is worth. Empty-handed, or carrying what isn't freight, a full car says nothing.
+    - **Verified:** `HudTests.ACrateCarriedIntoAFullCarSaysTheCarsFull` (half full: nothing; full: the line; empty-handed: nothing); `dt screenshot --hud --full-car --route frontier:7`, looked at.
