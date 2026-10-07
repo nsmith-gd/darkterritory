@@ -46,8 +46,13 @@ public sealed class World
             Switches = new Rail.SwitchStands(tuning);
     }
 
-    /// <summary>Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests).</summary>
-    public bool SetSwitch(int branch, bool diverge) => Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
+    /// <summary>
+    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
+    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// </summary>
+    public bool SetSwitch(int branch, bool diverge) =>
+        Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
 
     public TrainOnLine Train { get; }
     /// <summary>
