@@ -51,9 +51,10 @@ public sealed class Director
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
         double baseBudget = tuning.BaseBudget.GetValueOrDefault(key, 70);
         double lengthMultiplier = 1 + tuning.LengthPerCarBeyondThird * Math.Max(0, cars - 3);
-        double crewMultiplier = Math.Min(tuning.CrewCap, tuning.CrewBase + tuning.CrewPerPlayer * crew);
-        Budget = baseBudget * lengthMultiplier * crewMultiplier;
+        _budgetBeforeCrew = baseBudget * lengthMultiplier;
         Crew = crew;
+        Active = crew;
+        _startCrew = crew;
         // The night's quiet spell (design decision 2026-10): somewhere in the range, from the seed alone (its own stream, so
         // the director's draws are untouched), and shorter on the harder tiers.
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
@@ -75,7 +76,45 @@ public sealed class Director
     /// <summary>What built it in the last second the director thought.</summary>
     public PressureTerms Terms { get; private set; }
 
-    public double Budget { get; }
+    readonly double _budgetBeforeCrew;
+    readonly int _startCrew;
+
+    /// <summary>
+    /// App. B.1's run budget: base × length × crew multiplier. With <see cref="OrchestratorTuning.LiveCrew"/> (note 336;
+    /// orchestrator.md §3.2 1) the crew is <see cref="Active"/>, the crew alive now, so a crew that's lost players spends like
+    /// the smaller crew it is; off, the crew the night started with (App. B.1 as written).
+    /// </summary>
+    public double Budget => _budgetBeforeCrew * Math.Min(_t.CrewCap, _t.CrewBase + _t.CrewPerPlayer * (_t.Orchestrator.LiveCrew ? Active : _startCrew));
+
+    /// <summary>
+    /// The crew active now (note 336; orchestrator.md §3.1 1): alive in the night, as of the director's last second. Until
+    /// anyone's been seen, the crew the night was planned for.
+    /// </summary>
+    public int Active { get; private set; }
+
+    /// <summary>The live census (note 336): the crew alive this second; none seen leaves it as it was.</summary>
+    public void Census(World world)
+    {
+        if (world.CrewThisTick.Count > 0)
+            Active = world.CrewThisTick.Count(c => c.State.Alive);
+    }
+
+    /// <summary>
+    /// The most threats engaged at once (App. B.1's hard caps; note 336, orchestrator.md §3.2 3, 5): the flat 4 (crew ≤ 4) or
+    /// 6, and, with the orchestrator on, no more than ceil(active × engagedPerActive) nor perPlayer a player active, and at
+    /// least one while anyone is: a crew of one meets one thing at a time, a crew of two two.
+    /// </summary>
+    public int EngagedCap
+    {
+        get
+        {
+            var o = _t.Orchestrator;
+            if (!o.On)
+                return MaxConcurrent;
+            int byCrew = Math.Min((int)Math.Ceiling(Active * o.EngagedPerActive - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
+        }
+    }
     public double Spent => _spent;
     /// <summary>
     /// The crew its gates go by (the crew-size threats' <c>minCrew</c>): the expected crew at the start, then whoever's
@@ -288,8 +327,9 @@ public sealed class Director
             return Held("building");
         if (_cooldown > 0 && !due)
             return Held("cooldown");
+        // The hound run's runners count: they're engaged with the crew like anything else (note 336).
         int total = active.Count(Engaged);
-        if (total >= MaxConcurrent)
+        if (total >= EngagedCap)
             return Held("at the cap");
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
@@ -622,10 +662,13 @@ public sealed class Director
         }
         if (_runPack >= 0 && active.Any(e => e is CinderHound { Runner: true, Gone: false } h && h.Pack == _runPack))
             return; // one run at a time: the count starts once the last runner's dealt with
+        // The run is one threat to the crew's caps (note 336): with the crew already at its cap, it waits (the count banked),
+        // so a crew of one never meets a run and the director's threat at once.
+        bool atCap = _t.Orchestrator.On && active.Count(Engaged) >= EngagedCap;
         if (speed >= r.FromSpeed)
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
-        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1))
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
             return;
         int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
         int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
