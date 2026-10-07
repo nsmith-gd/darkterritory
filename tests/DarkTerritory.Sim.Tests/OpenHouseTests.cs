@@ -38,7 +38,7 @@ public class OpenHouseTests
         var route = Routes.Generate(Content, spec, 6);
         var line = route.Build();
         var walls = StopWalls.Of(route, line);
-        int open = 0, inside = 0, shut = 0;
+        int open = 0, inside = 0, shut = 0, furniture = 0;
         foreach (var f in route.Features.Where(f => f.Stop is not null))
         {
             var stop = f.Stop!;
@@ -63,13 +63,22 @@ public class OpenHouseTests
                 var at = StopWalls.FindAt(stop, c);
                 if (b.Open)
                 {
-                    // Inside, out in the room, and you can walk to it from the step.
+                    // Inside, out in the room, and you can walk from the step to just in front of it (within a search's reach:
+                    // loot.json search.reach), round any furniture.
                     inside++;
                     Assert.True(Plan(b, at), $"{spec} at {f.Start:0}: a {c.Kind} find outside its open house");
                     var middle = Run.Run.StopWorld(line, f, b.Centre);
-                    var find = Run.Run.StopWorld(line, f, at);
-                    Assert.True(Walkable(walls, Run.Run.StopWorld(line, f, StopWalls.Doorstep(b, 1)), middle) && Walkable(walls, middle, find),
+                    var (ix, iy) = StopWalls.InsideLocal(b, c.Kind, c.Index);
+                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
+                    var front = Run.Run.StopWorld(line, f, StopWalls.InHouse(b, ix + fx * 0.45, iy + fy * 0.45));
+                    Assert.True(Walkable(walls, Run.Run.StopWorld(line, f, StopWalls.Doorstep(b, 1)), middle) && Walkable(walls, middle, front),
                         $"{spec} at {f.Start:0}: a {c.Kind} find in house {c.Building} can't be walked to");
+                    // A cupboard or a cabinet is solid: nobody stands in it.
+                    if (c.Kind is ContainerKind.Cupboard or ContainerKind.Cabinet)
+                    {
+                        furniture++;
+                        Assert.True(Blocked(walls, Run.Run.StopWorld(line, f, StopWalls.InHouse(b, kx, ky))), $"{spec} at {f.Start:0}: walked through a {c.Kind}");
+                    }
                 }
                 else
                 {
@@ -78,7 +87,7 @@ public class OpenHouseTests
                 }
             }
         }
-        Assert.True(open > 0 && inside > 0, $"{spec}: {open} open houses, {inside} finds inside");
+        Assert.True(open > 0 && inside > 0 && furniture > 0, $"{spec}: {open} open houses, {inside} finds inside, {furniture} cupboards and cabinets");
         Assert.True(shut > 0, $"{spec}: no shut house with a find (the L, cross and paired houses keep theirs on the step)");
     }
 
