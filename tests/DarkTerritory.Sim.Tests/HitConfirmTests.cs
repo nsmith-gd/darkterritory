@@ -163,7 +163,7 @@ public class HitConfirmTests
     /// in the phase its rule says it can be struck in (the Track Doll cornered, a Soot Child a Soot Child, the Whistler
     /// come out of its gap).
     /// </summary>
-    static (Night Night, Enemy Enemy) Staged(EnemyKind kind)
+    internal static (Night Night, Enemy Enemy) Staged(EnemyKind kind)
     {
         var n = new Night(4, speed: 0);
         const int car = 2;
