@@ -113,6 +113,7 @@ public static class PlanStops
                 ZoneLength = end - start,
                 Side = platform?.Side ?? 0,
                 HaltAt = platform is null ? null : (platform.S0 + platform.S1) / 2 - start,
+                DeadTown = town.Type == "town",
             });
             if (!stop.Valid)
                 continue;

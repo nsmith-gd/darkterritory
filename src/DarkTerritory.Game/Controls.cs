@@ -21,6 +21,8 @@ public enum Control
     Vent,
     // The director's decision of 2026-10-06: the supplies aboard, one panel toggled on.
     Supplies,
+    // Note 298 (GDD §9's yard: "dance"): held, the emote wheel; let go, the one the mouse is on.
+    Emote,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -55,6 +57,7 @@ public static class Controls
         [Control.Bookmark] = "P",
         [Control.Vent] = "LeftCtrl",
         [Control.Supplies] = "I",
+        [Control.Emote] = "J",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -77,6 +80,7 @@ public static class Controls
         Control.Bookmark => "BOOKMARK (DEAD)",
         Control.Vent => "VENT STEAM (HOLD, IN THE CAB)",
         Control.Supplies => "SUPPLIES ABOARD (TOGGLE)",
+        Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
         _ => c.ToString().ToUpperInvariant(),
     };
 

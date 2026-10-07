@@ -354,9 +354,12 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>
     public static string HoldoutStatus(World world) =>
-        world.Holdouts?.All.Count(h => h.Lit) is > 0 and var lit ? $" | {lit} HOLDOUT{(lit == 1 ? "" : "S")} LIT — someone's waiting" : "";
+        world.Holdouts?.All.Count(h => h.Lit) is > 0 and var lit ? $" | {lit} HOLDOUT{(lit == 1 ? "" : "S")} LIT" : "";
 
-    /// <summary>What there is to load at a facility (spec D).</summary>
+    /// <summary>
+    /// What there is to load at a facility (spec D), as it stands: what's here, and what's under way or stopped. Not how to
+    /// work it or what happens if you don't (note 285, the director: "consequences need to be learned").
+    /// </summary>
     static string SiteStatus(Site? site)
     {
         if (site is null)
@@ -364,42 +367,38 @@ public sealed class PrototypeSession : IPlaySession
         var parts = new List<string>();
         // The yard's power (level-design D.2): its cranes wait on it.
         if (site.Power != Sim.Stops.PowerState.Live && site.Cranes.Count > 0)
-            parts.Add(site.Power == Sim.Stops.PowerState.Dead ? "POWER DEAD: the cranes won't run until someone restarts the generator at the powerhouse"
-                : "power low: the cranes run at half speed (restart the generator at the powerhouse)");
+            parts.Add(site.Power == Sim.Stops.PowerState.Dead ? "POWER DEAD" : "power low");
         if (site.Has(ModuleKind.Crates))
-            parts.Add(site.HeavyStack.Length > 0 ? "crates on the platform: carry them into the cars (the big ones take two)" : "crates on the platform: carry them into the cars");
+            parts.Add("crates on the platform");
         if (site.Cranes.Count > 0)
         {
             // Every gantry here (level-design P18): the facility's own and the yard's.
             int left = site.Cranes.Sum(c => c.Left);
             string gantries = site.Cranes.Count > 1 ? $"{site.Cranes.Count} cranes" : "crane";
             parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
-                : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
+                : $"{gantries}: {left} castings");
         }
         // GDD §18's set pieces (note 185).
         if (site.Has(ModuleKind.Spout))
-            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)"
-                : $"one spout: walk each car under it, someone on its lever ({site.Bin:0.0} loads)");
+            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)" : $"the elevator's bin: {site.Bin:0.0} loads");
         if (site.Has(ModuleKind.Ramp))
-            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left), LOUD"
-                : $"{site.Head} head in the pen: two to drive them up the ramp");
+            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left)" : $"{site.Head} head in the pen");
         if (site.Has(ModuleKind.Hose))
-            parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
-                : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+            parts.Add(site.Leaking ? "HOSE LEAKING" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%" : "a hose stand");
         // GDD §18's switchyard and wreck yard (note 187).
         if (site.Has(ModuleKind.Rakes))
-            parts.Add("cars standing on the sidings: throw each switch, couple up and bring them out (they come away ahead of the engine)");
+            parts.Add("cars standing on the sidings");
         if (site.Heaps.Count > 0)
         {
             int dark = site.Heaps.Count(h => !h.Found && h.Salvage > 0);
-            parts.Add(site.Heaps.Any(h => h.Groan > 0) ? "THE WRECK'S GOING: get clear of it"
-                : dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen (no lamps here: take one to them)" : "wreck: carry the salvage to the cars, gently");
+            parts.Add(dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen" : "wreck");
         }
         if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
-            parts.Add("powder kegs: set them down, never throw or drop them");
+            parts.Add("powder kegs");
         if (site.Has(ModuleKind.Winch))
-            parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
-        return " — " + string.Join(", ", parts);
+            parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED" : $"winch: {site.SledsLeft} sleds");
+        // "; " between them (each can have its own commas): the HUD puts each on a line of its own (note 285).
+        return " — " + string.Join("; ", parts);
     }
 
     /// <summary>
@@ -428,7 +427,7 @@ public sealed class PrototypeSession : IPlaySession
             : dawn > 0 ? $"dawn {(int)dawn / 60:00}:{(int)dawn % 60:00}" : "DAWN — the line is live, get in";
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
-                ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty"
+                ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — a chute lever on the ground" : " — chute empty"
                 : SiteStatus(run.CurrentSite))
             : "";
         double s = train.Dynamics.Distance;

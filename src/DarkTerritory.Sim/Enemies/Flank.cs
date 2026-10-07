@@ -236,7 +236,9 @@ public sealed class Whistler(int id) : Enemy(id)
                         if (ctx.LivingCrew().Any(o => o.Player.Id != p.Id && (o.World - w).Length <= t.PairRadius))
                             continue;
                         int side = train.Frames[Attached].ToLocal(w).X >= 0 ? 1 : -1;
-                        var (nest, run) = NestSite(train, gap, train.Frames[Attached].Right, side, t);
+                        // At a generated stop, the nest its layout has (level-design H.2, note 314); otherwise out from the gap.
+                        var sites = CreatureSites.Of(ctx.World, Stops.LairKind.WhistlerNest, ctx.Tuning.Sites.Around).Select(s => s.At).ToList();
+                        var (nest, run) = NestSite(train, gap, train.Frames[Attached].Right, side, t, sites);
                         _nest = nest;
                         var victim = p.Id;
                         Local = w;
@@ -277,13 +279,27 @@ public sealed class Whistler(int id) : Enemy(id)
     /// above or below the rail (not up a mountainside, not down a ravine, not into a cutting's wall or a tunnel's hill), and
     /// no water. Nowhere on either side is: the formation's edge on the side they were on, the nearest walkable point there
     /// is. Returns the nest (on the ground) and how far it runs to it.
+    /// <para>
+    /// At a generated stop the layout has already placed its nest, out on the stop's emptiest side (level-design H.2's
+    /// "least built-up side", note 314): the nearest of <paramref name="sites"/> within <see cref="WhistlerTuning.NestSiteReach"/>
+    /// that it can run to by the same rules, through no building, is where it goes. A stop's ground is laid level for the
+    /// stop, so it's walkable past the line's corridor.
+    /// </para>
     /// </summary>
-    public static (Double3 Nest, double Run) NestSite(TrainOnLine train, Double3 gap, Double3 right, int side, WhistlerTuning t)
+    public static (Double3 Nest, double Run) NestSite(TrainOnLine train, Double3 gap, Double3 right, int side, WhistlerTuning t,
+        IReadOnlyList<Double3>? sites = null)
     {
         var across = (right with { Y = 0 }).Normalized;
         double hint = train.Dynamics.Distance;
         double rail = PlayerMotor.GroundAt(gap, train.Line, ref hint);
         var water = (train.Line.Conditions as LineGen.PlanConditions)?.Terrain;
+        double Flat(Double3 a) => ((a - gap) with { Y = 0 }).Length;
+        foreach (var site in (sites ?? []).Where(a => Flat(a) >= t.NestMinDistance && Flat(a) <= t.NestSiteReach).OrderBy(Flat))
+        {
+            var dir = ((site - gap) with { Y = 0 }).Normalized;
+            if (Runnable(train, gap, dir, Flat(site), rail, water, t, ref hint) is { } nest)
+                return (nest, Flat(site));
+        }
         foreach (int s in new[] { side, -side })
             for (double d = t.NestDistance; d >= t.NestMinDistance - 1e-6; d -= Math.Max(1, t.NestStep))
                 if (Runnable(train, gap, across * s, d, rail, water, t, ref hint) is { } nest)
@@ -301,12 +317,26 @@ public sealed class Whistler(int id) : Enemy(id)
             var at = gap + dir * Math.Min(x, distance);
             double ground = PlayerMotor.GroundAt(at, train.Line, ref hint);
             if (Math.Abs(ground - rail) > t.NestMaxRise || Math.Abs(ground - last) > t.NestMaxSlope * Pace
-                || water?.WaterNear(at.X, at.Z, 1) is not null)
+                || water?.WaterNear(at.X, at.Z, 1) is not null || InWall(train, at))
                 return null;
             last = ground;
         }
         var nest = gap + dir * distance;
         return nest with { Y = last };
+    }
+
+    /// <summary>Whether a point is in (or within half a metre of) a stop's or a fort's walls: it runs round buildings, not through them.</summary>
+    static bool InWall(TrainOnLine train, Double3 at)
+    {
+        if (train.Walls is not { } walls)
+            return false;
+        foreach (var w in walls.Near(at))
+        {
+            var l = w.ToLocal(at);
+            if (Math.Abs(l.X) <= w.HalfLength + 0.5 && Math.Abs(l.Z) <= w.HalfWidth + 0.5)
+                return true;
+        }
+        return false;
     }
 
     protected override void Punish(EnemyContext ctx, int victim)

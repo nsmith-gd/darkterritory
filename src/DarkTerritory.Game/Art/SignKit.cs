@@ -35,7 +35,8 @@ public static class SignKit
             "lineClosed" or "bridgeLimit" or "limitReason" => (new Vector3(0.62f, 0.12f, 0.08f), new Vector3(0.9f, 0.88f, 0.8f)),
             // The mail crane's warning board (sight.json drop): the mail's green, white letters.
             "mailDrop" => (new Vector3(0.16f, 0.36f, 0.2f), new Vector3(0.9f, 0.88f, 0.8f)),
-            "stationName" or "facility" or "junction" => (new Vector3(0.12f, 0.14f, 0.16f), new Vector3(0.85f, 0.82f, 0.72f)),
+            // A tunnel's plate is cast iron on the portal's stone, cream letters (note 295): pale paint was lost in the stone.
+            "stationName" or "facility" or "junction" or "tunnelPlate" => (new Vector3(0.12f, 0.14f, 0.16f), new Vector3(0.85f, 0.82f, 0.72f)),
             _ => (new Vector3(0.86f, 0.84f, 0.78f), Palette.SootBlack),
         };
         if (post)
@@ -78,6 +79,9 @@ public static class SignKit
     /// <summary>The words on a board, broken into lines that fit it: a name above its figure, a long name over two.</summary>
     static List<string> Lines(string type, string text, float width)
     {
+        // A tunnel's plate: its number over its name ("TUNNEL 2 - BLACKWELL", §13.3), as it's called on the radio.
+        if (type == "tunnelPlate" && text.Split(" - ", 2) is [var number, var name])
+            return [number, name];
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length <= 1 || type is "kmPost" or "minorPost" or "speedBoard" or "resumeBoard")
             return [text];

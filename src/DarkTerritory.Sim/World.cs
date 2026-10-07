@@ -80,6 +80,13 @@ public sealed class World
     public List<SwingEvent> Swings { get; } = new();
     /// <summary>Where cannonballs came down lately (T121), newest last: the host's, kept as long as the smoke and replicated.</summary>
     public List<CannonImpact> Impacts { get; } = new();
+    /// <summary>
+    /// Crewmates' emotes lately (note 298): the host's, each kept for its length (<see cref="EmoteTuning"/>) and replicated,
+    /// so the crew see it. Nothing in the sim reads them.
+    /// </summary>
+    public List<EmoteEvent> Emotes { get; } = new();
+    /// <summary>How long an emote lasts, and how soon another may follow (player.json emotes; the host sets it).</summary>
+    public EmoteTuning EmoteTuning { get; set; } = new();
     int _nextFx = 1;
     /// <summary>The host's world, or one with nobody else's to mirror: it decides what landed where.</summary>
     bool Hosting => Authority || Enemies is null;
@@ -250,6 +257,15 @@ public sealed class World
     /// earlier night (<see cref="Run.Identity"/>). The host fills it from <see cref="LooksByName"/> as names arrive, and sends it.
     /// </summary>
     public Dictionary<int, string> Looks { get; } = [];
+
+    /// <summary>
+    /// The outfit each player wears (GDD §9's yard: "try on outfits"; note 298), by id: one of the crew's looks, chosen in
+    /// the settings and tried on in the yard. The host's, sent on change. A player missing from it wears their id's look.
+    /// </summary>
+    public Dictionary<int, byte> Outfits { get; } = [];
+
+    /// <summary>The look a player is drawn in (note 298): their outfit if they've one, else their id.</summary>
+    public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) ? o : id;
 
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
@@ -911,6 +927,15 @@ public sealed class World
                 Attribution.LitLamp(s.Parent, playerId);
         }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
+        // An emote (note 298): the crew see it, and that's all. Not while something has hold of you, and not on top of the
+        // last one picked.
+        if (Hosting && intent.Emote != Emote.None && s.Alive && !s.Has(PlayerFlags.Held)
+            && !Emotes.Any(e => e.By == playerId && (Tick - e.Tick) * SimConstants.TickSeconds < EmoteTuning.Cooldown))
+        {
+            Emotes.RemoveAll(e => e.By == playerId);
+            Emotes.Add(new EmoteEvent(_nextFx, Tick, playerId, intent.Emote));
+            _nextFx = _nextFx % 0xFFFFFF + 1;
+        }
         if (Authority && _context is { } ec)
         {
             // Melee (App. C.2): a swing with the tool you carry, at what's in front of you.
@@ -1048,6 +1073,7 @@ public sealed class World
             var keep = Combat?.Hits ?? new HitTuning();
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
+            Emotes.RemoveAll(e => Tick - e.Tick > EmoteTuning.Seconds(e.Kind) * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
         }
         Shots.Clear();
@@ -1514,10 +1540,12 @@ public sealed class World
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
-    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null)
+    public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null,
+        IEnumerable<EmoteEvent>? emotes = null)
     {
-        Swings.Clear();
-        Swings.AddRange(swings ?? []);
+        Emotes.Clear();
+        if (emotes is not null)
+            Emotes.AddRange(emotes);
         Hits.Clear();
         Hits.AddRange(hits);
         Swings.Clear();
