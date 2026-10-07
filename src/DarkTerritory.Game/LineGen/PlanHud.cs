@@ -92,6 +92,13 @@ public static class PlanHud
     /// every posted bend (PostedSpeeds, the boards' own figures) its stretch ruled red along the foot and its km/h over it
     /// (the director's notes on the line plan: "speed ticks on derailment bends that show the max speed for those bends").
     /// </summary>
+    /// <summary>
+    /// How far along the card's profile (0..1) a kilometre post is. The card's kilometres are the posts', from the outer gate
+    /// (km 0); the profile runs from the line's start, as the train's pencilled place does.
+    /// </summary>
+    public static double ProfileAt(LinePlan plan, Sim.Rail.RailLine line, double km) =>
+        line.Length <= 0 ? 0 : Math.Clamp((plan.GateM + km * 1000) / line.Length, 0, 1);
+
     static void Profile(Overlay o, Sim.Rail.RailLine line, LinePlan plan, float x, float y, float w, float h, double? at = null)
     {
         var card = plan.RouteCard;
@@ -107,11 +114,11 @@ public static class PlanHud
             o.Rect(x + i, y + top, 1, h - top, InkDark with { W = 0.75f });
         }
         double km = line.Length / 1000;
-        for (int k = 5; k < km; k += 5)
-            o.Rect(x + (float)(k / km * w), y + h - 3, 1, 3, Paper);
+        for (int k = 5; plan.GateM / 1000 + k < km; k += 5)
+            o.Rect(x + (float)ProfileAt(plan, line, k) * w, y + h - 3, 1, 3, Paper);
         foreach (var stop in card.Timetable)
         {
-            float sx = x + (float)Math.Clamp(stop.Km / km, 0, 1) * (w - 1);
+            float sx = x + (float)ProfileAt(plan, line, stop.Km) * (w - 1);
             o.Rect(sx, y, 1, 4, Stamp);
         }
         // The bends: their stretch in red along the foot, a hairline up to the figure. Where two would print on each other,

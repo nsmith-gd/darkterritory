@@ -17,6 +17,9 @@ sealed partial class LineBuilder
 
     void LayTags()
     {
+        // The lakes' trestles (note 317) are bridges too: exposed to the wind, as §14 has every bridge.
+        foreach (var st in _lakeTrestles)
+            Tag("bridge", st.Edge, st.S0, st.S1);
         foreach (var e in _edges.Values.OrderBy(e => e.Role == EdgeRole.Main ? -1 : e.Branch))
         {
             var line = LineOf(e);
