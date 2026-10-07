@@ -263,6 +263,21 @@ public sealed class World
 
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
+
+    /// <summary>The last of the swarm killed by the crew together (note 288): the Choir is done for the run, as when it takes its one.</summary>
+    public void ChoirSlain() => _choirTook = true;
+
+    /// <summary>
+    /// Host: the kinds the crew have killed together tonight (note 288, the director's clarification of 7 Oct 2026): a kill is
+    /// for the night, so the director doesn't send that kind again. Driven off, a creature can come back.
+    /// </summary>
+    public HashSet<EnemyKind> Slain { get; } = [];
+
+    /// <summary>
+    /// Host: once-a-run kinds the crew drove off tonight rather than killed (the Passenger, note 288): driven off isn't the end
+    /// of it, so the director may send it again (Spawns' once-a-run rule lets it).
+    /// </summary>
+    public HashSet<EnemyKind> DrivenOff { get; } = [];
     bool _choirTook;
     double _hotFor;
     bool _stokerWasIn;
