@@ -1015,7 +1015,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **One content root, as ever.** `ContentMods.Mount` writes the merged copy to app data (`content-with-mods`), rewriting only what changed, and everything downstream (hot reload, the content hash, the sim) reads it. With no mods, the base content is used untouched. The copy lists its mods in `mounted-mods.json`.
     - **Multiplayer.** The content hash already covers every file, so different mods can't join. A refused joiner is now told which mods the host has and which they have, instead of just "content differs".
     - **Switches.** `--no-mods` gives the base game, in the app and in `dt`. `dt edit` edits the base content, not the mounted copy. `dt mods` lists the folders, the mods in load order, and what each does to which file.
-    - **Not yet:** mods can't add code, and the Workshop. ~~An in-game mods screen~~: note 321.
+    - **Not yet:** mods can't add code, and the Workshop. ~~An in-game mods screen~~: note 323.
     - **Verified:**
       - `ContentModsTests` (4): with no mods, the base content is used as it is; mods replace, add and patch in order; taking a mod out takes its files out; a patch with nothing under it is refused.
       - `NetPlayTests.AJoinerWithDifferentModsIsToldWhichMods`.
@@ -4507,7 +4507,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **DELETE THIS CREW asks first,** as leaving a night does (note 292): a screen of its own (`Screen.DeleteCrew`, "DELETE NIGHTJARS?"), KEEP IT first so a second Enter keeps it, and what goes said under both: the cars, the scrip, the nights, and a night under way. Confirmed, the slot's file goes (`SaveSlots.Delete`) and the slot list says "Slot 2 is empty."
     - **Verified:** `FrontEndTests.TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice`; `dt screenshot --menu fortress` and `--menu deletecrew`, looked at.
 
-321. **The MODS screen (F1, UI/UX 3; queue #60; note 53's "not yet": "an in-game mods screen"; the wiki's "Playing modded").** What was laid over the game, and what couldn't be, was only on the console (`mods: …`) and in `dt mods`: a player couldn't see from the game which mods they had, though a refused joiner is told which differ.
+323. **The MODS screen (F1, UI/UX 3; queue #62; note 53's "not yet": "an in-game mods screen"; the wiki's "Playing modded").** What was laid over the game, and what couldn't be, was only on the console (`mods: …`) and in `dt mods`: a player couldn't see from the game which mods they had, though a refused joiner is told which differ.
     - **MODS on the title** (before CREDITS) when anything's installed or couldn't load; with none, there's no MODS. Its line says how many are laid over and how many problems ("2 laid over the game, 1 problem.").
     - **The screen** lists the mods in load order, a row each: its name as it reads (Thunderstore's "LateDispatch" or "Late_Dispatch" as LATE DISPATCH) and version, its description under it. Then each problem from `ContentMods.Scan` ("… isn't loaded: it needs …", "… is installed 2 times …") as a row of its own, the sentence under it. It changes nothing: mods are laid over as the game starts, from its folders or a manager's profile, and BACK's line says so.
     - **`--no-mods`:** the mods are still listed and the heading says they're off. `Mods.Mount` now scans what's installed either way (`Mods.Installed`) and keeps `Mods.Off`; only the enabled scan is laid over, as before.

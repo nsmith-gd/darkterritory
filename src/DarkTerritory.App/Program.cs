@@ -89,7 +89,7 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
-    // MODS (note 321): what Mount found installed, and whether --no-mods left it all off.
+    // MODS (note 323): what Mount found installed, and whether --no-mods left it all off.
     InstalledMods = [.. Mods.Installed.Mods.Select(m => new InstalledMod(m.Name, m.Version, m.Description))],
     ModProblems = Mods.Installed.Problems,
     ModsOff = Mods.Off,

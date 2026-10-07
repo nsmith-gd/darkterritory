@@ -184,7 +184,7 @@ public sealed class FrontEndTests : IDisposable
     [Fact]
     public void TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad()
     {
-        // Note 321: nothing installed, and the title has no MODS.
+        // Note 323: nothing installed, and the title has no MODS.
         var m = Menu();
         Assert.DoesNotContain(m.Items, i => i.Label == "MODS");
 

@@ -84,7 +84,7 @@ public static class Mods
     /// </summary>
     public static string Mount(string content, bool enabled = true, string? into = null)
     {
-        // What's installed is scanned either way, for the MODS screen (note 321); with --no-mods none of it is laid over.
+        // What's installed is scanned either way, for the MODS screen (note 323); with --no-mods none of it is laid over.
         Installed = ContentMods.Scan(Folders(content));
         Off = !enabled;
         var scan = enabled ? Installed : new ModScan([], []);

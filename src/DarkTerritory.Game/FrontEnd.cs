@@ -60,7 +60,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 
 public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods }
 
-/// <summary>A mod laid over the game (note 321), as the MODS screen lists it: the app's scan of what's installed.</summary>
+/// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
@@ -139,7 +139,7 @@ public sealed class FrontEnd
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
 
     /// <summary>
-    /// The MODS screen's (note 321; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
+    /// The MODS screen's (note 323; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
     /// laid over the game, and what couldn't be loaded and why. With none of either, the title has no MODS.
     /// </summary>
     public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
@@ -542,7 +542,7 @@ public sealed class FrontEnd
             yield return line;
     }
 
-    /// <summary>The title's MODS line (note 321): how many are on tonight, and how many couldn't load.</summary>
+    /// <summary>The title's MODS line (note 323): how many are on tonight, and how many couldn't load.</summary>
     string ModsLine()
     {
         string notLoaded = ModProblems.Count == 0 ? "" : $", {ModProblems.Count} {(ModProblems.Count == 1 ? "problem" : "problems")}";
@@ -853,7 +853,7 @@ public sealed class FrontEnd
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
-        // Note 321: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
+        // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
         [
@@ -1270,7 +1270,7 @@ public sealed class FrontEnd
         }
         y += 6;
         if (Selected < items.Count && items[Selected].Detail is { } detail)
-            // Wrapped to the screen (note 321): a mod's description is its author's, up to Thunderstore's 250 characters.
+            // Wrapped to the screen (note 323): a mod's description is its author's, up to Thunderstore's 250 characters.
             foreach (var line in Wrap(o, detail.ToUpperInvariant(), width - x - 8))
             {
                 o.Text(x, y, line, Dim);

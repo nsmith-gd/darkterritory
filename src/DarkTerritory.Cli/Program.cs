@@ -1888,7 +1888,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
         menu.Games = DemoLobbies(menu.Protocol, DarkTerritory.Game.NetPlaySession.CrewCap(content));
-    // --menu mods (note 321): the example mod as installed (tools/mods), and one that can't load for want of another.
+    // --menu mods (note 323): the example mod as installed (tools/mods), and one that can't load for want of another.
     if (screen == DarkTerritory.Game.Screen.Mods)
     {
         var tools = Path.Combine(Path.GetDirectoryName(DataFile.FindContentRoot())!, "tools", "mods");
