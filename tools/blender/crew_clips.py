@@ -41,6 +41,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   reload              the cannon's reload from the seat: powder, ram, prime (note 137)
   fp_hold, fp_walk    first person (X3): the tool held up in view, the eye at EYE (CreatureArt.OwnArms puts it at the camera)
   fp_swing            first person: the blow, as long as the melee's recovery (enemies.json melee.swingSeconds, 0.8 s)
+  wave, point, dance  the yard's emotes (GDD §9, note 298's wheel): a wave over the shoulder, a point straight ahead at the
+                      shoulder's height, a workman's jig (queue #41, note 303)
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -1062,8 +1064,81 @@ reload_.key(122, hands(over(SEATED, head=(10, 0, 0), neck=(20, 0, 0)), (0.06, 0.
 reload_.key(135, hands(SEATED, WHEEL_KNOB, TILLER))
 clips.append(reload_)
 
+# --- emotes (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298's wheel, queue #41, note 303) ----------
+# The game loops each from a beat of its own per crewmate (CreatureArt.Crewmate: time + the variant's offset), so the wave
+# and the point are holds that loop anywhere, not a start and an end.
+SHOULDER_R, SHOULDER_L = rig.pose_points(sk, STAND, [("upperarm_r", "head"), ("upperarm_l", "head")])
+
+
+def bounce(pose, k):
+    """The weight dropped into the knees by `k` (0..1), both knees bent the same."""
+    return over(pose, **{"pelvis@loc": (0, 0, -0.06 * k), "thigh_r": (14 * k, 0, 0), "calf_r": (-28 * k, 0, 0), "foot_r": (14 * k, 0, -6),
+                         "thigh_l": (14 * k, 0, 0), "calf_l": (-28 * k, 0, 0), "foot_l": (14 * k, 0, 6)})
+
+
+# Wave (1 s, loop): the right hand up over the shoulder, open, waved side to side from the elbow; the weight on one hip,
+# the head tipped to whoever it's for.
+WAVE_BODY = over(STAND, spine_02=(-2, 0, 4), spine_03=(-4, 0, 6), neck=(8, 4, 6), head=(-2, 6, 4), pelvis=(0, 0, -4))
+wave = Clip("wave")
+for f, x in ((0, 0.0), (7, 1.0), (15, 0.0), (22, -1.0)):
+    wrist = (SHOULDER_R.x + 0.16 + 0.11 * x, SHOULDER_R.y + 0.12, SHOULDER_R.z + 0.36 - 0.03 * abs(x))
+    p = arm_to(WAVE_BODY, "r", wrist, fist=False, elbow=(0.45, 0.0, 1.3))
+    p["hand_r"] = (0, 6, -14 * x)
+    p["fingers_r"], p["thumb_r"] = (0, 6, 0), (0, 4, 0)
+    wave.key(f, p)
+wave.close(30)
+clips.append(wave)
+
+# Point (2 s, loop): the right arm straight out ahead at the shoulder's height, the hand flat along it, the eyes down it;
+# the left hand on the hip; a jab of emphasis, once a second, the body leant into it.
+POINT_AT = (SHOULDER_R.x + 0.04, SHOULDER_R.y + 0.66, SHOULDER_R.z - 0.02)
+POINT_BODY = look_at(over(STAND, spine_02=(-4, 0, 0), spine_03=(-4, 0, 0)), (0.3, 6.0, 1.4))
+HIP_L = (-0.24, 0.02, 1.0)
+point = Clip("point")
+for f, jab in ((0, 0.0), (5, 1.0), (12, 0.2), (30, 0.0), (35, 1.0), (42, 0.2)):
+    body = over(POINT_BODY, spine_02=(-4 - 3 * jab, 0, 0), pelvis=(0, 0, -2))
+    p = arm_to(body, "r", (POINT_AT[0], POINT_AT[1] + 0.06 * jab, POINT_AT[2]), fist=False, elbow=(0.3, 0.0, 1.45))
+    p["hand_r"] = (0, 0, 0)
+    p["fingers_r"], p["thumb_r"] = (0, 4, 0), (0, 20, 0)
+    p = arm_to(p, "l", HIP_L, grip=40, elbow=(0.45, -0.2, 1.15))
+    point.key(f, p, "LINEAR" if jab == 1.0 else "BEZIER")
+point.close(60)
+clips.append(point)
+
+# Dance (4 s, loop, played twice over the emote's 8 s): a workman's jig in heavy boots, goofy and in earnest (§31's
+# weight: it's all in the knees). Two bars of stomping knee-lifts with the fists pumped up over the head on the beat
+# ("raise the roof"), then two of a side-to-side shuffle, the hips swinging, the elbows out flapping like a hen's, the
+# head bobbing a beat behind.
+DANCE = over(STAND, spine_02=(-4, 0, 0), spine_03=(-6, 0, 0))
+dance = Clip("dance")
+for f in range(0, 120, 3):
+    beat = (f % 15) / 15                                    # 2 beats a second
+    down = 0.5 + 0.5 * math.cos(2 * math.pi * beat)        # 1 on the beat: weight down
+    if f < 60:
+        side = "r" if (f // 15) % 2 == 0 else "l"
+        lift = math.sin(math.pi * beat) ** 1.5             # the knee up between the beats, stomped down on them
+        p = bounce(DANCE, 0.4 * down)
+        p = over(p, **{f"thigh_{side}": (50 * lift, 0, 0), f"calf_{side}": (-70 * lift, 0, 0), f"foot_{side}": (10 * lift, 0, 0),
+                       "spine_03": (-6 + 4 * down, 0, 0), "neck": (8 - 6 * down, 0, 0)})
+        up = 0.5 + 0.5 * math.cos(2 * math.pi * beat)
+        h = SHOULDER_R.z + 0.18 + 0.32 * up
+        p = hands(p, (0.2, 0.1, h), (-0.2, 0.1, h), grip=90, elbow=(0.45, 0.0, SHOULDER_R.z))
+    else:
+        sway = math.sin(2 * math.pi * (f - 60) / 30)        # a bar each way
+        p = bounce(DANCE, 0.5 * down)
+        p = over(p, **{"pelvis@loc": (0.06 * sway, 0, -0.03 * down), "pelvis": (0, 0, 10 * sway), "spine_02": (-4, 0, -6 * sway),
+                       "spine_03": (-6, 6 * sway, -4 * sway), "neck": (8, -6 * sway, 4 * math.sin(2 * math.pi * (beat - 0.25))),
+                       "thigh_r": (14 * down + 10 * max(0.0, sway), 0, 4), "thigh_l": (14 * down + 10 * max(0.0, -sway), 0, -4)})
+        flap = math.sin(2 * math.pi * beat)
+        # Fists up before the chest, clear of the coat (dt art clearance), the elbows out and flapping.
+        p = hands(p, (0.25, 0.32, SHOULDER_R.z - 0.16), (-0.25, 0.32, SHOULDER_R.z - 0.16), grip=90,
+                  elbow=(0.55, -0.1, SHOULDER_R.z - 0.1 + 0.12 * flap))
+    dance.key(f, p, "LINEAR")
+dance.close(120)
+clips.append(dance)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",
