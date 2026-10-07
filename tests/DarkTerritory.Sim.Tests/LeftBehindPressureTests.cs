@@ -72,7 +72,7 @@ public class LeftBehindPressureTests
         }
 
         /// <summary>Whatever's hunting them, gone (they got away from it), so the next one can come.</summary>
-        public void Shake() { foreach (var e in World.ActiveEnemies.OfType<Ribbit>()) e.Dismiss(); }
+        public void Shake() { foreach (var e in World.ActiveEnemies.Where(e => e is Ribbit or Gaunt)) e.Dismiss(); }
     }
 
     [Fact]
@@ -104,6 +104,67 @@ public class LeftBehindPressureTests
         // The driver aboard is nobody's hunt; nor did the train's own director spend on them.
         Assert.True(n.Crew[2].Alive);
         Assert.True(n.Crew[1].Alive, "they needn't die at once");
+    }
+
+    [Fact]
+    public void FromTheThirdHuntAGauntWokenOnThemComesWithThePack()
+    {
+        // Note 296 (note 273's caveat: "only the Ribbits hunt so far"): from hunt gauntFrom on, a Gaunt comes too, already
+        // awake and after them (App. A.6: it follows its waker; talking holds it off). One at a time.
+        var n = new Night(5_000, 12);
+        n.Crew[1] = n.Ground(4_600);
+        n.Crew[2] = PlayerMotor.SpawnInCab(n.Train, P);
+        n.Run(240, () =>
+        {
+            // They get away from each pack a few seconds after it finds them; the Gaunt keeps after them.
+            if (n.Director.Hunts.Count > 0 && (n.World.Tick - n.Director.Hunts[^1].Tick) == 8 * SimConstants.TickRate)
+                foreach (var e in n.World.ActiveEnemies.OfType<Ribbit>())
+                    e.Dismiss();
+        });
+        var hunts = n.Director.Hunts;
+        Assert.True(hunts.Count > A.GauntFrom, $"{hunts.Count} hunts");
+        Assert.All(hunts.Take(A.GauntFrom), h => Assert.Equal(-1, h.Gaunt));
+        Assert.NotEqual(-1, hunts[A.GauntFrom].Gaunt);
+        // Only the one while it's still after them.
+        Assert.Single(hunts, h => h.Gaunt >= 0);
+        var gaunt = Assert.Single(n.World.ActiveEnemies.OfType<Gaunt>());
+        Assert.Equal(1, gaunt.Waker);
+        Assert.Equal(Enemy.Loose, gaunt.Attached);
+        // At their back by now, from where it was put down.
+        var them = PlayerMotor.WorldPosition(n.Crew[1], n.Train);
+        Assert.InRange((gaunt.WorldPosition(n.Train) - them).Length, 0, Tuning.Enemies.Gaunt.FollowAt * 3);
+    }
+
+    [Fact]
+    public void AGauntStillWalkingUpDoesntJumpAboardWithThem()
+    {
+        // Woken from far off, it follows on foot: their getting aboard doesn't put it at their back in the car (note 296).
+        var n = new Night(5_000, 0);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        var far = n.Ground(n.Train.Dynamics.Distance - 30, 20).Position;
+        var g = (Gaunt)n.World.AddEnemy(id => Gaunt.WokenBy(id, far, 1, Tuning.Enemies.Gaunt));
+        n.Run(1);
+        Assert.Equal(Enemy.Loose, g.Attached);
+        Assert.True((g.WorldPosition(n.Train) - far).Length > 1, "it walks after them");
+    }
+
+    [Fact]
+    public void TheChoirDoesntGatherWithTheTrainInAFortAndASwarmThatFollowedItInIsGone()
+    {
+        // GDD §9: the forts are safe (note 273's caveat: "the Choir's meter isn't stilled in the terminus"; note 296).
+        var inFort = new Night(Yard - 50, 0);
+        var outside = new Night(5_000, 0);
+        foreach (var n in new[] { inFort, outside })
+        {
+            n.World.Choir.Build = 1;
+            n.World.Choir.Present = true;
+            n.Run(2);
+        }
+        Assert.Equal("in a fort", inFort.Director.HeldBecause);
+        Assert.False(inFort.World.Choir.Present);
+        Assert.Equal(0, inFort.World.Choir.Build);
+        // Out on the line, a swarm only goes after its quiet (enemies.json choir.disperseQuietSeconds).
+        Assert.True(outside.World.Choir.Present);
     }
 
     [Fact]
