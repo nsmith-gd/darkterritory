@@ -60,7 +60,7 @@ return args switch
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
-    ["screenshot", ..] when args.Contains("--hud") => Print(HudShot(content, args)),
+    ["screenshot", ..] when args.Contains("--hud") || args.Contains("--hurt") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
     ["screenshot", ..] => Print(Screenshot(train, content, args)),
     ["route", "gen", ..] => Print(GenerateRoute(routeTuning, content, args)),
@@ -1624,7 +1624,8 @@ static object ArtClip(string content, string name, string clip, string[] args)
         // (--tool tool_crowbar: the crew with a hand tool in their fist, as SceneArt hangs it, for the clip's pose by its name.)
         if (Str(args, "--tool", "") is { Length: > 0 } tool && name == "crew"
             && Enum.TryParse<DarkTerritory.Game.Art.CrewPose>(clip.Replace("_idle", "").Replace("_", ""), true, out var pose))
-            art.Crewmate(mesh, placed, pose, time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
+            art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
+                    or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
@@ -2091,6 +2092,10 @@ static object HudShot(string content, string[] args)
             kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(staged, stills.Stills, session.World);
     }
     var hud = new Overlay();
+    // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
+    if (args.Contains("--hurt"))
+        Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
+            && double.TryParse(args[hu + 1], System.Globalization.CultureInfo.InvariantCulture, out double hurt) ? hurt : 0.6;
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),

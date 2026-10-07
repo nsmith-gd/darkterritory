@@ -39,6 +39,8 @@ public sealed class GreyboxScene
     public bool CordPulled { get; set; }
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
+    /// <summary>Note 275: the fireman's shovel is home by the rack (the boiler's ShovelOut, the other way about).</summary>
+    public bool ShovelRacked { get; set; } = true;
     /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
     public Sim.Train.Wreck? Wreck { get; set; }
 
@@ -2840,7 +2842,7 @@ public sealed class GreyboxScene
                 fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
             }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of

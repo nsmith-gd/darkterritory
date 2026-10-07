@@ -82,7 +82,8 @@ public sealed class Body
     public bool Broken { get; set; }
     /// <summary>
     /// A broken radio being mended with the repair kit (note 201): how many ticks Use has been held at it, 0 when nobody is.
-    /// On the body record, so the mender's HUD shows how far it's got.
+    /// On the body record, so the mender's HUD shows how far it's got. A healing find being used from the hands (note 272):
+    /// how many ticks it's been held at it, standing.
     /// </summary>
     public int MendTicks { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
@@ -130,12 +131,30 @@ public sealed class Bodies
     // Who's holding Use with the repair kit at a broken radio (note 201): which radio, and for how many ticks from the press
     // (a tap puts the kit down; a hold mends).
     readonly Dictionary<int, (int Radio, int Ticks)> _mending = new();
+    // Who's holding Use on a healing find in their hands (note 272): which find, and for how many ticks from the press (a tap
+    // puts it down; a hold uses it).
+    readonly Dictionary<int, (int Find, int Ticks)> _dosing = new();
+    // Health given back this tick by a find used up (host), by player, for the world to add (World.CrewAct).
+    readonly Dictionary<int, int> _doses = new();
     int _nextId = 1;
     const double Dt = SimConstants.TickSeconds;
     const double NearbyCar = 40;
 
     public IReadOnlyList<Body> All => _bodies;
     public HandsTuning Hands { get; set; } = new(1.6, 9, 4, 1.15, 0.6);
+
+    /// <summary>
+    /// How much health a body gives back used from the hands (GDD App. F.1's rare healing loot: a stop's bandages, medicine,
+    /// morphine; note 272), 0 for anything else. The world sets it with the run's loot (<see cref="Run.Run.HealOf"/>).
+    /// </summary>
+    public Func<Body, int>? Heals { get; set; }
+    /// <summary>How long Use is held, standing, to use a healing find (loot.json <c>healing.useSeconds</c>).</summary>
+    public double HealSeconds { get; set; } = 2;
+    /// <summary>A player's full health (player.json <c>health</c>): a find isn't used on a player who's whole.</summary>
+    public int FullHealth { get; set; } = 100;
+
+    /// <summary>Host: the health a find used up this tick gives <paramref name="playerId"/> (0 for none), taken once.</summary>
+    public int TakeDose(int playerId) => _doses.Remove(playerId, out int amount) ? amount : 0;
 
     /// <summary>
     /// The radios are things (T41): only someone wearing one talks or hears on the radio. False until the train's
@@ -314,7 +333,8 @@ public sealed class Bodies
 
     /// <summary>
     /// Lifting a body takes the tools off it, into the lifter's empty slots (GDD v1.4 §12: "they go looking for the
-    /// engineer", and whoever finds the engineer has the kit). The wrench first; what doesn't fit stays on the body.
+    /// engineer", and whoever finds the engineer has the kit). The wrench and the shovel first (note 275); what doesn't fit
+    /// stays on the body.
     /// </summary>
     public static void TakeTools(ref PlayerState s, Body body)
     {
@@ -322,10 +342,10 @@ public sealed class Bodies
             return;
         ulong kit = s.Kit, left = 0;
         foreach (var tool in Enumerable.Range(0, Player.Kit.Slots).Select(i => Player.Kit.At(body.Tools, i)).Where(t => t != Tool.None)
-            .OrderBy(t => t == Tool.Wrench ? 0 : 1))
+            .OrderBy(t => t is Tool.Wrench or Tool.Shovel ? 0 : 1))
         {
-            // A spare crowbar isn't worth a slot; the wrench (there's the one) always is.
-            if (tool != Tool.Wrench && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
+            // A spare crowbar isn't worth a slot; the wrench and the shovel (there's the one of each) always are.
+            if (tool is not (Tool.Wrench or Tool.Shovel) && Player.Kit.Has(kit, tool) || !Player.Kit.TryAdd(ref kit, tool))
                 Player.Kit.TryAdd(ref left, tool);
         }
         s.Kit = kit;
@@ -448,6 +468,8 @@ public sealed class Bodies
         _lockerHeld.Remove(playerId);
         if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
+        if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
+            return false;
         if (carried is not null && (throwPressed || usePressed))
         {
             // Nobody throws a heavy crate: either of you lets go, and it's down.
@@ -522,6 +544,53 @@ public sealed class Bodies
         {
             radio.Broken = false;
             radio.MendTicks = 0;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// GDD App. F.1's rare healing loot, used (note 272): a find that heals (<see cref="Heals"/>) in the hands of a player
+    /// short of full health, not at anything Use works. Use held there, standing, for <see cref="HealSeconds"/> uses it up:
+    /// the find's gone and its health is the carrier's (<see cref="TakeDose"/>); moving starts it over. Like the kit at a
+    /// radio, the hands wait for the release: a tap still puts it down. Returns whether it had the hands this tick.
+    /// </summary>
+    bool Dose(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
+        bool use, bool usePressed, bool throwPressed)
+    {
+        var find = carried is { Kind: BodyKind.Loot } && !throwPressed && s.Health < FullHealth && Heals?.Invoke(carried) > 0
+            && CrewActions.NearestInteractable(s, train, hand) is null ? carried : null;
+        bool had = _dosing.TryGetValue(playerId, out var was);
+        if (had && (find is null || find.Id != was.Find))
+        {
+            _dosing.Remove(playerId);
+            if (_bodies.FirstOrDefault(b => b.Id == was.Find) is { } left)
+                left.MendTicks = 0;
+            had = false;
+        }
+        if (find is null)
+            return false;
+        if (usePressed)
+            _dosing[playerId] = (find.Id, 1);
+        else if (use && had)
+            _dosing[playerId] = (find.Id, was.Ticks + 1);
+        else if (!use && had)
+        {
+            _dosing.Remove(playerId);
+            find.MendTicks = 0;
+            // A tap: it was the hands', putting it down.
+            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(find, s, train, 0);
+            return true;
+        }
+        if (!use || !_dosing.ContainsKey(playerId))
+            return true;
+        bool still = Math.Abs(intent.MoveX) <= 0.1 && Math.Abs(intent.MoveZ) <= 0.1;
+        find.MendTicks = still ? find.MendTicks + 1 : 0;
+        if (find.MendTicks * Dt >= HealSeconds - Dt / 2)
+        {
+            _doses[playerId] = _doses.GetValueOrDefault(playerId) + Heals!(find);
+            _dosing.Remove(playerId);
+            Remove(find);
         }
         return true;
     }

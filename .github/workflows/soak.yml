@@ -42,6 +42,13 @@ jobs:
           # Exits 1 if a check fails: survivable at 2, non-trivial at 8, fair throughout (tuning/balance.json).
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --tiers frontier --seeds 2 --crews 2,8 --cars 10 > out/soak/balance.json
           jq -c '{checks, byCrew, byCars}' out/soak/balance.json
+      # GDD App. F.1's solo target (note 300): a crew of one finishes the first runs (Local, 3 cars) and not where a crew
+      # advances to (Frontier, 6 cars). Reported, not failing: a first pass, for the director to read.
+      - name: Solo, a few runs then friends
+        continue-on-error: true
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --tiers local,frontier --seeds 3 --crews 1 --cars 3,6 > out/soak/solo.json || echo "solo: flagged"
+          jq -c '{checks: [.checks[] | select(.name | startswith("solo"))], byCars}' out/soak/solo.json
       # GDD §34's other checks (note 186). They report what they find without failing the soak: each is a sieve for the
       # director to read (unwinnable or trivial meetings, a chain the bots couldn't come back from, a grab nobody broke).
       - name: Combination fairness, every pair against every hazard set, and a sample of the triples

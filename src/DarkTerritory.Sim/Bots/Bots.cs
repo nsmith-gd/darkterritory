@@ -1447,7 +1447,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (_alone is not null && calls is not null)
             {
                 _aloneHand ??= new StopHand(StopJob.None, calls, member);
-                if (_aloneHand.SetBackAlone(self, world, _alone, _aloneTo) is { } getting)
+                // The stop's given the spur up (its Held give-up: the points wouldn't go over) with the switch still for the
+                // main: back up into the cab, not at the lever all night (note 300).
+                var to = _aloneTo && !train.Diverging(_alone.Index) && stops.ThrowAlone(world) is null ? null : _alone;
+                if (_aloneHand.SetBackAlone(self, world, to, _aloneTo) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
                     return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };
@@ -1857,7 +1860,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Its brake fading against the steam (note 231): no more than steam that doesn't pull at the cruise, as it's vented to.
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
+        // Only with the shovel to hand (note 275): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.
@@ -2545,6 +2549,20 @@ public static class Heed
     /// The marsh (v1.1 §22, formerly the Drift): coming at us, or on us, stand stock still until it loses us ("~4s"). The look
     /// can go where it likes: it's feet it feels.
     /// </summary>
+    /// <summary>
+    /// GDD App. F.1's rare healing loot (note 272): a bot carrying a find that heals, hurt below loot.json
+    /// <c>healing.botBelow</c>, stands still and holds Use on it till it's used (a person's way: Bodies.Dose). Never at a
+    /// lever or a door, where Use would work that instead.
+    /// </summary>
+    public static PlayerIntent Heal(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
+            || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
+    }
+
     public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)
     {
         if (!self.Alive || !world.ActiveEnemies.OfType<Drift>().Any(d => d.Target == selfId && d.Phase is SpinePhase.Telegraph or SpinePhase.Punish))

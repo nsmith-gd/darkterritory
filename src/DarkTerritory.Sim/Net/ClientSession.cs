@@ -71,6 +71,7 @@ public sealed class ClientSession
         {
             _playerTuning = value;
             World.Hand = value.Hand;
+            World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
     }
     PlayerTuning _playerTuning = null!;

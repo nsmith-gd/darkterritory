@@ -15,7 +15,17 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     public Audit.CascadeTuning Cascades { get; init; } = new();
     /// <summary>App. A.9 / B.10's per-tree GRAB check: the crew sizes it's run at, and where the friends stand (note 186).</summary>
     public Audit.GrabAuditTuning Grabs { get; init; } = new();
+    /// <summary>GDD App. F.1's solo target: a few runs, then friends (note 300).</summary>
+    public SoloTuning Solo { get; init; } = new();
 }
+
+/// <summary>
+/// GDD App. F.1 (the director, 6 Oct 2026): a solo player finishes one to three runs, then it's seriously hard. Judged on a
+/// sweep's crew-of-one nights: the first runs' cell (tier and train) delivered at least <see cref="StartDelivered"/>, the
+/// cell a crew advances to at most <see cref="HardDelivered"/> (note 300). Field docs live in balance.json.
+/// </summary>
+public sealed record SoloTuning(string StartTier = "local", int StartCars = 3, double StartDelivered = 0.66,
+    string HardTier = "frontier", int HardCars = 6, double HardDelivered = 0.34);
 
 /// <summary>One night of a sweep: a route, the crew's size, the train's length.</summary>
 public sealed record BalanceNight(RouteTier Tier, ulong Seed, int Crew, int Cars);
@@ -78,6 +88,17 @@ public static class Balance
             double mean = rows.Average(r => r.MeanQuietSeconds);
             checks.Add(new BalanceCheck($"quiet {t.MeanQuietSeconds:0} s at a time, or less", mean <= t.MeanQuietSeconds, $"{mean:0.0} s on average"));
         }
+        // App. F.1, solo (note 300): the first runs can be finished alone; where a crew goes next can't, really.
+        var solo = t.Solo;
+        IReadOnlyList<BalanceRow> Alone(string tier, int cars) =>
+            [.. rows.Where(r => r.Crew == 1 && r.Cars == cars && r.Tier == Enum.Parse<RouteTier>(tier, ignoreCase: true))];
+        static double Rate(IReadOnlyList<BalanceRow> nights) => Math.Round(nights.Average(r => r.Delivered ? 1.0 : 0.0), 3);
+        if (Alone(solo.StartTier, solo.StartCars) is { Count: > 0 } first)
+            checks.Add(new BalanceCheck($"solo finishes {solo.StartTier} at {solo.StartCars} cars", Rate(first) >= solo.StartDelivered,
+                $"{Rate(first):P0} of {first.Count} nights delivered (at least {solo.StartDelivered:P0})"));
+        if (Alone(solo.HardTier, solo.HardCars) is { Count: > 0 } hard)
+            checks.Add(new BalanceCheck($"solo is hard on {solo.HardTier} at {solo.HardCars} cars", Rate(hard) <= solo.HardDelivered,
+                $"{Rate(hard):P0} of {hard.Count} nights delivered (at most {solo.HardDelivered:P0})"));
         int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));
         return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass));
