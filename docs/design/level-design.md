@@ -342,6 +342,7 @@ The stop's checks verify all five again on the finished layout. A stop where non
 - **A Soot Child's call (B.6 "near facilities and dead settlements"):** in the open beyond the stop's built edge, where the consist, or the cars waiting on the main line, can see it.
 - **The Grumbler's perch (B.8 "facility cranes"):** every yard gantry.
 - **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it.
+- **The Moose's ground (B.6; the director's decisions of 7 Oct 2026, note 311):** open grazing 30–60 m out from the consist's middle, on whichever side it can stand: on the ground, not in water, clear of the stop's buildings and the cars, and never within the track's clearance (6 m from any track's centre where it's put down, 3.2 m as it moves). Close enough to the crew's walks that they're always aware of it; the buildings and the standing cars are the cover that beats it, and the line is a boundary it won't cross. Its spawn rule places it today (Spawns.cs); queue #48 may move it to a laid-out site.
 
 The layout says where; the director will say when, once the v1.1 roster is built (the sim still runs the v1.0 one).
 

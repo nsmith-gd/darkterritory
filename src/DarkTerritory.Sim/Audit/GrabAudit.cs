@@ -38,6 +38,7 @@ public static class GrabAudit
     [
         EnemyKind.CarHugger, EnemyKind.Dragger, EnemyKind.Whistler, EnemyKind.TippyToesie, EnemyKind.Ribbit, EnemyKind.SootChildren,
         EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Climber, EnemyKind.Gaunt, EnemyKind.CinderHound, EnemyKind.Grumbler,
+        EnemyKind.Moose,
     ];
 
     const int Cars = 6;
@@ -251,6 +252,22 @@ public static class GrabAudit
                     double off = Off(c, e.Gaunt.StirAt);
                     Friends(n, crew, off, (d, i) => n.Ground(2, 4 + (i % 2) * 1.5, -d - i / 2 * 1.2));
                     return new(n, v, "woken, hurt, and nobody talking", Still);
+                }
+            case EnemyKind.Moose:
+                {
+                    // At a stop, a crewmate already hurt out on the ground, the moose riled at them from further out (note 311);
+                    // friends along the train, out of its path.
+                    var n = new AuditNight(c, Cars, 0, crew);
+                    var s = n.Ground(2, 8);
+                    s.Health = (int)e.Moose.GrabBelowHealth;
+                    int v = n.Add(s);
+                    var at = n.Where(v);
+                    var frame = n.Train.Frames[2];
+                    var outward = (at - frame.Origin) with { Y = 0 };
+                    n.World.AddEnemy(id => Moose.Enraged(id, at + outward.Normalized * 18, n.Train.Dynamics.Distance, v));
+                    double off = Off(c, 0);
+                    Friends(n, crew, off, (d, i) => n.Ground(2, 3, (i % 2 == 0 ? 1 : -1) * (d + i / 2 * 1.2)));
+                    return new(n, v, "hurt on the ground at a stop, the moose riled at them", Still);
                 }
             case EnemyKind.CinderHound:
                 {

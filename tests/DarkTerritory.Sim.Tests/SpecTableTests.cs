@@ -82,4 +82,23 @@ public class SpecTableTests
         Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Punish) < Rank(DarkTerritory.Sim.Run.BookmarkKind.Grab));
         Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Derail) >= 0);
     }
+
+    /// <summary>Spec B.12, the Moose (the director's decisions of 7 Oct 2026; note 311).</summary>
+    [Fact]
+    public void TheMooseMatchesB12()
+    {
+        var m = Tuning.Enemies.Moose;
+        Assert.Equal((20.0, 50.0), (m.ListenAt, m.WarnAt));
+        Assert.Equal((20.0, 25.0, 12.0, 70.0), (m.CrowdAt, m.CrowdPerSecond, m.CloseAt, m.ClosePerSecond));
+        Assert.Equal((15.0, 40, 40.0), (m.HearVoice, m.TalkingAbove, m.VoicePerSecond));
+        Assert.Equal((25.0, 25.0, 15.0), (m.TrainPassAt, m.TrainPass, m.CalmPerSecond));
+        Assert.Equal((2.5, 30.0), (m.SquareUpSeconds, m.SquareUpAt[1]));
+        Assert.Equal((11.0, 8.0, 2.5, 3.2, 4.0), (m.ChargeSpeed, m.Overrun, m.WheelSeconds, m.RackSpan, m.SnagSeconds));
+        Assert.Equal((60, 40.0, 12.0), (m.ChargeDamage, m.GrabBelowHealth, m.PinSeconds));
+        Assert.Equal((25.0, 2.5, 80.0), (m.SearchSeconds, m.SearchSpeed, m.LeashRadius));
+        Assert.Equal((3.0, 15.0), (m.RamEvery, m.RamSeconds));
+        Assert.Equal((3.2, 6.0), (m.TrackClearance, m.MovingClearance));
+        Assert.Equal([1.0, 1.5, 2.0, 2.5], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(m.TierWeights, t)));
+        Assert.Equal([2.0, 3.0, 4.0, 5.0], Enum.GetValues<DarkTerritory.Sim.Route.RouteTier>().Select(t => DarkTerritory.Sim.Enemies.MooseTuning.ByTier(m.Lineside, t)));
+    }
 }

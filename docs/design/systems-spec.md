@@ -88,6 +88,7 @@ whoever has to hear it.
 | The Passenger | **Silent by design** (it never speaks) | — | — |
 | The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
+| The Moose *(added 7 Oct, note 311; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | pending (audio) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
@@ -375,6 +376,31 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | One extinguisher | Puts out a fire found in its first 40 s; not one left a minute (about 60% of the car alight) |
 
 ---
+
+## B.12 The Moose
+
+*The director's decisions, 2026-10-07* (GDD §21, App. A.6, B.6; `moose` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 311). `SpecTableTests.TheMooseMatchesB12` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Aggro** | 0–100; listening at **20**, warning at **50**, charging at **100** |
+| Crowding (on the ground, in its sight) | + 25 /s within **20 m**; + 70 /s within **12 m** |
+| Voices | + 40 /s × (voice ÷ 255) within **15 m**, over a floor of 40 (a whisper is free) |
+| A train going by | + 25, once a pass, within 25 m |
+| A hit | fills it; whoever hit it is its target from then on |
+| Calming | − 15 /s with nobody crowding or talking |
+| **Square-up** | **2.5 s** within 30 m, its heading locked at the end |
+| **Charge** | **11 m/s** (twice a player's run), overruns 8 m, wheels round in 2.5 s |
+| Rack | **3.2 m** across: nothing narrower lets it in |
+| Snagged (charged into a building) | 4 s |
+| **A charge** | a hit of **60**; on someone at **40** or less, a pin of **12 s**, broken by a friend's blow |
+| Search | 25 s at 2.5 m/s where it lost them; a voice within 15 m gives anyone away |
+| Leash | 80 m from its ground |
+| Ram (lost at a car) | every 3 s for 15 s; nothing in or on the car is touched |
+| **Track clearance** | never within **3.2 m** of a track's centre; 6 m while the train moves and where it's put down |
+| Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
+| Beside the line | 2 · 3 · 4 · 5 per 10 km by tier, × the biome's weight |
+| Health | none: nothing kills it |
 
 # PART C — DEATH AND REVIVAL
 

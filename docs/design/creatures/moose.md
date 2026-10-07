@@ -1,10 +1,9 @@
 # THE MOOSE — a corrupted bull moose
 
-*Creature proposal, G1 (enemy design). **Status: proposed, revised twice with the director, 7 Oct 2026.** Nothing here
-is in the GDD, the systems spec or the tuning yet. On approval it goes into GDD §21 (Outside), App. A.6, App. A.9 (the
-voice-system enemies), App. B.1 (costs, wants, conflict table), B.6 and level-design H.2, and the numbers go into
-`content/tuning/enemies.json` `moose`. The numbers below are a first pass in the same units and scale as the roster's
-(player health 100, run 5.5 m/s, a gun round = 4 blows, a voice's 0–255 Voice byte).*
+*Creature design, G1 (enemy design). **Status: approved by the director, 7 Oct 2026, and built (queue #50, ARCHITECTURE
+§8 note 311).** It's in the GDD (§21, App. A.6, A.9, B.1, B.6, Part Eleven Q14), level-design H.2, the systems spec (B.12,
+pinned by `SpecTableTests.TheMooseMatchesB12`) and `content/tuning/enemies.json` `moose`. This page keeps the reasons; the
+numbers in §9 are the tuning's. Where building it changed the design, it says so (**As built**).*
 
 > **A hyper-aggressive, territorial moose, too big to get on the train.**
 
@@ -45,7 +44,10 @@ among the buildings, quietly, until it gives up. Hit it to take its attention of
 that wide fits through a door, so it rams the car you're in for a while, and only the train pulling away ends that for
 good.
 
-**Sense trigger:** sound and sight (trespass). **Zone:** outside. **Want:** Split. **Cost:** 3.
+**Sense trigger:** movement (trespass) and sound. **Zone:** outside. **Want:** Split. **Cost:** 3.
+
+**As built:** its one primary sense (App. A.1) is movement: what it sees coming onto its ground. That keeps it apart from
+the Ribbits (sight) and the Gaunt (sound) under B.1's one-tell-type-at-once cap, so it can be paired with both.
 
 ## 3. What it looks like (art brief, GDD §26.5, §29)
 
@@ -104,7 +106,7 @@ it, and its ears and posture do.
 GRAZING   beside the line or at its ground by a stop; docile; aggro falls when it's given room and quiet
           └ TELEGRAPH (presence): seen and heard from the train, pale in the lamp
 AGGRO     rises from:
-          · anyone within 20 m (faster within 12 m)
+          · anyone on the ground it can see within 20 m (faster within 12 m)
           · anyone talking within 15 m (faster the louder; their position heard, not just their noise)
           · the train passing within 25 m (a little, once)
           · a hit (a blow, a thrown thing, a gun round): straight to full
@@ -139,9 +141,14 @@ TRAIN     the train pulls away → done for the stop
 ```
 
 **Never on the rail.** It grazes, stands, searches and rams from beside the line, never on it. Its ground and its
-lineside spots are always outside the train's clearance. When it's chasing at a stop it can cross a track at a run, but it
-never stops, grazes, overruns, searches or rams on one, and it never comes inside the clearance of a moving train. It is
-never in the train's way: the train can't hit it, and the Moose can't stop or derail the train.
+lineside spots are always outside the train's clearance. It is never in the train's way: the train can't hit it, and the
+Moose can't stop or derail the train.
+
+**As built:** the track's clearance is a line it never crosses at all (3.2 m from any track's centre, the rack's half-span
+off a car's side; 6 m while the train moves and where it's put down). The first draft let it cross a track at a run during
+a chase; the simplest rule that can never put it in the train's way is that it doesn't, so the far side of the line is
+somewhere it can't follow. Crowding also counts only what it can see: someone round a corner or behind the train isn't
+crowding it (its voice-hearing still works through walls), which is what makes hiding work.
 
 **The passing train.** A moose beside the line takes a train going by as a rival. It tosses its head, bellows after it,
 and thrashes the verge, for a little aggro. It never acts on the moving train. The aggro only matters if the train stops
@@ -193,12 +200,13 @@ All six.
 
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
-| **The Moose** | Grazing at its ground beside a stop, where the crew will pass; or beside the line on the run | Every tier · crew ≥2 · one per stop (two bulls never share ground) | By tier ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory. By biome ×2 bog, ×1.5 barrens and lakeshore, ×1 forest. Up per player on the ground |
+| **The Moose** | Grazing at its ground beside a stop, where the crew will pass; or beside the line on the run | Every tier · one about at a time (two bulls never share ground) | By tier ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory. By biome ×2 bog, ×1.5 barrens and lakeshore, ×1 forest. Up per player on the ground |
 
 - **Every tier, more the harder the tier.** It's a fair first lesson on Local (give it room, keep it quiet). On Deep
   Territory it's at most stops, beside the other outside creatures.
-- **Crew ≥2,** because the fairness contract (A.1) wants every pin breakable by a friend. A solo player can't be
-  rescued, so a solo night has no Moose. If the director wants it solo too, the pin needs a self-escape.
+- **Any crew.** **As built:** the first draft gated it at crew 2 because a lone player can't be rescued. The build already
+  has a self-escape for every grab at a crew of one (the solo rule, `grab.soloStruggle`, T89): a pinned lone player
+  struggles free. So the Moose comes to solo nights too, as the director's "all difficulties" wants.
 - **It's a resident at stops.** The director places it at its ground when the train arrives, like the slaughterhouse's
   Gaunt (`residents`), after the 20 s facility lull. A crew that gives it room pays nothing but attention.
 - **On the run** it's dressing that matters: a moose beside the line, `lineside` of them per 10 km by tier, never within
@@ -227,34 +235,26 @@ voices, so the answer is to talk quietly, wide of its ground.
 
 ## 9. First-pass numbers (proposed `enemies.json` `moose`)
 
+The tuning as built (`content/tuning/enemies.json` `moose`; its comment documents every field):
+
 ```jsonc
-// THE MOOSE · sound, sight (trespass) · outside (proposal: docs/design/creatures/moose.md). Grazing at its ground or
-// beside the line, never on a track or within trackClearance m of one. Its aggro (0-100) rises crowdPerSecond with anyone
-// within crowdAt m (closePerSecond within closeAt), voicePerSecond at full voice with anyone talking (over talkingAbove of
-// 255) within hearVoice m, by trainPass once a train goes by within trainPassAt m; a hit fills it. It falls calmPerSecond
-// with nobody crowding or talking. listenAt and warnAt are its tells. Full: its target is whoever put the most in (the
-// hitter, if anyone hit it; the last to hit it, always, after). It squares up squareUpSeconds at squareUpAt m and charges at
-// chargeSpeed, overrunning overrun m and wheeling wheelSeconds. Nothing narrower than rackSpan lets it through; run into
-// something narrower and it's snagged snagSeconds. A charge is a hit of chargeDamage; at or under grabBelowHealth it pins
-// for pinSeconds (a hit from anyone else breaks it). Out of sight (sightRange) it goes where it last saw or heard them and
-// searches searchSeconds; a voice within hearVoice gives them away. Then it gives up, as it does past leashRadius from its
-// ground. Lost at a car (lostAtCar m) it rams it every ramEvery s for ramSeconds, and the ram is only a sound and a
-// shudder. It can't be killed: blows and rounds only make the hitter its target.
 "moose": {
   "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
-  "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 20,
+  "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
   "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
   "listenAt": 20, "warnAt": 50,
-  "squareUpAt": [12, 30], "squareUpSeconds": 2.5,
-  "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "snagSeconds": 4,
+  "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
+  "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
   "chargeDamage": 60, "grabBelowHealth": 40, "pinSeconds": 12,
   "sightRange": 60, "searchSpeed": 2.5, "searchSeconds": 25, "leashRadius": 80,
   "lostAtCar": 5, "ramEvery": 3, "ramSeconds": 15,
-  "trackClearance": 4,
-  "minCrew": 2, "perGroundWeight": 0.5,
+  "trackClearance": 3.2, "movingClearance": 6, "goneBeyond": 600,
+  "groundAt": [30, 60], "minCrew": 1, "perGroundWeight": 0.5,
   "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
   "lineside": { "local": 2, "frontier": 3, "deadLines": 4, "deepTerritory": 5 },
-  "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "blackForest": 1, "forestEdge": 1, "mountain": 1 }
+  "linesideOut": [8, 22], "linesideAhead": 300,
+  "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "coast": 0.5, "blackForest": 1, "forestEdge": 1,
+    "mountain": 1, "deadTown": 0.5, "industrialRuin": 0.3, "slag": 0.3 }
 }
 ```
 
@@ -262,8 +262,8 @@ Body for the guns (`bodies`): `"moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]]`, t
 body is a hit, so it makes the gunner the target, and the gunner is aboard: it rams the gun's car. The rack stops nothing.
 
 **Why these numbers:**
-- **The meter's pace.** Walk past at 20 m and it listens. Stop at 12 m and it's full in about 1.5 s. A crew chatting at
-  normal voice 15 m away fills it in about 5–7 s (normal voice is about half of full): long enough that a sharp
+- **The meter's pace.** Walk past at 20 m and it listens. Stop at 12 m and it's full in about 1.5 s. One crewmate chatting
+  at a normal voice (about half of full, so 20 a second) 15 m away fills it in about 5 s: long enough that a sharp
   "shh, moose" saves you, and short enough that it bites. All of it falls away at 15 a second once you back off and hush.
 - **The passing train** adds 25 once: enough to make it listen, never enough to warn on its own.
 - **11 m/s charge** is twice a player's run (5.5), so you can't outrun it in the open. That forces the sidestep or the
@@ -273,7 +273,9 @@ body is a hit, so it makes the gunner the target, and the gunner is aboard: it r
 - **25 s search, 80 m leash:** long enough that a single corner won't shake it, short enough that hide-and-seek wins
   inside a minute, if you're quiet. It always gives up eventually.
 - **15 s of ramming:** "for a little bit". It holds you in the car, and costs you only time.
-- **4 m track clearance:** outside the loading gauge of anything the train runs, with room for its rack to swing.
+- **3.2 m track clearance** (6 m while the train moves): its rack's half-span off a car's side, so it can stand at a
+  stopped car to ram it and never be over the rail.
+- **3 blocked charges:** a target safe in a narrow place isn't besieged all stop; it gives up and goes home.
 
 ## 10. What the harness verifies
 
@@ -310,7 +312,5 @@ body is a hit, so it makes the gunner the target, and the gunner is aboard: it r
 
 ## 12. Open questions
 
-1. **Solo.** Crew ≥2 is proposed because a lone player can't be freed from a pin. If the Moose should be in solo nights
-   too, a pinned solo player needs a way out, for example struggling free for a second hit.
-2. **Does shushing count?** On the Choir it does (Part Eleven Q13). For the Moose, a whisper of "shh" under the
+1. **Does shushing count?** (GDD Part Eleven Q14.) On the Choir it does (Part Eleven Q13). For the Moose, a whisper of "shh" under the
    `talkingAbove` floor is free, so whispering is the skill.
