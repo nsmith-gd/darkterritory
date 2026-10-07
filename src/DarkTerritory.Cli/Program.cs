@@ -698,7 +698,7 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         (tier, seed, kind) = (layout.Tier, layout.Seed, layout.Kind);
     }
     else
-        // --town: a village halt as a dead town has it, with its station and goods yard (note 301).
+        // --town: a village halt as a dead town has it, with its station and goods yard (note 302).
         layout = StopGenerator.Generate(st, tier, seed, kind, StopContextOf(rt) with { DeadTown = args.Contains("--town") });
     string plan = Str(args, "--out", $"out/stops/{tier}-{seed}-{kind}.png");
     int size = (int)Opt(args, "--size", 900);
@@ -726,7 +726,7 @@ static object ShowStop(string content, RouteTuning rt, StopTuning st, string[] a
         layout.Moves,
         tracks = layout.Tracks.Select(t => new { t.Index, side = t.Side, toe = Math.Round(t.Toe, 1), offset = t.Offset, length = Math.Round(t.Length, 1), t.Capacity, t.FaceCars, crane = t.Crane, derelicts = t.Derelicts }),
         buildings = layout.Buildings.GroupBy(b => b.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
-        // A dead town's railway side (note 301): where its station, goods shed and derelicts stand, and its goods siding.
+        // A dead town's railway side (note 302): where its station, goods shed and derelicts stand, and its goods siding.
         railwaySide = layout.Buildings.Where(b => b.Kind is BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict)
             .Select(b => new { kind = b.Kind.ToString(), s = Math.Round(b.S, 1), d = Math.Round(b.D, 1) }),
         sidings = layout.Sidings.Select(x => x.Select(p => new { s = Math.Round(p.S, 1), d = Math.Round(p.D, 1) })),
@@ -754,7 +754,7 @@ static object SweepStops(RouteTuning rt, StopTuning st, int seeds)
     return Enum.GetValues<RouteTier>().Select(tier =>
     {
         var result = new Dictionary<string, object>();
-        // Each kind, and a dead town (a village halt with its railway side, note 301).
+        // Each kind, and a dead town (a village halt with its railway side, note 302).
         foreach (var (kind, name, town) in Enum.GetValues<StopKind>().Select(k => (k, k.ToString(), false)).Append((StopKind.Village, "DeadTown", true)))
         {
             var first = new List<double>();

@@ -235,7 +235,7 @@ public sealed partial class WorldArt
                 k.With(frame, () => Well(k));
                 break;
             case BuildingKind.Station:
-                // A dead town's station (note 301): a brick booking hall behind the platform, its door and a canopy to the line.
+                // A dead town's station (note 302): a brick booking hall behind the platform, its door and a canopy to the line.
                 k.With(frame, () =>
                 {
                     int door = b.D > 0 ? -1 : 1;
@@ -342,7 +342,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// A dead town's goods siding (note 301): sleepers and two rusted rails, its points long lifted, a buffer stop at its far
+    /// A dead town's goods siding (note 302): sleepers and two rusted rails, its points long lifted, a buffer stop at its far
     /// end (up the line), where the derelicts stand.
     /// </summary>
     void GoodsSiding(Kit k, RailLine line, Route route, RouteFeature f, IReadOnlyList<Pt> siding, Double3 eye, float valleyDepth)
@@ -370,7 +370,7 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// A derelict van on a dead town's goods siding (linegen plan §11.3 "derelict stock"; note 301): a box van left where it
+    /// A derelict van on a dead town's goods siding (linegen plan §11.3 "derelict stock"; note 302): a box van left where it
     /// stood, its paint gone to rust, a door hanging open on the dark inside (variant 1), or slid off its runner (2).
     /// </summary>
     static void DerelictVan(Kit k, float length, int variant)

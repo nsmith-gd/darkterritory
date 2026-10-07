@@ -54,7 +54,7 @@ static class StopChecks
 
         if (cx.DeadTown)
         {
-            // Linegen plan §11.3 (note 301): a dead town has its station building and a goods yard with derelict stock.
+            // Linegen plan §11.3 (note 302): a dead town has its station building and a goods yard with derelict stock.
             int derelicts = l.Buildings.Count(b => b.Kind == BuildingKind.Derelict);
             Add("A dead town has its railway side", l.Buildings.Any(b => b.Kind == BuildingKind.Station) && derelicts > 0 && l.Sidings.Count == 1,
                 $"station {(l.Buildings.Any(b => b.Kind == BuildingKind.Station) ? "built" : "missing")}, {derelicts} derelicts on {l.Sidings.Count} goods siding");
@@ -100,7 +100,7 @@ static class StopChecks
                     clash++;
         foreach (var b in l.Buildings)
         {
-            // A dead town's derelicts stand on their own goods siding (note 301): only the main line is in their way.
+            // A dead town's derelicts stand on their own goods siding (note 302): only the main line is in their way.
             if (b.Kind == BuildingKind.Derelict ? StopDraft.NearMain(b, 1) : g.TouchesRail(b, 1))
                 clash++;
             if (b.Zone == StopZone.Village && g.TouchesRoad(b, 0.5))

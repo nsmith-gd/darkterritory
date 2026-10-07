@@ -21,7 +21,7 @@ public enum Arrangement : byte { Single, Opposite, Setback, Along }
 
 public enum StopZone : byte { Yard, Village }
 
-/// <remarks>A dead town's railway side (linegen plan §11.3; note 301): <see cref="Station"/> behind its platform, a goods
+/// <remarks>A dead town's railway side (linegen plan §11.3; note 302): <see cref="Station"/> behind its platform, a goods
 /// yard's <see cref="GoodsShed"/>, and <see cref="Derelict"/> stock standing on the goods siding.</remarks>
 public enum BuildingKind : byte { Shed, Hero, House, Outbuilding, Barn, Well, PrisonCar, SignalBox, LampRoom, WaterTower, Lockup, Powerhouse, Station, GoodsShed, Derelict }
 
@@ -213,7 +213,7 @@ public sealed record StopLayout
     /// <summary>Where the consist stops to work the stop (a yard's first loading face, or the halt): what D.4 measures from.</summary>
     public Pt StopPoint { get; init; }
     public IReadOnlyList<StopHoldout> Holdouts { get; init; } = [];
-    /// <summary>A dead town's goods siding (note 301): derelict track, its points long lifted, the derelicts standing on it.</summary>
+    /// <summary>A dead town's goods siding (note 302): derelict track, its points long lifted, the derelicts standing on it.</summary>
     public IReadOnlyList<IReadOnlyList<Pt>> Sidings { get; init; } = [];
     /// <summary>The yard's power and its powerhouse at the throat (a building index; −1 for none), level-design D.2.</summary>
     public PowerState Power { get; init; }

@@ -116,7 +116,7 @@ public class StopGeneratorTests
     [MemberData(nameof(Tiers))]
     public void ADeadTownHasItsStationAndAGoodsYardOfDerelictStock(RouteTier tier)
     {
-        // Linegen plan §11.3 (note 301): "platforms, station building, goods shed, sidings with derelict stock". A halt has none.
+        // Linegen plan §11.3 (note 302): "platforms, station building, goods shed, sidings with derelict stock". A halt has none.
         var tt = S.Tiers[tier];
         var dt = S.DeadTown;
         for (ulong seed = 1; seed <= 25; seed++)

@@ -56,7 +56,7 @@ public static class StopMap
                 foreach (double e in new[] { -rw.Reach, rw.Reach })
                     Line(px, size, [new Pt(rw.From, d + e), new Pt(rw.To, d + e)], At, 0.5 * k, 200, 196, 182);
             }
-        // A dead town's goods siding (note 301), its points lifted.
+        // A dead town's goods siding (note 302), its points lifted.
         foreach (var siding in l.Sidings)
             Dashed(px, size, siding, At, 0.9 * k, 2, 2, 150, 146, 136);
         // A prison car's spare siding, under it.
@@ -72,7 +72,7 @@ public static class StopMap
                 BuildingKind.Lockup => (104, 108, 116),
                 BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower => (70, 66, 72),
                 // The powerhouse: lit amber when it's live, grey when it's low, black when it's dead.
-                // A dead town's railway side (note 301): the station in brick, the goods shed in timber, derelicts in rust.
+                // A dead town's railway side (note 302): the station in brick, the goods shed in timber, derelicts in rust.
                 BuildingKind.Station => (150, 92, 72),
                 BuildingKind.GoodsShed => (128, 104, 80),
                 BuildingKind.Derelict => (150, 72, 44),

@@ -9,7 +9,7 @@ namespace DarkTerritory.Sim.Stops;
 /// facility or the platform. 0 lets the stop roll it.</param>
 /// <param name="HaltAt">Where along the zone a village's halt already stands (the line generator's platform), if it does.</param>
 /// <param name="DeadTown">A dead town rather than a halt (linegen plan §11.3): it has its railway side, a station building and a
-/// goods yard with derelict stock (note 301).</param>
+/// goods yard with derelict stock (note 302).</param>
 public readonly record struct StopContext(double ZoneLength, double PointsLength, double MaxLateral = 220, FacilityKind? Facility = null, double ExitGrade = 0,
     int Side = 0, double? HaltAt = null, bool DeadTown = false);
 
@@ -85,7 +85,7 @@ public static partial class StopGenerator
 
     /// <summary>
     /// A dead town's railway side (linegen plan §11.3: "platforms, station building, goods shed, sidings with derelict stock";
-    /// note 301). The station building stands behind the halt's platform, clear of the lane up to the village. The goods
+    /// note 302). The station building stands behind the halt's platform, clear of the lane up to the village. The goods
     /// yard is out past the tier's rail buffer (P13: its find is loot), on whichever side has room, the far side from the
     /// village first: a siding with its points long lifted, the derelicts standing on it from its buffer stop, and the goods
     /// shed beyond it, its workbench a find at <c>deadTown.goods.find</c>. Anything that doesn't fit is left out, and the
@@ -280,7 +280,7 @@ public static partial class StopGenerator
             g.AddRoad(RoadKind.Through, [new Pt(RR.Range(150, 320), -sY * edge), new Pt(RR.Range(60, 120), -sY * RR.Range(50, 90)), new Pt(-12, -sY * RR.Range(30, 60))]);
         }
 
-        // A dead town's railway side (note 301), from its own seed, before the Holdouts and lairs so they're placed round it.
+        // A dead town's railway side (note 302), from its own seed, before the Holdouts and lairs so they're placed round it.
         var sidings = new List<IReadOnlyList<Pt>>();
         if (cx.DeadTown && halt is { } stationAt && village is not null)
             RailwaySide(g, new Dice(StopSeed.Of(s, StopSeed.DeadTown)), t, tt, stationAt, village.Side, sidings);
