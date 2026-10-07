@@ -65,6 +65,8 @@ public sealed class Director
     double _pressure;
     bool _building;
     double _sinceThreat;
+    /// <summary>The line run since a threat was last engaged or sent (note 270: quiet counted in kilometres).</summary>
+    double _quietMetres;
 
     /// <summary>This night's grace: no spawns of the director's own before it (seconds into the night).</summary>
     public double Grace { get; }
@@ -375,7 +377,12 @@ public sealed class Director
         // nobody walked into held the night's pressure flat).
         int engaged = active.Count(Confronting);
         _sinceThreat = engaged > 0 ? 0 : _sinceThreat + 1;
-        double quiet = p.QuietPerSecond * Math.Min(1, _sinceThreat / Math.Max(1, p.QuietRampSeconds));
+        _quietMetres = engaged > 0 ? 0 : _quietMetres + world.Train.Dynamics.Speed;
+        // GDD App. F.1 (note 270): a stretch of line holds the same danger whatever the train's speed; time is the backstop.
+        double ramp = p.QuietRampMetres > 0
+            ? Math.Max(_quietMetres / p.QuietRampMetres, _sinceThreat / Math.Max(1, p.QuietBackstopSeconds))
+            : _sinceThreat / Math.Max(1, p.QuietRampSeconds);
+        double quiet = p.QuietPerSecond * Math.Min(1, ramp);
         // The meter's loudness against its threshold (App. C.7): a crew loud enough to draw the Choir draws everything else too.
         double loud = world.Combat is { } combat && combat.Choir.Threshold > 0
             ? p.LoudPerSecond * Math.Min(p.LoudCap, world.Choir.Loudness / combat.Choir.Threshold) : 0;
@@ -492,6 +499,7 @@ public sealed class Director
         // counts again from the threat's coming.
         _pressure = Math.Max(0, _pressure - _t.Pressure.ReliefPerCost * Cost(kind));
         _sinceThreat = 0;
+        _quietMetres = 0;
         string want = WantOf(kind).ToString().ToLowerInvariant();
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)

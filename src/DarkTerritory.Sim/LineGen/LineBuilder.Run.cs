@@ -83,9 +83,11 @@ sealed partial class LineBuilder
         LayTags();
         LayExposure();
         Lap("stations+tags");
-        // §22.1: dawn by the spec's formula (route / 11 m/s + 18%); the validator reports the slack against ideal transit.
-        var cf = _t.Conflicts;
-        _dawn = (_terminus - _gate) / cf.DawnAverageSpeed * (1 + cf.DawnSlack);
+        // §22.1: dawn by spec B.8's formula (route / 11 m/s + 40%), route.json's numbers, the legacy generator's too (note
+        // 270: this copy of them had stayed at +18%); the validator reports the slack against ideal transit. Every line
+        // being one length (route.json nightLengthKm), it's the same dawn every night.
+        var dawn = _c.Route;
+        _dawn = (_terminus - _gate) / dawn.DawnAverageSpeed * (1 + dawn.DawnSlack);
         LayAuthority();
         Lap("authority");
         LaySignage();
