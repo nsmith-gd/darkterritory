@@ -277,14 +277,17 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Flange squeal on a curve: a wheel ringing at its own mode, shrill and unsteady, over the grind of the flange",
-    "key": "squeal",
-    "sources": [],
+    "label": "Flange squeal that holds: a wheel singing all the way round the bend, wavering as the flange catches",
+    "key": "sing",
+    "sources": [
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001"
+    ],
     "licence": "CC0"
    }
   ],
   "takes": 1,
-  "sha": "5782958ecaeb6501"
+  "sha": "9de4104d814e757c"
  },
  "bed-wheel-rail/joint": {
   "cue": "bed-wheel-rail.joint",
@@ -9932,9 +9935,13 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Flanges screaming on a curve taken too fast: several wheels shrieking at once, grinding, the trucks hammering",
-    "key": "curve",
+    "label": "Every wheel on the bend shrieking at once, beating against each other, the flanges chattering as they slip",
+    "key": "shriek",
     "sources": [
+     "kenney_impact-sounds:impactBell_heavy_002",
+     "kenney_impact-sounds:impactBell_heavy_003",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
      "kenney_impact-sounds:impactPlate_heavy_002",
@@ -9945,7 +9952,7 @@
    }
   ],
   "takes": 1,
-  "sha": "5badba13450a5252"
+  "sha": "b930602eb0bbb923"
  },
  "state-derail/grind": {
   "cue": "state-derail.grind",

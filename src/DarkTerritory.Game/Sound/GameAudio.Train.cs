@@ -261,7 +261,12 @@ public sealed partial class GameAudio
                 _bendStress = Math.Max(_bendStress, stress);
                 double scream = Math.Max(Math.Clamp((stress - 0.5) / 0.5, 0, 1), BoardScream(world, train, rake, v, pose));
                 if (scream > 0)
+                {
                     HoldLevel("state-derail.flange-scream", v.Id, frame.ToWorld(new Double3(0, 0.4, 0)), Occlusion(PlayerMotor.Outside), 0.4 + 0.6 * scream);
+                    // And up in pitch with it (install.py's rate on "stress"), so it's heard climbing to the edge, not holding.
+                    if (_held.TryGetValue(("state-derail.flange-scream", v.Id), out var screaming))
+                        screaming.Params.Set("stress", scream);
+                }
                 if (!near.Contains(v.Id))
                     continue;
                 var under = frame.ToWorld(new Double3(0, 0.5, 0));
