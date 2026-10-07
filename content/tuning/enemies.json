@@ -10,6 +10,15 @@
   // they still take it off the brake; a train at a stand stays where its driver left it.
   "tamperReleasesStandingBrake": false,
 
+  // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Lethal Company
+  // style. Health exists, but damage comes in a few big hits, never chip damage." Every creature's hit on a player is an
+  // int field named ...Damage below, and DamageModelTests holds each to at least minHit (of player.json's 100) and the gap
+  // between a creature's hits to at least minGapSeconds: a hit (35) or a heavy hit (60), so a creature on you is two or
+  // three hits from death (its grab is the last, App. A.1) and a clean escape costs one. Not held to it: the train's own
+  // continuous dangers (a car fire's burn, note 263's "a brush hurts, standing in it kills"; a hose's gas; a landing's
+  // knock by its speed). The Stoker's door (stoker.doorBurn, then doorKill; Stoker v3, note 271) is held to minHit too.
+  "damage": { "minHit": 30, "minGapSeconds": 2.5 },
+
   // Enemies farther than this from a player aren't sent to that player's machine (ARCHITECTURE §8 note 23).
   // It must cover the farthest tell anyone can hear, the hound howl's 500 m (audio/sounds/hound-howl.json);
   // AudioTests holds it to that.
@@ -46,8 +55,9 @@
     "spawnBehind": 180,
     "howlSeconds": 4,
     "leapDistance": 30,
-    "biteDamage": 45,
-    "biteEverySeconds": 2.5,
+    // A hit, and a long gap (note 272; were 45 every 2.5 s): bitten twice, they're pinned (maulSeconds).
+    "biteDamage": 35,
+    "biteEverySeconds": 4,
     "reach": 4,
     // GDD App. F (the director, 6 Oct 2026): "Cinder Hounds that board stay aboard. They keep setting the car alight while
     // they eat the supplies, which forces the crew to confront them" (ARCHITECTURE §8 note 269). Aboard with nobody near,
@@ -162,16 +172,18 @@
   // GRUMBLER · sound · corrupted human (App. A.8, B.8). Gnaws the food crates at a facility; hit, it hunts the last to hit
   // it at huntSpeed. It regenerates regenPerSecond blows a second unless two players have hit it within gangSeconds.
   // Aboard with a crate, it eats cargoPerSecond. B.8: foodWeight more with food aboard.
+  // Note 272 (App. F.1, no chip damage): a hit every 3 s (were 15 every 1.5 s), and it mauls once it's bitten you twice
+  // (grabBelowHealth was 30).
   "grumbler": {
-    "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 15, "biteEvery": 1.5,
-    "grabBelowHealth": 30, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2
+    "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 35, "biteEvery": 3,
+    "grabBelowHealth": 35, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2
   },
 
   // THE CHOIR's swarm (App. A.7): ghosts come when the meter's gathered (combat.json "choir"). Each seizes anyone outside
   // or behind no shut door for seizeSeconds (broken only by killing it); hit, it hits back. It flies flySpeed m/s faster
-  // than the train. Quiet for
-  // disperseQuietSeconds and they go.
-  "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 15, "disperseQuietSeconds": 10, "around": 12 },
+  // than the train. Quiet for disperseQuietSeconds and they go. Note 272 (App. F.1, no chip damage): a ghost's hit back is a
+  // hit, at most once every hitBackEvery s however fast it's struck (was 15 for every blow).
+  "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10, "around": 12 },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
   // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
@@ -232,13 +244,14 @@
   // at traverseSpeed and go into the first unlit or empty car; a lone player in there is taken over takeSeconds. Into an
   // unlit car with every door and its hatch shut, they force their way in through the roof (the hatch torn off, on a cargo
   // car): the car's breached (spec B.9, train.json breach). breachLitCars: a lit car they get into because nobody's in it
-  // too (the decision named only the unlit car; ARCHITECTURE §8).
+  // too (the decision named only the unlit car; ARCHITECTURE §8). Note 272 (App. F.1, no chip damage): inside, a hit every
+  // 3 s (were 25 every 1.5 s).
   "climbers": {
     // GDD §23 "lights fail" (note 183): coming over the engine's end into the cab, it smashes the forward lamp for this
     // long (s). Lamp armour (campaign.json, F.3) shortens it.
     "lampOutSeconds": 45,
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
-    "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 25, "biteEvery": 1.5, "boredSeconds": 120, "health": 3,
+    "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
     "breachLitCars": false
   },
@@ -251,19 +264,22 @@
   // and carryLow as it creeps aboard (the sac's underside in each, tools/blender/gaunt.py); it's gone with it once it's
   // clearedAt m from the train. Kill it before then and it drops it.
   // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
+  // Note 272 (App. F.1, no chip damage): its blows are heavy hits, 60 every 4 s (were 35 every 2): two, then the crush.
   "gaunt": {
     "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
-    "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 35, "hitEvery": 2, "grabBelowHealth": 35,
+    "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 60, "hitEvery": 4, "grabBelowHealth": 35,
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
     "carryLow": 0.55
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
-  // loses you. Level content: placed by linegen at marsh features, never drawn by the director.
+  // loses you. Level content: placed by linegen at marsh features, never drawn by the director. Note 272 (App. F.1, no chip
+  // damage): what's in the reeds bites, a hit every damageSeconds while it's on you (was 6 a second), so freezing the
+  // moment it reaches you costs one hit before it loses you.
   "drift": {
     "startRadius": 4, "maxRadius": 9, "spreadSpeed": 0.15, "stillSpeed": 0.3, "surgeSpeed": 2.2, "contactReach": 1.2,
-    "damage": 6, "damageSeconds": 1, "stillSeconds": 4, "exitMargin": 60, "lingerSeconds": 600, "chemicalSpread": 2
+    "damage": 35, "damageSeconds": 2.5, "stillSeconds": 4, "exitMargin": 60, "lingerSeconds": 600, "chemicalSpread": 2
   },
 
   // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
