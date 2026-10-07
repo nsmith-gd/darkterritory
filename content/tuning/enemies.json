@@ -431,9 +431,13 @@
     // takes relief off; while one's still after them, no other comes. Outside the budget, the caps and the night's own
     // pressure (it's theirs, not the train's): about 45 s left behind to the first, then every half minute or so, bigger.
     // Back aboard (or in a fort), it's gone.
+    // Note 296 (T128's caveat, "only the Ribbits hunt so far"): from the hunt numbered gauntFrom (0 the first) on, a Gaunt
+    // comes with the pack, woken on them (App. A.6: it follows its waker at arm's length and attacks after enough silence;
+    // talking holds it off, and it follows them home onto the train, where the crew deals with it by its rule). One at a time
+    // per crewmate, never at a crew under gaunt.minCrew, put down gaunt.spawnOut m off. -1: Ribbits only.
     "abandoned": {
       "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
-      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18]
+      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18], "gauntFrom": 2
     },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
