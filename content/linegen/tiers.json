@@ -9,16 +9,24 @@
 
   // Plan §3.2. Each column is the start of a tier; a route's severity (0..1) lerps it toward the next column, and Deep
   // territory toward "deepMax". Two-element arrays are [min, max] counts, lerped end by end and then rolled.
+  // No length: every line is route.json's nightLengthKm (the director's decision of 6 Oct 2026, note 270), so a column's
+  // counts (facilities, junctions, alternates, dead lines, washouts, weak bridges, banks, brass) and budgetPerKm are the
+  // tier's density of challenges. Before, the columns ran 18 / 23 / 29 / 34 / 40 km, and on 24 km the deeper columns' space-
+  // hungry counts no longer fit (`dt linegen sweep`: Deep territory 0-4% within two attempts, quotas without room). Cut to
+  // fit: facilities 4 / 4 / 5 -> 3 (a stop is time, too); Dead lines junctions [5,7] -> [4,6], alternates [2,2] -> [1,2],
+  // brass [2,3] -> [2,2]; Deep territory junctions [6,9] -> [4,6], alternates [2,3] -> [1,2], dead lines [2,3] -> [1,2],
+  // banks [1,2] -> [1,1], brass [3,4] -> [2,2]; deep max junctions [8,10] -> [5,7], alternates [3,3] -> [2,2], dead lines
+  // [3,4] -> [1,2], banks [2,2] -> [1,2], brass [4,6] -> [2,3]. Dead lines' climb_long quota 2 -> 1 below (note 270).
   // momentumGrade 0: no momentum banks. tunnelGrade 0: "ruling", the main-line grade.
   // junctions: main-line junctions to alternates and dead lines, counting both ends of an alternate (the reading that
   // keeps the plan's own alternate and dead-line counts true, ARCHITECTURE §8).
   // rainChance, cold and wind roll the night's weather (plan §14); sleeperDensity is App. B.2's ×1/×2/×3.5 (§22.3).
   "columns": {
-    "local":         { "lengthKm": 18, "facilities": 3, "mainGrade": 1.5, "momentumGrade": 0,   "branchGrade": 2.0, "minRadius": 450, "minVerticalRadius": 4000, "maxTunnel": 300,  "tunnelGrade": 0.5, "curvedTunnels": false, "stackCap": 1, "stackOnceDeeper": false, "recoveryMin": 1500, "tellMargin": 1.5, "lineSpeed": 20, "redundancy": 3, "signageSurvival": 1.00, "junctions": [2, 3],  "alternates": [0, 1], "deadLines": [0, 0], "washouts": [0, 0], "weakBridges": [0, 0], "momentumBanks": [0, 0], "brassFields": [0, 0], "budgetPerKm": 0.6, "corruption": 0.10, "fog": [110, 120], "rainChance": 0.20, "cold": [0.0, 0.3], "wind": [0.0, 0.4], "sleeperDensity": 1.0 },
-    "frontier":      { "lengthKm": 23, "facilities": 3, "mainGrade": 2.0, "momentumGrade": 3.0, "branchGrade": 3.0, "minRadius": 300, "minVerticalRadius": 3000, "maxTunnel": 700,  "tunnelGrade": 1.0, "curvedTunnels": false, "stackCap": 2, "stackOnceDeeper": false, "recoveryMin": 1000, "tellMargin": 1.3, "lineSpeed": 18, "redundancy": 2, "signageSurvival": 0.85, "junctions": [3, 5],  "alternates": [1, 2], "deadLines": [0, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [1, 1], "budgetPerKm": 1.0, "corruption": 0.35, "fog": [90, 120],  "rainChance": 0.30, "cold": [0.1, 0.5], "wind": [0.1, 0.6], "sleeperDensity": 2.0 },
-    "deadLines":     { "lengthKm": 29, "facilities": 4, "mainGrade": 2.5, "momentumGrade": 4.0, "branchGrade": 4.0, "minRadius": 220, "minVerticalRadius": 2500, "maxTunnel": 1200, "tunnelGrade": 2.0, "curvedTunnels": true,  "stackCap": 2, "stackOnceDeeper": true,  "recoveryMin": 600,  "tellMargin": 1.2, "lineSpeed": 16, "redundancy": 2, "signageSurvival": 0.55, "junctions": [5, 7],  "alternates": [2, 2], "deadLines": [1, 2], "washouts": [1, 1], "weakBridges": [1, 1], "momentumBanks": [1, 1], "brassFields": [2, 3], "budgetPerKm": 1.5, "corruption": 0.60, "fog": [75, 110],  "rainChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8], "sleeperDensity": 3.5 },
-    "deepTerritory": { "lengthKm": 34, "facilities": 4, "mainGrade": 3.0, "momentumGrade": 5.0, "branchGrade": 5.0, "minRadius": 170, "minVerticalRadius": 2000, "maxTunnel": 1800, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 400,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.30, "junctions": [6, 9],  "alternates": [2, 3], "deadLines": [2, 3], "washouts": [1, 2], "weakBridges": [1, 2], "momentumBanks": [1, 2], "brassFields": [3, 4], "budgetPerKm": 2.1, "corruption": 0.85, "fog": [60, 100],  "rainChance": 0.40, "cold": [0.5, 1.0], "wind": [0.3, 1.0], "sleeperDensity": 3.5 },
-    "deepMax":       { "lengthKm": 40, "facilities": 5, "mainGrade": 3.5, "momentumGrade": 6.0, "branchGrade": 6.0, "minRadius": 150, "minVerticalRadius": 1500, "maxTunnel": 2200, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 300,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.20, "junctions": [8, 10], "alternates": [3, 3], "deadLines": [3, 4], "washouts": [2, 2], "weakBridges": [2, 2], "momentumBanks": [2, 2], "brassFields": [4, 6], "budgetPerKm": 2.6, "corruption": 1.00, "fog": [60, 90],   "rainChance": 0.45, "cold": [0.6, 1.0], "wind": [0.4, 1.0], "sleeperDensity": 3.5 }
+    "local":         { "facilities": 3, "mainGrade": 1.5, "momentumGrade": 0,   "branchGrade": 2.0, "minRadius": 450, "minVerticalRadius": 4000, "maxTunnel": 300,  "tunnelGrade": 0.5, "curvedTunnels": false, "stackCap": 1, "stackOnceDeeper": false, "recoveryMin": 1500, "tellMargin": 1.5, "lineSpeed": 20, "redundancy": 3, "signageSurvival": 1.00, "junctions": [2, 3],  "alternates": [0, 1], "deadLines": [0, 0], "washouts": [0, 0], "weakBridges": [0, 0], "momentumBanks": [0, 0], "brassFields": [0, 0], "budgetPerKm": 0.6, "corruption": 0.10, "fog": [110, 120], "rainChance": 0.20, "cold": [0.0, 0.3], "wind": [0.0, 0.4], "sleeperDensity": 1.0 },
+    "frontier":      { "facilities": 3, "mainGrade": 2.0, "momentumGrade": 3.0, "branchGrade": 3.0, "minRadius": 300, "minVerticalRadius": 3000, "maxTunnel": 700,  "tunnelGrade": 1.0, "curvedTunnels": false, "stackCap": 2, "stackOnceDeeper": false, "recoveryMin": 1000, "tellMargin": 1.3, "lineSpeed": 18, "redundancy": 2, "signageSurvival": 0.85, "junctions": [3, 5],  "alternates": [1, 2], "deadLines": [0, 1], "washouts": [0, 1], "weakBridges": [0, 1], "momentumBanks": [0, 1], "brassFields": [1, 1], "budgetPerKm": 1.0, "corruption": 0.35, "fog": [90, 120],  "rainChance": 0.30, "cold": [0.1, 0.5], "wind": [0.1, 0.6], "sleeperDensity": 2.0 },
+    "deadLines":     { "facilities": 3, "mainGrade": 2.5, "momentumGrade": 4.0, "branchGrade": 4.0, "minRadius": 220, "minVerticalRadius": 2500, "maxTunnel": 1200, "tunnelGrade": 2.0, "curvedTunnels": true,  "stackCap": 2, "stackOnceDeeper": true,  "recoveryMin": 600,  "tellMargin": 1.2, "lineSpeed": 16, "redundancy": 2, "signageSurvival": 0.55, "junctions": [4, 6],  "alternates": [1, 2], "deadLines": [1, 2], "washouts": [1, 1], "weakBridges": [1, 1], "momentumBanks": [1, 1], "brassFields": [2, 2], "budgetPerKm": 1.5, "corruption": 0.60, "fog": [75, 110],  "rainChance": 0.35, "cold": [0.3, 0.7], "wind": [0.2, 0.8], "sleeperDensity": 3.5 },
+    "deepTerritory": { "facilities": 3, "mainGrade": 3.0, "momentumGrade": 5.0, "branchGrade": 5.0, "minRadius": 170, "minVerticalRadius": 2000, "maxTunnel": 1800, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 400,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.30, "junctions": [4, 6],  "alternates": [1, 2], "deadLines": [1, 2], "washouts": [1, 2], "weakBridges": [1, 2], "momentumBanks": [1, 1], "brassFields": [2, 2], "budgetPerKm": 2.1, "corruption": 0.85, "fog": [60, 100],  "rainChance": 0.40, "cold": [0.5, 1.0], "wind": [0.3, 1.0], "sleeperDensity": 3.5 },
+    "deepMax":       { "facilities": 3, "mainGrade": 3.5, "momentumGrade": 6.0, "branchGrade": 6.0, "minRadius": 150, "minVerticalRadius": 1500, "maxTunnel": 2200, "tunnelGrade": 0,   "curvedTunnels": true,  "stackCap": 3, "stackOnceDeeper": false, "recoveryMin": 300,  "tellMargin": 1.1, "lineSpeed": 14, "redundancy": 1, "signageSurvival": 0.20, "junctions": [5, 7],  "alternates": [2, 2], "deadLines": [1, 2], "washouts": [2, 2], "weakBridges": [2, 2], "momentumBanks": [1, 2], "brassFields": [2, 3], "budgetPerKm": 2.6, "corruption": 1.00, "fog": [60, 90],   "rainChance": 0.45, "cold": [0.6, 1.0], "wind": [0.4, 1.0], "sleeperDensity": 3.5 }
   },
 
   // Plan §3.3: the terrain budget spent over chainage, mirroring the director's pressure shape (GDD B.1). Zones in
@@ -218,7 +226,7 @@
     "quotas": {
       "local":         { "tags": { "straight_long": 1, "climb": 1, "forest_or_open": 1 }, "facingJunctions": 0, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 0 },
       "frontier":      { "tags": { "climb_long": 1, "marsh_or_water": 1 }, "facingJunctions": 3, "deadLines": 0, "tunnels": 0, "deadSettlementNearFacility": 1 },
-      "deadLines":     { "tags": { "climb_long": 2 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 1, "deadSettlementNearFacility": 1 },
+      "deadLines":     { "tags": { "climb_long": 1 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 1, "deadSettlementNearFacility": 1 },
       "deepTerritory": { "tags": { "contaminated": 1 }, "facingJunctions": 3, "deadLines": 1, "tunnels": 2, "deadSettlementNearFacility": 1 }
     }
   },
@@ -238,11 +246,12 @@
   },
 
   // Plan §22: the defaults for conflicts in the source documents. Each is logged as a warning when it applies.
-  // 22.1 dawn from the spec's formula (route / 11 m/s + 18%) with slack against ideal transit reported; 22.4 a silent
+  // 22.1 dawn from spec B.8's formula (route / 11 m/s + 40%: tuning/route.json's dawnAverageSpeed and dawnSlack, note 270)
+  // with slack against ideal transit reported; 22.4 a silent
   // settlement's gate still safe; 22.5 a weak bridge over its limit collapses under the first car past it; 22.8 the
   // proposals not in the GDD, all off.
   "conflicts": {
-    "dawnFromSpecFormula": true, "dawnAverageSpeed": 11, "dawnSlack": 0.18, "silentGateSafe": true, "weakBridgeCollapses": true,
+    "dawnFromSpecFormula": true, "silentGateSafe": true, "weakBridgeCollapses": true,
     "waterStops": false, "haltScavenging": false, "rockfallsOnLedges": false, "couplerBreaksOnRollers": false
   }
 }
