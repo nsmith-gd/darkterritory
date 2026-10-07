@@ -91,6 +91,9 @@ static class PlaythroughCommands
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
             scene.Answer = world.Answer;
             scene.AnswerShowSeconds = world.Director?.Tuning.Draw.ShowSeconds ?? 7;
+            // Watched afoot (note 327): eyes toward what lives at the stop.
+            scene.Watcher = world.Watcher;
+            scene.WatcherShowSeconds = world.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
             scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
             scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
@@ -195,6 +198,8 @@ static class PlaythroughCommands
             }
         }
 
+        int signsShot = 0, encountersAfoot = 0;
+
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
         void Watch(World world, IReadOnlyList<PlayerState> crew)
@@ -239,6 +244,17 @@ static class PlaythroughCommands
                     continue;
                 Shoot(world, crew, $"{e.Kind}-{e.To}".ToLowerInvariant(), Beside(train, enemy), $"{e.Kind} {e.From} -> {e.To}");
             }
+            // Note 327: each sign shown a crewmate afoot, photographed from their eyes once its eyes are open; and every
+            // threat that showed itself while anyone was out.
+            if (world.Watcher is { Showing: true } sign && world.Director is { } wd && sign.Seconds <= wd.Tuning.Afoot.SignSeconds - 0.8
+                && signsShot < wd.Signs.Count && world.CrewThisTick.FirstOrDefault(c => c.Id == sign.Player) is { State.Alive: true } watched)
+            {
+                signsShot = wd.Signs.Count;
+                var eye = PlayerMotor.WorldPosition(watched.State, train) + Double3.Up * 1.6;
+                Shoot(world, crew, $"sign-{sign.Kind}".ToLowerInvariant(), Camera.LookAt(eye, sign.At, 70), $"watched afoot: {sign.Kind}");
+            }
+            if (world.Director is { AfootShare: > 0 })
+                encountersAfoot += world.EnemyEvents.Count(e => e.To == SpinePhase.Telegraph);
             if (now - lastChase >= every)
             {
                 lastChase = now;
@@ -312,6 +328,18 @@ static class PlaythroughCommands
                 spared = last.Lineside?.Spared ?? 0,
                 deaths = roofDeaths,
             },
+            // Note 327 (App. F.3): the crew afoot off the train, watched. Crew-seconds out, the signs shown them (by kind, and how
+            // many from a site at the stop), the director's spawns made while anyone was out, and threats telegraphing then.
+            afoot = last.Director is { } ld ? new
+            {
+                seconds = ld.AfootSeconds,
+                signs = ld.Signs.Count,
+                fromSites = ld.Signs.Count(x => x.FromSite),
+                kinds = ld.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+                spawns = ld.SpawnsAfoot,
+                spawnsAll = ld.Log.Count,
+                telegraphs = encountersAfoot,
+            } : null,
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
         };
