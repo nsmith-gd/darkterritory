@@ -79,6 +79,13 @@ public sealed class Moose(int id) : Enemy(id)
         var train = ctx.Train;
         double dt = SimConstants.TickSeconds;
         _modeSeconds += dt;
+        // Put down on a car or the line (a test's staging): it stands in the world where that is, on its own feet.
+        if (Attached != Loose)
+        {
+            Place(ctx, WorldPosition(train));
+            Attached = Loose;
+            _home = Local;
+        }
         // Left behind by the train: gone.
         if (train.Frames.Count == 0 || train.Frames.Min(f => Flat(f.Origin - Local)) > t.GoneBeyond)
         {

@@ -125,7 +125,7 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -147,6 +147,7 @@ public class HitConfirmTests
         EnemyKind.Ribbit => new Ribbit(id, 0),
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Choir => new ChoirGhost(id),
+        EnemyKind.Moose => new Moose(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -175,7 +176,7 @@ public class HitConfirmTests
             EnemyKind.Whistler => SpinePhase.Commit,
             _ => SpinePhase.Telegraph,
         };
-        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie => -1, _ => 0 };
+        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie or EnemyKind.Moose => -1, _ => 0 };
         // A Stoker on its way in from the tender (note 263): in the open, where a blow lands (in the fire, only with the door open).
         double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         var e = n.World.AddEnemy(id =>
@@ -262,7 +263,7 @@ public class HitConfirmTests
     static Enemy Ahead(Night n, EnemyKind kind, double health = 2)
     {
         var phase = kind == EnemyKind.Whistler ? SpinePhase.Commit : SpinePhase.Telegraph;
-        double extra = kind is EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.TippyToesie ? -1 : 0;
+        double extra = kind is EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.TippyToesie or EnemyKind.Moose ? -1 : 0;
         double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         return n.World.AddEnemy(id =>
         {
