@@ -180,7 +180,8 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Carrying heavy cargo | 2.8 m/s | No climbing |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Jump height | 0.8m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all. A roof-run jump now carries ~2.8 m |
-| Health | 100 | Most attacks 35–60 |
+| Health | 100 | Most attacks 35–60. No regeneration. Damage model (GDD App. F.1, note 272): every creature hit is a big one, at least 30 (`enemies.json` `damage.minHit`; a hit 35, a heavy hit 60) and at least 2.5 s apart (`minGapSeconds`), so a creature on you is two or three hits from death. The train's own continuous dangers (fire, gas) and landings are not chip-limited |
+| Healing | Bandages 30, medicine 50, morphine 80 | Rare finds (about one a frontier night), used from the hands: Use held 2 s standing, up to full health, the find gone (`loot.json` `healing`; note 272) |
 | Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
 
 ## B.3 Speed bands
@@ -298,14 +299,25 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 | Parameter | Value |
 |---|---|
-| Route length | 18–40 km by tier |
-| Transit at cruise | 21–48 min |
-| POIs per run | 3–5 |
+| Route length | **24 km, every tier** (was 18–40 km by tier; the director's decision of 6 Oct 2026) |
+| Transit at cruise | 28.6 min (was 21–48) |
+| POIs per run | 3 (a stop is time: more of them would make a deeper night longer) |
 | Time per POI | 4–8 min |
 | **Total run** | **28–45 min** |
-| Dawn timer | Route length ÷ 11 m/s average, +40% slack (was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
+| Dawn timer | Route length ÷ 11 m/s average, +40% slack: **51 min, every night** (the slack was +18%: after the 100-night playtest a stop, the posted boards and the in-car trouble didn't fit, and missing dawn was the commonest failure) |
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it.
+
+**One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." The total run's floor is the transit at cruise with no stop made (28.6 min, the table's 28); its ceiling is a crew that works a few stops. A tier no longer adds kilometres; it packs more into the same 24:
+
+| Tier | Facilities | Junctions | Washouts, weak bridges, brass | Terrain budget per km | Terrain laid per night (measured) | Director's base budget per km |
+|---|---|---|---|---|---|---|
+| Local | 3 | 2–3 | 0 | 0.6 | 6.8 | 3.8 |
+| Frontier | 3 | 3–5 | 0–1 each, 1 brass | 1.0 | 9.3 | 6.3 |
+| Dead lines | 3 | 4–6 | 1 each, 2 brass | 1.5 | 14 | 9.6 |
+| Deep territory | 3 | 4–7 | 1–2 each, 2–3 brass | 2.1–2.6 | 17 | 13.8 |
+
+Counts are each tier's start, rising with a route's severity toward the next tier's (`content/linegen/tiers.json`); terrain laid is `dt linegen sweep`'s mean terrain cost at 10 cars; the director's budget is App. B.1's per night (`enemies.json` `baseBudget`: 90 / 150 / 230 / 330) over the one length, × the train and crew multipliers. The deeper tiers' counts were set for 29–40 km lines; on 24 km the space-hungry ones (facilities, junctions with their level pads, alternates, dead lines, brass fields, momentum banks) were cut until the line generator fits every tier's quotas again (Dead lines' long climbs: one, was two), so what still rises steeply is what the land and the director put on each kilometre. Quiet stretches are counted in kilometres of line, with time as the backstop for a stopped train (GDD App. F.1): the director's quiet pressure ramps over 1.26 km run since a threat was engaged (the old 90 s at cruise), or over 120 s if that's sooner (`enemies.json` `quietRampMetres`, `quietBackstopSeconds`; ARCHITECTURE §8 note 270).
 
 ## B.9 Breaches
 

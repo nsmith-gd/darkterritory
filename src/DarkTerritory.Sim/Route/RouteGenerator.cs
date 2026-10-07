@@ -20,6 +20,7 @@ public static class RouteGenerator
         var hazardRng = rng.Fork(3);
         var weatherRng = rng.Fork(4);
 
+        // The legacy prototype's own lengths, by tier: the game's nights are the line generator's, one length (note 270).
         double length = Math.Round(layoutRng.Range(tt.LengthKm[0], tt.LengthKm[1]) * 1000);
         var facilities = PlaceFacilities(t, tt, length, ref layoutRng);
         // Village halts between the facilities (level-design P1): their own seed, so they move nothing else.

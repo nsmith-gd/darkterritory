@@ -70,6 +70,26 @@ public class RunTests
         Assert.InRange(n.Run.Seconds, 1, 40);
     }
 
+    /// <summary>
+    /// GDD App. F.1 (the director, 6 Oct 2026): "quiet stretches are counted in kilometres, not seconds", with the seconds as
+    /// the backstop for a stopped train. The world counts both (note 270): line run since the last beat, and time.
+    /// </summary>
+    [Fact]
+    public void AQuietStretchIsCountedInLineRunAndInTime()
+    {
+        var n = new Night(front: 5000);
+        n.Step(1, holdSpeed: 10);
+        Assert.Equal(RunPhase.Underway, n.Run.Phase);
+        n.Step(10, holdSpeed: 10);
+        Assert.InRange(n.World.QuietSeconds, 9, 11.1);
+        Assert.Equal(10 * n.World.QuietSeconds, n.World.QuietMetres, 10 * 0.2);
+        // Stood still, the time runs on and the line doesn't.
+        double metres = n.World.QuietMetres, seconds = n.World.QuietSeconds;
+        n.Step(5, holdSpeed: 0);
+        Assert.Equal(seconds + 5, n.World.QuietSeconds, 0.1);
+        Assert.Equal(metres, n.World.QuietMetres, 0.5);
+    }
+
     /// <summary>Stopped with the tender under the coaling spout, one player on the ground at the lever.</summary>
     static Night AtTheTower(double tender, double offset = 0)
     {

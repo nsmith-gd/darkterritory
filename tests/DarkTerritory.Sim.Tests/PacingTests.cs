@@ -111,6 +111,27 @@ public class PacingTests
         Assert.True(d.Terms.Rate < first);
     }
 
+    /// <summary>
+    /// GDD App. F.1 (the director, 6 Oct 2026; note 270): "quiet stretches are counted in kilometres, not seconds". A train
+    /// running fast meets the quiet's full pull sooner than one stood still; the stood one still gets there on the backstop.
+    /// </summary>
+    [Fact]
+    public void QuietIsCountedInLineRunWithTimeTheBackstop()
+    {
+        Assert.True(D.Pressure.QuietRampMetres > 0);
+        var stood = Plain();
+        var running = Plain();
+        running.Train.Dynamics.Velocity = 20;
+        Think(stood, 45);
+        Think(running, 45);
+        Assert.Equal(stood.Director!.Terms.Quiet, running.Director!.Terms.Quiet);
+        Assert.True(running.Director.Pressure > stood.Director.Pressure, $"running {running.Director.Pressure:0.00}, stood {stood.Director.Pressure:0.00}");
+        // Past the backstop the stood train's quiet pulls as hard as the running one's: both rates the same.
+        Think(stood, (int)D.Pressure.QuietBackstopSeconds, elapsed: 1_045);
+        Think(running, (int)D.Pressure.QuietBackstopSeconds, elapsed: 1_045);
+        Assert.Equal(running.Director.Terms.Rate, stood.Director.Terms.Rate, 9);
+    }
+
     [Fact]
     public void ANoisyCrewBuildsItFaster()
     {
