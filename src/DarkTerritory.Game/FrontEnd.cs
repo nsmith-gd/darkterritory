@@ -205,7 +205,7 @@ public sealed class FrontEnd
     {
         if (Editing is null)
             return;
-        // A crew's name erased to nothing is its slot's again (note 319).
+        // A crew's name erased to nothing is its slot's again (note 320).
         if (Editing == TextField.CrewName && Open is { } crew && crew.Name.Trim().Length == 0)
             SaveCrew(crew with { Name = DefaultCrewName(crew.Slot) });
         Editing = null;
@@ -339,7 +339,7 @@ public sealed class FrontEnd
     /// <summary>A lobby name's longest: what fits the browser's name column.</summary>
     public const int MaxLobbyName = 24;
 
-    /// <summary>A crew's name's longest (note 319): the lobby's, so the fortress's heading keeps to one line.</summary>
+    /// <summary>A crew's name's longest (note 320): the lobby's, so the fortress's heading keeps to one line.</summary>
     public const int MaxCrewName = 24;
 
     public void Erase()
@@ -488,7 +488,7 @@ public sealed class FrontEnd
     }
 
     /// <summary>
-    /// Deleting a crew (note 319), asked as leaving a night is (note 292): KEEP IT first, so Enter on arriving keeps it, and
+    /// Deleting a crew (note 320), asked as leaving a night is (note 292): KEEP IT first, so Enter on arriving keeps it, and
     /// what goes said under both. The slot's file goes; the slot lists as empty.
     /// </summary>
     List<Entry> DeleteEntries(CampaignState s)
@@ -926,7 +926,7 @@ public sealed class FrontEnd
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
-        // Note 319 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
+        // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
         bool naming = Editing == TextField.CrewName;
         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
             naming ? "Type the name; Enter or Esc when it's done." : "Enter to rename the crew."), Field: TextField.CrewName));

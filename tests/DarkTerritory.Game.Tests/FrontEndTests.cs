@@ -124,7 +124,7 @@ public sealed class FrontEndTests : IDisposable
         var m = Menu();
         Choose(m, "CAMPAIGN");
         Choose(m, "SLOT 2: EMPTY");
-        // Note 319: the crew's name is a field (note 267: typed into only once entered), kept to the slot at once.
+        // Note 320: the crew's name is a field (note 267: typed into only once entered), kept to the slot at once.
         Pick(m, "NAME");
         Assert.Equal("NAME: CREW 2", m.Items[m.Selected].Label);
         m.Type("wasd");
