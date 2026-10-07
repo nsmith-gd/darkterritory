@@ -332,9 +332,15 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         _commended = true;
     }
 
-    List<string>? _manifest, _tally;
-    List<double>? _manifestTimes, _tallyTimes;
-    double _manifestSeconds = -1, _tallySeconds = -1;
+    List<string>? _manifest, _tally, _bulletin;
+    List<double>? _manifestTimes, _tallyTimes, _bulletinTimes;
+    double _manifestSeconds = -1, _tallySeconds = -1, _bulletinSeconds = -1;
+    /// <summary>How long the run's said the kit's lost (note 301): it's said once that's held a second (stranded.lostForSeconds).</summary>
+    double _kitLostFor;
+    bool _kitLostSaid;
+
+    /// <summary>A bulletin on the air (note 301: the kit lost), while it's being read.</summary>
+    bool Bulletin => _bulletin is not null && _bulletinSeconds >= 0 && _bulletinSeconds < Sim.Run.Radio.Length(_bulletin, RadioTuning, _bulletinTimes);
 
     /// <summary>
     /// How long the yard's voice takes to say a line (GameAudio.Clerk; note 240), so the reading goes at its pace: the card
@@ -344,12 +350,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     public IReadOnlyList<string>? RadioReading =>
         _tally is not null && _tallySeconds >= 0 ? _tally
+        : Bulletin ? _bulletin
         : _manifest is not null && _manifestSeconds >= 0 && _manifestSeconds < Sim.Run.Radio.Length(_manifest, RadioTuning, _manifestTimes) ? _manifest
         : null;
 
-    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : _manifestSeconds;
+    public double RadioSeconds => _tally is not null && _tallySeconds >= 0 ? _tallySeconds : Bulletin ? _bulletinSeconds : _manifestSeconds;
 
-    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : _manifestTimes;
+    public IReadOnlyList<double>? RadioTimes => _tally is not null && _tallySeconds >= 0 ? _tallyTimes : Bulletin ? _bulletinTimes : _manifestTimes;
 
     public bool ClerkTally => _tally is not null && _tallySeconds < Sim.Run.Radio.Length(_tally, RadioTuning, _tallyTimes);
 
@@ -375,6 +382,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         else if (_manifestSeconds >= 0)
             _manifestSeconds += SimConstants.TickSeconds;
+        // GDD App. E.12 question 5 (note 301): the last engineering kit lost, the yard says so, once.
+        _kitLostFor = run.Kit.Lost && !run.Over ? _kitLostFor + SimConstants.TickSeconds : 0;
+        if (!_kitLostSaid && RadioTuning.KitLost && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
+        {
+            _kitLostSaid = true;
+            _bulletin = Sim.Run.Radio.KitLost(run.Kit);
+            _bulletinTimes = RadioTimesOf(_bulletin);
+            _bulletinSeconds = 0;
+        }
+        else if (_bulletinSeconds >= 0)
+            _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report);

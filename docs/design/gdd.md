@@ -2054,7 +2054,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 2. **First-time skip.** Should a player's first derail be unskippable for them?
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
-5. **Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?
+5. ~~**Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?~~ **Answered (the director, 7 Oct 2026): a radio line.** When the train's last engineering kit is lost, the yard says so once, flat: "Engineering kit reported lost", with the car's number when it went with a car. The empty shelf stays (ARCHITECTURE §8 note 301).
 
 ---
 
