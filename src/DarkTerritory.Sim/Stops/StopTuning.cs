@@ -84,6 +84,8 @@ public sealed record LairTuning
     public required FollowerGroundTuning Followers { get; init; }
     public required double[] SootCall { get; init; }
     public required double[] WhistlerNest { get; init; }
+    /// <summary>How far along the line from where the train stands the nest may be; 0 anywhere in the zone (note 314).</summary>
+    public double WhistlerNestAlong { get; init; }
 }
 
 public sealed record WarrenTuning(double Radius, double Clear, double FromTrain, double FromMain);
