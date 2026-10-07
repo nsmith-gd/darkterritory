@@ -117,6 +117,35 @@ public class HardBendTests
     }
 
     [Theory]
+    [InlineData("local:1")]
+    [InlineData("local:3")]
+    [InlineData("frontier:2")]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:3")]
+    public void NoBranchCrossesTheMainLine(string spec)
+    {
+        // Found by the bends: an alternate shorter than the main line had the main line bow round toward it, not away (its
+        // bow, right-positive like every branch's side, was added to a heading that turns left for positive), and crossed
+        // it 300 m past its toe on most nights; and a hard bend in its window swung the main line across its way back.
+        // Two tracks over each other, with no bridge and no diamond. Checked on the built rail, past each turnout.
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        Assert.True(route.Plan!.Validation.Checks.Single(k => k.Name == "crossings").Pass);
+        var main = Enumerable.Range(0, (int)(line.Length / 5)).Select(i => line.Sample(i * 5.0)).ToList();
+        foreach (var b in line.Branches.Where(b => b.Kind is BranchKind.Alternate or BranchKind.DeadLine))
+            for (double u = 200; u < b.Local.Length - (b.Rejoins ? 200 : 0); u += 20)
+            {
+                var q = b.Local.Sample(u).Position;
+                var m = main.MinBy(m => (m.Position.X - q.X) * (m.Position.X - q.X) + (m.Position.Z - q.Z) * (m.Position.Z - q.Z))!;
+                var d = q - m.Position;
+                if (d.X * d.X + d.Z * d.Z > 100 * 100)
+                    continue;
+                var right = Double3.Cross(m.Tangent, Double3.Up).Normalized;
+                Assert.True((d.X * right.X + d.Z * right.Z) * b.Side > -2, $"{spec}: branch {b.Index} ({b.Kind}, side {b.Side}) is over the main line {u:0} m along it");
+            }
+    }
+
+    [Theory]
     [InlineData(1UL)]
     [InlineData(3UL)]
     [InlineData(8UL)]

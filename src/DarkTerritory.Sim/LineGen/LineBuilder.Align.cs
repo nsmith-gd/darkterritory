@@ -24,8 +24,10 @@ sealed partial class LineBuilder
         foreach (var w in _alts)
             if (w.MainBow != 0 && s > w.T && s < w.J)
             {
+                // MainBow is a side, right +1 like the alternate's own; a heading turns left for positive. Added, the main
+                // line bowed round toward the alternate and crossed it 300 m past the toe on most nights (note 278).
                 double f = (s - w.T) / (w.J - w.T);
-                h += w.MainBow * BowFor(w) * DMath.Sin(2 * Math.PI * f);
+                h -= w.MainBow * BowFor(w) * DMath.Sin(2 * Math.PI * f);
             }
         double band = _t.Alignment.BandDeg * Math.PI / 180 * 0.8;
         return Math.Clamp(h, -band, band);

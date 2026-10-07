@@ -323,7 +323,7 @@ For a curve of radius `R`:
 - **Derail threshold:** `v_derail = √(a_derail × R)`, with `a_derail = 1.0 m/s²`
 - **Posted limit:** `v_posted = floor(√(a_post × R))`, with `a_post = 0.7 m/s²`
 
-At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. **Every night carries its tier's count of these** (the Hard Bend, §7.2; ARCHITECTURE §8 note 278): Local 1–2, Frontier 3–4, Dead Lines 4–5, Deep 5–6, and the validator holds it to the least (§16.3). A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
+At these values a curve under ~480 m radius has a derail speed below the train's 22 m/s maximum. **Every night carries its tier's count of these** (the Hard Bend, §7.2; ARCHITECTURE §8 note 278): Local 1–2, Frontier 3–4, Dead Lines 3–4, Deep 4–5 (5–6 at its deepest), and the validator holds it to the least (§16.3). A curve gets a speed board when its posted limit is below the communicated speed approaching it. For example, R = 150 m posts 10 m/s (derails at 12.2), and R = 300 m posts 14 m/s (derails at 17.3). Both constants are tunable in `tiers.json`.
 
 ## 8.6 Output
 
@@ -750,6 +750,7 @@ Drives at communicated speed +10% with `t_react = 6 s`. It must still survive ev
 | Coaling | Coaling tower present when required |
 | Quotas | Affordance quotas met |
 | Hard bends | At least the tier's least count of main-line bends that derail the train under its top speed (`bends`; ARCHITECTURE §8 note 278) |
+| Crossings | No alternate or dead line crosses to the main line's other side away from its turnouts (each is refused when laid; ARCHITECTURE §8 note 278) |
 | Separation | No corridor overlap except at shared junctions |
 | Walkability | Ledge and ravine drop sides meet §12.6 |
 

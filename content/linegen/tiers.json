@@ -49,8 +49,9 @@
   // T111 playtest ("curves should have signs that label their top speed before they derail"): the line speed isn't a
   // governor (steam drives the speed, T97, up to train.json's 22 m/s), so a curve that derails under boardDerailBelow is
   // boarded at its posted speed even where that's over the line speed; always standing, whatever the tier's signage.
-  // bendDeadLineClearM (note 278): no hard bend across an alternate's window, nor this far past a dead line's toe: its turn
-  // could swing the main line over the other track, which the separation check allows within 2 km of their junction.
+  // bendDeadLineClearM (note 278): a hard bend this far past a dead line's toe turns away from it, and one in an alternate's
+  // window turns towards its side (the main line then lies the other side of the chord from it); turned the other way the
+  // main line swung over the other track, which the separation check allows within 2 km of their junction.
   "curves": { "aDerail": 1.0, "aPost": 0.7, "transitionMinM": 40, "transitionSpeedFactor": 0.5, "transitionMaxM": 240, "boardDerailBelow": 22,
     "bendDeadLineClearM": 1500 },
 

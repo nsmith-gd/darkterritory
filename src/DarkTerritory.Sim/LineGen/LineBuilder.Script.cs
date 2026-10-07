@@ -355,17 +355,19 @@ sealed partial class LineBuilder
     }
 
     /// <summary>
-    /// Note 278: which way a hard bend over <paramref name="s0"/>..<paramref name="s1"/> must turn, or 0 for either: away
-    /// from an alternate whose window it's in, or a dead line it's just past the toe of. Turned towards one, the main line
-    /// swung over the alternate's track on frontier:7 (the separation check lets track be within 2 km of a junction the two
-    /// share; the crossing check in Validate catches what this misses). A branch's side, right +1 (its turnout first bends
-    /// right); turning away from the right is a left turn, a positive deflection.
+    /// Note 278: which way a hard bend over <paramref name="s0"/>..<paramref name="s1"/> must turn, or 0 for either. Past a
+    /// dead line's toe, away from it: the main line leaves it behind. In an alternate's window, towards the alternate's side:
+    /// a line that turns only one way lies the other side of its chord, and the alternate bows out on its own side of that
+    /// chord, so the two stay apart; turned away, the main line bowed over towards the alternate and crossed its way back in
+    /// (frontier:7). The separation check lets track be within 2 km of a junction two edges share, so <see cref="CrossesMain"/>
+    /// refuses what this misses. A branch's side, right +1 (its turnout first bends right); turning away from the right is a
+    /// left turn, a positive deflection.
     /// </summary>
     int AwayFromBranches(double s0, double s1)
     {
         foreach (var w in _alts)
             if (s1 > w.T - 200 && s0 < w.J + 200)
-                return w.MainBow != 0 ? -w.MainBow : w.Side;
+                return w.MainBow != 0 ? w.MainBow : -w.Side;
         foreach (var d in _deads)
             if (s1 > d.Toe - 200 && s0 < d.Toe + _t.Curves.BendDeadLineClearM)
                 return d.Side;

@@ -266,14 +266,10 @@ sealed partial class LineBuilder
         var missing = Quotas();
         Check("quotas", missing.Count == 0, string.Join(", ", missing));
 
-        // Separation was held when each edge was laid; its failures were dropped or retried.
+        // Separation was held when each edge was laid; its failures were dropped or retried. So were crossings (note 278).
         Check("separation", true);
-        // Note 278: a branch crossing to the main line's other side, where no bridge was laid. Reported, not failed: the
-        // separation check lets track be within 2 km of a junction two edges share, and an alternate whose main line bows
-        // round its hill the side its turnout leaves by crosses the main line a few hundred metres on (main's own nights
-        // do: frontier:7's alt1 by 300 m). A hard bend by a branch turns away from it, so the bends add none.
-        foreach (var c in Crossings())
-            Warn(c);
+        var crossings = Crossings();
+        Check("crossings", crossings.Count == 0, string.Join("; ", crossings));
 
         // Walkability: a ledge's drop side stays walkable within 40 m (§12.6).
         var steep = new List<string>();
@@ -304,56 +300,68 @@ sealed partial class LineBuilder
     readonly Dictionary<string, bool> _knownGradesPassable = new();
 
     /// <summary>
-    /// Note 278: each alternate or dead line that crosses to the main line's other side away from its own turnouts (more
-    /// than 2 m over, within 100 m of it): two tracks across each other where the generator laid no bridge.
+    /// Note 278: each alternate or dead line that crosses to the main line's other side away from its own turnouts: two
+    /// tracks across each other where the generator laid no bridge. Each is refused when it's laid (<see cref="CrossesMain"/>),
+    /// so this finds none; it's the check that says so.
     /// </summary>
     List<string> Crossings()
     {
         var found = new List<string>();
-        if (!_traces.TryGetValue("main", out var main))
-            return found;
-        const double Cell = 50, Reach = 100, Turnout = 200;
-        var grid = new Dictionary<(long, long), List<int>>();
-        var m = main.Trace;
-        for (int i = 0; i < m.Count; i++)
-        {
-            var key = ((long)Math.Floor(m[i].X / Cell), (long)Math.Floor(m[i].Z / Cell));
-            if (!grid.TryGetValue(key, out var list))
-                grid[key] = list = [];
-            list.Add(i);
-        }
         foreach (var e in _edges.Values.Where(e => e.Role is EdgeRole.Alternate or EdgeRole.DeadLine).OrderBy(e => e.Branch))
-        {
-            if (!_traces.TryGetValue(e.Id, out var tr) || e.Side == 0)
-                continue;
-            double length = tr.Trace[^1].S;
-            foreach (var (s, x, z) in tr.Trace)
-            {
-                if (s < Turnout || e.Role == EdgeRole.Alternate && s > length - Turnout)
-                    continue;
-                int best = -1;
-                double bestD = Reach * Reach;
-                long cx = (long)Math.Floor(x / Cell), cz = (long)Math.Floor(z / Cell);
-                for (long i = cx - 2; i <= cx + 2; i++)
-                    for (long j = cz - 2; j <= cz + 2; j++)
-                        if (grid.TryGetValue((i, j), out var list))
-                            foreach (int k in list)
-                                if ((m[k].X - x) * (m[k].X - x) + (m[k].Z - z) * (m[k].Z - z) is var d2 && d2 < bestD)
-                                    (best, bestD) = (k, d2);
-                if (best < 0 || best + 1 >= m.Count)
-                    continue;
-                // Right of the main line's way there: (−tz, tx).
-                double tx = m[best + 1].X - m[best].X, tz = m[best + 1].Z - m[best].Z, n = Math.Sqrt(tx * tx + tz * tz);
-                double lateral = ((x - m[best].X) * -tz + (z - m[best].Z) * tx) / Math.Max(1e-9, n);
-                if (lateral * e.Side < -2)
-                {
-                    found.Add($"{e.Id} crosses the main line {s:0} m along it, at km {Km(m[best].S):0.0}");
-                    break;
-                }
-            }
-        }
+            if (CrossesMain(e) is { } why)
+                found.Add(why);
         return found;
     }
+
+    /// <summary>
+    /// Whether a branch crosses to the main line's other side away from its own turnouts (more than 2 m over, within 100 m
+    /// of it). The separation check lets track be within 2 km of a junction two edges share, so it doesn't see this.
+    /// </summary>
+    string? CrossesMain(EdgeDraft e)
+    {
+        if (!_traces.TryGetValue("main", out var main) || !_traces.TryGetValue(e.Id, out var tr) || e.Side == 0)
+            return null;
+        const double Cell = 50, Reach = 100, Turnout = 200;
+        var m = main.Trace;
+        if (_mainGrid is null || _mainGridOf != m)
+        {
+            _mainGrid = [];
+            _mainGridOf = m;
+            for (int i = 0; i < m.Count; i++)
+            {
+                var key = ((long)Math.Floor(m[i].X / Cell), (long)Math.Floor(m[i].Z / Cell));
+                if (!_mainGrid.TryGetValue(key, out var list))
+                    _mainGrid[key] = list = [];
+                list.Add(i);
+            }
+        }
+        double length = tr.Trace[^1].S;
+        foreach (var (s, x, z) in tr.Trace)
+        {
+            if (s < Turnout || e.Role == EdgeRole.Alternate && s > length - Turnout)
+                continue;
+            int best = -1;
+            double bestD = Reach * Reach;
+            long cx = (long)Math.Floor(x / Cell), cz = (long)Math.Floor(z / Cell);
+            for (long i = cx - 2; i <= cx + 2; i++)
+                for (long j = cz - 2; j <= cz + 2; j++)
+                    if (_mainGrid.TryGetValue((i, j), out var list))
+                        foreach (int k in list)
+                            if ((m[k].X - x) * (m[k].X - x) + (m[k].Z - z) * (m[k].Z - z) is var d2 && d2 < bestD)
+                                (best, bestD) = (k, d2);
+            if (best < 0 || best + 1 >= m.Count)
+                continue;
+            // Right of the main line's way there: (−tz, tx).
+            double tx = m[best + 1].X - m[best].X, tz = m[best + 1].Z - m[best].Z, n = Math.Sqrt(tx * tx + tz * tz);
+            double lateral = ((x - m[best].X) * -tz + (z - m[best].Z) * tx) / Math.Max(1e-9, n);
+            if (lateral * e.Side < -2)
+                return $"{e.Id} crosses the main line {s:0} m along it, at km {Km(m[best].S):0.0}";
+        }
+        return null;
+    }
+
+    Dictionary<(long, long), List<int>>? _mainGrid;
+    List<(double S, double X, double Z)>? _mainGridOf;
 
     List<string> Quotas()
     {
