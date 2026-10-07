@@ -269,6 +269,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     double _skipHeld;
     bool _skipped;
+
+    /// <summary>
+    /// A skip lands this far into the cause card, not on its first instant: <see cref="WreckFilm.CutAt"/> takes the shots'
+    /// lengths off one at a time, and at the exact boundary the rounding can leave the settle's last frame on screen.
+    /// </summary>
+    const double SkipLanding = 1e-3;
     public double OutroSeconds { get; private set; }
 
     public (IReadOnlyList<Sim.Enemies.EnemyKind> Options, Sim.Enemies.EnemyKind? Cast)? Ballot => Client.Ballot;
@@ -879,12 +885,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // E.5: voted off, the film cuts to the cause card (never past it); E.9: the outro to its end.
         if (World.FilmSkipped && Film is { } film && DerailSequence.Beat(SequenceTuning, WreckSeconds, film) == DerailBeat.Film
             && DerailSequence.FilmSeconds(SequenceTuning, WreckSeconds) < film.CauseAt)
-            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt;
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + film.CauseAt + SkipLanding;
         // Note 311: skipped on this screen alone, from anywhere before it, the first person and the replay too. Taken while
         // the film's still being shot, the jump waits for it.
         if (_skipped && Train.Wreck is not null && Film is { } mine
             && WreckSeconds < SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt)
-            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt;
+            WreckSeconds = SequenceTuning.FirstPersonSeconds + SequenceTuning.ReplaySeconds + mine.CauseAt + SkipLanding;
         if ((World.FilmSkipped || _skipped) && StrandedOutro)
             OutroSeconds = World.WreckTuning.Stranded.Seconds;
         Tick++;

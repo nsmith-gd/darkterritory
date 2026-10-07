@@ -80,7 +80,17 @@ public class WreckSessionTests
         for (int i = 0; i < hold + 1 && night.Skippable; i++)
             night.Step(skip);
         Assert.False(night.Skippable);
-        var film = WaitForFilm(night);
+        // The film comes in off the frame loop; the step after it does the jump, and the frame drawn then is the cause card's
+        // (not the settle's last: CutAt's rounding at the boundary, which a Windows runner caught).
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (night.World.Film is null && clock.Elapsed.TotalSeconds < 60)
+        {
+            night.Step(default); // till the film's start is in, and so being shot
+            Thread.Sleep(5);
+        }
+        while (night.Film is null && clock.Elapsed.TotalSeconds < 60)
+            Thread.Sleep(5);
+        var film = night.Film ?? throw new Xunit.Sdk.XunitException("no film");
         night.Step(default);
         var t = night.SequenceTuning;
         Assert.Equal(film.FirstPersonOf(night.PlayerId), t.FirstPersonSeconds);
