@@ -18,7 +18,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
-**Director's decisions of 2026-10-07: the Moose (queue #71; ARCHITECTURE §8 note 332; design `docs/design/creatures/moose.md`).**
+**Director's decisions of 2026-10-07: the Moose (queue #77; ARCHITECTURE §8 note 339; design `docs/design/creatures/moose.md`).**
 - **An eighteenth enemy, the Moose:** a hyper-aggressive, territorial bull moose, too big to get on the train. It grazes beside the line and at the stops and leaves be whoever leaves it be. Crowd it, talk near it or hit it and it charges in straight lines; the bullfight (dodge it, pass it with a blow, lose it round the buildings, quietly) is the heart of it. It rams the car you hide in for a while (only a ram), gives up when it can't find you or you're far enough off, and the train pulling away ends it. Nothing kills it. It's in every tier, more the harder the tier, and it is never on the rail (§21, A.6, A.9, B.1, B.6).
 
 **Director's decisions of 2026-10-06 (build 1121 play-test; ARCHITECTURE §8 note 264).**
@@ -115,6 +115,55 @@ Fortified towns survive behind stone and steel walls, floodlights, watchtowers, 
 This makes every town dependent on freight. One settlement produces coal. Another grows food. Another manufactures gunpowder, or operates foundries, or produces medicine.
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
+
+### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 note 281)*
+
+The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a line from somebody at their table, a little posted on a board, never a speech.
+
+**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three hundred and fifty people, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+
+**A town is its custom.** The Corruption exaggerates whatever lets a thing survive (§2), and the towns did the same. Each one got through one bad winter by doing one thing, kept doing it, and did it harder until it was the town's custom. Every custom is the human answer to one creature's rule, said sideways: the crew hear the custom, and the rule is theirs to work out. In a hush town nobody sings, not even at a burying, and the bell's clapper is bound in felt (the Choir). In a pairs town nobody sleeps or waits alone (Tippy Toesie). In an offerings town the children have no toys, because the toys go on a shelf by the gate (the Track Doll). The towns name the creatures in their own words, never the game's. A custom only ever answers a creature the edition fields. Fourteen customs are written (content/world/towns.json), one for each of the demo's five and the Choir among them.
+
+**Each town is different from the last.** It is made from the night's seed: the line's fortress name, its custom (never the one the crew left last night), one or two smaller habits (they wear their dead's coats; every clock stopped at the same minute; the foghorn sounded for the ones still out), and what it makes (a pit town, a growing town, a foundry town).
+
+**The square** is where the walls step back, beside the engine as the night starts. It holds:
+- the custom's own building in a Maritime form: a white clapboard church with a steeple over its door, a one-room school with its belfry, a car shed, a hall;
+- the clerk's office and the stores, lit;
+- the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
+- a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
+
+**The houses.** Down the yard's street from the square, both sides, fronts to the line:
+- the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
+- a few houses standing open with their household at home, explorable: a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
+- then the houses of the people the town has lost: boarded, burnt to the sills, or left open on the dark. Each has something to say when you look at it.
+
+*The director is finding references for the houses; this is the first pass at them.*
+
+**People.** Text only, no voices, as many as the town is big:
+- the gatekeeper says the town's law first;
+- the keeper of the custom's building and the folk round the centrepiece talk about the custom;
+- the clerk, the fitter, the lampman and the rest talk about their work;
+- a few are out in the street with a lamp;
+- the households at home tell their own story: the empty chair kept for somebody, the child who walks in their sleep, the letters to a town that stopped answering.
+
+Use talks to someone, and Use again hears their next line. They turn to face you. Nobody can be talked to through a wall.
+
+**Lore is through what people say** (the director, 7 Oct). They say creepy things. Sometimes it's a hint of how another town deals with a creature they've heard about ("in Pell's Cove they won't sing"), never the full rule. Everyone is a little damaged by what happened.
+
+**Papers.** The board carries three or four notices: the custom's orders first, then the town's trade and whatever else is posted. One or two notes lie about the square. A town's papers name its own people, so a line from one person and a notice about another can be put together.
+
+**Mystery is seeded, not explained.** A few threads run through every town, a scrap or two each: the fall, the lost trains (the night mail, "still due"), the towns that stopped answering, the sea, the penal cars, Dispatch, and the clerk's fees. None of them is ever explained.
+
+**Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
+
+**Not yet** (for the next passes):
+- the houses to the director's references;
+- buying, upgrading and turning loot into scrip in the town itself, not the menu;
+- the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
+- townspeople who move about, and faces of their own (they wear the crew's model);
+- upstairs in the open houses;
+- things everyone hears when one person does them (ringing the bell);
+- notes found out along the line.
 
 ## 4. The player's place in it
 
@@ -1170,7 +1219,7 @@ COUNTER   bludgeon it off a friend's back (kills it)
 ```
 **The loot is the risk, not the host.** The fix is a friend clubbing you in the back.
 
-### THE MOOSE · movement (trespass), sound *(the director's decisions, 2026-10-07; note 332)*
+### THE MOOSE · movement (trespass), sound *(the director's decisions, 2026-10-07; note 339)*
 ```
 GRAZING   beside the line or at its ground by a stop; docile; never on or within 3.2 m of a track
           └ TELEGRAPH (presence): pale in the lamp, chewing, the sacs creaking
@@ -1439,6 +1488,8 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 |---|---|---|---|
 | **Cinder Hounds** | Behind the train, out of visual range, after sustained speed | Any tier · requires a rear cannon or rearmost car | ×2.5 with livestock or food cargo · ×1.5 when the boiler runs hot |
 | **Car Hugger** | Marsh, water crossings, low ground | Train length ≥2 · cannot spawn on grades | Weight up at low speed |
+
+**The hound run** (*7 Oct 2026*, App. F.3; ARCHITECTURE §8 note 328): apart from the director's packs, a train run faster than the packs can follow (2.4 km at 19 m/s or more without slowing, sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, sized to the crew alive (2 to 6), outside the budget and caps. The guns answer them one hound at a time ([orchestrator.md](orchestrator.md) §5.3, §6.1).
 
 ---
 
@@ -2125,19 +2176,19 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Heat and pressure both fell and the train held its top speed. *Done (note 319, #243): an engine short of steam holds the train back below the working band (`boiler.json` `starvedDecel`).*
 
 **Towns and world building**
-- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #62, #194).*
+- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #74, #194; walled towns of up to 3000 next).*
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *Open (queue #65, note 326, B4).*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the plain village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. Searched cupboards that look it, bots that search and solid furniture are next.*
 
 **Encounters**
-- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
-- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *Open (queue #67, note 328).*
+- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Done (note 327): off the train the crew are watched: now and then eyes at the lamp's edge toward where something that lives at the stop is, and its sound; and the night's pressure builds faster while anyone's afoot, so encounters come sooner (`enemies.json` `director.afoot`).*
+- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run faster than the hounds' own 19 m/s for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Open (queue #67, note 328).*
-- A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and four questions for the director.*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs is proposed, not built ([orchestrator.md](orchestrator.md) §5.1).*
+- A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
 - The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
@@ -2146,7 +2197,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
 
 **Derailment**
-- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Open (queue #69, note 330).*
+- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Done (queue #69, note 330): however slow it comes off, the first car is thrown and popped up and every car after is thrown, hops and tips, so a 30 km/h derail rolls the whole train over, one car after another.*
 
 ## F.1 2026-10-06 — build 1121
 
@@ -2244,16 +2295,26 @@ Further decisions (the director, 6 Oct 2026):
 
 - **Quiet stretches are counted in kilometres, not seconds.** A stretch of line holds the same danger whatever the train's speed. A time backstop keeps a stopped train from waiting it out. *Done (T125): the director's quiet pressure ramps over 1.26 km of line run since a threat was engaged, or 120 s if that's sooner (note 270).*
 
-**Direction** (the director, 6 Oct 2026; proposals in T133):
+**Direction** (the director, 6 Oct 2026; proposals in T133; *first pass landed: §3.1, note 281, #194*):
 - *Fortress towns are where the world is built.* They tell the story of what happened and how people survived. They're where the train is upgraded and loot becomes scrip, so they must feel special.
 - *Procedural, with people in them.* Each town has its own odd culture, different from the last.
 - *Learn by inference, as in Lethal Company.* Little notes, and text-only lines from the townspeople (no voice needed). Some interactions give a scrap of story; most is left to inference. Mystery is seeded, not explained, without going overboard.
 - *Much more in the towns is interactable.*
 
+**Direction** (the director, 7 Oct 2026, notes for the towns; *second pass built for review: §3.1, note 281*):
+- *These are Maritime Canada towns.* The buildings must look like Maritime buildings. (The director is finding references for the houses.)
+- *Fully modelled inside and explorable,* some of them, *with residents.*
+- *Lore is through NPC dialogue.* They should say creepy things, sometimes hints of how to deal with monsters they've heard about, but never the full rule.
+- *Every culture is somewhat traumatised* by the events of the world.
+- *Towns of 20 to 350 people.*
+- Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335.)
+
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
 - **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt. *Done (note 271): the boarding half in note 263, the firebox half in 271; the hose is an extinguisher for now.*
 - **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this. *Done (note 272; systems spec B.2): big hits only, rare healing finds, the edge flash. Caveat: creature health is not yet reworked; note 272 lists which creatures still die to blows, for the director.*
+  - **Driven off, or killed together** *(the director, 7 Oct 2026)*: "They should be driven off by rules but they should also be able to be killed like in Lethal Company if the team coordinates effectively." Following a creature's rule drives it off (the normal answer, a break: it can come back); a coordinated team can kill it, which takes several of the crew striking at once with the setup its rule asks for, and a lone player swinging never gets there. Killing is riskier and costlier than driving off, and rewarded: it doesn't come back that night, and the incident report names the gang. *Done for the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (note 288; enemies.json `coordinatedKill` and each one's `drivenOff`).*
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*

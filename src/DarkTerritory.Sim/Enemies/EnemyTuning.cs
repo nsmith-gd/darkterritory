@@ -32,6 +32,11 @@ public sealed record EnemyTuning(
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
+    /// The coordinated kill (the director's clarification of 7 Oct 2026, GDD App. F.1; note 288): blows wear down one of the
+    /// creatures driven off by its rules only with this many crewmates on it at once.
+    /// </summary>
+    public CoordinatedKillTuning CoordinatedKill { get; init; } = new();
+    /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
     /// </summary>
@@ -65,6 +70,17 @@ public sealed record DamageModelTuning
 {
     public int MinHit { get; init; } = 30;
     public double MinGapSeconds { get; init; } = 2.5;
+}
+
+/// <summary>
+/// enemies.json <c>coordinatedKill</c> (note 288): a creature driven off by its rules is killed only by the crew together,
+/// <see cref="Gang"/> different crewmates striking it within <see cref="WindowSeconds"/> (and, per creature, the setup its
+/// rule asks for). A lone player's blows never wear it down.
+/// </summary>
+public sealed record CoordinatedKillTuning
+{
+    public int Gang { get; init; } = 2;
+    public double WindowSeconds { get; init; } = 5;
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -236,6 +252,11 @@ public sealed record GrumblerTuning
     public double MaulSeconds { get; init; } = 8;
     public double CargoPerSecond { get; init; } = 0.004;
     public double FoodWeight { get; init; } = 2;
+    /// <summary>Note 288: driven off by its rule (gang up), killed only by a gang. False: the old health-and-regen fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double GangRadius { get; init; } = 3;
+    public double OutnumberedSeconds { get; init; } = 2;
+    public double FleeSeconds { get; init; } = 8;
 }
 
 /// <summary>The Choir's swarm (v1.1 App. A.7): the ghosts it sends. Field docs live in enemies.json.</summary>
@@ -250,6 +271,9 @@ public sealed record ChoirSwarmV11
     public double HitBackEvery { get; init; } = 3;
     public double DisperseQuietSeconds { get; init; } = 10;
     public double Around { get; init; } = 12;
+    /// <summary>Note 288: a seize broken by quiet or a shut door; a ghost killed only by a gang while the crew holds quiet. False: the old health fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double HushBreakSeconds { get; init; } = 3;
 }
 
 /// <summary>The shared GRAB rescue state (GDD v1.1 App. A.1, C.1). Field docs live in enemies.json.</summary>
@@ -305,6 +329,10 @@ public sealed record PassengerTuning
     public int MinCrew { get; init; } = 3;
     public int SplitPlaces { get; init; } = 3;
     public double SplitWeight { get; init; } = 2;
+    /// <summary>Note 288: a blow finds it out and drives it off; killed only by a gang. False: the old five blows to kill.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double FleeSpeed { get; init; } = 2.2;
+    public double UnmaskedSeconds { get; init; } = 2.5;
 }
 
 /// <summary>A car fire (the in-car incidents). Field docs live in enemies.json.</summary>
@@ -387,6 +415,10 @@ public sealed record GauntTuning
     public double ClearedAt { get; init; } = 30;
     public double CarryHigh { get; init; } = 1.7;
     public double CarryLow { get; init; } = 0.55;
+    /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public bool TalkingCalms { get; init; } = true;
+    public double TalkedDownSeconds { get; init; } = 45;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -416,6 +448,9 @@ public sealed record ClimberTuning
     public double TakeSeconds { get; init; } = 10;
     /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>
     public bool BreachLitCars { get; init; }
+    /// <summary>Note 288: outnumbered where it is, it drops back off; killed only by a gang that outnumbers it. False: the old three blows.</summary>
+    public bool DrivenOff { get; init; } = true;
+    public double OutnumberedSeconds { get; init; } = 2;
     /// <summary>
     /// Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut keeps them out (they pass over
     /// it, as over a car with crew in it); unset, an empty lit car lets them in whatever its doors.
@@ -597,6 +632,10 @@ public sealed record DirectorTuning(
     public PressureTuning Pressure { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
+    public AfootTuning Afoot { get; init; } = new();
+    /// <summary>The hound run (note 328): a fast train's wave of Cinder Hounds, answered by the guns one hound at a time.</summary>
+    public HoundRunTuning Run { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -701,13 +740,57 @@ public sealed record AbandonedTuning
 }
 
 /// <summary>
+/// Note 327 (GDD App. F.3, the director, 7 Oct 2026: "when they leave, there is this presence of threat at all times"). Field
+/// docs in enemies.json director.afoot.
+/// </summary>
+public sealed record AfootTuning
+{
+    public bool On { get; init; } = true;
+    public double FromTrainM { get; init; } = 20;
+    public double PerSecond { get; init; } = 0.08;
+    public double OutsideWeight { get; init; } = 2.5;
+    public double[] SignEvery { get; init; } = [12, 24];
+    public double FirstSign { get; init; } = 6;
+    public double[] SignOut { get; init; } = [14, 22];
+    public double SignReach { get; init; } = 160;
+    public double SignSeconds { get; init; } = 3.5;
+    public double SignSpread { get; init; } = 35;
+    /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
+    public Dictionary<string, double> SignHeight { get; init; } = new();
+    public double SignHeightDefault { get; init; } = 0.7;
+}
+
+/// <summary>
+/// The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3, §6.1; GDD App. F.3, the director, 7 Oct 2026:
+/// "things that are trying to attack the train sort of like tower defense style that gives our gunners things to do"): a
+/// train run fast long enough draws a stream of Cinder Hounds faster than it is, sized to the crew active, that the guns
+/// answer one hound at a time. Mirror of enemies.json <c>director.run</c>; field docs live there.
+/// </summary>
+public sealed record HoundRunTuning
+{
+    public bool On { get; init; } = true;
+    public double FromSpeed { get; init; } = 19;
+    public double StopSpeed { get; init; } = 2;
+    public double AfterMetres { get; init; } = 2400;
+    public double HotShorter { get; init; } = 0.75;
+    public double Base { get; init; } = 1.4;
+    public double PerActive { get; init; } = 0.6;
+    public int[] Size { get; init; } = [2, 6];
+    public double Spacing { get; init; } = 6;
+    public double SpawnBehind { get; init; } = 200;
+    public double[] Lateral { get; init; } = [4, 8];
+    public double Closing { get; init; } = 5;
+    public double Scatter { get; init; } = 5;
+}
+
+/// <summary>
 /// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
 /// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
 /// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
 
-/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 332). Field docs live in enemies.json.</summary>
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339). Field docs live in enemies.json.</summary>
 public sealed record MooseTuning
 {
     public double CrowdAt { get; init; } = 20;

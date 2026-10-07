@@ -154,7 +154,7 @@ public class DamageModelTests
                 world.EnableBodies();
                 world.EnableRun(Tuning.Run, route, route.GateOr(Tuning.Route.YardLength), authority: true, loot: L);
                 for (int k = 0; k < world.Run!.Stops.Count; k++)
-                    world.Run.Stock(world.Bodies, k);
+                    world.Run.Stock(world.Bodies, k, searched: true);
                 var find = world.Bodies.All.FirstOrDefault(b => b.Kind == BodyKind.Loot && (world.Run.HealOf(b) > 0) == heals);
                 if (find is null)
                     continue;

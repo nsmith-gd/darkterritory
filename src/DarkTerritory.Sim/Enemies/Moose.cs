@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Enemies;
 public enum MooseMode : byte { Graze, Home, Hunt, Search, Ram, SquareUp, Charge, Wheel, Snag, Pin }
 
 /// <summary>
-/// THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 332; the director's
+/// THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339; the director's
 /// decisions of 7 Oct 2026, docs/design/creatures/moose.md). A hyper-aggressive, territorial bull moose, too big to get on
 /// the train. It grazes beside the line and at the stops, docile, and leaves be whoever leaves it be. Its temper is a meter:
 /// crowding it, talking near it and a passing train fill it; a hit fills it at once. Listening (head up, ears turning) and
@@ -53,6 +53,11 @@ public sealed class Moose(int id) : Enemy(id)
     public Double3 Home => _home;
     /// <summary>Host: the rams it's made at a car (each only a boom and a shudder: nothing in or on the car is touched).</summary>
     public int Rams { get; private set; }
+    /// <summary>
+    /// The rams it's made, as every client has it (AU1 on #247: a boom on each, landed on the shudder): replicated in
+    /// <see cref="Enemy.Health"/>, which is 1 + its rams (nothing hurts it, so its health is free to carry them).
+    /// </summary>
+    public int RamCount => Math.Max(0, (int)Math.Round(Health) - 1);
 
     public static Moose Grazing(int id, Double3 world, double lineHint, double yaw) =>
         new(id) { Attached = Loose, Local = world, Extra = -1, Lateral = yaw, LineDistance = lineHint, _home = world };
@@ -292,6 +297,7 @@ public sealed class Moose(int id) : Enemy(id)
                 {
                     _nextRam = _modeSeconds + t.RamEvery;
                     Rams++;
+                    Health = 1 + Rams;
                 }
             }
             if (_modeSeconds >= t.RamSeconds)

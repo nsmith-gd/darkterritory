@@ -20,7 +20,7 @@ public sealed record LookTuning
 /// lies in wait for a crew that never comes near it. Bots keep to their posts, and the Gaunt asleep in the yard, a Dragger
 /// under a roof's lip and a Ribbit pack out on the ballast were put there and never came on (note 186's "dormant"). The
 /// look-out walks over the ballast to the sleeping Gaunt, toward the pack, away from the others, or up to a grazing Moose
-/// (note 332), before boarding; up on
+/// (note 339), before boarding; up on
 /// the roofs, it stays out there and walks to the lip over a Dragger. It's only feet and a facing (intent, as a player's):
 /// what's there wakes by its own rules, and the bot answers it with its normal counters (talks to the Gaunt, steps back from
 /// the lip and swings, runs from the tongues and is hauled free). Each thing it looks at once; then it's back to its post.

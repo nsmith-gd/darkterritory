@@ -105,6 +105,10 @@ public sealed class GreyboxScene
     public Sim.Run.Run? Run { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
+    /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
+    public Sim.Towns.Town? Town { get; set; }
+    /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
+    public (int Person, Double3 Toward)? TownFacing { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -408,6 +412,9 @@ public sealed class GreyboxScene
             // Something out past the lamp heard the crew (note 287).
             if (Answer.Showing)
                 Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
+            // Something that lives at this stop, watching the crew afoot (note 327).
+            if (Watcher.Showing)
+                Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -484,7 +491,7 @@ public sealed class GreyboxScene
                             && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
-                    // A Moose pinning someone stands over them (note 332): the one it holds.
+                    // A Moose pinning someone stands over them (note 339): the one it holds.
                     if (e.Kind == EnemyKind.Moose && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
@@ -496,7 +503,7 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    // A Moose by the line as the train goes by (note 332): it takes it for a rival, tossing its head after it.
+                    // A Moose by the line as the train goes by (note 339): it takes it for a rival, tossing its head after it.
                     if (e.Kind == EnemyKind.Moose && Look?.Art.Creatures is { } herd)
                         herd.TrainPassing = Math.Abs(_speed) > 1 && frames.Count > 0
                             && frames.Min(f => ((f.Origin - e.Local) with { Y = 0 }).Length - f.Shape.HalfLength) <= herd.MooseTuning.TrainPassAt;
@@ -947,6 +954,13 @@ public sealed class GreyboxScene
     public Sim.Enemies.DrawAnswer Answer { get; set; }
     public double AnswerShowSeconds { get; set; } = 7;
 
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (World.Watcher, note 327): eyes toward what lives at the stop while it shows,
+    /// over <see cref="WatcherShowSeconds"/> (enemies.json director.afoot.signSeconds).
+    /// </summary>
+    public Sim.Enemies.Watcher Watcher { get; set; }
+    public double WatcherShowSeconds { get; set; } = 3.5;
+
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;
 
@@ -1075,7 +1089,7 @@ public sealed class GreyboxScene
     /// </summary>
     Crewmate Hung(Crewmate c, Double3 eye)
     {
-        // Pinned under a Moose's rack (note 332; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
+        // Pinned under a Moose's rack (note 339; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
         // head toward it (it's stood over them).
         if (Look?.Art.Creatures?.Pins.TryGetValue(c.Id, out var pin) == true)
             return c with { Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
@@ -1420,7 +1434,7 @@ public sealed class GreyboxScene
         Double3 origin, right, up = Double3.Up, back;
         if (e.Kind == EnemyKind.Moose && e.Attached == Enemy.Loose)
         {
-            // The Moose goes its own way (note 332): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
+            // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
@@ -1513,7 +1527,7 @@ public sealed class GreyboxScene
         {
             case EnemyKind.Moose:
                 {
-                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 332): the head up listening,
+                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 339): the head up listening,
                     // down warning, and the rack stood up level in front of it squaring up and charging.
                     var hide = Palette.BlueGrey * 1.5f;
                     bool levelled = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
@@ -1687,6 +1701,7 @@ public sealed class GreyboxScene
             // inside the fortresses' walls (T100): they're told where those are before a cell's built.
             if (Route is not null)
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
+            Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -2109,23 +2124,63 @@ public sealed class GreyboxScene
         }
     }
 
+    /// <summary>One of a fortress's people, standing at <paramref name="feet"/> facing <paramref name="facing"/>: the crew's
+    /// model in their own drab, idling on their own beat (note 107).</summary>
+    /// <param name="drab">How much darker than the crew they're dressed (a town's people, near and talked to, are lighter).</param>
+    /// <param name="pose">How they're standing (a town's people, note 281): "idle", "seated" (at a table, in a chair),
+    /// "crouch" (at the range), "lantern" (out in the street with a lamp, lit).</param>
+    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle")
+    {
+        var back = -ToF(facing);
+        var right = Vector3.Cross(Vector3.UnitY, back);
+        var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
+        drab += variant % 3 * 0.05f;
+        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        var creatures = Look!.Art.Creatures;
+        if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
+            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
+            return;
+        // The street's lamp-carriers: the hand lamp hung from the fist, burning.
+        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        {
+            var flame = creatures.LastHanging;
+            mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
+            mesh.Billboard(flame, 0.35f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        }
+    }
+
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
     void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time);
+            // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
+            var town = start == 0 && lit ? Town : null;
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
+            if (town is not null)
+            {
+                Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                foreach (var p in town.Plan.People)
+                {
+                    var feet = town.Feet(p);
+                    if ((feet - eye).Length > 160)
+                        continue;
+                    bool talking = TownFacing is { } f && f.Person == p.Id;
+                    var facing = talking && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
+                        ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose);
+                    // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
+                    // a lit door or a fire at their back).
+                    if (talking)
+                        mesh.PointLights.Add(new PointLight(V(feet + facing * 1.1 + Double3.Up * 1.8, eye), Palette.LampAmber * 1.1f, 4.5f));
+                }
+                return;
+            }
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
-                {
-                    var back = -ToF(facing);
-                    var right = Vector3.Cross(Vector3.UnitY, back);
-                    var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
-                    float drab = 0.45f + variant % 3 * 0.05f;
-                    Look.Art.Creatures.Draw(mesh, "crew", "idle", Time + variant * 0.73, true, m, variant, seed: variant * 13,
-                        adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) });
-                }
+                    Folk(mesh, eye, feet, facing, variant);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);

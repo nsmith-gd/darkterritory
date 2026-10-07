@@ -88,7 +88,7 @@ whoever has to hear it.
 | The Passenger | **Silent by design** (it never speaks) | — | — |
 | The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
-| The Moose *(added 7 Oct, note 332; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | pending (audio) |
+| The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | pending (audio) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
@@ -382,7 +382,7 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 
 ## B.12 The Moose
 
-*The director's decisions, 2026-10-07* (GDD §21, App. A.6, B.6; `moose` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 332). `SpecTableTests.TheMooseMatchesB12` pins this table.
+*The director's decisions, 2026-10-07* (GDD §21, App. A.6, B.6; `moose` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 339). `SpecTableTests.TheMooseMatchesB12` pins this table.
 
 | Parameter | Value |
 |---|---|

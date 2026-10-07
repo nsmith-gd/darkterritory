@@ -12,7 +12,7 @@ public enum EnemyKind : byte
     Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
     TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
-    // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 332).
+    // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
     Moose = 31
 }
 
@@ -317,6 +317,14 @@ public abstract class Enemy
         ctx.Kill(victim, cause);
     }
 
+    /// <summary>Who struck it, and when: what <see cref="Struck"/> notes first, for a creature that does the rest itself.</summary>
+    protected void Marked(EnemyContext ctx, int by)
+    {
+        LastHitBy = by;
+        LastHitTick = ctx.Tick;
+        Noted(ctx, by);
+    }
+
     /// <summary>Struck with a tool by a crew member (App. C.2). By default it's hurt, and a friend's blow breaks its grab.</summary>
     public virtual void Struck(EnemyContext ctx, int by, double damage)
     {
@@ -337,6 +345,61 @@ public abstract class Enemy
         Health -= damage;
         if (Health <= 0)
             Enter(ctx, SpinePhase.Gone);
+    }
+
+    // Blows by crewmates, and when (the world's tick): the coordinated kill's count (note 288). Host-only, as the spine is.
+    readonly List<(int By, uint Tick)> _blows = [];
+
+    /// <summary>Notes a crewmate's blow on it, for <see cref="Strikers"/>.</summary>
+    protected void Noted(EnemyContext ctx, int by) => _blows.Add((by, ctx.Tick));
+
+    /// <summary>
+    /// How many different crewmates have struck it in the last <paramref name="window"/> seconds (not counting
+    /// <paramref name="except"/>, its victim). The coordinated kill (the director's clarification of 7 Oct 2026, GDD App. F.1;
+    /// note 288): it takes the crew's gang, several at once, never one player swinging.
+    /// </summary>
+    protected int Strikers(EnemyContext ctx, double window, int except = -1)
+    {
+        uint ticks = (uint)Math.Round(window * SimConstants.TickRate);
+        _blows.RemoveAll(h => ctx.Tick - h.Tick > ticks);
+        int n = 0;
+        for (int i = 0; i < _blows.Count; i++)
+        {
+            int by = _blows[i].By;
+            if (by == except)
+                continue;
+            bool seen = false;
+            for (int j = 0; j < i && !seen; j++)
+                seen = _blows[j].By == by;
+            if (!seen)
+                n++;
+        }
+        return n;
+    }
+
+    /// <summary>Whether the crew's gang is on it now: enemies.json <c>coordinatedKill</c>'s count of strikers in its window.</summary>
+    protected bool Ganged(EnemyContext ctx, int except = -1) =>
+        Strikers(ctx, ctx.Tuning.CoordinatedKill.WindowSeconds, except) >= ctx.Tuning.CoordinatedKill.Gang;
+
+    /// <summary>
+    /// Killed by the crew together (note 288): gone, and (<paramref name="forTheNight"/>) its kind for the rest of the night
+    /// (<see cref="World.Slain"/>: the director doesn't send it again), with a line in the incident report naming the gang
+    /// (App. C.9, D.12: a moment worth a commendation). Driven off instead, a creature can come back.
+    /// </summary>
+    /// <param name="forTheNight">False for one of many (a Climber of a pack, a ghost of the swarm): only this one is done.</param>
+    protected void Slay(EnemyContext ctx, bool forTheNight = true)
+    {
+        Holding = -1;
+        Enter(ctx, SpinePhase.Gone);
+        if (forTheNight)
+            ctx.World.Slain.Add(Kind);
+        if (ctx.World.Run is null)
+            return;
+        uint ticks = (uint)Math.Round(ctx.Tuning.CoordinatedKill.WindowSeconds * SimConstants.TickRate);
+        var gang = _blows.Where(h => ctx.Tick - h.Tick <= ticks).Select(h => h.By).Distinct().ToList();
+        string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
+        ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed the {Run.IncidentLog.Spoken(Kind.ToString())} together",
+            gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
     }
 
     /// <summary>Moves the spine. Commit is only reachable from a telegraph at least the reaction window long.</summary>

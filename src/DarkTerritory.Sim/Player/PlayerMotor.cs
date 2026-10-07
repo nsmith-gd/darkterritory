@@ -185,7 +185,7 @@ public enum DeathCause : byte
     Keg, Leak,
     // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
     Wreckage,
-    // GDD §21, App. A.6 (note 332): pinned under the Moose's rack and ground into the peat.
+    // GDD §21, App. A.6 (note 339): pinned under the Moose's rack and ground into the peat.
     Trampled
 }
 
