@@ -576,6 +576,46 @@ CUES = {
     "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
+    # The Moose (G1's design, docs/design/creatures/moose.md §4; queue #73, note 334): heard before it's seen, and nothing
+    # it does may sound like another creature's tell (spec A.1, A.4). Its lines and cue ids are G1's, as on the checklist.
+    "tell-moose-grazing": [
+        O("browse", "Tearing browse", vars=3),
+        L("chew", "Slow chewing"),
+        O("creak", "A sac's wet creak", vars=4),
+        O("grunt", "The occasional low grunt", vars=3),
+    ],
+    "tell-moose-listening": [O("none", "The chewing stops: the silence is the tell", vars=1, silent=True)],
+    "tell-moose-warning": [
+        O("grunt", "A cough-like grunt", vars=3),
+        O("clack", "Teeth clacking", vars=4),
+        O("hoof-drag", "A hoof dragged through the ground", vars=3),
+    ],
+    "tell-moose-square-up": [
+        O("stamp", "A hoof stamp (two in a row)", vars=4),
+        O("snort", "A snort", vars=3),
+    ],
+    "tell-moose-charge": [
+        L("hooves", "Hooves at a charge, on ballast and ground"),
+        L("wheeze", "A wheeze"),
+        O("brush", "Brush breaking", vars=3),
+    ],
+    "cs-moose-snag": [
+        O("groan", "Wood groaning", vars=3),
+        L("grind", "The rack grinding"),
+        O("bellow", "A bellow of rage", vars=3),
+    ],
+    "cs-moose-search": [
+        L("breath", "Heavy snorting breath"),
+        O("knock", "The rack knocking on a wall", vars=4),
+    ],
+    "cs-moose-ram": [
+        O("boom", "A deep iron boom through the whole car", vars=4),
+        O("scrape", "The rack scraping the plates", vars=3),
+    ],
+    "cs-moose-train-pass": [
+        O("bellow", "A bellow after the train", vars=3),
+        O("thrash", "Hooves thrashing the verge", vars=3),
+    ],
     "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
                     O("howl-near", "The pack howling close behind (40-100 m), as it closes", vars=4)],
     "tell-climbers": [O("scrabble", "Scrabbling at the gap", vars=4)],
