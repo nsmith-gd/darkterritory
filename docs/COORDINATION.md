@@ -71,15 +71,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 32 | **Blocked sidings:** derelict cars standing on a yard's sidings, by tier (level-design D.2: 0 / 0–1 / 1–2 / 1–3, never all), scored as clearances (D.1: +2 throws, ×5) in the stop's difficulty, laid in the world as standing rakes the crew must pull clear (note 187's `Stand`), and worked by the bots' stop crew. Level-design I.4's "derelict cars on the sidings" | B4 | `claude/friendly-davinci-y7imvb` (after #209) | 294 | claimed |
 | 33 | **Tunnel name plates:** a named tunnel's plate on both portals (linegen-plan §13.3; the signage skips tunnels today) | B4 | `claude/friendly-davinci-y7imvb` (after #32) | 295 | claimed |
 | 34 | **T128's caveats, the forts and the left-behind:** the Choir's meter stilled while the train's in a fort (note 273: "the Choir's meter isn't stilled in the terminus"); more than Ribbits hunt a crewmate left behind (note 273: "only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground"; GDD App. F.1 "Abandoned player") | D1 | `claude/relaxed-franklin-xkfjgb` (PR next) | 296 | in review |
+| 37 | **The bot gunner takes its gun:** in an 8-bot night with enemies (`dt harness --route frontier:7 --bots 8 --enemies --seconds 600`) the gunner never fires a round (main and #212 alike: 0 rounds, a hound pack aboard, 3 mauled). From the yard it goes into car 1 to catch the mail cranes' bags (`RoofWalkerBot.Look`'s drops) and there's always another ahead, so it never reaches the guard gun (the harness's `posts`: gunner -1). Bots crew solo nights in the app too | D1 | `claude/relaxed-franklin-xkfjgb` (after #34) | 299 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
 14:45 UTC (D1, main at 8caabe7, version 8); whoever lands a gdd.md change republishes it (A1 when it's about).
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **297**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290, landed in #208; E1 291 on #210; F1 292–294 on #211, colliding with B4's 294). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **300**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290, landed in #208; E1 291 on #210; F1 292–294 on #211, colliding with B4's 294). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 290 (D1's guns on creatures), 294 (B4's blocked sidings), 295 (B4's tunnel name plates), 296 (D1's T128 caveats). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 290 (D1's guns on creatures), 294 (B4's blocked sidings), 295 (B4's tunnel name plates), 296 (D1's T128 caveats), 299 (D1's bot gunner; F1's #211 holds 292–298). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
