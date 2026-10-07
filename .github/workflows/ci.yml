@@ -1,7 +1,18 @@
 name: CI
+# Runner time is shared by every agent's branch, so a run happens once per change that can break the build:
+# - a branch's pushes are built by its pull request, not twice (push runs only for main);
+# - a newer push to the same PR cancels the run it supersedes (main keeps every run: its packages are the builds);
+# - commits touching only docs/ and the top-level guides build nothing (tests read content/, never docs/).
 on:
   push:
+    branches: [main]
+    paths-ignore: ['docs/**', 'CLAUDE.md', 'README.md']
   pull_request:
+    paths-ignore: ['docs/**', 'CLAUDE.md', 'README.md']
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build-test:
     strategy:
@@ -21,7 +32,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      # Formatting doesn't differ by OS; once is enough.
       - run: dotnet format Ballast.slnx --verify-no-changes
+        if: runner.os == 'Linux'
       - run: dotnet build Ballast.slnx -c Release
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
