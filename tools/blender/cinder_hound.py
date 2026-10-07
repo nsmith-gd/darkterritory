@@ -270,178 +270,336 @@ crest.rock((-0.04, -0.66, 0.46), (0.03, 0.03, 0.035), SLAG, "tail_01", seed=401)
 # arched at that joint) and swings a hanging leg forward; +Z turns towards -X.
 
 
-def curve(keys, t):
-    """A piecewise-linear cycle, t in 0..1 (wraps)."""
+# The gaits: the paws placed by IK on footfall paths, not swung by angle tables (the Look Review, 6 Oct: "these
+# animations look rather weak ... a full overhaul with much better quality"). Each paw is down for `duty` of the stride,
+# sliding back under the body as the body goes over it, then picked up, folded and swung through to reach ahead.
+# `reach`: where each paw lands and leaves, ahead of and behind its rest place along the body, and how high it's
+# lifted. `pitch`: the lower legs' pitch (degrees above the line ahead, side on) through a stride, the hind's foot (the
+# hock down to the paw) and toes, the fore's hand (the wrist down to the paw) and fingers; in stance (landing, leaving),
+# in swing (lifted, the fold at mid-swing, about to land). The pitches put the hock and the wrist where IK reaches them
+# and keep the paw flat on the ground while it's down.
+PAW_REST = {"rear": -0.44, "front": 0.38}
+GROUND = 0.014
+GAITS = {
+    # The run: a rotary gallop, a stride in 14 frames.
+    "run": {"duty": 0.32, "reach": {"rear": (0.2, -0.2, 0.15), "front": (0.17, -0.12, 0.19)},
+            "pitch": {"foot": {"stance": (-78, -58), "swing": (-58, -96, -80)},
+                      "toe": {"stance": (-6, -2), "swing": (-50, -110, -20)},
+                      "hand": {"stance": (-74, -44), "swing": (-44, -190, -78)},
+                      "finger": {"stance": (-6, -4), "swing": (-60, -250, -40)}}},
+    # The prowl: a stalking walk, each paw set down with care, low and short.
+    "walk": {"duty": 0.68, "reach": {"rear": (0.12, -0.13, 0.06), "front": (0.13, -0.1, 0.08)},
+             "pitch": {"foot": {"stance": (-76, -64), "swing": (-64, -98, -76)},
+                       "toe": {"stance": (-6, -3), "swing": (-40, -90, -10)},
+                       "hand": {"stance": (-72, -54), "swing": (-54, -160, -72)},
+                       "finger": {"stance": (-6, -6), "swing": (-40, -170, -20)}}},
+}
+
+
+def bone_pitch(name):
+    b = sk[name]
+    d = b.tail - b.head
+    return math.degrees(math.atan2(d.z, d.y)), d.length
+
+
+def smooth(u):
+    u = min(1.0, max(0.0, u))
+    return u * u * (3 - 2 * u)
+
+
+def phase_of(gait, t):
+    """(in stance, progress 0..1 through that half of the stride) at stride phase t (0 = touchdown)."""
     t %= 1.0
-    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
-        if t0 <= t <= t1:
-            u = (t - t0) / max(t1 - t0, 1e-9)
-            return v0 + (v1 - v0) * u
-    return keys[-1][1]
+    d = gait["duty"]
+    return (True, t / d) if t < d else (False, (t - d) / (1 - d))
 
 
-def legs(front, rear, phases, stride=1.0):
-    """A gait from per-joint cycles: front {joint: keys}, rear likewise; phases {rear_r, rear_l, front_r, front_l}."""
-    def pose(t):
-        out = {}
-        for side in ("r", "l"):
-            for group, table in (("front", front), ("rear", rear)):
-                ph = t + phases[f"{group}_{side}"]
-                for joint, keys in table.items():
-                    out[f"{joint}_{side}"] = (curve(keys, ph) * stride, 0, 0)
-        return out
-    return pose
+def paw_path(gait, group, t):
+    """The paw's place in the body's frame: (along y, height)."""
+    ahead, behind, lift = gait["reach"][group]
+    stance, u = phase_of(gait, t)
+    if stance:
+        return PAW_REST[group] + ahead + (behind - ahead) * u, GROUND
+    # Picked up quick and folded high under the body, swung through, then reached out and down for the next landing.
+    y = PAW_REST[group] + behind + (ahead - behind) * smooth(u * 1.1 - 0.05)
+    return y, GROUND + lift * math.sin(math.pi * min(1.0, u * 1.12)) ** 0.7
 
 
-# Gallop (rotary): 16 frames. Hind legs reach under together-ish, front legs follow half a stride on.
-GALLOP_FRONT = {
-    "upperarm": [(0, 45), (0.25, 10), (0.5, -45), (0.72, -20), (1, 45)],
-    "lowerarm": [(0, 20), (0.25, 0), (0.5, 5), (0.72, 70), (1, 20)],
-    "hand": [(0, 10), (0.25, -10), (0.5, -60), (0.72, -40), (1, 10)],
-}
-GALLOP_REAR = {
-    "thigh": [(0, 50), (0.3, 5), (0.55, -45), (0.8, 5), (1, 50)],
-    "calf": [(0, -50), (0.3, -20), (0.55, 20), (0.8, -60), (1, -50)],
-    "foot": [(0, 40), (0.3, 20), (0.55, 30), (0.8, 55), (1, 40)],
-    "toe": [(0, 10), (0.3, -10), (0.55, -40), (0.8, 0), (1, 10)],
-}
-gallop = legs(GALLOP_FRONT, GALLOP_REAR, {"rear_r": 0.0, "rear_l": 0.07, "front_r": 0.5, "front_l": 0.58})
+def pitch_at(gait, seg, t):
+    stance, u = phase_of(gait, t)
+    if stance:
+        a, b = gait["pitch"][seg]["stance"]
+        return a + (b - a) * smooth(u)
+    a, m, b = gait["pitch"][seg]["swing"]
+    return a + (m - a) * smooth(u / 0.45) if u < 0.45 else m + (b - m) * smooth((u - 0.45) / 0.55)
+
+
+LEGS = {"rear": ("thigh", "calf", "foot", "toe"), "front": ("upperarm", "lowerarm", "hand", "finger")}
+
+
+def paw(p, group, side, y, z, mid_pitch, end_pitch, spread=1.0):
+    """IK for one leg: its paw at (along y, height z), the two lower segments at those pitches, the upper two reached.
+    The stifle always forward of the line from the hip to the hock, the elbow always behind the shoulder's to the wrist
+    (a dog's legs fold one way): a hard penalty on the wrong side, a pole to settle the rest."""
+    upper, lower, mid, end = (f"{n}_{side}" for n in LEGS[group])
+    x = (0.1 if side == "r" else -0.1) * (0.95 if group == "rear" else 1.0) * spread
+    pm, lm = bone_pitch(mid)
+    pe, le = bone_pitch(end)
+    am, ae = math.radians(mid_pitch), math.radians(end_pitch)
+    joint = Vector((x, y - le * math.cos(ae) - lm * math.cos(am), z - le * math.sin(ae) - lm * math.sin(am)))
+    hip = rig.pose_points(sk, p, [(upper, "head")])[0]
+    way = 1 if group == "rear" else -1
+
+    def wrong_way(e):
+        d, k = joint - hip, e - hip
+        return 4.0 * max(0.0, -way * (d.y * k.z - d.z * k.y) + 0.004)
+
+    pole = (x, 0.0, 0.3) if group == "rear" else (x, 0.0, 0.25)
+    # (A stifle bends with -X, an elbow with +X: reach's `bend`.)
+    p = rig.reach(sk, p, upper, lower, joint, elbow_axis=0, bend=-way, pole=pole, avoid=wrong_way)
+    p[mid] = rig.hang(sk, p, mid, mid_pitch - pm, 0, 0)
+    p[end] = rig.hang(sk, p, end, end_pitch - pe, 0, 0)
+    return p
+
+
+def stride(p, gait, footfall, t):
+    """Every leg on its footfall at stride phase t."""
+    for leg, ph in footfall.items():
+        group, side = leg.split("_")
+        lp = (t - ph) % 1.0
+        y, z = paw_path(gait, group, lp)
+        mid, end = LEGS[group][2], LEGS[group][3]
+        p = paw(p, group, side, y, z, pitch_at(gait, mid, lp), pitch_at(gait, end, lp))
+    return p
+
+
+# Gallop (rotary, a running dog's): one stride in RUN_FRAMES at 30 fps, the footfalls hind left, hind right, fore right,
+# fore left. The back gathered (the hind feet reaching up under the chest, the spine bowed, all four off the ground)
+# then extended (the hind legs driving, the forelegs reaching, the spine flat out); the body pitching over the forelegs
+# as they take it; the head held steady against it, the ears pinned flat, the jaw open; the tail streaming behind,
+# lagging the body's swing; the slag crest jolting out of step.
+RUN_FRAMES = 14
+RUN_FEET = {"rear_l": 0.0, "rear_r": 0.1, "front_r": 0.42, "front_l": 0.52}
+
+
+def gallop(t):
+    """The run's pose at stride phase t (0..1)."""
+    w = 2 * math.pi
+    flex = math.cos(w * (t - 0.86))          # +1 gathered (bowed), -1 extended
+    pitch = math.sin(w * (t - 0.2))          # +: the front up (the hind legs driving), -: the front down on the forelegs
+    p = {
+        "root@loc": (0, 0, -0.04 + 0.045 * math.cos(w * (t - 0.86)) + 0.012 * math.cos(2 * w * (t - 0.15))),
+        "root": (3.5 * pitch, 0, 0),
+        "pelvis": (-9 * flex, 0, 0), "spine_01": (7 * flex, 0, 0), "spine_02": (6 * flex, 0, 0),
+        "spine_03": (4 * flex, 0, 0), "chest": (-3 * flex, 0, 0),
+        # The head steadied against the body's pitch and bow: the neck takes it up.
+        "neck_01": (-14 - 3.5 * pitch + 4 * flex, 0, 0), "neck_02": (-5 - 2 * flex, 0, 0), "head": (8 - 2 * flex, 0, 0),
+        "jaw": (-18 - 8 * max(0.0, math.sin(w * t)), 0, 0), "tongue": (-14, 0, 0),
+        "ear_r": (-50, 0, -6), "ear_l": (-50, 0, 6),
+        "belly": (5 * flex, 0, 0),
+        "crest_01": (5 * math.sin(w * (t - 0.1)), 0, 0), "crest_02": (5 * math.sin(w * (t - 0.2)), 0, 0),
+        "crest_03": (4 * math.sin(w * (t - 0.3)), 0, 2 * math.sin(w * t)),
+    }
+    for i in range(5):
+        # (+X tips a bone pointing back down: streaming out behind is -X.)
+        p[f"tail_0{i + 1}"] = ((-24 if i == 0 else -5) + (6 if i == 0 else 4) * math.sin(w * (t - 0.75 - 0.08 * i)), 0,
+                               4 * math.sin(w * (t * 0.5 - 0.1 * i)) * (i > 1))
+    for side in ("r", "l"):
+        lp = (t - RUN_FEET[f"front_{side}"]) % 1.0
+        p[f"scapula_{side}"] = (8 * math.cos(w * (lp - 0.15)), 0, 0)
+    return stride(p, GAITS["run"], RUN_FEET, t)
+
+
 run = Clip("run")
-for f in range(0, 16, 2):
-    t = f / 16
-    p = gallop(t)
-    arch = math.sin(2 * math.pi * t)  # +: back arched (gathered), -: stretched out
-    p.update({
-        "root@loc": (0, 0, 0.03 * math.sin(2 * math.pi * t + 1.2) - 0.02),
-        "pelvis": (8 * arch, 0, 0), "spine_01": (6 * arch, 0, 0), "spine_02": (-2 * arch, 0, 0),
-        "spine_03": (-6 * arch, 0, 0), "chest": (-6 * arch, 0, 0),
-        "neck_01": (-12 + 5 * arch, 0, 0), "neck_02": (-4, 0, 0), "head": (6 - 6 * arch, 0, 0),
-        "jaw": (-14 - 6 * max(0.0, arch), 0, 0), "tongue": (-10, 0, 0),
-        "ear_r": (-40, 0, 0), "ear_l": (-40, 0, 0),
-        "tail_01": (-15 + 10 * arch, 0, 0), "tail_02": (8, 0, 0), "tail_03": (6 * arch, 0, 0), "tail_04": (6, 0, 0),
-        "belly": (6 * arch, 0, 0),
-        "crest_02": (4 * arch, 0, 0),
-    })
-    run.key(f, p, "LINEAR")
-run.close(16)
+for f in range(RUN_FRAMES):
+    run.key(f, gallop(f / RUN_FRAMES), "LINEAR")
+run.close(RUN_FRAMES)
 
-# Prowl: a slinking walk, head below the shoulders, 48 frames; it stops dead mid-stride, head snaps to one side, holds,
-# and snaps back (CONSTANT), then carries on as if it hadn't. That hitch is the whole creature.
-WALK_FRONT = {
-    "upperarm": [(0, 25), (0.5, -25), (0.62, -30), (0.85, 10), (1, 25)],
-    "lowerarm": [(0, 0), (0.5, 5), (0.62, 50), (0.85, 30), (1, 0)],
-    "hand": [(0, 0), (0.5, -30), (0.62, -50), (0.85, 0), (1, 0)],
-}
-WALK_REAR = {
-    "thigh": [(0, 25), (0.5, -20), (0.62, -15), (0.85, 30), (1, 25)],
-    "calf": [(0, -35), (0.5, 0), (0.62, -40), (0.85, -50), (1, -35)],
-    "foot": [(0, 30), (0.5, 20), (0.62, 50), (0.85, 40), (1, 30)],
-}
-walk = legs(WALK_FRONT, WALK_REAR, {"rear_r": 0.0, "front_r": 0.25, "rear_l": 0.5, "front_l": 0.75})
-PROWL_BODY = {"root@loc": (0, 0, -0.07), "pelvis": (-4, 0, 0), "spine_02": (3, 0, 0), "chest": (-6, 0, 0),
-              "neck_01": (-18, 0, 0), "neck_02": (-8, 0, 0), "head": (-6, 0, 0), "jaw": (-6, 0, 0),
-              "ear_r": (-25, 0, -10), "ear_l": (-25, 0, 10), "tail_01": (12, 0, 0), "tail_02": (8, 0, 0),
-              "tail_03": (4, 0, 0)}
+# Prowl (48 frames): a slinking stalk, the head carried level below the shoulders, the shoulder blades rolling over each
+# step, the back swaying, the tail low; each paw set down with care (a lateral walk, its footfalls hind left, fore left,
+# hind right, fore right). Then it stops dead mid-step, a forepaw held up off the ground where it was lifted, and the
+# head snaps round to look (a hold, then a pop, §31), holds, snaps back, and it walks on as if it hadn't. That hitch is
+# the whole creature.
+WALK_FEET = {"rear_l": 0.0, "front_l": 0.25, "rear_r": 0.5, "front_r": 0.75}
+STOP = 0.45                                   # the stride's phase it stops at: the right forepaw just lifted
+
+
+def stalk(t, look=0.0):
+    w = 2 * math.pi
+    sway = math.sin(w * t)
+    p = {
+        "root@loc": (0, 0, -0.075 + 0.008 * math.cos(2 * w * (t - 0.1))),
+        "pelvis": (-4, 0, 2 * sway), "spine_01": (2, 0, -2 * sway), "spine_02": (3, 0, 3 * sway), "spine_03": (0, 0, 2 * sway),
+        "chest": (-6, 0, -3 * sway),
+        "neck_01": (-20, 0, 2 * sway), "neck_02": (-8, 0, 0), "head": (-2 + 1.5 * math.cos(2 * w * t), 0, -2 * sway),
+        "jaw": (-5, 0, 0), "ear_r": (-20, 0, -10), "ear_l": (-20, 0, 10),
+        "belly": (2 * math.sin(w * 2 * t), 0, 0),
+        "crest_02": (2 * math.sin(w * (t - 0.2)), 0, 0),
+    }
+    for i in range(5):
+        p[f"tail_0{i + 1}"] = (-6 if i == 0 else 3, 0, 5 * math.sin(w * (t - 0.12 * i)))
+    for side, ph in (("r", WALK_FEET["front_r"]), ("l", WALK_FEET["front_l"])):
+        p[f"scapula_{side}"] = (6 * math.cos(w * (t - ph - 0.2)), 0, 0)
+    if look:
+        # The stop: frozen, the head snapped round to stare (at whoever's on the train), the ears up.
+        p["neck_02"] = (-2, 0, 36 * look)
+        p["head"] = (8, 0, 14 * look)
+        p["ear_r"], p["ear_l"] = (12, 0, -18), (12, 0, 18)
+    return stride(p, GAITS["walk"], WALK_FEET, t)
+
+
 prowl = Clip("prowl")
-# (frame, gait phase, extra) - the gait advances 0..1 over the clip except through the stop.
-beats = [(0, 0.0), (6, 0.125), (12, 0.25), (18, 0.375), (22, 0.375), (30, 0.375), (34, 0.5), (40, 0.75), (48, 1.0)]
-for f, ph in beats:
-    p = dict(PROWL_BODY)
-    p.update(walk(ph))
-    sway = math.sin(2 * math.pi * ph)
-    p["spine_02"] = (3, 0, 4 * sway)
-    p["chest"] = (-6, 0, -3 * sway)
-    interp = "LINEAR"
-    if 22 <= f <= 30:
-        # The stop: frozen, then the head snaps round to look (a hold, then a pop) and back.
-        p["neck_02"] = (-2, 0, 38 if f < 30 else 0)
-        p["head"] = (6, 0, 12 if f < 30 else 0)
-        p["ear_r"] = (10, 0, -20)
-        p["ear_l"] = (10, 0, 20)
+for f in range(0, 49, 2):
+    if f <= 20:
+        ph, look, interp = STOP * f / 20, 0.0, "LINEAR"
+    elif f < 32:
+        # 22 frozen; 24 the head snaps round; 30 still staring; 32 snapped back and walking.
+        ph, look, interp = STOP, (0.0 if f < 24 else 1.0), "CONSTANT"
+    else:
+        ph, look, interp = STOP + (1 - STOP) * (f - 32) / 16, 0.0, "LINEAR"
+    if f in (20, 22):
         interp = "CONSTANT"
-    prowl.key(f, p, interp)
-prowl.close(48)
+    prowl.key(f, stalk(ph % 1.0, look), interp)
 
-# Crouch (telegraph): belly to the ground, shoulders up, head low and forward, tail stiff; it trembles.
-CROUCH = over(PROWL_BODY, root__loc=(0, 0.02, -0.13), pelvis=(-10, 0, 0), spine_01=(6, 0, 0), spine_02=(4, 0, 0),
-              chest=(-10, 0, 0), neck_01=(-6, 0, 0), neck_02=(-10, 0, 0), head=(4, 0, 0), jaw=(-22, 0, 0),
-              tongue=(-8, 0, 0), ear_r=(-50, 0, 0), ear_l=(-50, 0, 0),
-              tail_01=(-8, 0, 0), tail_02=(0, 0, 0), tail_03=(0, 0, 0))
-CROUCH.update(mirror({"upperarm_r": (48, 0, 0), "lowerarm_r": (-40, 0, 0), "hand_r": (60, 0, 0), "finger_r": (-60, 0, 0),
-                      "scapula_r": (-10, 0, 0),
-                      "thigh_r": (65, 0, 0), "calf_r": (-75, 0, 0), "foot_r": (55, 0, 0), "toe_r": (-40, 0, 0)}))
+# Planted poses: each paw put where it stands, flat (the stance pitches), by the same IK.
+FLAT = {"rear": (-72, -5), "front": (-68, -6)}
+
+
+def planted(p, feet, spread=1.0):
+    """`feet` {leg: (along y, height[, mid pitch, end pitch])}: each paw there."""
+    for leg, at in feet.items():
+        group, side = leg.split("_")
+        mp, ep = (at[2], at[3]) if len(at) > 2 else FLAT[group]
+        p = paw(p, group, side, at[0], at[1], mp, ep, spread)
+    return p
+
+
+def posed(**bones):
+    """A pose's spine, head and tail from keyword angles (root__loc for root@loc)."""
+    return {k.replace("__", "@"): v for k, v in bones.items()}
+
+
+# Crouch (the telegraph, 1 s loop): the predator's crouch, the front down low and the shoulder blades up past the spine,
+# the hind legs gathered under it, the head low and forward and dead level, staring; the lips peeled off the teeth,
+# the ears pinned, the tail low and stiff. It breathes, slow, then trembles in hard pops out of step (the crest, the
+# flanks, the head), and edges its weight forward onto its forelegs and back as if about to go.
+CROUCH_BODY = posed(root__loc=(0, 0.0, -0.15), pelvis=(-8, 0, 0), spine_01=(8, 0, 0), spine_02=(4, 0, 0), spine_03=(-2, 0, 0),
+                   chest=(-12, 0, 0), neck_01=(-4, 0, 0), neck_02=(-12, 0, 0), head=(6, 0, 0), jaw=(-16, 0, 0),
+                   tongue=(-6, 0, 0), ear_r=(-55, 0, -4), ear_l=(-55, 0, 4), scapula_r=(-16, 0, 0), scapula_l=(-16, 0, 0),
+                   tail_01=(-14, 0, 0), tail_02=(-4, 0, 0), tail_03=(0, 0, 0), tail_04=(4, 0, 0), tail_05=(6, 0, 0))
+CROUCH_FEET = {"front_r": (0.44, GROUND), "front_l": (0.42, GROUND), "rear_r": (-0.33, GROUND, -60, -4),
+               "rear_l": (-0.35, GROUND, -60, -4)}
+
+
+def crouched(lean=0.0, **extra):
+    p = dict(CROUCH_BODY)
+    x, y, z = p["root@loc"]
+    p["root@loc"] = (x, y + 0.04 * lean, z - 0.015 * lean)
+    p.update(posed(**extra))
+    return planted(p, CROUCH_FEET)
+
+
+CROUCH = crouched()
 crouch = Clip("crouch")
-crouch.key(0, CROUCH, "CONSTANT")
-for f, d in ((3, 1), (5, -1), (9, 1), (12, 0), (19, 1), (21, -1), (24, 0)):
+for f, lean, breath in ((0, 0.0, 0.0), (8, 0.3, 1.0), (14, 0.6, 0.4)):
+    crouch.key(f, crouched(lean, belly=(5 * breath, 0, 0), jaw=(-16 - 4 * breath, 0, 0)), "BEZIER")
+for f, d in ((16, 1), (17, -1), (19, 1), (21, 0)):
     # Tremble: small, fast, out of step between the crest, the flanks and the head.
-    crouch.key(f, over(CROUCH, belly=(4 * d, 0, 0), crest_01=(6 * d, 0, 0), crest_03=(-5 * d, 0, 3 * d),
-                       head=(4 + 2 * d, 0, 2 * d), root__loc=(0.004 * d, 0.02, -0.13)), "CONSTANT")
+    crouch.key(f, crouched(0.6, belly=(4 * d, 0, 0), crest_01=(7 * d, 0, 0), crest_03=(-6 * d, 0, 3 * d),
+                           head=(6 + 2 * d, 0, 2 * d), tail_05=(6, 0, 14 * d)), "CONSTANT")
+crouch.key(24, crouched(0.2, belly=(2, 0, 0)), "BEZIER")
 crouch.close(30)
 
-# Lunge (commit): uncoils in two frames, hangs stretched in the air with the jaws wide, lands.
-LAUNCH = over(CROUCH, root__loc=(0, 0.12, 0.08), pelvis=(10, 0, 0), spine_01=(-4, 0, 0), spine_02=(0, 0, 0),
-              chest=(6, 0, 0), neck_01=(8, 0, 0), neck_02=(4, 0, 0), head=(-4, 0, 0), jaw=(-40, 0, 0), tongue=(-20, 0, 0),
-              tail_01=(10, 0, 0), tail_02=(6, 0, 0))
-LAUNCH.update(mirror({"upperarm_r": (80, 0, 0), "lowerarm_r": (20, 0, 0), "hand_r": (-10, 0, 0), "finger_r": (-20, 0, 0),
-                      "thigh_r": (-50, 0, 0), "calf_r": (30, 0, 0), "foot_r": (40, 0, 0), "toe_r": (-40, 0, 0)}))
-AIR = over(LAUNCH, root__loc=(0, 0.3, 0.22), chest=(0, 0, 0), jaw=(-45, 0, 0))
-LAND = over(CROUCH, root__loc=(0, 0.38, -0.08), jaw=(-30, 0, 0), head=(-10, 0, 0))
+# Lunge (the commit, 20 frames once): a beat's sink and rock back onto the haunches, then it uncoils, the hind legs
+# driving it out flat, forelegs reaching past its head and the jaws wide; it lands on its forelegs a body length on,
+# the back legs coming through under it, and gathers.
+LUNGE_SINK = crouched(-0.6, pelvis=(-14, 0, 0), chest=(-16, 0, 0), jaw=(-24, 0, 0))
+DRIVE = planted(posed(root__loc=(0, 0.14, 0.06), root=(12, 0, 0), pelvis=(8, 0, 0), spine_01=(-6, 0, 0), spine_02=(-4, 0, 0),
+                     chest=(0, 0, 0), neck_01=(-6, 0, 0), neck_02=(-4, 0, 0), head=(-2, 0, 0), jaw=(-40, 0, 0), tongue=(-20, 0, 0),
+                     ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(-16, 0, 0), tail_02=(-6, 0, 0)),
+                {"rear_r": (-0.62, GROUND, -40, 0), "rear_l": (-0.6, GROUND, -40, 0),
+                 "front_r": (0.72, 0.3, -40, -30), "front_l": (0.68, 0.26, -50, -40)})
+FLIGHT = planted(posed(root__loc=(0, 0.32, 0.16), root=(-2, 0, 0), pelvis=(4, 0, 0), spine_01=(-4, 0, 0), chest=(2, 0, 0),
+                      neck_01=(-8, 0, 0), head=(-4, 0, 0), jaw=(-46, 0, 0), tongue=(-22, 0, 0), ear_r=(-60, 0, 0),
+                      ear_l=(-60, 0, 0), tail_01=(-26, 0, 0), tail_02=(-6, 0, 0), tail_03=(-4, 0, 0)),
+                 {"rear_r": (-0.5, 0.22, -10, -30), "rear_l": (-0.48, 0.26, -10, -30),
+                  "front_r": (0.98, 0.3, -24, -12), "front_l": (0.95, 0.34, -28, -14)})
+LANDED = planted(posed(root__loc=(0, 0.42, -0.1), root=(-8, 0, 0), pelvis=(-12, 0, 0), spine_01=(10, 0, 0), spine_02=(8, 0, 0),
+                      chest=(-10, 0, 0), neck_01=(-16, 0, 0), neck_02=(-6, 0, 0), head=(8, 0, 0), jaw=(-32, 0, 0),
+                      ear_r=(-50, 0, 0), ear_l=(-50, 0, 0), tail_01=(-8, 0, 0), tail_02=(6, 0, 0)),
+                 {"front_r": (0.88, GROUND, -60, -6), "front_l": (0.84, GROUND, -60, -6),
+                  "rear_r": (0.12, 0.06, -70, -20), "rear_l": (0.08, 0.04, -70, -20)})
+GATHERED = planted(posed(root__loc=(0, 0.42, -0.12), pelvis=(-10, 0, 0), spine_01=(6, 0, 0), spine_02=(4, 0, 0), chest=(-10, 0, 0),
+                        neck_01=(-8, 0, 0), neck_02=(-10, 0, 0), head=(6, 0, 0), jaw=(-22, 0, 0), ear_r=(-55, 0, 0),
+                        ear_l=(-55, 0, 0), tail_01=(-10, 0, 0)),
+                   {"front_r": (0.86, GROUND), "front_l": (0.82, GROUND), "rear_r": (0.08, GROUND, -60, -4),
+                    "rear_l": (0.06, GROUND, -60, -4)})
 lunge = Clip("lunge", loop=False)
-lunge.key(0, CROUCH, "LINEAR")
-lunge.key(2, LAUNCH, "LINEAR")
-lunge.key(9, AIR, "LINEAR")
-lunge.key(14, LAND, "BEZIER")
-lunge.key(20, over(LAND, jaw=(-20, 0, 0)), "BEZIER")
+lunge.key(0, CROUCH, "BEZIER")
+lunge.key(3, LUNGE_SINK, "LINEAR")
+lunge.key(6, DRIVE, "LINEAR")
+lunge.key(10, FLIGHT, "LINEAR")
+lunge.key(13, LANDED, "BEZIER")
+lunge.key(20, GATHERED, "BEZIER")
 
-# Hit: snapped sideways by the round, a twitch through the crest, recovers too fast.
-STAND = over(PROWL_BODY, root__loc=(0, 0, -0.02), neck_01=(-10, 0, 0), head=(0, 0, 0))
-HIT = over(STAND, root__loc=(-0.06, 0.02, -0.06), pelvis=(0, 10, -10), spine_02=(0, 8, -12), chest=(0, 10, -14),
-           neck_01=(4, 10, 30), head=(18, 0, 20), jaw=(-35, 0, 0), crest_02=(0, 20, 0), crest_03=(0, -20, 0),
-           tail_01=(20, 0, 30))
-HIT.update(mirror({"thigh_r": (-10, 8, 0), "calf_r": (-20, 0, 0), "upperarm_r": (-10, 0, 0), "lowerarm_r": (-30, 0, 0)}))
+# Hit (12 frames once): snapped sideways by the round, its legs splayed to keep it up, a twitch through the crest, and
+# it rights itself too fast (§31).
+STAND_FEET = {"front_r": (0.38, GROUND), "front_l": (0.38, GROUND), "rear_r": (-0.44, GROUND), "rear_l": (-0.44, GROUND)}
+STAND = planted(posed(root__loc=(0, 0, -0.04), neck_01=(-12, 0, 0), neck_02=(-6, 0, 0), jaw=(-8, 0, 0), ear_r=(-30, 0, 0),
+                     ear_l=(-30, 0, 0), tail_01=(10, 0, 0), tail_02=(6, 0, 0)), STAND_FEET)
+HIT = planted(posed(root__loc=(-0.07, -0.02, -0.08), root=(0, 0, -6), pelvis=(0, 10, -10), spine_02=(0, 8, -12),
+                   chest=(0, 10, -14), neck_01=(4, 10, 30), head=(18, 0, 20), jaw=(-35, 0, 0), crest_02=(0, 20, 0),
+                   crest_03=(0, -20, 0), ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(20, 0, 30)),
+              {"front_r": (0.36, GROUND), "front_l": (0.42, GROUND), "rear_r": (-0.46, GROUND), "rear_l": (-0.4, GROUND)},
+              spread=1.5)
 hit = Clip("hit", loop=False)
 hit.key(0, STAND, "CONSTANT")
 hit.key(1, HIT, "CONSTANT")
-hit.key(5, over(HIT, crest_02=(0, -15, 0), chest=(0, 6, -8)), "LINEAR")
-hit.key(9, over(STAND, head=(-6, 0, -10)), "CONSTANT")
+hit.key(5, {**HIT, "crest_02": (0, -15, 0), "chest": (0, 6, -8)}, "LINEAR")
+hit.key(9, {**STAND, "head": (-6, 0, -10)}, "CONSTANT")
 hit.key(12, STAND, "CONSTANT")
 
-# Bite (1.1 s, loop; GRAB, the pack fight on someone): braced low, the forelegs planted wide and the hind legs dug in
-# hauling back, the jaws clamped on them; the head wrenching side to side in hard pops, held, wrenched again; the crest
-# flat, the tail lashing.
-BITE = over(CROUCH, root__loc=(0, -0.04, -0.1), pelvis=(-14, 0, 0), chest=(-4, 0, 0), neck_01=(-14, 0, 0), neck_02=(-12, 0, 0),
-            head=(10, 0, 0), jaw=(-8, 0, 0), ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(-12, 0, 0))
-BITE.update(mirror({"upperarm_r": (30, 0, -10), "lowerarm_r": (-20, 0, 0), "hand_r": (40, 0, 0), "thigh_r": (40, 0, 0), "calf_r": (-60, 0, 0),
-                    "foot_r": (40, 0, 0)}))
+# Bite (32 frames, loop; GRAB, the pack fight on someone): braced, the forepaws planted wide, the hind legs dug in and
+# hauling back, the jaws clamped; the head wrenching side to side in hard pops, the whole body thrown the other way
+# behind it, held, wrenched again; a hind paw losing its footing and stamping back down; the tail lashing.
+def biting(w, back, slip=0.0):
+    p = posed(root__loc=(0.01 * w / 30, -0.05 - back, -0.12), root=(0, 0, -0.2 * w), pelvis=(-14, 0, 0.3 * w),
+             spine_01=(6, 0, 0.2 * w), spine_02=(4, 0, -0.2 * w), chest=(-6, 0, -0.3 * w),
+             neck_01=(-14, 0, w * 0.5), neck_02=(-12, 0, w * 0.5), head=(10, w * 0.4, w * 0.3), jaw=(-8, 0, 0),
+             ear_r=(-60, 0, 0), ear_l=(-60, 0, 0), tail_01=(-10, 0, -w), tail_02=(0, 0, -0.6 * w), tail_03=(0, 0, 0.5 * w),
+             crest_02=(0, 0.3 * w, 0))
+    return planted(p, {"front_r": (0.44, GROUND), "front_l": (0.44, GROUND), "rear_r": (-0.52 + 0.06 * slip, GROUND + 0.05 * slip, -50, -5),
+                       "rear_l": (-0.5, GROUND, -50, -5)}, spread=1.25)
+
+
 bite = Clip("bite")
-for f, (w, back, interp) in enumerate(((0, 0.0, "CONSTANT"), (28, 0.03, "CONSTANT"), (-30, 0.05, "CONSTANT"), (24, 0.02, "LINEAR"),
-                                       (0, 0.0, "CONSTANT"), (-26, 0.04, "CONSTANT"), (32, 0.05, "CONSTANT"), (0, 0.01, "LINEAR"))):
-    bite.key(f * 4, over(BITE, neck_01=(-14, 0, w * 0.5), neck_02=(-12, 0, w * 0.5), head=(10, w * 0.4, w * 0.3),
-                         root__loc=(0, -0.04 - back, -0.1), tail_01=(-12, 0, -w), spine_02=(4, 0, -w * 0.2)), interp)
+for f, (w, back, slip, interp) in enumerate(((0, 0.0, 0, "CONSTANT"), (28, 0.03, 0, "CONSTANT"), (-30, 0.05, 1, "CONSTANT"),
+                                             (24, 0.02, 0.5, "LINEAR"), (0, 0.0, 0, "CONSTANT"), (-26, 0.04, 0, "CONSTANT"),
+                                             (32, 0.05, 0, "CONSTANT"), (0, 0.01, 0, "LINEAR"))):
+    bite.key(f * 4, biting(w, back, slip), interp)
 bite.close(32)
 
 # Board (1.1 s, once; COMMIT, onto the rear car): the checklist's boarding leap, not the lunge. Off the ballast behind the
 # car (the root starts a car's roof-height below and 2.5 m back of where the sim puts it, on the roof near the end), a
 # bound onto the car's end, the body reared up it and the hind legs scrabbling at the planks, the forelegs hooked over the
 # roof's lip, then a heave up and over onto the roof, landing in the pack fight's crouch.
-REAR = over(LAUNCH, root=(62, 0, 0), chest=(-6, 0, 0), neck_01=(-20, 0, 0), head=(-20, 0, 0), jaw=(-35, 0, 0),
-            tail_01=(30, 0, 0), tail_02=(14, 0, 0))
+REAR = {**DRIVE, "root": (62, 0, 0), "chest": (-6, 0, 0), "neck_01": (-20, 0, 0), "head": (-20, 0, 0), "jaw": (-35, 0, 0),
+        "tail_01": (30, 0, 0), "tail_02": (14, 0, 0)}
 REAR.update(mirror({"upperarm_r": (110, 0, 0), "lowerarm_r": (-30, 0, 0), "hand_r": (-60, 0, 0), "finger_r": (-50, 0, 0)}))
 board = Clip("board", loop=False)
-board.key(0, over(gallop(0.0), root__loc=(0, -3.6, -3.75)), "LINEAR")
-board.key(5, over(LAUNCH, root__loc=(0, -3.3, -3.55)), "LINEAR")
-board.key(11, over(REAR, root__loc=(0, -2.75, -1.55)), "BEZIER")
+board.key(0, {**gallop(0.0), "root@loc": (0, -3.6, -3.75)}, "LINEAR")
+board.key(5, {**DRIVE, "root@loc": (0, -3.3, -3.55)}, "LINEAR")
+board.key(11, {**REAR, "root@loc": (0, -2.75, -1.55)}, "BEZIER")
 for f, d in ((14, 1), (17, -1), (20, 1)):
     # Scrabbling: the forelegs hooked over the lip, the hind legs kicking at the car's end out of step.
-    board.key(f, over(REAR, root=(58 + 4 * d, 0, 0), root__loc=(0, -2.62 + 0.02 * d, -1.05 + 0.08 * (f - 14) / 6),
-                      thigh_r=(-20 + 45 * d, 0, 0), calf_r=(20 - 40 * d, 0, 0), thigh_l=(-20 - 45 * d, 0, 0), calf_l=(20 + 40 * d, 0, 0),
-                      head=(-24, 0, 8 * d)), "CONSTANT")
-board.key(25, over(LAUNCH, root=(18, 0, 0), root__loc=(0, -1.3, -0.25)), "BEZIER")
-board.key(30, over(LAND, root__loc=(0, -0.2, -0.06)), "BEZIER")
+    board.key(f, {**REAR, "root": (58 + 4 * d, 0, 0), "root@loc": (0, -2.62 + 0.02 * d, -1.05 + 0.08 * (f - 14) / 6),
+                  "thigh_r": (-20 + 45 * d, 0, 0), "calf_r": (20 - 40 * d, 0, 0), "thigh_l": (-20 - 45 * d, 0, 0),
+                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "CONSTANT")
+board.key(25, {**DRIVE, "root": (18, 0, 0), "root@loc": (0, -1.3, -0.25)}, "BEZIER")
+board.key(30, {**CROUCH, "root@loc": (0, -0.2, -0.06), "jaw": (-30, 0, 0)}, "BEZIER")
 board.key(33, CROUCH, "LINEAR")
 
 kit.build()
-rig.bake(sk, [prowl, run, crouch, lunge, board, hit, bite],
-         plant=rig.feet_planter(sk, bones=("hand_l", "hand_r", "foot_l", "foot_r", "finger_l", "finger_r", "toe_l", "toe_r"),
-                                clips={"prowl", "crouch", "bite"}, lowest=0.014))
+# (No feet planter: every clip's paws are placed by IK.)
+rig.bake(sk, [prowl, run, crouch, lunge, board, hit, bite])
 rig.export(rig.args()[0] if rig.args() else "cinder_hound.glb", kit)

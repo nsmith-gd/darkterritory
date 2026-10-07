@@ -19,6 +19,10 @@ public sealed record ModelMaterial(string Name, string Texture, Vector3 BaseColo
 public sealed class MeshPart
 {
     public required string Name { get; init; }
+
+    /// <summary>A part named <c>ghost…</c> (a Choir ghost's bell): drawn screen-door transparent by the scene shader,
+    /// see-through face on and dense at its rim (<see cref="Skinner.GhostWear"/>).</summary>
+    public bool Ghost => Name.StartsWith("ghost", StringComparison.Ordinal);
     public required int Material { get; init; }
     public required Vector3[] Positions { get; init; }
     public required Vector3[] Normals { get; init; }

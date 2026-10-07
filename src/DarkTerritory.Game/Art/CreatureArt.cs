@@ -105,9 +105,8 @@ public sealed class CreatureArt
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
 
-    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
-    // root (m), sagging this much of its length.
-    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high (m).
+    const float RibbitTongueAt = 1.15f;
 
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
@@ -133,24 +132,55 @@ public sealed class CreatureArt
     const float RibbitScale = 1.4f;
 
     /// <summary>
-    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
-    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// The Ribbit's own tongue (tools/blender/ribbit.py: <c>tongue_01</c> its length, <c>tongue_02</c> the club at its end),
+    /// out of its mouth to its catch's chest at <paramref name="target"/> (model space; GDD App. A.6 TONGUE): turned on its
+    /// root to point at them, then stretched along itself until the club's on them, the club carried out unstretched. With
+    /// nobody to reach (<paramref name="target"/> null), it's drawn back in to the length it lies in the mouth.
     /// </summary>
-    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    static void Lash(Entry e, Vector3? target)
     {
-        var k = new Kit(Look, mesh);
-        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
-        const int n = 8;
-        float len = Vector3.Distance(a, b);
-        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
-        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
-        for (int i = 0; i < n; i++)
+        var sk = e.Model.Skeleton;
+        int root = sk.IndexOf("tongue_01"), club = sk.IndexOf("tongue_02");
+        if (root < 0 || club < 0)
+            return;
+        var pose = e.Pose;
+        if (target is { } aim)
+            Skinner.Aim(e.Model, pose, root, club, aim);
+        var head = pose.World[root].Translation;
+        var along = pose.World[club].Translation - head;
+        float now = along.Length();
+        if (now < 1e-5f)
+            return;
+        var d = along / now;
+        // Its length at rest: the club's head from the root's in the bind pose.
+        float rest = Vector3.Distance(Inverse(sk.InverseBind[club]).Translation, Inverse(sk.InverseBind[root]).Translation);
+        float want = target is { } t ? Vector3.Distance(head, t) : rest;
+        float k = want / now;
+        // Stretch along d about the root: x -> x + (k-1)(x-head).d d (row vectors, so x * M).
+        float s = k - 1;
+        var outer = Matrix4x4.Identity + new Matrix4x4(s * d.X * d.X, s * d.X * d.Y, s * d.X * d.Z, 0, s * d.Y * d.X, s * d.Y * d.Y,
+            s * d.Y * d.Z, 0, s * d.Z * d.X, s * d.Z * d.Y, s * d.Z * d.Z, 0, 0, 0, 0, 0);
+        var stretch = Matrix4x4.CreateTranslation(-head) * outer * Matrix4x4.CreateTranslation(head);
+        var carry = Matrix4x4.CreateTranslation(along * (k - 1));
+        for (int b = 0; b < sk.Count; b++)
         {
-            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
-            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+            if (b == root)
+                pose.World[b] *= stretch;
+            else if (Below(sk, b, club))
+                pose.World[b] *= carry;
+            else
+                continue;
+            pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
         }
-        // Its tip spread over them, a pad.
-        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+
+        static Matrix4x4 Inverse(Matrix4x4 m) => Matrix4x4.Invert(m, out var i) ? i : Matrix4x4.Identity;
+        static bool Below(Skeleton sk, int b, int ancestor)
+        {
+            for (; b >= 0; b = sk.Parents[b])
+                if (b == ancestor)
+                    return true;
+            return false;
+        }
     }
     Room _room;
 
@@ -1714,22 +1744,20 @@ public sealed class CreatureArt
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
-                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, its own clip's).
+                                // The tongue is the model's own, aimed at their chest and stretched to it (Lash).
                                 float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
                                 string clip = RibbitClip(phase, near);
-                                Vector3? mouth = null;
-                                var at = model;
-                                void Mouth(Entry e)
+                                Vector3? chest = null;
+                                if (prey is { } p && Matrix4x4.Invert(model, out var toModel))
+                                    chest = Vector3.Transform(p.Feet + Vector3.UnitY * RibbitTongueAt, toModel);
+                                void Reach(Entry e)
                                 {
-                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
-                                    if (jaw >= 0)
-                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                    if (clip != "devour")
+                                        Lash(e, chest);
                                 }
-                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
-                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
-                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
-                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
-                                return drawn;
+                                return Draw(mesh, "ribbit", clip, t, true, model, Reach, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, model, Reach, seed: (float)extra2);
                             }
                         default:
                             return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
