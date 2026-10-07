@@ -78,7 +78,7 @@ The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished fro
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **296**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290, landed in #208; E1 291 on #210; F1 292–293 on #211). Reserved by B4: 294 (blocked sidings), 295 (tunnel name plates), 301 (a dead town's railway side), 302 (loop yards). Next free queue item: **#41** (after #34–#38 on open PRs); next free note **303** (after 296–300 on open PRs). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **303**, after the claims on open PRs (B2 281 on #194; C1 280–281 on #203; A1 286–289 on #198; AU1 284 on #205; B3 285 on #206; D1 290, landed in #208; E1 291 on #210; F1 292–293 on #211). Reserved by B4: 294 (blocked sidings), 295 (tunnel name plates), 301 (a dead town's railway side), 302 (loop yards). Next free queue item: **#41** (after #34–#38 on open PRs); next free note **303** (after 296–300 on open PRs). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
 renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 290 (D1's guns on creatures), 294 (B4's blocked sidings), 295 (B4's tunnel name plates). Take a number by adding it here and to your queue row.
 
