@@ -743,7 +743,7 @@ public sealed class StopDriver(CrewCalls calls)
                     if (train.TrainRakes > 1 || !train.OnMain || world.Run is not { } run)
                         return null;
                     // A switch lamp ahead reading wrong: stop short of its points and have it set back (App. A.7).
-                    if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(engine) + 80)
+                    if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(train) + 80)
                     {
                         BeginSwitch(wrong, Leg.ToSwitch);
                         return Toward(world, wrong.Hold, +1, CruiseSpeed);
@@ -760,7 +760,7 @@ public sealed class StopDriver(CrewCalls calls)
                     var plan = Math.Min(spare, spareAtPace) > StopAllowance ? StopPlan.Ahead(world, engine.Distance, _done, calls) : null;
                     bool low = train.BoilerTuning is { } bt && train.Boiler.Tender < bt.TenderCapacity * 0.2;
                     var coal = spare > CoalAllowance || low ? CoalPlan.Ahead(world, engine.Distance, _coaled, calls) : null;
-                    double reach = engine.Distance + StoppingDistance(engine) + 80;
+                    double reach = engine.Distance + StoppingDistance(train) + 80;
                     // Whichever comes first, when it's near enough to start stopping for.
                     if (coal is not null && coal.Hold <= reach && (plan is null || coal.Hold < plan.Hold))
                     {
@@ -1081,8 +1081,24 @@ public sealed class StopDriver(CrewCalls calls)
     /// </summary>
     static IReadOnlyCollection<int> OnTheTrain(TrainOnLine train) => [.. train.Vehicles.Select(v => v.Id)];
 
-    static double BrakeRate(TrainDynamics engine) => Math.Max(0.1, engine.MaxBrakeForce / engine.Consist.MassTonnes * 0.5);
-    static double StoppingDistance(TrainDynamics engine) => engine.Speed * engine.Speed / (2 * BrakeRate(engine));
+    /// <summary>
+    /// What the driver plans a stop on (m/s²): half of what the brake does now (faded or not), and never more than 0.8 of what
+    /// it does net of the steam. With steam
+    /// driving (T97) the engine pulls at full effort against the brake under the speed its steam makes, so a stop from line
+    /// speed takes nearly twice the bare brake's distance. Reckoned on the bare brake, the driver set off for a switch set
+    /// wrong too late and ran onto the dead line (note 289: frontier:7's harness night took both of its Switchmen's).
+    /// </summary>
+    static double BrakeRate(TrainOnLine train)
+    {
+        var engine = train.Dynamics;
+        double mass = engine.Consist.MassTonnes;
+        double brake = engine.MaxBrakeForce * engine.BrakeEfficiency / mass;
+        bool pulling = train.BoilerTuning is { SteamDrive: true } bt && train.Boiler.SteamSpeed(bt, engine.Tuning.MaxSpeed) > 0;
+        double pull = pulling ? engine.MaxTractiveForce / mass : 0;
+        return Math.Max(0.1, Math.Min(0.5 * brake, 0.8 * (brake - pull)));
+    }
+
+    static double StoppingDistance(TrainOnLine train) => train.Dynamics.Speed * train.Dynamics.Speed / (2 * BrakeRate(train));
 
     /// <summary>Throttle notches to move from where it's set to <paramref name="to"/>.</summary>
     static sbyte Notch(in TrainControls c, double to) => (sbyte)Math.Clamp(Math.Round((to - c.Throttle) * 4), -4, 4);
@@ -1122,7 +1138,7 @@ public sealed class StopDriver(CrewCalls calls)
             return Hold(world);
         // Closing on it at what stops us there, over its own speed: braking for a target that moves away from under the curve,
         // the engine settled a couple of metres behind rolling cars at their speed and never touched them (note 188).
-        double wanted = Math.Min(top, Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(engine) * left));
+        double wanted = Math.Min(top, Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(world.Train) * left));
         double speed = engine.Velocity * direction;
         return speed < wanted - 0.3 ? new PlayerIntent { ThrottleNotch = Notch(controls, 0.5) }
             : speed > wanted + 0.2 ? Hold(world)
