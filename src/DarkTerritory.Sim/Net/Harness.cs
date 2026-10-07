@@ -428,6 +428,12 @@ public static class Harness
                 PostGunner(host, clients.Select(c => (c.Session, c.Bot)).ToList());
                 PostFireman(host, clients.Select(c => (c.Session, c.Bot)).ToList());
             }
+            // A night started out past the gate (--start, the combination sweep's stagings): everyone after the driver joined
+            // the respawn queue (App. D.1: past the gate nobody spawns aboard) and never played; the gunner and fireman were
+            // posted, the walkers never were (note 310). In the game the crew boards in the yard: the harness puts them on the
+            // roofs, spread down the train as boarding does.
+            if (t == 30)
+                PostWaiting(host);
             if (t == 60)
                 foreach (var c in clients)
                     c.Session.ResetStats();
@@ -615,6 +621,18 @@ public static class Harness
         if (fireman.Session?.PlayerId is not { } id)
             return;
         host.SetPlayerState(id, PlayerMotor.SpawnInCab(host.Train, host.PlayerTuning, -0.8));
+    }
+
+    /// <summary>Anyone still waiting to board, up onto a roof down the train (cars 1 on, in turn), as a crew boards in the yard.</summary>
+    static void PostWaiting(HostSession host)
+    {
+        var train = host.Train;
+        int n = 0;
+        foreach (var p in host.Players.Where(p => p.State.Death == DeathCause.Waiting).ToList())
+        {
+            int car = 1 + n++ % Math.Max(1, train.OwnVehicles - 1);
+            host.SetPlayerState(p.Id, PlayerMotor.SpawnOnRoof(train, car, 0, host.PlayerTuning));
+        }
     }
 
     static void PostGunner(HostSession host, List<(ClientSession Session, IBot Bot)> clients)
