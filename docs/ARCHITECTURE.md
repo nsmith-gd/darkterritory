@@ -4562,6 +4562,36 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **DELETE THIS CREW asks first,** as leaving a night does (note 292): a screen of its own (`Screen.DeleteCrew`, "DELETE NIGHTJARS?"), KEEP IT first so a second Enter keeps it, and what goes said under both: the cars, the scrip, the nights, and a night under way. Confirmed, the slot's file goes (`SaveSlots.Delete`) and the slot list says "Slot 2 is empty."
     - **Verified:** `FrontEndTests.TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice`; `dt screenshot --menu fortress` and `--menu deletecrew`, looked at.
 
+322. **Main's new features heard (AU1, queue #61).** An audit of what landed since 7 Oct found sixteen things a player would expect to hear with no sound of their own. Each hook reads only replicated state (GameAudio's rule), and each cue is a line on the audio checklist (`tools/audio/cues.py`).
+    - **Healing finds** (note 272), `crew-heal`:
+        - while Use is held on one, `apply` per find (`bandages`, `medicine`, `morphine`; the client names a find as the HUD does, `Run.FindOf`);
+        - once it's used up (its body gone mid-dose), `done`, a breath let out.
+    - **Emotes and outfits** (note 298), `crew-emotes`:
+        - `dance`, `wave` and `point` once each where the player stands (a dance moves nobody, so it has no footsteps of its own);
+        - `outfit` when a player's outfit changes in the yard.
+
+      What's already on the wire when the client first looks is old news.
+    - **The Car Hugger lets go** (note 310), `cs-car-hugger.spit-out`. Eaten or pulled free, its grab ends the same way on the wire, so the spit-out plays only when the crewmate it held is still alive.
+    - **A ball lands as what it struck** (note 290), `crew-cannon-impact.flesh`, `.structure` and `.train`. The Track Doll keeps her porcelain, and a surface with no take installed is the boom it was.
+    - **Per-creature hurts** (note 290 handed them over), `.hit` for the Gaunt, the Switchman, the Soot Children, the Followers and the Grumbler:
+        - a health drop on a record still there (a killing blow takes the record, and that's its death);
+        - a Follower's blow on its nest stays the nest's;
+        - the blow that turns the Grumbler feral is heard as it turning.
+    - **The shovel's rack** (note 275), `crew-melee.shovel-rack-off` and `-on`, at the cab's tool rack as `ShovelOut` changes.
+    - **An engine short of steam** (note 319), `state-starved.labour`: a loop under the chuff, as loud as `StarvedDrag` is near its worst (`BedStarved`).
+    - **Derelicts shunted out** (note 294), `place-derelict.roll`: a car's seized axles, while a derelict near the ears is moving.
+    - **The interface:**
+        - `ui-menus.type`, a key for each typing that took into a name (`FrontEnd.Type`, `Erase`);
+        - `ui-menus.delete`, the stamp for a crew deleted (the entry's own `Sound`, in place of select);
+        - `ui-panels.open`, `close` and `page` for the route card, the supplies and the roster (App);
+        - `ui-film.skip`, this player's own film skipped (the session's `SkipHold` reaching its end; `Choices`).
+    - **Not yet:** the mail crane's catch and miss (host-only today: it needs a replicated field first).
+    - **Verified:**
+        - `FeatureSoundTests` (the healing find on a generated night, emotes and outfits, the shovel's rack, the starved engine's level, a derelict shunted, a ball by surface);
+        - `CreatureSoundTests.TheCarHuggerIsHeardSpittingOutACrewmatePulledFreeButNotOneEaten` and `ABallOrABlowThatDoesntKillACreatureIsItsOwnHurt`;
+        - `UiSoundTests.ANameIsTypedAKeyAtATimeAndACrewDeletedIsStamped`;
+        - `ChoiceSoundTests.YourOwnFilmSkippedIsTheCutAndALetGoHoldIsNothing`.
+
 323. **The MODS screen (F1, UI/UX 3; queue #62; note 53's "not yet": "an in-game mods screen"; the wiki's "Playing modded").** What was laid over the game, and what couldn't be, was only on the console (`mods: …`) and in `dt mods`: a player couldn't see from the game which mods they had, though a refused joiner is told which differ.
     - **MODS on the title** (before CREDITS) when anything's installed or couldn't load; with none, there's no MODS. Its line says how many are laid over and how many problems ("2 laid over the game, 1 problem.").
     - **The screen** lists the mods in load order, a row each: its name as it reads (Thunderstore's "LateDispatch" or "Late_Dispatch" as LATE DISPATCH) and version, its description under it. Then each problem from `ContentMods.Scan` ("… isn't loaded: it needs …", "… is installed 2 times …") as a row of its own, the sentence under it. It changes nothing: mods are laid over as the game starts, from its folders or a manager's profile, and BACK's line says so.
