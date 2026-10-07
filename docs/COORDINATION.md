@@ -29,6 +29,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | **B** | B1; its agents B1.1, … | Claude Code on the director's second account: **Level Design** (the line generator's set pieces, sites, and the world's solidity) | [docs/log/B1.md](log/B1.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
+| **D** | D1; its agents D1.1, D1.2, … | Claude Code on another of the director's accounts: **Gameplay 3**, the third gameplay session (alongside A's gameplay queue and one more on another account). Takes gameplay items from the queue; registered 7 Oct with no item claimed yet | [docs/log/D1.md](log/D1.md) |
 
 Whatever an agent launched by A or B does counts as its owner's: the owner reviews it and opens the PR.
 
