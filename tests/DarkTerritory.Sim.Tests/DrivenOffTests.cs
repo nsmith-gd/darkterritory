@@ -80,7 +80,7 @@ public class DrivenOffTests
             int ticks = (int)Math.Ceiling(E.Melee.SwingSeconds * SimConstants.TickRate / by.Length);
             for (int n = 0; n < max; n++)
             {
-                e.Struck(Ctx, by[n % by.Length], E.Melee.Damage);
+                e.Struck(Ctx, by[n % by.Length], E.Melee.Crowbar);
                 if (e.Gone)
                     return n + 1;
                 for (int i = 0; i < ticks && !e.Gone; i++)
@@ -109,8 +109,8 @@ public class DrivenOffTests
         var old = new Rig(E with { Grumbler = E.Grumbler with { DrivenOff = false } });
         old.Ground(1, 1.2);
         var g2 = old.World.AddEnemy(id => Grumbler.OnCrates(id, new Double3(0, 0, 0), -1, E.Grumbler));
-        g2.Struck(old.Ctx, 1, E.Melee.Damage);
-        Assert.Equal(E.Grumbler.Health - E.Melee.Damage, g2.Health);
+        g2.Struck(old.Ctx, 1, E.Melee.Crowbar);
+        Assert.Equal(E.Grumbler.Health - E.Melee.Crowbar, g2.Health);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class DrivenOffTests
         var r = new Rig();
         r.Ground(1, 1.2);
         var g = r.World.AddEnemy(id => Grumbler.OnCrates(id, new Double3(0, 0, 0), -1, E.Grumbler));
-        g.Struck(r.Ctx, 1, E.Melee.Damage);
+        g.Struck(r.Ctx, 1, E.Melee.Crowbar);
         r.Run(g, 0.5);
         Assert.True(g.Feral);
         // A friend comes and stands with them: two of the crew on it and nobody's gang striking, it lets go and goes.
@@ -150,7 +150,7 @@ public class DrivenOffTests
         int blows = r.Blows(g, 40, 1, 2);
         Assert.True(g.Gone);
         // Every blow after the first counts (the first only starts the gang).
-        Assert.InRange(blows, (int)Math.Ceiling(E.Grumbler.Health / E.Melee.Damage), (int)Math.Ceiling(E.Grumbler.Health / E.Melee.Damage) + 2);
+        Assert.InRange(blows, (int)Math.Ceiling(E.Grumbler.Health / E.Melee.Crowbar), (int)Math.Ceiling(E.Grumbler.Health / E.Melee.Crowbar) + 2);
         Assert.Contains(EnemyKind.Grumbler, r.World.Slain);
     }
 
@@ -170,11 +170,11 @@ public class DrivenOffTests
         Assert.Equal(SpinePhase.Grab, p.Phase);
         Assert.Equal(1, p.Holding);
         // The victim can't break free alone (A.8): their own blows are nothing to it.
-        p.Struck(r.Ctx, 1, E.Melee.Damage);
+        p.Struck(r.Ctx, 1, E.Melee.Crowbar);
         Assert.Equal(SpinePhase.Grab, p.Phase);
         // One blow from a friend and it's found out: it lets go and bolts for the back, and off.
         r.InCar(2, p.Attached, p.Local.Z + 1);
-        p.Struck(r.Ctx, 2, E.Melee.Damage);
+        p.Struck(r.Ctx, 2, E.Melee.Crowbar);
         Assert.Equal(SpinePhase.BreakOff, p.Phase);
         Assert.Equal(-1, p.Holding);
         Assert.Equal(E.Passenger.Health, p.Health);
@@ -194,11 +194,11 @@ public class DrivenOffTests
         var lone = new Rig();
         var q = lone.World.AddEnemy(id => Passenger.Boards(id, lone.Train, car, 2, E.Passenger));
         for (int i = 0; i < 10; i++)
-            q.Struck(lone.Ctx, 2, E.Melee.Damage);
+            q.Struck(lone.Ctx, 2, E.Melee.Crowbar);
         Assert.Equal(E.Passenger.Health, q.Health);
         Assert.False(q.Gone);
         // Two together: dead, for the night, and not counted as driven off.
-        Assert.True(r.Blows(p, 20, 2, 3) <= (int)Math.Ceiling(E.Passenger.Health / E.Melee.Damage) + 1);
+        Assert.True(r.Blows(p, 20, 2, 3) <= (int)Math.Ceiling(E.Passenger.Health / E.Melee.Crowbar) + 1);
         Assert.True(p.Gone);
         Assert.Contains(EnemyKind.Passenger, r.World.Slain);
         Assert.DoesNotContain(EnemyKind.Passenger, r.World.DrivenOff);
@@ -261,7 +261,7 @@ public class DrivenOffTests
         t.Ground(1, 0.8, voice: 120);
         t.Ground(2, -0.8);
         var k = Angry(t, 0, SpinePhase.Telegraph);
-        Assert.True(t.Blows(k, 30, 1, 2) <= (int)Math.Ceiling(E.Gaunt.Health / E.Melee.Damage) + 1);
+        Assert.True(t.Blows(k, 30, 1, 2) <= (int)Math.Ceiling(E.Gaunt.Health / E.Melee.Crowbar) + 1);
         Assert.Contains(EnemyKind.Gaunt, t.World.Slain);
     }
 
@@ -306,11 +306,11 @@ public class DrivenOffTests
         r.InCar(1, 2, room.Centre.Z - 1);
         // One alone: its blows never hurt it.
         for (int i = 0; i < 10; i++)
-            c.Struck(r.Ctx, 1, E.Melee.Damage);
+            c.Struck(r.Ctx, 1, E.Melee.Crowbar);
         Assert.Equal(E.Climbers.Health, c.Health);
         // Two together: dead. Only that one: the director still sends Climbers.
         r.InCar(2, 2, room.Centre.Z + 1);
-        Assert.True(r.Blows(c, 10, 1, 2) <= (int)Math.Ceiling(E.Climbers.Health / E.Melee.Damage) + 1);
+        Assert.True(r.Blows(c, 10, 1, 2) <= (int)Math.Ceiling(E.Climbers.Health / E.Melee.Crowbar) + 1);
         Assert.True(c.Gone);
         Assert.DoesNotContain(EnemyKind.Climber, r.World.Slain);
     }
@@ -371,7 +371,7 @@ public class DrivenOffTests
         loud.World.Choir.Loudness = Tuning.Combat.Choir.Threshold * 2;
         // Loud, two swinging do it no harm, and it keeps its hold (the old rule's way out is gone).
         for (int i = 0; i < 6; i++)
-            g.Struck(loud.Ctx, 2 + i % 2, E.Melee.Damage);
+            g.Struck(loud.Ctx, 2 + i % 2, E.Melee.Crowbar);
         Assert.Equal(E.Choir.Health, g.Health);
         Assert.Equal(SpinePhase.Grab, g.Phase);
         // Still it hits back.
@@ -382,7 +382,7 @@ public class DrivenOffTests
         quiet.World.Choir.Loudness = 0;
         for (int i = 0; i < 20 && !h.Gone; i++)
         {
-            h.Struck(quiet.Ctx, 2 + i % 2, E.Melee.Damage);
+            h.Struck(quiet.Ctx, 2 + i % 2, E.Melee.Crowbar);
             quiet.World.Tick += 12;
         }
         Assert.True(h.Gone);
