@@ -89,10 +89,21 @@ public sealed class ChoirGhost(int id) : Enemy(id)
         Local = to.Length <= step ? want : Local + to.Normalized * step;
     }
 
-    /// <summary>They hit back hard: whoever strikes one takes a blow for it.</summary>
+    // The tick it last hit back (note 272), or null.
+    uint? _hitBack;
+
+    /// <summary>
+    /// They hit back hard: whoever strikes one takes a hit for it. One hit a hitBackEvery however fast it's struck (note 272,
+    /// App. F.1's "a few big hits, never chip damage"): a flurry of blows costs a hit, not one per blow.
+    /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        ctx.Bite(by, ctx.Tuning.Choir.HitBackDamage, DeathCause.Choir);
+        var t = ctx.Tuning.Choir;
+        if (_hitBack is not { } last || ctx.Tick - last >= t.HitBackEvery * SimConstants.TickRate - 0.5)
+        {
+            _hitBack = ctx.Tick;
+            ctx.Bite(by, t.HitBackDamage, DeathCause.Choir);
+        }
         base.Struck(ctx, by, damage);
     }
 

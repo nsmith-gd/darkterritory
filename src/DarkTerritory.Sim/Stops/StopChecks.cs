@@ -41,11 +41,26 @@ static class StopChecks
                 }
             Add("Tracks never cross", closest >= 4.5, closest == double.MaxValue ? "one track a side" : $"closest {closest:0.0} m apart past the points (P6)");
 
+            // Blocked sidings (D.2 "never all"): the facility's own track is always open.
+            int blocked = l.Tracks.Count(tr => tr.Blocked);
+            Add("Blocked sidings leave a way in", l.Tracks.All(tr => !tr.Primary || !tr.Blocked) && (blocked == 0 || blocked < l.Tracks.Count),
+                $"{blocked} of {l.Tracks.Count} tracks blocked by derelicts, the facility's own open (D.2)");
+
             bool inZone = l.Tracks.All(tr => tr.Toe > 0 && tr.Path.All(p => p.S >= 0 && p.S <= cx.ZoneLength));
             Add("The yard is inside the level zone", inZone, "switches and track on the zone's straight, level main line");
         }
         else
             Skip("Yard checks", "no yard at this stop");
+
+        if (cx.DeadTown)
+        {
+            // Linegen plan §11.3 (note 302): a dead town has its station building and a goods yard with derelict stock.
+            int derelicts = l.Buildings.Count(b => b.Kind == BuildingKind.Derelict);
+            Add("A dead town has its railway side", l.Buildings.Any(b => b.Kind == BuildingKind.Station) && derelicts > 0 && l.Sidings.Count == 1,
+                $"station {(l.Buildings.Any(b => b.Kind == BuildingKind.Station) ? "built" : "missing")}, {derelicts} derelicts on {l.Sidings.Count} goods siding");
+        }
+        else
+            Skip("A dead town has its railway side", "not a dead town");
 
         int inBuffer = l.Containers.Count(c => c.Zone == StopZone.Village && Math.Abs(c.At.D) < tt.Buffer);
         Add("No loot in the rail buffer", inBuffer == 0, $"nothing within {tt.Buffer:0} m of the main line outside the yard (P13, P19)");
@@ -85,7 +100,8 @@ static class StopChecks
                     clash++;
         foreach (var b in l.Buildings)
         {
-            if (g.TouchesRail(b, 1))
+            // A dead town's derelicts stand on their own goods siding (note 302): only the main line is in their way.
+            if (b.Kind == BuildingKind.Derelict ? StopDraft.NearMain(b, 1) : g.TouchesRail(b, 1))
                 clash++;
             if (b.Zone == StopZone.Village && g.TouchesRoad(b, 0.5))
                 clash++;

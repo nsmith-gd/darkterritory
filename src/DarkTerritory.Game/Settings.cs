@@ -46,6 +46,26 @@ public sealed record Settings
     public string LobbyName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
+    /// <summary>Note 297: the mouse pushed forward looks down, as a flight stick does.</summary>
+    public bool InvertMouse { get; init; }
+    /// <summary>
+    /// Note 297: your eyes' vertical field of view, in degrees, one of <see cref="FieldsOfView"/> (75 as the game was drawn and
+    /// its frame cost measured, tuning/perf.json's views). Wider sees more of the dark, and draws more of it.
+    /// </summary>
+    public double FieldOfView { get; init; } = 75;
+    /// <summary>
+    /// Note 297: how much of the boiler's shake and a strained car's judder reaches your eyes (notes 263, 277), 0 to 1. The
+    /// world says it otherwise too (the gauges, the squeal, the sparks); only the eyes are spared.
+    /// </summary>
+    public double CameraShake { get; init; } = 1;
+    /// <summary>
+    /// Note 298 (GDD §9: in the yard the crew "try on outfits"): which of the crew's looks you wear (look.json crewColours,
+    /// with the cap or helmet and scarf that go with it), or −1 for your player id's. Sent as you join; tried on in the yard.
+    /// </summary>
+    public int Outfit { get; init; } = -1;
+
+    /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
+    public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
     public bool Fullscreen { get; init; }
     /// <summary>T83: wait for the monitor between frames (no tearing); off, frames go out as soon as they're drawn.</summary>
@@ -59,6 +79,10 @@ public sealed record Settings
 
     /// <summary>The resolutions on offer (16:9, the HUD's own shape: ARCHITECTURE §8 note 57's 720p is the least).</summary>
     public static readonly string[] Resolutions = ["1280x720", "1600x900", "1920x1080", "2560x1440"];
+    /// <summary>The fields of view on offer (note 297), vertical degrees: 75 is about 107 across a 16:9 screen.</summary>
+    public static readonly double[] FieldsOfView = [60, 65, 70, 75, 80, 85, 90];
+    /// <summary>The camera shake on offer (note 297): off, a quarter, half, three quarters, all of it.</summary>
+    public static readonly double[] CameraShakes = [0, 0.25, 0.5, 0.75, 1];
     /// <summary>The render scales on offer.</summary>
     public static readonly double[] RenderScales = [0.5, 0.75, 1];
 
@@ -136,16 +160,21 @@ public sealed record Settings
     }
 
     /// <summary>Settings are the same when every choice is, the keys by what's in them (a record compares a dictionary by reference).</summary>
-    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
+    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud && ControlHints == other.ControlHints
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
+        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
-        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel)));
+        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints)));
+
+    /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
+    public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);
 
     /// <summary>The volumes as the mixer takes them.</summary>
     public Ballast.Audio.MixVolumes Volumes => new((float)MasterVolume, (float)EffectsVolume, (float)VoiceVolume, (float)MusicVolume);

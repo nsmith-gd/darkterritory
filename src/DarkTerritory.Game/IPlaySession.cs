@@ -20,17 +20,18 @@ namespace DarkTerritory.Game;
 /// <param name="Stressed">Something's after the train close by them (an enemy past its dormant phase within
 /// <see cref="CrewActs.StressRange"/>): their run is a hurried one (GDD §31).</param>
 /// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
-/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
+/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress; a staged swing, note 275).</param>
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 /// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
 /// under it. Null for a keyboard or a bot.</param>
 /// <param name="Car">The car whose frame they stand in (their replicated <see cref="PlayerState.Parent"/>), or
 /// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 211).</param>
 /// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
+/// <param name="Emote">An emote they're at (note 298), stood still with nothing else to do, and how far into it they are (s).</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
-    Double3 Local = default, HeadsetBody? Headset = null)
+    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0)
 {
     public int Variant => Looks ?? Id;
 }
@@ -73,8 +74,13 @@ public interface IPlaySession
     /// <see cref="WreckFilm.FirstPersonOf"/>), so the replay, the cut and the opera follow on from it.
     /// </summary>
     WreckTuning SequenceTuning => DerailSequence.TuningFor(World.WreckTuning, Film, PlayerId);
-    /// <summary>A vote to skip counts now (E.5: after the first player's shot; E.9: three seconds into the outro).</summary>
+    /// <summary>
+    /// The skip counts now. Each player's own (note 315): from the train coming off to the cause card; under the crew's vote,
+    /// after the first player's shot (E.5). E.9: three seconds into the outro.
+    /// </summary>
     bool Skippable => false;
+    /// <summary>How far through holding their own skip this player is, 0 to 1 (note 315).</summary>
+    double SkipHold => 0;
     /// <summary>What derailed it, in the boards' km/h (T121): the host's own, or the incident report's line on a client.</summary>
     string? DerailCause => World.DerailCause is { Length: > 0 } c ? c
         : World.Run?.Report?.Lines.LastOrDefault(l => l.Kind == Sim.Run.IncidentKind.Derailed)?.Text;

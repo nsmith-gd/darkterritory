@@ -274,7 +274,14 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     {
         if (_warm is null)
             return;
-        _warm.Shelter = !safe && RoofWarned(world);
+        // The Choir (App. A.7) seizes anyone outside or behind no shut door, and a gun's shield is no shelter from it: past
+        // halfway gathered (about 20 s off), or here, indoors with the doors shut first, the work in there after (note 305:
+        // at a crew of two the driver can't leave the controls to break a seize, so a gunner in a car with its door open for
+        // the fire it was working was half the crew, every night the Choir came).
+        // Not in the safe yard or a fort, where it never comes (and a crew still to board would go nowhere).
+        bool choir = !world.SafeYard && !world.TrainInFort && (world.Choir.Present || world.Choir.Build >= ChoirShelterAt);
+        _warm.Shelter = !safe && RoofWarned(world) || choir;
+        _warm.ShutFirst = choir;
         // Trouble inside a car: in to it, and work it from the aisle, unless it's too much for us (hurt, get out).
         // The nearest to us, so a crew splits up over them; a fire first (it spreads), then a load (it's on a clock).
         int here = self.Parent;
@@ -289,7 +296,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             .ThenBy(e => e.Id).FirstOrDefault() : null;
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
-        _drop = tend && catches && _trouble is null ? NextDrop(world) : null;
+        // Not with the Choir about: the hook goes out through an open side door.
+        _drop = tend && catches && !choir && _trouble is null ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar;
         if (_trouble is { } trouble)
@@ -611,6 +619,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>The bot's own tick (taps go by it, not the client world's: <see cref="KitRun.TapEvery"/>).</summary>
     uint _tick;
 
+    /// <summary>A crewmate this near (m, out of the cab) can pull a walker from the Car Hugger's mouth (note 305).</summary>
+    const double PullReach = 10;
+
+    /// <summary>How far the Choir's gathered (0 to 1, about 40 s to come) when a crew bot gets behind a shut door.</summary>
+    const double ChoirShelterAt = 0.5;
 
     /// <summary>
     /// Note 260: the roof warning is up (<see cref="Sim.Route.Lineside.Warning"/>), a tunnel's mouth or a bend taken too fast
@@ -653,9 +666,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return working;
         var train = world.Train;
         // The Car Hugger on the car we're on, and it has a platform to get at it from (v1.1 App. A.3): down and club it off.
+        // Only with someone near enough to pull us from its mouth (A.3: "swallowSeconds for friends to pull them free",
+        // and one player can barely out-hit it). Alone but for the driver, a crew of two's gunner went down to it and was
+        // eaten on every Dead Lines night it came (note 305): clear of it instead (below), and it may take the car.
         int on = self.Parent;
+        var here = PlayerMotor.WorldPosition(self, train);
+        bool pulled = Crew.Any(c => c.Id != Me && c.State.Alive && !PlayerMotor.InCab(c.State, train)
+            && (PlayerMotor.WorldPosition(c.State, train) - here).Length <= PullReach);
         if (self.Alive && on > 0 && on < train.Frames.Count && _warm is not { Active: true } && train.Frames[on].Shape.Platform is { } platform
-            && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == on))
+            && pulled && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == on))
             return Beat(self, train, platform, tick);
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
@@ -1447,7 +1466,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (_alone is not null && calls is not null)
             {
                 _aloneHand ??= new StopHand(StopJob.None, calls, member);
-                if (_aloneHand.SetBackAlone(self, world, _alone, _aloneTo) is { } getting)
+                // The stop's given the spur up (its Held give-up: the points wouldn't go over) with the switch still for the
+                // main: back up into the cab, not at the lever all night (note 300).
+                var to = _aloneTo && !train.Diverging(_alone.Index) && stops.ThrowAlone(world) is null ? null : _alone;
+                if (_aloneHand.SetBackAlone(self, world, to, _aloneTo) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
                     return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };
@@ -1857,7 +1879,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Its brake fading against the steam (note 231): no more than steam that doesn't pull at the cruise, as it's vented to.
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train)
+        // Only with the shovel to hand (note 275): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.
@@ -2184,7 +2207,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // Inside, that is: on the plate still, the way to it is through the door it's walking at (and it never
                     // gave up, its clock kept at nothing by the work).
                     _why = "";
-                    if (Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
+                    if (!ShutFirst && Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
                     {
                         _ticks = 0;
                         _why = "busy";
@@ -2327,6 +2350,9 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// the kit's bringer opened, and the kit never left car 4.
     /// </summary>
     public Func<int, bool>? LeaveOpen { get; set; }
+
+    /// <summary>The doors shut before any work in there (the Choir's about, note 305).</summary>
+    public bool ShutFirst { get; set; }
     /// <summary>
     /// A crewmate at that door of that car (car, door index), going out or coming in: it's not shut on them. A crew of eight
     /// warmed up in one car together, and whoever was still warming shut the door on each one leaving, who walked into it
@@ -2545,6 +2571,20 @@ public static class Heed
     /// The marsh (v1.1 §22, formerly the Drift): coming at us, or on us, stand stock still until it loses us ("~4s"). The look
     /// can go where it likes: it's feet it feels.
     /// </summary>
+    /// <summary>
+    /// GDD App. F.1's rare healing loot (note 272): a bot carrying a find that heals, hurt below loot.json
+    /// <c>healing.botBelow</c>, stands still and holds Use on it till it's used (a person's way: Bodies.Dose). Never at a
+    /// lever or a door, where Use would work that instead.
+    /// </summary>
+    public static PlayerIntent Heal(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
+            || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
+    }
+
     public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)
     {
         if (!self.Alive || !world.ActiveEnemies.OfType<Drift>().Any(d => d.Target == selfId && d.Phase is SpinePhase.Telegraph or SpinePhase.Punish))
@@ -2584,6 +2624,15 @@ public static class Heed
             .Select(e => (e, At: e.WorldPosition(train))).Where(x => (x.At - me).Length <= 25).OrderBy(x => (x.At - me).Length).FirstOrDefault();
         if (holder.e is null)
             return intent;
+        // The Car Hugger's mouth is at the end of its car, under the roof's edge (App. A.3): the one it has is on the end ladder
+        // or the platform below. From that car's roof, to the top of the ladder over them, and haul from there. On the roof
+        // above, walking at them got no nearer, and a crew of four watched a walker eaten under their feet (note 310).
+        if (holder.e is CarHugger hugger && self.Parent == hugger.Attached && self.Surface == Surface.Roof
+            && train.Frames[hugger.Attached].Shape.Platform is { } platform)
+        {
+            var (toLadder, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, platform.Min.Z - 0.35), Math.PI);
+            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : toLadder;
+        }
         // Where the held one is: the holder's side of them is close enough (they're pinned together).
         var go = Strike(self, train, holder.At, et.Grab.PullReach * 0.8);
         if (go is not { } step)

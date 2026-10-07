@@ -85,5 +85,12 @@
   // note 186): each creature's grab at each of crews, the friends standing standOffM off, or beyondAloneM past the
   // creature's own "alone" radius where it has one (so it still takes the victim), with what players carry. The grab has to
   // begin within grabWithinSeconds of the rig being set.
-  "grabs": { "crews": [2, 3, 4, 5, 6, 7, 8], "standOffM": 4, "beyondAloneM": 1, "grabWithinSeconds": 75 }
+  "grabs": { "crews": [2, 3, 4, 5, 6, 7, 8], "standOffM": 4, "beyondAloneM": 1, "grabWithinSeconds": 75 },
+
+  // GDD App. F.1 (the director, 6 Oct 2026): "a solo player can finish one to three runs before it gets seriously hard and
+  // they realise they need friends ... you can't really advance solo" (note 300; dt balance --crews 1). Judged on a sweep's
+  // crew-of-one nights: the first runs' line and train (Systems Spec F.4 "Early": startTier, startCars) get home at least
+  // startDelivered of the time; where a crew advances to (F.4 "Establishing": hardTier, hardCars) at most hardDelivered.
+  // DESIGN-TODO: first pass, and the bot's a diligent solo player (it never forgets the fire); people will find it harder.
+  "solo": { "startTier": "local", "startCars": 3, "startDelivered": 0.66, "hardTier": "frontier", "hardCars": 6, "hardDelivered": 0.34 }
 }

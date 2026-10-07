@@ -41,6 +41,52 @@ public class LineGenTests
         Assert.NotEqual(a.ToJson(), c.ToJson());
     }
 
+    /// <summary>
+    /// Spec B.8 and GDD §11 (the director's decision of 6 Oct 2026, ARCHITECTURE §8 note 270): "the time a run takes should
+    /// always be the same. Difficulty scales not by time but by monsters and density of challenges." Every tier's night is
+    /// route.json's one length and dawn, and the harder tiers pack more into it: more facilities, junctions, alternates,
+    /// dead lines and hazards per km, more terrain budget per km, and more of the director's budget per km.
+    /// </summary>
+    [Fact]
+    public void EveryTierIsTheSameNightAndTheHarderOnesAreDenser()
+    {
+        var c = LineGenContent.Cached(Content);
+        var r = c.Route;
+        double length = r.NightLengthKm * 1000, dawn = Math.Round(length / r.DawnAverageSpeed * (1 + r.DawnSlack));
+        var plans = new[] { "local:1", "frontier:2", "deadLines:3", "deepTerritory:4" }.Select(spec => Routes.Generate(Content, spec, 10)).ToList();
+        foreach (var route in plans)
+        {
+            var plan = route.Plan!;
+            Assert.Equal(length, plan.TerminusM - plan.GateM, 0);
+            Assert.Equal(dawn, plan.RouteCard.DawnS);
+            Assert.Equal(dawn, route.DawnSeconds);
+            // The same night: the line's own ideal run fits the one dawn on every tier.
+            Assert.InRange(plan.Validation.Metrics["idealTransitMin"] * 60, length / 22, dawn);
+        }
+
+        // Each tier's expected count of challenges over the one length, at the middle of its severity: strictly rising.
+        double Challenges(Limits l)
+        {
+            double Mid(double[] range) => (range[0] + range[^1]) / 2;
+            return l.Facilities + Mid(l.Junctions) + Mid(l.Alternates) + Mid(l.DeadLines) + Mid(l.Washouts) + Mid(l.WeakBridges)
+                + Mid(l.MomentumBanks) + Mid(l.BrassFields);
+        }
+        var limits = Enum.GetValues<RouteTier>().Select(t => new Limits(c, new RunParameters(t, 1, 0.5, 10, []))).ToList();
+        Assert.All(limits, l => Assert.Equal(r.NightLengthKm, l.LengthKm));
+        for (int i = 1; i < limits.Count; i++)
+        {
+            Assert.True(Challenges(limits[i]) / limits[i].LengthKm > Challenges(limits[i - 1]) / limits[i - 1].LengthKm, $"{limits[i].Tier}");
+            Assert.True(limits[i].BudgetPerKm > limits[i - 1].BudgetPerKm, $"{limits[i].Tier}");
+        }
+        // The director's budget for the night (the same crew and train) is all density now: rising with the tier.
+        var budgets = plans.Select(route => new DarkTerritory.Sim.Enemies.Director(Tuning.Enemies.Director, route, 1, 6, 4).Budget / r.NightLengthKm).ToList();
+        for (int i = 1; i < budgets.Count; i++)
+            Assert.True(budgets[i] > budgets[i - 1], $"{plans[i].Tier}: {budgets[i]:0.0} a km against {budgets[i - 1]:0.0}");
+        // And what the lines generated: a Deep territory night holds more than a Local one over the same kilometres.
+        double Built(DarkTerritory.Sim.Route.Route route) => route.Plan!.Validation.Metrics is var m ? m["facilities"] + m["junctions"] + m["terrainCost"] : 0;
+        Assert.True(Built(plans[3]) > Built(plans[0]), $"deep {Built(plans[3])}, local {Built(plans[0])}");
+    }
+
     [Theory]
     [InlineData("local:1", 10)]
     [InlineData("frontier:2", 10)]
@@ -90,7 +136,7 @@ public class LineGenTests
     [Fact]
     public void ThereIsGroundWithinReachOfTheTrackAndTheFormationIsAtRailHeight()
     {
-        var route = Routes.Generate(Content, "frontier:7", 6);
+        var route = Routes.Generate(Content, "frontier:3", 6);
         var line = route.Build();
         var terrain = ((PlanConditions)line.Conditions!).Terrain;
         for (double s = 0; s < line.Length; s += 500)

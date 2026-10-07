@@ -65,6 +65,8 @@ public static partial class Hud
             Skip(o, width, height, s);
             return;
         }
+        // App. F.1's damage feedback (note 272): under everything else, so the text stays readable through it.
+        EdgeFlash(o, width, height, HurtStrength(s));
         if (s.StrandedOutro)
             Skip(o, width, height, s);
         // GDD §9: the fortress on the radio (the manifest leaving, the tally home) has the top of the screen while it reads.
@@ -93,6 +95,69 @@ public static partial class Hud
             Noise(o, width, height, s.World);
             if (crosshair)
                 Crosshair(o, width, height, s, prompt is not null);
+        }
+    }
+
+    /// <summary>
+    /// The director's damage model (GDD App. F.1, 6 Oct 2026; note 272): "damage feedback is minimal: an edge flash and a
+    /// sound". The flash fades over this long (s) from a hit; a hit this big (a heavy hit, enemies.json <c>damage</c>) fills
+    /// it, a smaller one fills it in proportion, never under <see cref="HurtFlashLeast"/>.
+    /// </summary>
+    public const double HurtFlashSeconds = 0.6, HurtFlashFullAt = 60, HurtFlashLeast = 0.35;
+
+    // Per session: whose health the flash watches, what it was last frame, and the last hit's tick and strength.
+    sealed class Hurt
+    {
+        public int Watching = -1, Health;
+        public long Tick = long.MinValue;
+        public double Strength;
+    }
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPlaySession, Hurt> _hurts = new();
+
+    /// <summary>A still frame's flash (<c>dt screenshot --hud --hurt s</c>): at this strength, fresh, whatever the health did.</summary>
+    public static double? StagedHurt { get; set; }
+
+    /// <summary>
+    /// How strong the edge flash is now (0 to 1): this machine's player's health fell, by how much, and how long ago (from
+    /// the replicated health, so it's what the host applied). Called once a frame, by <see cref="Build"/>.
+    /// </summary>
+    public static double HurtStrength(IPlaySession s)
+    {
+        int health = s.Player.Health;
+        long now = s.HostTick;
+        var hurt = _hurts.GetOrCreateValue(s);
+        if (hurt.Watching != s.PlayerId)
+            (hurt.Watching, hurt.Tick) = (s.PlayerId, long.MinValue);
+        else if (health < hurt.Health)
+            (hurt.Tick, hurt.Strength) = (now, Math.Clamp((hurt.Health - health) / HurtFlashFullAt, HurtFlashLeast, 1));
+        hurt.Health = health;
+        if (StagedHurt is { } staged)
+            return Math.Clamp(staged, 0, 1);
+        double age = (now - hurt.Tick) * Sim.SimConstants.TickSeconds;
+        if (hurt.Tick == long.MinValue || age < 0 || age > HurtFlashSeconds)
+            return 0;
+        double left = 1 - age / HurtFlashSeconds;
+        return hurt.Strength * left * left;
+    }
+
+    /// <summary>
+    /// The red edge flash (note 272): a band round the frame's edge, deepest at the rim and gone a ninth of the way in, the
+    /// corners a little deeper where the bands cross. Nothing in the middle of the screen: you see what hit you.
+    /// </summary>
+    public static void EdgeFlash(Overlay o, int width, int height, double strength)
+    {
+        if (strength <= 0.01)
+            return;
+        int bands = Math.Max(8, height / 9);
+        for (int k = 0; k < bands; k++)
+        {
+            float fall = 1 - (float)k / bands;
+            var colour = new Vector4(0.62f, 0.03f, 0.02f, (float)strength * 0.6f * fall * fall);
+            o.Rect(0, k, width, 1, colour);
+            o.Rect(0, height - 1 - k, width, 1, colour);
+            o.Rect(k, k + 1, 1, height - 2 * k - 2, colour);
+            o.Rect(width - 1 - k, k + 1, 1, height - 2 * k - 2, colour);
         }
     }
 
@@ -1042,14 +1107,20 @@ public static partial class Hud
         }
     }
 
-    /// <summary>The skip vote (E.5, E.9), once it counts: hold the key; the votes so far of the crew's.</summary>
+    /// <summary>
+    /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 315), the hold filling under it; under the
+    /// crew's vote, the votes so far of the crew's.
+    /// </summary>
     static void Skip(Overlay o, int width, int height, IPlaySession s)
     {
         if (!s.Skippable)
             return;
         var (votes, of) = s.World.FilmVotes;
-        string text = of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
-        UiStyle.Keyed(o, width - 12 - UiStyle.MeasureKeyed(o, text), height - 18, text, Dim);
+        string text = !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        float w = UiStyle.MeasureKeyed(o, text), x = width - 12 - w;
+        UiStyle.Keyed(o, x, height - 18, text, Dim);
+        if (s.SkipHold > 0)
+            o.Rect(x, height - 8, MathF.Round((float)(w * s.SkipHold)), 1, Ink);
     }
 
     static IEnumerable<string> Wrap(string text, int chars)
@@ -1212,7 +1283,23 @@ public static partial class Hud
             _ => Control.Brake,
         }))}]");
 
-    /// <summary>What your hands can do right here, with the key that does it.</summary>
+    /// <summary>
+    /// A healing find in your hands that you could use now (GDD App. F.1's rare healing loot; note 272): hurt, with nothing
+    /// else Use works in reach. The corner offers "USE : HOLD [E]" (<see cref="Hints"/>); what it gives back is learned (note 285).
+    /// </summary>
+    public static bool CanHeal(IPlaySession s, Body carried) =>
+        carried.Kind == BodyKind.Loot && s.World.Run is { Healing: not null } run && run.HealOf(carried) > 0
+            && s.Player.Health < s.PlayerTuning.Health && CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand) is null;
+
+    /// <summary>
+    /// A healing find being used (note 272): how far it's got, from the body record, as plain state at the crosshair. Null
+    /// otherwise: the find's name and keys are the corner's (note 285).
+    /// </summary>
+    public static string? HealPrompt(IPlaySession s, Body carried) =>
+        CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
+            ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
+            : null;
+
     public static string? Prompt(IPlaySession s)
     {
         var p = s.Player;
@@ -1251,9 +1338,10 @@ public static partial class Hud
             return radio.MendTicks > 0 ? $"MENDING {whose} ({radio.MendTicks * Sim.SimConstants.TickSeconds / mend * 100:0}%)"
                 : $"MEND {whose} : HOLD [E]   PUT DOWN : [E]";
         }
-        // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's.
-        if (world.Bodies.CarriedBy(s.PlayerId) is not null)
-            return null;
+        // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
+        // here only a healing find's use under way (note 272, in note 285's form).
+        if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
+            return HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -1295,6 +1383,9 @@ public static partial class Hud
             // A ruptured boiler (T109): mended here with the repair kit in hand, and only so (the kit's prompt is above).
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && train.Boiler.Ruptured:
                 return $"BOILER RUPTURED   {RepairKitWhere(world, s.PlayerId)}";
+            // Note 275: coal goes on with the shovel, and there's the one (in note 285's form: a short state, nothing foretold).
+            case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
+                return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT" : "HANDS FULL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY" : "SHOVEL COAL : HOLD [E]";
             // Only a reaching hand finds the coal face (T29).
@@ -1305,7 +1396,7 @@ public static partial class Hud
                 return "VENT STEAM : HOLD [E]";
             // T109: the engineering kit's rack.
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
-                return Kit.Held(p) == Tool.Wrench ? "PUT THE WRENCH BACK : [E]" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
+                return Kit.Held(p) == Tool.Wrench ? "PUT THE WRENCH BACK : [E]" : Kit.Held(p) == Tool.Shovel ? "HANG THE SHOVEL BACK : [E]" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
                     : "TAKE THE WRENCH : [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";

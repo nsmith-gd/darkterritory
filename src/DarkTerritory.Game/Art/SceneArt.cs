@@ -63,6 +63,9 @@ public sealed partial class SceneArt(Look look)
             // Running with something waking close by, hunched and hurried (GDD §31).
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // An emote (note 298), stood still with nothing else on.
+        if (pose == CrewPose.Idle && c.Emote != Sim.Player.Emote.None)
+            pose = c.Emote switch { Sim.Player.Emote.Dance => CrewPose.Dance, Sim.Player.Emote.Wave => CrewPose.Wave, _ => CrewPose.Point };
         // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
         // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
         // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
@@ -97,12 +100,14 @@ public sealed partial class SceneArt(Look look)
             CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
             CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
-            CrewPose.Swing => swung + SwingHitAt,
+            // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
+            CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
+            CrewPose.Dance or CrewPose.Wave or CrewPose.Point => c.EmoteSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
@@ -301,7 +306,14 @@ public sealed partial class SceneArt(Look look)
     /// </summary>
     /// <param name="cordPulled">A crewmate's on the whistle cord (CrewActs.CrewWhistling): it's hauled down. The Whistler's
     /// blast leaves it hanging (App. A.4).</param>
-    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true, bool cordPulled = false)
+    /// <param name="shovelRacked">The fireman's shovel is home (the boiler's ShovelOut, the other way about; note 275): stood
+    /// against the cab wall beside the tool rack, blade down.</param>
+    /// <summary>The shovel stood by its rack, from the rack's interactable (the cab wall at +X): blade down, leaning in.</summary>
+    static readonly Matrix4x4 ShovelStood = Matrix4x4.CreateRotationX(-MathF.PI / 2) * Matrix4x4.CreateRotationZ(-0.2f)
+        * Matrix4x4.CreateTranslation(0.02f, 0.76f, 0.6f);
+
+    public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true, bool cordPulled = false,
+        bool shovelRacked = true)
     {
         var props = PropArt.Of(Look);
         if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
@@ -338,6 +350,9 @@ public sealed partial class SceneArt(Look look)
             mesh.Append(Piece("tool-rack", () => TrainKit.ToolRack(Look)), at);
             if (wrenchRacked)
                 mesh.Append(Piece("wrench", () => TrainKit.Wrench(Look)), at);
+            // The shovel (note 275): its blade (the tool's −Z) down on the floor, the D-grip up, leant back to the wall.
+            if (shovelRacked && props.Get("tool_shovel") is { } shovel)
+                mesh.Append(shovel, ShovelStood * at);
         }
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
         {

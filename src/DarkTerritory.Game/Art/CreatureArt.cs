@@ -28,6 +28,9 @@ public enum CrewPose
     Reload,
     // The extinguisher at work on a fire, braced, kicking (App. C.5); hung back on its bracket (SceneArt.Crewmate).
     Spray, HangUp,
+    // Emotes (GDD §9's yard, note 298): a dance, a wave, a point. Clips of their own when crew_clips has them ("dance",
+    // "wave", "point"); until then posed by the arms' IK over a stepping or standing clip (CreatureArt.EmoteArms).
+    Dance, Wave, Point,
 }
 
 /// <summary>
@@ -551,6 +554,9 @@ public sealed class CreatureArt
     /// <summary>The crew clip (tools/blender/crew_clips.py, crew.py) a pose plays.</summary>
     public static string ClipOf(CrewPose pose) => pose switch
     {
+        CrewPose.Dance => "dance",
+        CrewPose.Wave => "wave",
+        CrewPose.Point => "point",
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
         CrewPose.Climb => "climb",
@@ -641,15 +647,24 @@ public sealed class CreatureArt
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
-                : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down" : "idle";
+                : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
+                // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
+                : clip == "dance" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+        // ... and the arms are posed over it (EmoteArms).
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
+        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket,
+        // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
+        // 0.8 s clip, and most of the crew were drawn at its end).
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
+            or CrewPose.Swing;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);
+        if (emoteByHand)
+            EmoteArms(m, pose, time);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -1095,6 +1110,34 @@ public sealed class CreatureArt
         var elbow = shoulder + dir * x + bend * h;
         Skinner.Aim(m.Model, m.Pose, upper, lower, elbow);
         Skinner.Aim(m.Model, m.Pose, lower, hand, shoulder + dir * reach);
+    }
+
+    /// <summary>
+    /// An emote with no clip of its own (note 298), posed by the arms' IK in the model's space (x right, y up, z behind, from
+    /// the feet) over the clip under it: the dance a jig, stepping on the spot with the hips swaying and both fists pumped
+    /// over the head in turn; the wave a hand up high, rocking side to side; the point an arm straight out ahead at the
+    /// shoulder. Placeholders for the art pass's clips, in the crew's stiff, heavy manner (GDD §31).
+    /// </summary>
+    static void EmoteArms(Entry m, CrewPose pose, double time)
+    {
+        float t = (float)time;
+        switch (pose)
+        {
+            case CrewPose.Dance:
+                {
+                    float beat = MathF.Sin(t * MathF.Tau * 1.1f);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.14f * beat));
+                    Reach(m, "l", new Vector3(-0.26f, 1.78f + 0.16f * beat, -0.12f), new Vector3(-1, -0.4f, 0.2f));
+                    Reach(m, "r", new Vector3(0.26f, 1.78f - 0.16f * beat, -0.12f), new Vector3(1, -0.4f, 0.2f));
+                    break;
+                }
+            case CrewPose.Wave:
+                Reach(m, "r", new Vector3(0.34f + 0.11f * MathF.Sin(t * MathF.Tau * 1.8f), 1.94f, -0.06f), new Vector3(1, -0.6f, 0.3f));
+                break;
+            case CrewPose.Point:
+                Reach(m, "r", new Vector3(0.17f, 1.47f, -0.66f), new Vector3(0.6f, -1, 0));
+                break;
+        }
     }
 
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
