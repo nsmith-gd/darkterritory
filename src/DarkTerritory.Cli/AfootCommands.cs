@@ -59,6 +59,17 @@ static class AfootCommands
             uint start = world.Tick;
             double At(uint tick) => Math.Round((tick - start) * SimConstants.TickSeconds, 1);
             var events = new List<EnemyEvent>();
+            // Each sign as it was shown, in the line's coordinates (s, lateral, height over the rail) for `dt screenshot --cam`:
+            // where the walker's eyes were, and where the sign's were.
+            var shown = new List<object>();
+            double[] Line(Double3 p)
+            {
+                double h = session.Train.Dynamics.Distance;
+                line.Nearest(p, ref h);
+                var r = line.Sample(DarkTerritory.Sim.Rail.RailLine.MainPath, h);
+                var right = Double3.Cross(r.Tangent, Double3.Up).Normalized;
+                return [Math.Round(h, 1), Math.Round(Double3.Dot(p - r.Position, right), 2), Math.Round(p.Y - r.Position.Y, 2)];
+            }
             double died = -1;
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
@@ -77,6 +88,8 @@ static class AfootCommands
                 }
                 session.Step(default);
                 events.AddRange(world.EnemyEvents);
+                if (world.Director is { } wd && wd.Signs.Count > shown.Count)
+                    shown.Add(new { at = At(world.Tick), kind = world.Watcher.Kind.ToString(), eye = Line(session.Player.Position + Double3.Up * 1.6), sign = Line(world.Watcher.At) });
                 if (!session.Player.Alive && died < 0)
                     died = i * SimConstants.TickSeconds;
             }
@@ -93,6 +106,7 @@ static class AfootCommands
                 spawns = d.Log.Select(l => $"{l.Kind} at {At(l.Tick).ToString("0", CultureInfo.InvariantCulture)} s").ToArray(),
                 engaged = engaged.Select(e => $"{e.Kind} at {At(e.Tick).ToString("0", CultureInfo.InvariantCulture)} s").ToArray(),
                 grabs = events.Count(e => e.To == SpinePhase.Grab),
+                shown,
                 died = died < 0 ? (double?)null : Math.Round(died),
                 death = died < 0 ? null : session.Player.Death.ToString(),
             };
