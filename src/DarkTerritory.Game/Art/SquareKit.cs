@@ -4,7 +4,7 @@ using Ballast.Render;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// A fortress town's square (GDD §3.1; ARCHITECTURE §8 note 281): the three buildings backed onto its wall, the custom's
+/// A fortress town's square (GDD §3.1; ARCHITECTURE §8 note 304): the three buildings backed onto its wall, the custom's
 /// centrepiece in the middle of it, the notice board, the plaque, benches, lamp posts. Each piece fronts −Z, centred on
 /// its origin, its footprint the one <see cref="Sim.Towns.TownFixtures.Size"/> gives the walls (X along the line, Z across).
 /// First-pass art (L1): kit boxes and lathes, readable at night in the fog, telling one town's square from the next by

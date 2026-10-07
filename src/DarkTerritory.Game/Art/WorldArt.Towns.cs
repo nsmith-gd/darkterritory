@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Towns;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// The fortress town's square (GDD §3.1; ARCHITECTURE §8 note 281): the walls stepping back for it, its buildings, the
+/// The fortress town's square (GDD §3.1; ARCHITECTURE §8 note 304): the walls stepping back for it, its buildings, the
 /// custom's centrepiece, the board and its papers, the lamps. Its people are the scene's (<see cref="GreyboxScene"/>),
 /// drawn with the crew's model. Everything stands where the town's plan (Sim) says, so what's drawn is what's solid.
 /// </summary>

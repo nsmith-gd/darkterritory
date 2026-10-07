@@ -4,6 +4,7 @@ using Ballast.Render;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Towns;
+using Fortresses = DarkTerritory.Sim.Run.Fortresses;
 
 namespace DarkTerritory.Game.Art;
 
@@ -174,7 +175,7 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
-    /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
+    /// <param name="square">The town's square (note 304): the walls on its side step back round it (<see cref="Square"/>
     /// draws those), and no house stands in it.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
         double time = 0, TownSquare? square = null)
@@ -187,25 +188,25 @@ public sealed partial class WorldArt
             var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
             if (square is { } sq && sq.Side == side)
             {
-                // Up to the square and on from it, on the same ten-metre grid (the last piece past the gate as the other side's).
-                WallRun(mesh, line, eye, wall, start, sq.S0, side * 14.8, from, to);
-                WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / 10) * 10, side * 14.8, from, to);
+                // Up to the square and on from it, on the same bay grid (the last piece past the gate as the other side's).
+                WallRun(mesh, line, eye, wall, start, sq.S0, side * WallOut, from, to);
+                WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / Fortresses.WallBay) * Fortresses.WallBay, side * WallOut, from, to);
             }
             else
-                for (double s = Math.Floor(a / 10) * 10; s < b; s += 10)
+                for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
                 {
                     var t = line.Sample(s);
                     var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                    mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * 14.8), eye, 0)));
+                    mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
                 }
             var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
-            for (double s = Math.Ceiling(a / 120) * 120; s < b; s += 120)
+            for (double s = Math.Ceiling(a / Fortresses.TowerEvery) * Fortresses.TowerEvery; s < b; s += Fortresses.TowerEvery)
             {
-                if (square is { } open && open.Side == side && s > open.S0 - 3 && s < open.S1 + 3)
+                if (Fortresses.InTheSquare(square, s, side, 3))
                     continue;
                 var t = line.Sample(s);
                 var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                var at = t.Position + r * (side * 14.8);
+                var at = t.Position + r * (side * WallOut);
                 mesh.Instances.Add(new MeshInstance(tower, Basis(t.Tangent, at, eye, 0)));
                 // The tower's lamp over the line, a lit pool on the tracks below it.
                 var lamp = (at + r * (-side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
@@ -283,16 +284,13 @@ public sealed partial class WorldArt
         }
     }
 
-    /// <summary>How far apart the houses inside a fortress's walls stand along it, and how far out from the line.</summary>
-    const double HouseEvery = 15, HouseOut = 10.9;
+    // Where the fortress's pieces stand is the sim's (Sim.Run.Fortresses, T124), so its walls, towers and houses are solid
+    // where they're drawn.
+    const double HouseEvery = Fortresses.HouseEvery, HouseOut = Fortresses.HouseOut, WallOut = Fortresses.WallOut;
 
-    /// <summary>Along a fortress's line, clear of its gate: where its houses stand.</summary>
-    static bool InTheVillage(double s, double start, double end, double gateAt) =>
-        s > start + 25 && s < end - 25 && Math.Abs(s - gateAt) > 30;
+    static bool InTheVillage(double s, double start, double end, double gateAt) => Fortresses.InTheVillage(s, start, end, gateAt);
 
-    /// <summary>The home fortress's platform, right of the line behind its gate (<see cref="Fortress"/>), which no house stands on.</summary>
-    static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) =>
-        platform && side > 0 && s > start + 50 && s < gateAt - 20;
+    static bool OnThePlatform(double s, int side, double start, double gateAt, bool platform) => Fortresses.OnThePlatform(s, side, start, gateAt, platform);
 
     /// <summary>
     /// The village the walls keep (T100 playtest: "fort villages should look like protected villages btw with people
@@ -313,10 +311,9 @@ public sealed partial class WorldArt
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             foreach (int side in new[] { -1, 1 })
             {
-                int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
-                if (h % 5 == 0 || OnThePlatform(s, side, start, gateAt, platform) || square is { } sq && sq.Side == side && s > sq.S0 - 5 && s < sq.S1 + 5)
+                if (Fortresses.HouseAt(s, side, start, end, gateAt, platform, square) is not { } v)
                     continue;
-                int v = h % 6;
+                int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
                 var at = t.Position + r * (side * HouseOut);
                 mesh.Instances.Add(new MeshInstance(Piece($"lived-house-{v}", () => TownKit.LivedHouse(_look, v)), Basis(t.Tangent, at, eye, side * MathF.PI / 2)));
                 if (h % 3 != 0)
@@ -356,7 +353,7 @@ public sealed partial class WorldArt
             if (n * 37 % 11 > 2)
                 continue;
             int side = n % 2 == 0 ? -1 : 1;
-            if (OnThePlatform(s, side, start, gateAt, platform) || (n * 7 + (side > 0 ? 3 : 0)) % 5 == 0)
+            if (Fortresses.HouseAt(s, side, start, end, gateAt, platform) is null)
                 continue;
             var t = line.Sample(s);
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;

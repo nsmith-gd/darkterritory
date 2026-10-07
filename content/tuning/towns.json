@@ -1,4 +1,4 @@
-// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): the square inside the departure fortress's
+// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 304): the square inside the departure fortress's
 // walls, who's in it, what's posted there, and how close you come to talk or read. The words are content/world/towns.json.
 // Nothing here is in the systems spec; the director's direction sets no numbers, so each is a first reading, made to
 // fit the yard the line generator already lays (linegen tiers.json "fortress": walls 14.8 m out, houses 10.9 m out

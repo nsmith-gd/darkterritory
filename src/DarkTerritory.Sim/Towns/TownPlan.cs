@@ -1,7 +1,7 @@
 namespace DarkTerritory.Sim.Towns;
 
 /// <summary>
-/// A fortress town as generated (GDD §3.1; ARCHITECTURE §8 note 281): its name and custom, its square, its people and
+/// A fortress town as generated (GDD §3.1; ARCHITECTURE §8 note 304): its name and custom, its square, its people and
 /// their lines, its papers and the things in it to look at. Everything is placed in the main line's rail frame: S metres
 /// along it, D metres out to its right (left is negative), as the stops are (level-design conventions). The same on every
 /// machine: made from the route and the content alone.

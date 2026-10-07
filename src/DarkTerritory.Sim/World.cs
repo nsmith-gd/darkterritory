@@ -583,7 +583,8 @@ public sealed class World
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
+        Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -597,7 +598,7 @@ public sealed class World
     }
 
     /// <summary>
-    /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
+    /// The departure fortress's town (GDD §3.1; note 304): its square, its people and papers, and their walls, built alike
     /// on every machine from the route and the content. Null where the content has no towns or they're switched off.
     /// </summary>
     public Towns.Town? Town { get; private set; }
@@ -611,8 +612,15 @@ public sealed class World
             return;
         var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
         Town = new Towns.Town(plan, content.Tuning, Train.Line);
-        (Train.Walls ??= Sim.Run.StopWalls.Of(route, Train.Line)).Add(Town.Walls);
+        // The departure fortress is the town's: its walls stand back round the square (note 304), so they're built again.
+        if (Forts is { Count: > 0 } forts)
+            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
+        Train.Walls.Add(Town.Walls);
     }
+
+    /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
+    public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
 
     /// <summary>
     /// GDD App. D: the Holdouts at the route's halts, villages and yards, and the respawn queue, the only way back into
@@ -1061,6 +1069,35 @@ public sealed class World
     /// </summary>
     public bool SafeYard => Run is { Phase: Sim.Run.RunPhase.Yard, Tuning.YardIsSafe: true };
 
+    /// <summary>
+    /// GDD §9 "forts must be safe spaces that monsters never enter" (T128; run.json <c>forts</c>, note 273): whether a world
+    /// point is inside one of the night's forts, all night long. The departure fortress is the main line up to its outer gate
+    /// (the run's yard); the terminus is from its gate on (a generated line's plan says where, and whether a silent
+    /// settlement's gate is kept safe; otherwise the run's terminus zone). Either reaches <see cref="Sim.Run.FortTuning.HalfWidthM"/>
+    /// out from the line. No forts without a run.
+    /// </summary>
+    public bool InFort(Ballast.Double3 world)
+    {
+        if (Run is not { Tuning.Forts: { Safe: true } forts } run)
+            return false;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(world, ref hint);
+        double along = hint;
+        var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
+        if (((world - rail.Position) with { Y = 0 }).Length > forts.HalfWidthM)
+            return false;
+        if (along <= run.YardLength)
+            return true;
+        var terminus = run.Route.Plan?.Terminus;
+        if (terminus is { Silent: true, GateSafe: false })
+            return false;
+        return along >= (terminus?.GateM ?? run.Route.Length - run.Tuning.TerminusZone);
+    }
+
+    /// <summary>Any of the train in a fort (note 273): the director sends nothing then.</summary>
+    public bool TrainInFort => Run is { Tuning.Forts.Safe: true } && Train.Frames.Count > 0
+        && (InFort(Train.Frames[0].Origin) || InFort(Train.Frames[Train.Dynamics.Consist.Vehicles[^1].Id].Origin));
+
     public void Step(in TrainControls controls)
     {
         Controls = controls;
@@ -1125,8 +1162,17 @@ public sealed class World
                     Choir.Build = Math.Max(Choir.Build, 1 - InsistLeadSeconds / c.Choir.BuildSeconds);
                     Choir.Floor = Math.Max(Choir.Floor, c.Choir.Threshold * 1.25);
                 }
-                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather.
-                bool swarm = !SafeYard && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
+                // In the safe yard (note 263) the crew can be as loud as they like: the meter doesn't gather. Nor with the train in
+                // a fort (GDD §9; note 273's caveat, note 296): what it had gathered falls away as in the quiet, and a swarm
+                // that followed the train in is gone (its ghosts are driven off by the fort, below).
+                bool fort = !SafeYard && TrainInFort;
+                if (fort)
+                {
+                    if (Choir.Present)
+                        Choir.Disperse(false, c.Choir.RestSeconds);
+                    Choir.Build = Math.Max(0, Choir.Build - c.Choir.QuietDecayPerSecond * SimConstants.TickSeconds);
+                }
+                bool swarm = !SafeYard && !fort && Choir.Step(c.Choir, Loudness(c.Choir), SimConstants.TickSeconds);
                 // Not gathering, nobody's to blame yet: the shares are the BUILD's only (A.7 "during BUILD"). Spent, they're kept
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
@@ -1297,9 +1343,10 @@ public sealed class World
         // Rounds fired this tick land first.
         if (Combat is { } c)
             foreach (var shot in Shots.Where(s => s.HitTargetId > 0))
-                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Gone: false } struck && struck.HitRadius > 0)
+                if (_enemies.FirstOrDefault(e => e.Id == shot.HitTargetId) is { Exposed: true } struck)
                 {
-                    struck.Hit(ctx, c.Guns.DamagePerRound);
+                    // A ball on a creature's body lands as a heavy blow by the gunner, answered by its own rule (note 290).
+                    struck.Hit(ctx, shot.Shooter, c.Guns.DamagePerRound);
                     Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
                 }
 
@@ -1340,7 +1387,7 @@ public sealed class World
                 rule.Spawn(new SpawnContext(this, t, d));
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
                 _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
@@ -1353,11 +1400,19 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
+            d.Abandoned(this, _enemies);
         }
 
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
+        // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
+        if (Run is { Tuning.Forts.Safe: true })
+            foreach (var e in _enemies)
+                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && InFort(e.WorldPosition(Train)))
+                    e.Dismiss();
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
@@ -1423,10 +1478,7 @@ public sealed class World
 
     void RefreshTargets()
     {
-        Targets.Clear();
-        foreach (var e in _enemies)
-            if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+        ExposedBodies(Targets);
         _targetHistory[Tick] = new List<HitTarget>(Targets);
         _targetHistory.Remove(Tick - 32);
     }
@@ -1436,10 +1488,16 @@ public sealed class World
     {
         _enemies.Clear();
         _enemies.AddRange(enemies);
-        Targets.Clear();
-        foreach (var e in _enemies)
-            if (e.HitRadius > 0)
-                Targets.Add(new HitTarget(e.Id, e.HitCentre(Train), e.HitRadius));
+        ExposedBodies(Targets);
+    }
+
+    /// <summary>Every creature's body in the open, as a ball finds it (enemies.json <c>bodies</c>; note 290).</summary>
+    void ExposedBodies(List<HitTarget> into)
+    {
+        into.Clear();
+        if (Enemies is { } t)
+            foreach (var e in _enemies)
+                into.AddRange(e.Body(Train, t));
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>

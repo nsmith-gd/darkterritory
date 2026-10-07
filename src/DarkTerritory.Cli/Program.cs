@@ -75,7 +75,7 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
-    // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
+    // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 304).
     ["town", ..] => Print(TownCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
     // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
@@ -917,7 +917,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
-    // --town [square|centre|board|hall|gate|street]: the departure fortress's town (GDD §3.1; note 281), the train at the gate as a
+    // --town [square|centre|board|hall|gate|street]: the departure fortress's town (GDD §3.1; note 304), the train at the gate as a
     // night starts, the camera standing in it (square: at the way in from the engine, looking at the centrepiece).
     DarkTerritory.Sim.Towns.Town? town = null;
     if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
@@ -2048,7 +2048,7 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
-    // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
+    // --talk person|board|paper|fixture|door [--who i] (note 304): stood in the departure fortress's town in front of one
     // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it.
     TownTalk? talk = null;
     double talkNow = 0;
@@ -2527,7 +2527,7 @@ static int Usage()
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
-             [--route tier:seed --town [square|centre|board|hall|gate|street]]   the departure fortress's town (note 281), standing in it
+             [--route tier:seed --town [square|centre|board|hall|gate|street]]   the departure fortress's town (note 304), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]

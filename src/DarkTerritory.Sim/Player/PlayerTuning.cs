@@ -24,6 +24,9 @@ public sealed record PlayerTuning(
     /// <summary>GDD §22 wind, and spec B.2's "roof run: wind and balance penalty", on a roof's footing (note 201).</summary>
     public WindTuning Wind { get; init; } = new();
 
+    /// <summary>T128 (note 273): a roof's edge holds whoever's only walking at it. Field docs live in player.json <c>edge</c>.</summary>
+    public EdgeTuning Edge { get; init; } = new();
+
     /// <summary>A dropped player's place on the host, and the client's retries (spec E drop-out, GDD v1.4 App. D.2; note 253).</summary>
     public RejoinTuning Rejoin { get; init; } = new();
 
@@ -48,6 +51,11 @@ public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double
 /// either side. Field docs live in player.json <c>wind</c>.
 /// </summary>
 public sealed record WindTuning(double Drift = 0.3, double Still = 0.4, double Walking = 0.5, double GustMetres = 120);
+/// <summary>
+/// T128 (build 1121: "far too easy to fall off the train"; note 273): the edge of a roof (or a coupler plate) holds a player
+/// walking at it, unless they mean to go over. Field docs live in player.json <c>edge</c>.
+/// </summary>
+public sealed record EdgeTuning(double Lip = 0.3, double StepOffDegrees = 30, double CatchDrop = 3.5, bool WindOverLip = false);
 /// <summary>
 /// Rejoining a night after a drop (note 253). Field docs live in player.json <c>rejoin</c>.
 /// </summary>

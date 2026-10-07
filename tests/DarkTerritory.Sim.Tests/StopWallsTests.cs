@@ -8,7 +8,10 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
-/// <summary>T114 playtest ("collisions"): a village's houses are walls, and what was in them is put out on the step.</summary>
+/// <summary>
+/// T114 playtest ("collisions"): a village's houses are walls, and what was in them is put out on the step. T124 (build
+/// 1121: "fort buildings have no collision"): a fortress's walls, towers, gatehouse and houses are too.
+/// </summary>
 public class StopWallsTests
 {
     static readonly PlayerTuning P = Tuning.Player;
@@ -17,7 +20,7 @@ public class StopWallsTests
     {
         var route = Routes.Generate(DataFile.FindContentRoot(), spec, 6);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), route.Build(), 600);
-        train.Walls = StopWalls.Of(route, train.Line);
+        train.Walls = StopWalls.Of(route, train.Line, Fortresses.Of(route, train.Line, 600, Tuning.Run.TerminusZone));
         return (route, train);
     }
 
@@ -66,5 +69,74 @@ public class StopWallsTests
                 steps++;
             }
         Assert.True(steps > 0);
+    }
+
+    /// <summary>A player on the ground at <paramref name="along"/>, <paramref name="across"/> out (right +), facing straight out.</summary>
+    static PlayerState OnTheGround(TrainOnLine train, double along, double across)
+    {
+        var t = train.Line.Sample(along);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var s = PlayerMotor.SpawnOnGround(t.Position + right * across, train.Line, along, P);
+        var outward = right * Math.Sign(across);
+        s.Yaw = Math.Atan2(-outward.X, -outward.Z);
+        return s;
+    }
+
+    /// <summary>How far a point is out from the line (right +), near <paramref name="hint"/> along it.</summary>
+    static double Across(TrainOnLine train, double hint, Double3 p)
+    {
+        var t = train.Line.Sample(hint);
+        for (int i = 0; i < 3; i++)
+            t = train.Line.Sample(Math.Clamp(t.Distance + Double3.Dot(p - t.Position, t.Tangent), 0, train.Line.Length));
+        return Double3.Dot(p - t.Position, Double3.Cross(t.Tangent, Double3.Up).Normalized);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public void WalkingAtTheFortWallStopsAtIt(int side)
+    {
+        // T124: in the home fortress's yard, between two houses, straight out at the wall for five seconds.
+        var (route, train) = Night("frontier:7");
+        const double along = 307.5;
+        var s = OnTheGround(train, along, side * 9);
+        double face = Fortresses.WallOut - Fortresses.WallHalf;
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+        {
+            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+            Assert.False(InAnyWall(train.Walls!, s.Position, P.Radius - 0.02), $"inside a wall at {s.Position}, tick {i}");
+        }
+        Assert.InRange(Math.Abs(Across(train, along, s.Position)), face - P.Radius - 0.1, face - P.Radius + 0.02);
+
+        // Without the fortress's solids (as before T124) the same walk goes straight through the wall.
+        train.Walls = StopWalls.Of(route, train.Line);
+        s = OnTheGround(train, along, side * 9);
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+        Assert.True(Math.Abs(Across(train, along, s.Position)) > Fortresses.WallOut + Fortresses.WallHalf);
+    }
+
+    [Fact]
+    public void TheFortressesStandTheirWallsTowersGatehouseAndHousesOffTheTrack()
+    {
+        var (route, train) = Night("frontier:7");
+        var forts = Fortresses.Of(route, train.Line, 600, Tuning.Run.TerminusZone);
+        Assert.Equal(2, forts.Count);
+        var home = forts[0];
+        var solids = Fortresses.Solids(home, train.Line).ToList();
+        double rail = train.Line.Sample(home.Gate).Position.Y;
+        // Sixty bays of wall a side, five towers a side (0 to 480), the gatehouse's two towers and its arch, and houses.
+        Assert.Equal(2 * 60, solids.Count(w => w.HalfWidth == Fortresses.WallHalf));
+        Assert.Equal(2 * 5, solids.Count(w => w.HalfWidth == Fortresses.TowerHalf && w.HalfLength == Fortresses.TowerHalf));
+        Assert.Single(solids, w => Math.Abs(w.Bottom - rail - Fortresses.ArchBottom) < 1e-9);
+        Assert.True(solids.Count(w => w.HalfWidth >= 2.25 && w.HalfWidth <= Fortresses.LivedDepth / 2 && w.HalfLength != Fortresses.TowerHalf) > 20);
+        // Nothing on the ground stands nearer the line than the gatehouse's passage (the arch is overhead).
+        foreach (var w in solids.Where(w => w.Bottom < rail + Fortresses.ArchBottom - 1))
+        {
+            double near = Math.Abs(Across(train, home.Gate, w.Centre with { Y = rail })) - w.HalfWidth;
+            Assert.True(near >= Fortresses.GateInner - 0.05, $"a solid {near:0.00} m off the line");
+        }
+        // And all of them among the walls the train carries.
+        Assert.True(train.Walls!.All.Count >= solids.Count + Fortresses.Solids(forts[1], train.Line).Count());
     }
 }

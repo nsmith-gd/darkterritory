@@ -101,7 +101,7 @@ public sealed class GreyboxScene
     public Sim.Run.Run? Run { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
-    /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
+    /// <summary>The departure fortress's town (GDD §3.1; note 304): its square, and its people where the town's folk stand.</summary>
     public Sim.Towns.Town? Town { get; set; }
     /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
     public (int Person, Double3 Toward)? TownFacing { get; set; }
@@ -320,9 +320,9 @@ public sealed class GreyboxScene
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
-            Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
-            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
+            // (Where the sim stands their solids, T124.)
+            foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
+                Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -408,7 +408,7 @@ public sealed class GreyboxScene
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
-            Strikes(mesh, Look.Art.Effects, frames, eye);
+            Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -541,7 +541,7 @@ public sealed class GreyboxScene
     /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
     /// down, and each blow or ball's pop and flash on the creature it landed on.
     /// </summary>
-    void Strikes(MeshBuilder mesh, Art.Effects fx, IReadOnlyList<CarFrame> frames, Double3 eye)
+    void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Tick < 0)
             return;
@@ -551,7 +551,14 @@ public sealed class GreyboxScene
                 double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
                 if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
                     continue;
-                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id);
+                // A creature's insides come down on the ground under it (note 290).
+                Vector3? ground = null;
+                if (i.Surface == Sim.Combat.ImpactSurface.Creature)
+                {
+                    double near = hint;
+                    ground = V(i.At with { Y = Sim.Player.PlayerMotor.GroundAt(i.At, line, ref near) }, eye);
+                }
+                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id, ground);
             }
         if (Hits is null)
             return;
@@ -2049,7 +2056,7 @@ public sealed class GreyboxScene
     {
         if (Look is not null)
         {
-            // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
+            // The departure fortress is a town (note 304): its square, and its people where note 107's folk stood.
             var town = start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
             if (town is not null)

@@ -503,7 +503,8 @@ public static class PlayerMotor
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
-            s.Velocity = new Double3(wish.X + WindPush(s, intent, train, p, t), 0, wish.Z);
+            double wind = WindPush(s, intent, train, p, t);
+            s.Velocity = new Double3(wish.X + wind, 0, wish.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
             {
@@ -518,6 +519,9 @@ public static class PlayerMotor
                 s.Velocity = s.Velocity with { Y = p.JumpVelocity };
                 s.Surface = Surface.Air;
             }
+            // T128 (note 273): walking, the edge holds you unless you mean to go over it. A jump goes where it goes.
+            if (s.Surface != Surface.Air)
+                HoldAtEdge(ref s, wish, wind, train, p, dt);
         }
         else if (s.Parent == PlayerState.World)
         {
@@ -555,6 +559,68 @@ public static class PlayerMotor
                 TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
         }
     }
+
+    /// <summary>
+    /// T128 (build 1121: "far too easy to fall off the train"; note 273): on a roof or a coupler plate, a step that would take
+    /// your feet within <see cref="EdgeTuning.Lip"/> of where the footing ends is held there, across the car and along it
+    /// separately (so you slide along the edge). Over the side only if you mean it: walking at it within
+    /// <see cref="EdgeTuning.StepOffDegrees"/> of straight out. Off an end only by a jump or a ladder, unless there's more of
+    /// the train under it to step down onto (a coupler plate, a platform, the tender). The wind (unless
+    /// <see cref="EdgeTuning.WindOverLip"/>) brings you to the lip and no further. A pull, a throw or a jump isn't walking: they
+    /// put you in the air and this never sees them.
+    /// </summary>
+    static void HoldAtEdge(ref PlayerState s, Double3 wish, double wind, TrainOnLine train, PlayerTuning p, double dt)
+    {
+        var e = p.Edge;
+        if (e.Lip <= 0 || s.Parent < 0 || s.Parent >= train.Frames.Count || s.Surface is not (Surface.Roof or Surface.Coupler))
+            return;
+        var v = s.Velocity;
+        if (v.X == 0 && v.Z == 0)
+            return;
+        var frame = train.Frames[s.Parent];
+        var at = s.Position;
+        if (v.X != 0 && !Footing(train, frame, at + new Double3(v.X * dt + Math.Sign(v.X) * e.Lip, 0, 0), e.CatchDrop))
+        {
+            double length = Math.Sqrt(wish.X * wish.X + wish.Z * wish.Z);
+            bool meant = length > 1e-6 && wish.X * Math.Sign(v.X) >= DMath.Cos(e.StepOffDegrees * Math.PI / 180) * length;
+            if (!meant)
+                v = v with { X = e.WindOverLip && Math.Sign(wind) == Math.Sign(v.X) ? wind : 0 };
+        }
+        if (v.Z != 0 && !Footing(train, frame, at + new Double3(0, 0, v.Z * dt + Math.Sign(v.Z) * e.Lip), e.CatchDrop))
+            v = v with { Z = 0 };
+        s.Velocity = v;
+    }
+
+    /// <summary>
+    /// Whether there's footing under a point in a car's frame, given at the height of the feet: this car's or a neighbour's,
+    /// no higher than a step up, and a roof or a plate no further down than <paramref name="drop"/> (beyond that it's the
+    /// ballast).
+    /// </summary>
+    static bool Footing(TrainOnLine train, CarFrame frame, Double3 local, double drop)
+    {
+        if (Catches(frame.Shape.TopAt(local.X, local.Z, local.Y + 0.05), local.Y, drop))
+            return true;
+        var world = frame.ToWorld(local);
+        foreach (var other in train.Frames)
+        {
+            if (other.Index == frame.Index || (other.Origin - world).Length > NearbyCar)
+                continue;
+            var there = other.ToLocal(world);
+            if (Catches(other.Shape.TopAt(there.X, there.Z, there.Y + 0.05), there.Y, drop))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>How far down a step off a roof's footing is still just a step (anything of the train's at all).</summary>
+    const double EdgeStepDown = 0.5;
+
+    /// <summary>
+    /// Footing at a step's height, or a roof or a plate further down to step onto. Not a door's steps, a running board or the
+    /// chassis a long way below: dropped onto from a roof at speed, they're no catch.
+    /// </summary>
+    static bool Catches((double Top, SurfaceKind Kind)? top, double feet, double drop) =>
+        top is { } t && (t.Top >= feet - EdgeStepDown || t.Kind != SurfaceKind.Deck && t.Top >= feet - drop);
 
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
     public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p)
@@ -717,14 +783,10 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
-        // The stops' buildings (T114): pushed out of each wall in its own frame.
+        // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame.
         if (train.Walls is { } walls)
             foreach (var w in walls.Near(world))
-            {
-                var local = w.ToLocal(world);
-                var box = new Box(new Double3(-w.HalfLength, w.Bottom, -w.HalfWidth), new Double3(w.HalfLength, w.Top, w.HalfWidth));
-                world = w.ToWorld(PushOut(local, box, p));
-            }
+                world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
         return world;
     }
 

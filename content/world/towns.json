@@ -1,6 +1,6 @@
 // The fortress towns' writing (GDD §3.1, App. F.1 T133: "fortress towns are where the world is built ... each town has
 // its own odd culture, different from the last ... learn by inference, as in Lethal Company: little notes, and text-only
-// lines from the townspeople"; ARCHITECTURE §8 note 281). The numbers (how many people, notices, reach) are in
+// lines from the townspeople"; ARCHITECTURE §8 note 304). The numbers (how many people, notices, reach) are in
 // tuning/towns.json; this file is only words, read by Sim/Towns/TownGenerator.
 //
 // How a town is written. GDD §2: "the Corruption exaggerates whatever allows something to survive". A town did the

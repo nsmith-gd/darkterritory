@@ -3,6 +3,7 @@ using Ballast;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Towns;
@@ -11,7 +12,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): each its own custom, people with lines, papers
+/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 304): each its own custom, people with lines, papers
 /// to read, made alike on every machine, solid where they stand.
 /// </summary>
 public class TownTests
@@ -33,9 +34,50 @@ public class TownTests
         double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), line, gate - 8);
         var town = new Town(TownGenerator.Generate(Towns, TownSite.Of(route, gate, [], Towns)), Towns.Tuning, line);
-        train.Walls = StopWalls.Of(route, line);
+        // As World.EnableTown stands them: the fortresses' solids (T124), the departure one stepping back round the square.
+        train.Walls = StopWalls.Of(route, line, Forts(route, line, gate, town));
         train.Walls.Add(town.Walls);
         return (route, train, town);
+    }
+
+    static List<Fort> Forts(Route.Route route, RailLine line, double gate, Town town)
+    {
+        var forts = Fortresses.Of(route, line, gate, Tuning.Run.TerminusZone);
+        return [forts[0] with { Square = town.Plan.Square }, .. forts.Skip(1)];
+    }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("local:3")]
+    public void TheFortressStandsBackRoundTheSquare(string spec)
+    {
+        // T124's solid fortress (note 274) and the town's square (note 304): no wall bay across the square's mouth, no gun
+        // tower or village house in it, and the walls either side of it still there.
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var town = new Town(TownGenerator.Generate(Towns, TownSite.Of(route, gate, [], Towns)), Towns.Tuning, line);
+        var sq = town.Plan.Square;
+        var solids = Fortresses.Solids(Forts(route, line, gate, town)[0], line).ToList();
+        (double S, double D) Rail(Double3 p)
+        {
+            double s = (sq.S0 + sq.S1) / 2;
+            line.Nearest(p, ref s);
+            var t = line.Sample(s);
+            return (s, Double3.Dot(p - t.Position, Double3.Cross(t.Tangent, Double3.Up).Normalized));
+        }
+        foreach (var w in solids)
+        {
+            var (s, d) = Rail(w.Centre);
+            bool across = Math.Sign(d) == sq.Side && Math.Abs(d) > 2.5 && Math.Abs(d) < Math.Abs(sq.WallD) - 1;
+            Assert.False(across && s + w.HalfLength > sq.S0 + 0.2 && s - w.HalfLength < sq.S1 - 0.2,
+                $"a fortress solid {w.HalfLength * 2:0.0} m long at ({s - sq.S0:0.0} m into the square, {d:0.0}) stands in it");
+        }
+        // The wall on the square's side runs up to it and on from it.
+        bool Wall(double at) => solids.Any(w => w.HalfWidth == Fortresses.WallHalf && Rail(w.Centre) is var (s, d)
+            && Math.Sign(d) == sq.Side && Math.Abs(s - at) < w.HalfLength + 0.01);
+        Assert.True(Wall(sq.S0 - 1) && Wall(sq.S1 + 1), "the wall either side of the square");
+        Assert.False(Wall((sq.S0 + sq.S1) / 2), "a wall across the square's mouth");
     }
 
     [Fact]

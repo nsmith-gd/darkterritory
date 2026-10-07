@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Stops;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
@@ -17,13 +18,22 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
 
     public Double3 ToWorld(Double3 local) =>
         new(Centre.X + local.X * Axis.X - local.Z * Axis.Z, local.Y, Centre.Z + local.X * Axis.Z + local.Z * Axis.X);
+
+    /// <summary>A direction in the wall's own frame, turned back to the world's.</summary>
+    public Double3 DirToWorld(Double3 local) =>
+        new(local.X * Axis.X - local.Z * Axis.Z, local.Y, local.X * Axis.Z + local.Z * Axis.X);
+
+    /// <summary>The wall's box in its own frame (heights as the world's).</summary>
+    public Box Box => new(new Double3(-HalfLength, Bottom, -HalfWidth), new Double3(HalfLength, Top, HalfWidth));
 }
 
 /// <summary>
-/// The stops' buildings as walls a crewmate can't walk through (T114 playtest: "collisions"). A village's houses, barns
-/// and outbuildings, each part of a house's footprint its own box. Not the yards' sheds (the crates are loaded at them),
-/// nor a Holdout's building (its occupant comes back out of it), nor a well. Built from the route alike on every machine,
-/// so a client predicts walking into one exactly as the host has it.
+/// The stops' buildings and the fortresses' as walls a crewmate can't walk through and a ball stops at (T114 playtest:
+/// "collisions"; T124: "fort buildings have no collision, and gun shots hit nothing"). A village's houses, barns and
+/// outbuildings, each part of a house's footprint its own box; a fortress's walls, gun towers, gatehouse and houses
+/// (<see cref="Fortresses"/>). Not the yards' sheds (the crates are loaded at them), nor a Holdout's building (its occupant
+/// comes back out of it), nor a well. Built from the route alike on every machine, so a client predicts walking into one
+/// exactly as the host has it.
 /// </summary>
 public sealed class StopWalls
 {
@@ -64,9 +74,13 @@ public sealed class StopWalls
         return new Pt(b.S + x * c - y * s, b.D + x * s + y * c);
     }
 
-    public static StopWalls Of(Route.Route route, RailLine line)
+    /// <param name="forts">The line's fortresses (<see cref="Fortresses.Of"/>); none when null.</param>
+    public static StopWalls Of(Route.Route route, RailLine line, IReadOnlyList<Fort>? forts = null)
     {
         var walls = new StopWalls();
+        foreach (var fort in forts ?? [])
+            foreach (var w in Fortresses.Solids(fort, line))
+                walls.Add(w);
         foreach (var f in route.Features)
         {
             if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
@@ -92,7 +106,7 @@ public sealed class StopWalls
         return walls;
     }
 
-    /// <summary>More walls standing beside the stops' (a fortress town's square: note 281).</summary>
+    /// <summary>More walls standing beside the stops' (a fortress town's square: note 304).</summary>
     public void Add(IEnumerable<Wall> walls)
     {
         foreach (var w in walls)

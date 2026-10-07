@@ -35,8 +35,10 @@ public static class TownKit
     public static MeshAsset LivedHouse(Look? look, int variant)
     {
         var k = new Kit(look, 1500 + variant);
-        var rng = new Random(7001 + variant);
-        float w = 5 + (float)rng.NextDouble() * 3, d = 4.5f + (float)rng.NextDouble() * (LivedDepth - 4.5f);
+        // Its size is the sim's (Fortresses.LivedSize, T124: the walls a crewmate bumps into are this house's).
+        var rng = new Random(Sim.Run.Fortresses.HouseSeed + variant);
+        var (fw, fd) = Sim.Run.Fortresses.LivedSize(rng);
+        float w = (float)fw, d = (float)fd;
         House(k, rng, w, d, 0);
         // Lamplight behind the ground-floor glass: the windows House cut, one or two of them.
         k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
@@ -73,7 +75,7 @@ public static class TownKit
     }
 
     /// <summary>The deepest a lived-in house is (front to back), so it fits inside a fortress's walls.</summary>
-    public const float LivedDepth = 6;
+    public const float LivedDepth = (float)Sim.Run.Fortresses.LivedDepth;
 
     /// <summary>
     /// A house <paramref name="w"/> across (X) by <paramref name="d"/> deep (Z), centred on the kit's origin, front to −Z:
