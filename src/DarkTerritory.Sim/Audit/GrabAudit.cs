@@ -255,7 +255,7 @@ public static class GrabAudit
                 }
             case EnemyKind.Moose:
                 {
-                    // At a stop, a crewmate already hurt out on the ground, the moose riled at them from further out (note 311);
+                    // At a stop, a crewmate already hurt out on the ground, the moose riled at them from further out (note 323);
                     // friends along the train, out of its path.
                     var n = new AuditNight(c, Cars, 0, crew);
                     var s = n.Ground(2, 8);

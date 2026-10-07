@@ -83,7 +83,7 @@ public class SpecTableTests
         Assert.True(Rank(DarkTerritory.Sim.Run.BookmarkKind.Derail) >= 0);
     }
 
-    /// <summary>Spec B.12, the Moose (the director's decisions of 7 Oct 2026; note 311).</summary>
+    /// <summary>Spec B.12, the Moose (the director's decisions of 7 Oct 2026; note 323).</summary>
     [Fact]
     public void TheMooseMatchesB12()
     {

@@ -25,6 +25,7 @@ public sealed record EnemyTuning(
     public TippyToesieTuning TippyToesie { get; init; } = new();
     public FireFliesTuning FireFlies { get; init; } = new();
     public RibbitTuning Ribbits { get; init; } = new();
+    public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
     public MooseTuning Moose { get; init; } = new();
@@ -161,6 +162,8 @@ public sealed record WhistlerTuning
     public double NestDistance { get; init; } = 30;
     public double NestMinDistance { get; init; } = 8;
     public double NestStep { get; init; } = 4;
+    /// <summary>How far from its gap a stop's own nest may be and still be where it runs (note 314).</summary>
+    public double NestSiteReach { get; init; } = 110;
     public double NestMaxSlope { get; init; } = 0.4;
     public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;
@@ -667,7 +670,7 @@ public sealed record AbandonedTuning
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
 
-/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 311). Field docs live in enemies.json.</summary>
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 323). Field docs live in enemies.json.</summary>
 public sealed record MooseTuning
 {
     public double CrowdAt { get; init; } = 20;
@@ -717,4 +720,15 @@ public sealed record MooseTuning
     /// <summary>A tier's weight in a table keyed by its camel-cased name (1 where it isn't listed).</summary>
     public static double ByTier(IReadOnlyDictionary<string, double> table, Route.RouteTier tier) =>
         table.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 1);
+}
+
+/// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
+public sealed record CreatureSitesTuning
+{
+    public double Around { get; init; } = 300;
+    public double MinOut { get; init; } = 12;
+    public double WarrenReach { get; init; } = 70;
+    public double RoostReach { get; init; } = 400;
+    public double CallReach { get; init; } = 160;
+    public double GroundMargin { get; init; } = 4;
 }

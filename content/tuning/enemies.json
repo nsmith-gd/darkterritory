@@ -1,4 +1,4 @@
-// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 311) and the
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 323) and the
 // Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
@@ -114,7 +114,7 @@
     "passenger": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
     "stoker": [[0.45, 0.45], [0.4, 1.1]],
     "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]],
-    // The barrel and the hump (note 311); its rack stops nothing, a round in it is a miss.
+    // The barrel and the hump (note 323); its rack stops nothing, a round in it is a miss.
     "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]]
   },
   "gauntAsleep": 0.35,
@@ -175,10 +175,12 @@
   // and wherever the land rose the player was stood up on the hillside when it let go), shorter by nestStep down to
   // nestMinDistance where the land won't have it. Its run there is over the ground, and the way has to be land a person can
   // run: no 2 m of it steeper than nestMaxSlope (rise over run), never more than nestMaxRise m above or below the rail, no
-  // water. Neither side has any: the formation's edge.
+  // water. Neither side has any: the formation's edge. At a generated stop it runs to the nest the layout put out on the
+  // stop's emptiest side (level-design H.2; note 314), the nearest within nestSiteReach of its gap that the same rules allow
+  // and whose way there misses every building. Nowhere does its run go through a wall.
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
-    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6,
+    "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6, "nestSiteReach": 110,
     "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
   },
 
@@ -200,6 +202,14 @@
   "fireFlies": {
     "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5
   },
+
+  // WHERE THE OUTSIDE CREATURES START (level-design H.2; GDD B.6; ARCHITECTURE §8 note 309). A generated stop's layout says
+  // where each lives; the director still says when. At the stops within `around` m of the train: Ribbits come out of the
+  // warren nearest the ground crew within `warrenReach` (a stop whose warrens are all further has none to send); the Gaunt
+  // sleeps in its roost if it's within `roostReach`; a child calls from its call within `callReach`; a Follower takes only a
+  // crewmate standing in one of its grounds (its radius and `groundMargin`). Nothing comes out closer than `minOut` m. A
+  // hand-laid route's stops have no layouts: there they come from out in the dark round the ground crew, as before.
+  "sites": { "around": 300, "minOut": 12, "warrenReach": 70, "roostReach": 400, "callReach": 160, "groundMargin": 4 },
 
   // RIBBITS · sight · outside (App. A.6, B.6). A pack of packSize (never more than the crew) hops at hopSpeed toward the
   // nearest group smaller than it (players within groupRadius of each other: App. C.6); in tongueReach it freezes one and
@@ -226,7 +236,7 @@
   "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10, "around": 12 },
 
   // THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026;
-  // ARCHITECTURE §8 note 311; docs/design/creatures/moose.md). A hyper-aggressive, territorial moose, too big to get on the
+  // ARCHITECTURE §8 note 323; docs/design/creatures/moose.md). A hyper-aggressive, territorial moose, too big to get on the
   // train. Grazing beside a stop, its aggro (0-100) rises crowdPerSecond with anyone on the ground within crowdAt m
   // (closePerSecond within closeAt), voicePerSecond at full voice (by the Voice byte, over talkingAbove of 255) with anyone
   // talking within hearVoice m, and by trainPass once as a train goes by within trainPassAt m; a hit fills it. It falls
@@ -555,7 +565,7 @@
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [
-      // The Moose (note 311): talk to the Gaunt vs. the moose hears every word; never be outnumbered vs. whoever it chases
+      // The Moose (note 323): talk to the Gaunt vs. the moose hears every word; never be outnumbered vs. whoever it chases
       // ends up alone; the coupling gaps hide you from it and hold the Whistler; the loading needs everyone vs. someone
       // keeps it busy.
       ["gaunt", "moose"],

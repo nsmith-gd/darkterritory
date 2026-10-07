@@ -1860,7 +1860,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Moose when _models.ContainsKey("moose"):
                 {
-                    // THE MOOSE (note 311; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
+                    // THE MOOSE (note 323; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
                     // ears and its posture, never the HUD: grazing, head down; listening (aggro over listenAt), the head up and
                     // the ears forward; warning (over warnAt), the ears pinned flat and the sac ridge stood up, a hoof dragged.
                     // Riled it trots after them, squares up (the rack levelled at them, two stamps), charges, skids and wheels

@@ -441,7 +441,7 @@ public class CreatureArtTests
     }
 
     /// <summary>
-    /// The Moose (note 311, docs/design/creatures/moose.md): no HUD shows its meter, its ears and its posture do. Grazing, it
+    /// The Moose (note 323, docs/design/creatures/moose.md): no HUD shows its meter, its ears and its posture do. Grazing, it
     /// browses; past listenAt its head's up (listen), past warnAt the ears are flat and the ridge up (warn). Riled, it goes as
     /// fast as it's going (a walk, a trot), squares up, charges, skids round, jams its rack, rams, pins; and none of it puts
     /// a part of it through another (its rack is its own two bones, fitted as capsules from its mesh).

@@ -557,7 +557,7 @@ public sealed class Director
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
             || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
-                // A grazing Moose (note 311) only waits to be bothered.
+                // A grazing Moose (note 323) only waits to be bothered.
                 or EnemyKind.Moose));
 
     /// <summary>

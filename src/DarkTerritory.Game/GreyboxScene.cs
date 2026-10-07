@@ -481,7 +481,7 @@ public sealed class GreyboxScene
                             && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
-                    // A Moose pinning someone stands over them (note 311): the one it holds.
+                    // A Moose pinning someone stands over them (note 323): the one it holds.
                     if (e.Kind == EnemyKind.Moose && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
@@ -493,7 +493,7 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    // A Moose by the line as the train goes by (note 311): it takes it for a rival, tossing its head after it.
+                    // A Moose by the line as the train goes by (note 323): it takes it for a rival, tossing its head after it.
                     if (e.Kind == EnemyKind.Moose && Look?.Art.Creatures is { } herd)
                         herd.TrainPassing = Math.Abs(_speed) > 1 && frames.Count > 0
                             && frames.Min(f => ((f.Origin - e.Local) with { Y = 0 }).Length - f.Shape.HalfLength) <= herd.MooseTuning.TrainPassAt;
@@ -1065,7 +1065,7 @@ public sealed class GreyboxScene
     /// </summary>
     Crewmate Hung(Crewmate c, Double3 eye)
     {
-        // Pinned under a Moose's rack (note 311; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
+        // Pinned under a Moose's rack (note 323; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
         // head toward it (it's stood over them).
         if (Look?.Art.Creatures?.Pins.TryGetValue(c.Id, out var pin) == true)
             return c with { Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
@@ -1410,7 +1410,7 @@ public sealed class GreyboxScene
         Double3 origin, right, up = Double3.Up, back;
         if (e.Kind == EnemyKind.Moose && e.Attached == Enemy.Loose)
         {
-            // The Moose goes its own way (note 311): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
+            // The Moose goes its own way (note 323): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
@@ -1503,7 +1503,7 @@ public sealed class GreyboxScene
         {
             case EnemyKind.Moose:
                 {
-                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 311): the head up listening,
+                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 323): the head up listening,
                     // down warning, and the rack stood up level in front of it squaring up and charging.
                     var hide = Palette.BlueGrey * 1.5f;
                     bool levelled = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
@@ -2716,7 +2716,7 @@ public sealed class GreyboxScene
         if (Route is { } route)
             foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
             {
-                var p = line.Sample(RailLine.MainPath, Math.Clamp(f.Start, 0, length)).Position;
+                var p = MapStop(line, f, length);
                 draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
             }
         // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
@@ -2776,12 +2776,21 @@ public sealed class GreyboxScene
             MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
         }
         mesh.Emissive = 1;
-        var at = line.Sample(RailLine.MainPath, Math.Clamp(_hint, 0, length)).Position;
+        // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
+        var at = frame.Origin;
         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
     }
+
+    /// <summary>
+    /// Where the run map marks a stop: where the train stands at it (its layout's stop point: a halt's platform, a yard's
+    /// working track), not where its zone begins, 150 to 450 m short of it on frontier:7; a hand-laid stop's middle.
+    /// </summary>
+    public static Double3 MapStop(RailLine line, RouteFeature f, double length) =>
+        f.Stop is { } stop ? Sim.Run.Run.StopWorld(line, f, stop.StopPoint)
+            : line.Sample(RailLine.MainPath, Math.Clamp((f.Start + f.End) / 2, 0, length)).Position;
 
     // The chart's room above and below the line for its title and its scale bar (m of plate).
     const double MapMargin = 0.11;

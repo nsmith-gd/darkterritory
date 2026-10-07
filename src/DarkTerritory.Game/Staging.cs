@@ -738,7 +738,7 @@ public static class Staging
     }
 
     /// <summary>
-    /// The staged Moose (<c>dt screenshot --moose</c>; note 311, docs/design/creatures/moose.md), on the ground off the
+    /// The staged Moose (<c>dt screenshot --moose</c>; note 323, docs/design/creatures/moose.md), on the ground off the
     /// stopped engine's left ahead of it, where its headlamp reaches (beside the line, never on it: well outside the track's
     /// clearance). Its ears and posture are its meter: <c>graze</c> unbothered, <c>listen</c> its head up (aggro past
     /// listenAt), <c>warn</c> ears flat and the sac ridge up (past warnAt); riled at crewmate 4 (<see cref="MooseCrewmate"/>,

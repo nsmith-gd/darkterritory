@@ -1424,7 +1424,7 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
-            // The lineside moose (note 311): grazing beside the line ahead, as the line's own; they cost the director nothing.
+            // The lineside moose (note 323): grazing beside the line ahead, as the line's own; they cost the director nothing.
             if (Insist is null && d.Allows(EnemyKind.Moose) && Route is { } route && Train.Dynamics.Speed > 3 && !TrainInFort)
                 LinesideMoose(t.Moose, route);
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
@@ -1498,7 +1498,7 @@ public sealed class World
     Ballast.Pcg32 _mooseDice;
 
     /// <summary>
-    /// GDD App. B.6, the director's decision of 7 Oct 2026 (note 311): "you can see it standing beside the rail sometimes".
+    /// GDD App. B.6, the director's decision of 7 Oct 2026 (note 323): "you can see it standing beside the rail sometimes".
     /// <see cref="MooseTuning.Lineside"/> per 10 km by tier, fewer where the biome has fewer, put down beside the line
     /// <see cref="MooseTuning.LinesideAhead"/> ahead (never within the track's clearance), one about at a time. Their own
     /// dice from the route's seed, so they never move the director's.

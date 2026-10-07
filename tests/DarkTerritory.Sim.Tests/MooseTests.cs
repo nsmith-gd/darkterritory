@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The Moose (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026; ARCHITECTURE §8 note 311). Rule: give it
+/// The Moose (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026; ARCHITECTURE §8 note 323). Rule: give it
 /// room, keep it quiet. Docile left be; crowded, talked near or hit it warns, squares up and charges; a charge is a heavy
 /// hit and pins the hurt; a friend's blow takes it off them; out of sight it searches and gives up; lost at a car it rams
 /// it (only a ram); the train pulling away ends it; nothing kills it; it's never on the rail.
