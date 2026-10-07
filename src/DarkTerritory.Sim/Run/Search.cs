@@ -5,8 +5,12 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-/// <summary>A hiding spot in an open house (note 326): the stop, its container, where its find is put out, and how long it takes to search.</summary>
-public readonly record struct HidingSpot(int Stop, StopContainer Container, Double3 At, double Seconds)
+/// <summary>
+/// A hiding spot in an open house (note 326): the stop, its container, where its find is put out, and how long it takes to
+/// search; and, for the art, where what it's kept in stands (<see cref="StopWalls.Kept"/>) and the way it faces into the
+/// room (level).
+/// </summary>
+public readonly record struct HidingSpot(int Stop, StopContainer Container, Double3 At, double Seconds, Double3 Kept = default, Double3 Facing = default)
 {
     public int Key => Run.LootOwner(Stop, Container.Index);
 }
@@ -57,8 +61,15 @@ public sealed partial class Run
         {
             var (f, _, stop, _, _, _) = _stopLoot[k];
             foreach (var c in stop.Containers)
-                if (Hides(t, stop, c))
-                    _spots.Add(new HidingSpot(k, c, StopWorld(line, f, StopWalls.FindAt(stop, c)), search.Of(c.Kind)!.Value));
+            {
+                if (!Hides(t, stop, c))
+                    continue;
+                var b = stop.Buildings[c.Building];
+                var (x, y, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
+                var kept = StopWorld(line, f, StopWalls.InHouse(b, x, y));
+                var facing = (StopWorld(line, f, StopWalls.InHouse(b, x + fx, y + fy)) - kept) with { Y = 0 };
+                _spots.Add(new HidingSpot(k, c, StopWorld(line, f, StopWalls.FindAt(stop, c)), search.Of(c.Kind)!.Value, kept, facing.Normalized));
+            }
         }
     }
 
