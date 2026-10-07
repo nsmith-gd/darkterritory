@@ -128,6 +128,29 @@ public sealed class World
     public double BendWarnSeconds { get; set; }
     /// <summary>Host: ticks a bend would have derailed the train but its warning hadn't been up long enough (should be 0).</summary>
     public int BendsSpared { get; set; }
+    /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
+    public double DeadEndWarnSeconds { get; set; }
+    /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
+    public int DeadEndsSpared { get; set; }
+    /// <summary>Host: the dead lines a Switchman has thrown the points for this night (note 286), by branch: C.9's Switchman row.</summary>
+    public HashSet<int> SwitchmanThrew { get; } = new();
+
+    /// <summary>
+    /// Through a dead line's buffers and off the end (note 286). Down a line the Switchman threw it onto, C.9's Switchman row
+    /// names the forward cannon as it always has; otherwise it's the throttle's.
+    /// </summary>
+    void OffTheEnd(int branch, double speed, double limit)
+    {
+        int kmh = (int)Math.Round(speed * 3.6), over = (int)Math.Round(limit * 3.6);
+        if (SwitchmanThrew.Contains(branch))
+        {
+            var (gunner, cannon) = Sim.Run.IncidentLog.ForwardCannon(this);
+            Derail($"ran off the end of the dead line the Switchman threw it down, at {kmh} km/h (over {over} km/h it goes through the buffers)", gunner, cannon);
+        }
+        else
+            Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
+    }
+
     /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
     public List<double> BendCommits { get; } = new();
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
@@ -240,6 +263,21 @@ public sealed class World
 
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
+
+    /// <summary>The last of the swarm killed by the crew together (note 288): the Choir is done for the run, as when it takes its one.</summary>
+    public void ChoirSlain() => _choirTook = true;
+
+    /// <summary>
+    /// Host: the kinds the crew have killed together tonight (note 288, the director's clarification of 7 Oct 2026): a kill is
+    /// for the night, so the director doesn't send that kind again. Driven off, a creature can come back.
+    /// </summary>
+    public HashSet<EnemyKind> Slain { get; } = [];
+
+    /// <summary>
+    /// Host: once-a-run kinds the crew drove off tonight rather than killed (the Passenger, note 288): driven off isn't the end
+    /// of it, so the director may send it again (Spawns' once-a-run rule lets it).
+    /// </summary>
+    public HashSet<EnemyKind> DrivenOff { get; } = [];
     bool _choirTook;
     double _hotFor;
     bool _stokerWasIn;
@@ -1174,7 +1212,19 @@ public sealed class World
         var drag = _enemies.FirstOrDefault(e => !e.Gone && e.Drags >= 0);
         Train.DraggedVehicle = drag?.Drags ?? -1;
         Train.DragFactor = drag is { } d && Train.Dynamics.Speed > d.DragAbove ? d.DragFactor : 0;
+        // A dead line's end (the director's decision of 7 Oct 2026, note 286): the warning counted on the host before the step,
+        // as a bend's is; after it, running through the buffers over the limit with the warning up a full lead derails it.
+        var overspeed = Train.Dynamics.Tuning.Overspeed;
+        if (Authority)
+            DeadEndWarnSeconds = Sim.Train.DeadEnds.Assess(Train, overspeed).Warning ? DeadEndWarnSeconds + SimConstants.TickSeconds : 0;
         Train.Step(SimConstants.TickSeconds, applied);
+        if (Authority && !Derailed)
+        {
+            int spared = DeadEndsSpared, path = Train.Dynamics.Path;
+            if (Sim.Train.DeadEnds.OverranThisTick(Train, path, DeadEndWarnSeconds, overspeed, ref spared) is { } hit)
+                OffTheEnd(path, hit, overspeed.DeadEndDerailAbove);
+            DeadEndsSpared = spared;
+        }
         // The wreck (T117), on the host: a tick of it, and the cars' frames where it's put them.
         if (Train.Wreck is { Puppet: false } wreck)
         {
