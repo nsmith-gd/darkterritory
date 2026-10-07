@@ -2085,7 +2085,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - There's a walkie-talkie aboard. *Noted.*
 
 **The fort**
-- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Fort buildings have no collision, and gun shots hit nothing. *Done (T124, note 274).*
 - Forts must be safe spaces that monsters never enter (§9). *Done (T128, note 273): both forts, all night (`run.json` `forts`): the departure fortress up to its outer gate and the terminus from its gate on, 80 m either side of the line. Nothing is sent while the train is in one, and a creature that comes into one is driven off. Caveat: the fort buildings still have no collision (T124), and the Choir's meter isn't stilled in the terminus.*
 
 **Bugs**

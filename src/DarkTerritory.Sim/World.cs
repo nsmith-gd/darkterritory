@@ -583,7 +583,7 @@ public sealed class World
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line);
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone));
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
