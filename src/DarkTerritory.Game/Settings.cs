@@ -40,6 +40,18 @@ public sealed record Settings
     public string LobbyName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
+    /// <summary>Note 294: the mouse pushed forward looks down, as a flight stick does.</summary>
+    public bool InvertMouse { get; init; }
+    /// <summary>
+    /// Note 294: your eyes' vertical field of view, in degrees, one of <see cref="FieldsOfView"/> (75 as the game was drawn and
+    /// its frame cost measured, tuning/perf.json's views). Wider sees more of the dark, and draws more of it.
+    /// </summary>
+    public double FieldOfView { get; init; } = 75;
+    /// <summary>
+    /// Note 294: how much of the boiler's shake and a strained car's judder reaches your eyes (notes 263, 277), 0 to 1. The
+    /// world says it otherwise too (the gauges, the squeal, the sparks); only the eyes are spared.
+    /// </summary>
+    public double CameraShake { get; init; } = 1;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
     public bool Fullscreen { get; init; }
     /// <summary>T83: wait for the monitor between frames (no tearing); off, frames go out as soon as they're drawn.</summary>
@@ -53,6 +65,10 @@ public sealed record Settings
 
     /// <summary>The resolutions on offer (16:9, the HUD's own shape: ARCHITECTURE §8 note 57's 720p is the least).</summary>
     public static readonly string[] Resolutions = ["1280x720", "1600x900", "1920x1080", "2560x1440"];
+    /// <summary>The fields of view on offer (note 294), vertical degrees: 75 is about 107 across a 16:9 screen.</summary>
+    public static readonly double[] FieldsOfView = [60, 65, 70, 75, 80, 85, 90];
+    /// <summary>The camera shake on offer (note 294): off, a quarter, half, three quarters, all of it.</summary>
+    public static readonly double[] CameraShakes = [0, 0.25, 0.5, 0.75, 1];
     /// <summary>The render scales on offer.</summary>
     public static readonly double[] RenderScales = [0.5, 0.75, 1];
 
@@ -134,12 +150,17 @@ public sealed record Settings
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
+        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
-        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel)));
+        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake)));
+
+    /// <summary>The field of view the eyes are drawn at (note 294): the setting if it's one on offer, else 75.</summary>
+    public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);
 
     /// <summary>The volumes as the mixer takes them.</summary>
     public Ballast.Audio.MixVolumes Volumes => new((float)MasterVolume, (float)EffectsVolume, (float)VoiceVolume, (float)MusicVolume);

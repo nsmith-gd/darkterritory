@@ -860,7 +860,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (!inMenu)
         {
             pendingYaw -= input.MouseDX * sensitivity;
-            pendingPitch -= input.MouseDY * sensitivity;
+            pendingPitch -= input.MouseDY * sensitivity * (settings.InvertMouse ? -1 : 1);
         }
         if (locomotion is not null)
         {
@@ -1023,7 +1023,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var outroTuning = wreckTuning.Stranded;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : derailShot.Camera is { } sequenceCamera ? sequenceCamera
-            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch);
+            : chase ? Views.Get("chase", session.Train) : session.EyeCamera(frames, clock.Alpha, pendingYaw, pendingPitch) with { FovYDegrees = settings.EyeFov };
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
@@ -1033,10 +1033,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // On the engine with the boiler in the red, it shakes you (T109).
         if (!chase && !cinematic)
         {
-            camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds);
+            // The settings' CAMERA SHAKE (note 294) scales both, down to none.
+            camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).
             if (scene.BendStrain is { } judder && session.Viewpoint.Parent is var on and >= 0 && on < judder.Count)
-                camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds);
+                camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds) * settings.CameraShake;
         }
         // E.5's film draws the crew as ragdolls, its cutaway and light rig; the replay, the crew as they were (DerailSequence.Dress).
         DerailSequence.Dress(scene, derailShot, session, camera.Position, derailShot.Replay is null && derailShot.Filming is null ? session.Crew(frames, clock.Alpha) : []);

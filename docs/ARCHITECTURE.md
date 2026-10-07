@@ -4144,3 +4144,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Kept as it was:** the app loads the profile into the front end at the start and again after each night, once the run-end screen has recorded what you were given. Social only, as D.12 says: nothing on the page buys or unlocks anything.
     - **The menus' hints** say LEFT/RIGHT CHANGE only on a page with a value to change (the profile, the in-night menu, LEAVE's confirmation and the credits have none).
     - **Verified:** `ProfileScreenTests` (3); `dt screenshot --menu profile` looked at.
+
+294. **Comfort settings: field of view, invert mouse, camera shake (F1, UI/UX 3; queue #32).** The eyes were drawn at a fixed 75° (vertical: about 107° across a 16:9 screen), the mouse looked one way only, and the boiler's shake (T109) and a strained car's judder (note 277) moved the eyes at full strength for everyone. Each is a setting now, in the settings and on the in-night menu's (note 292), and taken up at once there.
+    - **FIELD OF VIEW**, 60° to 90° in fives (`Settings.FieldsOfView`), 75 by default: the game as it was drawn and its frame cost measured (`dt perf`'s views keep their own cameras, so its budgets are at 75). Wider draws more of the line, so it costs more. Only your own eyes take it: the chase view, the film, the replay and the Stranded outro keep their authored lenses. A hand-edited value that isn't on offer is drawn at 75.
+    - **INVERT MOUSE** turns the pitch over. It's the look intent's sign, so the host and prediction see an ordinary look; nothing deterministic changes.
+    - **CAMERA SHAKE** scales the boiler's shake and the judder, off to all of it in quarters. Only the eyes are spared: the gauges, the safety valve, the squeal and the sparks still say it.
+    - **Not here:** VR takes its lenses and comfort from the headset (vr.json and its own settings), so none of these reach it.
+    - **Verified:** `ComfortSettingsTests` (4); the app headless at 60° and 90° (`--settings` with the field of view set, `--capture`) looked at.
