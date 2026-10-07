@@ -1938,6 +1938,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 // A frame as the game draws it: a solo session stepped for a while, seen first person, with the HUD (T23).
 static object HudShot(string content, string[] args)
 {
+    Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
@@ -2132,7 +2133,8 @@ static object HudShot(string content, string[] args)
     if (session.Route?.Plan is { } plan)
     {
         if (args.Contains("--card"))
-            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line);
+            DarkTerritory.Game.LineGen.PlanHud.RouteCard(hud, width, height, plan, (int)Opt(args, "--page", 0), session.Train.Line,
+                session.Train.Line.MainDistance(session.Train.Dynamics.Path, session.Train.Dynamics.Distance));
         if (args.Contains("--overlay"))
             DarkTerritory.Game.LineGen.PlanHud.Overlay(hud, width, height, session, plan);
     }
@@ -2142,6 +2144,8 @@ static object HudShot(string content, string[] args)
     {
         path = Path.GetFullPath(output),
         prompt = Hud.Prompt(session),
+        // Note 285: the corner, what's in your hands or the cab lets you do.
+        corner = Hud.Hints(session) is var (cornerHead, cornerLines) ? new { head = cornerHead, lines = cornerLines } : null,
         quads = hud.Count / 6,
         status = session.Status(),
         watching = session.Watching,

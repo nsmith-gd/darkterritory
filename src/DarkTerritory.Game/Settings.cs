@@ -27,6 +27,12 @@ public sealed record Settings
     /// <summary>Hold V to talk, rather than an open mic that opens on your voice.</summary>
     public bool PushToTalk { get; init; }
     public bool Hud { get; init; } = true;
+    /// <summary>
+    /// The keys in the HUD's corner for what you're holding or driving (note 285, the director: "a setting to hide corner
+    /// controls"). Off, the corner keeps only what it's about (the speed, what's in your hands); the prompts at the
+    /// crosshair stay.
+    /// </summary>
+    public bool ControlHints { get; init; } = true;
     public VrTurn VrTurn { get; init; } = VrTurn.Snap;
     public bool VrVignette { get; init; } = true;
     /// <summary>The name the crew and the incident report know you by (GDD v1.4 App. D.12); empty, your online or system name.</summary>
@@ -154,7 +160,7 @@ public sealed record Settings
     }
 
     /// <summary>Settings are the same when every choice is, the keys by what's in them (a record compares a dictionary by reference).</summary>
-    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
+    public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud && ControlHints == other.ControlHints
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
@@ -165,7 +171,7 @@ public sealed record Settings
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit)));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints)));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

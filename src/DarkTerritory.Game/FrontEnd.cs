@@ -695,6 +695,8 @@ public sealed class FrontEnd
             new(new($"MIC LEVEL: {Settings.MicLevel * 100:0}%", "Left and right to change: up if the crew can't hear you."), null,
                 by => Change(Settings with { MicLevel = Math.Clamp(Math.Round(Settings.MicLevel + by * 0.1, 1), 0, 3) })),
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
+            new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
+                Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
             // The headset's comfort is set as a night starts: not in a night's menu (note 292), which is the window's.
             .. Night is not null ? (Entry[])[] :
             [

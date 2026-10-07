@@ -665,6 +665,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The player's keys (T80): each control's key, from the settings (a name the platform doesn't know: its default).
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
+    Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
     // In a headset the ballot and the commendations are the stick's (note 202), and say so.
     Hud.Headset = vr is not null;
     var nightKeys = new VrMenuInput();
@@ -1169,7 +1170,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)
-                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage, session.Train.Line);
+                    cardPages = DarkTerritory.Game.LineGen.PlanHud.RouteCard(overlay, UiWidth, UiHeight, shown, cardPage, session.Train.Line,
+                        session.Train.Line.MainDistance(session.Train.Dynamics.Path, session.Train.Dynamics.Distance));
                 if (showPlan)
                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
             }
