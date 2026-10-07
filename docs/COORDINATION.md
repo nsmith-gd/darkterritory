@@ -132,7 +132,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 65 | **Explorable village interiors (App. F.3):** village houses with interiors you walk into and search for finds; where crews decide to split up for loot, work the yard together, or the village together (which takes more time) | B4 | (B4's branch) | 326 | assigned by D1 at the director's call |
 | 66 | **A presence of threat off the train (App. F.3):** leaving the train should feel dangerous at all times: raise the perceived threat in villages and yards (tells, signs, sounds, things glimpsed), and more encounters off the train | D1 (D1.1) | (D1.1's branch) | 327 | claimed |
 | 67 | **The threat orchestrator, and the run between stops (App. F.3):** a design outline: threats orchestrated to the number of players currently active; things to do on the train between stops (maintenance while it runs, threats that board at speed, tower-defense-style attacks for the gunners); then the first piece of it | D1 (D1.2) | `d1.2-orchestrator` | 328 | the outline landing ([orchestrator.md](design/orchestrator.md)); the first piece (a hound run the guns answer at speed) next |
-| 68 | **The cannon's traverse sound (App. F.3):** "a weird high repeated sound" when the gun turns: gone, or low and slow. **Overlaps:** AU1 owns audio; a small change, told on AU1's PR | D1 | `claude/relaxed-franklin-xkfjgb` | 329 | claimed |
+| 68 | **The cannon's traverse sound (App. F.3):** "a weird high repeated sound" when the gun turns: gone, or low and slow. **Overlaps:** AU1 owns audio; a small change, told on AU1's PR | D1 | `claude/relaxed-franklin-xkfjgb`, [#252](https://github.com/nsmith-gd/darkterritory/pull/252) | 329 | done |
 | 69 | **A derailment that commits (App. F.3):** a 30 km/h curve into a yard and the train "glided off the rails"; more impulse and drama at the derail, whatever the speed | D1 | `claude/relaxed-franklin-xkfjgb` | 330 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
@@ -148,6 +148,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| The cannon's traverse sound, low and slow | [#252](https://github.com/nsmith-gd/darkterritory/pull/252) | 329 |
 | A full car says so: CAR 3 IS FULL, carrying freight inside it | [#248](https://github.com/nsmith-gd/darkterritory/pull/248) | 324 |
 | The MODS screen: what's installed, in order, and what couldn't load | [#244](https://github.com/nsmith-gd/darkterritory/pull/244) | 323 |
 | A crew renamed, and deleted, from the fortress | [#242](https://github.com/nsmith-gd/darkterritory/pull/242) | 320 |
