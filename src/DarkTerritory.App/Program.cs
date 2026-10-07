@@ -640,6 +640,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
         Vehicles = session.Train.Vehicles,
+        HotBoxTuning = session.Train.HotBoxTuning,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,

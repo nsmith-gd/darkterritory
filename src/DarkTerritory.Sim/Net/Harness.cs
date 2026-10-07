@@ -38,6 +38,8 @@ public sealed record HarnessOptions
     /// one lit with the train standing (T96), or the driver with neither of them left (note 259).
     /// </summary>
     public Run.HoldoutTuning? Holdouts { get; init; }
+    /// <summary>The jobs the train makes as it runs (note 331: the hot boxes); null, none (a harness night's tests are kept as they were).</summary>
+    public Train.UpkeepTuning? Upkeep { get; init; }
     /// <summary>With a route, the line's boards and what they warn of (sight.json): posted curves, tunnel mouths, Grease.</summary>
     public Route.SightTuning? Sight { get; init; }
     /// <summary>
@@ -261,6 +263,7 @@ public static class Harness
             host.World.EnableHoldouts(ht, hroute);
         if (o.Sight is { } sight && o.Route is { } sightRoute)
             host.World.EnableLineside(sight, sightRoute);
+        host.World.Upkeep = o.Upkeep;
         bool walk = o.WalkAboard && o.Run is not null && o.Route is not null;
         if (walk)
             // On the ballast on the right, beside the cars in turn (the platform's side at the home fortress).
@@ -298,6 +301,7 @@ public static class Harness
                 session.World.EnableHoldouts(h, hr);
             if (o.Sight is { } csight && o.Route is { } lroute)
                 session.World.EnableLineside(csight, lroute);
+            session.World.Upkeep = o.Upkeep;
             clients.Add((session, bot, transport));
         }
         // An insisted night's look-out (note 212): the last walker goes and looks at what lies in wait for it. With no walker

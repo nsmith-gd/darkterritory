@@ -80,6 +80,8 @@ public static class WorldRecords
                     v.LockersOpen,
                     // Its shell breached, and where (decided 1 Oct: it shuts nobody in until it's boarded up).
                     v.Breached ? 1 : 0, Q(v.BreachAt.X, Pos), Q(v.BreachAt.Y, Pos), Q(v.BreachAt.Z, Pos),
+                    // How long its axle box has run hot (note 331): it drags, and it's heard and seen, on every client.
+                    Q(v.HotBox, Fine),
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
@@ -320,7 +322,8 @@ public static class WorldRecords
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 23).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))]));
+                        [.. CarFire.Unpack(f, 24).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        f.Length > 23 ? D(f[23], Fine) : 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

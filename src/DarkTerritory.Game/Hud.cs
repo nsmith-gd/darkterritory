@@ -1404,6 +1404,9 @@ public static partial class Hud
         // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
         if (Breaches.Within(p, train, hand) is not null)
             return $"BOARD IT UP : HOLD [E] ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";
+        // A hot axle box (note 331): greased from the gap behind its car or the ground beside it.
+        if (train.HotBoxTuning is { Enabled: true } hb && HotBoxes.Within(p, train, hb) is not null)
+            return $"GREASE THE HOT BOX : HOLD [E] ({Math.Min(1, p.ActionProgress / hb.GreaseSeconds) * 100:0}%)";
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
         var near = CrewActions.Nearest(p, train, hand);

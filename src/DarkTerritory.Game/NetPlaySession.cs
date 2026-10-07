@@ -171,6 +171,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             world.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), route);
             // GDD App. D: once the gate has opened, the dead come back only through the route's Holdouts.
             world.EnableHoldouts(DataFile.Load<Sim.Run.HoldoutTuning>(Path.Combine(content, Sim.Run.HoldoutTuning.File)), route);
+            // The jobs the train makes as it runs (note 331), host and clients alike: after the run, for its seed.
+            world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
