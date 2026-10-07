@@ -14,7 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cues as C  # noqa: E402
-from install import TELL_SOUNDS  # noqa: E402
+from install import SWAPS, TELL_SOUNDS  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 SOUNDS = os.path.join(ROOT, "content", "audio", "sounds")
@@ -29,6 +29,11 @@ def code_text():
     return "\n".join(out)
 
 
+def swap(line, cue):
+    """The game's sound a cue's takes replace (install.py SWAPS), or None."""
+    return SWAPS.get(f"{line}.{cue['id']}", (None,))[0]
+
+
 def main():
     code = code_text()
     installed = {f[:-5] for f in os.listdir(SOUNDS) if f.endswith(".json")}
@@ -39,13 +44,16 @@ def main():
         if not live:
             continue
         inst = [c for c in live if any(n == f"{line}.{c['id']}" or n.startswith(f"{line}.{c['id']}.") for n in installed)
-                or line in TELL_SOUNDS and TELL_SOUNDS[line][0] in installed]
+                or line in TELL_SOUNDS and TELL_SOUNDS[line][0] in installed
+                or swap(line, c) in installed]
         # hooked: named in code literally, or the line's name in code with the cue's id as a literal (composed names)
         # or a tell the game plays under its own sound's name, which install.py points at the kept takes
         tell = line in TELL_SOUNDS and f'"{TELL_SOUNDS[line][0]}"' in code
         # or composed per tool, $"crew-melee.{ToolName(held)}-swing": the line's name, then the cue's id after its tool
         composed = f'$"{line}.{{' in code
         hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
+                  # or a synth sound of main's the cue's takes replace (install.py SWAPS), played under its own name
+                  or swap(line, c) and f'"{swap(line, c)}"' in code
                   or composed and "-" in c["id"] and f'}}-{c["id"].split("-", 1)[1]}"' in code
                   # or by tool and then by what it hit, $"crew-melee.{ToolName(held)}-hit-{(wood ? "wood" : "metal")}"
                   or composed and c["id"].count("-") >= 2

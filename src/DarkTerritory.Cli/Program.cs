@@ -75,6 +75,7 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
     // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
@@ -2452,6 +2453,17 @@ static object RenderAudio(string content, string[] args)
     if (Str(args, "--sound", "") is { Length: > 0 } sound)
         return RenderSound(content, sound, args);
     string scenario = Str(args, "--scenario", "chaos");
+    // A bend taken too fast (note 265): the stress telegraph built up to the derailment, a second at a time.
+    if (scenario == "bend")
+    {
+        var (bend, bent) = DarkTerritory.Game.Sound.AudioBench.RenderBend(content, Str(args, "--route", "deepTerritory:2"), (int)Opt(args, "--cars", 6),
+            (int)Opt(args, "--listener", 0), Opt(args, "--seconds", 16));
+        string bendOut = Str(args, "--out", "out/audio/bend.wav");
+        Ballast.Audio.Wav.Write(bendOut, bent);
+        string bendPicture = Path.ChangeExtension(bendOut, ".png");
+        PngWriter.Write(bendPicture, DarkTerritory.Game.Sound.Spectrogram.Render(bent, 800, 300), 800, 300, 1);
+        return new { path = Path.GetFullPath(bendOut), spectrogram = Path.GetFullPath(bendPicture), report = bend };
+    }
     if (Str(args, "--listener", "") == "all")
         return DarkTerritory.Game.Sound.AudioBench.Sweep(content, scenario, (int)Opt(args, "--cars", 20), Opt(args, "--speed", 22), Opt(args, "--seconds", 6),
             Str(args, "--space", "") is { Length: > 0 } everywhere ? everywhere : null);
