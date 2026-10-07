@@ -587,8 +587,8 @@ CUES = {
     "tell-moose-listening": [O("none", "The chewing stops: the silence is the tell", vars=1, silent=True)],
     "tell-moose-warning": [
         O("grunt", "A cough-like grunt", vars=3),
-        O("clack", "Teeth clacking", vars=4),
-        O("hoof-drag", "A hoof dragged through the ground", vars=3),
+        O("clack", "A run of teeth clacks", vars=4),
+        O("hoof-drag", "A hoof raked back through the ground (pawing)", vars=3),
     ],
     "tell-moose-square-up": [
         O("stamp", "A hoof stamp (two in a row)", vars=4),

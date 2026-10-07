@@ -1719,6 +1719,81 @@
   "url": "/_blob/4a75b61059287609e5e0f700a01c0ebe",
   "sha": "5df52383d1a026eb"
  },
+ "previews/cs-moose-ram--boom--hull.mp4": {
+  "id": "7016ee671eac2f43f6150848fe592f7c",
+  "url": "/_blob/7016ee671eac2f43f6150848fe592f7c",
+  "sha": "6a98114e9359d392"
+ },
+ "previews/cs-moose-ram--boom--plate.mp4": {
+  "id": "db2830038dbe4bc06b451392b09d9c9f",
+  "url": "/_blob/db2830038dbe4bc06b451392b09d9c9f",
+  "sha": "8fdfb298bc5664f5"
+ },
+ "previews/cs-moose-ram--scrape--drag.mp4": {
+  "id": "28202363ff444e3735f9b95f3d81d0a6",
+  "url": "/_blob/28202363ff444e3735f9b95f3d81d0a6",
+  "sha": "ed633ff8dced3011"
+ },
+ "previews/cs-moose-search--breath--lungs.mp4": {
+  "id": "4bde9fcef8c1b3babe3a4467fe95f1e7",
+  "url": "/_blob/4bde9fcef8c1b3babe3a4467fe95f1e7",
+  "sha": "8559baf87515f901"
+ },
+ "previews/cs-moose-search--breath--nostrils.mp4": {
+  "id": "a234f47000b1a10e518083e05ea9d4d7",
+  "url": "/_blob/a234f47000b1a10e518083e05ea9d4d7",
+  "sha": "ea813504e6582829"
+ },
+ "previews/cs-moose-search--knock--brick.mp4": {
+  "id": "6689a90cfafb792f55977e862b1f4cca",
+  "url": "/_blob/6689a90cfafb792f55977e862b1f4cca",
+  "sha": "7e2509d82a7d61f3"
+ },
+ "previews/cs-moose-search--knock--plank.mp4": {
+  "id": "15c06edac7ef462b9884b4db7513834b",
+  "url": "/_blob/15c06edac7ef462b9884b4db7513834b",
+  "sha": "132b9a67ebc3173e"
+ },
+ "previews/cs-moose-snag--bellow--heaves.mp4": {
+  "id": "98657338d7f5f0f4e7f2f1d2a8666ad1",
+  "url": "/_blob/98657338d7f5f0f4e7f2f1d2a8666ad1",
+  "sha": "d0893aed01a8c1e8"
+ },
+ "previews/cs-moose-snag--bellow--roar.mp4": {
+  "id": "9502da873cdc3c95532683719b3a7363",
+  "url": "/_blob/9502da873cdc3c95532683719b3a7363",
+  "sha": "7d9e2b9857eeabf6"
+ },
+ "previews/cs-moose-snag--grind--haul.mp4": {
+  "id": "f240bff58c020c9762cc07367cdfb4df",
+  "url": "/_blob/f240bff58c020c9762cc07367cdfb4df",
+  "sha": "f28d387b459f1e76"
+ },
+ "previews/cs-moose-snag--grind--wrench.mp4": {
+  "id": "f6c71e40dbf545fcc376012d5fe3ee6d",
+  "url": "/_blob/f6c71e40dbf545fcc376012d5fe3ee6d",
+  "sha": "a69e1100080dac2c"
+ },
+ "previews/cs-moose-snag--groan--strain.mp4": {
+  "id": "bb7f0960172a59d0ea57abec64d50616",
+  "url": "/_blob/bb7f0960172a59d0ea57abec64d50616",
+  "sha": "df79e4e6fdc34e43"
+ },
+ "previews/cs-moose-snag--groan--timber.mp4": {
+  "id": "dc17268eb06af78321f886809cb98746",
+  "url": "/_blob/dc17268eb06af78321f886809cb98746",
+  "sha": "3a4b438e53f4ac19"
+ },
+ "previews/cs-moose-train-pass--bellow--call.mp4": {
+  "id": "53bffe7a7b2660f3cb959524f22b2032",
+  "url": "/_blob/53bffe7a7b2660f3cb959524f22b2032",
+  "sha": "f95b99450276a898"
+ },
+ "previews/cs-moose-train-pass--thrash--verge.mp4": {
+  "id": "dce27e1300fb17b7e16cb6b6f4a85377",
+  "url": "/_blob/dce27e1300fb17b7e16cb6b6f4a85377",
+  "sha": "becfbdefd2ed4b41"
+ },
  "previews/cs-passenger--drag--ankles--wood.mp4": {
   "id": "bb36a4c78f4e699bda28d8e505df7139",
   "url": "/_blob/bb36a4c78f4e699bda28d8e505df7139",
@@ -2248,6 +2323,81 @@
   "id": "647171bec473821ca6bcd007b587b8d6",
   "url": "/_blob/647171bec473821ca6bcd007b587b8d6",
   "sha": "476e1952f40e4c1e"
+ },
+ "previews/tell-moose-charge--brush--through.mp4": {
+  "id": "154718d33cb4b4d1a80b16b8fcba8dea",
+  "url": "/_blob/154718d33cb4b4d1a80b16b8fcba8dea",
+  "sha": "b3fd4003d7e489b1"
+ },
+ "previews/tell-moose-charge--hooves--gallop.mp4": {
+  "id": "55c9b5e7b34b3b2c311869c687f57e02",
+  "url": "/_blob/55c9b5e7b34b3b2c311869c687f57e02",
+  "sha": "cd52cc3377f1acb7"
+ },
+ "previews/tell-moose-charge--hooves--laden.mp4": {
+  "id": "32c71f17812da863ada52258390cfa82",
+  "url": "/_blob/32c71f17812da863ada52258390cfa82",
+  "sha": "8f3cbb18d813ab1f"
+ },
+ "previews/tell-moose-charge--wheeze--stride.mp4": {
+  "id": "e4c04b68a8d20ba7cc75755b36e1a4bc",
+  "url": "/_blob/e4c04b68a8d20ba7cc75755b36e1a4bc",
+  "sha": "dbb18e2fc22e2b52"
+ },
+ "previews/tell-moose-grazing--browse--tear.mp4": {
+  "id": "39d7a26eb9695f899c700319f2353ef8",
+  "url": "/_blob/39d7a26eb9695f899c700319f2353ef8",
+  "sha": "5b99af3fa8a1cc1d"
+ },
+ "previews/tell-moose-grazing--chew--cud.mp4": {
+  "id": "f7712a5336afe7e715c43fbed36f1898",
+  "url": "/_blob/f7712a5336afe7e715c43fbed36f1898",
+  "sha": "80ce7f1029590f83"
+ },
+ "previews/tell-moose-grazing--chew--twigs.mp4": {
+  "id": "8382fa0f7a039c9d031e043d8d2e9bf3",
+  "url": "/_blob/8382fa0f7a039c9d031e043d8d2e9bf3",
+  "sha": "f5d5a548f34957e6"
+ },
+ "previews/tell-moose-grazing--creak--sac.mp4": {
+  "id": "3f42b3b5de408fd8731a1eb052040069",
+  "url": "/_blob/3f42b3b5de408fd8731a1eb052040069",
+  "sha": "ca7ad57318308292"
+ },
+ "previews/tell-moose-grazing--grunt--content.mp4": {
+  "id": "ee77dba846e960b50f4e88f2b73c78cc",
+  "url": "/_blob/ee77dba846e960b50f4e88f2b73c78cc",
+  "sha": "1bc1e70ed319281a"
+ },
+ "previews/tell-moose-square-up--snort--blow.mp4": {
+  "id": "a2c76249e4187f5c5e300508b9cb8fc6",
+  "url": "/_blob/a2c76249e4187f5c5e300508b9cb8fc6",
+  "sha": "4cf42b4f4ff836c3"
+ },
+ "previews/tell-moose-square-up--stamp--hoof.mp4": {
+  "id": "419f36a516563c235adfebb815abd35a",
+  "url": "/_blob/419f36a516563c235adfebb815abd35a",
+  "sha": "09af28dafdd5315e"
+ },
+ "previews/tell-moose-warning--clack--molars.mp4": {
+  "id": "fc135e57a1de13f0b7044a0ecf326a23",
+  "url": "/_blob/fc135e57a1de13f0b7044a0ecf326a23",
+  "sha": "7c4bd31c17a34094"
+ },
+ "previews/tell-moose-warning--grunt--chop.mp4": {
+  "id": "f0b42c188bd76d141b59be72ad2c7694",
+  "url": "/_blob/f0b42c188bd76d141b59be72ad2c7694",
+  "sha": "cf5582d94328d16c"
+ },
+ "previews/tell-moose-warning--grunt--cough.mp4": {
+  "id": "ff2e15f3d57b28142e34c9a08208d727",
+  "url": "/_blob/ff2e15f3d57b28142e34c9a08208d727",
+  "sha": "7f553e7722bb5b7c"
+ },
+ "previews/tell-moose-warning--hoof-drag--paw.mp4": {
+  "id": "eec248ffa1444e1744ab42dc589e772b",
+  "url": "/_blob/eec248ffa1444e1744ab42dc589e772b",
+  "sha": "f87cb70fb3350b4c"
  },
  "previews/tell-soot-children--call--boy.mp4": {
   "id": "99cf8ac7f5758e6a0587c38bd927b0fe",
