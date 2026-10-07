@@ -23,6 +23,8 @@
   "baked": 0.35,
   // Each crewmate's flying cap and scarf are dyed their own colour (by player id, in turn), so eight masked heads can still
   // be told apart on a roof: multipliers over the cap's pale neutral leather (tools/models/crewfigure.py).
+  // The looks' names on the settings' OUTFIT (note 298), in the colours' order.
+  "crewColourNames": ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"],
   "crewColours": [
     [1.35, 0.36, 0.26], [0.3, 0.55, 1.75], [1.35, 1.05, 0.3], [0.25, 1.1, 1.15],
     [0.45, 1.15, 0.32], [1.1, 0.38, 1.35], [1.45, 0.62, 0.2], [1.05, 1.05, 1.05]
