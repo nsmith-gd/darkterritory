@@ -26,7 +26,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | Name | Agent ids | What it is | Log |
 |---|---|---|---|
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
-| **B** | B1; its agents B1.1, … | Claude Code on the director's second account: **Level Design** (the line generator's set pieces, sites, and the world's solidity) | [docs/log/B1.md](log/B1.md) |
+| **B** | B1, B2, B3, B4; their agents B1.1, B2.1, B3.1, B4.1, … | Claude Code on the director's second account, several sessions: B1 **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 **Towns** (the fortress towns and the world's story; registered on [#194](https://github.com/nsmith-gd/darkterritory/pull/194)); B3 **UI/UX** (the HUD overhaul; registered on [#206](https://github.com/nsmith-gd/darkterritory/pull/206)); B4 **Level Design 3**, the third level-design session, beside B1 and B2 | [docs/log/B1.md](log/B1.md), docs/log/B2.md (on #194), docs/log/B3.md (on #206), [docs/log/B4.md](log/B4.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
 
