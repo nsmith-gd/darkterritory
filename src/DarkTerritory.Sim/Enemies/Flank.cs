@@ -283,6 +283,14 @@ public sealed class Whistler(int id) : Enemy(id)
 /// engine, then into the first car that's unlit or has nobody in it, where it's an interior threat: it takes a lone player
 /// in there (a grab a friend can club it off). Rule: outnumber them at the gaps. Bludgeon any that mount. "Scales brutally
 /// with train length": more gaps to hold with the same crew.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>climbers.drivenOff</c>; the director's clarification of 7 Oct 2026):
+/// up on the roofs or in a car, outnumbered where it is (more of the crew than Climbers within <c>countRadius</c> of it)
+/// with no gang striking it, it drops back off the train after <c>outnumberedSeconds</c> (letting go of anyone it holds)
+/// and makes for another gap it hasn't tried: a break, not the night. A lone blow knocks it off a friend it holds and does
+/// no more. Killed only by the crew together: blows from two or more crewmates inside <c>coordinatedKill</c>'s window wear it
+/// down; killed, it's gone for good (the rest of its pack, and the director, aren't put off).
+/// </para>
 /// </summary>
 /// <remarks>
 /// <see cref="Enemy.Extra"/> is the vehicle ahead of the gap it's making for (pacing and mounting), <see cref="Enemy.Extra2"/>
@@ -290,7 +298,7 @@ public sealed class Whistler(int id) : Enemy(id)
 /// </remarks>
 public sealed class Climber(int id) : Enemy(id)
 {
-    double _bored, _bite;
+    double _bored, _bite, _outnumbered;
     int _tries;
     readonly List<int> _tried = [];
 
@@ -358,6 +366,9 @@ public sealed class Climber(int id) : Enemy(id)
             Enter(ctx, SpinePhase.Gone);
             return;
         }
+        if (t.DrivenOff && Attached >= 0 && (Phase is SpinePhase.Grab || Phase is SpinePhase.Commit || Phase is SpinePhase.Telegraph && Extra < 0)
+            && Outnumbered(ctx, t))
+            return;
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -422,6 +433,27 @@ public sealed class Climber(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 break;
         }
+    }
+
+    /// <summary>
+    /// OUTNUMBER THEM (note 288): more of the crew than Climbers within <see cref="ClimberTuning.CountRadius"/> of it, and no
+    /// gang striking it: held for <see cref="ClimberTuning.OutnumberedSeconds"/>, it lets go and drops back off the train for
+    /// another gap (<see cref="Retry"/>). True the tick it does.
+    /// </summary>
+    bool Outnumbered(EnemyContext ctx, ClimberTuning t)
+    {
+        var at = WorldPosition(ctx.Train);
+        int climbers = ctx.World.ActiveEnemies.Count(e => e is Climber c && !c.Gone && c.Attached >= 0 && (c.WorldPosition(ctx.Train) - at).Length <= t.CountRadius);
+        bool beaten = CrewSense.Near(ctx, at, t.CountRadius) > Math.Max(1, climbers) && !Ganged(ctx);
+        _outnumbered = beaten ? _outnumbered + SimConstants.TickSeconds : 0;
+        if (_outnumbered < t.OutnumberedSeconds)
+            return false;
+        _outnumbered = 0;
+        // In a car it has no gap of its own: it goes out over the one behind the car it's in.
+        if (Extra < 0)
+            Extra = Attached;
+        Retry(ctx, t);
+        return true;
     }
 
     /// <summary>Blocked or lost its gap: drop back off the train and make for another it hasn't tried, or give up.</summary>
@@ -534,7 +566,33 @@ public sealed class Climber(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Gone);
     }
 
+    /// <summary>
+    /// Struck with a tool. Old rule (<c>drivenOff</c> false): hurt by any blow. Note 288: only the gang's blows hurt it (two or
+    /// more crewmates inside the window); a lone blow knocks it off a friend it holds and does no more.
+    /// </summary>
+    public override void Struck(EnemyContext ctx, int by, double damage)
+    {
+        if (!ctx.Tuning.Climbers.DrivenOff)
+        {
+            base.Struck(ctx, by, damage);
+            return;
+        }
+        Marked(ctx, by);
+        if (Ganged(ctx, except: Holding))
+        {
+            Health -= damage;
+            if (Health <= 0)
+            {
+                Slay(ctx, forTheNight: false);
+                return;
+            }
+        }
+        if (Phase == SpinePhase.Grab && by != Holding)
+            Rescued(ctx, by);
+    }
+
     /// <summary>Clubbed off: back to lurking in its car (the committed interior threat).</summary>
+
     protected override void Rescued(EnemyContext ctx, int by)
     {
         base.Rescued(ctx, by);

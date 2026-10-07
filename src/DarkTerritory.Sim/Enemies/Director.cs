@@ -268,7 +268,8 @@ public sealed class Director
             var ctx = new SpawnContext(world, et, this);
             foreach (var rule in Spawns.Rules)
             {
-                if (!Allows(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                // Killed by the crew together tonight (note 288): it's done for the night.
+                if (!Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
                 options.Add((rule.Kind, w));
             }

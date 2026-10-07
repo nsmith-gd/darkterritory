@@ -19,6 +19,16 @@
   // knock by its speed). The Stoker's door (stoker.doorBurn, then doorKill; Stoker v3, note 271) is held to minHit too.
   "damage": { "minHit": 30, "minGapSeconds": 2.5 },
 
+  // Driven off by their rules, killed by the crew together (GDD App. F.1: "creatures mostly don't take damage; they're
+  // driven off by their rules"; the director's clarification of 7 Oct 2026: "They should be driven off by rules but they
+  // should also be able to be killed like in Lethal Company if the team coordinates effectively"; ARCHITECTURE §8 note 288).
+  // The Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (each block's drivenOff; false is the old
+  // health fight): following the rule drives one off, a break that can come back; blows wear it down only while gang or
+  // more different crewmates have struck it within windowSeconds (and, per creature, the setup its rule asks for). A lone
+  // player's swinging never kills one. Killed, it's done for the night (a Climber or a ghost: that one), with a line in the
+  // incident report naming the gang.
+  "coordinatedKill": { "gang": 2, "windowSeconds": 5 },
+
   // Enemies farther than this from a player aren't sent to that player's machine (ARCHITECTURE §8 note 23).
   // It must cover the farthest tell anyone can hear, the hound howl's 500 m (audio/sounds/hound-howl.json);
   // AudioTests holds it to that.
@@ -174,16 +184,26 @@
   // Aboard with a crate, it eats cargoPerSecond. B.8: foodWeight more with food aboard.
   // Note 272 (App. F.1, no chip damage): a hit every 3 s (were 15 every 1.5 s), and it mauls once it's bitten you twice
   // (grabBelowHealth was 30).
+  // Note 288 (drivenOff; "gang up or leave it alone"): feral, with gangOf (coordinatedKill.gang) of the crew within
+  // gangRadius m of it and no gang striking it, it breaks off after outnumberedSeconds (letting go of a maul) and scuttles
+  // off for fleeSeconds, then back to gnawing, calmed. Only the gang's blows take its health (and it fights them).
   "grumbler": {
     "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 35, "biteEvery": 3,
-    "grabBelowHealth": 35, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2
+    "grabBelowHealth": 35, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2,
+    "drivenOff": true, "gangRadius": 3, "outnumberedSeconds": 2, "fleeSeconds": 8
   },
 
   // THE CHOIR's swarm (App. A.7): ghosts come when the meter's gathered (combat.json "choir"). Each seizes anyone outside
   // or behind no shut door for seizeSeconds (broken only by killing it); hit, it hits back. It flies flySpeed m/s faster
   // than the train. Quiet for disperseQuietSeconds and they go. Note 272 (App. F.1, no chip damage): a ghost's hit back is a
   // hit, at most once every hitBackEvery s however fast it's struck (was 15 for every blow).
-  "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10, "around": 12 },
+  // Note 288 (drivenOff; "hush, and shut every door"): a seize breaks when the meter's under its threshold for
+  // hushBreakSeconds (the ghost goes) or its catch is behind a shut door (it goes back to the doors); blows don't break it.
+  // Only the gang's blows with the crew holding quiet take a ghost's health; the last of the swarm killed, it's spent.
+  "choir": {
+    "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10,
+    "around": 12, "drivenOff": true, "hushBreakSeconds": 3
+  },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
   // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
@@ -253,7 +273,11 @@
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
-    "breachLitCars": false
+    "breachLitCars": false,
+    // Note 288 (drivenOff; "outnumber them at the gaps"): up on the roofs or in a car, outnumbered where it is (more crew than
+    // Climbers within countRadius) with no gang striking it, it drops back off after outnumberedSeconds (letting go) for
+    // another gap. A lone blow knocks it off a friend; only the gang's blows take its health.
+    "drivenOff": true, "outnumberedSeconds": 2
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
@@ -270,7 +294,12 @@
     "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 60, "hitEvery": 4, "grabBelowHealth": 35,
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
-    "carryLow": 0.55
+    "carryLow": 0.55,
+    // Note 288 (drivenOff; "keep talking to it"). talkingCalms: talk brings its anger down a step every silenceSeconds (Part
+    // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
+    // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
+    // talking to it take its health; a blow in silence angers it a step.
+    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
@@ -294,8 +323,13 @@
   // uncoupleSeconds. B.8: minCrew, and splitWeight more when the crew is spread over splitPlaces or more places.
   "passenger": {
     "walkSpeed": 1.3, "aloneRadius": 8, "stalkSeconds": 5, "reach": 1.2, "dragSpeed": 1.3, "uncoupleSeconds": 4, "health": 5,
-    "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2
+    "lingerSeconds": 1500, "minCrew": 3, "splitPlaces": 3, "splitWeight": 2,
+    // Note 288 (drivenOff; "make everyone speak"): found out, it's done: a crewmate's blow (not its victim's) makes it let go
+    // and bolt off the back of the train at fleeSpeed; it may board again at a later stop. Only the gang's blows (run down
+    // before it's off) take its health.
+    "drivenOff": true, "fleeSpeed": 2.2
   },
+
 
   // CAR FIRE (App. C.5, a supporting system: Fire Flies start it, as can a lamp dropped in a car). It grows; past
   // burnFrom it burns anyone within burnReach and the car's cargo and integrity; past spreadFrom for spreadSeconds it
