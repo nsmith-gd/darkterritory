@@ -3,7 +3,13 @@
 *Creature design, G1 (enemy design). **Status: approved by the director, 7 Oct 2026, and built (queue #50, ARCHITECTURE
 §8 note 311).** It's in the GDD (§21, App. A.6, A.9, B.1, B.6, Part Eleven Q14), level-design H.2, the systems spec (B.12,
 pinned by `SpecTableTests.TheMooseMatchesB12`) and `content/tuning/enemies.json` `moose`. This page keeps the reasons; the
-numbers in §9 are the tuning's. Where building it changed the design, it says so (**As built**).*
+numbers in §9 are the tuning's. Where building it changed the design, it says so (**As built**). Its model is
+`tools/blender/moose.py`; the stills beside this page are from `dt screenshot --view moose|moosecharge|moosepin`.*
+
+![The Moose warning, beside the stopped train](moose-warn.png)
+![Squaring up](moose-squareup.png)
+![The charge](moose-charge.png)
+![A crewmate pinned under its rack](moose-pin.png)
 
 > **A hyper-aggressive, territorial moose, too big to get on the train.**
 
