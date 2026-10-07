@@ -298,10 +298,12 @@
     // and give it up waitForSlowSeconds after their pace; and the director sends them at speed at atSpeedWeight of their
     // weight. Slow on a tight bend (radius tightBendRadius m or less under the train or within bendAheadM ahead: a frontier
     // line's tightest, 300 m, is boarded at 14 m/s) they come bendWeight times as often. The counter: keep her over 50, or
-    // hold the gaps as she takes the bend. And the door rule: litShutCarKeepsOut, a lit car with every door and its hatch
-    // shut keeps them out (they go over it); a dark one they force through the roof, as above.
+    // hold the gaps as she takes the bend. Their door rule stands as decided 1 Oct: shut doors don't stop them; a dark car
+    // they force through the roof, an empty lit one they open. litShutCarKeepsOut (off; the director's call, note 286): a lit
+    // car with every door and its hatch shut keeps them out, and they go on over it (to the cab, with every car lit and shut
+    // as the train leaves the yard).
     "mountBelow": 14, "waitForSlowSeconds": 30, "atSpeedWeight": 0.25, "tightBendRadius": 350, "bendAheadM": 300, "bendWeight": 3,
-    "litShutCarKeepsOut": true
+    "litShutCarKeepsOut": false
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its

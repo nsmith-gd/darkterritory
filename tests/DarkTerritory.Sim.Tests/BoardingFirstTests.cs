@@ -73,15 +73,17 @@ public class BoardingFirstTests
     }
 
     [Fact]
-    public void ALitCarShutUpTightKeepsClimbersOutAndAnOpenDoorLetsThemIn()
+    public void WithTheDirectorsFlagALitCarShutUpTightKeepsClimbersOutAndAnOpenDoorLetsThemIn()
     {
-        var shut = new Night(5, speed: 8);
+        // enemies.json climbers.litShutCarKeepsOut, off by default (the director's call, note 286).
+        var on = E with { Climbers = E.Climbers with { LitShutCarKeepsOut = true } };
+        var shut = new Night(5, speed: 8, enemies: on);
         var over = MountsAndGoesIn(shut);
         Assert.True(over.Inside, $"{over.Phase}");
         Assert.Equal(0, over.Attached); // over every lit, shut car to the cab
         Assert.False(shut.Train.Vehicles[3].Breached);
 
-        var open = new Night(5, speed: 8);
+        var open = new Night(5, speed: 8, enemies: on);
         open.Train.Vehicles[3].ToggleDoor(0);
         var inside = MountsAndGoesIn(open);
         Assert.True(inside.Inside);

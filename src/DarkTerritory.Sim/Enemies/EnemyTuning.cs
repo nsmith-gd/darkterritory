@@ -386,7 +386,7 @@ public sealed record ClimberTuning
     /// Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut keeps them out (they pass over
     /// it, as over a car with crew in it); unset, an empty lit car lets them in whatever its doors.
     /// </summary>
-    public bool LitShutCarKeepsOut { get; init; } = true;
+    public bool LitShutCarKeepsOut { get; init; }
     /// <summary>Note 286 ("slowing opens the doors"): at the gap they get a grip only with the train under this (m/s).</summary>
     public double MountBelow { get; init; } = double.MaxValue;
     /// <summary>Note 286: pacing a train too fast to mount, they give it up this long (s) after their pace.</summary>

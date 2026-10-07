@@ -58,10 +58,10 @@ public class SwitchmanDeadLineTests
         Throws(n, branch);
         var t = n.Train.Dynamics.Tuning.Overspeed;
         double warned = 0;
-        for (int i = 0; i < 400 * SimConstants.TickRate && !n.World.Derailed; i++)
+        for (int i = 0; i < 1200 && !n.World.Derailed; i++)
         {
-            warned = DeadEnds.Assess(n.Train, t).Warning ? warned + SimConstants.TickSeconds : warned;
-            n.Run(SimConstants.TickSeconds);
+            n.Run(0.5);
+            warned = Math.Max(warned, n.World.DeadEndWarnSeconds);
         }
         Assert.True(n.World.Derailed);
         Assert.Matches(@"^ran off the end of the dead line the Switchman threw it down, at \d+ km/h \(over 25 km/h it goes through the buffers\)$", n.World.DerailCause);
@@ -98,7 +98,7 @@ public class SwitchmanDeadLineTests
     {
         var (n, branch) = AtADeadLine(10);
         var s = Throws(n, branch);
-        n.Run(25);
+        n.Run(32);
         Assert.Equal(SpinePhase.Telegraph, s.Phase);
         Assert.True(n.Train.Diverging(branch));
         // One cannon round is four blows (App. C.2).

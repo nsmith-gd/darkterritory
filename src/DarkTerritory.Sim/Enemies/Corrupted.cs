@@ -258,8 +258,10 @@ public sealed class Switchman(int id) : Enemy(id)
         switch (Phase)
         {
             case SpinePhase.Dormant:
-                // At the lever. The routing kind has already thrown it: the lamp reads wrong.
-                if (!Derailer && !ctx.World.SetSwitch(Branch, true))
+                // At the lever. The routing kind has already thrown it: the lamp reads wrong. (Note 286: once thrown, it
+                // waits there. It threw it again every tick, and World.SetSwitch says false for a switch already set, so
+                // it was gone the tick after it threw, its lever left over with nobody at it to see or shoot.)
+                if (!Derailer && !train.Diverging(Branch) && !ctx.World.SetSwitch(Branch, true))
                 {
                     Enter(ctx, SpinePhase.Gone);
                     return;
