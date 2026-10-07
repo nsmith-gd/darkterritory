@@ -63,14 +63,14 @@ public class IncidentEventTests
         var fire = Only(n.World, IncidentKind.Fire);
         Assert.Equal("Fire Flies set car 3 alight", fire.What);
         Assert.Equal(2, fire.Actor);
-        Assert.Equal("Lamp lit by {actor}.", fire.Action);
+        Assert.Equal("Drawn by the car's lamp, relit by {actor}.", fire.Action);
         // The fire it started taking hold is the same fire: no second record for it.
         n.Run(E.CarFire.BurnFrom / Math.Max(1e-3, E.CarFire.GrowPerSecond) + 2);
         Assert.Single(n.World.Attribution.Log);
     }
 
     [Fact]
-    public void ALampNobodyLitIsSaidSo()
+    public void ALampLitSinceTheYardIsSaidSoAndTheWayIn()
     {
         var n = new Night(5, speed: 0);
         n.Train.Vehicles[2].LampLit = true;
@@ -78,7 +78,14 @@ public class IncidentEventTests
         n.Run(E.FireFlies.IgniteSeconds + 1);
         var fire = Only(n.World, IncidentKind.Fire);
         Assert.Equal(-1, fire.Actor);
-        Assert.Equal("Nobody lit that lamp.", fire.Action);
+        Assert.Equal("Drawn by the car's lamp, lit since the yard.", fire.Action);
+        // T131: "Nobody lit that lamp" is gone; a door left open is the way in a shut car would have kept them from (note 286).
+        var m = new Night(5, speed: 0);
+        m.Train.Vehicles[2].LampLit = true;
+        m.Train.Vehicles[2].DoorsOpen = 1;
+        m.World.AddEnemy(id => FireFlies.OnLamp(id, m.Train, 2));
+        m.Run(E.FireFlies.IgniteSeconds + 1);
+        Assert.Equal("Drawn by the car's lamp, lit since the yard. Door left open.", Only(m.World, IncidentKind.Fire).Action);
     }
 
     [Fact]
