@@ -670,15 +670,32 @@ public sealed class CreatureArt
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
-        {
-            var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
-            var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
-            var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
-            hung.Translation = fist - up * LanternRing;
-            mesh.Append(hanging, hung);
-            LastHanging = fist - up * (LanternRing - LanternFlame);
-        }
+            Hung(mesh, m, hanging, model);
         return true;
+    }
+
+    /// <summary>
+    /// Hangs <paramref name="hanging"/> from the right fist of the figure last drawn as <paramref name="figure"/> by
+    /// <see cref="Draw(MeshBuilder, string, string, double, bool, in Matrix4x4, int, float, float, Func{ModelMaterial, MaterialLook, MaterialLook}?)"/>
+    /// at <paramref name="model"/>, as <see cref="Crewmate"/>'s hanging does (a town's lamp-carriers, note 281); its flame
+    /// is then <see cref="LastHanging"/>. False when that figure isn't built.
+    /// </summary>
+    public bool Hang(MeshBuilder mesh, MeshAsset hanging, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        Hung(mesh, m, hanging, model);
+        return true;
+    }
+
+    void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        hung.Translation = fist - up * LanternRing;
+        mesh.Append(hanging, hung);
+        LastHanging = fist - up * (LanternRing - LanternFlame);
     }
 
     /// <summary>The hand lamp's ring and flame over its foot (tools/models/recipes/hand_lantern.py's sockets, 0.36 m tall).</summary>

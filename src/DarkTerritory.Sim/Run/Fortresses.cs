@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Run;
 /// <see cref="End"/>, its gatehouse over the line at <see cref="Gate"/>, the home fortress's platform behind its gate, and
 /// the lived-in village between the line and the walls while the town still answers (T100; linegen plan §22.4). A town's
 /// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
-/// walls), and no tower or house stands in it.
+/// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood.
 /// </summary>
 public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null);
 
@@ -131,7 +131,8 @@ public static class Fortresses
             for (double s = Math.Ceiling(a / TowerEvery) * TowerEvery; s < b; s += TowerEvery)
                 if (!InTheSquare(fort.Square, s, side, 3))
                     yield return At(s, side * WallOut, TowerHalf, TowerHalf, -3, TowerHeight);
-            if (!fort.Lived)
+            // A town's houses are its own (Towns.Town's walls, note 281), not this village's.
+            if (!fort.Lived || fort.Square is not null)
                 continue;
             for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
                 if (HouseAt(s, side, fort.Start, fort.End, fort.Gate, fort.Platform, fort.Square) is { } v)

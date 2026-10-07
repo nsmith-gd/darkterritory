@@ -37,17 +37,19 @@ public sealed partial class WorldArt
         // The buildings, fronts to the line, a lamp burning by each door.
         foreach (var b in plan.Buildings)
         {
-            var piece = Piece($"square-{b.Kind}-{b.Length:0}x{b.Depth:0}", () => SquareKit.Building(_look, b.Kind, (float)b.Length, (float)b.Depth));
+            var piece = Piece($"square-{b.Kind}-{b.Style}-{b.Length:0}x{b.Depth:0}", () => SquareKit.Building(_look, b.Kind, (float)b.Length, (float)b.Depth, b.Style));
             var m = Place(line, eye, town.World(b.S, b.D), b.S, 0, -side);
             mesh.Instances.Add(new MeshInstance(piece, m));
             var lamp = Vector3.Transform(SquareKit.Lamp((float)b.Depth, b.Kind == "hall"), m);
             mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.3f, 9));
             mesh.Billboard(lamp, 0.8f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
         }
-        // The things in it.
+        // The things in it (those inside the houses are the houses' own: Houses).
         int notices = plan.Papers.Count(p => p.OnBoard);
         foreach (var f in plan.Fixtures)
         {
+            if (f.House >= 0)
+                continue;
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
             var piece = Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
@@ -81,6 +83,57 @@ public sealed partial class WorldArt
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 2.2f, 16));
             mesh.Billboard(flame, 1.0f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
         }
+    }
+
+    /// <summary>
+    /// A town's houses down its street (note 281; <see cref="MaritimeKit"/>), within [<paramref name="from"/>,
+    /// <paramref name="to"/>]: fronts to the line, lamplight in the windows of those lived in (none where the custom keeps
+    /// them dark), the open ones built inside to the layout the Sim walls them by, their lamps and range lit while you're
+    /// near enough to see in.
+    /// </summary>
+    public void Houses(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        bool lit = plan.Culture != "shutters";
+        foreach (var h in plan.Houses)
+        {
+            if (h.S < from - 20 || h.S > to + 20)
+                continue;
+            var at = town.World(h.S, h.D);
+            double far = (at - eye).Length;
+            if (far > 320)
+                continue;
+            var m = Place(line, eye, at, h.S, 0, -h.Side);
+            if (h.Layout is null)
+            {
+                float w = (float)Math.Round(h.Width, 1), d = (float)Math.Round(h.Depth, 1);
+                var piece = Piece($"maritime-{h.Kind}-{h.Style}-{h.Paint}-{w:0.0}x{d:0.0}-{lit}", () => MaritimeKit.House(_look, h.Kind, h.Style, h.Paint, w, d, lit));
+                mesh.Instances.Add(new MeshInstance(piece, m));
+                // A lived-in house's lamp by its door, its light on the clapboard and the ground in front (a custom that keeps
+                // the windows dark keeps it low).
+                if (h.Kind == HouseKind.Lived && far < 140)
+                    Porch(mesh, m, 0, d, lit);
+                continue;
+            }
+            string? thing = plan.Fixtures.FirstOrDefault(f => f.House == h.Id && f.Kind is not ("stove" or "stairdoor" or "photo"))?.Kind;
+            var open = Piece($"maritime-open-{plan.Name}-{h.Id}-{h.S:0.0}-{h.Width:0.00}-{thing}-{lit}", () => MaritimeKit.Open(_look, h, thing, lit));
+            mesh.Instances.Add(new MeshInstance(open, m));
+            // Its lamps inside, its lamp by the door, and the light out of its open door onto the step.
+            float dz = (float)(-h.Depth / 2), dx = (float)(h.Side * h.Layout.DoorU);
+            Porch(mesh, m, dx, (float)h.Depth, lit);
+            mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(dx, 1.2f, dz - 0.8f), m), Palette.LampAmber * 0.7f, 5));
+            if (far < 40)
+                foreach (var (p, colour, range) in MaritimeKit.Lights(h))
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(p, m), colour, range));
+        }
+    }
+
+    /// <summary>A house's door lamp (<see cref="MaritimeKit.Porch"/>) lit, low where the custom keeps the windows dark.</summary>
+    void Porch(MeshBuilder mesh, in Matrix4x4 m, float doorX, float depth, bool lit)
+    {
+        var lamp = Vector3.Transform(MaritimeKit.Porch(doorX, depth, (float)_look.Doorway.Height), m);
+        mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * (lit ? 1.0f : 0.3f), lit ? 7 : 3.5f));
+        mesh.Billboard(lamp, lit ? 0.5f : 0.25f, 0, new Vector4(Palette.LampAmber * (lit ? 0.5f : 0.2f), 1), -1, FxBlend.Additive);
     }
 
     /// <summary>A thing at <paramref name="at"/>, its front (−Z) turned to face along the line by <paramref name="faceS"/>

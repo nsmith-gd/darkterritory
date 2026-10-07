@@ -176,7 +176,7 @@ public sealed partial class WorldArt
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
     /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
-    /// draws those), and no house stands in it.</param>
+    /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
         double time = 0, TownSquare? square = null)
     {
@@ -230,8 +230,9 @@ public sealed partial class WorldArt
                 }
             }
         }
-        if (lit)
-            FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform, square);
+        // A town (note 281) has its own houses, its plan's (Houses); a fortress that isn't one has note 107's village.
+        if (lit && square is null)
+            FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform);
         if (gateAt >= from && gateAt <= to)
         {
             var t = line.Sample(gateAt);
@@ -298,8 +299,7 @@ public sealed partial class WorldArt
     /// and there and the odd one lighting the ground in front, gaps between them. Laid out from where they stand, so it
     /// doesn't change as you pass.
     /// </summary>
-    void FortVillage(MeshBuilder mesh, RailLine line, Double3 eye, double a, double b, double start, double end, double gateAt, bool platform,
-        TownSquare? square = null)
+    void FortVillage(MeshBuilder mesh, RailLine line, Double3 eye, double a, double b, double start, double end, double gateAt, bool platform)
     {
         for (double s = Math.Ceiling(a / HouseEvery) * HouseEvery; s < b; s += HouseEvery)
         {
@@ -311,7 +311,7 @@ public sealed partial class WorldArt
             var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             foreach (int side in new[] { -1, 1 })
             {
-                if (Fortresses.HouseAt(s, side, start, end, gateAt, platform, square) is not { } v)
+                if (Fortresses.HouseAt(s, side, start, end, gateAt, platform) is not { } v)
                     continue;
                 int h = (int)(s / HouseEvery) * 7 + (side > 0 ? 3 : 0);
                 var at = t.Position + r * (side * HouseOut);

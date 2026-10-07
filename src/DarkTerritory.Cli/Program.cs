@@ -920,8 +920,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         return Print(new { error = $"no {Str(args, "--structure", "")} on {Str(args, "--route", "")}'s main line", has = generated?.Plan?.Structures.Where(x => x.Edge == "main").Select(x => x.Type.ToString()).Distinct() });
     if (structure is not null)
         at = (structure.S0 + structure.S1) / 2 + t.Geometry.EngineLength + t.Geometry.CarLength;
-    // --town [square|centre|board|hall|gate|street]: the departure fortress's town (GDD §3.1; note 281), the train at the gate as a
-    // night starts, the camera standing in it (square: at the way in from the engine, looking at the centrepiece).
+    // --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]: the departure fortress's town (GDD §3.1;
+    // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
+    // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
     DarkTerritory.Sim.Towns.Town? town = null;
     if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
     {
@@ -2531,7 +2532,7 @@ static int Usage()
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
-             [--route tier:seed --town [square|centre|board|hall|gate|street]]   the departure fortress's town (note 281), standing in it
+             [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
           screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits [--down n] [--saves dir]

@@ -62,7 +62,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind; forts safe from creatures | A1.5 | `t128`, [#200](https://github.com/nsmith-gd/darkterritory/pull/200) | 273 | done |
 | 8 | **T124:** fort collision, and the guns hitting at the forts | A1.6 | `t124`, [#199](https://github.com/nsmith-gd/darkterritory/pull/199) | 274 | done |
 | 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools`, [#201](https://github.com/nsmith-gd/darkterritory/pull/201) | 275 | in review |
-| 10 | **Towns (T133) and world building:** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople), much more interactable | B2 | `ccr-e37431e3-bzfu8i`, [#194](https://github.com/nsmith-gd/darkterritory/pull/194) (the claim and the first pass; the Maritime houses and households next, on the same branch) | 281 | in review |
+| 10 | **Towns (T133) and world building:** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople), much more interactable | B2 | `ccr-e37431e3-bzfu8i`, [#194](https://github.com/nsmith-gd/darkterritory/pull/194) (the claim, the first pass, and the second: Maritime towns of 20–350, their houses and households) | 281 | in review |
 | 11 | **The cab redesign:** cab forward, the controls at the front with the whole line in view, the coal bunker in the cab (the director's sketch) | C1 | `claude/busy-carson-0i3g8d`, [#190](https://github.com/nsmith-gd/darkterritory/pull/190) | 276 | done |
 | 12 | **Art checklist L1s:** the boiler rupture's burst and seized engine, the noisy toys' models, the headlamp out, lockers that don't block each other, bend limits on the route card, smaller prompts, a lighter HUD out of the cab, the overspeed telegraph's flange sparks, the crew in the wreck mid-task | C1 | `claude/busy-carson-0i3g8d`, [#195](https://github.com/nsmith-gd/darkterritory/pull/195) | 277 | done |
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
@@ -100,7 +100,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
-| Fortress towns, first pass: a custom each, people who talk, papers to read, a square that's solid (queue #10 goes on: the Maritime houses) | [#194](https://github.com/nsmith-gd/darkterritory/pull/194) | 281 |
+| Fortress towns: a custom each, people who talk, papers to read, a solid square; Maritime towns of 20–350 with houses to walk into and their households at home (queue #10 goes on: the houses to the director's references) | [#194](https://github.com/nsmith-gd/darkterritory/pull/194) | 281 |
 | Blocked sidings: derelict cars on a yard's sidings, by tier, cleared at a cost | [#214](https://github.com/nsmith-gd/darkterritory/pull/214) | 294 |
 | T128: hard to fall off, grabs go somewhere sensible, the left-behind hunted, forts safe | [#200](https://github.com/nsmith-gd/darkterritory/pull/200) | 273 |
 | The fortresses are solid, and the guns hit them (T124) | [#199](https://github.com/nsmith-gd/darkterritory/pull/199) | 274 |

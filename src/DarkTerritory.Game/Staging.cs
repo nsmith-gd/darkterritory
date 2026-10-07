@@ -67,6 +67,23 @@ public static class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
+        var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour")
+        {
+            var l = home.Layout;
+            int k = l?.Kitchen ?? 1;
+            double du = l?.DoorU ?? 0, pv = l?.PassV ?? home.Depth / 2, w = home.Width;
+            Double3 At(double u, double v, double up) => home.Rail(u, v) is var (s, d) ? town.World(s, d, up) : default;
+            return where switch
+            {
+                // On the houses' side of the train (it stands at the gate, beside them), looking down their street.
+                "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
+                "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
+                "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                _ => Ballast.Render.Camera.LookAt(At(k * 1.0, pv - 0.4, 1.65), At(-k * w / 2, pv + 0.9, 1.1), 75),
+            };
+        }
         return where switch
         {
             "board" => Ballast.Render.Camera.LookAt(town.World(board.S - 1.2, board.D - side * 2.2, 1.65), town.World(board.S, board.D, 1.5), 60),

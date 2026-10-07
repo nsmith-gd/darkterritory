@@ -51,7 +51,7 @@ public class TownTalkTests
         var s = Night();
         var town = StandAt(s, "person", 3);
         var person = town.Plan.People[3];
-        Assert.Equal($"[E] TALK TO {person.Name.ToUpperInvariant()}", Hud.Prompt(s));
+        Assert.Equal($"{person.Name.ToUpperInvariant()}   TALK : [E]", Hud.Prompt(s));
         var target = Hud.TownTarget(s);
         Assert.Equal(new TownTarget(TownTargetKind.Person, person.Id), target);
         var talk = new TownTalk();
@@ -81,7 +81,7 @@ public class TownTalkTests
     {
         var s = Night();
         var town = StandAt(s, "board");
-        Assert.StartsWith("[E] READ THE BOARD", Hud.Prompt(s));
+        Assert.StartsWith("THE BOARD (", Hud.Prompt(s));
         var talk = new TownTalk();
         var target = Hud.TownTarget(s);
         for (int i = 0; i < town.Notices.Count; i++)
@@ -112,7 +112,7 @@ public class TownTalkTests
         var at = s.Player.Position + (town.Feet(person) - s.Player.Position) * 0.4 + Double3.Up * 0.2;
         var lamp = s.World.Bodies.SpawnItem(at, person.S, Sim.Physics.BodyKind.Lamp);
         Assert.Equal(PlayerState.World, lamp.Parent);
-        Assert.Equal($"[E] TALK TO {person.Name.ToUpperInvariant()}", Hud.Prompt(s));
+        Assert.Equal($"{person.Name.ToUpperInvariant()}   TALK : [E]", Hud.Prompt(s));
         Assert.NotNull(Hud.TownTarget(s));
     }
 
@@ -142,7 +142,9 @@ public class TownTalkTests
             var words = plan.People.SelectMany(p => p.Lines.Append(p.Name).Append(p.Title))
                 .Concat(plan.Papers.SelectMany(p => new[] { p.Title, p.Text }))
                 .Concat(plan.Fixtures.SelectMany(f => new[] { f.Name, f.Text }))
-                .Concat(plan.Buildings.SelectMany(b => new[] { b.Name, b.Knock }));
+                .Concat(plan.Buildings.SelectMany(b => new[] { b.Name, b.Knock }))
+                .Concat(plan.Houses.SelectMany(h => new[] { TownTalk.HouseName(h), h.Text }))
+                .Append(plan.Name).Append(plan.Law);
             foreach (string text in words)
                 foreach (char c in text)
                     Assert.True(c == '?' || !ReferenceEquals(font.Glyph(c), unknown), $"no glyph for '{c}' in \"{text}\"");

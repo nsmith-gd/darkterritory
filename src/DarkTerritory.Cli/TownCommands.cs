@@ -25,6 +25,16 @@ static class TownCommands
         {
             route = spec,
             plan.Name,
+            plan.Population,
+            plan.Former,
+            houses = plan.Houses.GroupBy(h => h.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+            open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
+            {
+                h.Family,
+                at = new[] { Math.Round(h.S - gate, 1), Math.Round(h.D, 1) },
+                household = plan.People.Where(p => p.House == h.Id).Select(p => $"{p.Name} ({p.Title}, {p.Pose})"),
+                things = plan.Fixtures.Where(f => f.House == h.Id).Select(f => $"{f.Name}: {f.Text}"),
+            }),
             plan.Culture,
             plan.Creature,
             plan.Law,
@@ -32,7 +42,7 @@ static class TownCommands
             plan.Industry,
             plan.Quirks,
             square = new { plan.Square.S0, plan.Square.S1, plan.Square.Side, plan.Square.WallD, gate },
-            people = plan.People.Select(p => new { p.Id, p.Name, p.Title, at = new[] { Math.Round(p.S - gate, 1), Math.Round(p.D, 1) }, p.Lines }),
+            people = plan.People.Select(p => new { p.Id, p.Name, p.Title, at = new[] { Math.Round(p.S - gate, 1), Math.Round(p.D, 1) }, p.House, p.Pose, p.Lines }),
             papers = plan.Papers.Select(p => new { p.Title, p.Text, where = p.OnBoard ? "board" : $"{Math.Round(p.S - gate, 1)}, {Math.Round(p.D, 1)}" }),
             fixtures = plan.Fixtures.Where(f => f.Text.Length > 0).Select(f => new { f.Kind, f.Name, f.Text }),
             doors = plan.Buildings.Select(b => new { b.Name, b.Knock }),
@@ -44,7 +54,7 @@ static class TownCommands
     static object Sweep(TownContent towns, string[] roster, int seeds)
     {
         var cultures = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        int repeats = 0, longestLine = 0, longestPaper = 0, minPeople = int.MaxValue, maxPeople = 0;
+        int repeats = 0, longestLine = 0, longestPaper = 0, minPeople = int.MaxValue, maxPeople = 0, minPop = int.MaxValue, maxPop = 0, maxHouses = 0;
         string? last = null;
         string[] industries = [.. towns.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         for (int i = 1; i <= seeds; i++)
@@ -58,8 +68,11 @@ static class TownCommands
             longestPaper = Math.Max(longestPaper, plan.Papers.Max(p => p.Text.Length));
             minPeople = Math.Min(minPeople, plan.People.Count);
             maxPeople = Math.Max(maxPeople, plan.People.Count);
+            (minPop, maxPop) = (Math.Min(minPop, plan.Population), Math.Max(maxPop, plan.Population));
+            maxHouses = Math.Max(maxHouses, plan.Houses.Count);
+            longestLine = Math.Max(longestLine, plan.Fixtures.Select(f => f.Text.Length).DefaultIfEmpty(0).Max() > 420 ? 9999 : longestLine);
         }
-        return new { seeds, roster = roster.Length == 0 ? "all" : string.Join(",", roster), cultures, repeatsOfTheLast = repeats, longestLine, longestPaper, people = new[] { minPeople, maxPeople } };
+        return new { seeds, roster = roster.Length == 0 ? "all" : string.Join(",", roster), cultures, repeatsOfTheLast = repeats, longestLine, longestPaper, people = new[] { minPeople, maxPeople }, population = new[] { minPop, maxPop }, maxHouses };
     }
 
     static double Opt(string[] args, string name, double fallback)

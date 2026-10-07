@@ -27,14 +27,18 @@ public sealed class TownTalk
     /// <summary>When the card opened or turned (seconds), for a line typing out.</summary>
     public double Since { get; private set; }
 
-    /// <summary>The prompt for a thing in the town in front of you.</summary>
+    /// <summary>
+    /// The prompt for a thing in the town in front of you: what it is, and the action and its key, never what the action
+    /// will do (GDD §32, the director's decisions of 7 Oct on #206: <c>ACTION : [KEY]</c>).
+    /// </summary>
     public static string Prompt(Town town, TownTarget t) => t.Kind switch
     {
-        TownTargetKind.Person => $"[E] TALK TO {town.Plan.People[t.Index].Name.ToUpperInvariant()}",
-        TownTargetKind.Board => $"[E] READ THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})",
-        TownTargetKind.Paper => $"[E] READ: {town.Plan.Papers[t.Index].Title.ToUpperInvariant()}",
-        TownTargetKind.Door => $"[E] KNOCK AT {town.Plan.Buildings[t.Index].Name.ToUpperInvariant()}",
-        _ => $"[E] LOOK AT {town.Plan.Fixtures[t.Index].Name.ToUpperInvariant()}",
+        TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
+        TownTargetKind.Board => $"THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})   READ : [E]",
+        TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
+        TownTargetKind.Door => $"{town.Plan.Buildings[t.Index].Name.ToUpperInvariant()}   KNOCK : [E]",
+        TownTargetKind.House => $"{HouseName(town.Plan.Houses[t.Index]).ToUpperInvariant()}   {(town.Plan.Houses[t.Index].Kind == HouseKind.Lived ? "KNOCK" : "LOOK")} : [E]",
+        _ => $"{town.Plan.Fixtures[t.Index].Name.ToUpperInvariant()}   LOOK : [E]",
     };
 
     /// <summary>
@@ -69,6 +73,9 @@ public sealed class TownTalk
         Page = t.Kind == TownTargetKind.Person ? Next(town.Plan.People[t.Index]) : 0;
         return true;
     }
+
+    /// <summary>A house by its family: theirs, or for one nobody lives in now, the old one.</summary>
+    public static string HouseName(TownHouse h) => h.Kind is HouseKind.Lived or HouseKind.Open ? $"the {h.Family} house" : $"the old {h.Family} house";
 
     int Next(Townsperson p)
     {
@@ -105,24 +112,29 @@ public sealed class TownTalk
                     string line = Line(town);
                     int typed = (int)Math.Clamp((now - Since) * town.Tuning.TypePerSecond, 0, line.Length);
                     return new TownCard(TownCardKind.Speech, $"{p.Name}, {p.Title}", line[..typed],
-                        p.Lines.Count > 1 && typed == line.Length ? "[E] AGAIN" : "");
+                        p.Lines.Count > 1 && typed == line.Length ? "AGAIN : [E]" : "");
                 }
             case TownTargetKind.Board:
                 {
                     var notices = town.Notices;
                     var n = notices[Math.Clamp(Page, 0, notices.Count - 1)];
-                    string footer = Page + 1 < notices.Count ? $"[E] NEXT NOTICE ({Page + 1}/{notices.Count})" : $"[E] DONE ({Page + 1}/{notices.Count})";
+                    string footer = Page + 1 < notices.Count ? $"({Page + 1}/{notices.Count})   NEXT : [E]" : $"({Page + 1}/{notices.Count})   DONE : [E]";
                     return new TownCard(TownCardKind.Paper, n.Title, n.Text, footer);
                 }
             case TownTargetKind.Paper:
                 {
                     var n = town.Plan.Papers[t.Index];
-                    return new TownCard(TownCardKind.Paper, n.Title, n.Text, "[E] PUT IT DOWN");
+                    return new TownCard(TownCardKind.Paper, n.Title, n.Text, "PUT IT DOWN : [E]");
                 }
             case TownTargetKind.Door:
                 {
                     var b = town.Plan.Buildings[t.Index];
                     return new TownCard(TownCardKind.Plate, b.Name, b.Knock, "");
+                }
+            case TownTargetKind.House:
+                {
+                    var h = town.Plan.Houses[t.Index];
+                    return new TownCard(TownCardKind.Plate, HouseName(h), h.Text, "");
                 }
             default:
                 {

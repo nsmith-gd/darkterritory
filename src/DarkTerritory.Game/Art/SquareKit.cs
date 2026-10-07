@@ -13,28 +13,55 @@ namespace DarkTerritory.Game.Art;
 public static class SquareKit
 {
     /// <summary>
-    /// One of the square's buildings, <paramref name="w"/> along its front by <paramref name="d"/> deep: the custom's hall
-    /// (brick, taller, a wide door), the clerk's office or the stores (weatherboard). A board over the door, a lamp beside it,
-    /// lamplight in the windows.
+    /// One of the square's buildings, <paramref name="w"/> along its front by <paramref name="d"/> deep: the custom's hall in
+    /// its <paramref name="style"/> (the custom's towns.json <c>hallStyle</c>: a white clapboard "church" with a steeple over
+    /// its door, a one-room "school" with its belfry, a board-and-batten car "shed", or a painted clapboard "hall"), the
+    /// clerk's office or the stores (clapboard). Maritime forms (the director, 7 Oct 2026; note 281). A board over the door,
+    /// a lamp beside it, lamplight in the windows. Everything stands inside its footprint, the box the town's walls give it.
     /// </summary>
-    public static MeshAsset Building(Look? look, string kind, float w, float d)
+    public static MeshAsset Building(Look? look, string kind, float w, float d, string style = "")
     {
-        var k = new Kit(look, 2100 + kind.Length);
+        var k = new Kit(look, 2100 + kind.Length + style.Length * 7);
         bool hall = kind == "hall";
-        float h = hall ? 6.2f : 4.0f;
-        k.Use(hall ? "brick_soot" : "wood_siding", hall ? Palette.RustRed : Palette.DeepBrown, 0.8f, 0.05f, tile: 2);
-        k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
+        string form = hall ? (style is "church" or "school" or "shed" ? style : "hall") : kind;
+        float h = form switch { "church" => 5.4f, "hall" => 6.2f, "shed" => 5.2f, "school" => 4.2f, _ => 4.0f };
+        // The walls: clapboard in the form's paint, or a shed's upright boards.
+        var paint = form switch
+        {
+            "church" => new Vector3(0.78f, 0.76f, 0.70f),
+            "school" => new Vector3(0.46f, 0.16f, 0.12f),
+            "shed" => new Vector3(0.36f, 0.30f, 0.26f),
+            "hall" => new Vector3(0.36f, 0.42f, 0.46f),
+            _ => new Vector3(0.62f, 0.50f, 0.26f),
+        };
+        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: form == "shed" ? 2 : 0.9f);
+        k.Tint = paint * 2.1f;
+        bool clap = form != "shed";
+        if (clap)
+            MaritimeKit.Clap(k, new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
+        else
+            k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
         // Gable ends, and a slate roof over them.
-        float ridge = h + d * 0.4f;
+        float ridge = h + d * (form == "church" ? 0.55f : 0.4f);
         foreach (float x in new[] { -w / 2, w / 2 })
         {
             var a = new Vector3(x, h, -d / 2);
             var b = new Vector3(x, h, d / 2);
             var c = new Vector3(x, ridge, 0);
+            Vector2 Uv(Vector3 p, float flip) => clap ? new(-p.Y, flip * p.Z) : new(flip * p.Z, -p.Y);
             if (x < 0)
-                k.Tri(a, c, b, new(a.Z, -a.Y), new(c.Z, -c.Y), new(b.Z, -b.Y));
+                k.Tri(a, c, b, Uv(a, 1), Uv(c, 1), Uv(b, 1));
             else
-                k.Tri(b, c, a, new(-b.Z, -b.Y), new(-c.Z, -c.Y), new(-a.Z, -a.Y));
+                k.Tri(b, c, a, Uv(b, -1), Uv(c, -1), Uv(a, -1));
+        }
+        // Corner boards on the clapboard.
+        if (clap)
+        {
+            k.Use("paint_black", new Vector3(0.80f, 0.78f, 0.72f), 0.6f, 0.1f);
+            k.Tint = new Vector3(0.80f, 0.78f, 0.72f);
+            foreach (float x in new[] { -w / 2, w / 2 })
+                foreach (float z in new[] { -d / 2, d / 2 })
+                    k.Box(new Vector3(x - 0.07f, -0.3f, z - 0.07f), new Vector3(x + 0.07f, h, z + 0.07f));
         }
         k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
         const float over = 0.4f;
@@ -43,20 +70,37 @@ public static class SquareKit
         var rear = new Vector3(0, h - over * 0.8f, d / 2 + over);
         k.Quad(top with { X = -w / 2 - over }, top with { X = w / 2 + over }, front with { X = w / 2 + over }, front with { X = -w / 2 - over }, twoSided: true);
         k.Quad(top with { X = w / 2 + over }, top with { X = -w / 2 - over }, rear with { X = -w / 2 - over }, rear with { X = w / 2 + over }, twoSided: true);
-        // The door, and windows either side of it, a lamp burning behind most.
+        // The church's tower over its door, flush with the front, its spire; the school's belfry on the ridge.
+        if (form == "church")
+            Steeple(k, d, h, ridge, paint);
+        if (form == "school")
+            Belfry(k, ridge, paint);
+        // The door, and windows either side of it, a lamp burning behind most: a church's tall and pointed, a shed's
+        // small and high either side of its big doors.
+        bool bay = form is "hall" or "shed";
         k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
         k.Shade(0.3f);
-        k.Doorway(new Vector3(0, -0.1f, -d / 2 - 0.01f), -Vector3.UnitZ, hall ? 1.8f : 1.0f, bay: hall);
+        k.Doorway(new Vector3(0, -0.1f, -d / 2 - (form == "church" ? 0.05f : 0.01f)), -Vector3.UnitZ, form switch { "shed" => 3.2f, "hall" => 1.8f, _ => 1.0f }, bay: bay);
         k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
-        k.Emissive = 1;
-        int storeys = hall ? 2 : 1;
+        k.Emissive = form == "church" ? 0.6f : 1;
+        float clear = form switch { "church" => 2.2f, "shed" => 2.4f, "hall" => 1.6f, _ => 1.0f };
+        int storeys = form == "hall" ? 2 : 1;
         for (int s = 0; s < storeys; s++)
             for (float x = -w / 2 + 1.4f; x < w / 2 - 1.0f; x += 2.2f)
-                if (MathF.Abs(x) > (hall ? 1.6f : 1.0f) || s > 0)
-                    k.Panel(new Vector3(x, 1.5f + s * 2.8f, -d / 2 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
+            {
+                if (MathF.Abs(x) <= clear && s == 0 || form == "church" && MathF.Abs(x) <= clear)
+                    continue;
+                var at = new Vector3(x, 1.5f + s * 2.8f, -d / 2 - 0.02f);
+                if (form == "church")
+                    Lancet(k, at with { Y = 2.1f });
+                else if (form == "shed")
+                    k.Panel(at with { Y = 3.4f }, -Vector3.UnitZ, Vector3.UnitY, 0.7f, 0.5f, Vector2.Zero, Vector2.One);
+                else
+                    k.Panel(at, -Vector3.UnitZ, Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
+            }
         k.Emissive = 0;
         // The name board over the door (the text is the plan's, read with Use; the board says there's something to read).
-        float doorTop = k.DoorHeight(hall);
+        float doorTop = k.DoorHeight(bay);
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
         k.Box(new Vector3(-1.5f, doorTop + 0.25f, -d / 2 - 0.12f), new Vector3(1.5f, doorTop + 0.85f, -d / 2 - 0.02f));
         k.Use("paint_black", Palette.SootBlack, 0.6f, 0.1f);
@@ -69,7 +113,69 @@ public static class SquareKit
         k.Emissive = 1;
         k.BoxAt(lamp, new Vector3(0.11f, 0.16f, 0.11f));
         k.Emissive = 0;
-        return k.Build($"square-{kind}-{w:0}x{d:0}");
+        return k.Build($"square-{kind}-{form}-{w:0}x{d:0}");
+    }
+
+    /// <summary>A white church's tower over its door, flush with the front wall and inside the footprint, its belfry's louvres, the needle spire.</summary>
+    static void Steeple(Kit k, float d, float h, float ridge, Vector3 paint)
+    {
+        const float half = 1.3f;
+        float z0 = -d / 2, z1 = z0 + 2 * half, top = ridge + 1.6f, spire = top + 6.5f;
+        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: 0.9f);
+        k.Tint = paint * 2.1f;
+        MaritimeKit.Clap(k, new Vector3(-half, -0.4f, z0 - 0.04f), new Vector3(half, top, z1), Kit.Faces.Sides);
+        // The belfry: dark louvres on each face below the spire.
+        k.Use("paint_black", Palette.SootBlack, 0.7f, 0.1f);
+        foreach (var (n, c) in new[] { (-Vector3.UnitZ, new Vector3(0, top - 1.1f, z0 - 0.06f)), (Vector3.UnitX, new Vector3(half + 0.02f, top - 1.1f, (z0 + z1) / 2)), (-Vector3.UnitX, new Vector3(-half - 0.02f, top - 1.1f, (z0 + z1) / 2)) })
+            k.Panel(c, n, Vector3.UnitY, 1.2f, 1.3f, Vector2.Zero, Vector2.One);
+        // The spire: four faces to a needle point, slate.
+        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+        var apex = new Vector3(0, spire, (z0 + z1) / 2);
+        var c0 = new Vector3(-half - 0.1f, top, z0 - 0.14f);
+        var c1 = new Vector3(half + 0.1f, top, z0 - 0.14f);
+        var c2 = new Vector3(half + 0.1f, top, z1 + 0.1f);
+        var c3 = new Vector3(-half - 0.1f, top, z1 + 0.1f);
+        foreach (var (a, b) in new[] { (c1, c0), (c2, c1), (c3, c2), (c0, c3) })
+            k.Tri(a, b, apex, new(a.X + a.Z, -a.Y), new(b.X + b.Z, -b.Y), new(0, -apex.Y));
+        k.Use("iron_smokebox", Palette.SootBlack, 0.6f, 0.3f, tile: 1);
+        k.Rod(apex, apex + Vector3.UnitY * 0.9f, 0.025f);
+    }
+
+    /// <summary>A schoolhouse's belfry on its ridge: four posts, the bell between them, a little pyramid roof.</summary>
+    static void Belfry(Kit k, float ridge, Vector3 paint)
+    {
+        const float half = 0.6f;
+        float y0 = ridge - 0.2f, y1 = ridge + 1.3f;
+        k.Use("wood_siding", paint, 0.85f, 0.05f, tile: 0.9f);
+        k.Tint = paint * 2.1f;
+        MaritimeKit.Clap(k, new Vector3(-half, y0 - 0.4f, -half), new Vector3(half, y0 + 0.3f, half), Kit.Faces.Sides);
+        k.Use("paint_black", new Vector3(0.80f, 0.78f, 0.72f), 0.6f, 0.1f);
+        k.Tint = new Vector3(0.80f, 0.78f, 0.72f);
+        foreach (float x in new[] { -half, half - 0.1f })
+            foreach (float z in new[] { -half, half - 0.1f })
+                k.Box(new Vector3(x, y0 + 0.3f, z), new Vector3(x + 0.1f, y1, z + 0.1f));
+        k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
+        k.Cylinder(new Vector3(0, y1 - 0.15f, 0), new Vector3(0, y0 + 0.55f, 0), 0.12f, 10, radiusB: 0.26f);
+        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+        var apex = new Vector3(0, y1 + 0.9f, 0);
+        var p = new[] { new Vector3(-half - 0.2f, y1, -half - 0.2f), new Vector3(half + 0.2f, y1, -half - 0.2f), new Vector3(half + 0.2f, y1, half + 0.2f), new Vector3(-half - 0.2f, y1, half + 0.2f) };
+        for (int i = 0; i < 4; i++)
+        {
+            var a = p[(i + 1) % 4];
+            var b = p[i];
+            k.Tri(a, b, apex, new(a.X + a.Z, -a.Y), new(b.X + b.Z, -b.Y), new(0, -apex.Y));
+        }
+    }
+
+    /// <summary>A Gothic Revival lancet: a tall window, its head pointed, in white trim.</summary>
+    static void Lancet(Kit k, Vector3 at)
+    {
+        const float hw = 0.36f, hh = 0.85f;
+        k.Panel(at, -Vector3.UnitZ, Vector3.UnitY, hw * 2, hh * 2, Vector2.Zero, Vector2.One);
+        var l = at + new Vector3(-hw, hh, 0);
+        var r = at + new Vector3(hw, hh, 0);
+        var point = at + new Vector3(0, hh + 0.55f, 0);
+        k.Tri(r, l, point, new(1, 0), new(0, 0), new(0.5f, -0.3f));
     }
 
     /// <summary>Where a building's door lamp hangs (local), for its light.</summary>

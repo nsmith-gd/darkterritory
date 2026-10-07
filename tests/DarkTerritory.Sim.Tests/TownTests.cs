@@ -102,8 +102,9 @@ public class TownTests
         {
             Assert.Contains(c.Creature, creatures);
             Assert.InRange(c.Law.Length, 10, 60);
-            Assert.True(c.Lines.Length >= 6, $"{c.Id}: {c.Lines.Length} lines");
-            Assert.True(c.Notes.Length >= 3, $"{c.Id}: {c.Notes.Length} notes");
+            // The director (7 Oct): the lore is in what people say; the papers are the lesser part of it.
+            Assert.True(c.Lines.Length >= 8, $"{c.Id}: {c.Lines.Length} lines");
+            Assert.True(c.Notes.Length >= 2, $"{c.Id}: {c.Notes.Length} notes");
             Assert.NotEqual(TownFixtures.Size("unknown"), TownFixtures.Size(c.Centrepiece.Kind));
             Assert.NotEmpty(c.Centrepiece.Text);
         }
@@ -125,7 +126,8 @@ public class TownTests
                 {
                     Assert.True(line.Length <= 150, $"seed {seed}, {p.Title}: {line.Length} chars: {line}");
                     Assert.DoesNotContain('{', line);
-                    Assert.All(line, ch => Assert.InRange(ch, ' ', '}'));
+                    // Plain print, and the Acadian names' accents (the card's font draws them as their plain letters).
+                    Assert.All(line, ch => Assert.True(ch is >= ' ' and <= '}' || "àâçéèêëîïôùûü".Contains(ch), $"'{ch}' in {line}"));
                 }
                 Assert.DoesNotContain('{', p.Title);
             }
@@ -152,7 +154,7 @@ public class TownTests
             var plan = TownGenerator.Generate(Towns, Site(seed));
             var culture = Towns.Writing.Cultures.Single(c => c.Id == plan.Culture);
             var gatekeeper = Assert.Single(plan.People, p => p.Role == "gatekeeper");
-            Assert.Contains(culture.Law, gatekeeper.Lines[0]);
+            Assert.Contains(plan.Law, gatekeeper.Lines[0]);
             var keeper = Assert.Single(plan.People, p => p.Role == "keeper");
             Assert.Contains(plan.Hall, keeper.Title);
             // The keeper of the custom's hall talks about it first (its lines' placeholders filled in).
@@ -261,7 +263,7 @@ public class TownTests
     public void ATalkingPlayerOnTheGroundIsLookedFromTheirEyes()
     {
         var (_, train, town) = Night("frontier:7");
-        var person = town.Plan.People.Single(p => p.Role == "storekeeper");
+        var person = town.Plan.People.Single(p => p.Role == "clerk");
         var feet = town.Feet(person) + town.Direction(person.S, person.FaceS, person.FaceD) * 1.5;
         var eye = feet + Double3.Up * train.Dynamics.Tuning.Pick.EyeHeight;
         var to = town.Feet(person) + Double3.Up * 1.45 - eye;
@@ -277,5 +279,107 @@ public class TownTests
         Assert.Equal(new TownTarget(TownTargetKind.Person, person.Id), town.Target(player, train.Dynamics.Tuning.Pick.EyeHeight));
         // Up on a car, nobody in the town is in reach: you get down to talk.
         Assert.Null(town.Target(player with { Parent = 1 }, train.Dynamics.Tuning.Pick.EyeHeight));
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // The houses and households (the director, 7 Oct 2026; note 281)
+
+    [Fact]
+    public void ATownIsTwentyToThreeHundredAndFiftyPeopleInHousesAndHasLostSome()
+    {
+        var t = Towns.Tuning;
+        for (int seed = 1; seed <= 60; seed++)
+        {
+            var plan = TownGenerator.Generate(Towns, Site(seed));
+            Assert.InRange(plan.Population, t.Population[0], t.Population[1]);
+            Assert.True(plan.Former > plan.Population, $"seed {seed}: {plan.Former} once, {plan.Population} now");
+            var open = plan.Houses.Where(h => h.Kind == HouseKind.Open).ToList();
+            Assert.InRange(open.Count, Math.Min(t.Explorable.Min, plan.Houses.Count(h => h.Kind is HouseKind.Open or HouseKind.Lived)), t.Explorable.Max);
+            foreach (var h in plan.Houses)
+            {
+                // A shut house says something when you knock or look; an open one has its rooms and somebody at home.
+                Assert.Equal(h.Kind == HouseKind.Open, h.Layout is not null);
+                if (h.Kind == HouseKind.Open)
+                    Assert.Contains(plan.People, p => p.House == h.Id);
+                else
+                    Assert.False(string.IsNullOrWhiteSpace(h.Text), $"seed {seed}: the {h.Family}s' {h.Kind} house says nothing");
+                Assert.Contains(h.Family, Towns.Surnames);
+            }
+            // Nobody lives in a house that isn't open to you (the rest are behind their doors).
+            Assert.All(plan.People.Where(p => p.House >= 0), p => Assert.Equal(HouseKind.Open, plan.Houses[p.House].Kind));
+            // The houses stand apart, between the line and the walls.
+            foreach (var a in plan.Houses)
+            {
+                Assert.InRange(Math.Abs(a.D) + a.Depth / 2, 0, Fortresses.WallOut - Fortresses.WallHalf);
+                Assert.True(Math.Abs(a.D) - a.Depth / 2 > 3, $"seed {seed}: a house {Math.Abs(a.D) - a.Depth / 2:0.0} m off the line");
+                foreach (var b in plan.Houses.Where(b => b.Id > a.Id && b.Side == a.Side))
+                    Assert.True(Math.Abs(a.S - b.S) >= (a.Width + b.Width) / 2, $"seed {seed}: houses {a.Id} and {b.Id} overlap");
+            }
+        }
+    }
+
+    /// <summary>Where a point is in a house's own frame: along its front from its middle (u), in from its front (v).</summary>
+    static (double U, double V) InHouse(Town town, RailLine line, TownHouse h, Double3 p)
+    {
+        double s = h.S;
+        line.Nearest(p, ref s);
+        var t = line.Sample(s);
+        double d = Double3.Dot(p - t.Position, Double3.Cross(t.Tangent, Double3.Up).Normalized);
+        return (s - h.S, (d - h.FrontD) * h.Side);
+    }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("local:3")]
+    public void YouWalkInAtAnOpenHousesDoorAndThroughToTheParlour(string spec)
+    {
+        var (_, train, town) = Night(spec);
+        var h = town.Plan.Houses.First(x => x.Kind == HouseKind.Open);
+        var l = h.Layout!;
+        // From the step, straight in through the front door as far as the doorway in the partition.
+        var (s0, d0) = h.Rail(l.DoorU, -2.5);
+        var player = PlayerMotor.SpawnOnGround(town.World(s0, d0), train.Line, s0, P);
+        void Walk(double fu, double fv, double seconds, Func<(double U, double V), bool> until)
+        {
+            var dir = town.Direction(h.S, fu, h.Side * fv);
+            player.Yaw = Math.Atan2(-dir.X, -dir.Z);
+            for (int i = 0; i < seconds * SimConstants.TickRate && !until(InHouse(town, train.Line, h, player.Position)); i++)
+                PlayerMotor.Step(ref player, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+        }
+        Walk(0, 1, 6, at => at.V >= l.PassV);
+        var inside = InHouse(town, train.Line, h, player.Position);
+        Assert.True(inside.V >= l.PassV - 0.1, $"stopped {inside.V:0.00} m in (the partition's doorway is {l.PassV:0.00} in)");
+        Assert.InRange(inside.U, l.DoorU - 0.5, l.DoorU + 0.5);
+        // Then across, through the partition's doorway, into the parlour.
+        Walk(-l.Kitchen, 0, 6, at => at.U * l.Kitchen < -0.8);
+        var parlour = InHouse(town, train.Line, h, player.Position);
+        Assert.True(parlour.U * l.Kitchen < -0.8, $"stopped at u {parlour.U:0.00}: never through the partition");
+        Assert.InRange(parlour.V, HouseLayout.Wall, h.Depth - HouseLayout.Wall);
+    }
+
+    [Fact]
+    public void AShutHousesWallsKeepYouOutAndNobodyTalksThroughAWall()
+    {
+        var (_, train, town) = Night("frontier:7");
+        // A lived-in house, shut: walking at its middle stops at its front.
+        var shut = town.Plan.Houses.First(x => x.Kind == HouseKind.Lived);
+        var (fs, fd) = shut.Rail(0, -3);
+        var player = PlayerMotor.SpawnOnGround(town.World(fs, fd), train.Line, fs, P);
+        var into = town.Direction(shut.S, 0, shut.Side);
+        player.Yaw = Math.Atan2(-into.X, -into.Z);
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+            PlayerMotor.Step(ref player, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+        Assert.True(InHouse(town, train.Line, shut, player.Position).V < 0.05, "walked into a shut house");
+        // Somebody at home in an open house: seen from its doorway, but not from behind its back wall.
+        var h = town.Plan.Houses.First(x => x.Kind == HouseKind.Open);
+        var who = town.Plan.People.First(p => p.House == h.Id);
+        var face = town.Feet(who) + Double3.Up * 1.45;
+        var (ds, dd) = h.Rail(h.Layout!.DoorU, 0.3);
+        var door = town.World(ds, dd, 1.65);
+        Assert.True(town.Seen(door, face) || town.Seen(town.World(who.S + who.FaceS, who.D + who.FaceD, 1.65), face), "nobody at home to be seen");
+        var (bs, bd) = h.Rail((who.S - h.S), h.Depth + 1.2);
+        var behind = town.World(bs, bd, 1.65);
+        Assert.False(town.Seen(behind, face), "seen through the back wall");
+        Assert.NotEqual(new TownTarget(TownTargetKind.Person, who.Id), town.Target(behind, (face - behind).Normalized));
     }
 }

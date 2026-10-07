@@ -116,9 +116,16 @@ M3 is done but for a test with eight people.
 **Fortress towns (T133, GDD §3.1, note 281), first pass:**
 - The departure fortress is a town with a custom of its own: one of fourteen, each the human answer to one creature's rule (only the edition's creatures; never the last night's custom), with habits and a trade.
 - Its square, beside the engine at the gate, where the walls step back: the custom's hall, the clerk's office, the stores, a centrepiece, a notice board, stalls, lamps. All of it is solid.
-- Sixteen to twenty townspeople, text only (Use to talk, again for the next line). Three or four notices on the board and notes about the square, with threads of the world's mystery through them.
+- Townspeople, text only (Use to talk, again for the next line). Three or four notices on the board and notes about the square, with threads of the world's mystery through them.
 - `dt town`, `dt town sweep`, `dt screenshot --town`, `dt screenshot --hud --talk`.
-- Next: the fortress's menus as places in the town, the terminus as a town, people who move, notes along the line.
+
+**Fortress towns, second pass (the director's notes of 7 Oct):**
+- Maritime towns of 20 to 350 people, fewer than before.
+- Their houses down the street in Maritime forms. A few stand open and explorable, their households at home; the lost ones are boarded, burnt or left open.
+- The custom's building as a church, a school, a car shed or a hall.
+- Lore through what people say: creepy, and hints at other towns' creatures, never the rule.
+- `dt screenshot --town houses|house|kitchen|parlour`.
+- Next: the houses to the director's references, upstairs, the fortress's menus as places in the town, the terminus as a town, people who move, notes along the line.
 
 **The campaign (spec E, F):**
 - Scrip, cars on F.2's curve, F.3 upgrades (five modelled), a board of contracts by F.4 tier, and three text save slots.

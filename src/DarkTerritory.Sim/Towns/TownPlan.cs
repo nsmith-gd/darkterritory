@@ -8,6 +8,8 @@ namespace DarkTerritory.Sim.Towns;
 /// </summary>
 public sealed record TownPlan(
     string Name,
+    int Population,
+    int Former,
     string Culture,
     string Creature,
     string Law,
@@ -16,6 +18,7 @@ public sealed record TownPlan(
     IReadOnlyList<string> Quirks,
     TownSquare Square,
     IReadOnlyList<TownBuilding> Buildings,
+    IReadOnlyList<TownHouse> Houses,
     IReadOnlyList<Townsperson> People,
     IReadOnlyList<TownPaper> Papers,
     IReadOnlyList<TownFixture> Fixtures);
@@ -29,16 +32,18 @@ public sealed record TownSquare(double S0, double S1, int Side, double WallD)
 }
 
 /// <summary>One of the square's buildings, backed onto its far wall, its front to the line. <see cref="Kind"/>: hall,
-/// office or store. Its footprint is <see cref="Length"/> along the line by <see cref="Depth"/> across it.</summary>
-public sealed record TownBuilding(string Kind, string Name, double S, double D, double Length, double Depth, string Knock);
+/// office or store. Its footprint is <see cref="Length"/> along the line by <see cref="Depth"/> across it.
+/// <see cref="Style"/>: the custom's building's look ("church", "school", "shed", "hall"); empty for the others.</summary>
+public sealed record TownBuilding(string Kind, string Name, double S, double D, double Length, double Depth, string Knock, string Style = "");
 
 /// <summary>
 /// Somebody in the town: where they stand (feet, <see cref="Up"/> off the ground on a platform), which way they face
 /// (along the line, across it), what they do, and what they say, one line a word with them and round again.
-/// <see cref="Look"/> picks their clothes from the crew's.
+/// <see cref="Look"/> picks their clothes from the crew's. <see cref="House"/>: the open house they're in, or −1 out of
+/// doors; <see cref="Pose"/> how they are ("idle", "lantern", "seated", "crouch").
 /// </summary>
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
-    IReadOnlyList<string> Lines);
+    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle");
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at
@@ -50,6 +55,7 @@ public sealed record TownPaper(int Id, string Title, string Text, bool OnBoard, 
 /// A thing in the square to look at closely: the custom's centrepiece, the notice board, the plaque. <see cref="Kind"/>
 /// names its art ("bell", "post", "board", "plaque", …); <see cref="Text"/> is what looking at it tells you.
 /// <see cref="Solid"/>: half its size along and across the line, a box nobody walks through; zero for a thing on the ground.
+/// <see cref="House"/>: the open house it's in (a household's thing, the stove, the stair door), or −1 in the square.
 /// </summary>
 public sealed record TownFixture(int Id, string Kind, string Name, string Text, double S, double D, double FaceS, double FaceD,
-    double SolidS, double SolidD, double Height);
+    double SolidS, double SolidD, double Height, int House = -1);

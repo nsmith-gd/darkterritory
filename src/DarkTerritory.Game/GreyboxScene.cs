@@ -2043,14 +2043,26 @@ public sealed class GreyboxScene
     /// <summary>One of a fortress's people, standing at <paramref name="feet"/> facing <paramref name="facing"/>: the crew's
     /// model in their own drab, idling on their own beat (note 107).</summary>
     /// <param name="drab">How much darker than the crew they're dressed (a town's people, near and talked to, are lighter).</param>
-    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f)
+    /// <param name="pose">How they're standing (a town's people, note 281): "idle", "seated" (at a table, in a chair),
+    /// "crouch" (at the range), "lantern" (out in the street with a lamp, lit).</param>
+    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle")
     {
         var back = -ToF(facing);
         var right = Vector3.Cross(Vector3.UnitY, back);
         var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
         drab += variant % 3 * 0.05f;
-        Look!.Art.Creatures.Draw(mesh, "crew", "idle", Time + variant * 0.73, true, m, variant, seed: variant * 13,
-            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) });
+        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        var creatures = Look!.Art.Creatures;
+        if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
+            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
+            return;
+        // The street's lamp-carriers: the hand lamp hung from the fist, burning.
+        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        {
+            var flame = creatures.LastHanging;
+            mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
+            mesh.Billboard(flame, 0.35f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        }
     }
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
@@ -2064,6 +2076,7 @@ public sealed class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 foreach (var p in town.Plan.People)
                 {
                     var feet = town.Feet(p);
@@ -2072,7 +2085,7 @@ public sealed class GreyboxScene
                     bool talking = TownFacing is { } f && f.Person == p.Id;
                     var facing = talking && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
                         ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f);
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose);
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)

@@ -1,338 +1,376 @@
-// The fortress towns' writing (GDD §3.1, App. F.1 T133: "fortress towns are where the world is built ... each town has
-// its own odd culture, different from the last ... learn by inference, as in Lethal Company: little notes, and text-only
-// lines from the townspeople"; ARCHITECTURE §8 note 281). The numbers (how many people, notices, reach) are in
-// tuning/towns.json; this file is only words, read by Sim/Towns/TownGenerator.
+// The fortress towns' writing (GDD §3.1; App. F.1 T133 and the director's notes of 7 Oct 2026; ARCHITECTURE §8 note 281).
+// The numbers (how many people, houses, reach) are in tuning/towns.json; this file is only words, read by
+// Sim/Towns/TownGenerator.
 //
-// How a town is written. GDD §2: "the Corruption exaggerates whatever allows something to survive". A town did the
-// same: whatever kept it alive one bad winter, it kept doing, and did harder, until it was the town's custom. So each
-// culture is the human answer to one creature's rule (by the names in enemies.json "costs"; "choir" is always about),
-// told sideways: the crew hear the custom, and the rule is theirs to infer. A town's people name the creatures in their
-// own words ("the little lights", "the thin one"), never the game's. Mystery is seeded, not explained (App. F.1).
+// The director, 7 Oct: "these are maritime Canada towns ... lore is through NPC dialogue. They should say creepy things,
+// sometimes hints of how to deal with monsters they've heard about but never the full rule. Cultures should all be
+// traumatized somewhat by the events of the world. Towns should land somewhere between 20 to 350 people."
 //
-// Text is written in sentence case and drawn in the HUD's capitals. Keep a person's line under ~150 characters and a
-// note under ~420 (TownTests holds both). Placeholders: {town} this town, {other} another town down the line, {name}
-// somebody else in this town, {n} a small number.
+// How a town is written:
+// - It's a Maritime railway town (Nova Scotia, New Brunswick, the Island): clapboard and shingle, a white church, the
+//   wharf gone quiet, Gaelic and Acadian and Lunenburg names. The voice is plain, dry, a little Maritime ("b'y", "some
+//   cold", "the mainland", "from away"), never put on.
+// - GDD §2: "the Corruption exaggerates whatever allows something to survive". A town did the same. Every town lost
+//   people to one creature, kept the thing that saved the rest, and does it harder every year: its custom. The custom
+//   is grief with a rule in it, and the town is not well.
+// - People hint at a creature's rule, never say it whole: what happened, who lived and why, what they do now. The crew
+//   put it together. They name the creatures in their own words ("the little lights", "the thin one"), never the game's.
+// - Mystery is seeded, not explained (App. F.1).
+//
+// Each culture's creature is by enemies.json "costs" names ("choir" is always about); an edition only gets the customs
+// of what it fields. Text is written in sentence case and drawn in the HUD's capitals. Keep a person's line under ~150
+// characters and a paper under ~420 (TownTests holds both). Placeholders: {town} this town, {other} another town (from
+// "places"), {hall} the custom's building, {law} the town's law, {name}/{name2} somebody else in this town, {family} the
+// household's surname, {absent} the one the household lost, {n} a small number, {population} and {former} the town's
+// people now and before.
 {
-  // Townspeople's given names; their surnames come from linegen/names.json, like the places.
-  "firstNames": ["Agnes", "Albin", "Ada", "Bram", "Bettany", "Cass", "Clem", "Dora", "Edda", "Elias", "Enid", "Fen", "Gil",
-    "Greta", "Hal", "Hester", "Ida", "Ivo", "Jory", "Juno", "Kit", "Lark", "Lise", "Mags", "Marten", "Nell", "Noll", "Olwen",
-    "Orrin", "Pim", "Prue", "Quin", "Ros", "Rufus", "Sal", "Silas", "Tam", "Tilde", "Ulla", "Vesna", "Wat", "Wynn", "Yorick", "Zillah"],
+  // Given names, the old-fashioned way. Surnames by the province's people: Highland Scots, Acadian, Irish, Lunenburg
+  // German, Loyalist English. A household shares one.
+  "firstNames": ["Agnes", "Angus", "Annie", "Archie", "Aurèle", "Bernadette", "Bridget", "Catherine", "Christie", "Clarence",
+    "Donald", "Dougal", "Edna", "Effie", "Elmer", "Ephraim", "Evangeline", "Flora", "Florence", "Gus", "Hector", "Ida", "Isaac",
+    "Jean-Guy", "Johnena", "Josephine", "Lauchie", "Léonie", "Lottie", "Margaret", "Marie-Rose", "Mary-Catherine", "Murdoch",
+    "Myrtle", "Nellie", "Obadiah", "Ronald", "Rémi", "Seamus", "Theresa", "Thelma", "Wilfred", "Winnie", "Zita"],
+  "surnames": ["MacDonald", "MacNeil", "MacLean", "MacIsaac", "MacKinnon", "Gillis", "Beaton", "Chisholm", "Rankin", "Fraser",
+    "Campbell", "Cameron", "Boudreau", "LeBlanc", "Cormier", "Gallant", "Arsenault", "Doucet", "Comeau", "Thibodeau", "Robichaud",
+    "Landry", "Murphy", "Power", "Walsh", "Kelly", "O'Brien", "Sweeney", "Hiltz", "Zwicker", "Mosher", "Corkum", "Ernst",
+    "Himmelman", "Hatfield", "Crowell", "Nickerson", "Saunders", "Matheson", "Ross"],
+  // Other towns, for {other}: down the line, up the shore, gone quiet.
+  "places": ["Ship Harbour", "Pell's Cove", "Lower Kettering", "Port Gillis", "Saint-Ambroise", "Glen Morrow", "Cape Sorrow",
+    "Upper Blackwell", "Harrow Mills", "Grieve's Brook", "Little Narrows", "Pointe-à-Doucet", "Halloway Station", "Sallow Head",
+    "Moss Settlement", "Voss Crossing", "Barrow Bay", "New Kettle"],
 
-  // What the plaque at the square says under the town's name, one picked a town.
-  "founded": ["Walled the winter after the fall.", "Held since the second winter.", "Never taken.", "Built round the old goods yard.",
-    "Rebuilt twice. Not a third time.", "Walled by hand, by the people who lived."],
+  // What the plaque at the way in says: the town, when it was walled, and how many live there, the old number crossed
+  // out. One a town.
+  "founded": ["Walled the winter after the fall.", "Held since the second winter.", "Never taken. Not all the way.",
+    "Built round the old goods yard.", "Rebuilt twice. Not a third time.", "Walled by hand, by the ones who lived."],
+  "plaque": ["{TOWN}. {founded} Painted under it, POP. {former}, crossed through. {population} chalked beside it, and rubbed at.",
+    "{TOWN}. {founded} The population's painted on a board: {former}. The board's been turned over and {population} written on the back."],
 
-  // The gatekeeper's first words to a crew: the town's law ({law}), the one thing anyone here tells a stranger.
-  "welcome": ["Welcome to {town}. {law} That's the only rule you'll need here.", "{town}. {law} Say it back. Good.",
-    "{law} That's {town}'s rule. The next town will laugh at you for it. Let them.", "You're in {town} now. {law} Forget it outside if you like."],
+  // The gatekeeper's first words: the town's law, the one thing anyone here tells a stranger.
+  "welcome": ["Welcome to {town}. {law} That's all we ask.", "{town}. {law} Say it back. ... Good.",
+    "{law} That's {town}'s way. The next town'll laugh at you for it. Let them.", "You're in {town} now. {law} Do it while you're here."],
 
   "cultures": [
     {
       "id": "hush", "creature": "choir",
-      "law": "Speak low. Shut the door behind you.",
-      "hall": "the Quiet House",
-      "centrepiece": { "kind": "bell", "name": "the felted bell",
-        "text": "A big iron bell in a timber frame, its clapper bound in felt and wire. Chalked on the frame: RUNG ONCE." },
+      "law": "No singing in {town}. Not even at the burying.",
+      "hall": "St. Columba's", "hallStyle": "church",
+      "centrepiece": { "kind": "bell", "name": "the church bell",
+        "text": "The church bell, taken down and set in a frame, its clapper bound in felt and wire. A row of names is scratched round the rim. The names stop halfway round." },
       "lines": [
-        "Lower. Lower than that. There. Now you sound like you live here.",
-        "You came in with your whistle going. Everyone heard. It's all right. It's the leaving they mind.",
-        "We don't shout here. We don't sing. We had a choir once. We don't have a choir.",
-        "Shut that door behind you. And the one behind that.",
-        "My mother said they take the loudest first. She said it very quietly.",
-        "Your engine's the loudest thing for forty miles. I'd keep the rest of you down."
+        "We had a choir once. Thirty voices. You could hear them down at the wharf.",
+        "Mrs. Beaton played the organ. She'd stopped to turn the page. That's the only reason she's still with us.",
+        "It took the tenors first. I don't know why I remember that. The tenors.",
+        "Don't hum. You're humming. Don't.",
+        "My girl sang in her sleep for a year after. We'd sit up and hold her mouth shut. Gently.",
+        "Some nights you can hear it out past the wall, trying the tune. It's got most of it now.",
+        "The louder you are, the sooner. That's all I know about it, and I wish I didn't.",
+        "Shut that door, would you. There's a draught. There's always a draught."
       ],
       "notes": [
-        { "title": "Quiet hours", "text": "Quiet hours in {town} are all hours. Boots off on the boards after dark. No whistles inside the walls. Anyone shouting will be asked once." },
-        { "title": "To the Quiet House", "text": "Please return the felt for the bell. It was on the clapper on Tuesday. If you have it, leave it on the step and say nothing." },
-        { "title": "Found in a coat", "text": "Count the doors before you sleep. If one is open, don't call out to ask who opened it." }
+        { "title": "No singing", "text": "By order of the council: no singing, whistling or humming within the walls of {town}. This includes hymns. This includes lullabies. Especially lullabies." },
+        { "title": "Order of service", "text": "A printed order of service, the hymn numbers crossed out. In pencil underneath: they were on the third verse." },
+        { "title": "Found in a coat", "text": "It went right past the vestry. The vestry door was shut." }
       ]
     },
     {
       "id": "pairs", "creature": "tippyToesie",
-      "law": "Never stand alone. Never stand still.",
-      "hall": "the Pairing Hall",
+      "law": "Nobody sleeps alone in {town}. Nobody waits alone.",
+      "hall": "the Mission Hall", "hallStyle": "hall",
       "centrepiece": { "kind": "post", "name": "the waiting post",
-        "text": "A post hung with iron rings, short cords knotted to them and worn smooth. Two cords to every ring. Nobody is tied to any of them." },
+        "text": "A post hung with iron rings, short cords knotted to each, worn smooth from wrists. There are more rings than there are people left to tie to them." },
       "lines": [
-        "Where's your other? You don't stand about on your own. Not here.",
-        "We're tied at the wrist till we're wed, and after that it's worse.",
-        "If you're going to wait, walk while you wait. Little circles. Like this.",
-        "{name} stood still by the pump one night. Just for a minute. Just to think.",
-        "We don't say alone in {town}. We say short. Don't be short.",
-        "Turn round now and then. It doesn't like being seen coming."
+        "Mam stood at the sink every night of her life. One night she stood there too long.",
+        "They found him at the window with his hand still on the curtain. He'd been watching for the train.",
+        "If you have to wait, keep moving. Little circles. Look behind you on the turn.",
+        "Those of us with nobody sleep in rows in the Mission Hall. Holding hands. You get used to the snoring.",
+        "It comes up so soft. You'd never hear it. You'd only feel the hand.",
+        "{name} won't stand still even asleep. Her feet go all night under the blanket.",
+        "Don't stand there like that. Turn round. Go on. Turn round.",
+        "Two can pull it off you. One can't. One just goes quiet."
       ],
       "notes": [
-        { "title": "Lost: one half", "text": "Answers to Edda. Last seen at the pump, standing. If you find her standing, do not come up behind her. Call her name from in front." },
-        { "title": "Bench rules", "text": "Two to a bench. One on a bench is one too few. The warden will move you on." },
-        { "title": "Pairs for the wall walk", "text": "Tonight's pairs are posted in the Pairing Hall. If your pair is sick, you are sick too." }
+        { "title": "Bench rules", "text": "Two to a bench. One on a bench will be moved on by the warden, for their own sake." },
+        { "title": "Lost: one half", "text": "Answers to Edna. Last seen at the pump, standing. If you see her standing, don't come at her from behind. Say her name first." }
       ]
     },
     {
       "id": "count", "creature": "passenger",
-      "law": "Say your name when you're counted.",
-      "hall": "the Counting House",
+      "law": "Everyone answers to their name at supper.",
+      "hall": "the Counting House", "hallStyle": "hall",
       "centrepiece": { "kind": "tally", "name": "the tally board",
-        "text": "A black board ruled in chalk: a column of names, and tonight's marks against them. There is one more mark than there are names." },
+        "text": "A blackboard of names, tonight's marks chalked against them. There's one more mark than there are names. Someone's rubbed it out. It's back." },
       "lines": [
-        "Say your name. Out loud. Thank you. We had a quiet one once.",
-        "We count at every bell. If the count's long, we start again, and nobody leaves the room.",
-        "A man who won't say his name isn't shy. Not out there.",
-        "We count the crews out and we count them in. Mostly the same number. Mostly.",
-        "If one of yours goes quiet tonight, count again. Out loud.",
-        "Forty-one at the last bell. Forty-two marks. We're still recounting."
+        "Say your name. Out loud. ... Thank you. We had one once that wouldn't.",
+        "The 41 came in with one more crew than it left with. Nobody could say which. They all said it wasn't them.",
+        "It sat at the end of our table all through supper. Didn't eat. Didn't say grace. In the morning the Corkums were gone.",
+        "It looks like someone you know. That's the worst of it. Someone you'd trust with your life.",
+        "Count your crew. Then count again with your eyes shut, by their voices.",
+        "My brother came back from the mill and never said another word. We kept him a year before we were sure.",
+        "We lay one place more than we need. Just to see who sits.",
+        "Keep talking while I count. No, keep talking. I want to hear you."
       ],
       "notes": [
-        { "title": "The count", "text": "All persons inside the walls will answer at the bell by name. Nods are not answers. Persons who do not answer will be helped to." },
-        { "title": "From the night mail's log", "text": "Left {other} with nine. Counted ten at the water stop. Counted nine again at the bridge. Nobody saw anyone get off." },
-        { "title": "Chalk", "text": "Chalk is for the board only. Do not write your name on anything you leave behind." }
+        { "title": "The count", "text": "All persons within the walls will answer by name at the supper bell. Nodding is not answering." },
+        { "title": "From the night mail's log", "text": "Left {other} with nine. Counted ten at the water stop. Counted nine at the bridge. Nobody got off." }
       ]
     },
     {
       "id": "shutters", "creature": "fireFlies",
-      "law": "Light what you need. Shutter the rest.",
-      "hall": "the Lamp Store",
+      "law": "No light in a window. Not one.",
+      "hall": "the Lamp Room", "hallStyle": "hall",
       "centrepiece": { "kind": "lamps", "name": "the shuttered lamps",
-        "text": "Racks of lanterns, every one with a tin shutter closed over its glass. A sign: OPEN TO SEE. SHUT WHEN SEEN." },
+        "text": "Racks of lanterns, every glass shuttered in tin. A child's lantern hangs at the end, its shutter soldered shut." },
       "lines": [
-        "A lamp's for seeing by. It isn't company. Shut it when you've seen.",
-        "When the little lights come, you put yours out. Every one. Then you sit in the dark and wait.",
-        "Your cars are lit like a fair. Pretty. They'll think so too.",
-        "We lost the east row to a lamp left burning in a hayloft. Burned blue, they said.",
-        "Our children learn the town in the dark first. Then we show them where the lamps are.",
-        "Moving's fine. It's stopping with your lamps lit."
+        "Pretty little lights, they were. Came right up to the glass. The children waved at them.",
+        "The whole east end went up. Burned blue. You could read by it from the wharf.",
+        "Our children learn the town in the dark. Count the steps to the well. Count them back.",
+        "Stood still with a lamp lit, God help you. Moving, maybe not. Maybe.",
+        "Your cars are lit like a dance hall. They'll love that.",
+        "I sit in the dark most nights. You get so you can hear the lamps thinking about it.",
+        "Put your hand on the glass after. Still warm. They like it warm.",
+        "My sister's boy took a lamp to the shed. Seven, he was. He'd wanted to see them."
       ],
       "notes": [
-        { "title": "Lamp orders", "text": "No lamp to be left lit in an empty room. No lamp in a window. Wardens will shutter any lamp found on its own." },
-        { "title": "Lost", "text": "One brass lamp, shutter broken. If found lit, do not carry it in. Leave it where it is and walk away." },
-        { "title": "Said at the gate", "text": "The little lights don't come to the dark, and they don't come to a train that's moving. Remember both." }
+        { "title": "Lamp orders", "text": "No lamp to burn in an empty room or a window. The warden will put out any light found on its own, and the household fined." },
+        { "title": "Said at the gate", "text": "Little lights don't come to the dark. They don't come to a train under way. Remember the first. The second's no comfort." }
       ]
     },
     {
       "id": "talkers", "creature": "gaunt",
-      "law": "Keep talking. Never let it go quiet.",
-      "hall": "the Reading Room",
+      "law": "Somebody's always talking in {town}.",
+      "hall": "the Reading Room", "hallStyle": "hall",
       "centrepiece": { "kind": "horn", "name": "the reading horn",
-        "text": "A loudspeaker horn on a pole, crackling. A voice reads names, the weather and a recipe for turnip soup. It has been reading all night." },
+        "text": "A loudspeaker horn on a pole. A tired voice reads names, one after another. Every so often it reads the weather, then goes back to the names." },
       "lines": [
-        "Don't stop talking on my account. Nobody here stops. Tell me about your train. Anything.",
-        "The horn reads all night. When it stops, we all start. Doesn't matter what you say.",
-        "Quiet's the worst thing you can give it. Give it nonsense. Give it your mother's recipes.",
-        "There's a thin one out by the old yards. Follows anyone who goes quiet on it. Keep it company and it's no trouble.",
-        "I talk in my sleep. My wife says it's saved us twice.",
-        "You're a quiet lot. You'll want to fix that before the villages."
+        "The horn reads the dead all night. Somebody has to. When it stops, we all start talking. Doesn't matter what.",
+        "There's a thin one out by the old mill. Mrs. Gillis talks to it on her way to the well. She says it gets cross if she runs out of things to say.",
+        "Don't go quiet on me. Tell me something. Anything. The price of flour.",
+        "My husband stopped to cough. That was all. He stopped to cough.",
+        "I talk in my sleep. The children say it's the only reason we're all still here.",
+        "It doesn't want anything. It only wants company. Company's a terrible thing to want, out there.",
+        "You're a quiet crowd. You'll want to fix that before the villages.",
+        "Tell it a story. A long one. Don't stop at the good part."
       ],
       "notes": [
-        { "title": "Readers wanted", "text": "The horn needs readers for the small hours. Any voice will do. No experience needed. Bring something long." },
-        { "title": "Rules of the Reading Room", "text": "One. Read aloud. Two. If you lose your place, keep talking until you find it. Three. Never stop in the middle of a sentence for it." },
+        { "title": "Readers wanted", "text": "The horn needs readers for the small hours. Any voice will do. Bring something long. Do not bring hymns." },
         { "title": "Scrawled", "text": "It was fine as long as Pell kept talking. Pell stopped to cough." }
       ]
     },
     {
       "id": "eyes", "creature": "sootChildren",
-      "law": "Look them in the eye from five paces.",
-      "hall": "the Glass House",
+      "law": "Look them in the eye from five paces. Every one. Every time.",
+      "hall": "the Glass House", "hallStyle": "hall",
       "centrepiece": { "kind": "mirror", "name": "the looking glass",
-        "text": "A tall mirror in an iron frame, a white line painted on the ground five paces in front of it. The glass is very clean." },
+        "text": "A tall mirror in an iron frame, a white line painted five paces in front of it. The glass has been polished so often it's gone thin in the middle." },
       "lines": [
-        "Stop there. On the line. Look at me. ... Fine. Come in, then.",
-        "You'll hear children out there, calling. Some of them are children.",
-        "Check the eyes, then the hands. Black is no. Black is run.",
-        "We brought a girl in from {other}. Real as you. She's the baker's now.",
-        "Five paces. Not four. Four's too close to run from.",
-        "Bring a real one home and they'll pay you more than your train's worth. Get it wrong once."
+        "Stop there. On the line. Look at me. ... Go on, then.",
+        "You'll hear children crying out past the wall. Some of them are children. That's what makes it so cruel.",
+        "We took one in. Little girl, filthy, crying for her mam. The Moshers gave her their own bed.",
+        "Look at the eyes. Then the hands. Don't let it get close enough to make you stop looking.",
+        "We brought a real one in from {other}. She's the baker's now. She doesn't cry. Ever.",
+        "Five paces. Not four. I paced it out myself, after the Moshers.",
+        "If it calls you by name, it's heard someone say your name. Think who's been saying your name.",
+        "A real one's worth more than your whole train. That's the trouble. That's always been the trouble."
       ],
       "notes": [
-        { "title": "At the gate", "text": "All persons stop at the line and show their eyes. All persons. The gatekeeper has a mother too." },
-        { "title": "Reward", "text": "Children found living beyond the walls will be paid for at the gate. Look first. Look properly. Look from the line." },
+        { "title": "At the gate", "text": "All persons stop at the line and show their eyes. All persons. The gate warden has a mother too." },
         { "title": "Pinned to a door", "text": "She called me by my name. I never told her my name." }
       ]
     },
     {
       "id": "offerings", "creature": "trackDoll",
-      "law": "Stop for her on the line. Give her the toys.",
-      "hall": "the Shelf House",
+      "law": "Every toy in {town} goes on the shelf by the gate.",
+      "hall": "the old school", "hallStyle": "school",
       "centrepiece": { "kind": "shelf", "name": "the toy shelf",
-        "text": "A long shelf nailed up inside the wall, worn pale where things have stood on it. It's empty. There are small prints in the dust." },
+        "text": "A long shelf by the gate, worn pale where things stood. It's empty. There are small prints in the dust, and the prints don't go anywhere." },
       "lines": [
-        "We give the toys to the line. She's never once come through the gate. Never once.",
-        "If she's on the rails, you stop. You don't ring, you don't slow. You stop.",
-        "Our children have no toys. They know why. They don't mind. Mostly.",
-        "Hit her and she rides home with you. She likes the cab when nobody's in it.",
-        "She likes the noisy ones best. Music boxes. Anything that winds.",
-        "You see her face in your lamp, you've about two hundred metres. Use them."
+        "We give the toys to the line. She hasn't once come through the gate. Not once. Not yet.",
+        "Ernie said he'd stop for her. He said it right up to the bridge.",
+        "Our children don't have toys. They play with stones. They say they don't mind.",
+        "She rode home in the cab of the Truro freight. They found the levers set just so. Nobody'd touched them.",
+        "She likes the ones that make a noise. Music boxes. Drums. Anything you wind.",
+        "Her face shines in the headlamp, they say. Like a plate. Like the moon lying on the rails.",
+        "My Annie misses her rabbit. She asks after it. I tell her it's gone on a train.",
+        "If she's aboard, give her something. Before she gets bored. You don't want her bored."
       ],
       "notes": [
-        { "title": "Given this month", "text": "One tin drum. One rag rabbit. One music box, wound. One spinning top. One china cup (refused, returned)." },
-        { "title": "Notice", "text": "Toys found in the yards go on the shelf, not in pockets. She knows the difference." },
-        { "title": "Driver's card", "text": "Doll on the line: stop short. Doll aboard: give her something. Doll at the controls: everyone to the cab." }
+        { "title": "Given this month", "text": "One tin drum. One rag rabbit (Annie's). One music box, wound. One spinning top. One china cup (refused, returned)." },
+        { "title": "Driver's card", "text": "Found in the cab of the Truro freight, in the driver's hand: Doll on the line. Doll in the van. Doll in the" }
       ]
     },
     {
       "id": "rulebook", "creature": "whistler",
-      "law": "Rule nine. Never answer a whistle you didn't blow.",
-      "hall": "the Rule Hall",
+      "law": "Rule nine is read at every meal.",
+      "hall": "the Rule Hall", "hallStyle": "hall",
       "centrepiece": { "kind": "lectern", "name": "the rule book",
-        "text": "A railway rule book chained to a lectern, thick as a brick and open at RULE 9: A WHISTLE NOT BLOWN BY YOUR CREW IS NOT A WHISTLE. CHECK BETWEEN THE CARS." },
+        "text": "A railway rule book chained to a lectern, open at RULE 9. The rest of the page is torn out. Someone's written in the margin: ASK HARRY." },
       "lines": [
-        "Rule nine. Never answer a whistle you didn't hear blown. Say it back to me.",
-        "We read a rule at every meal. Last night was fifty-five. Protect a stopped train.",
-        "Your whistle goes on its own while you're stopped, you look between the cars. All of them.",
-        "The rule book's older than the comet. It was right about everything but that.",
-        "Moving, you're a train. Stopped, you're a larder.",
-        "We lost a fireman to rule nine. He went to see who'd pulled the cord."
+        "The whistle went with nobody in the cab. Harry went to look between the cars. We heard him calling for a day and a half.",
+        "Rule nine. I can't say the rest. Nobody can. Harry knew it.",
+        "It only happens when you're stood still. Moving, you're a train. Stood still, you're a pantry.",
+        "If you go after them, go quick. It doesn't eat straight off. It takes you home first.",
+        "We read a rule at every meal. The same one. You'd be surprised how much there is in it.",
+        "Don't answer a whistle you didn't hear pulled. That's not the rule. That's just sense.",
+        "The gaps between the cars are the worst place in the world. Dad says. Dad's never been between the cars.",
+        "Harry's whistle sits on the lectern. Nobody's blown it. Nobody's going to."
       ],
       "notes": [
-        { "title": "Tonight's rule", "text": "Rule 55. When a train is stopped, a member of the crew shall go back and protect it. He shall not go alone." },
-        { "title": "Rule 9 (amended)", "text": "A whistle not blown by your crew is not a whistle. Do not answer it. Check every gap. Then check them again." },
-        { "title": "In the margin", "text": "They take you somewhere first. They don't eat you straight off. Somebody could come for you, if they were quick." }
+        { "title": "Tonight's rule", "text": "Rule 9. A whistle not blown by" },
+        { "title": "In the margin", "text": "They take you somewhere first. Somebody could come for you, if they were quick about it." }
       ]
     },
     {
       "id": "banked", "creature": "stoker",
-      "law": "Bank the fires at dark. Keep the gauge cool.",
-      "hall": "the Furnace Hall",
+      "law": "No fire in {town} above the red mark.",
+      "hall": "the Furnace Hall", "hallStyle": "hall",
       "centrepiece": { "kind": "brazier", "name": "the banked fire",
-        "text": "A great iron brazier, its fire banked to a dull red under ash. Tongs and a poker lie across it. The poker is bent nearly double." },
+        "text": "An iron brazier banked to a sullen red. A poker lies across it, bent nearly double. Nobody's straightened it." },
       "lines": [
-        "Run hot and you'll have company in your firebox. Ask anyone who used to live on the east street.",
-        "It comes up out of the coal, glowing. You'll see it if you're watching the coal.",
-        "If it's in, you don't open the door. You starve it. Vent and wait.",
-        "We bank every fire at dark. We'd sooner be cold than have it visit.",
-        "A cool gauge is a slow train. A slow train gets home.",
-        "The bent poker was my uncle's. He opened the door on it."
+        "Run hot and you'll have company in your firebox. Ask anyone who lived on the east street. You can't.",
+        "It comes up out of the coal. Glowing. Like a coal that's learned to crawl.",
+        "Uncle Hector opened the door on it. Once. The poker's his.",
+        "We'd sooner be cold. Everyone here's cold. You get used to the chilblains.",
+        "The fire went green in the Moncton engine. The fireman wouldn't say what was in there. Wouldn't go near the tender after.",
+        "Let it go out. That's what nobody wants to hear. Sometimes you let it go out.",
+        "A hot engine's a fast engine. A fast engine's a lit window, to it.",
+        "My hands haven't been warm since the fall. I don't miss it. I don't miss warm."
       ],
       "notes": [
-        { "title": "Fire orders", "text": "All fires to be banked at dark. No fire to run above the red mark. A fire found above the mark will be put out by the warden." },
-        { "title": "In the firemen's book", "text": "If it's in the box, don't open the door. Starve the fire right down. It goes back the way it came, over the coal. Give it a few minutes before you fire up again." },
-        { "title": "Lost", "text": "Water hose, brass nozzle, from the Furnace Hall. Whoever has it: it's the only thing that works on it." }
+        { "title": "Fire orders", "text": "All fires to be banked at dark. No fire above the red mark. Any fire found above the mark will be put out by the warden." },
+        { "title": "Lost", "text": "Water hose, brass nozzle, from the Furnace Hall. Whoever has it: it's the only thing that worked." }
       ]
     },
     {
       "id": "crown", "creature": "draggers",
       "law": "Keep to the crown of the road.",
-      "hall": "the Road House",
+      "hall": "the Road House", "hallStyle": "hall",
       "centrepiece": { "kind": "line", "name": "the white line",
-        "text": "A white line painted down the middle of the square, worn deepest along its very centre. Nothing stands within a pace of the edges." },
+        "text": "A white line down the middle of the square, worn to the stone in the centre. Along the wall, a board with boots nailed to it. All left boots." },
       "lines": [
-        "Keep to the middle. Of the road, of the roof, of everything.",
-        "Edges are for falling off. That's what they've always been for. Something helps now.",
-        "On your roofs you walk the ridge. Never the edge. Not even to look over.",
-        "If something takes you by the ankle, shout. Someone pulls, or you go over. One or the other.",
-        "We built the houses back from the road. Not for the light.",
-        "Handrails are worth every scrip. Tell your clerk I said so."
+        "Edges are for falling off. Always were. Something helps, now.",
+        "They found his boot on the roof of the van and the rest of him in the ditch a mile back.",
+        "Walk the ridge on your roofs. Not the edge. Not to look over. Not for anything.",
+        "If something takes your ankle, shout. Two seconds. Maybe three. That's what you've got.",
+        "We built back from the road, after. Not for the light.",
+        "Handrails, b'y. Whatever they cost you.",
+        "I don't go near the edge of the platform. I don't go near the edge of my bed.",
+        "It reaches further when you're going fast. Remember that. Or don't, and find out."
       ],
       "notes": [
         { "title": "Road orders", "text": "Walk the crown. Carts the crown. Children the crown. Anyone found at the edges after dark will be fined, if found." },
-        { "title": "To the roofers", "text": "Ridge only. Ridge only. RIDGE ONLY." },
-        { "title": "In the margin", "text": "Two seconds, maybe three. That's how long you've got to pull somebody back up. Practise." }
+        { "title": "To the roofers", "text": "Ridge only. Ridge only. RIDGE ONLY." }
       ]
     },
     {
       "id": "backs", "creature": "followers",
-      "law": "Check each other's backs.",
-      "hall": "the Brushing House",
+      "law": "Brush down at every door.",
+      "hall": "the Brushing House", "hallStyle": "hall",
       "centrepiece": { "kind": "pegs", "name": "the coat pegs",
-        "text": "A long row of pegs, every coat on them hung back to front. Each one has been brushed down the back, hard." },
+        "text": "A row of pegs, every coat on them hung back to front, each brushed down the back so hard the cloth's gone thin." },
       "lines": [
-        "Turn round. ... You're clear. Me? Go on, then. Properly.",
+        "Turn round. ... You're clear. Me? Go on. Properly. Harder than that.",
         "You can't see your own back. Nobody can. That's the whole of it.",
-        "We brush each other down at the gate. Coats, shoulders, collars. You'd be surprised what rides in.",
-        "It's small. Hand-sized. It sits where you can't look. Your friends can.",
-        "If one gets aboard, it'll nest in the best you've got. Look in your best car first.",
-        "Ask someone to look at your back before you go out. Then ask someone else."
+        "Gussie came home from the mill with something on her. We all saw it. She didn't. By the time we'd said...",
+        "It sits where you can't look. It likes the best of what you've got. It went for the pantry first.",
+        "My shoulders are raw. Everybody's shoulders here are raw.",
+        "If somebody's looking past you at nothing, turn round. Turn round now.",
+        "Don't trust a friend who won't look at your back. Don't trust one who looks too long, either.",
+        "If your car smells of wet hay, don't put your hand in. Bring a light."
       ],
       "notes": [
         { "title": "At the gate", "text": "All persons coming in will be brushed down the back by the gate warden. All persons going out will brush each other." },
-        { "title": "Nailed up", "text": "Rode in on Halloway: one. Rode in on Grieve: one. Rode in on the gate warden: nobody checked." },
-        { "title": "Advice to crews", "text": "If your loot car smells of wet hay, don't put your hand in. Take a lamp in first." }
+        { "title": "Nailed up", "text": "Rode in on Halloway: one. Rode in on Gillis: one. Rode in on the gate warden: nobody checked." }
       ]
     },
     {
       "id": "fours", "creature": "ribbits",
-      "law": "Go out in fours. Never fewer.",
-      "hall": "the Four House",
+      "law": "Four out. Four back.",
+      "hall": "the Four House", "hallStyle": "hall",
       "centrepiece": { "kind": "bench", "name": "the four bench",
-        "text": "A bench long enough for four, four hooks over it and a lamp on each hook. A sign: FOUR OUT. FOUR BACK." },
+        "text": "A bench long enough for four, four hooks over it and a lamp on each hook. One hook is empty. Nobody's hung a lamp on it since." },
       "lines": [
-        "Four out, four back. Three's a meal, two's a snack, one's nothing at all.",
-        "They come in twos and threes and fours. They leave alone anything as big as they are.",
-        "If one gets its tongue on you, you can't move. Your friends can. That's what friends are for.",
-        "We had a five once. Five's lovely. Nobody's got a five any more.",
-        "They're slow if you run. Nobody runs. Everyone thinks they'll be fine standing.",
-        "Count them. Count you. If they've got more, walk away together."
+        "Two went out to the woodpile. One came back. She won't say. She hasn't said anything since.",
+        "They don't bother anything as big as they are. That's what Dad said. Dad went out in a two.",
+        "Four out, four back. Three's a meal, two's a snack, one's nothing at all. The children skip to it.",
+        "Their tongues hold you still. Your friends can still move. That's what friends are for, now.",
+        "They're slow if you run. Nobody runs. Everybody stands there thinking they'll be fine.",
+        "We had a five once. Five was lovely. Nobody's got a five any more.",
+        "Count them. Count you. If they've more, walk away together. Don't split up to go round.",
+        "You can hear them in the reeds. Like frogs. Like big frogs. Like something laughing at frogs."
       ],
       "notes": [
         { "title": "Wall walk", "text": "Fours only. A three will be sent back. A two will not be let out." },
-        { "title": "Lost", "text": "One boot, left, from a three that went out on the {other} road. No need to return it." },
-        { "title": "Chalked on the bench", "text": "they hop" }
+        { "title": "Lost", "text": "One boot, left, from a three that went out on the {other} road. No need to return it." }
       ]
     },
     {
       "id": "lastCar", "creature": "carHugger",
-      "law": "Ride nothing in the last car you'd mind losing.",
-      "hall": "the Car Shed",
+      "law": "Nothing rides in the last car.",
+      "hall": "the Car Shed", "hallStyle": "shed",
       "centrepiece": { "kind": "carriage", "name": "the bitten van",
-        "text": "The front half of an old goods van on blocks. The back half is gone, bitten off in one ragged curve. Someone has painted the bite white, so you can see how big it was." },
+        "text": "The front half of an old van on blocks, the back half bitten off in one ragged curve. Inside, names are painted round the walls in white. The names go round to where the wall stops." },
       "lines": [
-        "Nothing in your last car you'd mind losing. Not cargo, not people. Especially not people.",
-        "It takes the back car and eats it, shell and all. You cut it loose, or you go back and kill it.",
-        "Your speed drops when it's on. You feel it before you hear it.",
-        "Stand in front of its mouth and you're cargo too.",
-        "Three of you can kill it quick. One of you can kill it slow.",
-        "We cut a last car loose once. Watched it roll off into the dark with the thing still on it, chewing."
+        "The Saint John freight came home short a van. Well. Not short. Eaten. You could see the teeth in the steel.",
+        "Nothing in your last car you'd mind losing. Not cargo. Not people. Especially not people.",
+        "You'll feel it before you hear it. The whole train goes heavy, like dragging a net.",
+        "My brother was the brakeman. He rode the van. He always rode the van.",
+        "You can cut it loose and watch it go off into the dark, still chewing. Or you can go back. Not alone.",
+        "Stand in front of its mouth and you're freight.",
+        "We painted their names in what's left of the van. Ran out of wall.",
+        "Three of you can kill it quick, they say. They say a lot of things."
       ],
       "notes": [
         { "title": "Loading orders", "text": "Nothing of value in the last car. The last car is for empties, ballast and bad apples." },
-        { "title": "Wanted", "text": "Couplings, any condition. Ours keep going." },
         { "title": "From the clerk", "text": "The clerk does not pay out on last cars. Read your contract." }
       ]
     },
     {
       "id": "backGun", "creature": "cinderHounds",
-      "law": "Keep a gun on the back road.",
-      "hall": "the Gun House",
+      "law": "The back gun is never left alone.",
+      "hall": "the Gun House", "hallStyle": "hall",
       "centrepiece": { "kind": "cannon", "name": "the old gun",
-        "text": "A short iron cannon on a timber carriage, aimed back up the line the trains come in on. Its brass ring has been polished every night for years." },
+        "text": "A short iron cannon on a timber carriage, aimed back up the line. Its brass ring is polished every night. Under it, a tin of matches and a list of names." },
       "lines": [
-        "They run behind. Always behind. The gun at your back is the only thing they mind.",
-        "They gain on the climbs. On the flat you're fine. Uphill, have the back gun crewed.",
-        "Any that get aboard don't get off. They eat what you're carrying and set the car going.",
-        "Livestock draws them. So does a hot boiler. You've got both, I'd crew the back.",
-        "Loud, the gun. That's the price of it.",
-        "You'll hear paws on the iron before you see anything."
+        "They run behind. Always behind. Gaining on every hill.",
+        "The Pictou freight was slow on the grade. They came over the back. We heard the crew on the radio till the radio stopped.",
+        "Dad kept the back gun loaded and he came home every time. Every time but one.",
+        "Once they're on, they don't get off. They eat what you're hauling and set it going.",
+        "Livestock draws them. A hot boiler too. You've got both. God love you.",
+        "You'll hear paws on the iron. Then you'll smell smoke. That's them, not you.",
+        "We fire the old gun at the hour, every night, for the Pictou crew. The noise is for them.",
+        "Loud, the gun. Loud's the price. Everything out there has a price."
       ],
       "notes": [
         { "title": "Gun drill", "text": "Back gun loaded before the throat. Back gun crewed past the last light. No exceptions for weather, tiredness or cards." },
-        { "title": "Lost", "text": "One dog. Brown. Not ours. Not a dog." },
-        { "title": "Tally", "text": "Driven off: {n}. Boarded: 2. Got off again: 0." }
+        { "title": "Lost", "text": "One dog. Brown. Not ours. Not a dog." }
       ]
     }
   ],
 
-  // A town's smaller habits, one or two a town, on top of its culture: what makes the next town with the same culture
-  // still a different place. None of them is a creature's rule.
+  // A town's smaller habits, one or two a town, on top of its custom. None is a creature's rule; most are grief.
   "quirks": [
     { "id": "names", "habit": "children aren't named till their first winter",
       "lines": ["My name? I've not had it long. Got it when I was nine. We wait, here.", "Don't name a thing till it's lasted a winter. Goes for trains too."],
-      "notes": [{ "title": "Named this winter", "text": "Ash. Ivo. The Grieve boy. The girl from the east street. The goat." }] },
+      "notes": [{ "title": "Named this winter", "text": "Ash. Ivo. The Gillis boy. The girl from the east street. The goat." }] },
     { "id": "coats", "habit": "they wear their dead's coats",
-      "lines": ["This was my brother's coat. Fits better than it did on him, he'd say.", "Everyone's coat here was somebody's. Mine was three people's."],
-      "notes": [{ "title": "Coats", "text": "Coats of the departed to be brought to the hall for fitting. Pockets to be emptied first. Mostly that's notes." }] },
+      "lines": ["This was my brother's coat. Fits me better than it did him, he'd say.", "Every coat in {town} was somebody's. Mine was three people's."],
+      "notes": [{ "title": "Coats", "text": "Coats of the departed to be brought to the hall for fitting. Pockets to be emptied first. Mostly it's notes." }] },
     { "id": "midnight", "habit": "the whole town eats together at midnight",
-      "lines": ["Supper's at midnight. Everyone. That way we know who's missing before we start.", "You'll miss supper. Shame. There's always a place laid for a crew."],
-      "notes": [{ "title": "Supper", "text": "Midnight, the long table. Places are laid for everyone on the list. Do not sit at a place that isn't yours, even if it's empty. Especially then." }] },
+      "lines": ["Supper's at midnight. Everyone. That way we know who's missing before we start.", "You'll miss supper. Shame. There's a place laid for a crew. There always is."],
+      "notes": [{ "title": "Supper", "text": "Midnight, the long table. Do not sit at a place that isn't yours, even if it's empty. Especially then." }] },
     { "id": "goats", "habit": "they keep goats on the roofs",
-      "lines": ["Goats on the roofs. Up there they see things coming, and they make a fuss about it.", "Don't laugh at the goats. The goats have saved this town more times than the guns."],
+      "lines": ["Goats on the roofs. Up there they see things coming, and they make a fuss.", "Don't laugh at the goats. The goats have saved this town more times than the guns."],
       "notes": [{ "title": "Goat watch", "text": "Any goat bleating after dark is to be reported to the wall. Any goat not bleating after dark is also to be reported." }] },
     { "id": "redDoors", "habit": "every door is painted red",
       "lines": ["Red doors. So you can find yours in the dark. Or so something can't. Depends who you ask.", "Paint's the one thing we've never run short of. Funny, that."],
-      "notes": [{ "title": "Paint", "text": "Doors to be repainted red by the end of the month. Scrape the old first. Do not look too closely at what's under it." }] },
+      "notes": [{ "title": "Paint", "text": "Doors to be repainted red by the end of the month. Scrape the old first. Don't look too close at what's under it." }] },
     { "id": "clocks", "habit": "every clock in town stopped at the same minute",
-      "lines": ["Ten past four. Every clock in town. We leave them be. Feels rude to wind them.", "We tell the time by the trains. Yours is the last one tonight."],
+      "lines": ["Ten past four. Every clock in {town}. We leave them be. It'd feel rude to wind them.", "We tell the time by the trains. Yours is the last tonight."],
       "notes": [{ "title": "Clock repairs", "text": "The clockmaker is no longer taking work. The clockmaker asks that you stop bringing him the clocks." }] },
-    { "id": "pigeons", "habit": "they still keep pigeons for the post",
-      "lines": ["Pigeons don't fly at night any more. We keep them anyway. They remember the way.", "Last bird back from {other} came in without its message. Came in without its feet."],
-      "notes": [{ "title": "Pigeon post", "text": "No birds out till the sky's grey. No birds back from {other} since spring." }] },
+    { "id": "foghorn", "habit": "the foghorn at the point still sounds, though nobody's at the point",
+      "lines": ["Hear that? The horn at the point. Nobody's been out to the point since the fall.", "It goes when the fog's in. It goes when it's not, too. Lately."],
+      "notes": [{ "title": "Lighthouse", "text": "Volunteers wanted for the point. To see who's sounding the horn. Volunteers wanted. Volunteers wanted." }] },
     { "id": "owing", "habit": "everyone owes everyone",
       "lines": ["You owe me for that look. Everyone owes everyone here. Keeps people coming back.", "My father died owing {name} a shovel. We're still paying it off."],
       "notes": [{ "title": "Owed", "text": "To {name}: one shovel, one lamp glass, one apology. Interest as agreed." }] },
@@ -340,7 +378,7 @@
       "lines": ["We marry at the gate, so the train crews can witness. You'd do. Got a tie?", "Crews are lucky at a wedding. Unless they're the last crew out. Then they're very unlucky."],
       "notes": [{ "title": "Banns", "text": "{name} and {name2} will be married at the gate when the next crew is in. Objections to the clerk. Witnesses wanted." }] },
     { "id": "salt", "habit": "salt on every sill",
-      "lines": ["Salt on the sill. Doesn't stop anything. Makes us feel better.", "We trade our salt for coal. We'd trade it for anything. Except the sills."],
+      "lines": ["Salt on the sill. Doesn't stop anything. Makes us feel better.", "We traded the last of the fish for salt. Couldn't tell you why. Everyone did it at once."],
       "notes": [{ "title": "Salt", "text": "One cup per sill per week. Any more is waste. Any less is your own lookout." }] },
     { "id": "lastWords", "habit": "they write down everyone's last words",
       "lines": ["We write down everyone's last words. Most of them are 'what was that'.", "The book of last words is in the hall. You're welcome to read it. Don't add to it."],
@@ -352,137 +390,293 @@
     "coal": { "hand": "pit hand", "name": "a pit town",
       "stalls": ["Lamp wicks, a tray of pit tallies with names stamped on them, one canary cage with the door open.",
         "Boots, mostly left ones. A card: RIGHT BOOTS FROM THE PIT, ASK AT THE HEADFRAME."],
-      "lines": ["Night shift comes up at first light. We don't ask them what they heard down there. They tell us anyway.",
-        "Every bit of coal in your tender came up through that headframe. You're welcome.",
-        "The seam runs under the wall and out. We follow it as far as the lamps reach. Then we stop."],
+      "lines": ["Night shift comes up at first light. We don't ask what they heard down there. They tell us anyway.",
+        "Every lump of coal in your tender came up through that headframe. You're welcome.",
+        "The seam runs out under the wall. We follow it as far as the lamps reach. Then we stop. Something else is following it the other way."],
       "notes": [{ "title": "Pit notice", "text": "Shift change at the bell. Lamps checked out and checked in. A lamp not checked in is a man not checked in." },
         { "title": "Tonnage", "text": "This week: {n}00 tons up. {n} props lost. Seam C closed until further notice. Do not ask about seam C." }] },
     "farm": { "hand": "grower", "name": "a growing town",
       "stalls": ["Turnips, potatoes, the odd onion under a sack. Nobody minding it. Nobody needs to.",
-        "Seed packets, tied in string, each one labelled with the name of the bed it came from and the year it last came up."],
+        "Seed packets tied in string, each labelled with the bed it came from and the year it last came up."],
       "lines": ["Grow lamps on every bed. The plants don't know it's dark. We don't tell them.",
-        "The cattle sheds are under the wall. They're the safest cows in the territory. Sleep better than me.",
-        "Everything on your train that isn't coal was grown in {town}. Mind it on the bends."],
+        "The cattle are under the wall. Safest cows in the territory. They sleep better than me.",
+        "Something's been in the potatoes. Not eating them. Just in them. Moving them about."],
       "notes": [{ "title": "Grow-lamp rota", "text": "Beds to be lit in turn. No bed to go dark for more than an hour. A bed gone dark is a bed lost." },
         { "title": "Market", "text": "Turnips, potatoes, the odd onion. Meat Thursdays. Do not ask what the pigs eat." }] },
     "foundry": { "hand": "foundry hand", "name": "a foundry town",
-      "stalls": ["Nails, hinges, a box of cast iron saints. The saints are all facing the wall.",
+      "stalls": ["Nails, hinges, a box of cast iron saints. The saints are all turned to face the wall.",
         "Pans, kettles, a stove door. Everything still warm to the touch."],
-      "lines": ["The furnaces never go out. You'll see the glow over the wall from miles off. So will everything else.",
+      "lines": ["The furnaces never go out. You'll see the glow over the wall for miles. So will everything else.",
         "Castings for half the line come out of here. Heavy as sin. Mind your feet under the crane.",
-        "My hands haven't been cold in eleven years. Nothing else about me has been warm."],
+        "My hands haven't been cold in eleven years. Nothing else about me's been warm."],
       "notes": [{ "title": "Pour schedule", "text": "Pours at the bell. Nobody under the gantry while the ladle's up. Nobody. That means you, {name}." },
         { "title": "Wanted at the foundry", "text": "Strikers, pourers, a crane hand who can see the ground. Pay in scrip, coal and soup." }] }
   },
 
-  // The jobs people do in the square: who stands where, and what the job makes them say. Each person gets one of these.
+  // The jobs people do about the square, each with what the job makes them say.
   "roles": {
     "gatekeeper": { "title": "gatekeeper", "lines": [
-      "Gate opens when your wheels turn. Not before. Not for anyone.",
-      "I count them out and I count them in. The numbers don't have to match. They usually do.",
-      "Last crew out of this gate didn't come back. Paid up front, though. Fine people." ] },
-    "clerk": { "title": "clerk", "lines": [
-      "Freight's paid at the far gate, not this one. Bodies at seventy-five. I don't set the rates.",
-      "Sign here. And here. That one's your next of kin. Leave it blank if it's each other.",
-      "A car's a car whether it's full of coal or full of holes. We pay by what's in it." ] },
-    "yardman": { "title": "yardman", "lines": [
-      "Couplings greased, brakes bled. That's the last kind thing anyone does for you tonight.",
-      "Mind the cars on the left road. Mind the cars on the right road. Mostly mind yourself.",
-      "Your points are set for the gate. After that you set your own." ] },
-    "fitter": { "title": "fitter", "lines": [
-      "Your boiler's sound. Sound as anything round here. Don't let it sit at the red.",
-      "The engineering kit lives in the fitter's locker. If it's not there, it's somewhere worse.",
-      "Lose the kit and rupture the boiler and you're walking home. Nobody walks home." ] },
-    "lampman": { "title": "lampman", "lines": [
-      "Every lamp on your train was filled by me. If one goes out, it wasn't the oil.",
-      "Smashed lamps I can fix. Smashed lampmen, less so.",
-      "Keep a spare lamp in a locker. Keep a spare lampman, if you can find one." ] },
-    "storekeeper": { "title": "storekeeper", "lines": [
-      "Lamps, extinguishers, powder. Everything's dear. You're welcome to go and fetch it yourself.",
-      "Spare engineering kit, little used. Previous owner doesn't need it now.",
-      "I'd sell you luck if I had any. I sold the last of it to the crew before you." ] },
-    "driver": { "title": "old driver", "lines": [
-      "Drove the {other} road nineteen years. Never once stopped for anything on the line. That's the whole trick.",
-      "Watch the bends on your map, not the bends in front of you. In front of you is too late.",
-      "Driver's the one they blame. Driver's the one who's always in the cab. Think on." ] },
-    "widow": { "title": "widow", "lines": [
-      "My husband drove the night mail. They paid me seventy-five. I keep wondering what the other twenty-five was.",
-      "Bring them home if you can. Even if it's only the coat.",
-      "I meet every train. One day it'll be his." ] },
+      "Gate opens when your wheels turn. Not before. Not for anyone. Not for anyone who asks nicely, either.",
+      "I count them out and I count them in. The numbers don't have to match. They usually do. Usually.",
+      "Last crew out of this gate didn't come back. Paid up front, though. Lovely people.",
+      "Sign the book going out. Sign it coming back. We compare the hands.",
+      "Six inches of oak and iron, that gate. It doesn't keep it out. It keeps it out long enough." ] },
     "guard": { "title": "wall guard", "lines": [
       "We shoot what comes to the wall. Nothing comes to the wall. We still shoot.",
       "From up there you can see your train all the way to the first bend. Then you're the dark's.",
-      "There's a lamp out past the last tower nobody lit. We don't go and look." ] },
-    "cook": { "title": "cook", "lines": [
-      "Eat now. Nobody eats out there. Well. Nobody you'd want to watch eating.",
-      "Soup. It's always soup. Don't ask what's in it, and don't ask what's not.",
-      "Crews get double. Not because you work harder. Because it's the last meal for some of you." ] },
+      "There's a lamp out past the last tower nobody lit. Been there three nights. We don't go and look.",
+      "You learn to tell a lamp from an eye at four hundred yards. Mostly. Mostly's a long word, up there.",
+      "Some nights something walks the outside of the wall all the way round. Never tries the gate. Just walks." ] },
+    "clerk": { "title": "clerk", "lines": [
+      "Freight's paid at the far gate, not this one. Bodies at seventy-five. I don't set the rates. I'd set them lower.",
+      "Sign here. And here. That one's your next of kin. Leave it blank if it's each other.",
+      "A car's a car whether it's full of coal or full of holes. We pay by what's in it, mind.",
+      "We don't pay a crewman's wages in cash. We take a forwarding address. You'd be surprised how many have none.",
+      "One ledger for the crews that came back, one for the rest. I'll want a new one of the second soon." ] },
     "keeper": { "title": "keeper of {hall}", "lines": [
-      "You'll have read the board. Do as it says. It's not advice.",
+      "You'll have heard what we do here. We do it because of what happened. That's all I'll say.",
       "We keep {hall} because somebody has to. And because the last keeper can't.",
-      "Every custom in this town is a grave somebody didn't need." ] },
-    // Not a job: what anyone in any town might say, when the rest has been said.
-    "anyone": { "title": "townsman", "lines": [
-      "Cold enough for you? It'll be colder out there. It's always colder out there.",
-      "First night out? You've got the look. It wears off, one way or another.",
-      "I had a cousin on the trains. Had.",
-      "Bring us something back. Anything. We're not fussy.",
-      "Don't stand there gawping. You'll miss your dawn.",
-      "The quiet crews come back more often. Couldn't tell you why.",
-      "Did you hear that? No? Good.",
-      "If you see my brother out there, tell him the goat died.",
-      "I've never been past the gate. I'm told it's much the same, only worse.",
-      "Your lamps look low. Everybody's lamps look low. It's the dark, not the oil." ] },
+      "Every custom in this town is a grave somebody didn't need.",
+      "A superstition's what you do when you're not sure. We're sure.",
+      "We didn't make it up. We copied it off the ones who lived." ] },
+    "storekeeper": { "title": "storekeeper", "lines": [
+      "Lamps, extinguishers, powder. Everything's dear. You're welcome to go and fetch it yourself.",
+      "Spare engineering kit, little used. Previous owner won't be needing it.",
+      "I'd sell you luck if I had any. Sold the last of it to the crew before you.",
+      "Matches, plenty. Lamp oil, some. Powder, ask me tomorrow.",
+      "Everything in here's been on a train once. Most of it twice. Some of it came back on its own." ] },
+    "fitter": { "title": "fitter", "lines": [
+      "Your boiler's sound. Sound as anything round here. Don't let it sit at the red.",
+      "The engineering kit lives in the fitter's locker. If it's not there, it's somewhere worse.",
+      "Lose the kit and burst the boiler and you're walking home. Nobody walks home.",
+      "Listen to her cold, before you light up. A sound engine ticks. A wrong one whispers.",
+      "Patched a boiler once with a dead man's plate. Held fine. Never ran the same." ] },
+    "lampman": { "title": "lampman", "lines": [
+      "Every lamp on your train I filled myself. If one goes out, it wasn't the oil.",
+      "Smashed lamps I can fix. Smashed lampmen, less so.",
+      "Keep a spare lamp in a locker. Keep a spare lampman too, if you can find one.",
+      "A lamp in a window's a lamp for anything that's looking. Shade yours on the bends.",
+      "Lamps don't go out on their own out there. Something has to want them out." ] },
     "porter": { "title": "porter", "lines": [
       "I carry what the crews leave behind. You'd be surprised how much of it is people.",
-      "Mind the gap. That's a joke from before. Isn't one now.",
-      "Your cars are loaded tight. Something in the third one's knocking. Probably the load." ] }
+      "Mind the gap. That's a joke from before. It isn't one now.",
+      "Something in your third car's knocking. Probably the load. Probably.",
+      "Trunks come back without owners all the time. Had an owner come back without a trunk. That was worse.",
+      "I don't open what's left behind. I weigh it. Some of it weighs different in the morning." ] },
+    "driver": { "title": "old driver", "lines": [
+      "Drove the {other} road nineteen years. Never stopped for anything on the line. That's the whole trick.",
+      "Watch the bends on your map, not the bends in front of you. In front of you is too late.",
+      "Driver's the one they blame. Driver's the one who's always in the cab. Think on that.",
+      "On the long flats you'll want to open her right up. Everybody does. That's what the flats are for.",
+      "If the rails hum while you're stood, get her moving. Don't wait to see what's coming down them." ] },
+    "widow": { "title": "widow", "lines": [
+      "My husband drove the night mail. They paid me seventy-five. I keep wondering what the other twenty-five was.",
+      "Bring them home if you can. Even if it's only the coat.",
+      "I meet every train. One night it'll be his.",
+      "I still set his place. The plate's always moved by morning. Just a little. Like somebody nudged it.",
+      "They gave me his cap back. Not his coat, not his boots. Just the cap. Dry, on a wet night." ] },
+    "cook": { "title": "cook", "lines": [
+      "Eat now. Nobody eats out there. Well. Nobody you'd want to watch eating.",
+      "Chowder. It's always chowder. Don't ask what's in it. Don't ask what isn't.",
+      "Crews get double. Not because you work harder. Because it's the last meal for some of you.",
+      "Take bread. Bread keeps. Everything else out there goes off, or goes on without you.",
+      "I cook for the number on the board. Lately they tell me cook for one more. Nobody'll say who for." ] },
+    // Not a job: what anyone in any town might say, when the rest has been said.
+    "anyone": { "title": "townsman", "lines": [
+      "Some cold tonight. It'll be colder out there. It's always colder out there.",
+      "First night out? You've the look. It wears off, one way or another.",
+      "I had a cousin on the trains. Had.",
+      "Bring us something back. Anything. We're not fussy any more.",
+      "Don't stand there gawking. You'll miss your dawn.",
+      "The quiet crews come back more often. Couldn't tell you why.",
+      "Did you hear that? No? Good. Good.",
+      "If you see my brother out there, tell him the goat died. He'll want to know.",
+      "I've never been past the gate. They tell me it's much the same, only worse.",
+      "Your lamps look low. Everybody's lamps look low. It's the dark, not the oil.",
+      "In {other} they won't sing. Not at a wedding, not at a burying. I thought that was daft till I heard what sings back.",
+      "They say in {other} nobody's ever left stood on their own. I tried it once, out back. I didn't like what the quiet did.",
+      "Folk in {other} count each other at supper, out loud. One night the count came out one over. They kept counting.",
+      "In {other} they keep the windows black. A light in a window's an invitation, they say. To what, they don't say.",
+      "They keep somebody talking all night in {other}, in shifts, like a fire. I asked what happens if it goes out. Nobody laughed.",
+      "Gran said look a strange child in the eye or don't look at all. She never said why. She never had to.",
+      "In {other} the children leave their toys at the gate. Polite, they call it. Polite to who?",
+      "There's a book of rules in {other}, read out at meals. They won't read you rule nine unless you sign on.",
+      "Keep your fire low and your door shut. A greedy fire draws company.",
+      "Keep to the middle of things. The road, the roof, the room. The edges are where you get took.",
+      "Brush your coat down before you go in a house. Every house. Even your own. Especially your own.",
+      "Go out four, come back four. If you're three, think hard about coming back at all.",
+      "Never ride the last car. Uncle did. The train came in a car short and nobody heard it go.",
+      "Somebody on the back gun. Always. Even in the yard. Especially in the yard.",
+      "Never whistle walking home. Not a tune, not a note. Whistling's for trains.",
+      "There was a dance at the hall, before. Fiddles and all. Nobody's danced since the fiddle kept on after the fiddler stopped.",
+      "Fog's in. Fog's always in now. When it lifts we count the houses.",
+      "My boy draws trains. Every one the same: long and black, no lamps, and a face at every window.",
+      "We buried Dad with his boots on. In case. Don't look at me like that, everybody does it now.",
+      "The sea used to come up to the station. Now it comes up to the wall. Some nights it knocks.",
+      "I keep his dory painted. He'll not need it. I keep it painted.",
+      "They rang the bell for the lost crews till the rope wore through. Then we stopped. Then it rang itself.",
+      "Traps came up full of hair one spring. Nobody's set a trap since.",
+      "If you hear your name from the trees, it isn't your mother. Your mother's here. She's right here.",
+      "We were three hundred, once. You can tell by the chairs.",
+      "I was on the platform the night the mail came in empty. Doors open, lamps lit, kettle on in the van. Still warm.",
+      "Bring back anything with writing on it. A ticket. A tag. We're trying to work out who's left.",
+      "Some days I think the wall's to keep us in. Then I remember the nights before the wall.",
+      "You smell that? Salt and hot iron. That's the line breathing. It does that, nights.",
+      "The minister went on the first train after. Said he'd be back with help. Eleven years, that was.",
+      "I've a sister in {other}. Had a letter in the spring. Her handwriting. Not her words.",
+      "Mam says the stars moved after the fall. Not much. Enough to lose your way by.",
+      "Don't count the cars going round the bend. You'll get a different number coming back.",
+      "The children play trains in the square. Somebody's the engine, somebody's the crew. Nobody'll be the last car.",
+      "Every house here has a chair nobody sits in. Don't ask whose. Just don't sit.",
+      "The wireless picks up a voice some nights, reading names. Ours, mostly. In order.",
+      "I don't sleep. Haven't since. I sit at the window and count the lamps on the wall." ] }
+  },
+
+  // A household behind an open door (an explorable house): what's happened to it, what each of them says about it, and
+  // the thing in the house that tells it. {family} is their surname, {absent} the one they lost.
+  "households": [
+    { "id": "emptyChair", "absent": true,
+      "lines": {
+        "elder": ["{absent} sat there. Still does, as far as I'm concerned. Don't you sit there.", "We lay for {absent} every night. One night the plate'll be empty in the morning."],
+        "parent": ["{absent} went out on the wall walk and the walk came back short. That's how they said it. The walk came back short.", "You'll stay for tea? No. No, you can't. That's not your chair."],
+        "child": ["{absent}'s not dead. Mam says. {absent}'s on a train.", "I set the table. I always set it right."] },
+      "object": { "kind": "table", "name": "a place laid", "text": "A place laid at the end of the table: a plate, a cup, a fork. The cup's been filled. It's cold. There's a ring under it from all the other nights." } },
+    { "id": "sleepwalker", "absent": false,
+      "lines": {
+        "parent": ["She walks to the gate in her sleep. Every night. We tied a bell to her ankle. Now we hear her go.", "She says someone calls her from the other side of the wall. In my voice."],
+        "child": ["I don't walk anywhere. I'm asleep the whole time. Ask anyone.", "There's a lady by the gate who sings to me. Don't tell Mam she sings."],
+        "elder": ["Let the child sleep. Let her sleep. Don't wake her. Never wake her when she's walking."] },
+      "object": { "kind": "anklebell", "name": "a bell on a string", "text": "A little brass bell on a length of string, tied to the bedpost. The string's been cut through and knotted back together, many times." } },
+    { "id": "window", "absent": true,
+      "lines": {
+        "elder": ["The 41's due. Due any minute. I'll just watch a while longer.", "{absent} drove the 41. You'll have passed it on the line? A big black engine, with a red stripe? No?"],
+        "parent": ["She's sat at that window eleven years. We stopped telling her. It's kinder.", "Some nights I look out with her. Some nights I almost see it."],
+        "child": ["Gran says there's a train coming. There's always a train coming, with Gran."] },
+      "object": { "kind": "timetable", "name": "a timetable", "text": "A railway timetable from before, framed. One train is ringed in pencil: No. 41, the night mail, due 3:10. The ring's been gone over so often the paper's through." } },
+    { "id": "cameBack", "absent": false,
+      "lines": {
+        "parent": ["He came back from the run on his own. Walked in at dawn. He's been very good since. Very quiet. He doesn't sleep.", "He stands at the foot of the bed. All night. Just stands. I tell myself he's keeping watch."],
+        "elder": ["That's not how he used to hold his cup.", "Ask him where he left the rest of the crew. Go on. I've asked. Ask him."],
+        "lodger": ["Lovely man, the mister. Never tired. Never hungry. Never anything."] },
+      "object": { "kind": "boots", "name": "a pair of boots", "text": "A pair of railwayman's boots by the door, laced and polished. They've never been worn. His others are still on him." } },
+    { "id": "boards", "absent": false,
+      "lines": {
+        "parent": ["I board the windows every night. Every night. They're boarded already. I do it again.", "Hear that? Like a nail drawn out. That's not me. That's never me."],
+        "child": ["Dad hammers all night. I count the nails. I'm up to a hundred and nine.", "One of the boards was on the outside this morning. Dad says I imagined it."],
+        "elder": ["He's not mad. He's the only sane one of us. Pass me that hammer."] },
+      "object": { "kind": "boards", "name": "the boarded window", "text": "Boards nailed over the window from inside, fresh nails driven in among old ones. Between two boards, from the outside, something has scratched a very small hole." } },
+    { "id": "lodgers", "absent": false,
+      "lines": {
+        "parent": ["They came in from {other} after it went quiet. We had the room. They're very grateful. They watch us sleep.", "They don't talk about {other}. When the children ask, they smile."],
+        "lodger": ["{other}? A good town. Quiet now. We're lucky to be here. We're lucky.", "Your train. How many does it seat? Only asking. Only asking."],
+        "child": ["The lodgers eat after we've gone to bed. I hear them. They eat a lot."] },
+      "object": { "kind": "suitcase", "name": "the lodgers' case", "text": "A cardboard suitcase under the stairs, strapped shut. A label: {other}. Under it another label, older, from a town that isn't on any map you've got." } },
+    { "id": "letters", "absent": true,
+      "lines": {
+        "parent": ["I write to {absent} every week. Care of Dispatch. Dispatch knows where every train is.", "He'll answer when the line's clear. The line's never clear."],
+        "elder": ["Let her write. The day she stops, I'll worry."],
+        "child": ["I wrote to {absent} too. I drew the house. I drew us all in the window so he'd know which one."] },
+      "object": { "kind": "letters", "name": "a stack of letters", "text": "Letters tied in string, every one addressed to {absent}, care of the night mail, care of Dispatch. All stamped. None sent. The top one just says COME HOME, over and over, down the page." } },
+    { "id": "cradle", "absent": false,
+      "lines": {
+        "parent": ["She was born after the fall. She's never seen daylight. She doesn't miss it. She doesn't cry.", "Rock her if you like. Don't look in for long. She doesn't like to be looked at long."],
+        "elder": ["Quietest baby I ever saw. Never once cried. Never once."],
+        "child": ["My sister's very good. Mam says so. She just lies there and listens."] },
+      "object": { "kind": "cradle", "name": "the cradle", "text": "A wooden cradle, rocked so often there are two worn lines in the floor under it. The blanket's drawn right up. Something under it is breathing very slowly." } },
+    { "id": "radio", "absent": true,
+      "lines": {
+        "elder": ["The wireless picks up names some nights. Ours, once. We all sat very still till it moved on.", "{absent} used to listen to the hockey on that. From the mainland. Imagine. Hockey."],
+        "parent": ["Leave it off. No. Leave it on. If it's on, we hear it coming.", "It counts, sometimes. Under the static. It got to eleven last night."],
+        "child": ["The radio said my name. I said hello back. Was that wrong?"] },
+      "object": { "kind": "radio", "name": "the wireless", "text": "A wooden cabinet radio, warm, hissing. Under the static, very faint, someone is counting. They've just passed your number." } },
+    { "id": "clock", "absent": true,
+      "lines": {
+        "elder": ["Ten past four. The minute {absent} went. I stopped it myself. Don't you touch it.", "Some nights the clock ticks. Just a few. Then it thinks better of it."],
+        "parent": ["Every clock in the house stopped together. All of them. We hadn't even heard yet."],
+        "child": ["I wound the clock once. Mam cried and cried. I won't again."] },
+      "object": { "kind": "clock", "name": "the mantel clock", "text": "A mantel clock stopped at ten past four. The key's gone. Somebody's tied the pendulum still with a hair ribbon." } }
+  ],
+
+  // A knock at a shut house, one a house.
+  "houseKnocks": [
+    "Nobody answers. The lamp inside goes out.",
+    "A child's voice, through the door: Mam says we're not in.",
+    "Footsteps come to the door and stop. They don't go away.",
+    "Who is it? You tell them. A long pause. No it isn't.",
+    "Somebody inside is counting. Your knock makes them lose their place. They start again from one.",
+    "The door opens an inch on a chain. An eye. The door shuts.",
+    "Go away, crew. Go away, go away, and come back with him.",
+    "Through the door, very close, someone is breathing. They're waiting for you to knock again.",
+    "A dog barks once inside and is stopped.",
+    "Laughter, a whole family's, then silence, all at once, as if somebody had shushed them."
+  ],
+  // A house nobody lives in now, looked at: shut, boarded or burnt.
+  "emptyHouses": {
+    "boarded": ["Nailed shut from the outside. A name and a date in whitewash on the door.", "The windows are boarded from inside. Somebody was still in there when they did it.",
+      "Boarded up, a cross painted on the boards. Under the cross, smaller: SORRY.", "Shut and boarded. On the step, a child's shoe, left out as if for somebody to come back for it."],
+    "burnt": ["Burnt to the sills. The chimney's standing, and somebody's hung a wreath on it.", "Burnt out. The stove's still there in the ashes, its door open. Inside the stove, a doll's head."],
+    "open": ["Empty. The door's open. Inside, the table's laid for five.", "Empty, the door off its hinges. On every wall, the same word, small, in pencil: HERE."]
   },
 
   // Threads that run through the whole world, a scrap or two in each town (App. F.1: "some interactions give a scrap of
   // story; most is left to inference"). Nothing here is ever explained.
   "threads": [
     { "id": "fall",
-      "lines": ["My grandmother saw it come down. She said the sky rang like a struck rail for a week.",
-        "Comet glass hums if you hold it. Don't hold it near your teeth."],
+      "lines": ["Gran saw it come down. She said the sky rang like a struck rail for a week, and the sea went the colour of tea.",
+        "Comet glass hums if you hold it. Don't hold it near your teeth.", "It came down in the bay. The fishermen say the water's warm there still. Nobody fishes it." ],
       "notes": [{ "title": "Notice", "text": "Comet-derived material is not to be stored inside the walls. It is to be shipped. It is always to be shipped." }] },
     { "id": "lostTrains",
-      "lines": ["The night mail left {other} with nine aboard. Dispatch heard it on the radio three nights after. Just the engine.",
-        "There's a crew on the board at the station that's been due eleven years. We still leave a lamp in for them."],
+      "lines": ["The night mail left {other} with nine aboard. Dispatch heard it on the radio three nights after. Just the engine, breathing.",
+        "There's a crew on the board at the station that's been due eleven years. We still leave a lamp in for them.", "Number nine came into {other} a day late with the brakes on and every lamp lit. Nobody aboard. Dinner not touched." ],
       "notes": [{ "title": "Overdue", "text": "No. 41, the night mail. Nine crew. Due at {town} on the fourth. Still due." }] },
     { "id": "deadLines",
       "lines": ["{other} stopped answering in the spring. The line's still open. Somebody still throws the switches out there.",
-        "When a town goes quiet, the lights stay on. That's the bit nobody likes."],
+        "When a town goes quiet, the lights stay on. That's the bit nobody likes.", "You can still ring {other} on the telephone. Somebody picks up. They just breathe, and listen." ],
       "notes": [{ "title": "From the radio log", "text": "{other}, 02:10: all well. 02:40: all well. 03:10: all well. 03:40: all well, all well, all well." }] },
+    { "id": "sea",
+      "lines": ["The boats stopped going out the first winter. The ones out came back on their own. Nobody aboard. Nets full.",
+        "Don't look at the water from the wharf at night. Something looks back, and it's patient.", "The tide comes in twice a day and once at night when it shouldn't. You'll know that one when you hear it." ],
+      "notes": [{ "title": "Harbour notice", "text": "The wharf is closed until further notice. Anyone hearing the ferry horn is to report it to the council. There is no ferry." }] },
     { "id": "penal",
       "lines": ["They sent the convicts out to work the far yards. Forty men and two guards a car. It was the guards didn't come back.",
-        "If you find a man in greys out there, he's probably fine. Probably."],
+        "If you find a man in greys out there, he's probably fine. Probably.", "The penal cars ran Saturdays, barred windows and all. They still run Saturdays, they say. Empty. Barred." ],
       "notes": [{ "title": "Wanted", "text": "Penal labour for the {other} yards. Free passage out. Passage back by arrangement." }] },
     { "id": "dispatch",
       "lines": ["Nobody's met Dispatch. Dispatch has never once been wrong about the line.",
-        "Dawn opens the main line. Nobody here's seen the day trains. You only hear them."],
+        "Dawn opens the main line. Nobody here's seen the day trains. You only hear them.", "Dispatch knows. Dispatch always knows. That's the trouble. It knows, and it sends you anyway." ],
       "notes": [{ "title": "From Dispatch", "text": "Night freight is to clear the main line before first light. Dispatch accepts no responsibility for any train on the main line after first light." }] },
     { "id": "fees",
       "lines": ["The clerk pays seventy-five for a body brought home. It used to be eighty. Nobody asked why.",
-        "If you see a lamp in a halt, someone's in there waiting for a train. Could be yours."],
+        "If you see a lamp in a halt, someone's in there waiting for a train. Could be yours.", "Seventy-five for a body. They take the coat off first. A good coat's worth more." ],
       "notes": [{ "title": "Schedule of fees", "text": "Crew lost: the full fee. Crew lost, body brought home: a quarter of the fee. Crew lost, body brought home, still talking: see the clerk." }] }
   ],
-
-  // A knock at one of the square's doors: the hall (the custom's house), the clerk's office, the stores. One a door, by
-  // the town.
-  "doors": {
-    "hall": ["No answer. Someone inside says, very quietly: not tonight.", "Barred from inside. Through the door, somebody is reading aloud.",
-      "A slot opens at eye height, looks at you, and shuts."],
-    "office": ["Locked. A card in the glass: FREIGHT PAID AT THE FAR GATE. FEES PAYABLE REGARDLESS.", "Nobody in. Ledgers floor to ceiling, and one chair."],
-    "store": ["Shut till the next crew's in. A card in the window: LAMPS. POWDER. EXTINGUISHERS. KITS. ASK THE CLERK.",
-      "Locked. Through the window, a whole shelf of engineering kits, every one labelled with a crew's name."]
-  },
 
   // Notices any town's board might carry.
   "notices": [
     { "title": "Rations", "text": "Bread: half. Coal: half. Lamp oil: as before. Complaints to the clerk, in writing." },
     { "title": "Crews wanted", "text": "Freight crews wanted for the {other} road. Must climb, carry and keep calm. Paid on delivery. Fees on non-delivery." },
-    { "title": "Lost and found", "text": "Found: one left glove, one lamp glass, one name tag (Vane). Lost: Vane." },
+    { "title": "Lost and found", "text": "Found: one left glove, one lamp glass, one name tag (Corkum). Lost: Corkum." },
     { "title": "From the wall", "text": "Lamps sighted past the last tower: {n}. Lamps we lit past the last tower: none." }
-  ]
+  ],
+
+  // A knock at one of the square's doors: the custom's own building, the clerk's office, the stores. One a door.
+  "doors": {
+    "hall": ["No answer. Somebody inside says, very quietly: not tonight.", "Barred from inside. Through the door, somebody is reading names aloud.",
+      "A slot opens at eye height, looks at you a long while, and shuts."],
+    "office": ["Locked. A card in the glass: FREIGHT PAID AT THE FAR GATE. FEES PAYABLE REGARDLESS.", "Nobody in. Ledgers floor to ceiling, and one chair."],
+    "store": ["Shut till the next crew's in. A card in the window: LAMPS. POWDER. EXTINGUISHERS. KITS. ASK THE CLERK.",
+      "Locked. Through the window, a whole shelf of engineering kits, every one labelled with a crew's name."]
+  },
+
+  // Inside an open house: what else there is to look at, and the stair door (the upstairs isn't for the crew).
+  "rooms": {
+    "stairs": ["The stair door's shut. Upstairs, someone walks to the end of the room, stops, and walks back.",
+      "The stair door's bolted on this side. Something on the other side has been trying it for a long time.",
+      "The stair door won't open. From up the stairs, a child's voice: not yet."],
+    "stove": ["A cast iron range, banked low. The kettle on it is warm. Everything in here smells of smoke and fish and wet wool.",
+      "The kitchen range, its firebox door open a crack. Someone's been burning letters."],
+    "photo": ["A photograph of the family on the wharf before the fall. Somebody's face has been scratched out of it with a pin. Very neatly.",
+      "A wedding photograph. The groom's face has been turned to the wall by somebody cutting it out and gluing it on backwards.",
+      "A school photograph, rows of children. Every child in the back row has been circled in pencil."]
+  }
 }
