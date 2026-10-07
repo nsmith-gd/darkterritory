@@ -2171,11 +2171,12 @@ static object HudShot(string content, string[] args)
 
 // GDD v1.4 App. E.5 (note 177): a frame of the derailment film as the app plays it, cards and all. A hosted night with
 // --crew (4) aboard (the rest bots), run --seconds (12) and derailed at --speed (20 m/s); then --film s seconds into the
-// film's cut (after the first person and the replay). --plan prints the shot list instead of nothing extra.
+// film's cut (after the first person and the replay). --plan prints the shot list instead of nothing extra. --skip-hold h:
+// the skip held for the last h seconds before the frame (under wreck.json's skip.holdSeconds, so the prompt's fill shows; note 311).
 static object FilmStill(string content, string[] args)
 {
     int crew = (int)Opt(args, "--crew", 4), cars = (int)Opt(args, "--cars", 6);
-    double filmAt = Opt(args, "--film", 0);
+    double filmAt = Opt(args, "--film", 0), skipHold = Opt(args, "--skip-hold", 0);
     using var session = NetPlaySession.HostGame(content, new SessionSetup(Route: Str(args, "--route", "frontier:7"), Cars: cars, Enemies: false),
         port: 0, bots: Math.Max(0, crew - 1));
     for (int i = 0; i < Opt(args, "--seconds", 12) * SimConstants.TickRate; i++)
@@ -2193,7 +2194,8 @@ static object FilmStill(string content, string[] args)
     while ((session.WreckSeconds < Want() || session.Film is null) && clock.Elapsed.TotalSeconds < 120)
     {
         if (session.WreckSeconds < Want())
-            session.Step(default);
+            session.Step(skipHold > 0 && session.WreckSeconds >= Want() - skipHold && session.Film is not null
+                ? new PlayerIntent { Actions = PlayerActions.Skip } : default);
         Thread.Sleep(1);
     }
     var t = session.SequenceTuning;
