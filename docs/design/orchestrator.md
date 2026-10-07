@@ -2,7 +2,7 @@
 
 *Design outline, 7 Oct 2026 (D1.2, queue #67, ARCHITECTURE §8 note 328). Answers the director's notes of 7 Oct (GDD App.
 F.3, "Encounters" and "Pacing on the train"). A proposal for the director to read: the numbers are first-pass tuning, and
-every section names the file they'd live in. §6.1, the hound run, is the first piece, in progress (note 328); the rest is not built.*
+every section names the file they'd live in. §6.1, the hound run, is built (note 328); the rest is not.*
 
 > "On the train, still relatively boring from point A to point B ... A couple playtests ago, I had two car huggers because
 > I just kept the train hot the whole time and I didn't stop for anything ... we're going to need more threats that can
@@ -14,8 +14,8 @@ every section names the file they'd live in. §6.1, the hound run, is the first 
 ## 1. What's wrong now
 
 1. **A fast train is safe from almost everything, by the numbers.** The train's top speed is 22 m/s (train.json
-   `maxSpeed`). The Cinder Hounds can't board above 19 m/s (enemies.json `cinderHounds.maxSpeed`), the Climbers above 18
-   (`climbers.maxSpeed`). The Whistler, the Passenger and everything outside come at stops. What's left at top speed is the
+   `maxSpeed`). The Cinder Hounds can't board above 19 m/s (enemies.json `cinderHounds.maxSpeed`), and the Climbers
+   get a grip only under 14 (`climbers.mountBelow`, note 286). The Whistler, the Passenger and everything outside come at stops. What's left at top speed is the
    Car Hugger (it lies in wait on low ground and clamps on as the train passes) and the trouble in the cars. That's exactly
    the director's playtest: kept hot, never stopped, two Car Huggers. App. F.1's boarding-first decision made the hauling
    train safe on purpose ("a hauling train is safe from most monsters, not all. A fast, flying class may come later to
@@ -110,7 +110,7 @@ director's spawn log and note 270's beats). First pass; each is a `balance.json`
 | # | Target | First pass |
 |---|---|---|
 | P1 | Every active player has something to answer at least once in every | 150 s on the line (slack never past 150 s for more than one player at once) |
-| P2 | The guns have a target while the train runs fast, at least once every | 2.5 km above 15 m/s (about every 2 min at top speed) |
+| P2 | The guns have a target while the train runs fast, at least once every | 2.5 km above 19 m/s, the hounds' own top speed (about every 2.5 min at the train's 22 m/s, with the run itself) |
 | P3 | Something is engaged for this share of the night on the line | 45–60 % |
 | P4 | Troughs: nothing new for at least | 25 s after a spawn (App. B.1's cooldown, unchanged) |
 | P5 | A night kept hot and never stopped gets | at least 3 hound runs (§6.1) on a 24 km frontier line |
@@ -146,8 +146,8 @@ top-speed strategy; none comes to a train under `minSpeed` (they're the run's, n
 
 | # | Threat | Boards | Tell | Counter | Status |
 |---|---|---|---|---|---|
-| S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **First piece (§6.1)** |
-| S2 | **Climbers at speed**: raise `climbers.maxSpeed` to 24 m/s on Dead Lines+ | A coupling gap (B.4) | Pacing alongside, scrabbling | A walker in the gap, or a gun on the gap | Tuning only |
+| S1 | **The hound run**: Cinder Hounds coming in a stream, faster than the train | The rear car's end, from the line behind, at any speed | Howls behind, the pack's eyes in the dark | The guns, one ball per hound (a ball landing near scatters it) | **Built (§6.1)** |
+| S2 | **Climbers at speed**: on Dead Lines+, let a pack that has paced a fast train long enough get a grip anyway (note 286 holds them to under 14 m/s, by the boarding-first decisions) | A coupling gap (B.4) | Pacing alongside, scrabbling | A walker in the gap, or a gun on the gap | Tuning, if the director wants it |
 | S3 | **The kites** (new, App. F.1's "fast, flying class") | The roofs, only above 18 m/s, in open country | A shriek overhead, a shadow across the lamp | Lamps lit on the roofs (they won't land in light), or a walker with a tool. The gun can't elevate to them (`maxPitchDegrees` 45) unless one's on a roof | New creature: art, clips, a rule |
 | S4 | **Draggers off a bridge** (B.4 variant) | Dropping onto the roofs from an overbridge or a tunnel mouth | A scraping above as the bridge comes up | Nobody on the roofs under a bridge, or knocked off with a tool | Rule change |
 | S5 | **The Car Hugger** (exists) | The rear car as it passes low ground | Grinding | Cut the car, or club it | Unchanged |
@@ -159,14 +159,14 @@ flanks (both guns, at the edges of their arcs) and ahead (the forward gun, past 
 for one ball. Each one that gets through boards and is the rest of the crew's problem: the gunner's misses land on the
 walkers and riders, which is what gives everyone something to answer at once.
 
-1. **When.** The run has gone `afterMetres` above `fromSpeed` since the last stop, the last wave, or the start of the
-   night past its grace. A hot firebox shortens it (×`hotShorter`): the heat draws them (App. B.3's ×1.5 for a hot boiler).
+1. **When.** The run has gone `afterMetres` at `fromSpeed` (19 m/s) or more since the last stop, the last wave, or the start of the
+   night past its grace (slowing under `stopSpeed`, 2 m/s, starts the count again). A hot boiler shortens it (×`hotShorter`): the heat draws them (App. B.3's ×1.5 for a hot boiler).
 2. **How many.** `round(base + perActive × active)`, in pairs, between `size[0]` and `size[1]`: 2 at crew 1, 3 at crew 2,
    4 at crew 4, 6 at crew 8. A crew of eight gets six runners; a lone driver gets two.
 3. **How they come.** In pairs, `spacing` seconds apart, from `spawnBehind` m behind, alternating flanks, closing at
    `closing` m/s faster than the train. That's faster than the train can run, so a fast train can't outrun them. About
-   25 s from first howl to the leap for each pair, so one gunner reloading by hand (about 5.5 s a round) gets four shots
-   at each pair.
+   38 s from first howl to the leap for each pair (a 4 s howl, then 170 m at 5 m/s), so one gunner reloading by hand
+   (about 5.5 s a round) gets six shots at each pair, and a run of six is about 50 s of shooting.
 4. **Answered.** A ball that lands within `scatter` m of a runner scatters it (it breaks off, App. A.3) and one on it
    kills it (note 290). A pair running close is one good shot. Rounds fired near but not at them no longer drive the
    whole wave off: that was the old pack's rule and stays with the director's packs.
@@ -177,17 +177,20 @@ walkers and riders, which is what gives everyone something to answer at once.
 
 ## 6. The first piece, and what's next
 
-### 6.1 First: the hound run (note 328)
+### 6.1 Built: the hound run (note 328)
 
 §5.3 with the Cinder Hounds as the runners, behind and on the flanks. enemies.json `director.run`:
 
 ```
-"run": { "on": true, "fromSpeed": 15, "afterMetres": 2400, "hotShorter": 0.75, "base": 1.25, "perActive": 0.6,
-  "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8], "closing": 5, "scatter": 5 }
+"run": { "on": true, "fromSpeed": 19, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75, "base": 1.4,
+  "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8], "closing": 5, "scatter": 5 }
 ```
 
 Outside the director's budget and caps, like the left-behind's hunts (note 273): it's the run's, and only a train
-running fast gets it. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
+running fast gets it. `fromSpeed` is the director's packs' own top speed (19 m/s). Under it they can board, and outrunning
+them is still their counter (App. F.1, Decided; note 286); the run is what answers a train run faster than that, the
+top-speed strategy App. F.1 left open. One gunner bot at the guard gun answers a run of two with 7 rounds, both killed on
+the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness night never draws one. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
 
 ### 6.2 Next, in order
 
@@ -195,7 +198,7 @@ running fast gets it. Nothing in the grace, the forts, the final approach, or wh
 2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
 3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train.
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next; the bots' `posts` already compute most of it.
-5. **Climbers at speed** (S2): tuning and a sweep.
+5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
 
 ## 7. What changes in the existing director
@@ -215,5 +218,7 @@ running fast gets it. Nothing in the grace, the forts, the final approach, or wh
 1. §15's change (D7): scaling threats by active players, as App. F.3 asks, against §15's "not enemy count multipliers".
 2. The kites (S3): a new flying creature, or should the top-speed answer stay with the hounds and the Climbers?
 3. Upkeep (§5.1): which of U1–U6 first? U4 (powder to the guns) is proposed, because it makes a wave a crew job.
-4. Should a missed runner board, as built (a pack fight in the rear car), or should it do something to the train itself
+4. The run comes only above the hounds' 19 m/s, so outrunning the director's packs stays their counter (App. F.1) and
+   running hot is a choice between the bends and the guns. Is that the trade you want, or should runs come at any speed?
+5. Should a missed runner board, as built (a pack fight in the rear car), or should it do something to the train itself
    (a coupling bitten through, a car's brake wrenched on)? Boarding keeps every existing rule; the second is new.

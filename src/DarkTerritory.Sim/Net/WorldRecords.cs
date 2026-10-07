@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -93,7 +93,10 @@ public static class WorldRecords
                 world.WhistleBy,
                 // The dark's answer to a draw (note 287): how long it shows, what it answered, who, and where it's heard from.
                 Q(world.Answer.Seconds, Fine), (long)world.Answer.Cause, world.Answer.Actor,
-                Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos)]));
+                Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos),
+                // A sign shown a crewmate afoot (note 327): how long it shows, whose, to whom, and where.
+                Q(world.Watcher.Seconds, Fine), (long)world.Watcher.Kind, world.Watcher.Player,
+                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -198,6 +201,16 @@ public static class WorldRecords
                 foreach (var h in site?.Heaps ?? [])
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Heap, site!.Index * CranesPerSite + h.Index),
                         [h.Salvage, h.Found ? 1 : 0, Q(h.Stability, Fine), Q(h.Groan, Fine), h.Shifts]));
+        // The open houses' search (note 326), per stop with its loot out: the containers searched (a count, then each), then
+        // each spot under way and how far through it is (pairs).
+        if (world.Run is { } searchRun)
+            for (int k = 0, stops = searchRun.Stops.Count; k < stops; k++)
+                if (searchRun.Searchable(k))
+                {
+                    var (done, under) = searchRun.SearchState(k);
+                    list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Search, k),
+                        [done.Count, .. done.Select(c => (long)c), .. under.SelectMany(u => new long[] { u.Container, Q(u.Progress, Fine) })]));
+                }
         // GDD App. D: each Holdout's state, who's in it and how far the breach is, and whether it's the repair kit's (the
         // lamps and the HUD).
         if (world.Holdouts is { } holdouts)
@@ -338,6 +351,9 @@ public static class WorldRecords
                     world.Answer = f.Length > 21
                         ? new DrawAnswer(D(f[16], Fine), (DrawCause)f[17], new Double3(D(f[19], Pos), D(f[20], Pos), D(f[21], Pos)), (int)f[18])
                         : default;
+                    world.Watcher = f.Length > 27
+                        ? new Watcher(D(f[22], Fine), (EnemyKind)f[23], new Double3(D(f[25], Pos), D(f[26], Pos), D(f[27], Pos)), (int)f[24])
+                        : default;
                     world.SetDerailed(f[3] != 0);
                     world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;
                     world.FilmSkipped = f.Length > 12 && f[12] != 0;
@@ -403,6 +419,11 @@ public static class WorldRecords
                 case RecordKind.Heap when !world.Authority && world.Run is { } heapRun && r.Id / CranesPerSite < heapRun.Sites.Count
                     && heapRun.Sites[r.Id / CranesPerSite] is { } heapSite && r.Id % CranesPerSite < heapSite.Heaps.Count:
                     heapSite.Heaps[r.Id % CranesPerSite].Mirror(new Run.HeapState((int)f[0], f[1] != 0, D(f[2], Fine), D(f[3], Fine), (int)f[4]));
+                    break;
+                case RecordKind.Search when !world.Authority && world.Run is { } searchRun && f.Length > 0:
+                    int searched = (int)Math.Min(f[0], f.Length - 1);
+                    searchRun.MirrorSearch(r.Id, f.Skip(1).Take(searched).Select(c => (int)c),
+                        Enumerable.Range(0, (f.Length - 1 - searched) / 2).Select(i => ((int)f[1 + searched + i * 2], D(f[2 + searched + i * 2], Fine))));
                     break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
                     queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));

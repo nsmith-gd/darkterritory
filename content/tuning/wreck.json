@@ -24,6 +24,11 @@
   "kickLateral": 0.3,
   "kickYaw": 0.9,
   "kickRoll": 1.6,
+  // Note 330 (#69, the director, 7 Oct: "took a curve going into a yard at 30 kilometers an hour ... glided off the rails ...
+  // add a little bit of impulse there ... more drama"): a share of a slow speed is nothing, so the first car's thrown at
+  // least kickMin sideways (m/s), and, that slow, popped up kickUp as its flange climbs the rail; it goes over at any speed.
+  "kickMin": 4,
+  "kickUp": 3,
   // The rest come off one after another down the train, this many seconds apart: until then each rolls on, held to the
   // rails (with this rolling friction), and shoves into the cars ploughing ahead of it. That's what buckles the train.
   "dropInterval": 0.3,
@@ -32,6 +37,11 @@
   "jostle": 0.35,
   // ... and slew (rad/s), so the cars behind, still pushing, fold the train about them: it buckles.
   "jostleYaw": 1.5,
+  // ... and however slow (note 330), each is thrown at least jostleMin (m/s) sideways, hops jostleUp, and tips jostleRoll
+  // (rad/s) the way it's thrown, so the cars behind go over too instead of sliding to a stop on their wheels.
+  "jostleMin": 2.5,
+  "jostleUp": 2,
+  "jostleRoll": 1.4,
   // The first seconds play slowed (the cinematic beat), then real time.
   "slowSeconds": 2.5,
   "slowRate": 0.35,

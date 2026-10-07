@@ -921,4 +921,46 @@ public sealed partial class GameAudio
         string cue = HasCue(AnswerCue(answer.Cause)) ? AnswerCue(answer.Cause) : "hound-howl";
         Mixer.Play(cue, answer.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
     }
+
+    bool _signHeard;
+
+    /// <summary>The sound hook for a sign shown a crewmate afoot (note 327), for the audio chat: sign.ribbits, sign.gaunt, ….</summary>
+    public static string SignCue(EnemyKind kind) => $"sign.{Director.Key(kind)}";
+
+    /// <summary>
+    /// Until the audio chat makes its own (<see cref="SignCue"/>): each creature's own movement, heard from where it is, never
+    /// its tell (a tell means it's coming; a sign means only that it's there). The Gaunt and the Followers make no sound of
+    /// their own until they're on you: their sign is the eyes alone.
+    /// </summary>
+    static string? SignFallback(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Ribbit => "cs-ribbits.hop-land.ground",
+        EnemyKind.Grumbler => "cs-grumbler.scuttle",
+        EnemyKind.SootChildren => "cs-soot-children.turn",
+        EnemyKind.Whistler => "cs-whistler.run",
+        _ => null,
+    };
+
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (note 327; World.Watcher, replicated): once, as it starts, the sound of
+    /// what lives there, from where its eyes are, a little under full (it's something moving out there, not something on
+    /// you). The eyes are Art/Effects.Eyes.
+    /// </summary>
+    void Watched(World world)
+    {
+        var sign = world.Watcher;
+        if (!sign.Showing)
+        {
+            _signHeard = false;
+            return;
+        }
+        if (_signHeard)
+            return;
+        _signHeard = true;
+        string? cue = HasCue(SignCue(sign.Kind)) ? SignCue(sign.Kind) : SignFallback(sign.Kind);
+        if (cue is not null)
+            Cue(cue, sign.At, Occlusion(PlayerMotor.Outside), SignVolume);
+    }
+
+    const float SignVolume = 0.7f;
 }

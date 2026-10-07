@@ -38,6 +38,10 @@ public readonly record struct EmitSettings(int Variant = 0, string? Clip = null,
 /// </summary>
 public sealed class Skinner
 {
+    /// <summary>The wear a ghost part's vertices carry (<see cref="MeshPart.Ghost"/>): no real wear is negative, so the
+    /// scene shader takes it for the screen-door membrane.</summary>
+    public const float GhostWear = -1;
+
     Matrix4x4[] _local = [];
     Matrix4x4[] _combined = [];
     Vertex[] _verts = [];
@@ -131,7 +135,7 @@ public sealed class Skinner
             if (_verts.Length < count)
                 _verts = new Vertex[count];
             var look = looks[part.Material];
-            float wear = look.Emissive >= 1 ? 0 : look.Wear;
+            float wear = part.Ghost ? GhostWear : look.Emissive >= 1 ? 0 : look.Wear;
             var joints = part.Joints;
             var weights = part.Weights;
             // Each vertex skinned once into a finished Vertex; the triangles then copy them by index. (Building the
@@ -188,7 +192,7 @@ public sealed class Skinner
             if (!part.DrawnFor(settings.Variant, settings.Clip))
                 continue;
             var look = looks[part.Material];
-            float wear = look.Emissive >= 1 ? 0 : look.Wear;
+            float wear = part.Ghost ? GhostWear : look.Emissive >= 1 ? 0 : look.Wear;
             var idx = part.Indices;
             for (int t = 0; t + 2 < idx.Length; t += 3)
                 for (int c = 0; c < 3; c++)

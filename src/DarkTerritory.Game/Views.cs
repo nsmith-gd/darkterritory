@@ -45,6 +45,10 @@ public static class Views
             // the Cinder Hounds come up (their board, --board s).
             "board" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-(train.Frames[^1].Shape.HalfWidth + 3.5), train.Frames[^1].Shape.RoofHeight + 1.4, train.Frames[^1].Shape.HalfLength + 7)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight - 0.8, train.Frames[^1].Shape.HalfLength - 1.5)), 55),
+            // From the rear car's roof at its end, a gunner's eye, back down the line at the staged Cinder Hound pack running
+            // it down 14 to 26 m behind (Staging.Threats): what has to read at night (note 209's "not yet").
+            "hounds" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.4, train.Frames[^1].Shape.RoofHeight + 1.6, train.Frames[^1].Shape.HalfLength - 1.2)),
+                train.Frames[^1].ToWorld(new Double3(0, 0.6, train.Frames[^1].Shape.HalfLength + 18)), 60),
             // Close on the nest at the trail's end, the Whistler crouched over its catch.
             "nest" => NestCamera(train),
             // Off the staged Whistler's side on its run and a little ahead, at a chaser's eye, looking at it going with
@@ -112,6 +116,13 @@ public static class Views
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
             "rupture" => Camera.LookAt(engine.ToWorld(new Double3(-14, 2.4, -engineHalf + 1)), engine.ToWorld(new Double3(-0.7, 3.0, 0.5)), 60),
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
+            // The engine's front (note 311): low off its front quarter, the prow, the brow and the eye; and square off its
+            // left side, the cab's run into the boiler.
+            "prow" => Camera.LookAt(engine.ToWorld(new Double3(4.2, 1.9, -engineHalf - 6.5)), engine.ToWorld(new Double3(0, 2.5, -engineHalf + 2.2)), 52),
+            // The way in from the train (the director, 7 Oct): on the left running board beside the boiler, a crewmate's eye,
+            // looking forward to the cab's doorway.
+            "wayin" => Camera.LookAt(engine.ToWorld(new Double3(-engine.Shape.HalfWidth - 0.3, 3.0, -engineHalf + 13)), engine.ToWorld(new Double3(-engine.Shape.HalfWidth + 0.2, 2.4, -engineHalf + 5)), 62),
+            "prowside" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.8, -engineHalf + 3.5)), engine.ToWorld(new Double3(0, 2.6, -engineHalf + 4.5)), 55),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
@@ -131,6 +142,8 @@ public static class Views
             // (Not one of Names.) Sat in the cannon's seat (note 137), the gunner's eye over the breech, along the barrel;
             // and off its side, close, the whole of it.
             "cannon" => CannonCamera(train, side: false),
+            // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
+            "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
@@ -345,6 +358,20 @@ public static class Views
         var f = train.Frames[v];
         double floor = Floor(train), l = f.Shape.HalfLength;
         return Camera.LookAt(f.ToWorld(new Double3(0.1, floor + 1.5, -l + 1.5)), f.ToWorld(new Double3(-0.95, floor + 0.2, -l + 0.6)), 65);
+    }
+
+    /// <summary>
+    /// The hound run's view (note 328, --run): off the line's left, back past the last of the staged runners, looking up the
+    /// line at them closing on the train's rear and its gun.
+    /// </summary>
+    static Camera RunCamera(TrainOnLine train)
+    {
+        Double3 At(double behind, double lateral, double height)
+        {
+            var t = train.Line.Sample(train.Dynamics.Path, train.Dynamics.RearDistance - behind);
+            return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral + Double3.Up * height;
+        }
+        return Camera.LookAt(At(48, -9, 3.2), At(4, 1, 1.6), 60);
     }
 
     static Camera CannonCamera(TrainOnLine train, bool side)

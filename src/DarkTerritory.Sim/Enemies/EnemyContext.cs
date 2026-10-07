@@ -53,6 +53,9 @@ public sealed class EnemyContext
     /// <summary>Rounds fired lately (tick, muzzle), newest last, for enemies that react to sustained fire.</summary>
     public IReadOnlyList<(uint Tick, Double3 Muzzle)> RecentRounds { get; init; } = [];
 
+    /// <summary>Where this tick's cannonballs came down (world): the hound run's runners scatter from one landing near (note 328).</summary>
+    public List<Double3> Landed { get; } = new();
+
     /// <summary>Rounds fired within <paramref name="seconds"/> from a gun within <paramref name="range"/> of a point.</summary>
     public int RoundsNear(Double3 at, double range, double seconds)
     {
