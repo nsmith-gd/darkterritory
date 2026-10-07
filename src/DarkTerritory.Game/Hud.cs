@@ -397,6 +397,16 @@ public static partial class Hud
             o.TextRight(right, 5, $"PING {ping:0} MS", colour, k);
     }
 
+    /// <summary>An open house's hiding spot as the prompt says it (note 326).</summary>
+    static string SpotName(DarkTerritory.Sim.Stops.ContainerKind kind) => kind switch
+    {
+        DarkTerritory.Sim.Stops.ContainerKind.Cupboard => "CUPBOARD",
+        DarkTerritory.Sim.Stops.ContainerKind.Cabinet => "CABINET",
+        DarkTerritory.Sim.Stops.ContainerKind.Cellar => "CELLAR",
+        DarkTerritory.Sim.Stops.ContainerKind.UnderFloor => "LOOSE BOARDS",
+        _ => "PLACE",
+    };
+
     /// <summary>Which way a switch goes when it's thrown: back to the main line, or over for its branch.</summary>
     /// <remarks>
     /// An alternate goes by the route card's name for it ("high line", "low line"; linegen plan §9.7). Note 289: every branch
@@ -1564,6 +1574,11 @@ public static partial class Hud
                 BodyKind.Heavy => p.Hand != default ? "TAKE AN END : GRIP" : "TAKE AN END : [E]",
                 _ => "PICK UP : [E]",
             };
+        // An open house's hiding spot (note 326), what it is said and the search under way, empty-handed only.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && world.Run?.SpotInReach(p, train) is { } spot)
+            return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
+                ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
+                : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
