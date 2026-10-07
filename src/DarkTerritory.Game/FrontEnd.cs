@@ -698,7 +698,7 @@ public sealed class FrontEnd
                 new Entry(new($"VR COMFORT VIGNETTE: {(Settings.VrVignette ? "ON" : "OFF")}"), Toggle(s => s with { VrVignette = !s.VrVignette }), _ => Change(Settings with { VrVignette = !Settings.VrVignette })),
             ],
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
-            // Note 294: comfort.
+            // Note 297: comfort.
             new(new($"INVERT MOUSE: {(Settings.InvertMouse ? "ON" : "OFF")}", "On, pushing the mouse away looks down."), Toggle(s => s with { InvertMouse = !s.InvertMouse }),
                 _ => Change(Settings with { InvertMouse = !Settings.InvertMouse })),
             new(new($"FIELD OF VIEW: {Settings.EyeFov:0}", "Left and right to change: degrees, top to bottom. Wider sees more, and costs the GPU more."),

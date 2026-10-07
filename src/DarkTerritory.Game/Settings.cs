@@ -40,15 +40,15 @@ public sealed record Settings
     public string LobbyName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
-    /// <summary>Note 294: the mouse pushed forward looks down, as a flight stick does.</summary>
+    /// <summary>Note 297: the mouse pushed forward looks down, as a flight stick does.</summary>
     public bool InvertMouse { get; init; }
     /// <summary>
-    /// Note 294: your eyes' vertical field of view, in degrees, one of <see cref="FieldsOfView"/> (75 as the game was drawn and
+    /// Note 297: your eyes' vertical field of view, in degrees, one of <see cref="FieldsOfView"/> (75 as the game was drawn and
     /// its frame cost measured, tuning/perf.json's views). Wider sees more of the dark, and draws more of it.
     /// </summary>
     public double FieldOfView { get; init; } = 75;
     /// <summary>
-    /// Note 294: how much of the boiler's shake and a strained car's judder reaches your eyes (notes 263, 277), 0 to 1. The
+    /// Note 297: how much of the boiler's shake and a strained car's judder reaches your eyes (notes 263, 277), 0 to 1. The
     /// world says it otherwise too (the gauges, the squeal, the sparks); only the eyes are spared.
     /// </summary>
     public double CameraShake { get; init; } = 1;
