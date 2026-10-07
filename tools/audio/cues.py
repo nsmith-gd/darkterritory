@@ -605,7 +605,8 @@ CUES = {
         O("bellow", "A bellow of rage", vars=3),
     ],
     "cs-moose-search": [
-        L("breath", "Heavy snorting breath"),
+        # Breathing and sniffing, not snorting: the snort is the square-up's tell (AU1.6).
+        L("breath", "Heavy breathing and sniffing, close"),
         O("knock", "The rack knocking on a wall", vars=4),
     ],
     "cs-moose-ram": [
@@ -613,7 +614,7 @@ CUES = {
         O("scrape", "The rack scraping the plates", vars=3),
     ],
     "cs-moose-train-pass": [
-        O("bellow", "A bellow after the train", vars=3),
+        O("bellow", "A long carrying call after the train, no grunts (the grunt is the warning's)", vars=3),
         O("thrash", "Hooves thrashing the verge", vars=3),
     ],
     "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
