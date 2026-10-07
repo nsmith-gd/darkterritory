@@ -56,7 +56,7 @@ public class RunTests
     }
 
     static double TenderUnderSpout(RunState run, RailLine line) =>
-        run.ChuteAt(Tower, line).SpoutAlong + (T.Geometry.EngineLength - T.Geometry.Engine.TenderLength / 2);
+        run.ChuteAt(Tower, line).SpoutAlong + EnginePlan.Of(T.Geometry).CoalFromFront;
 
     [Fact]
     public void TheRunAndTheDawnClockStartAtTheGates()
