@@ -134,7 +134,8 @@ sealed partial class LineBuilder
         items.Add(Branchy("turnout", closure.S1, closure.S1 + turnout, TurnoutIn(side, j.TurnoutRadius, j.TurnoutLength)));
         e.Prims = [.. items.SelectMany(i => i.Prims)];
         _edges[e.Id] = e;
-        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id)));
+        // Note 278: nor across the main line, which separation lets it within 2 km of the junction they share.
+        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id))) ?? CrossesMain(e);
     }
 
     /// <summary>§8.2's G1 connector at the largest radius that makes it, down to the tier's minimum.</summary>
@@ -260,7 +261,8 @@ sealed partial class LineBuilder
         }
         e.Prims = [.. items.SelectMany(i => i.Prims)];
         _edges[e.Id] = e;
-        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id)));
+        // Note 278: nor across the main line, which separation lets it within 2 km of the junction they share.
+        return Separated(e, _edges.Values.Where(o => o != e && _traces.ContainsKey(o.Id))) ?? CrossesMain(e);
     }
 
     /// <summary>A facility's spur (§11.1, GDD §17): route.json's turnout kit off the level departure, and alongside to the buffer stop.</summary>

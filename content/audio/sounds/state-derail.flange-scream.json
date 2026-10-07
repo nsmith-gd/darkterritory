@@ -14,7 +14,20 @@
    "sample": "state-derail/flange-scream",
    "gain": 1,
    "pitchJitter": 0,
-   "gainJitter": 0
+   "gainJitter": 0,
+   "rate": {
+    "param": "stress",
+    "points": [
+     [
+      0,
+      0.94
+     ],
+     [
+      1,
+      1.06
+     ]
+    ]
+   }
   }
  ]
 }

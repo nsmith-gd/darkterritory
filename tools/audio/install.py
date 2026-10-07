@@ -60,7 +60,7 @@ CUE_GAIN_DB = {
     "bed-wheel-rail.roll-slow": -17,
     "bed-wheel-rail.roll-fast": -17,
     "bed-wheel-rail.joint": -16,
-    "bed-wheel-rail.flange": -10,
+    "bed-wheel-rail.flange": -2,
     "bed-wind.wind-slow": -10,
     "bed-wind.wind-fast": -16,
     "bed-wind.gust": -10,
@@ -184,8 +184,13 @@ def candidates(line, cue, stored):
 
 
 # Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
-# tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so.
-FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut"}
+# tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
+# heard building (build 1121, note 265): the squeal that holds and the shriek that climbs were made for that, where the
+# first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
+# Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
+# lamp guttering from its flame over cloth whooshes.
+FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
+                "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -196,7 +201,9 @@ def pick(cands, mat, line_level, cue_name=None):
     # Nothing kept yet: the first candidate not marked Redo, on every line, so every cue the game's hooks name has a sound
     # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
-    ok.sort(key=lambda k: (k.get("key") != FIRST_CHOICE.get(cue_name), not k.get("built"), not k.get("old"), k.get("mat") is None))
+    # (A cue with no first choice leaves the order alone: a library candidate has no key, and None isn't a choice.)
+    want = FIRST_CHOICE.get(cue_name)
+    ok.sort(key=lambda k: (want is not None and k.get("key") != want, not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
 
 
@@ -242,6 +249,39 @@ PACED = {"climber-scrabble", "tippy-tiptoe", "child-call"}
 # the kept whistle 4.6 at the middle car).
 TELL_GAIN_DB = {"choir-voice": 11, "train-whistle": 3}
 SYNTH_DEFS = os.path.join(HERE, "synth-defs")
+# Sounds main put in as synth definitions outside the tells (the line's warnings, notes 260 and 265; the gun's laying, the
+# cannon's landings, the toys, the depot's blast, the stranded ending): each cue's picked takes replace its sound the same
+# way, keeping its tier and range. line.cue -> (sound, layer extras): the extras put the param the game drives on the
+# takes (the turn's speed on the gun's motor, the boiler's cooling on its ticks).
+SWAPS = {
+    "warn-overspeed.bell": ("warn-overspeed", {}),
+    "warn-curve.chatter": ("warn-curve", {}),
+    "warn-low-clearance.telltales": ("warn-low-clearance", {}),
+    # Not the gun's laying: the director heard "a weird high repeated sound" when the cannon turns (GDD App. F.3, note 329),
+    # and these candidates were that too (ten chuffs and fifteen teeth a second). gun-lay.json is main's low, slow synth
+    # until a candidate low and slow is kept.
+    "crew-cannon-impact.ground": ("cannon-impact", {}),
+    "crew-cannon-impact.water": ("cannon-splash", {}),
+    "crew-cannon-impact.doll": ("doll-shatter", {}),
+    "crew-noisy-toys.squeaker": ("toy-squeaker", {}),
+    "crew-noisy-toys.music-box": ("toy-musicbox", {}),
+    "crew-noisy-toys.drummer": ("toy-drummer", {}),
+    "place-depot.powder-blast": ("powder-blast", {}),
+    "ui-stranded-outro.boiler-tick": ("boiler-tick", {"rate": {"param": "cool", "points": [[0, 1], [1, 0.8]]},
+                                                      "gain": {"param": "cool", "points": [[0, 1], [1, 0.6]]}}),
+    "ui-stranded-outro.lamp-out": ("lamp-out", {}),
+}
+# Level on top of each swapped synth definition's, so the takes sit where the synth did (main tuned the mix against
+# it): the synth's loudness less the takes', both through `dt audio render sound:<name>`. The toys instead by note 174's
+# test (AudioTests' toys bench: carried on a roof, each 6 dB over the wind and the three within 4 dB): a squeaker that
+# squeaks now and then and a music box's decaying plucks measure quieter than their loudness says.
+# Cues held out of the game while their candidates are redone: the game's sound stays what main has (note 329's gun-lay,
+# low and slow at the director's call; this line's candidates were the high repeated sound the director heard).
+HELD = {"crew-gun-lay.lay"}
+
+SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "lamp-out": -14,
+                "powder-blast": -3, "toy-drummer": -10, "toy-musicbox": 11, "toy-squeaker": 5, "warn-curve": -6,
+                "warn-low-clearance": 2, "warn-overspeed": 5}
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
@@ -267,6 +307,9 @@ LAYER_EXTRAS = {
     # The safety valve's blow kept over the writhe's band, as the synth's was (safety-valve.json: highpassed at 2.8 kHz): its
     # roar under 2 kHz buried the Sleepers for the cab.
     "state-valve.blow": {"filters": [{"type": "highPass", "frequency": 2000}]},
+    # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
+    # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
+    "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
 }
 
 
@@ -318,8 +361,33 @@ def _read_def(path):
     return head, json.loads(body)
 
 
+def _write_def(path, head, d):
+    """Write a sound definition, unless the file already says the same (comments and layout aside): what's been tidied
+    by hand on main keeps its notes until the definition itself changes."""
+    if os.path.exists(path):
+        try:
+            if _read_def(path)[1] == json.loads(json.dumps(d)):
+                return False
+        except ValueError:
+            pass
+    with open(path, "w") as f:
+        f.write(head)
+        json.dump(d, f, indent=1)
+        f.write("\n")
+    return True
+
+
+def swapped():
+    """TELL_SOUNDS and SWAPS as one list: (line, the game's sound, [(cue, layer extras)])."""
+    out = [(line, sound, cues) for line, (sound, cues) in TELL_SOUNDS.items()]
+    for name, (sound, extra) in SWAPS.items():
+        line, cue = name.split(".", 1)
+        out.append((line, sound, [(cue, extra)]))
+    return out
+
+
 def tell_sounds(chosen):
-    """Swap each tell's game sound to the takes the checklist picked for it: kept ones, or while it's still under review
+    """Swap each tell's game sound (and each of SWAPS') to the takes the checklist picked for it: kept ones, or while it's still under review
     its first candidate (the director's call, 3 Oct: what's made goes in the game without waiting for a verdict). Back
     to its synth definition only where nothing's picked (no candidate yet, or every one marked Redo).
 
@@ -327,7 +395,7 @@ def tell_sounds(chosen):
     GameAudio picks by what the creature's on (the nearest one otherwise); the sound itself plays the first of them.
     """
     os.makedirs(SYNTH_DEFS, exist_ok=True)
-    for line, (sound, cues) in TELL_SOUNDS.items():
+    for line, sound, cues in swapped():
         path = os.path.join(SOUNDS, sound + ".json")
         backup = os.path.join(SYNTH_DEFS, sound + ".json")
         if not os.path.exists(backup):
@@ -361,19 +429,18 @@ def tell_sounds(chosen):
                 layer.update(extra)
                 layers.append(layer)
             d["layers"] = layers
-            d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0)
+            d["gainDb"] = d.get("gainDb", 0) + TELL_GAIN_DB.get(sound, 0) + SWAP_GAIN_DB.get(sound, 0)
             if sound in ONCE or sound in PACED:
                 d["loop"] = False
             if not d.get("loop"):
                 d.pop("duration", None)    # a one-shot of takes ends with its take
-            with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                f.write(f"// The tell's takes from the audio checklist, kept or the first candidate under review\n"
-                        f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"
-                        f"// (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
-                        f"// tools/audio/install.py; edit the cue or that file, not this one.\n")
-                json.dump(d, f, indent=1)
-                f.write("\n")
-            print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
+            d.pop("cycleSeconds", None)    # the synth's envelopes' period: the takes have none
+            if _write_def(os.path.join(SOUNDS, name + ".json"),
+                          f"// The {'tell' if line in TELL_SOUNDS else 'cue'}'s takes from the audio checklist, kept or the first candidate under review\n"
+                          f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"
+                          f"// (tools/audio/synth-defs/{sound}.json), keeping its tier, range and level. Written by\n"
+                          f"// tools/audio/install.py; edit the cue or that file, not this one.\n", d):
+                print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
 def main():
@@ -408,7 +475,7 @@ def main():
             continue
         stored = {c["id"]: c for c in item.get("cues") or []}
         for cue in cues:
-            if cue["silent"] or cue["id"] not in stored:
+            if cue["silent"] or cue["id"] not in stored or f"{line}.{cue['id']}" in HELD:
                 continue
             cands = candidates(line, cue, stored[cue["id"]])
             # Prisoner voice sets: every set not marked Redo goes in, each its own folder and sound (setN), since the game
@@ -438,11 +505,10 @@ def main():
                 for i, x in enumerate(takes):
                     encode(x, os.path.join(folder, f"{i:02d}.opus"))
                 name = f"{line}.{cue['id']}" + (f".{mat}" if mat else "")
-                with open(os.path.join(SOUNDS, name + ".json"), "w") as f:
-                    f.write(f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
-                            f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n")
-                    json.dump(sound_def(item, cue, rel, line), f, indent=1)
-                    f.write("\n")
+                _write_def(os.path.join(SOUNDS, name + ".json"),
+                           f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
+                           f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n",
+                           sound_def(item, cue, rel, line))
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
