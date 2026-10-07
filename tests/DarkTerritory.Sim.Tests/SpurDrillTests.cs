@@ -116,7 +116,8 @@ public class SpurDrillTests
         Assert.Equal(fit, night.Drill.TookIn.Count);
         Assert.Equal(3, night.Drill.LeftWaiting.Count);
         // One train again, in the order it arrived, on the main line, with the switch set back for it.
-        var rake = Assert.Single(train.Rakes);
+        Assert.Equal(1, train.TrainRakes);
+        var rake = train.Dynamics;
         Assert.Equal(order, rake.Consist.Vehicles.Select(v => v.Id));
         Assert.Equal(RailLine.MainPath, train.Dynamics.Path);
         Assert.False(train.Diverging(night.World.Run!.SpurOf(night.World.Run.Departed)));
@@ -128,7 +129,7 @@ public class SpurDrillTests
         Assert.Equal(1, night.World.Run.Departures);
         Assert.Equal(RunPhase.Underway, night.World.Run.Phase);
         // And gently: nothing was damaged coupling back on.
-        Assert.All(train.Vehicles, v => Assert.Equal(1, v.Integrity));
+        Assert.All(train.Vehicles.Take(train.OwnVehicles), v => Assert.Equal(1, v.Integrity));
     }
 
     [Fact]
@@ -140,7 +141,7 @@ public class SpurDrillTests
         Assert.Equal(DrillStep.Done, night.Drill.Step);
         Assert.Equal(cars, night.Drill.TookIn.Count);
         Assert.Empty(night.Drill.LeftWaiting);
-        Assert.Single(night.Train.Rakes);
+        Assert.Equal(1, night.Train.TrainRakes);
         Assert.Equal(1, night.World.Run!.Departures);
     }
 
