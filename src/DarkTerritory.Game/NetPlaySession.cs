@@ -187,6 +187,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             // The departure fortress's town (note 281), after the run: its walls go up beside the stops'.
             if (Sim.Towns.TownContent.Load(content) is { } towns)
                 world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown);
+            // The jobs the train makes as it runs (note 331), host and clients alike.
+            world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }
         // A client mirrors the enemies, and needs their tuning for what it predicts from them (the Weight's drag, T59) and
         // for bots reading them; the host's world gets its director from HostSession.EnableEnemies.
