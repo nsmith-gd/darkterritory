@@ -32,7 +32,7 @@
   // cheesy"): `manifest` false drops the dispatcher's manifest at the gate, voice and card both. What it read (the crew,
   // the coal, powder and shot, the cars, the freight) is all on the roster, the gauges and the board already. The clerk's
   // tally at the terminus stays.
-  // GDD App. E.12 question 5, the director's answer of 7 Oct 2026 (ARCHITECTURE §8 note 301): `kitLost` has the yard say
+  // GDD App. E.12 question 5, the director's answer of 7 Oct 2026 (ARCHITECTURE §8 note 306): `kitLost` has the yard say
   // so on the radio, once, when the train's last engineering kit is lost (Radio.KitLost); false, the fitter's empty shelf
   // is the only tell.
   "radio": { "lineSeconds": 1.6, "pauseSeconds": 0.5, "manifest": false, "kitLost": true },

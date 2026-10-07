@@ -20,7 +20,7 @@ namespace DarkTerritory.Game;
 /// <param name="Stressed">Something's after the train close by them (an enemy past its dormant phase within
 /// <see cref="CrewActs.StressRange"/>): their run is a hurried one (GDD §31).</param>
 /// <param name="Health">Their health, for the stagger when it drops (App. C.2).</param>
-/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress).</param>
+/// <param name="Phase">How far through a timed act they are, in its clip's seconds (the cannon's reload: steps done plus this one's progress; a staged swing, note 275).</param>
 /// <param name="Death">How they died, if they have: a burned body is drawn charred (spec C.1).</param>
 /// <param name="Headset">A headset player's head and where they stand (T82): their body leans, crouches, twists and steps
 /// under it. Null for a keyboard or a bot.</param>

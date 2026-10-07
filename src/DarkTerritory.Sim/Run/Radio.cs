@@ -7,7 +7,7 @@ namespace DarkTerritory.Sim.Run;
 /// Whether the dispatcher reads the manifest at the gate at all (note 264: the director dropped it, run.json says false).
 /// </param>
 /// <param name="KitLost">
-/// GDD App. E.12 question 5, answered by the director on 7 Oct 2026 (note 301): the clerk says it on the radio, once, when
+/// GDD App. E.12 question 5, answered by the director on 7 Oct 2026 (note 306): the clerk says it on the radio, once, when
 /// the train's last engineering kit is lost. False: the fitter's empty shelf is the only tell, as before.
 /// </param>
 public sealed record RadioTuning(double LineSeconds = 1.6, double PauseSeconds = 0.5, bool Manifest = true, bool KitLost = true);
@@ -76,7 +76,7 @@ public static class Radio
     public static string Stranded(double km) => $"Consist reported stranded at km {km:0}. Recovery at first light. Recovery is chargeable.";
 
     /// <summary>
-    /// GDD App. E.12 question 5 (note 301): the train's last engineering kit lost, the yard says so, flat, once. It says what's
+    /// GDD App. E.12 question 5 (note 306): the train's last engineering kit lost, the yard says so, flat, once. It says what's
     /// known (gone with a car, by its number), not what follows from it.
     /// </summary>
     public static List<string> KitLost(KitWhere kit) =>

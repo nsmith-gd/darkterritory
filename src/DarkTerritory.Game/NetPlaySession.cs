@@ -335,11 +335,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     List<string>? _manifest, _tally, _bulletin;
     List<double>? _manifestTimes, _tallyTimes, _bulletinTimes;
     double _manifestSeconds = -1, _tallySeconds = -1, _bulletinSeconds = -1;
-    /// <summary>How long the run's said the kit's lost (note 301): it's said once that's held a second (stranded.lostForSeconds).</summary>
+    /// <summary>How long the run's said the kit's lost (note 306): it's said once that's held a second (stranded.lostForSeconds).</summary>
     double _kitLostFor;
     bool _kitLostSaid;
 
-    /// <summary>A bulletin on the air (note 301: the kit lost), while it's being read.</summary>
+    /// <summary>A bulletin on the air (note 306: the kit lost), while it's being read.</summary>
     bool Bulletin => _bulletin is not null && _bulletinSeconds >= 0 && _bulletinSeconds < Sim.Run.Radio.Length(_bulletin, RadioTuning, _bulletinTimes);
 
     /// <summary>
@@ -382,7 +382,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         else if (_manifestSeconds >= 0)
             _manifestSeconds += SimConstants.TickSeconds;
-        // GDD App. E.12 question 5 (note 301): the last engineering kit lost, the yard says so, once.
+        // GDD App. E.12 question 5 (note 306): the last engineering kit lost, the yard says so, once.
         _kitLostFor = run.Kit.Lost && !run.Over ? _kitLostFor + SimConstants.TickSeconds : 0;
         if (!_kitLostSaid && RadioTuning.KitLost && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
         {

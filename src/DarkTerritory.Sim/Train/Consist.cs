@@ -117,6 +117,13 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public bool YardCar { get; init; }
 
     /// <summary>
+    /// Bad-order stock blocking a yard's siding (level-design D.1, D.2; note 294), one of the <see cref="YardCar"/>s: empty,
+    /// battered, and whatever's loaded into it pays only facilities.json <c>derelicts.pays</c>. Never the crew's: wherever it's
+    /// left, it isn't a car lost. Fixed for the night.
+    /// </summary>
+    public bool Derelict { get; init; }
+
+    /// <summary>
     /// A blow to the car's shell (a Car Hugger's bite, a hard knock at the couplers): what's left of it after the plate, if
     /// it's armoured. Returns what the car lost.
     /// </summary>

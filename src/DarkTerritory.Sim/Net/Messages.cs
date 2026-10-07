@@ -42,8 +42,9 @@ public static class Protocol
     // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
     // 30: fire is a grid (App. F.1, the director's decision of 6 Oct 2026; note 267): a car fire's record carries its cells'
     //     heat, and a car's its cells' char, packed four bits a cell.
+    // 31: the fireman's shovel off its rack, a bit on the boiler record (App. C.2, GDD §12; WP19, note 275).
     // 32: emotes and outfits (note 298): an emote on the intent's hotbar byte and RecordKind.Emote; the Hello's outfit, the
-    //     host's Outfits and a client's Wear. (31 is #201's and #202's.)
+    //     host's Outfits and a client's Wear.
     public const int Version = 32;
 }
 

@@ -29,7 +29,7 @@ public class RadioCardTests
     [Fact]
     public void TheYardSaysOnceWhenTheLastKitIsLost()
     {
-        // GDD App. E.12 question 5, answered by the director on 7 Oct (note 301): "a radio line". The fitter's shelf empties
+        // GDD App. E.12 question 5, answered by the director on 7 Oct (note 306): "a radio line". The fitter's shelf empties
         // as before, and the clerk says it, once.
         using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
         Assert.True(night.World.Run!.Tuning.Radio.KitLost);
