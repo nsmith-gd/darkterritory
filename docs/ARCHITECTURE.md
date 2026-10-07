@@ -4718,8 +4718,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - shut houses' finds stay on the step, and a barn's hayloft and a shed's bench as they were;
         - with `search` unset, nothing's hidden, as in the first slice. Not in the spec's numbers: a house's few spots take a crewmate about ten seconds, a village a few minutes alone, which is what splitting up buys back.
       The host searches, in `World.CrewAct` after the hands have had their go (a press that picks something up isn't a search). A `Search` record per stop with its loot out carries the containers searched and each spot under way with its progress, so every crewmate's HUD reads "SEARCH THE CUPBOARD : HOLD [E]", then "SEARCHING THE CUPBOARD (40%)". Nothing a client predicts: the player and the train are unchanged by it, and the finds are bodies the host puts out. A spot's searched where it stands, never through a wall: nowhere a crewmate can stand outside a house is within reach of what's kept in it. `Run.Stock(bodies, stop, searched: true)` puts every find out, for tools and tests.
+    - **Searched, and it shows** (`StopWalls.Kept`, `GreyboxScene.SearchedSpots`). Where the art stands what a find is kept in, and which way it faces into the room, is the sim's (`StopWalls.Kept`: the cupboard's and cabinet's middles, the hatch and the boards under the find), so `TownKit.OpenHouse` and the hiding spots (`HidingSpot.Kept`, `Facing`) agree. A searched spot is drawn opened over the house's own furniture, from what's searched, so a client sees what the host has:
+        - a cupboard's doors swung back past square, its inside dark;
+        - a cabinet's drawer out;
+        - the cellar's hatch stood up on its hinge over a black hole;
+        - the boards laid by the gap they came from.
+      `dt screenshot --searched` searches every open house with its finds out on the floor: `--route frontier:7 --at 10200 --cam 10152.2,101.2,1.6 --target 10148.9,104.9,0.7 --lantern --fov 75 --dawn 0.6` is Maddox's house 20's cupboard (`--cam 10152.0,101.5,1.6 --target 10155.4,104.6,0.5` its cabinet); `--at 10350 --cam 10311.6,48.5,1.7 --target 10313.5,51.4,0` house 15's cellar; `--at 19300 --cam 19258.2,-84.3,1.7 --target 19260,-86.3,0` a floor at stop 4. `SearchTests.WhatsKeptStandsInTheHouseFacingTheRoomWithItsFindInFront` pins `Kept`.
     - **Not yet:**
-        - A searched cupboard that looks searched (its doors open, the boards up): the art reads the layout, not the search.
         - Bots that search: a bot crew works the yard and leaves the village's houses alone.
         - Furniture the crew bump into: the cupboards aren't solid.
         - Rooms and a stair: one room, ground floor.

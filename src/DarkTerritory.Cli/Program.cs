@@ -1249,6 +1249,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --searched (note 326): every open house's hiding spots searched, opened up, with what they kept out on the floor.
+    DarkTerritory.Sim.Physics.Bodies? searched = null;
+    if (args.Contains("--searched") && generated is not null)
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        if (run.HidingSpots.Count == 0)
+            run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, null);
+        searched = new();
+        foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
+            run.Stock(searched, k, searched: true);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1382,6 +1393,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         });
         scene.Bodies = [.. scene.Bodies ?? [], .. posed];
     }
+    if (searched is not null)
+        scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
