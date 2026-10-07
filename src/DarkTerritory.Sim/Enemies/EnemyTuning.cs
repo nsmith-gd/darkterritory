@@ -188,6 +188,8 @@ public sealed record TippyToesieTuning
     public double Health { get; init; } = 2;
     public int MinCrew { get; init; } = 2;
     public double PerIdleWeight { get; init; } = 1;
+    /// <summary>Boarding-first (GDD App. F.1, note 286): it slips aboard only while the train is under this (m/s): a stop.</summary>
+    public double BoardBelow { get; init; } = double.MaxValue;
 }
 
 /// <summary>Fire Flies (v1.1 App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -201,6 +203,8 @@ public sealed record FireFliesTuning
     public double StoppedBelow { get; init; } = 0.3;
     /// <summary>Note 269: "their pull … is rare": their weight at a stop, against the rest of the table.</summary>
     public double StoppedWeight { get; init; } = 0.5;
+    /// <summary>Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut (and no breach) keeps them out.</summary>
+    public bool ShutCarKeepsOut { get; init; }
 }
 
 /// <summary>Ribbits (v1.1 App. A.6, B.6). Field docs live in enemies.json.</summary>
@@ -411,6 +415,22 @@ public sealed record ClimberTuning
     public double TakeSeconds { get; init; } = 10;
     /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>
     public bool BreachLitCars { get; init; }
+    /// <summary>
+    /// Boarding-first (GDD App. F.1, note 286): a lit car with every door and its hatch shut keeps them out (they pass over
+    /// it, as over a car with crew in it); unset, an empty lit car lets them in whatever its doors.
+    /// </summary>
+    public bool LitShutCarKeepsOut { get; init; }
+    /// <summary>Note 286 ("slowing opens the doors"): at the gap they get a grip only with the train under this (m/s).</summary>
+    public double MountBelow { get; init; } = double.MaxValue;
+    /// <summary>Note 286: pacing a train too fast to mount, they give it up this long (s) after their pace.</summary>
+    public double WaitForSlowSeconds { get; init; } = 30;
+    /// <summary>Note 286: the director's weight for them with the train at or over <see cref="MountBelow"/>.</summary>
+    public double AtSpeedWeight { get; init; } = 1;
+    /// <summary>Note 286: a bend this sharp (radius, m) under the train or within <see cref="BendAheadM"/> ahead is a tight one.</summary>
+    public double TightBendRadius { get; init; } = 350;
+    public double BendAheadM { get; init; } = 300;
+    /// <summary>Note 286: their weight on a tight bend, slow.</summary>
+    public double BendWeight { get; init; } = 1;
 }
 
 /// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -464,6 +484,13 @@ public sealed record DraggerTuning
     public double LingerSeconds { get; init; } = 180;
     public int MinCars { get; init; } = 2;
     public int MaxAttached { get; init; } = 2;
+    /// <summary>
+    /// Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under this (m/s), at a stop or a
+    /// slow bend, and wait there for someone on the roofs. Unset (the old rule): under a walked car at any speed.
+    /// </summary>
+    public double BoardBelow { get; init; } = double.MaxValue;
+    /// <summary>Note 286: their weight on a tight bend (<see cref="ClimberTuning.TightBendRadius"/>), slow.</summary>
+    public double BendWeight { get; init; } = 1;
 
     /// <summary>The grab range at a train speed (spec B.3: +50% at max).</summary>
     public double GrabAt(double speed) => GrabRange * (1 + (FastGrabScale - 1) * Math.Clamp((speed - FastFrom) / Math.Max(1e-6, FastAt - FastFrom), 0, 1));
@@ -501,6 +528,14 @@ public sealed record SwitchmanTuning
     /// </summary>
     public double DerailAbove { get; init; } = 6.9;
     public double RunThroughDamage { get; init; } = 0.25;
+    /// <summary>
+    /// The director's decision of 7 Oct 2026 (note 286): "the switch itself shouldn't cause derail, it should be lines that
+    /// lead nowhere". Off (the default), it never throws points under a train: every Switchman throws the junction ahead
+    /// down a dead line. On, <see cref="DerailChance"/> of them throw under the train as v1.1 had it (for a mod).
+    /// </summary>
+    public bool ThrowsUnderTrain { get; init; }
+    /// <summary>Note 286: killed before the train reaches its points, its lever falls back and the points go back to the main line.</summary>
+    public bool KilledSetsBack { get; init; } = true;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }
@@ -595,6 +630,8 @@ public sealed record DirectorTuning(
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
     public VoteTuning Vote { get; init; } = new();
+    /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
+    public DrawTuning Draw { get; init; } = new();
 }
 
 /// <summary>

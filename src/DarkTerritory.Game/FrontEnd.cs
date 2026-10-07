@@ -58,7 +58,10 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods }
+
+/// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
+public sealed record InstalledMod(string Name, string Version, string? Description);
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -134,6 +137,15 @@ public sealed class FrontEnd
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
     /// </summary>
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
+
+    /// <summary>
+    /// The MODS screen's (note 323; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
+    /// laid over the game, and what couldn't be loaded and why. With none of either, the title has no MODS.
+    /// </summary>
+    public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
+    public IReadOnlyList<string> ModProblems { get; set; } = [];
+    /// <summary>Started with <c>--no-mods</c>: the mods are listed, and the base game is what's playing.</summary>
+    public bool ModsOff { get; set; }
     /// <summary>
     /// The player's profile (GDD App. D.12, note 293): the commendations their crews have given them, for the PROFILE page.
     /// The app loads it at the start and again after each night.
@@ -511,6 +523,45 @@ public sealed class FrontEnd
 
     static string DefaultCrewName(int slot) => $"Crew {slot}";
 
+    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
+    static IEnumerable<string> Wrap(Overlay o, string text, float width)
+    {
+        string line = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string wider = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && o.Font.Measure(wider) > width)
+            {
+                yield return line;
+                line = word;
+            }
+            else
+                line = wider;
+        }
+        if (line.Length > 0)
+            yield return line;
+    }
+
+    /// <summary>The title's MODS line (note 323): how many are on tonight, and how many couldn't load.</summary>
+    string ModsLine()
+    {
+        string notLoaded = ModProblems.Count == 0 ? "" : $", {ModProblems.Count} {(ModProblems.Count == 1 ? "problem" : "problems")}";
+        return ModsOff ? $"{InstalledMods.Count} installed, all off tonight (--no-mods){notLoaded}."
+            : $"{InstalledMods.Count} laid over the game{notLoaded}.";
+    }
+
+    /// <summary>A package's name as it reads (Thunderstore's have no spaces): "LateDispatch", "Late_Dispatch" → "LATE DISPATCH".</summary>
+    public static string ModName(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(name.Replace('_', ' '), "(?<=[a-z0-9])(?=[A-Z])", " ").ToUpperInvariant();
+
+    /// <summary>A scan's problem (<c>ContentMods.Scan</c>: "X isn't loaded: …", "X is installed 2 times: …") as a row's label.</summary>
+    static string ProblemLabel(string problem)
+    {
+        string who = ModName(problem.Split(' ', 2)[0]);
+        return problem.Contains("isn't loaded", StringComparison.Ordinal) ? $"{who}: NOT LOADED"
+            : problem.Contains(" times", StringComparison.Ordinal) ? $"{who}: INSTALLED TWICE" : who;
+    }
+
     /// <summary>What a crew is called: its name, or its slot's while it has none (erased, mid-typing).</summary>
     static string CrewName(CampaignState s) => s.Name.Trim() is { Length: > 0 } named ? named : DefaultCrewName(s.Slot);
 
@@ -703,6 +754,7 @@ public sealed class FrontEnd
             new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
+            .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
             new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
@@ -801,6 +853,15 @@ public sealed class FrontEnd
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
+        // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
+        // over as the game starts, from its folders or a mod manager's profile (note 53).
+        Screen.Mods =>
+        [
+            .. InstalledMods.Select(m => new Entry(new($"{ModName(m.Name)} {m.Version}", m.Description is { Length: > 0 } d ? d : "No description."))),
+            .. ModProblems.Select(p => new Entry(new(ProblemLabel(p), p))),
+            new(new("BACK", "Laid over as the game starts. A crew all run the same ones."),
+                Go(Screen.Title), Back: true),
+        ],
         Screen.Credits =>
         [
             .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
@@ -1145,6 +1206,7 @@ public sealed class FrontEnd
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
+            Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",
             Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
@@ -1208,10 +1270,12 @@ public sealed class FrontEnd
         }
         y += 6;
         if (Selected < items.Count && items[Selected].Detail is { } detail)
-        {
-            o.Text(x, y, detail.ToUpperInvariant(), Dim);
-            y += 10;
-        }
+            // Wrapped to the screen (note 323): a mod's description is its author's, up to Thunderstore's 250 characters.
+            foreach (var line in Wrap(o, detail.ToUpperInvariant(), width - x - 8))
+            {
+                o.Text(x, y, line, Dim);
+                y += 10;
+            }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"

@@ -471,7 +471,7 @@ It never talks. It drags a lone player to the caboose, uncouples it, and rolls a
 **THE SWITCHMAN** · *junctions ahead*
 Half railway worker, half something spindly and wrong. Throws switches as you pass.
 > **RULE: kill the Switchman before the switch.**
-Wrong routes cost the clock. Sometimes it throws one under the train to derail it. One cannon shot, or stop and club it.
+Wrong routes cost the clock: it sends you down a line that leads nowhere, and you stop, back out and set the points back by hand. Its switch never derails you; running off the end of that line does, and that's on the driver. One cannon shot, or stop and club it. *(The director's decision, 7 Oct 2026.)*
 
 **GRUMBLER** · *facility cranes*
 Scuttles like a spider over the crane, gnawing food crates.
@@ -1219,11 +1219,15 @@ PUNISH    victim and caboose lost
 WAIT      at a junction ahead
           └ TELEGRAPH: a tall figure at the lever in the headlamp;
                        the junction lamp shows the wrong signal
-THROW     as the train passes → wrong route (dead end, wreck yard, backtrack)
-DERAIL    sometimes throws the switch under the train
-          └ TELEGRAPH: grips the lever, lamp flickers, always in time to brake or fire
-COUNTER   a forward cannon hit (one shot, long reload)
+THROW     as the train passes → wrong route: a dead line that leads nowhere, to buffers in the dark
+          (the clock's cost: stop, back out, set the points back by hand on the ground)
+DEAD END  the switch never derails the train (the director, 7 Oct 2026: "the switch itself shouldn't
+          cause derail, it should be lines that lead nowhere"); running off the end of the dead line does
+          └ TELEGRAPH: the cab's warning, the bell and "BUFFERS AHEAD", a full lead before it's too late
+            to stop; a hit short of that lead is the buffer stop's damage alone
+COUNTER   a forward cannon hit (one shot, long reload): killed before the points, its lever falls back
           OR stop and bludgeon it to death
+          OR take the dead line and stop short of its end
 ```
 
 ### GRUMBLER · sound
@@ -1263,6 +1267,8 @@ COUNTER   gang up and kill it, or leave it alone;
 
 Enemies are not rolled independently. A **pressure director** spends a budget across the run, which is what allows deliberate contradiction stacking instead of random pile-ups.
 
+**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328).
+
 ### Budget
 
 ```
@@ -1301,6 +1307,8 @@ pressure per second = tier × conditions × relief × busy × escalation × (bas
 | **Conditions** | Dark (the lamp out), cold, rain and wind add a little |
 
 The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
+
+**The first threat is drawn** (*design decision, 2026-10*; ARCHITECTURE §8 note 287). The night's first threat answers something a crewmate did: the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard. Each is credited to whoever did it, and fades over half a minute. Past the grace, the first draw big enough is answered from the dark, a distant call and eyes at the lamp's edge, and the threat follows a few seconds later, weighted toward what that draw calls (the whistle the Whistler, a lamp the Fire Flies, the cargo the Car Hugger). A crew that draws nothing is listened for longer, until the pressure presses. The incident report names the draw and who made it (C.9, §23.1 "Owned").
 
 Past the **threshold** the director spends: on what its weights, wants, pairs, gates and caps pick, as before. **Spending relieves the pressure** by the spawn's cost. Well past the threshold (a long quiet, or a night the budget's curve can't keep up with) the post-event cooldown gives way and the curve may be overdrawn a little. The dead's votes move weight between creatures and never touch the pressure. All the coefficients are in `director.pressure` in `content/tuning/enemies.json`; the systems spec (B.9) has the numbers.
 
@@ -1503,7 +1511,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    |---|---|
    | Track Doll struck | Who was on the throttle, and the speed at impact |
    | Track debris derailment *(retired 6 Oct 2026, §22)* | Who was on the throttle, and the speed at impact |
-   | Switchman derailment | Whether the forward cannon was crewed, and by whom |
+   | Switchman derailment *(since 7 Oct 2026: off the end of the dead line it threw the train down)* | Whether the forward cannon was crewed, and by whom |
    | Stoker runaway or derailment | Who last fuelled or tended the firebox, and how long it had been unattended |
    | Boiler rupture | Who last fired or vented the boiler, and how long it sat at 100 |
    | Stranded | How the engineering kit was lost, and who last held it (and, for a decoupled car, who pulled the coupler) |
@@ -2064,6 +2072,39 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.3 2026-10-07 — main at 8442eee, and the integration test builds
+
+*Numbered F.3 so that "App. F.1" stays the build 1121 review it has always meant; newest first all the same.*
+
+**Played:** the director, the day's Windows test builds (main with the open PRs merged on top) and CI's build of main at 8442eee (everything merged up to 4 pm EDT).
+
+**Boiler**
+- Heat and pressure both fell and the train held its top speed. *Done (note 319, #243): an engine short of steam holds the train back below the working band (`boiler.json` `starvedDecel`).*
+
+**Towns and world building**
+- Still waiting on the towns from the world-building chat: the fortresses feel static and lame, with not enough world building in them. *In progress (B2, queue #10 and #62, #194).*
+- The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
+
+**Level design**
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *Open (queue #65, note 326, B4).*
+
+**Encounters**
+- Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Open (queue #66, note 327).*
+- A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *Open (queue #67, note 328).*
+
+**Pacing on the train**
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Open (queue #67, note 328).*
+- A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and four questions for the director.*
+
+**Repairs**
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+
+**Audio**
+- A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
+
+**Derailment**
+- Derailments are underwhelming. A curve into a yard taken at 30 km/h, and the train just glided off the rails. Commit to it: more impulse, more drama. "Oh my God, that was a dramatic derailment." *Open (queue #69, note 330).*
+
 ## F.1 2026-10-06 — build 1121
 
 **Played:** the director, solo host, frontier seed 7, four cars, no bots; then a quick night.
@@ -2120,7 +2161,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Second session (same build, continued)**
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *Done (note 264): dropped.*
-- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Done (note 287): the night's first threat answers something a crewmate did (the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard). Past the grace, a draw big enough is answered from the dark: a distant call and a pair of eyes at the lamp's edge, and the threat follows five seconds later. A quiet crew is listened for longer. The incident report names it: "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *Done (notes 264, 276).*
 - *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *Done (note 265): the Sleepers are retired.*
@@ -2129,7 +2170,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *Done (note 263): it burns by the second; standing in it kills.*
 - *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *Done (notes 263, 271): a break of 150 s.*
 - *Falling:* far too easy to fall off the train. *Done (T128, note 273): a roof's edge now holds you while you're only walking (`player.json` `edge`). In 20 minutes of careless roof walking (looking aside with the key held, a normal night's wind), falls went from 42 to 0. You still go over if you walk straight at the side, jump short, are pulled off by a creature, or take a bend you were warned of too fast. Caveat: the wind no longer takes you over the edge (`windOverLip` puts it back).*
-- *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
+- *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Done (ARCHITECTURE.md note 286): the line says what drew them ("Drawn by the car's lamp, lit since the yard", or who relit it, and the way in: "Door left open."); the bubbles were the moths' smouldering wing rims, lit all round against the lamp, which drew each as a hollow orange ring. The rims are charred paper now, and each moth on the wing sheds ember sparks off its tail.*
 - *Overall:* the director hasn't finished a run yet.
 
 **Direction** (the director, 6 Oct 2026; proposal in T131, not yet decided):
@@ -2151,7 +2192,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*
 
 Further decisions (the director, 6 Oct 2026):
-- **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
+- **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule. *In progress (note 286: every creature's boarding point, telegraph, counter and door rule in one table; the Climbers and Draggers board a slow train, at a stop or a tight bend; Tippy Toesie gets on at a stop; a car shut up tight keeps the Fire Flies off its lamp).*
 - **The Track Doll may haunt the train.** It's a supernatural apparition, a deliberate exception to the boarding rule. *Done (notes 268, 269).*
 - **The Stoker** is drawn to the train only when the firebox runs above a set heat; it seeks heat. Once beaten, it stays gone for at least a couple of minutes. If it gets in, the consequences must be larger and more urgent. Running hot has to be a real trade-off. *Done (notes 263, 271).*
 - **Car lamps start lit.** Their pull on Fire Flies is rare, and only while the car is stopped. *Done (note 269).*
@@ -2173,6 +2214,8 @@ Further decisions (the director, 6 Oct 2026):
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270).*
+
+**Decided** (the director, 7 Oct 2026): "The switch itself shouldn't cause derail, it should be lines that lead nowhere." The Switchman never derails the train by throwing points under it; it throws a junction ahead and the train goes down a dead line. The crew notice (the wrong lamp, the figure at the lever, the route card), stop, back out and set the switch back by hand. A derailment comes only from the driver running off the end of the dead line, warned in the cab in time to stop. §21 and App. A.8 changed. *Done (note 286).*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
 
