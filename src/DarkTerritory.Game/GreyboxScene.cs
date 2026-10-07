@@ -113,6 +113,9 @@ public sealed class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
+    public Sim.Train.HotBoxTuning? HotBoxTuning { get; set; }
+    static readonly Sim.Train.HotBoxTuning DefaultHotBox = new();
     /// <summary>Loose bodies: crates, lamps, the dead.</summary>
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
     /// <summary>
@@ -2619,6 +2622,16 @@ public sealed class GreyboxScene
             ? 1u << kitBay.Index : 0;
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
+        // A hot axle box (note 331): smoke off its rear bogie, on both sides (a box on each rail).
+        if (Look is not null && vehicle is { HotBox: > 0 } hotCar)
+        {
+            var hb = HotBoxTuning ?? DefaultHotBox;
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, hb);
+            float heat = (float)Math.Clamp(hotCar.HotBox / hb.FireAfter, 0, 1);
+            foreach (int side in (ReadOnlySpan<int>)[1, -1])
+                Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
+                    (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))

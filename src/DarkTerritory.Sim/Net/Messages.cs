@@ -47,7 +47,8 @@ public static class Protocol
     // 33: emotes and outfits (note 298): an emote on the intent's hotbar byte and RecordKind.Emote; the Hello's outfit, the
     //     host's Outfits and a client's Wear.
     // 34: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
-    public const int Version = 34;
+    // 35: the vehicle record carries how long its axle box has run hot (note 331), before the char cells.
+    public const int Version = 35;
 }
 
 public enum MessageType : byte
