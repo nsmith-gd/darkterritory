@@ -94,8 +94,14 @@ public sealed class World
     /// </summary>
     public double LampOutSeconds { get; set; }
 
-    /// <summary>Where the engine's forward lamp is (world): high on the smokebox door, at the very front.</summary>
-    public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, 2.8, -engine.Shape.HalfLength - 0.3));
+    /// <summary>Where the engine's forward lamp is (world): on the cab's nose under its front windows, at the very front (note 276).</summary>
+    public static Ballast.Double3 LampPosition(in CarFrame engine) => engine.ToWorld(new Ballast.Double3(0, LampHeight, -engine.Shape.HalfLength - 0.3));
+
+    /// <summary>
+    /// The forward lamp's height over the rail (m): cab forward (note 276), on the cab's nose under the front windows, clear of
+    /// the driver's view down the line (it was 2.8, high on the smokebox door, with the boiler in front).
+    /// </summary>
+    public const double LampHeight = 2.0;
 
     /// <summary>Smashed: out, and no lighting it for a while.</summary>
     public void SmashLamp(double seconds)
@@ -348,12 +354,15 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The radios (T41, train.json kit): one on the cab floor at the back, clear of the firebox, the rest in the guard van.
+        // The radios (T41, train.json kit): one on the cab floor against its right wall ahead of the right doorway, out of
+        // the reach of a crewmate arriving in the cab, the driver at the controls, the cord, the vent and the fire door (cab
+        // forward, note 276); the rest in the guard van.
         int radios = Train.Dynamics.Tuning.Kit.Radios;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
-            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, cab.Max.Z - 0.5), Physics.BodyKind.Radio);
+            double doorFront = EnginePlan.Of(Train.Dynamics.Tuning.Geometry).DoorFront;
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, doorFront - 0.8), Physics.BodyKind.Radio);
             radios--;
         }
         StowRepairKits();

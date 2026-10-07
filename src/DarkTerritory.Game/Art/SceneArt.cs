@@ -676,40 +676,49 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
             return;
         var m = FrameMatrix(engine, eye);
-        // The gauge lamp under the cab roof (T101): the backhead, its dials and the map over it lit enough to read whatever
-        // the fire's doing.
+        // The gauge lamp under the cab roof (T101): the backhead and its dials lit enough to read whatever the fire's doing;
+        // cab forward (note 276), at the back wall (the map at the front has the cab lamp).
         var cab = engine.Shape.Cab!.Value;
-        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)cab.Min.Z + 0.9f), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
+        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Max.Z - 0.9)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
+        // Everything on the backhead is placed in its frame (it faces forward from the back wall).
+        var bh = TrainKit.BackheadFrame(engine.Shape) * m;
         var needle = Piece("needle", () => TrainKit.Needle(Look));
+        // Two sets (note 276): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
+        // back into the cab as the engine's frame does.
         for (int i = 0; i < 4 && i < fractions.Length; i++)
         {
-            if (i == 2)
-            {
-                // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
-                // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
-                // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
-                var g = TrainKit.GaugeCentre(engine.Shape, i);
-                float gr = TrainKit.GaugeRadius, f = Math.Clamp(fractions[i], 0, 1);
-                float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
-                float y1 = bottom + (top - bottom) * f;
-                if (y1 - bottom > 0.002f)
-                {
-                    var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), m);
-                    var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, m));
-                    var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, m));
-                    var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, m));
-                    float e = mesh.Emissive;
-                    mesh.Emissive = 0.35f;
-                    mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
-                    mesh.Emissive = e;
-                }
-                continue;
-            }
-            // From 7:30 round to 4:30, clockwise as you face it: the dial faces +Z (back into the cab).
-            float angle = (0.75f - 1.5f * Math.Clamp(fractions[i], 0, 1)) * MathF.PI;
-            var c = TrainKit.GaugeCentre(engine.Shape, i);
-            mesh.Append(needle, Matrix4x4.CreateScale(TrainKit.GaugeRadius / 0.11f) * Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(c) * m);
+            Dial(mesh, needle, TrainKit.GaugeLocal(engine.Shape, i), TrainKit.GaugeRadius, bh, i, fractions[i]);
+            Dial(mesh, needle, TrainKit.DriverGauge(engine.Shape, i), TrainKit.DriverGaugeRadius, m, i, fractions[i]);
         }
+    }
+
+    /// <summary>One dial's reading: its needle, or (the tender's, <paramref name="index"/> 2) the coal's level in its glass.</summary>
+    static void Dial(MeshBuilder mesh, MeshAsset needle, Vector3 g, float gr, Matrix4x4 frame, int index, float fraction)
+    {
+        if (index == 2)
+        {
+            // The tender's glass (gauge_face's "water" cell, labelled TENDER): no needle, a level standing in the tube
+            // as high as the coal left, lit amber so it reads against the dark glass. The tube's place on the face
+            // in the dial's radii (tools/art/texgen/mat_paper.py: the tube's cell pixels over the face's 0.92 of it).
+            float f = Math.Clamp(fraction, 0, 1);
+            float x0 = -0.42f * gr, x1 = -0.245f * gr, bottom = -0.50f * gr, top = 0.43f * gr;
+            float y1 = bottom + (top - bottom) * f;
+            if (y1 - bottom > 0.002f)
+            {
+                var centre = Vector3.Transform(g + new Vector3((x0 + x1) / 2, (bottom + y1) / 2, 0.016f), frame);
+                var ax = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, frame));
+                var ay = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, frame));
+                var az = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, frame));
+                float e = mesh.Emissive;
+                mesh.Emissive = 0.35f;
+                mesh.Box(centre, ax, ay, az, new Vector3((x1 - x0) / 2, (y1 - bottom) / 2, 0.002f), new Vector3(0.42f, 0.2f, 0.05f));
+                mesh.Emissive = e;
+            }
+            return;
+        }
+        // From 7:30 round to 4:30, clockwise as you face it: the dial faces its frame's +Z (out into the cab).
+        float angle = (0.75f - 1.5f * Math.Clamp(fraction, 0, 1)) * MathF.PI;
+        mesh.Append(needle, Matrix4x4.CreateScale(gr / 0.11f) * Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(g) * frame);
     }
 
     /// <summary>
@@ -789,8 +798,9 @@ public sealed partial class SceneArt(Look look)
     {
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 40)
             return;
-        var m = FrameMatrix(engine, eye);
-        var at = TrainKit.FireDoor(engine.Shape);
+        // In the backhead's frame: the door's leaves face out of the back wall into the cab (note 276).
+        var m = TrainKit.BackheadFrame(engine.Shape) * FrameMatrix(engine, eye);
+        var at = TrainKit.FireDoorLocal(engine.Shape);
         mesh.Instances.Add(new MeshInstance(Piece("firedoor-shut", () =>
         {
             var k = new Kit(Look, 61);

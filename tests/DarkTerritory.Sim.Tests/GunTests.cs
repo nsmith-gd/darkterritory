@@ -205,9 +205,15 @@ public class GunTests
     [Fact]
     public void RoundsStopAtTheTrainsOwnBody()
     {
-        // Aim down over the boiler: the round hits the engine before it goes anywhere.
+        // The rear gun slid to the front of its rail, laid back down along its own roof: the round hits the van before it
+        // goes anywhere. (Cab forward, note 276, the forward gun leads the train: nothing of it is ahead to aim down over.)
         var w = World();
-        var s = AtGun(w, 0);
+        int last = w.Train.Frames.Count - 1;
+        w.Train.Vehicles[last].Gun.Z = w.Train.Frames[last].Shape.RoofRail!.Value.Front;
+        var mount = Guns.Mount(w.Train, last)!.Value;
+        var s = PlayerMotor.SpawnOnRoof(w.Train, last, mount.Position.Z - mount.Facing.Z * 0.7, P);
+        s.Yaw = Math.PI;
+        s.Flags |= PlayerFlags.Seated;
         s.Pitch = -11 * Math.PI / 180;
         Hold(w, ref s, default, 1); // laid (T112)
         var shot = Hold(w, ref s, Fire, 0.1).Single();

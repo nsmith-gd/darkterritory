@@ -181,7 +181,8 @@ public class BoilerTests
         var train = Train(6);
         var inCab = PlayerMotor.SpawnInCab(train, P);
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        inCab.Position = inCab.Position with { Z = firebox.Z + 0.4 };
+        // In front of the fire door: cab forward (note 276), it's in the cab's back wall.
+        inCab.Position = inCab.Position with { Z = firebox.Z - 0.4 };
         var onRoof = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         train.Boiler.Firebox = 0;
         double tender = train.Boiler.Tender;

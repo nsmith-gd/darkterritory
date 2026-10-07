@@ -409,9 +409,10 @@ public sealed class GreyboxScene
         {
             var f0 = frames[0];
             var o = V(f0.ToWorld(new Double3(0, stack.Max.Y, stack.Centre.Z)), eye);
-            // Facing back down the engine (+Z, its back): the model faces its −Z.
-            var r = -ToF(f0.Right);
-            var b = -ToF(f0.Back);
+            // Facing forward along the boiler at the cab (note 276: the stack's at the rear now): the model faces its −Z, as
+            // the engine does.
+            var r = ToF(f0.Right);
+            var b = ToF(f0.Back);
             var basis = Art.CreatureArt.Basis(o, r, ToF(f0.Up), b);
             if (down < 0 || !perching.Draw(mesh, "stoker", "descend", down, false, basis))
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
@@ -2811,12 +2812,13 @@ public sealed class GreyboxScene
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).
-            foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
+            // (Placed through the backhead's frame: behind its face is in the fire, wherever the backhead stands: note 276.)
+            if (shape.Cab is not null && shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox) && FireGlow > 0)
             {
-                draw(Box.FromCentre(i.Position + new Double3(0, 0.7, -0.29), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
+                draw(Box.FromCentre(Art.TrainKit.InFirebox(shape, 0, 0.09), new Double3(0.32, 0.22, 0.02)), FireColour(0.03f + 0.18f * FireGlow) * 0.35f);
                 // (Open, with the art pass's fire, the bed is its heap of coals: Art.Effects.Furnace.)
                 if (!FireDoorOpen || Look?.Art.Effects is not { HasFlames: true })
-                    draw(Box.FromCentre(i.Position + new Double3(0, 0.55, -0.27), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
+                    draw(Box.FromCentre(Art.TrainKit.InFirebox(shape, -0.15, 0.07), new Double3(0.32, 0.07, 0.02)), FireColour(0.1f + 0.5f * FireGlow) * 0.7f);
             }
             mesh.Emissive = 0;
             // A Stoker in the fire: soot coming down in the cab (Art.Effects.SootFall).
@@ -2831,12 +2833,14 @@ public sealed class GreyboxScene
             if (!FireDoorOpen && Look is not null)
                 Look.Art.FireDoorShut(mesh, frame, eye, FireGlow, FireColour(1));
             // The door open, the art pass's fire: flames off the bed, cinders out of the hole, its light into the cab.
-            if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx)
-                foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox))
-                {
-                    var bed = frame.ToWorld(i.Position + new Double3(0, 0.6, -0.17)).RelativeTo(eye);
-                    fx.Furnace(mesh, bed, frame.Right.RelativeTo(default), frame.Up.RelativeTo(default), frame.Back.RelativeTo(default), FireGlow, FireColour(1), Time, SinceShovel);
-                }
+            // (Its "back", towards the cab, is out of the backhead's face: the engine's −Z, cab forward, note 276.)
+            if (FireDoorOpen && Look?.Art.Effects is { HasFlames: true } fx && shape.Cab is not null && shape.Interactables.Any(i => i.Kind == InteractableKind.Firebox))
+            {
+                var bed = frame.ToWorld(Art.TrainKit.InFirebox(shape, -0.1, -0.03)).RelativeTo(eye);
+                var toCab = ToF(frame.DirToWorld(Art.TrainKit.OutOfBackhead(shape)));
+                var across = Vector3.Cross(ToF(frame.Up), toCab);
+                fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
+            }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
             bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
