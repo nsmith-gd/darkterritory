@@ -1830,7 +1830,7 @@ Every number in this appendix lives in data, not code.
 3. **Halt stop cost.** Is a main-line stop at a halt dangerous enough, with no facility lull, or does it need a dedicated director response?
 4. **Live Mic and the Passenger.** A spectator who noticed a silent crew member could name it over Live Mic to a rescuer at the door. The living have the same tell, and the 26 m range limits it to one listener mid-rescue, so it's accepted for now. Watch for it in playtests.
 5. **Commendation reel.** Bookmarks are stills, now including automatic captures at every GRAB and PUNISH. If they turn out to be the best part of the run-end screen, short clips may be worth the tech later.
-6. **Attribution tone.** Cause-of-death lines name players. Watch playtests for whether they read as a joke the crew shares or as a scoreboard someone resents. The fallback is to keep names on self-inflicted deaths (jumping, a Choir victim who was also the loudest) and replace another player's name with their role ("Throttle: conductor") where the cause was someone else's action.
+6. ~~**Attribution tone.** Cause-of-death lines name players. Watch playtests for whether they read as a joke the crew shares or as a scoreboard someone resents. The fallback is to keep names on self-inflicted deaths (jumping, a Choir victim who was also the loudest) and replace another player's name with their role ("Throttle: conductor") where the cause was someone else's action.~~ **Answered (the director, 7 Oct 2026): name players, forget roles.** Cause-of-death lines and the cause card always name the player, whoever caused it; there is no role fallback.
 
 ---
 
@@ -1924,7 +1924,7 @@ Shots may revisit the same sim time from new angles. The cinematic is edited, no
 - **Length.** From the first person to the cause card, with the replay between: about 36s at crew 4 and 52s at crew 8 (the first person 4.5–9s, the replay 9s, 4s a player, the settle 3s, the cause card 2s). *(5 Oct 2026, take 3; it was about 18s and 24s.)*
 - **Bookmarks.** Each player's death frame is captured as their auto-bookmark (D.12).
 - **The cause card**, for example: *Consist derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave. Recovery not scheduled.*
-- **Skipping.** After the first player shot, anyone can vote to skip, and a majority of the session skips to the cause card. The host can always skip. The cause card is never skipped.
+- **Skipping.** Each player skips their own film, whenever they want: holding the key half a second cuts their screen to the cause card, from the first frame on. Nobody else's film is skipped. The cause card is never skipped. *(The director's answer to E.12 question 2, 7 Oct 2026: "players should be able to skip whenever they want. It's up to each player if they want to skip their film". It was a majority vote after the first player's shot, or the host.)*
 
 ## E.6 Music
 
@@ -2002,7 +2002,7 @@ Nobody died, so there's no opera. The joke is how little anyone cares.
 - **Sound:** wind and the boiler ticking as it cools. No music.
 - **Voices:** the living keep proximity voice throughout. They're still alive, and they'll have things to say.
 - **Camera:** the rules in E.4 apply (O2, O3, O13).
-- **Skippable** after 3s by majority vote, or by the host.
+- **Skippable** after 3s, by each player for themselves, like the film (E.5).
 - **Bookmark:** the final frame is captured as an auto-bookmark (D.12).
 
 ## E.10 Tunables
@@ -2053,7 +2053,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 ## E.12 Open questions
 
 1. **Solo nights.** A single player gets one shot. Is a six-second film of one person funny enough, or should solo derails shorten to the establishing wide and their shot?
-2. **First-time skip.** Should a player's first derail be unskippable for them?
+2. ~~**First-time skip.** Should a player's first derail be unskippable for them?~~ **Answered (the director, 7 Oct 2026): no.** "Players should be able to skip whenever they want. It's up to each player if they want to skip their film." Each player skips their own, from the first frame, and nobody else's (E.5; ARCHITECTURE §8 note 315).
 3. **Trailer capture.** A debug flag that renders the cinematic at 60fps from any saved derail would make Next Fest trailer footage cheap. Worth building in Phase 6?
 4. ~~**A spare kit.** Should the fortress sell a second engineering kit? It removes Stranded as a failure for crews who pay for it, which may be exactly the right kind of upgrade, or may defang the rupture entirely.~~ **Answered: yes.** The fortress sells spares, and kits are also found as loot at stops. Spares ride in the crew lockers. Stranded takes losing every kit, and a lost spare is gone for good (§12, §23.2).
 5. ~~**Kit loss warning.** The fitter's empty shelf is the only tell that the kit is gone. Is that enough, or does the clerk need a radio line when it's lost?~~ **Answered (the director, 7 Oct 2026): a radio line.** When the train's last engineering kit is lost, the yard says so once, flat: "Engineering kit reported lost", with the car's number when it went with a car. The empty shelf stays (ARCHITECTURE §8 note 308).

@@ -113,8 +113,10 @@
     "followers": { "radius": 14, "most": 3 },
     // A child calls from the open this far beyond the stop's built edge, where the train can see it.
     "sootCall": [25, 60],
-    // The Whistler carries its victim off to a nest this far out from the main line, away from the stop.
-    "whistlerNest": [40, 90]
+    // The Whistler carries its victim off to a nest this far out from the main line, away from the stop, and no further
+    // along the line than whistlerNestAlong from where the train stands: it snatches from the train's gaps, and runs to a
+    // nest within enemies.json whistler.nestSiteReach of its gap (ARCHITECTURE §8 note 314).
+    "whistlerNest": [40, 90], "whistlerNestAlong": 50
   },
 
   // Blocked sidings (level-design D.1, D.2, P18; ARCHITECTURE §8 note 294): bad-order cars nobody moved, standing at a

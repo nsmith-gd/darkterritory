@@ -115,6 +115,48 @@ public class SpawnSiteTests
     }
 
     [Fact]
+    public void TheWhistlerCarriesItsVictimToTheStopsNestAndThroughNoWall()
+    {
+        // Every generated stop with a nest, the train stood at it, a crewmate taken at the gap behind car one (note 314).
+        int atSite = 0, stops = 0;
+        foreach (var tier in new[] { RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory })
+            for (ulong seed = 1; seed <= 12; seed++)
+            {
+                var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
+                foreach (var stop in route.Features.Where(f => f.Stop?.Lairs.Any(l => l.Kind == LairKind.WhistlerNest) == true))
+                {
+                    var n = new Night(4, speed: 0, route);
+                    var state = n.Train.Capture();
+                    n.Train.Restore(state with { Rakes = [state.Rakes[0] with { Distance = stop.Start + stop.Stop!.StopPoint.S, Velocity = 0 }] });
+                    n.Train.RefreshFrames();
+                    // The stops' houses stand as walls, as a run's start has them (World.EnableRun).
+                    n.Train.Walls = Run.StopWalls.Of(route, n.Train.Line);
+                    var gap = n.Train.Frames[1].ToWorld(CrewSense.GapLocal(n.Train, 1));
+                    var right = (n.Train.Frames[1].Right with { Y = 0 }).Normalized;
+                    var sites = CreatureSites.Of(n.World, LairKind.WhistlerNest, E.Sites.Around).Select(x => x.At).ToList();
+                    var (nest, run) = Whistler.NestSite(n.Train, gap, right, 1, E.Whistler, sites);
+                    stops++;
+                    var site = sites.OrderBy(x => Flat(x, gap)).First();
+                    if (Flat(nest, site) < 0.5)
+                    {
+                        atSite++;
+                        Assert.InRange(run, E.Whistler.NestMinDistance, E.Whistler.NestSiteReach);
+                    }
+                    else
+                        Assert.True(run <= E.Whistler.NestDistance + 1e-6, $"{tier}:{seed} at {stop.Start:0}: {run:0} m out and not to its nest");
+                    // Whichever it was, the run there goes round every house, not through one.
+                    for (double x = 0; x <= run; x += 1)
+                    {
+                        var at = gap + ((nest - gap) with { Y = 0 }).Normalized * x;
+                        Assert.DoesNotContain(n.Train.Walls!.Near(at), w =>
+                            Math.Abs(w.ToLocal(at).X) <= w.HalfLength && Math.Abs(w.ToLocal(at).Z) <= w.HalfWidth);
+                    }
+                }
+            }
+        Assert.True(stops > 0 && atSite * 10 >= stops * 9, $"to the stop's own nest at {atSite} of {stops} stops");
+    }
+
+    [Fact]
     public void AHandLaidRoutesStopsStillSendThemFromOutInTheDark()
     {
         // No layouts, no sites: a Ribbit pack comes out round the ground crew, as before (note 309's fallback).

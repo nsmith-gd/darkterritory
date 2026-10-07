@@ -341,9 +341,9 @@ The stop's checks verify all five again on the finished layout. A stop where non
 - **Followers' ground (B.6 "facility grounds"):** up to three circles round the yard's loading, spread out, starting with the loading nearest the consist.
 - **A Soot Child's call (B.6 "near facilities and dead settlements"):** in the open beyond the stop's built edge, where the consist, or the cars waiting on the main line, can see it.
 - **The Grumbler's perch (B.8 "facility cranes"):** every yard gantry.
-- **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it.
+- **The Whistler's nest (A.4 "carries its victim off to a nest"):** out on the side of the stop with the least built on it, abreast of where the train stands (within 50 m along the line of its stopping point), so a Whistler snatching from the train's gaps runs there.
 
-The layout says where; the director says when. Ribbits come out of the warren nearest the ground crew, the Gaunt sleeps in its roost, a child calls from its call, and a Follower takes only someone standing on its ground (ARCHITECTURE §8 note 309). The Grumbler's perches and the Whistler's nest are placed but not yet read: the Grumbler comes to a facility's crane on its own rule, and the Whistler's nest is note 273's.
+The layout says where; the director says when. Ribbits come out of the warren nearest the ground crew, the Gaunt sleeps in its roost, a child calls from its call, and a Follower takes only someone standing on its ground (ARCHITECTURE §8 note 309). The Whistler carries its victim to the stop's nest when it can run there (note 314). The Grumbler's perches are placed but not yet read: it comes to a facility's crane on its own rule.
 
 ---
 
