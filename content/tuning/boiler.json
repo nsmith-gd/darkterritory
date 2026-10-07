@@ -57,6 +57,12 @@
   "steamDrive": true,
   "driveSpeedBand": 3,
   "fullDemandAt": 0.85,
+  // The director's test build (7 Oct 2026): "both heat and pressure are going down ... and I'm maintaining top speed". The
+  // engine stopped pulling as the pressure fell, but nothing held the train back: on the flat it shed 0.01 m/s² (train.json
+  // resistance), and with the fire out it was still at 17 m/s four minutes on. Pressure sets the speed both ways now: going
+  // faster than its steam can make, the engine holds the train back at up to starvedDecel m/s², none from workingBandMin
+  // up, all of it at powerFloor (ARCHITECTURE §8 note 319). Not in the spec; DESIGN-TODO: first pass. 0: it coasts as it did.
+  "starvedDecel": 0.12,
   // Firebox below this fraction of capacity counts as a low fire (Hollow's trigger, GDD App. A.5).
   "lowFireFraction": 0.2,
   "startPressure": 75,

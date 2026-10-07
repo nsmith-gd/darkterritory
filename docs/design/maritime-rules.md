@@ -21,9 +21,10 @@ What the Maritime railways did, and what the generator now does with it.
 - **Constant, wandering curvature (§9).** The South Shore line ("Hellish Slow & Wobbly") and the PEI Railway (a third of it on curves) curved almost all the time.
   - `sweepChance` makes a biome's connectors sweeps: coast 0.6, fishing town 0.4, barrens 0.35, dykeland 0.05 (dead straight across the marsh).
   - The sweeps keep the tier's radii and grades, so the validator's passes stand.
-- **Lakes crossed on a fill (§2).** The South Shore line threaded its lakes and crossed their necks on fills.
+- **Lakes crossed on a fill, or a trestle (§2).** The South Shore line threaded its lakes and crossed their necks on fills, and here and there on a low timber trestle.
   - `lakes.crossChance` (0.3) of lakes lie across the line: small ones (45-110 m) on open level ground only, never at a structure or a cutting.
-  - The formation stays at rail height through the water. The land falls from its shoulder at `fillSlope` into the lake.
+  - On a fill the formation stays at rail height through the water. The land falls from its shoulder at `fillSlope` into the lake.
+  - `lakes.trestleChance` (0.4) of crossed lakes are taken on a low timber trestle instead, the water running on under it (ARCHITECTURE §8 note 317). The span is the water plus `trestleAbutmentM` (6 m) either end, no longer than `trestleMaxM` (240 m), and no nearer than `trestleClearM` (50 m) to another structure. It has its own name ("Bramwell Trestle") and is a bridge to the authority, the boards and the wind like any other. Each lake's trestle is drawn from its own dice (`lakeTrestle`), so a line whose lakes all stay fills is laid exactly as before.
 - **Tidal rivers on long trusses (§4).** On the Fundy side (farmland, drumlin country, dykeland: `tidalRivers`) a river crossing becomes a tidal one:
   - the span is `tidalSpanFactor` × longer, within the piece;
   - the channel is `tidalDepthFactor` × deeper;
@@ -93,10 +94,9 @@ After the first renders read more like moor than Nova Scotia, three changes:
   - The sightlines authority reads the terrain after the water is placed.
 - **The formation is never flooded.** Wherever water lowers the land, it's held at or above a fill slope down from every track it's near, except under a bridge span. The ballast either side stays at rail height (`WatersideTests`).
 - **Walkable.** The land beyond the formation is only lowered toward water, never raised, except for a dyke's fields and bank, which are set outright.
+- **Fog fills the coves first.** Track along a shore, or within 40 m of a lake, is as foggy as low ground (×1.3, linegen plan §14), and the renderer's fog follows the line's factor, blended so it comes and goes (ARCHITECTURE §8 note 313).
 
 ## 4. Not yet
 
-- **Fog filling the coves first (§5).** The per-segment exposure has a fog factor, but nothing reads it: the renderer's fog is one density for the night. Varying it along the line (thicker on a shore, in the low ground) is the next step.
-- **A trestle across a lake's neck.** A crossed lake is always a fill for now.
 - **Boats on the mud at low tide, lobster traps along the wharf, aboiteaux (the dykes' sluices), red maple.**
 - **The Tantramar railway grade doubling as the dyke.** The line runs a low bank beside its dyke rather than on it.
