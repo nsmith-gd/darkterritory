@@ -13,6 +13,7 @@ sealed partial class LineBuilder
 {
     readonly List<PlanLake> _lakes = new();
     readonly List<PlanShore> _shores = new();
+    readonly List<PlanStructure> _lakeTrestles = new();
 
     void LayWaterside()
     {
@@ -165,7 +166,48 @@ sealed partial class LineBuilder
             if (found is not { } level)
                 continue;
             _lakes.Add(lake with { LevelM = R(level) });
+            if (cross)
+                TrestleAcross(_lakes[^1]);
         }
+    }
+
+    /// <summary>
+    /// Some crossed lakes are taken on a low timber trestle instead of a fill (maritime-rules §4; note 317): the span is
+    /// where the main line is over the water, and <c>trestleAbutmentM</c> past it each end, so the water runs on under it
+    /// (the terrain leaves a span's ground open). Named, a landmark, and a bridge to the tags, authority and signage after.
+    /// Its own dice (<c>lakeTrestle</c>, by lake), so a line whose lakes all stay fills is laid exactly as before.
+    /// </summary>
+    void TrestleAcross(PlanLake lake)
+    {
+        var lr = _t.Terrain.Lakes;
+        var rng = Rng("lakeTrestle", lake.Id);
+        if (!rng.Chance(lr.TrestleChance))
+            return;
+        var line = _line!;
+        var (at, _) = NearestMain(lake.X, lake.Z, 0, line.Length);
+        double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + 20;
+        double? wet0 = null, wet1 = null;
+        for (double s = Math.Max(0, at - reach); s <= Math.Min(line.Length, at + reach); s += 2)
+        {
+            var p = line.Sample(s).Position;
+            if (TerrainField.LakeMetric(lake, p.X, p.Z) < 1)
+                (wet0, wet1) = (wet0 ?? s, s);
+        }
+        if (wet0 is not { } w0 || wet1 is not { } w1)
+            return;
+        double a = w0 - lr.TrestleAbutmentM, b = w1 + lr.TrestleAbutmentM;
+        if (b - a > lr.TrestleMaxM || _structures.Any(st => st.Edge == "main" && st.S1 > a - lr.TrestleClearM && st.S0 < b + lr.TrestleClearM))
+            return;
+        double rail = line.Sample((a + b) / 2).Position.Y;
+        string name = Name("bridge", ref rng);
+        name = string.Join(' ', name.Split(' ')[..^1].Append("Trestle"));
+        int n = _structures.Count(st => st.Id.StartsWith("bridge", StringComparison.Ordinal)) + 1;
+        var trestle = new PlanStructure($"bridge{n}", StructureType.Trestle, "main", R(a), R(b), R(rail - lake.LevelM + lake.DepthM), null, name, "timber");
+        // In order along the main line, as the structures were laid.
+        int i = _structures.FindIndex(st => st.Edge == "main" && st.S0 > a);
+        _structures.Insert(i < 0 ? _structures.Count : i, trestle);
+        _lakeTrestles.Add(trestle);
+        _landmarks.Add(new PlanLandmark("bridge", name, "main", trestle.S0, trestle.S1));
     }
 
     /// <summary>
