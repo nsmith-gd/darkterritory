@@ -999,6 +999,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
         scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
+        // The dark answering a draw (note 287): eyes at the lamp's edge.
+        scene.Answer = session.World.Answer;
+        scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;

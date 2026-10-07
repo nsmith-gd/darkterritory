@@ -90,7 +90,10 @@ public static class WorldRecords
                 // The derailment film's skip vote (GDD v1.4 App. E.5; note 177): skipped, and the votes of how many.
                 world.FilmSkipped ? 1 : 0, world.FilmVotes.Votes, world.FilmVotes.Of,
                 // Whose hand's on the whistle cord (note 264): the HUD names them; the Whistler's whistle has no hand (−1).
-                world.WhistleBy]));
+                world.WhistleBy,
+                // The dark's answer to a draw (note 287): how long it shows, what it answered, who, and where it's heard from.
+                Q(world.Answer.Seconds, Fine), (long)world.Answer.Cause, world.Answer.Actor,
+                Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos)]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -326,6 +329,9 @@ public static class WorldRecords
                     };
                     world.WhistleSeconds = f.Length > 9 ? D(f[9], Fine) : 0;
                     world.WhistleBy = f.Length > 15 ? (int)f[15] : -1;
+                    world.Answer = f.Length > 21
+                        ? new DrawAnswer(D(f[16], Fine), (DrawCause)f[17], new Double3(D(f[19], Pos), D(f[20], Pos), D(f[21], Pos)), (int)f[18])
+                        : default;
                     world.SetDerailed(f[3] != 0);
                     world.DerailMusic = f.Length > 11 ? (uint)f[11] : 0;
                     world.FilmSkipped = f.Length > 12 && f[12] != 0;

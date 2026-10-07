@@ -1275,6 +1275,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         SinceShovel = args.Contains("--flare") ? Opt(args, "--flare", 0.15) : double.PositiveInfinity,
         // --gathering g: the Choir that far through its gathering (0-1), its frost in the air and the crew's breath (A.7).
         ChoirGathering = (float)Opt(args, "--gathering", 0),
+        // --answer left: the dark answering a draw (note 287), its eyes at the lamp's edge up the line, left seconds still to
+        // show (4: open, before the blink); --answer-at ahead,lateral moves them (default 60,14).
+        Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,14").Split(',') is var aa
+            ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,

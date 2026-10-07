@@ -36,6 +36,20 @@ public static class Staging
     }
 
     /// <summary>
+    /// The dark answering a draw (note 287, `dt screenshot --answer left`): eyes <paramref name="ahead"/> m up the line and
+    /// <paramref name="lateral"/> m to its right (enemies.json director.draw's answerDistance and answerLateral), at an animal's
+    /// eye height off the ground, <paramref name="left"/> seconds still to show.
+    /// </summary>
+    public static DrawAnswer Answer(TrainOnLine train, double left, double ahead = 60, double lateral = 14, double height = 0.7)
+    {
+        var sample = train.Line.Sample(train.Dynamics.Distance + ahead);
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        double hint = train.Dynamics.Distance + ahead;
+        var at = sample.Position + right * lateral;
+        return new DrawAnswer(left, DrawCause.Whistle, at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) + height }, 0);
+    }
+
+    /// <summary>
     /// The roof warning (note 260, `dt screenshot --hud --roof-warning tunnel|bend`): a solo night on <paramref name="route"/>
     /// with the train <paramref name="seconds"/> short of its first tunnel's mouth (or its first posted bend, taken fast
     /// enough to throw roof riders off), the player up on car 2's roof facing ahead, warned.

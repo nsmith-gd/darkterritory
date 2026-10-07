@@ -42,7 +42,8 @@ public static class Protocol
     // 29: the run record carries where the repair kit is, as the host reckons it (place, car, how it was lost; note 263).
     // 30: fire is a grid (App. F.1, the director's decision of 6 Oct 2026; note 267): a car fire's record carries its cells'
     //     heat, and a car's its cells' char, packed four bits a cell.
-    public const int Version = 30;
+    // 31: the world record carries the dark's answer to a draw (note 287): how long it shows, its cause, who, where.
+    public const int Version = 31;
 }
 
 public enum MessageType : byte

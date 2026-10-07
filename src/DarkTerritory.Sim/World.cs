@@ -151,6 +151,36 @@ public sealed class World
     public double WhistleSeconds { get; set; }
     /// <summary>Who's blowing it (the last to pull the cord), or −1: the Whistler's whistle belongs to nobody (App. C.7).</summary>
     public int WhistleBy { get; internal set; } = -1;
+    /// <summary>
+    /// The dark's answer to what the crew did (note 287): a call from out past the lamp and eyes at its edge while it lasts.
+    /// The host's, replicated on the world record; presentation only.
+    /// </summary>
+    public DrawAnswer Answer { get; set; }
+
+    /// <summary>Host: a draw made (note 287), credited on the director's ledger; nothing in the safe yard.</summary>
+    void Drew(DrawCause cause, int player, double amount)
+    {
+        if (Authority && !SafeYard && Director is { } d)
+            d.Draws.Add(cause, player, amount);
+    }
+
+    /// <summary>
+    /// Host: where the dark answers from (note 287): out at the lamp's edge ahead (answerDistance along the line), off to a side
+    /// (answerLateral; the side from the tick, so it isn't always the same), at an animal's eye height off the ground.
+    /// </summary>
+    Ballast.Double3 AnswerAt(DrawTuning t)
+    {
+        var line = Train.Line;
+        double s = Train.Dynamics.Distance + t.AnswerDistance;
+        var sample = line.Sample(Train.Dynamics.Path, s);
+        var across = new Ballast.Double3(-sample.Tangent.Z, 0, sample.Tangent.X);
+        double l = across.Length;
+        double side = (Tick / SimConstants.TickRate) % 2 == 0 ? 1 : -1;
+        var at = sample.Position + (l > 1e-6 ? across * (side * t.AnswerLateral / l) : default);
+        double hint = s;
+        return at with { Y = Player.PlayerMotor.GroundAt(at, line, ref hint) + t.AnswerHeight };
+    }
+
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
@@ -864,6 +894,8 @@ public sealed class World
             // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
             if (Authority)
                 CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);
+            // GDD §14: "a cannon solves the immediate problem while alerting everything nearby" (note 287).
+            Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
             // B.9: the fumes, once everyone's moved this tick (note 182).
             if (Authority && c.Fumes is not null)
                 _fumes.Add(shot);
@@ -884,7 +916,11 @@ public sealed class World
         {
             Train.Vehicles[s.Parent].LampLit = !Train.Vehicles[s.Parent].LampLit;
             if (Train.Vehicles[s.Parent].LampLit)
+            {
                 Attribution.LitLamp(s.Parent, playerId);
+                // A light in the dark is seen (note 287).
+                Drew(DrawCause.Lamp, playerId, Director?.Tuning.Draw.Weight(DrawCause.Lamp) ?? 0);
+            }
         }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
         if (Authority && _context is { } ec)
@@ -1090,6 +1126,8 @@ public sealed class World
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
+        if (Authority && Answer.Showing)
+            Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -1113,6 +1151,14 @@ public sealed class World
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
                     _choirShares.Clear();
+                // The Choir come first (note 287): drawn by the noise, in the loudest's name (A.7), by what of theirs was loudest.
+                if (swarm && Director is { First: null } fd)
+                {
+                    int loudest = ChoirLoudest;
+                    var noise = new[] { DrawCause.Whistle, DrawCause.Cannon, DrawCause.Voices, DrawCause.Toy }
+                        .Select(k => (Cause: k, Amount: fd.Draws.Of(k, loudest))).MaxBy(k => k.Amount);
+                    fd.Came(this, EnemyKind.Choir, noise.Amount > 0 ? noise.Cause : DrawCause.Voices, loudest, noise.Amount);
+                }
                 if (swarm && Enemies is { } et && _context is not null && Insist?.Contains(EnemyKind.Choir) != false)
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
@@ -1215,16 +1261,31 @@ public sealed class World
             total += loudness;
             CreditChoir(player, loudness * dt);
         }
+        // The same acts draw the night's first threat (note 287): a voice raised past the draw's floor (talking as you work
+        // doesn't), a noisy toy carried, the whistle. Its own weights, so the whistle's blast outweighs a minute's chatter.
+        var draw = Director?.Tuning.Draw;
         if (_context is { } ctx)
             foreach (var (p, intent) in ctx.Crew)
                 if (p.State.Alive)
+                {
                     Add(p.Id, intent.Voice / 255.0 * t.VoicePerPlayer);
+                    if (draw is { VoiceFloor: < 1 } && intent.Voice / 255.0 > draw.VoiceFloor)
+                        Drew(DrawCause.Voices, p.Id, draw.Weight(DrawCause.Voices) * (intent.Voice / 255.0 - draw.VoiceFloor) / (1 - draw.VoiceFloor) * dt);
+                }
         // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it.
         foreach (var b in Bodies.All)
             if (b is { Kind: Physics.BodyKind.Toy, Carrier: >= 0 } && b.Noise != Physics.ToyNoise.None)
+            {
                 Add(b.Carrier, t.Toys.Of(b.Noise));
+                Drew(DrawCause.Toy, b.Carrier, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+            }
         if (WhistleSeconds > 0)
+        {
             Add(WhistleBy, t.WhistleLoudness);
+            // The Whistler's blowing belongs to nobody, and it's already a threat: only a crewmate's pull draws.
+            if (WhistleBy >= 0)
+                Drew(DrawCause.Whistle, WhistleBy, (draw?.Weight(DrawCause.Whistle) ?? 0) * dt);
+        }
         if (Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } run && run.Machinery)
             total += t.MachineryLoudness;
         return total;
@@ -1314,12 +1375,17 @@ public sealed class World
         {
             d.Present(_context?.Crew.Count ?? 0);
             Unmet(ctx, t.Director);
+            // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
+            d.Listen(this);
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
+            // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
+            foreach (var (cause, actor) in d.TakeAnswers())
+                Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
