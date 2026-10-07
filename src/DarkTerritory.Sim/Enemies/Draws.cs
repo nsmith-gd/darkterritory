@@ -118,7 +118,7 @@ public sealed record DrawTuning
     public double LeadSeconds { get; init; } = 5;
     public double ShowSeconds { get; init; } = 7;
     public double AnswerDistance { get; init; } = 60;
-    public double AnswerLateral { get; init; } = 14;
+    public double AnswerLateral { get; init; } = 12;
     public double AnswerHeight { get; init; } = 0.7;
     public double VoiceFloor { get; init; } = 0.4;
     public double FireboxFrom { get; init; } = 4.5;

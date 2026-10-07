@@ -165,20 +165,25 @@ public sealed class World
     }
 
     /// <summary>
-    /// Host: where the dark answers from (note 287): out at the lamp's edge ahead (answerDistance along the line), off to a side
+    /// Host: where the dark answers from (note 287): out at the lamp's edge ahead (answerDistance from the engine's nose), off to a side
     /// (answerLateral; the side from the tick, so it isn't always the same), at an animal's eye height off the ground.
     /// </summary>
     Ballast.Double3 AnswerAt(DrawTuning t)
     {
-        var line = Train.Line;
-        double s = Train.Dynamics.Distance + t.AnswerDistance;
-        var sample = line.Sample(Train.Dynamics.Path, s);
-        var across = new Ballast.Double3(-sample.Tangent.Z, 0, sample.Tangent.X);
-        double l = across.Length;
         double side = (Tick / SimConstants.TickRate) % 2 == 0 ? 1 : -1;
-        var at = sample.Position + (l > 1e-6 ? across * (side * t.AnswerLateral / l) : default);
-        double hint = s;
-        return at with { Y = Player.PlayerMotor.GroundAt(at, line, ref hint) + t.AnswerHeight };
+        return DrawAnswerAt(Train, t.AnswerDistance, side * t.AnswerLateral, t.AnswerHeight);
+    }
+
+    /// <summary>
+    /// A point <paramref name="ahead"/> m out from the engine's nose, the way the lamp shines (its −Z), <paramref name="lateral"/>
+    /// m to its right, <paramref name="height"/> m off the ground there (note 287: where the dark answers from).
+    /// </summary>
+    public static Ballast.Double3 DrawAnswerAt(TrainOnLine train, double ahead, double lateral, double height)
+    {
+        var engine = train.Frames[0];
+        var at = engine.ToWorld(new Ballast.Double3(lateral, 0, -engine.Shape.HalfLength - ahead));
+        double hint = train.Dynamics.Distance + ahead;
+        return at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) + height };
     }
 
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>

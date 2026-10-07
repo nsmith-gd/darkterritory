@@ -1285,6 +1285,8 @@ pressure per second = tier × conditions × relief × busy × escalation × (bas
 
 The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
 
+**The first threat is drawn** (*design decision, 2026-10*; ARCHITECTURE §8 note 287). The night's first threat answers something a crewmate did: the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard. Each is credited to whoever did it, and fades over half a minute. Past the grace, the first draw big enough is answered from the dark, a distant call and eyes at the lamp's edge, and the threat follows a few seconds later, weighted toward what that draw calls (the whistle the Whistler, a lamp the Fire Flies, the cargo the Car Hugger). A crew that draws nothing is listened for longer, until the pressure presses. The incident report names the draw and who made it (C.9, §23.1 "Owned").
+
 Past the **threshold** the director spends: on what its weights, wants, pairs, gates and caps pick, as before. **Spending relieves the pressure** by the spawn's cost. Well past the threshold (a long quiet, or a night the budget's curve can't keep up with) the post-event cooldown gives way and the curve may be overdrawn a little. The dead's votes move weight between creatures and never touch the pressure. All the coefficients are in `director.pressure` in `content/tuning/enemies.json`; the systems spec (B.9) has the numbers.
 
 ### Pressure cost per enemy
@@ -2103,7 +2105,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Second session (same build, continued)**
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *In progress (T126: cut it; short skippable text at most).*
-- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Open (T131).*
+- *Run start:* nothing makes the player feel they've done something that draws a monster they need to worry about. *Done (note 287): the night's first threat answers something a crewmate did (the whistle, a cannon shot, raised voices, a noisy toy, the firebox run hot, a lamp lit, cargo taken aboard). Past the grace, a draw big enough is answered from the dark: a distant call and a pair of eyes at the lamp's edge, and the threat follows five seconds later. A quiet crew is listened for longer. The incident report names it: "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."*
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
 - *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*

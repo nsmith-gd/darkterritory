@@ -382,7 +382,7 @@
     "draw": {
       "enabled": true,
       "halfLifeSeconds": 30, "answerAt": 3, "holdFirst": true, "holdUntil": 16, "leadSeconds": 5,
-      "showSeconds": 7, "answerDistance": 60, "answerLateral": 14, "answerHeight": 0.7,
+      "showSeconds": 7, "answerDistance": 60, "answerLateral": 12, "answerHeight": 0.7,
       // Raised voices only: the mic level (0..1) above voiceFloor, scaled to the rest (the bots' working chatter is 0.27).
       // The firebox above fireboxFrom (of 6; the Stoker's heatFirebox). The engine at engineFullSpeed m/s or more.
       "voiceFloor": 0.4, "fireboxFrom": 4.5, "engineFullSpeed": 20,

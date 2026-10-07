@@ -266,6 +266,7 @@ public sealed class Director
                 _answer = (top.Cause, top.Actor, top.Amount, world.Run?.Seconds ?? elapsed);
                 _answerIn = draw.LeadSeconds;
                 _heard.Add((top.Cause, top.Actor));
+                return Held("answering");
             }
             if (_answer is not null)
             {
