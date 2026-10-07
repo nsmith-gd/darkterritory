@@ -618,6 +618,8 @@ public sealed record AbandonedTuning
     public double Relief { get; init; } = 6;
     public int[] Pack { get; init; } = [2, 5];
     public double[] SpawnOut { get; init; } = [35, 18];
+    /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
+    public int GauntFrom { get; init; } = 2;
 }
 
 /// <summary>
