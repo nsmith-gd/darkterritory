@@ -1872,7 +1872,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
-            if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
+            // Not while still walking in: Use and forward is a climb (T90), and note 280's hatch ladder stands behind the
+            // bunker, on the way to the fire from the back of the cab.
+            if (CrewActions.Nearest(self, train) == InteractableKind.Firebox && (there || step.MoveZ <= 0.5))
                 intent.Buttons |= PlayerButtons.Use;
             if (!there)
                 intent = intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };

@@ -312,8 +312,8 @@ public static class PlayerMotor
 
     /// <summary>
     /// Where along the cab a crewmate's put in it: on the footplate's open floor, clear across the cab's width, so a spawn
-    /// to either side lands on the boards. Cab forward with its work at the front (note 280), that's the floor between the
-    /// coal bunker's end and the doorways.
+    /// to either side lands on the boards. Cab forward with its work at the front (note 280), that's the open floor just
+    /// behind the coal bunker's end, a step back from the fire.
     /// </summary>
     public static double CabFloorZ(CarShape shape)
     {
@@ -322,9 +322,11 @@ public static class PlayerMotor
         foreach (var solid in shape.Solids)
             if (solid.Part is PartKind.Tender or PartKind.Firebox && cab.ContainsXZ(solid.Box.Centre))
                 front = Math.Max(front, solid.Box.Max.Z);
-        double door = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > cab.Min.Y + 1.5).Select(s => s.Box.Min.Z).DefaultIfEmpty(cab.Max.Z).Min();
-        return (front + door) / 2;
+        return front + StandOff;
     }
+
+    /// <summary>How far behind the cab's work a crewmate's put (m): clear of the bunker's end and a body's breadth.</summary>
+    const double StandOff = 0.55;
 
     /// <summary>True when standing inside the engine's cab.</summary>
     public static bool InCab(in PlayerState s, TrainOnLine train) =>

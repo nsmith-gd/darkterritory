@@ -721,6 +721,9 @@ public static class TrainKit
     // cab floor (note 280: under the window sill).
     const float BackheadDepth = 0.085f, FireDoorUp = 0.55f;
 
+    /// <summary>How far a Stoker in the open door is drawn above its centre: its clip's door was 0.7 m up (note 280).</summary>
+    public const float StokerDoorLift = 0.7f - FireDoorUp;
+
     /// <summary>The firebox door's opening, half its width and half its height (m), inside its frame.</summary>
     public const float FireDoorHalfWidth = 0.32f, FireDoorHalfHeight = 0.22f;
 

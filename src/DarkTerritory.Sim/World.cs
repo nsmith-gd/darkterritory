@@ -354,15 +354,13 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The radios (T41, train.json kit): one on the cab floor against its right wall ahead of the right doorway, out of
-        // the reach of a crewmate arriving in the cab, the driver at the controls, the cord, the vent and the fire door (cab
-        // forward, note 276); the rest in the guard van.
+        // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
+        // of a crewmate arriving in the cab and of all the work at its front (note 280); the rest in the guard van.
         int radios = Train.Dynamics.Tuning.Kit.Radios;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
-            double doorFront = EnginePlan.Of(Train.Dynamics.Tuning.Geometry).DoorFront;
-            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, doorFront - 0.8), Physics.BodyKind.Radio);
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(0.6, cab.Min.Y + 0.2, cab.Max.Z - 0.4), Physics.BodyKind.Radio);
             radios--;
         }
         StowRepairKits();

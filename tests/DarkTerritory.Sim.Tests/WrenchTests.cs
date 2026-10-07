@@ -24,6 +24,9 @@ public class WrenchTests
         var at = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
         var s = PlayerMotor.SpawnInCab(world.Train, Tuning.Player);
         s.Position = s.Position with { X = Math.Clamp(at.X, -1.05, 1.05), Z = at.Z };
+        // Facing it (note 280: the vent's on the side wall now, beside you, not ahead): what's looked at is what's worked.
+        if (Math.Abs(at.X - s.Position.X) > 0.05)
+            s.Yaw = Math.Atan2(-(at.X - s.Position.X), 0);
         return s;
     }
 
