@@ -2131,7 +2131,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
 - **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
 - **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
-- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*
 
 Further decisions (the director, 6 Oct 2026):
 - **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
