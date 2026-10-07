@@ -894,7 +894,9 @@ public static class Staging
         for (int i = 0; i < 3; i++)
         {
             var hound = new CinderHound(10 + i, 10);
-            hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), 0.6, 10, 0);
+            // At the sim's own height off the rail (Rear.cs: -0.3), on the ground: not the 0.6 they were staged at, which ran
+            // them a metre up in the air over the ballast's shoulder (their own light showed it, note 323).
+            hound.Restore(SpinePhase.Commit, 2, 60, -1, default, d.RearDistance - 14 - i * 6, (i % 2 == 0 ? 1 : -1) * (2.5 + i), -0.3, 10, 0);
             threats.Add(hound);
         }
         var boarded = new CinderHound(13, 10);

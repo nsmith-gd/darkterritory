@@ -45,6 +45,10 @@ public static class Views
             // the Cinder Hounds come up (their board, --board s).
             "board" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-(train.Frames[^1].Shape.HalfWidth + 3.5), train.Frames[^1].Shape.RoofHeight + 1.4, train.Frames[^1].Shape.HalfLength + 7)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight - 0.8, train.Frames[^1].Shape.HalfLength - 1.5)), 55),
+            // From the rear car's roof at its end, a gunner's eye, back down the line at the staged Cinder Hound pack running
+            // it down 14 to 26 m behind (Staging.Threats): what has to read at night (note 209's "not yet").
+            "hounds" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.4, train.Frames[^1].Shape.RoofHeight + 1.6, train.Frames[^1].Shape.HalfLength - 1.2)),
+                train.Frames[^1].ToWorld(new Double3(0, 0.6, train.Frames[^1].Shape.HalfLength + 18)), 60),
             // Close on the nest at the trail's end, the Whistler crouched over its catch.
             "nest" => NestCamera(train),
             // Off the staged Whistler's side on its run and a little ahead, at a chaser's eye, looking at it going with

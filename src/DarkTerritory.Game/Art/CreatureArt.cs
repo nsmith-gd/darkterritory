@@ -209,6 +209,9 @@ public sealed class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    // A Cinder Hound's own light (note 323): its cracks' ember, redder than a firebox, and how far it reaches.
+    static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
+    const float HoundLightRange = 4.2f;
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
@@ -1307,7 +1310,16 @@ public sealed class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
-                    return Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra);
+                    if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
+                        return false;
+                    // A light of its own (note 209's "not yet", note 323): its cracks' heat, under the keel, lighting its legs
+                    // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
+                    // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
+                    // inside its hide's normals, so its char stays black and its cracks are what glow on it.)
+                    float flick = 0.85f + 0.15f * (float)Math.Sin(t * 13.0 + extra * 2.1 + Math.Sin(t * 4.7) * 1.5);
+                    var keel = BoneAt("cinder_hound", "belly", model) - Basis(model).Up * 0.16f;
+                    mesh.PointLights.Add(new PointLight(keel, HoundEmber * (glow * flick), HoundLightRange));
+                    return true;
                 }
             case EnemyKind.Sleepers:
                 {
