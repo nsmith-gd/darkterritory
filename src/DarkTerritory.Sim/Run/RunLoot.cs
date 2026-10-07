@@ -105,6 +105,15 @@ public sealed partial class Run
     /// <summary>A find's name for the HUD.</summary>
     public string? FindName(Physics.Body b) => FindOf(b) is { } f && _loot is { } t ? t.Name(f.Item) : null;
 
+    /// <summary>
+    /// How much health a find gives back used (GDD App. F.1's rare healing loot, loot.json <c>healing</c>; note 272), 0 for
+    /// anything that doesn't heal. From the run's seed, so a client (its HUD, a bot) knows as well as the host.
+    /// </summary>
+    public int HealOf(Physics.Body b) => _loot?.Healing is { } h && FindOf(b) is { } f ? h.Of(f.Item) : 0;
+
+    /// <summary>The healing tuning (loot.json), or null when no find heals.</summary>
+    public HealingTuning? Healing => _loot?.Healing;
+
     void StepLoot(World world, double dt)
     {
         if (_loot is not { } t || _lootLine is not { } line)

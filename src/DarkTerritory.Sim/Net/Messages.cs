@@ -43,7 +43,8 @@ public static class Protocol
     // 30: fire is a grid (App. F.1, the director's decision of 6 Oct 2026; note 267): a car fire's record carries its cells'
     //     heat, and a car's its cells' char, packed four bits a cell.
     // 31: the fireman's shovel off its rack, a bit on the boiler record (App. C.2, GDD §12; WP19, note 275).
-    public const int Version = 31;
+    // 32: a find's body record carries how far its carrier has got using it, when it heals (App. F.1 damage model; note 272).
+    public const int Version = 32;
 }
 
 public enum MessageType : byte

@@ -56,12 +56,12 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 1 | **Pacing by pressure:** a quiet spell of 20–90 s picked per night; spawns driven by escalating pressure | A1 | `wp31-pacing`, [#189](https://github.com/nsmith-gd/darkterritory/pull/189) | 266 | done |
 | 2 | **Stoker v3, the firebox half:** the territorial door (a heavy burn, the second kills), vent and starve it out, the hose kills it (an extinguisher for now), no chip damage | A1 | `stoker-v3`, [#191](https://github.com/nsmith-gd/darkterritory/pull/191) | 271 | done |
 | 3 | **Track Doll escalation:** harmless at first; ignored, she moves to the controls, and in the end lets a standing train off its brake | A1.1 | `track-doll-escalation`, [#193](https://github.com/nsmith-gd/darkterritory/pull/193) | 268 | done |
-| 4 | **Damage model, Lethal Company style:** a few big hits, never chip damage; healing items rare loot; an edge flash and a sound; creatures driven off by their rules, mostly not damaged | A1.4 | `damage-model`, [#202](https://github.com/nsmith-gd/darkterritory/pull/202) | 272 | in review |
+| 4 | **Damage model, Lethal Company style:** a few big hits, never chip damage; healing items rare loot; an edge flash and a sound; creatures driven off by their rules, mostly not damaged | A1.4 | `damage-model`, [#202](https://github.com/nsmith-gd/darkterritory/pull/202) | 272 | done |
 | 5 | **Boarding rules per creature:** Cinder Hounds that board stay aboard; Fire Flies only while the train is stopped | A1.2 | `boarding-rules`, [#197](https://github.com/nsmith-gd/darkterritory/pull/197) | 269 | done |
-| 6 | **One run length for every tier:** difficulty from monsters and density of challenges, not time; quiet stretches in km (GDD §11, spec B.8; T125) | A1.3 | `run-length`, [#207](https://github.com/nsmith-gd/darkterritory/pull/207) | 270 | in review |
+| 6 | **One run length for every tier:** difficulty from monsters and density of challenges, not time; quiet stretches in km (GDD §11, spec B.8; T125) | A1.3 | `run-length`, [#207](https://github.com/nsmith-gd/darkterritory/pull/207) | 270 | done |
 | 7 | **T128:** tuning for falls after a grab; grabbed players taken somewhere sensible; pressure when a player's left behind; forts safe from creatures | A1.5 | `t128`, [#200](https://github.com/nsmith-gd/darkterritory/pull/200) | 273 | done |
 | 8 | **T124:** fort collision, and the guns hitting at the forts | A1.6 | `t124`, [#199](https://github.com/nsmith-gd/darkterritory/pull/199) | 274 | done |
-| 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools`, [#201](https://github.com/nsmith-gd/darkterritory/pull/201) | 275 | in review |
+| 9 | **WP19 tool damage:** the shovel and the breach tool as swings (an old branch, `wp19-melee`, needs merging with main) | A1.7 | `wp19-tools`, [#201](https://github.com/nsmith-gd/darkterritory/pull/201) | 275 | done |
 | 10 | **Towns (T133):** fortress towns as places, their own cultures, story by inference (notes, text-only townspeople) | — | — | — | open |
 | 11 | **The cab redesign:** cab forward, the controls at the front with the whole line in view, the coal bunker in the cab (the director's sketch) | C1 | `claude/busy-carson-0i3g8d`, [#190](https://github.com/nsmith-gd/darkterritory/pull/190) | 276 | done |
 | 12 | **Art checklist L1s:** the boiler rupture's burst and seized engine, the noisy toys' models, the headlamp out, lockers that don't block each other, bend limits on the route card, smaller prompts, a lighter HUD out of the cab, the overspeed telegraph's flange sparks, the crew in the wreck mid-task | C1 | `claude/busy-carson-0i3g8d`, [#195](https://github.com/nsmith-gd/darkterritory/pull/195) | 277 | done |
@@ -101,6 +101,9 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| Damage model, Lethal Company style: a few big hits, rare healing finds, an edge flash | [#202](https://github.com/nsmith-gd/darkterritory/pull/202) | 272 |
+| One night length for every tier (24 km, dawn at 51 min); quiet counted in line run | [#207](https://github.com/nsmith-gd/darkterritory/pull/207) | 270 |
+| WP19: the shovel, crowbar and wrench hit by tool; one fireman's shovel on the cab rack | [#201](https://github.com/nsmith-gd/darkterritory/pull/201) | 275 |
 | Solo tested: two lone-driver stalls fixed, App. F.1's target judged (a bot alone delivers everything; income is the wall) | [#221](https://github.com/nsmith-gd/darkterritory/pull/221) | 300 |
 | Blocked sidings: derelict cars on a yard's sidings, by tier, cleared at a cost | [#214](https://github.com/nsmith-gd/darkterritory/pull/214) | 294 |
 | T128: hard to fall off, grabs go somewhere sensible, the left-behind hunted, forts safe | [#200](https://github.com/nsmith-gd/darkterritory/pull/200) | 273 |

@@ -2571,6 +2571,20 @@ public static class Heed
     /// The marsh (v1.1 §22, formerly the Drift): coming at us, or on us, stand stock still until it loses us ("~4s"). The look
     /// can go where it likes: it's feet it feels.
     /// </summary>
+    /// <summary>
+    /// GDD App. F.1's rare healing loot (note 272): a bot carrying a find that heals, hurt below loot.json
+    /// <c>healing.botBelow</c>, stands still and holds Use on it till it's used (a person's way: Bodies.Dose). Never at a
+    /// lever or a door, where Use would work that instead.
+    /// </summary>
+    public static PlayerIntent Heal(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
+            || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
+    }
+
     public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)
     {
         if (!self.Alive || !world.ActiveEnemies.OfType<Drift>().Any(d => d.Target == selfId && d.Phase is SpinePhase.Telegraph or SpinePhase.Punish))
