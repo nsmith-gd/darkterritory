@@ -415,6 +415,9 @@ public sealed class GreyboxScene
             // Something out past the lamp heard the crew (note 287).
             if (Answer.Showing)
                 Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
+            // Something that lives at this stop, watching the crew afoot (note 327).
+            if (Watcher.Showing)
+                Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -943,6 +946,13 @@ public sealed class GreyboxScene
     /// </summary>
     public Sim.Enemies.DrawAnswer Answer { get; set; }
     public double AnswerShowSeconds { get; set; } = 7;
+
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (World.Watcher, note 327): eyes toward what lives at the stop while it shows,
+    /// over <see cref="WatcherShowSeconds"/> (enemies.json director.afoot.signSeconds).
+    /// </summary>
+    public Sim.Enemies.Watcher Watcher { get; set; }
+    public double WatcherShowSeconds { get; set; } = 3.5;
 
     // From how far through its gathering the Choir's cold is felt.
     const float ChoirFrostFrom = 0.5f;

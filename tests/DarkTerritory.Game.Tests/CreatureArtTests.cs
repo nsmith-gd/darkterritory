@@ -374,6 +374,32 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void ACinderHoundCarriesItsOwnLightUnderItsKeel()
+    {
+        // Note 320: at night a pack reads by the pools of ember light each hound runs in, so every hound drawn brings its
+        // light, under its body (where it lights its legs and the ground, not its char), not off on its own somewhere.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var pack = Staging.Threats(train).Where(e => e.Kind == EnemyKind.CinderHound && e.Attached < 0).ToList();
+        Assert.Equal(3, pack.Count);
+        var eye = pack[0].WorldPosition(train) + new Double3(4, 3, 6);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = [.. pack] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        foreach (var hound in pack)
+        {
+            var at = hound.WorldPosition(train) - eye;
+            var feet = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+            var own = mesh.PointLights.Where(l => new Vector2(l.Position.X - feet.X, l.Position.Z - feet.Z).Length() < 0.6f).ToList();
+            Assert.True(own.Count == 1, $"hound {hound.Id}: {own.Count} lights over it");
+            float up = own[0].Position.Y - feet.Y;
+            Assert.InRange(up, 0.15f, 0.6f);
+            Assert.True(own[0].Range >= 3, $"reach {own[0].Range}");
+        }
+    }
+
+    [Fact]
     public void TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone()
     {
         // GreyboxScene.Leaving: the sim dismisses the swarm the tick it's driven off (World: quiet held); the scene that saw
