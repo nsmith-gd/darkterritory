@@ -197,17 +197,23 @@
   // - Boards at the tender: on the coal, scraping, with a sick glow, then across the footplate to the fire door over
   //   boardSeconds (the telegraph; never under minReactionSeconds). A fireman at the fire can catch it there: a blow on the
   //   way in counts tenderBlowScale times over and doesn't burn (health 4: one blow drives it off).
-  // - In: it eats the fire (eatPerSecond of the firebox a second), and the heat it puts in swings: feedRate, plus or minus
-  //   swing, over swingSeconds (the gauge lurching up toward the 100 that ruptures it; swing under feedRate, so it never
-  //   falls back and lets the rupture clock reset), the safety valve held shut; the brake comes off and the speed climbs
-  //   over runawayRampSeconds. From the working band the boiler's gone in about half
-  //   a minute: drop what you're doing. Vent to buy time; open the firebox (a shovelful) and club it, burnPerBlow a blow.
+  // - In (Stoker v3, the director's decision of 6 Oct 2026, GDD App. F.1; note 271): territorial. The heat it puts in swings:
+  //   feedRate, plus or minus swing, over swingSeconds (the gauge lurching up toward the 100 that ruptures it), the safety
+  //   valve held shut; the brake comes off and the speed climbs over runawayRampSeconds. eatPerSecond: of the fire it eats
+  //   (0: it doesn't; v3 has the crew starve it). Whoever opens the door on it (a shovelful, within doorReach m of the door)
+  //   takes doorBurn, and the second time doorKill: the mistake you learn from. No chip damage: it isn't clubbed in there.
+  // - The counter: vent and starve. No coal, the blow-off held (the vent outruns its heat), until the fire's under
+  //   starveFirebox; then it goes back over the footplate the way it came (boardSeconds) and is gone, and the break begins.
+  // - The hose: an extinguisher held into the firebox (Fire, within doorReach) for hoseSeconds opens the door without a burn
+  //   and kills it, and hoseFireCost of the fire goes with it. DESIGN-TODO: the GDD says a water hose; the cab has none yet,
+  //   so the extinguisher stands in for it (one from car 1).
   // - fireDoorShutSeconds: the door swings shut after a shovelful with someone in the cab. sootSeconds: the telegraph of one
   //   put straight into the firebox (tests, audits).
   "stoker": {
     "heatFirebox": 4.5, "heatSeconds": 20, "boardSeconds": 8, "tenderBlowScale": 4,
-    "feedRate": 4, "swing": 3, "swingSeconds": 3, "eatPerSecond": 0.2, "runawayRampSeconds": 20,
-    "fireDoorShutSeconds": 6, "sootSeconds": 4, "health": 4, "burnPerBlow": 12, "breakSeconds": 150
+    "feedRate": 4, "swing": 3, "swingSeconds": 3, "eatPerSecond": 0, "runawayRampSeconds": 20,
+    "fireDoorShutSeconds": 6, "sootSeconds": 4, "health": 4, "breakSeconds": 150,
+    "doorBurn": 60, "doorKill": 1000, "doorReach": 1.8, "starveFirebox": 2, "hoseSeconds": 2, "hoseFireCost": 0.6
   },
 
   // CLIMBERS · movement · flank (App. A.4, B.4). A pack of packSize paces paceOut m out for paceSeconds, then mounts any gap
