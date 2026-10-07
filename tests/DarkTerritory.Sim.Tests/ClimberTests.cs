@@ -104,7 +104,7 @@ public class ClimberTests
         night.Run(C.PaceSeconds);
         Assert.True(c.Scrabbling);
         Assert.Equal(2, c.Attached);
-        Assert.True(c.HitRadius > 0);
+        Assert.True(c.Exposed);
         night.Run(C.ScrabbleSeconds + 0.1);
         Assert.Equal(SpinePhase.Commit, c.Phase);
         var commit = Assert.Single(night.Events, e => e.EnemyId == c.Id && e.To == SpinePhase.Commit);

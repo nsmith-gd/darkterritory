@@ -2101,7 +2101,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **The fort**
 - Fort buildings have no collision, and gun shots hit nothing. *Done (T124, note 274).*
-- Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
+- Forts must be safe spaces that monsters never enter (§9). *Done (T128, note 273): both forts, all night (`run.json` `forts`): the departure fortress up to its outer gate and the terminus from its gate on, 80 m either side of the line. Nothing is sent while the train is in one, and a creature that comes into one is driven off. Caveat: the fort buildings still have no collision (T124), and the Choir's meter isn't stilled in the terminus.* *The fort buildings: done (T124, note 274). The Choir: done (note 296): with the train in a fort the meter doesn't gather, and a swarm that followed it in is gone.*
 
 **Bugs**
 - The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *In progress (T129).*
@@ -2109,7 +2109,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Stoker was killed by crowbar through a shut firebox door (A.5). *In progress (T129).*
 
 **Abandoned player**
-- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Open (T128).*
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Done (T128, note 273): past 150 m from the train, on the ground and outside the forts, a player builds a pressure of their own (`enemies.json` `director.abandoned`). About 45 s in, a Ribbit pack comes for them alone. Each pack after is bigger (2 to 5) and starts closer (35 m to 18 m). Ribbits can be outrun, and running back into a fort saves them. Caveat: only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground.* *The Gaunt: done (note 296): from the third hunt a Gaunt comes with the pack, woken on them, following at their back (talking holds it off), and home onto the train with them. The Cinder Hounds still hunt only the train.*
 
 **Line and derailment**
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *In progress (T127).*
@@ -2122,11 +2122,11 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - *Cab:* the whistle sounded by itself. The hanging cord sits inside the coal shovel's use volume. *In progress (T126).*
 - *Cab:* a redesign of the front of the train, for a lone driver's view of track hazards. Every function stays. *Done (ARCHITECTURE §8 note 276): to the director's sketch, cab forward. The cab leads with the driver at its front windows (the rail in sight from 8 m past the plough), the cannon on its roof, the firebox in its back wall and the coal in a bunker beside it; the boiler and stack behind.*
 - *Sleepers:* the train derailed before the game said it had hit the Sleepers; "a bad design for a creature" (A.2). *In progress (T127); redesign proposed in T131.*
-- *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *In progress (T128).*
+- *Grab:* a creature carried the director up a mountainside, a destination that makes no sense. *Done (T128, note 273): it was the Whistler, running 60 m straight out at rail height. Wherever the land rose, the player was stood up on the slope. Its nest is now 30 m out at most, inside the walkable corridor, reached over runnable land (no steep stretch, within 6 m of the rail's height, no water), and on the far side of the line if theirs is a mountainside.*
 - *Fire (C.5):* putting out one car doused the whole train; it should douse only that car. Extinguishing feels too slow. *In progress (T129).*
 - *Fire:* barely touching it killed outright. Fire should burn over time, and only standing in it kills. *In progress (T129).*
 - *Stoker (A.5):* it came back straight after being beaten off: "I should have earned a break." It should get in only when the firebox is untended or too hot. *In progress (T129: a cooldown after it's driven off).*
-- *Falling:* far too easy to fall off the train. *In progress (T128).*
+- *Falling:* far too easy to fall off the train. *Done (T128, note 273): a roof's edge now holds you while you're only walking (`player.json` `edge`). In 20 minutes of careless roof walking (looking aside with the key held, a normal night's wind), falls went from 42 to 0. You still go over if you walk straight at the side, jump short, are pulled off by a creature, or take a bend you were warned of too fast. Caveat: the wind no longer takes you over the edge (`windOverLip` puts it back).*
 - *Fire Flies:* "Nobody lit that lamp" set car 2 alight. What were the bubbles? *Open (T131).*
 - *Overall:* the director hasn't finished a run yet.
 
@@ -2146,7 +2146,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
 - **UI.** It's still too heavy overall, but players need a way to track all the supplies on board.
 - **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship).
-- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*
 
 Further decisions (the director, 6 Oct 2026):
 - **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
