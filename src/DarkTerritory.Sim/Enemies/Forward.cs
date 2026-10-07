@@ -41,14 +41,13 @@ public sealed class TrackDoll(int id) : Enemy(id)
     /// <summary>Only cornered can it be struck (App. A.2 CORNERED).</summary>
     public override double MeleeRadius => Phase == SpinePhase.Punish && Cornered ? 0.6 : 0;
     /// <summary>
-    /// Standing on the rail ahead (not yet struck), she can be shot (T121): a hit volume this big round her body
-    /// (enemies.json <c>trackDoll.railHitRadius</c>; 0 with <c>cannonShatters</c> off). Aboard, the cannon can't reach her.
+    /// Standing on the rail ahead (not yet struck), she can be shot (T121): her body is enemies.json <c>bodies</c>'
+    /// (none with <c>trackDoll.cannonShatters</c> off). Aboard, haunting, the cannon can't reach her.
     /// </summary>
-    public override double HitRadius => Attached < 0 && Phase is SpinePhase.Dormant or SpinePhase.Telegraph ? RailHitRadius : 0;
-    public override double HitHeight => Attached < 0 ? RailHitHeight : 0;
-    /// <summary>Her hit volume on the rail: set from tuning where she's put there (a client's mirror keeps the defaults).</summary>
-    public double RailHitRadius { get; init; } = 0.55;
-    public double RailHitHeight { get; init; } = 0.7;
+    public override bool Exposed => Shatters && Attached < 0 && Phase is SpinePhase.Dormant or SpinePhase.Telegraph;
+    public override bool GunAnswers => true;
+    /// <summary>A ball shatters her on the rail (tuning <c>cannonShatters</c>; a client's mirror keeps the default).</summary>
+    public bool Shatters { get; init; } = true;
     /// <summary>Shattered by a cannonball (T121), not stopped short of: the same end, but the porcelain's in pieces.</summary>
     public bool Shattered { get; private set; }
 
@@ -75,8 +74,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
         LineDistance = train.Dynamics.Distance + ahead,
         Height = 0,
         Health = t.Health,
-        RailHitRadius = t.CannonShatters ? t.RailHitRadius : 0,
-        RailHitHeight = t.RailHitHeight,
+        Shatters = t.CannonShatters,
     };
 
     /// <summary>
@@ -280,9 +278,9 @@ public sealed class TrackDoll(int id) : Enemy(id)
     /// A cannonball on the rail (T121): shattered, whatever her health, and gone for the run by the same way out as stopping
     /// short (BREAK OFF, then gone), so nothing's left on the rail for the train to strike and nothing to haunt it.
     /// </summary>
-    public override bool Hit(EnemyContext ctx, double damage)
+    public override bool Hit(EnemyContext ctx, int by, double damage)
     {
-        if (HitRadius <= 0 || Gone)
+        if (!Exposed)
             return false;
         Shattered = true;
         Health = 0;
