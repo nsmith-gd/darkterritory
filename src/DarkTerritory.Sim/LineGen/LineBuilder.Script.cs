@@ -129,7 +129,8 @@ sealed partial class LineBuilder
     {
         var rng = Rng("script", "carve");
         var def = Def("hardBend");
-        double from = _gate + _t.Budget.GraceM, to = _terminus - _t.Budget.HomeStraightM, run = def.Range("tangentM")[0];
+        // The straights either side as short as BendShape takes them where room is short.
+        double from = _gate + _t.Budget.GraceM, to = _terminus - _t.Budget.HomeStraightM, run = def.Range("tangentM")[0] * 0.5;
         double least = 2 * run + def.LengthM[0];
         int n = _bendsWanted;
         double share = (to - from) / Math.Max(1, n);
@@ -351,6 +352,24 @@ sealed partial class LineBuilder
             // squeezed out); the bend isn't a crunch, so it owes no recovery after it.
             best.Reserved += least + Math.Min(RecoveryLength(), 400);
         }
+    }
+
+    /// <summary>
+    /// Note 278: which way a hard bend over <paramref name="s0"/>..<paramref name="s1"/> must turn, or 0 for either: away
+    /// from an alternate whose window it's in, or a dead line it's just past the toe of. Turned towards one, the main line
+    /// swung over the alternate's track on frontier:7 (the separation check lets track be within 2 km of a junction the two
+    /// share; the crossing check in Validate catches what this misses). A branch's side, right +1 (its turnout first bends
+    /// right); turning away from the right is a left turn, a positive deflection.
+    /// </summary>
+    int AwayFromBranches(double s0, double s1)
+    {
+        foreach (var w in _alts)
+            if (s1 > w.T - 200 && s0 < w.J + 200)
+                return w.MainBow != 0 ? -w.MainBow : w.Side;
+        foreach (var d in _deads)
+            if (s1 > d.Toe - 200 && s0 < d.Toe + _t.Curves.BendDeadLineClearM)
+                return d.Side;
+        return 0;
     }
 
     double MinLen(string[] chain) => chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 200;
@@ -991,6 +1010,8 @@ sealed partial class LineBuilder
         item.Params["derailMs"] = Math.Round(Math.Sqrt(_t.Curves.ADerail * bend.Radius), 1);
         item.Params["spurM"] = bend.Spur;
         item.Params["fallM"] = bend.Fall;
+        if (AwayFromBranches(item.S0, item.S1) is var turn and not 0)
+            item.Params["turn"] = turn;
     }
 
     /// <summary>How far the loaded consist carries up a grade from line speed before it stalls, on the real train sim.</summary>

@@ -137,10 +137,14 @@ sealed partial class LineBuilder
                 }
             case HShape.Turn:
                 {
-                    double d = item.Deflection * toward;
+                    // A hard bend by a branch turns away from it (note 278), as far as the world band lets it.
+                    bool away = item.Params.TryGetValue("turn", out var forced) && forced != 0;
+                    double d = item.Deflection * (away ? Math.Sign(forced) : toward);
                     double maxD = Geometry.MaxDeflection(c, len - 20, item.Radius, speed);
                     d = Math.Sign(d) * Math.Min(Math.Abs(d), maxD);
-                    if (Math.Abs(pose.Heading + d) > band)
+                    if (away)
+                        d = Math.Clamp(pose.Heading + d, -band, band) - pose.Heading;
+                    else if (Math.Abs(pose.Heading + d) > band)
                         d = -d;
                     turn = Geometry.Turn(c, d, item.Radius, speed);
                     before = (len - turn.Sum(p => p.Length)) / 2;

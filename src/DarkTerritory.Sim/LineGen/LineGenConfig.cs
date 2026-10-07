@@ -113,6 +113,8 @@ public sealed record CurveRules(double ADerail, double APost, double TransitionM
 {
     /// <summary>T111: a curve that derails below this (m/s, the engine's top speed on full steam) is boarded whatever the line speed.</summary>
     public double BoardDerailBelow { get; init; } = 22;
+    /// <summary>Note 278: no hard bend this far past a dead line's toe (turning its way, the main line could cross it).</summary>
+    public double BendDeadLineClearM { get; init; } = 1500;
 }
 
 /// <summary>§9.3 and §16.2.</summary>
