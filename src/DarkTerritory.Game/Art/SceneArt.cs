@@ -63,6 +63,9 @@ public sealed partial class SceneArt(Look look)
             // Running with something waking close by, hunched and hurried (GDD §31).
             null => speed < 0.4f ? CrewPose.Idle : speed < 2.6f ? CrewPose.Walk : c.Stressed ? CrewPose.Hurry : CrewPose.Run,
         };
+        // An emote (note 298), stood still with nothing else on.
+        if (pose == CrewPose.Idle && c.Emote != Sim.Player.Emote.None)
+            pose = c.Emote switch { Sim.Player.Emote.Dance => CrewPose.Dance, Sim.Player.Emote.Wave => CrewPose.Wave, _ => CrewPose.Point };
         // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
         // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
         // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
@@ -104,6 +107,7 @@ public sealed partial class SceneArt(Look look)
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
+            CrewPose.Dance or CrewPose.Wave or CrewPose.Point => c.EmoteSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
