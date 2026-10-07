@@ -34,6 +34,9 @@ public static class Views
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // Off the target car's right, low, on its rear bogie: a hot axle box smoking (note 331; dt screenshot --hotbox s).
+            "hotbox" => Camera.LookAt(target.ToWorld(new Double3(target.Shape.HalfWidth + 4.2, 1.5, target.Shape.HalfLength - 5.5)),
+                target.ToWorld(new Double3(target.Shape.HalfWidth, 1.1, target.Shape.HalfLength - 1.6)), 50),
             // Low off the right of the target car, on the ballast, along its wheels (the flange sparks: --strain).
             // Side on to the staged row of the film's crew at their work (dt screenshot --wreck-poses), off the target car's right.
             "poses" => Camera.LookAt(target.ToWorld(new Double3(7.4, 1.3, -target.Shape.HalfLength * 0.6 + 1.95)),

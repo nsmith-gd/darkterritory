@@ -2724,6 +2724,19 @@ public static class Heed
     }
 
     /// <summary>
+    /// A hot axle box (note 331): a bot that finds itself in reach of one (a walker through the gap behind its car, a rider
+    /// down on the ground at a stop) stops and greases it. Not the crew on the engine (the driver's at the controls), and not
+    /// a bot busy with its hands. A rescue (<see cref="Rescue"/>, after this) comes first.
+    /// </summary>
+    public static PlayerIntent HotBox(PlayerIntent intent, in PlayerState self, World world)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent == 0 || intent.Buttons != PlayerButtons.None
+            || world.Train.HotBoxTuning is not { Enabled: true } t || HotBoxes.Within(self, world.Train, t) is null)
+            return intent;
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
+    }
+
+    /// <summary>
     /// The Whistler (v1.1 App. A.4): "check the gaps after the whistle; move in pairs at stops". With one watching its gap, a
     /// bot doesn't go past it: it steps back out of reach of the gap and goes round another way.
     /// </summary>

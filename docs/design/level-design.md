@@ -314,6 +314,47 @@ Per CLAUDE.md ("make it verifiable headless") the implementation gets `dt site -
 
 ---
 
+# PART B — BENDS WORTH BRAKING FOR
+
+The brief (the director, 6 Oct 2026, GDD App. F): with the Sleepers gone, derailing on a bend is the core fear, and it must always be the driver's mistake: "someone not paying attention to the map". Outrunning what boards fast (the Cinder Hounds) means running fast, so every night has to have bends a fast train comes off: "run up to the curve and brake hard, or deal with them now". Before this, a Frontier night often had none: frontier:7's sharpest bend was 707 m (it holds 26.6 m/s, over the engine's 22), and only 11 of 30 Frontier nights had any bend the train could come off at all (ARCHITECTURE §8 notes 265, 278).
+
+## B.1 What makes a bend worth braking for
+- **It derails under the train's top speed.** The engine on full steam makes 22 m/s (79 km/h). A bend that holds 22 is scenery. One that derails at 17–19 m/s (61–68 km/h) is a bend a train running from something has to brake for, and one a train at cruise takes at its board without a thought.
+- **It's told, every way at once (note 265).** A board at what it takes, floor(√(0.7 R)); the bend in red on the cab map with its figure; the cab's bell when the speed now would derail it; the flanges, creaks and lurch on it. Nobody comes off a bend they weren't told about.
+- **It's seen coming.** Straight track before it, so "how long do I hold full steam?" is a real decision, and the brakes have somewhere to work.
+- **The land says why it bends.** A hill on the inside that the line goes round, which also hides the way out (you can't see round it, which is why the board matters), and a fall on the outside, what you'd go off into. A sharp bend in flat open country reads as arbitrary.
+- **It comes back through the night.** One in each equal share of the line, so the fear recurs; never all in one stretch.
+- **Never two at once.** No two lethal checks within a braking distance (plan §7.3), so a driver who brakes for one can brake for the next.
+
+## B.2 By tier
+`content/linegen/tiers.json` columns `bends` (how many a night carries) and `bendDerail` (the speeds they derail at, m/s). The radius is v² / a_derail, never under the tier's `minRadius`. Every night is 24 km (note 270), so a deeper night's bends come closer together, not more spread out; the counts were cut by one for Dead Lines and Deep when the nights shortened.
+
+| Tier | Bends a night | Derails at | Board | Radius |
+|---|---|---|---|---|
+| Local | 1–2 | 72–76 km/h | 58–61 km/h | 400–450 m (gentle: a bend that teaches the board) |
+| Frontier | 3–4 | 58–68 km/h | 47–54 km/h | 256–361 m |
+| Dead Lines | 3–4 | 54–65 km/h | 43–54 km/h | 225–324 m |
+| Deep Territory | 4–5 (5–6 at its deepest) | 45–61 km/h | 36–50 km/h | 156–289 m |
+
+The Drop, the Blind Throat, the Ledge and curved tunnels still lay their own sharp bends on top of these (a Blind Throat's reverse curve is two).
+
+## B.3 Rules for the generator
+- **The count is the tier's,** rolled on its own stream, whatever else the script rolled.
+- **The hard bend** (`setpieces.json` "hardBend"): one curve of 40–90°, 120–260 m of straight either side (halved where room is short; no bend at all under 60% of the least turn). Not a crunch: like brass it's a demand, and the lethal spacing check keeps it from the next one.
+- **Where:** after everything else is handed out (the quotas, the hazards, the signatures), one in each equal share of the line between the threshold and the home straight, in the stretch with room nearest the share's middle. A share still without one, because its stretches were full, gets one where the line already is: cut into a plain connector, or laid on a climb, descent, summit or roller as the line going round a hill (its grades as they were).
+- **The land:** `LedgeUp` (8–20 m) on the inside, `Embankment` (2–6 m down) on the outside, over the piece. A hill that hides the way out can make the bend blind enough for a restricted zone; its board still stands (a restriction taking the bend's demand doesn't take its board).
+- **By a branch:** within `bendDeadLineClearM` (1500 m) past a dead line's toe, the bend turns away from it. In an alternate's window it turns towards the alternate's side: a line turning one way lies on the far side of its chord, and the alternate bows out on its own side, so the two stay apart. Turned the other way, the main line swung across the alternate's way back in.
+- **No branch crosses the main line.** An alternate or dead line that crosses to the main line's other side, away from its turnouts, is refused when it's laid: retried, then dropped (a dead line in its place if the junction count needs one). The validator's `crossings` check says none got through. Shores keep off the side an alternate runs on, from its toe to its rejoin.
+- **Tags:** `curve_tight` over every stretch that derails the train under its top speed, for the director ("slowing opens the doors": the places a train slows are where things board); `pre_curve` before each.
+- **The validator** fails a night with fewer than the tier's least count (`hard bends`); the metrics report `hardBends` and `hardBendSlowestMs`.
+
+## B.4 Not yet
+- **S-bends.** Two lethal bends this close fail the lethal spacing check; they'd need one demand over both.
+- **Hard bends on alternates and dead lines.** Only the main line carries them; the alternates keep their trade-offs.
+- **Boarding at tight curves.** The `curve_tight` tag is there for the boarding rules (A1.8's queue #22) to read; nothing does yet.
+
+---
+
 # PART H — HOLDOUTS AND THE OUTSIDE CREATURES
 
 GDD v1.2 makes two more things level content, generated with every stop: where the dead come back (Appendix D), and where the creatures that live off the train are (B.6, B.8). Both are placed last, from their own seeds, so they never move anything else in a stop.
