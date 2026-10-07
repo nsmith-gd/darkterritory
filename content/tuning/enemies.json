@@ -80,6 +80,33 @@
   // keeps every creature's health a whole number of crowbar blows and takes a 3-health one in two of the shovel's.
   "melee": { "reach": 2.2, "coneDegrees": 70, "swingSeconds": 0.8, "shovel": 1.5, "crowbar": 1, "wrench": 0.75, "barehanded": 0.25 },
 
+  // Every creature's body as a cannonball finds it (GDD App. F.1, build 1121: "the guns do nothing. Rounds don't collide
+  // where they land and have no visible effect on the monsters"; ARCHITECTURE §8 note 290). A stack of spheres, each
+  // [radius, height of its centre over where the creature stands] in m, fitted to its model as drawn (content/art/models:
+  // the Ribbit at its 1.4 scale; a long, low body, the Whistler's, the Climber's, a hound's, by one sphere round its
+  // middle). The body stands while the creature is in the open (Enemy.Exposed: by default wherever a tool's blow can land
+  // on it), and a ball that finds it lands on it as a blow of combat.json guns.damagePerRound by the gunner, answered by
+  // the creature's own rule for a blow. No body (a ball goes through): the Fire Flies (a swarm) and the Choir's ghosts.
+  // A sleeping Gaunt is curled to gauntAsleep of its height.
+  "bodies": {
+    "cinderHound": [[0.75, 0.4]],
+    "switchman": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
+    "climber": [[0.65, 0.3]],
+    "trackDoll": [[0.55, 0.7], [0.4, 1.6]],
+    "ribbit": [[0.6, 0.55]],
+    "gaunt": [[0.5, 0.6], [0.5, 1.5], [0.45, 2.4], [0.35, 3.1]],
+    "grumbler": [[0.55, 0.55], [0.55, 1.3], [0.35, 1.8]],
+    "whistler": [[0.6, 0.3]],
+    "dragger": [[0.45, 0]],
+    "follower": [[0.3, 0.05]],
+    "sootChildren": [[0.35, 0.4], [0.3, 0.9]],
+    "carHugger": [[1.3, 0.6], [1.2, 1.9]],
+    "passenger": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
+    "stoker": [[0.45, 0.45], [0.4, 1.1]],
+    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]]
+  },
+  "gauntAsleep": 0.35,
+
   // TRACK DOLL · sight · forward (App. A.2, B.2). Revealed in the lamp at lampRevealDistance, or in the dark only this close.
   // Stopped (below stoppedBelow m/s) short of it: gone for the run. Hit: it haunts. Cornered (players within cornerWithin at
   // both ends of its car) it can be clubbed; approached from one side it vanishes when anyone's within vanishNear and moves
@@ -94,9 +121,9 @@
     // T121 playtest ("I shot the track doll and it did nothing while she was on the track"): a forward cannon's ball that
     // hits her on the rail shatters her, gone for the run, the same outcome as stopping short (App. A.2's VANISH), so the
     // train no longer strikes her. The GDD gives the brakes as the answer and doesn't say a cannon isn't one; it's loud and
-    // costs the reload, which keeps it a cost. Her hit volume on the rail: railHitRadius round a point railHitHeight over it
-    // (her body, a large porcelain doll). cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
-    "cannonShatters": true, "railHitRadius": 0.55, "railHitHeight": 0.7,
+    // costs the reload, which keeps it a cost. Her body on the rail is in bodies, above (a large porcelain doll; note 290).
+    // cannonShatters off: the ball goes through her (ARCHITECTURE §8 note 171).
+    "cannonShatters": true,
     // The director's decision of 6 Oct 2026 (GDD App. F.1, "The Track Doll escalates if ignored"; ARCHITECTURE §8 note
     // 268): aboard, she's no problem at first and gets worse only for being left alone. Her neglect clock runs a second a
     // second while no living crewmate is in her car or within attendRadius m of her, and attended it winds back at
@@ -407,9 +434,13 @@
     // takes relief off; while one's still after them, no other comes. Outside the budget, the caps and the night's own
     // pressure (it's theirs, not the train's): about 45 s left behind to the first, then every half minute or so, bigger.
     // Back aboard (or in a fort), it's gone.
+    // Note 296 (T128's caveat, "only the Ribbits hunt so far"): from the hunt numbered gauntFrom (0 the first) on, a Gaunt
+    // comes with the pack, woken on them (App. A.6: it follows its waker at arm's length and attacks after enough silence;
+    // talking holds it off, and it follows them home onto the train, where the crew deals with it by its rule). One at a time
+    // per crewmate, never at a crew under gaunt.minCrew, put down gaunt.spawnOut m off. -1: Ribbits only.
     "abandoned": {
       "on": true, "behindM": 150, "perSecond": 0.05, "rampPerSecond": 0.15, "rampSeconds": 60, "perKm": 0.3,
-      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18]
+      "threshold": 6, "relief": 6, "pack": [2, 5], "spawnOut": [35, 18], "gauntFrom": 2
     },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
