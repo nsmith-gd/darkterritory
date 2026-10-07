@@ -161,6 +161,8 @@ object RunHarness(string[] args)
         WalkAboard = route is null || Opt(args, "--start", start) < route.GateOr(routeTuning.YardLength),
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
+        // --upkeep: the jobs the train makes as it runs (upkeep.json, note 331: the hot boxes).
+        Upkeep = args.Contains("--upkeep") ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)) : null,
         Route = route,
         Udp = args.Contains("--udp"),
         Network = online,
@@ -991,6 +993,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var rbt = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
         train.Dynamics.Velocity = Math.Max(Math.Min(rbt.RuptureCoastBelow, Opt(args, "--speed", 20)), Opt(args, "--speed", 20) - rbt.RuptureDecel * Opt(args, "--ruptured", 0.8));
         train.RefreshFrames();
+    }
+    // --hotbox s: car 2's axle box that many seconds hot (note 331): the smoke off its rear bogie, and the glow near the end.
+    if (Opt(args, "--hotbox", -1) is var hotFor and >= 0)
+    {
+        train.HotBoxTuning = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).HotBox;
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].HotBox = hotFor;
     }
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
