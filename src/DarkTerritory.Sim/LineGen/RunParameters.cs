@@ -9,7 +9,7 @@ namespace DarkTerritory.Sim.LineGen;
 /// Stage 0 (plan §5): what a line is generated for. The consist is the departing one, planned for fully loaded (§3.4);
 /// crew size is for the director and harness only, never geometry.
 /// </summary>
-/// <param name="Severity">The route's place in its tier, [0, 1): route length and known grades on the route card.</param>
+/// <param name="Severity">The route's place in its tier, [0, 1): its challenges' density and known grades on the route card (never its length, note 270).</param>
 /// <param name="Cars">N_plan: the departing consist's car count.</param>
 /// <param name="Contracts">Facility types the crew's contracts need (§11.1): each is guaranteed to appear.</param>
 public sealed record RunParameters(RouteTier Tier, ulong Seed, double Severity, int Cars, IReadOnlyList<FacilityKind> Contracts, int Crew = 4)
@@ -85,7 +85,9 @@ public sealed class Limits
         Column = a;
         D = p.D;
         Tier = p.Tier;
-        LengthKm = L(c => c.LengthKm);
+        // Spec B.8 (the director's decision of 6 Oct 2026, note 270): every tier's night is the same length; the tier is in
+        // the columns' counts over it.
+        LengthKm = content.Route.NightLengthKm;
         Facilities = L(c => c.Facilities);
         MomentumGrade = a.MomentumGrade <= 0 ? 0 : L(c => c.MomentumGrade);
         BranchGrade = L(c => c.BranchGrade);

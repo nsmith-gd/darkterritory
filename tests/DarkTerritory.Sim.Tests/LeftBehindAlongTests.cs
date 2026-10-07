@@ -15,12 +15,13 @@ public class LeftBehindAlongTests
     public void BesideTheRearCarOnAnAlternateIsBesideTheRearCar()
     {
         var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "deepTerritory:1", 10).Build();
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 10, 1)), line, 21_000);
+        // Its last alternate (J6 when the line was 37 km; at one 24 km length, note 270, J4), 1,173 m up it.
+        int alt = Enumerable.Range(0, line.Branches.Count).Last(i => line.Branches[i].Definition.Kind == Rail.BranchKind.Alternate);
+        double toe = line.Branches[alt].Toe;
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 10, 1)), line, toe - 670);
         var world = new World(train);
-        int alt = Enumerable.Range(0, line.Branches.Count).Single(i => Math.Abs(line.Branches[i].Toe - 21_670) < 1);
         world.SetSwitch(alt, true);
-        // Its rear car where the alternate runs 250 m from the main line (note 278's bends moved where it's close).
-        while (train.Dynamics.Distance < 23_563)
+        while (train.Dynamics.Distance < toe + 1_173)
         {
             train.Dynamics.Velocity = 12;
             world.BeginTick();

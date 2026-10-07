@@ -63,7 +63,6 @@ public sealed record TierColumns(TierColumn Local, TierColumn Frontier, TierColu
 /// <summary>One column of the §3.2 table. Two-element arrays are [min, max] ranges.</summary>
 public sealed record TierColumn
 {
-    public double LengthKm { get; init; }
     public double Facilities { get; init; }
     public double MainGrade { get; init; }
     /// <summary>0: no momentum banks at this tier.</summary>
@@ -232,7 +231,7 @@ public sealed record ValidationRules(int Attempts, double MinBrakeEfficiency, do
     double StallRollbackExtraM, double DriverBandMs, bool DawnWithStopsHard, double OverspeedTolerance, int MaxParallelDrives);
 
 /// <summary>§22: the config defaults for the conflicts found in the source documents, each logged when it applies.</summary>
-public sealed record ConflictDefaults(bool DawnFromSpecFormula, double DawnAverageSpeed, double DawnSlack, bool SilentGateSafe, bool WeakBridgeCollapses,
+public sealed record ConflictDefaults(bool DawnFromSpecFormula, bool SilentGateSafe, bool WeakBridgeCollapses,
     bool WaterStops, bool HaltScavenging, bool RockfallsOnLedges, bool CouplerBreaksOnRollers);
 
 // ---------------------------------------------------------------- setpieces.json

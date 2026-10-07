@@ -617,7 +617,7 @@ public sealed partial class GameAudio
             return false;
         var melee = world.Enemies?.Melee ?? new MeleeTuning();
         bool shot = _time - _lastShot <= ShotKills;
-        double blow = Math.Max(melee.Damage, shot ? world.Combat?.Guns.DamagePerRound ?? 4 : 0);
+        double blow = Math.Max(melee.Hardest, shot ? world.Combat?.Guns.DamagePerRound ?? 4 : 0);
         if (c.Health <= 0 || c.Health > blow + 1e-3)
             return false;
         if (shot || CrewStates.Count == 0)

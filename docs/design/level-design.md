@@ -408,6 +408,7 @@ What the game does with these rules today (ARCHITECTURE §8 notes 93–96 have t
 - **P15, the score:** the planner is *supply-limited*. Each trip goes to the track with the most loadable loot left, and costs throws, couplings, reversals, blind moves, re-spots, hand cars, carrying, the switchman's walk and a blocked crossing. The village adds its walk and the odds of finding things.
 - **P16, a siding's size:** the cars that fit on its shared loading face, engine included.
 - **D.2's power and grade:** each yard rolls its power by tier and has a powerhouse at its throat. The route lays a grade out of each yard, and the score counts both (a hard pull from 2%).
+- **D.2's blocked sidings (P18):** the tier's count of sidings have 1–3 derelict cars standing at the buffer stop, never the facility's own track and never at a switchyard. A trip into one clears it first (D.1: two more throws, a reversal and the clearance). In the world they're bad-order cars, battered and unlit, that are never the crew's to lose (ARCHITECTURE §8 note 294).
 
 ## I.3 Tier bands in the sim
 The artifact's scores illustrate the rules. The sim is calibrated to its own measure, so its numbers differ. Median scores over 60 seeds:
@@ -415,14 +416,13 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 | Tier | Yard only | Yard + village | Band (yard / village) |
 |---|---|---|---|
 | Local | 11 | 18 | 4–20 / 10–18 |
-| Frontier | 24 | 29 | 14–36 / 14–22 |
-| Dead Lines | 38 | 47 | 28–56 / 18–28 |
-| Deep Territory | 58 | 72 | 34–100 / 22–36 |
+| Frontier | 27 | 29 | 14–38 / 14–22 |
+| Dead Lines | 46 | 55 | 28–64 / 18–28 |
+| Deep Territory | 72 | 83 | 34–112 / 22–36 |
 
-(With power in the score, and the sweep's own stops laid on level track, so without a hard pull.)
+(With power and blocked sidings in the score, and the sweep's own stops laid on level track, so without a hard pull. The yard bands' tops moved up by about one clearance when blocked sidings came in, note 294.)
 
 ## I.4 Not yet
 - **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
-- **Derelict cars on the sidings.** They need the train to start the night with uncoupled rakes already standing on branches. That's the same kind of change, and it's deferred with it.
-- **Bots don't scavenge villages or breach Holdouts yet.** Their stop crew works a facility's modules only.
+- **Bots don't scavenge villages yet, or clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259).
 - **Buildings have no collision, and their interiors aren't modelled.** Finds lie where their container is; a Holdout's occupant comes back at its middle.
