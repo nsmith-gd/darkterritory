@@ -243,6 +243,20 @@ CUES = {
         L("ram", "Rammer strokes, for the 1.5 s hold"),
         O("ram-home", "Rammed home: the gun is ready", vars=2, cand={"_": [old("audio/crew-cannon-ram--ram.mp3")]}),
     ],
+    # Synthesised on main first; recorded candidates replace them through install.py's SWAPS, level-matched.
+    "crew-gun-lay": [
+        L("lay", "The seated gunner laying the gun: the steam motor and its worm gear, quicker as it turns faster"),
+    ],
+    "crew-cannon-impact": [
+        O("ground", "A ball coming down on earth: the boom, then earth and splinters pattering after (heard a long way)", vars=3),
+        O("water", "A ball into water: the plunge, the column of spray falling back", vars=3),
+        O("doll", "A ball through the Track Doll: porcelain bursting, the one sound that says she's gone for good", vars=2),
+    ],
+    "crew-noisy-toys": [
+        L("squeaker", "A rubber squeaker toy squeezed in the hand as it's carried"),
+        L("music-box", "A music box's tune, wound and playing as it's carried"),
+        L("drummer", "A wind-up tin drummer beating its drum as it's carried"),
+    ],
     "crew-hurt": [
         O("hit", "Struck: the blow landing on the body", vars=4, cand={"_": K("impactPunch_medium")}),
         O("grabbed", "Seized: clothing grabbed and pulled", vars=3, cand={"_": R("cloth1", "cloth3", "clothBelt")}),
@@ -352,6 +366,16 @@ CUES = {
         L("rail-scrape", "Steel dragged along a rail head (a car body or a truck sliding on the rail)"),
         O("tear", "Metal and wood ripping apart under force (a car body or frame torn open)", vars=4),
     ],
+    # The line's warnings (notes 260, 265): synthesised on main first, replaced through install.py's SWAPS, level-matched.
+    "warn-overspeed": [
+        O("bell", "The communication bell over the driver, struck twice: a bend ahead this speed would derail the train on", vars=3),
+    ],
+    "warn-curve": [
+        O("chatter", "The roof irons chattering in their sockets as the car starts to lean on a bend taken too fast", vars=3),
+    ],
+    "warn-low-clearance": [
+        O("telltales", "The telltale cords slapping across the roof ahead of you: a tunnel's mouth coming", vars=3),
+    ],
     "state-breach": [
         O("breach", "A car's shell giving way: iron wrenched open", vars=3),
         L("open-to-outside", "The outside coming in through the hole (wind and the bed, louder)"),
@@ -457,6 +481,9 @@ CUES = {
         O("smash", "A lock smashed (3 s of it: loud as a cannon)", vars=4),
         L("pry", "A barricade pried (6 s: loud as machinery)"),
         O("pry-give", "The barricade giving way", vars=2),
+    ],
+    "place-depot": [
+        O("powder-blast", "A powder keg or powder car going up: a slow whump, the powder's roar, wreckage raining down", vars=2),
     ],
 
     # ---- Voice & comms (the device, not the voices) --------------------------------------------------------------------
@@ -613,6 +640,10 @@ CUES = {
         O("queue", "The respawn queue moving up", vars=2),
         O("vote", "A creature vote locked in", vars=2),
         O("bookmark", "A bookmark taken", vars=2),
+    ],
+    "ui-stranded-outro": [
+        L("boiler-tick", "The dead boiler ticking and pinging as it cools (slower as it goes cold)"),
+        O("lamp-out", "A car's lamp guttering out, last car first", vars=3),
     ],
     "ui-music": [
         L("drone", "Music while the crew is at work: low, ambient, almost a drone, under everything"),
