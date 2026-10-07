@@ -877,6 +877,20 @@ public sealed class Bodies
                 if (!vehicle.DoorOpen(door.Index))
                     Consider(Collide.SphereBox(local, r, door.Box.Min, door.Box.Max), g, local, ref best, ref bestDepth, ref touchedCar);
         }
+        // The stops' and the fortresses' buildings (T124): a body thrown or dropped against one comes to rest at it.
+        if (train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                var local = w.ToLocal(world);
+                if (Collide.SphereBox(local, r, w.Box.Min, w.Box.Max) is not { } touch)
+                    continue;
+                double depth = (touch.Position - local).Length;
+                if (best is not null && depth <= bestDepth)
+                    continue;
+                best = new Contact(w.ToWorld(touch.Position), w.DirToWorld(touch.Normal));
+                bestDepth = depth;
+                touchedCar = -2; // the world's, as the ground is
+            }
         double hint = b.LineHint;
         double ground = PlayerMotor.GroundAt(world, train.Line, ref hint) + r;
         b.LineHint = hint;

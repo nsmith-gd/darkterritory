@@ -318,9 +318,9 @@ public sealed class GreyboxScene
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
-            Fortress(mesh, line, eye, from, to, 0, yard, gateAt: yard);
-            double home = Route.Plan?.Terminus.GateM ?? line.Length - terminus - 200;
-            Fortress(mesh, line, eye, from, to, home, line.Length, gateAt: home, lit: Route.Plan?.Terminus.Silent != true);
+            // (Where the sim stands their solids, T124.)
+            foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
+                Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "route");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
