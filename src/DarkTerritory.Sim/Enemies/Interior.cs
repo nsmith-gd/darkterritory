@@ -391,6 +391,8 @@ public sealed class FireFlies(int id) : Enemy(id)
     /// it does nothing to them. The answer's still the lamp, or driving away (App. A.5).
     /// </summary>
     public override double MeleeRadius => Phase is SpinePhase.Dormant or SpinePhase.Telegraph ? 0.8 : 0;
+    /// <summary>A ball goes through a swarm (note 290): no body for it to stop at.</summary>
+    public override bool Exposed => false;
 
     public override void Struck(EnemyContext ctx, int by, double damage) { }
 

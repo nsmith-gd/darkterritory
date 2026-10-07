@@ -39,6 +39,8 @@ public sealed class GreyboxScene
     public bool CordPulled { get; set; }
     /// <summary>T109: the wrench is on its rack in the cab (the boiler's WrenchOut, the other way about).</summary>
     public bool WrenchRacked { get; set; } = true;
+    /// <summary>Note 275: the fireman's shovel is home by the rack (the boiler's ShovelOut, the other way about).</summary>
+    public bool ShovelRacked { get; set; } = true;
     /// <summary>The train off the rails (T117): its effects (sparks, dust, the engine's steam) are drawn from it.</summary>
     public Sim.Train.Wreck? Wreck { get; set; }
 
@@ -404,7 +406,7 @@ public sealed class GreyboxScene
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
-            Strikes(mesh, Look.Art.Effects, frames, eye);
+            Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -537,7 +539,7 @@ public sealed class GreyboxScene
     /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
     /// down, and each blow or ball's pop and flash on the creature it landed on.
     /// </summary>
-    void Strikes(MeshBuilder mesh, Art.Effects fx, IReadOnlyList<CarFrame> frames, Double3 eye)
+    void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Tick < 0)
             return;
@@ -547,7 +549,14 @@ public sealed class GreyboxScene
                 double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
                 if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
                     continue;
-                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id);
+                // A creature's insides come down on the ground under it (note 290).
+                Vector3? ground = null;
+                if (i.Surface == Sim.Combat.ImpactSurface.Creature)
+                {
+                    double near = hint;
+                    ground = V(i.At with { Y = Sim.Player.PlayerMotor.GroundAt(i.At, line, ref near) }, eye);
+                }
+                fx.CannonImpact(mesh, V(i.At, eye), ToF(i.Direction), i.Surface, i.Struck, age, i.Id, ground);
             }
         if (Hits is null)
             return;
@@ -2833,7 +2842,7 @@ public sealed class GreyboxScene
                 fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
             }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of

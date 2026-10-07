@@ -131,7 +131,7 @@ public static class WorldRecords
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
-            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0),
+            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
@@ -355,6 +355,7 @@ public static class WorldRecords
                         SafetyValveJammed = (f[7] & 4) != 0,
                         FireDoorOpen = (f[7] & 8) != 0,
                         WrenchOut = (f[7] & 32) != 0,
+                        ShovelOut = (f[7] & 64) != 0,
                         Vented = (f[7] & 16) != 0,
                         SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
                     };

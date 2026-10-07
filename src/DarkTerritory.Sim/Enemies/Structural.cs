@@ -19,6 +19,8 @@ public sealed class ChoirGhost(int id) : Enemy(id)
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Kill;
     public override double MeleeRadius => 0.7;
+    /// <summary>A ball goes through a ghost (note 290); every round only feeds the Choir's meter.</summary>
+    public override bool Exposed => false;
     public override bool Far => true;
     public int? Target => Extra >= 0 ? (int)Extra : null;
 

@@ -13,10 +13,14 @@ public static class Staging
     /// <summary>
     /// A cannonball come down (T121, `dt screenshot --impact`): <paramref name="ahead"/> metres up the line from the engine's
     /// front and <paramref name="lateral"/> to its right, on the ground there (water: as if over it; train and structure: a
-    /// metre and a half up a face; creature: a body's height up). "doll" is the staged Track Doll's spot, shattered.
+    /// metre and a half up a face; creature: a body's height up, "creature:gaunt" a kind's, for its insides; note 290). "doll"
+    /// is the staged Track Doll's spot, shattered.
     /// </summary>
     public static Sim.Combat.CannonImpact Impact(TrainOnLine train, string surface, double ahead, double lateral, IReadOnlyList<Enemy>? staged = null)
     {
+        EnemyKind struck = 0;
+        if (surface.Split(':') is [var on, var what])
+            (surface, struck) = (on, Enum.Parse<EnemyKind>(what, ignoreCase: true));
         bool doll = surface.Equals("doll", StringComparison.OrdinalIgnoreCase);
         if (doll && staged?.FirstOrDefault(e => e is TrackDoll { Attached: < 0 }) is { } d)
             ahead = d.LineDistance - train.Dynamics.Distance;
@@ -32,7 +36,7 @@ public static class Staging
             at += Double3.Up * (doll ? 0.7 : 0.8);
         // Fired from the engine's gun, behind and above: the way the ball was going.
         var muzzle = train.Frames[0].ToWorld(new Double3(0, 5.3, -train.Frames[0].Shape.HalfLength + 12.8));
-        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : 0);
+        return new Sim.Combat.CannonImpact(1, StrikeTick, at, (at - muzzle).Normalized, kind, 1, doll ? EnemyKind.TrackDoll : struck);
     }
 
     /// <summary>
@@ -232,21 +236,28 @@ public static class Staging
     /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
-    /// with the hand lamp hung from the fist.
+    /// with the hand lamp hung from the fist; each swing further into its blow, with the shovel, crowbar and wrench in turn.
     /// </summary>
     /// <param name="survivor">Who they all are (dt screenshot --survivor prisoner|wildlander): freed survivors' figures (App. D.8).</param>
     public static List<Crewmate> Acts(TrainOnLine train, string content, IEnumerable<string> acts, Art.Survivor survivor = Art.Survivor.None)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         var crew = new List<Crewmate>();
-        int i = 0;
+        int i = 0, swings = 0;
         foreach (var name in acts)
         {
             var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
             var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
+            // A swing (note 275): each one further into its blow than the last, with the shovel, the crowbar, the wrench in turn.
+            double swing = 0;
+            if (act == Art.CrewPose.Swing)
+            {
+                tool = (swings % 3) switch { 0 => Sim.Player.Tool.Shovel, 1 => Sim.Player.Tool.Crowbar, _ => Sim.Player.Tool.Wrench };
+                swing = 0.12 + 0.18 * swings++;
+            }
             crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
-                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor));
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
             i++;
         }
         return crew;

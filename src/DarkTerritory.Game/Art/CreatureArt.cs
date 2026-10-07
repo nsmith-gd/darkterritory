@@ -645,8 +645,11 @@ public sealed class CreatureArt
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
-        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket.
-        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor;
+        // Played once from their start (SceneArt passes the time since the act began): getting up, a thing off its bracket,
+        // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
+        // 0.8 s clip, and most of the crew were drawn at its end).
+        bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
+            or CrewPose.Swing;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);

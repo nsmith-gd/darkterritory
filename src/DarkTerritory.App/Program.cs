@@ -994,6 +994,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         DerailSequence.Fog(ref lighting, derailShot);
         scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
+        scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
         scene.Cut = DarkTerritory.Game.Art.SceneArt.Cuts(session.Train);
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;

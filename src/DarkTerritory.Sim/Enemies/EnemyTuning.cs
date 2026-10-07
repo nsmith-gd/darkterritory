@@ -34,6 +34,24 @@ public sealed record EnemyTuning(
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
     /// </summary>
     public bool TamperReleasesStandingBrake { get; init; }
+    /// <summary>
+    /// Every creature's body as a cannonball finds it (note 290, enemies.json <c>bodies</c>): a stack of spheres, each
+    /// [radius, height of its centre over where it stands], keyed by <see cref="EnemyKind"/>'s name.
+    /// </summary>
+    public Dictionary<string, double[][]> Bodies { get; init; } = new();
+    /// <summary>A sleeping Gaunt's body, curled up: this share of its height (note 290).</summary>
+    public double GauntAsleep { get; init; } = 0.35;
+
+    Dictionary<EnemyKind, (double Radius, double Height)[]>? _bodies;
+
+    /// <summary>The spheres of a kind's body; none for a kind that has no body (a ball goes through it).</summary>
+    public (double Radius, double Height)[] Body(EnemyKind kind)
+    {
+        _bodies ??= Bodies.ToDictionary(
+            b => Enum.Parse<EnemyKind>(b.Key, ignoreCase: true),
+            b => b.Value.Select(s => (s[0], s[1])).ToArray());
+        return _bodies.TryGetValue(kind, out var body) ? body : [];
+    }
 }
 
 /// <summary>
@@ -53,12 +71,27 @@ public sealed record MeleeTuning
     public double Reach { get; init; } = 2.2;
     public double ConeDegrees { get; init; } = 70;
     public double SwingSeconds { get; init; } = 0.8;
-    public double Damage { get; init; } = 1;
+    /// <summary>
+    /// What a blow does with each tool in hand, in blows (App. C.2: "the boiler player's shovel doubling as the crew's best
+    /// club"; note 275). Enemy health is counted in the crowbar's.
+    /// </summary>
+    public double Shovel { get; init; } = 1.5;
+    public double Crowbar { get; init; } = 1;
+    public double Wrench { get; init; } = 0.75;
     /// <summary>T108: a blow with nothing in hand (enemies.json).</summary>
     public double Barehanded { get; init; } = 0.25;
 
-    /// <summary>A blow with this in hand: any tool a full one, nothing a fraction.</summary>
-    public double Blow(Player.Tool held) => held == Player.Tool.None ? Barehanded : Damage;
+    /// <summary>The hardest blow any tool lands (note 275): what a client takes to be within one blow of a kill.</summary>
+    public double Hardest => Math.Max(Shovel, Math.Max(Crowbar, Wrench));
+
+    /// <summary>A blow with this in hand: the shovel the best of the train's tools, a fist a fraction of one.</summary>
+    public double Blow(Player.Tool held) => held switch
+    {
+        Player.Tool.Shovel => Shovel,
+        Player.Tool.Crowbar => Crowbar,
+        Player.Tool.Wrench => Wrench,
+        _ => Barehanded,
+    };
 }
 
 /// <summary>The Track Doll (v1.1 App. A.2, B.2). Field docs live in enemies.json.</summary>
@@ -79,8 +112,6 @@ public sealed record TrackDollTuning
     public double EmptyCabWeight { get; init; } = 2;
     /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
     public bool CannonShatters { get; init; } = true;
-    public double RailHitRadius { get; init; } = 0.55;
-    public double RailHitHeight { get; init; } = 0.7;
     /// <summary>Her escalation when ignored (the director, 6 Oct 2026; note 268): stage 2's neglect, stage 3's, the warning before each.</summary>
     public double ControlsAfter { get; init; } = 120;
     public double ReleaseAfter { get; init; } = 300;
@@ -617,6 +648,8 @@ public sealed record AbandonedTuning
     public double Relief { get; init; } = 6;
     public int[] Pack { get; init; } = [2, 5];
     public double[] SpawnOut { get; init; } = [35, 18];
+    /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
+    public int GauntFrom { get; init; } = 2;
 }
 
 /// <summary>

@@ -35,6 +35,11 @@ public sealed record BoilerTuning(
     /// <summary>T109: how hard a ruptured engine's seized cylinders drag the train down (m/s²), and to what speed (m/s).</summary>
     public double RuptureDecel { get; init; } = 1.5;
     public double RuptureCoastBelow { get; init; } = 4;
+    /// <summary>
+    /// App. C.2, GDD §12 (note 275): coal goes on with the shovel in hand, the one off the cab's tool rack. Off, by hand as
+    /// before (T29's stroke and the keyboard's hold alike).
+    /// </summary>
+    public bool ShovelInHand { get; init; } = true;
     /// <summary>T109: seconds of the wrench held at the firebox to repair a ruptured boiler.</summary>
     public double RepairSeconds { get; init; } = 25;
 }
@@ -79,6 +84,11 @@ public struct Boiler
     public double SinceShovel;
     /// <summary>T109: the wrench is out of its rack in the cab, in someone's hands.</summary>
     public bool WrenchOut;
+    /// <summary>
+    /// The fireman's shovel is off its rack in the cab, in someone's kit or on a body (App. C.2, GDD §12; note 275): there's
+    /// the one, and coal goes on with it in hand.
+    /// </summary>
+    public bool ShovelOut;
 
     /// <summary>T109: made good with the wrench after a rupture: whole again, but cold and empty.</summary>
     public void Repair()
