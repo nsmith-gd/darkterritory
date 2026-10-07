@@ -349,7 +349,8 @@ public sealed class Climber(int id) : Enemy(id)
     /// <summary>On the roofs or in a car, a tool can reach it.</summary>
     public override double MeleeRadius => Attached >= 0 ? 0.6 : 0;
     /// <summary>Out on the roofs (or scrabbling at the gap), it's in the open: the guns can take it.</summary>
-    public override double HitRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0 ? 0.55 : 0;
+    public override bool Exposed => Phase is SpinePhase.Telegraph or SpinePhase.Commit && Extra >= 0;
+    public override bool GunAnswers => true;
 
     public int Gap => (int)Extra;
     public int Side => Extra2 < 0 ? -1 : 1;

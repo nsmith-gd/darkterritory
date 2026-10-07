@@ -164,10 +164,24 @@ public sealed class Gaunt(int id) : Enemy(id)
     public override Sense Sense => Sense.Sound;
     public override Want Want => Want.Split;
     public override double MeleeRadius => Phase == SpinePhase.Dormant ? 0 : 0.8;
+    /// <summary>Asleep and curled up, or awake and following, or leaving with what it took: a body in the open (note 290).</summary>
+    public override bool Exposed => !Gone;
+    public override double Stoop(EnemyTuning t) => Phase is SpinePhase.Dormant or SpinePhase.Alert ? t.GauntAsleep : 1;
     public int? Waker => Extra >= 0 ? (int)Extra : null;
     public int Anger => (int)Extra2;
 
     public static Gaunt Asleep(int id, Double3 world, GauntTuning t) => new(id) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
+
+    /// <summary>
+    /// Already awake and after <paramref name="waker"/> (note 296: one sent at a crewmate left behind): it follows them from
+    /// where it's put down, as if they'd come too close to it there.
+    /// </summary>
+    public static Gaunt WokenBy(int id, Double3 world, int waker, GauntTuning t)
+    {
+        var g = Asleep(id, world, t);
+        g.Restore(SpinePhase.Telegraph, 0, t.Health, Loose, world, 0, 0, 0, waker, 0);
+        return g;
+    }
 
     protected override void Tick(EnemyContext ctx)
     {
@@ -334,19 +348,14 @@ public sealed class Gaunt(int id) : Enemy(id)
         DropIfGone(ctx);
     }
 
-    public override bool Hit(EnemyContext ctx, double damage)
-    {
-        bool killed = base.Hit(ctx, damage);
-        DropIfGone(ctx);
-        return killed;
-    }
-
     /// <summary>At its waker's back, at arm's length: in their car's frame aboard, loose in the world off it.</summary>
     void Follow(EnemyContext ctx, in PlayerState w, GauntTuning t)
     {
         var train = ctx.Train;
         var behind = new Double3(DMath.Sin(w.Yaw), 0, DMath.Cos(w.Yaw)) * t.FollowAt;
-        if (w.Parent >= 0)
+        // Onto the train with them only from at their back: one still walking up after them (note 296: woken from far off)
+        // comes the rest of the way on foot, and is left standing if the train pulls away.
+        if (w.Parent >= 0 && (PlayerMotor.WorldPosition(w, train) - WorldPosition(train)).Length <= t.FollowAt * 3)
         {
             Attached = w.Parent;
             Local = w.Position + behind;

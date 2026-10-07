@@ -21,7 +21,10 @@ public sealed partial class Effects
     /// <param name="along">The way the ball was going (unit): the burst throws back off what it hit.</param>
     /// <param name="struck">What it struck, for a creature: the Track Doll goes up in white porcelain.</param>
     /// <param name="seed">The impact's id: each one's own scatter.</param>
-    public void CannonImpact(MeshBuilder mesh, Vector3 at, Vector3 along, ImpactSurface surface, EnemyKind struck, double age, long seed)
+    /// <param name="floor">The ground under a ball that struck a creature (camera-relative), where what it threw comes down;
+    /// at the impact when unknown.</param>
+    public void CannonImpact(MeshBuilder mesh, Vector3 at, Vector3 along, ImpactSurface surface, EnemyKind struck, double age, long seed,
+        Vector3? floor = null)
     {
         if (age < 0 || age > ImpactSeconds)
             return;
@@ -131,6 +134,14 @@ public sealed partial class Effects
             mesh.Billboard(p, size, h * 6.28f + age2 * 0.2f * (h2 - 0.5f), new Vector4(colour, alpha), _smoke, FxBlend.Alpha, (int)(MathF.Min(s * 1.4f, 0.999f) * 16), 4);
         }
 
+        if (surface == ImpactSurface.Creature && !porcelain)
+            Ichor(mesh, at, along, struck, floor ?? at, a, s0);
+        if (surface is ImpactSurface.Structure)
+        {
+            // A wall: the burst's scorch on its face, where the ball struck (note 290: "rounds don't collide where they land").
+            float burnt = MathF.Min(1, a * 6) * MathF.Min(1, ((float)ImpactSeconds - a) / 1.5f);
+            WallDecal(mesh, at - along * 0.06f, -along, 1.3f + 0.3f * Hash(s0), s0, new Vector4(0.02f, 0.017f, 0.015f, 0.85f * burnt));
+        }
         if (!ground)
             return;
         // On the ground: a ring of dust thrown out low, a scorch where it burst, and embers in it a while.
@@ -157,6 +168,59 @@ public sealed partial class Effects
                 mesh.Billboard(p, 0.22f + 0.16f * h2, 0, new Vector4(1.0f, 0.42f, 0.1f, flick * (1 - a / 4)), -1, FxBlend.Additive);
             }
         }
+    }
+
+    /// <summary>
+    /// What a ball knocks out of a creature it finds (GDD App. F.1, build 1121: the guns had "no visible effect on the
+    /// monsters"; note 290): a spray of its insides, out the far side along the ball's way and back at the gun, arcing down
+    /// to spatter the ground under it, and a splash there that stays as long as the scorch would. Each kind its own: a
+    /// Cinder Hound's embers and ash, a Soot Child's and the Stoker's soot, everything else dark, near-black blood.
+    /// </summary>
+    void Ichor(MeshBuilder mesh, Vector3 at, Vector3 along, EnemyKind struck, Vector3 ground, float a, float s0)
+    {
+        var up = Vector3.UnitY;
+        bool embers = struck == EnemyKind.CinderHound;
+        var colour = struck switch
+        {
+            EnemyKind.CinderHound => new Vector3(0.12f, 0.11f, 0.1f),
+            EnemyKind.SootChildren or EnemyKind.Stoker => new Vector3(0.025f, 0.022f, 0.02f),
+            _ => new Vector3(0.14f, 0.018f, 0.012f),
+        };
+        var flat = along with { Y = 0 };
+        var on = flat.LengthSquared() > 1e-6f ? Vector3.Normalize(flat) : Vector3.UnitZ;
+        var side = Vector3.Cross(up, on);
+        float floor = ground.Y + 0.03f;
+        // The burst of it: a dark cloud at the wound, hanging a moment.
+        if (a < 0.8f)
+        {
+            float t = a / 0.8f;
+            mesh.Billboard(at + on * (0.4f + 0.8f * t) + up * 0.2f * t, 1.2f + 1.6f * t, s0, new Vector4(colour * 1.4f, 0.75f * (1 - t) * (1 - t)), _smoke,
+                FxBlend.Alpha, (int)(t * 15.99f), 4);
+        }
+        for (int k = 0; k < 36; k++)
+        {
+            float h = Hash(s0 * 6.1f + k * 1.7f), h2 = Hash(s0 * 2.3f + k * 4.1f), h3 = Hash(s0 * 3.7f + k * 2.9f);
+            // Most out the far side with the ball, a third back at the gun.
+            var dir = (k % 3 == 0 ? -on : on) * (0.6f + h) + side * (h2 - 0.5f) * 1.6f + up * (0.3f + 0.9f * h3);
+            var v = Vector3.Normalize(dir) * (3 + 6 * h2);
+            // Up and over to the ground, and lying there as a spot after.
+            float fall = at.Y - floor;
+            float vy = v.Y, flight = (vy + MathF.Sqrt(vy * vy + 2 * 9.8f * MathF.Max(0, fall))) / 9.8f;
+            float t = MathF.Min(a, flight);
+            var p = at + v * t - up * (4.9f * t * t);
+            if (a < flight)
+            {
+                var drop = embers ? new Vector4(1.0f, 0.45f + 0.25f * h, 0.12f, 1 - a / flight * 0.5f) : new Vector4(colour * (0.8f + 0.5f * h3), 1);
+                mesh.Billboard(p, 0.05f + 0.07f * h, 0, drop, _spark, embers ? FxBlend.Additive : FxBlend.Alpha, 1, 2, stretch: 2.0f);
+                continue;
+            }
+            float lie = MathF.Max(0, 1 - (a - flight) / ((float)ImpactSeconds - flight));
+            Decal(mesh, p with { Y = floor }, 0.08f + 0.14f * h, h * 6.28f, new Vector4(colour, 0.85f * MathF.Sqrt(lie)));
+        }
+        // The splash on the ground under it, spreading as it soaks in.
+        float spread = MathF.Min(1, a * 3);
+        float stays = MathF.Min(1, ((float)ImpactSeconds - a) / 1.5f);
+        Decal(mesh, (at + on * 0.6f) with { Y = floor }, 0.5f + 0.5f * spread + 0.2f * Hash(s0 * 1.3f), s0 * 2, new Vector4(colour * 0.8f, 0.8f * stays * spread));
     }
 
     /// <summary>A ball into water: a column of spray thrown up and falling back, a sheet out sideways, mist, and rings.</summary>
@@ -328,6 +392,26 @@ public sealed partial class Effects
     }
 
     /// <summary>A thin flat ring on the water, of short soft segments.</summary>
+    /// <summary>A mark on an upright face (a wall's), square to <paramref name="normal"/>, turned by <paramref name="turn"/>.</summary>
+    static void WallDecal(MeshBuilder mesh, Vector3 centre, Vector3 normal, float radius, float turn, Vector4 colour)
+    {
+        var n = normal with { Y = 0 };
+        n = n.LengthSquared() > 1e-6f ? Vector3.Normalize(n) : Vector3.UnitZ;
+        var across = Vector3.Cross(Vector3.UnitY, n);
+        float c = MathF.Cos(turn) * radius, s = MathF.Sin(turn) * radius;
+        var x = across * c + Vector3.UnitY * s;
+        var y = -across * s + Vector3.UnitY * c;
+        var a = new FxVertex(centre - x - y, new Vector2(0, 0), colour, -1);
+        var b = new FxVertex(centre + x - y, new Vector2(1, 0), colour, -1);
+        var d = new FxVertex(centre + x + y, new Vector2(1, 1), colour, -1);
+        var e = new FxVertex(centre - x + y, new Vector2(0, 1), colour, -1);
+        // Both faces: a wall's seen from whichever side the ball came.
+        mesh.FxTriangle(FxBlend.Alpha, a, b, d);
+        mesh.FxTriangle(FxBlend.Alpha, a, d, e);
+        mesh.FxTriangle(FxBlend.Alpha, a, d, b);
+        mesh.FxTriangle(FxBlend.Alpha, a, e, d);
+    }
+
     static void Ring(MeshBuilder mesh, Vector3 centre, float radius, Vector4 colour)
     {
         const int segments = 24;
