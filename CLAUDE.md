@@ -2,6 +2,10 @@
 
 Co-op first-person survival horror (2–8+ players, PC + VR) on **Ballast**, a small custom C#/.NET 10 engine built for this game.
 **Before starting any work, read `docs/COORDINATION.md`** (who owns what, claiming an item, reserved note numbers; several agents work on this repo at once).
+**UI/UX notes and checklist assignments** (the director, 7 Oct; the steps are COORDINATION.md's "UI/UX notes and assignments"): the director's UI/UX notes live in the Art Checklist's UI/UX notes panel (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu, its store's `uiux_notes`) and go to every UI/UX chat listed in `uiux_chats`.
+- UI/UX agents list their own chat in `uiux_chats`, then take notes after reading COORDINATION.md and the logs: write `assignee` (your agent id), `assignedAt` and `queue` to the note, pinned to the version you read so no two chats take one; `status: "done"` with its `pr` when it merges.
+- Every agent marks the checklist lines it works on: `assignee`, `queue` and `assignedAt` on the line's `items` row (nothing else on C1's row). Someone else's `assignee` means it's theirs: ask on their PR.
+
 Read before large changes: `docs/ARCHITECTURE.md` (decisions and why), `docs/ROADMAP.md` (what's next), `docs/design/gdd.md` and `docs/design/systems-spec.md` (the design, source of truth for numbers), `docs/design/level-design.md` (level-design principles from example sketches, and the rules for generating sites).
 
 ## Commands

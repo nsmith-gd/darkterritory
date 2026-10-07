@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -111,6 +111,9 @@ public static class WorldRecords
         // Swings, landed or not (note 197): who, and when it started.
         foreach (var w in world.Swings)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Swing, w.Id), [w.Tick, w.By]));
+        // Emotes (note 298): who, which, and when it began.
+        foreach (var e in world.Emotes)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind]));
         foreach (var i in world.Impacts)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Impact, i.Id),
             [
@@ -272,6 +275,7 @@ public static class WorldRecords
         var wrecked = new List<(int Vehicle, Ballast.Double3 Origin, Ballast.Double3 Right, Ballast.Double3 Up, Ballast.Double3 Velocity)>();
         var hits = new List<HitConfirm>();
         var swings = new List<SwingEvent>();
+        var emotes = new List<EmoteEvent>();
         var impacts = new List<CannonImpact>();
         foreach (var r in records)
         {
@@ -376,6 +380,9 @@ public static class WorldRecords
                 case RecordKind.Swing when !world.Authority:
                     swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
                     break;
+                case RecordKind.Emote when !world.Authority:
+                    emotes.Add(new EmoteEvent(r.Id, (uint)f[0], (int)f[1], (Emote)f[2]));
+                    break;
                 case RecordKind.Impact when !world.Authority:
                     impacts.Add(new CannonImpact(r.Id, (uint)f[0], new Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)),
                         new Double3(D(f[7], Fine), D(f[8], Fine), D(f[9], Fine)), (ImpactSurface)f[1], (int)f[2], (EnemyKind)f[3]));
@@ -435,7 +442,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
-            world.MirrorHits(hits, impacts, swings);
+            world.MirrorHits(hits, impacts, swings, emotes);
             world.Bodies.Mirror(bodies);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))

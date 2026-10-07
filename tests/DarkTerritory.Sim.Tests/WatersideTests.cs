@@ -141,4 +141,40 @@ public class WatersideTests
                 Assert.InRange(terrain.Height(t.Position.X + right.X * l, t.Position.Z + right.Z * l) - t.Position.Y, -0.35, 0.1);
         }
     }
+    [Theory]
+    [InlineData("frontier:5")]
+    [InlineData("deadLines:9")]
+    [InlineData("deadLines:12")]
+    public void SomeCrossedLakesAreTakenOnATrestleWithTheWaterOnUnderIt(string spec)
+    {
+        // Maritime-rules §4's "not yet" (ARCHITECTURE §8 note 317): a crossed lake's neck on a low timber trestle.
+        var (plan, line, terrain) = Night(spec);
+        var lr = LineGenConfig.Load(Content).Tiers.Terrain.Lakes;
+        int trestles = 0;
+        foreach (var lake in plan.Lakes.Where(l => l.Crossed))
+        {
+            // Where the main line is over its water.
+            var wet = Enumerable.Range(0, (int)(line.Length / 2)).Select(i => i * 2.0)
+                .Where(s => TerrainField.LakeMetric(lake, line.Sample(s).Position.X, line.Sample(s).Position.Z) < 1).ToList();
+            if (wet.Count == 0)
+                continue;
+            var span = plan.Structures.FirstOrDefault(x => x.Edge == "main" && x.Type == StructureType.Trestle && x.S0 <= wet[0] && x.S1 >= wet[^1]);
+            if (span is null)
+                continue;
+            trestles++;
+            // A timber trestle, strong enough for any train, named and a landmark; its abutments on the land either side.
+            Assert.Equal("timber", span.Material);
+            Assert.Null(span.Weak);
+            Assert.EndsWith("Trestle", span.Name);
+            Assert.Contains(plan.Landmarks, m => m.Type == "bridge" && m.Name == span.Name && m.S0 == span.S0);
+            Assert.InRange(span.S1 - span.S0, wet[^1] - wet[0], lr.TrestleMaxM);
+            // The water runs on under the deck: no fill across the neck.
+            var mid = line.Sample((wet[0] + wet[^1]) / 2).Position;
+            Assert.True(terrain.WaterAt(mid.X, mid.Z) is not null, $"{spec} {span.Name} {lake.Id}: dry under the deck, ground {terrain.Height(mid.X, mid.Z):0.00}, lake {lake.LevelM}, rail {mid.Y:0.00}, metric {TerrainField.LakeMetric(lake, mid.X, mid.Z):0.00}, span {span.S0}-{span.S1}, wet {wet[0]}-{wet[^1]} ({wet.Count})");
+            Assert.True(terrain.Height(mid.X, mid.Z) < lake.LevelM, $"{spec} {span.Name}: ground at {terrain.Height(mid.X, mid.Z):0.0} under the deck, the lake at {lake.LevelM:0.0}");
+            // And it's a bridge to the route the sim runs (spec B.4's weak-bridge and wind rules read those).
+            Assert.Contains(plan.Exposure, x => x.Edge == "main" && x.S0 <= (span.S0 + span.S1) / 2 && x.S1 > (span.S0 + span.S1) / 2 && x.Why.Contains("exposed"));
+        }
+        Assert.True(trestles > 0, $"{spec}: no crossed lake on a trestle");
+    }
 }
