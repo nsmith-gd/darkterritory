@@ -689,12 +689,15 @@ public class CrewAudioTests
     {
         // A night with a bot crew, each a client over loopback, heard as the app hears it: the client world, the crew from
         // the session (crewmates as drawn), every tick. Their feet on the roofs, the driver's regulator.
-        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, bots: 3);
+        // The bank is loaded before the night is hosted, as the app does: loading it decodes every sample (seconds, more
+        // under a full suite's load), and a host not stepped for the transport's silence timeout (8 s) drops its bots
+        // (note 321: the flake A1.2, A1.4 and A1.7 saw, 1 of 4 aboard).
         var audio = new GameAudio(Content);
         string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"];
         foreach (var cue in feet.SelectMany(m => new[] { $"crew-footsteps.walk.{m}", $"crew-footsteps.run.{m}" })
             .Append("crew-cab-controls.regulator-notch").Append("crew-ladder.rung-up").Append("crew-ladder.grab"))
             audio.Bank.Add(cue, new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
+        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, bots: 3);
         var heard = new Dictionary<string, int>();
         var seen = new HashSet<int>();
         for (int t = 0; t < SimConstants.TickRate * 30; t++)
