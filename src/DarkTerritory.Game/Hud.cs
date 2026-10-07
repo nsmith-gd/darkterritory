@@ -280,7 +280,8 @@ public static partial class Hud
     static (float X, float Y, float W) Panel(Overlay o, int width, int height, string title, float content, int rows, Vector4 titleColour, float k)
     {
         float pad = PanelPad * k;
-        float w = MathF.Round(content + 2 * pad), h = MathF.Round((o.Font.LineHeight + 4) * k + rows * PanelRow(o, k) + 2 * pad);
+        // The last row's leading isn't kept below it, so the bottom margin matches the top's.
+        float w = MathF.Round(content + 2 * pad), h = MathF.Round((o.Font.LineHeight + 4) * k + rows * PanelRow(o, k) - (rows > 0 ? 2 * k : 0) + 2 * pad);
         float x = MathF.Round((width - w) / 2), y = MathF.Round(height * 0.2f);
         o.Rect(x, y, w, h, UiStyle.Iron with { W = 0.6f });
         o.Rect(x, y, w, 1, titleColour with { W = 0.8f });
