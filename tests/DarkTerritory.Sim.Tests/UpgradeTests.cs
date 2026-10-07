@@ -76,7 +76,7 @@ public class UpgradeTests
             var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000 } };
             var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
             var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 6, 1)), line, 5_000), combat);
-            w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9, PaceSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+            w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
             var mount = w.Train.Frames[0].Shape.Gun!.Value;
             var s = PlayerMotor.SpawnOnRoof(w.Train, 0, mount.Position.Z - mount.Facing.Z * 0.7, P);
             s.Yaw = mount.Facing.Z < 0 ? 0 : Math.PI;

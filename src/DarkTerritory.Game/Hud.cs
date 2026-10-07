@@ -1256,7 +1256,7 @@ public static class Hud
         DeathCause.Wreckage => "CRUSHED WHEN THE WRECK SHIFTED",
         DeathCause.Gnawed => "EATEN BY THE GNAWERS",
         DeathCause.Ferryman => "SLOWED FOR THE LANTERN",
-        DeathCause.Stoker => "BURNED DRIVING IT OUT OF THE FIREBOX",
+        DeathCause.Stoker => "BURNED OPENING THE FIREBOX ON THE STOKER",
         DeathCause.Waiting => "WAITING TO BE PICKED UP",
         DeathCause.Eaten => "SWALLOWED BY THE CAR HUGGER",
         DeathCause.Suffocated => "SMOTHERED. TIPPY TOESIE WAS IN THE CAR",

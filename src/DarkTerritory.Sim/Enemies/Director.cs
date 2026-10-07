@@ -6,14 +6,30 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>A decision the director made, for the harness's pacing and cap audit (App. B.9).</summary>
-/// <param name="Paced">Sent because it had been quiet too long (<see cref="DirectorTuning.PaceSeconds"/>), not on the budget's curve.</param>
+/// <param name="Paced">
+/// Pressed for: the pressure was at <see cref="PressureTuning.PressAt"/>, and it came through the cooldown or over the budget's
+/// curve (by at most <see cref="DirectorTuning.PacedCost"/>).
+/// </param>
 public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false);
+
+/// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
+/// <param name="Rate">Pressure a second, all told.</param>
+/// <param name="Escalation">The night's escalation multiplier (1 at the gate, rising toward dawn or the terminus).</param>
+/// <param name="Quiet">Seconds since a threat was last engaged.</param>
+/// <param name="Loud">The loudness term (the Choir meter), per second.</param>
+/// <param name="Cargo">The cargo-aboard term, per second.</param>
+/// <param name="Relief">The crew's relief valve (1 all well; less with crew down or hurt).</param>
+/// <param name="Conditions">The conditions multiplier (dark, cold, wet, wind).</param>
+public readonly record struct PressureTerms(double Rate, double Escalation, double Quiet, double Loud, double Cargo, double Relief, double Conditions);
 
 /// <summary>
 /// The pressure director (GDD App. B.1). Enemies aren't rolled independently: a budget is spent across the
 /// run against a rising curve (15% before the first facility, 45% across the middle, 40% in the final
 /// approach), with hard caps per zone and overall, a grace period at the gate, a trough after every spawn,
 /// and silence in the final 500 m. Sleepers are level content and aren't spent from the budget.
+/// When it spends is algorithmic (design decision 2026-10, note 266): a pressure builds from the night's escalation, quiet,
+/// the crew's loudness and the cargo aboard, eased when the crew is down, and past a threshold the director sends what its
+/// weights pick; the spawn relieves it.
 /// </summary>
 public sealed class Director
 {
@@ -38,7 +54,24 @@ public sealed class Director
         double crewMultiplier = Math.Min(tuning.CrewCap, tuning.CrewBase + tuning.CrewPerPlayer * crew);
         Budget = baseBudget * lengthMultiplier * crewMultiplier;
         Crew = crew;
+        // The night's quiet spell (design decision 2026-10): somewhere in the range, from the seed alone (its own stream, so
+        // the director's draws are untouched), and shorter on the harder tiers.
+        double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
+        Grace = tuning.GraceMinSeconds + (tuning.GraceMaxSeconds - tuning.GraceMinSeconds) * Math.Clamp(u, 0, 1);
+        _tierRate = tuning.Pressure.Tier.GetValueOrDefault(key, 1);
     }
+
+    readonly double _tierRate;
+    double _pressure;
+    bool _building;
+    double _sinceThreat;
+
+    /// <summary>This night's grace: no spawns of the director's own before it (seconds into the night).</summary>
+    public double Grace { get; }
+    /// <summary>The pressure now (note 266): 0 until the grace is over, then <see cref="PressureTuning.Start"/> and building.</summary>
+    public double Pressure => _pressure;
+    /// <summary>What built it in the last second the director thought.</summary>
+    public PressureTerms Terms { get; private set; }
 
     public double Budget { get; }
     public double Spent => _spent;
@@ -196,13 +229,35 @@ public sealed class Director
         _cooldown -= 1;
         var train = world.Train;
         double s = train.Dynamics.Distance;
-        // Quiet too long (after the playtest: a reward or a problem every 30 s at most, 20 s ideally): something now, the
-        // cooldown and the budget's curve notwithstanding. The caps and each kind's gates still hold.
-        bool due = world.QuietSeconds >= _t.PaceSeconds;
-        if (elapsed < _t.GraceSeconds || _cooldown > 0 && !due)
-            return Held(elapsed < _t.GraceSeconds ? "grace" : "cooldown");
+        if (elapsed < Grace)
+            return Held("grace");
         if (_route is not null && s > _route.Length - noSpawnFinal)
             return Held("final stretch");
+        // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the terminus), and
+        // none of its own while the terrain is already at its hardest there (§15.4). The pressure waits with it: the terrain's
+        // the problem there, not the quiet.
+        var context = _route?.Plan?.Director;
+        var tags = context?.TagsAt(s).ToList() ?? [];
+        if (context is not null)
+        {
+            // The line's grace stretch is sized for the GDD's 90 s grace at speed (plan §4); a crew that takes its time over
+            // the yard and the first two kilometres would sit through minutes of nothing. It gives way to the night's own
+            // grace (T74, ARCHITECTURE §8 notes 85 and 195): the stretch keeps its easy geometry and no Sleepers or Grease on it.
+            bool graceOver = _t.LineGraceSeconds >= 0 && world.Run is { } graceRun && graceRun.Seconds >= Math.Max(_t.LineGraceSeconds, Grace);
+            if (tags.FirstOrDefault(t => context.SpawnBans.Contains(t) && !(t == "grace" && graceOver)) is { } ban)
+                return Held($"banned ({ban})");
+            if (context.PressureAt(s) >= context.PressureCeiling)
+                return Held("terrain at its ceiling");
+        }
+        Build(world, active, elapsed, s);
+        // Past the threshold the director spends; well past it (pressed: a long quiet, or a night the budget's curve can't keep
+        // up with) the cooldown gives way, and the curve may be overdrawn by up to pacedCost. The caps and each kind's gates
+        // still hold.
+        bool due = _pressure >= _t.Pressure.PressAt;
+        if (_pressure < _t.Pressure.Threshold)
+            return Held("building");
+        if (_cooldown > 0 && !due)
+            return Held("cooldown");
         int total = active.Count(Engaged);
         if (total >= MaxConcurrent)
             return Held("at the cap");
@@ -218,8 +273,8 @@ public sealed class Director
                 options.Add((rule.Kind, w));
             }
         }
-        // The budget saved up for what's still to come (the Gaunt) holds, except that a paced spawn (it's been quiet too
-        // long) may always spend what a paced spawn may: the pace rule beats saving up.
+        // The budget saved up for what's still to come (the Passenger) holds, except that a pressed spawn may always spend what
+        // a pressed spawn may: the pressure beats saving up.
         // App. B.8: "cargo changes the run rather than just scoring it". What's aboard weighs its threats up.
         var aboard = Aboard(world);
         if (aboard.Count > 0)
@@ -240,8 +295,8 @@ public sealed class Director
                 options[i] = (options[i].Kind, options[i].Weight * residents.GetValueOrDefault(Key(options[i].Kind), 1));
         options.RemoveAll(o => !Allows(o.Kind));
         options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
-        // Sent because it's been quiet: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its
-        // gap, lies silent until someone comes near: that's no answer to a quiet night, if there's anything else to send.
+        // Pressed for: something that shows itself at once. A Dragger under a car's edge, or a Whistler in its
+        // gap, lies silent until someone comes near: that's no answer to a pressing night, if there's anything else to send.
         if (due && options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
             options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
         // App. B.1 want balance: each want (kill, split, trust, cargo) aims at its share of what's been spent. A want under
@@ -254,20 +309,9 @@ public sealed class Director
                 double share = _spentByWant.GetValueOrDefault(want) / _spent;
                 options[i] = (options[i].Kind, options[i].Weight * Math.Clamp(Math.Sqrt(target / Math.Max(0.05, share)), 0.5, 2));
             }
-        // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the
-        // terminus), none of its own while the terrain is already at its hardest there (§15.4), and under the terrain's
-        // tags the enemies that belong there come more often (§15.1).
-        if (_route?.Plan?.Director is { } context)
+        // Under a generated line's terrain tags the enemies that belong there come more often (linegen plan §15.1).
+        if (context is not null)
         {
-            var tags = context.TagsAt(s).ToList();
-            // The line's grace stretch is sized for the GDD's 90 s grace at speed (plan §4); a crew that takes its time over
-            // the yard and the first two kilometres would sit through minutes of nothing. It gives way to the director's own
-            // grace (T74, ARCHITECTURE §8 note 85): the stretch keeps its easy geometry and no Sleepers or Grease on it.
-            bool graceOver = _t.LineGraceSeconds >= 0 && world.Run is { } graceRun && graceRun.Seconds >= _t.LineGraceSeconds;
-            if (tags.FirstOrDefault(t => context.SpawnBans.Contains(t) && !(t == "grace" && graceOver)) is { } ban)
-                return Held($"banned ({ban})");
-            if (context.PressureAt(s) >= context.PressureCeiling)
-                return Held("terrain at its ceiling");
             for (int i = 0; i < options.Count; i++)
                 foreach (var tag in tags)
                     if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
@@ -303,10 +347,72 @@ public sealed class Director
             pick -= o.Weight;
         }
         HeldBecause = null;
-        Charge(world, kind, active, paced: due && _cooldown > 0);
+        Charge(world, kind, active, paced: due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)));
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
         return kind;
     }
+
+    /// <summary>
+    /// One second of pressure (design decision 2026-10, note 266): the night's escalation toward dawn or the terminus, the quiet
+    /// since a threat was last engaged, the crew's loudness, the cargo aboard; scaled by the tier and the conditions; eased
+    /// when the crew is down or hurt (a relief valve, so a night that's going badly doesn't snowball) and while threats are
+    /// already engaged. The dead's votes aren't in it: D.11 has them move weight between creatures, never the pacing.
+    /// </summary>
+    void Build(World world, IReadOnlyList<Enemy> active, double elapsed, double s)
+    {
+        var p = _t.Pressure;
+        if (!_building)
+        {
+            _building = true;
+            _pressure = p.Start;
+        }
+        // How far into the night: along the line, or toward dawn if the clock's ahead of the train.
+        double progress = _route is null ? s / 20_000
+            : Math.Max(s / Math.Max(1, _route.Length), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
+        double escalation = 1 + p.Escalation * DMath.Pow(Math.Clamp(progress, 0, 1), p.EscalationPower);
+        // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
+        // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
+        // nobody walked into held the night's pressure flat).
+        int engaged = active.Count(Confronting);
+        _sinceThreat = engaged > 0 ? 0 : _sinceThreat + 1;
+        double quiet = p.QuietPerSecond * Math.Min(1, _sinceThreat / Math.Max(1, p.QuietRampSeconds));
+        // The meter's loudness against its threshold (App. C.7): a crew loud enough to draw the Choir draws everything else too.
+        double loud = world.Combat is { } combat && combat.Choir.Threshold > 0
+            ? p.LoudPerSecond * Math.Min(p.LoudCap, world.Choir.Loudness / combat.Choir.Threshold) : 0;
+        double loads = 0;
+        foreach (var v in world.Train.Dynamics.Consist.Vehicles)
+            if (v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
+                loads += v.Load * v.CargoIntegrity * p.CargoValue.GetValueOrDefault(char.ToLowerInvariant(v.Cargo.ToString()[0]) + v.Cargo.ToString()[1..], 1);
+        double cargo = p.CargoPerLoad * loads;
+        var train = world.Train;
+        int coldStep = train.Line.Conditions?.ColdStep(train.Dynamics.Path, s) ?? 0;
+        var weather = _route?.Weather;
+        double conditions = 1 + (world.LampLit ? 0 : p.Dark) + p.ColdPerStep * Math.Max(0, coldStep)
+            + (weather is null ? 0 : p.Cold * weather.Cold + (weather.Wet ? p.Wet : 0) + p.Wind * weather.Wind);
+        // The relief valve: the share of the crew still alive, to a power, and less for each of them badly hurt.
+        double relief = 1;
+        var crew = world.CrewThisTick;
+        if (crew.Count > 0)
+        {
+            int alive = 0, hurt = 0;
+            foreach (var (_, state) in crew)
+                if (state.Alive)
+                {
+                    alive++;
+                    hurt += state.Health < p.HurtBelow ? 1 : 0;
+                }
+            relief = alive == 0 ? 0 : DMath.Pow((double)alive / crew.Count, p.DownPower) * (1 - p.HurtRelief * hurt / alive);
+        }
+        // Busy fades as the night goes on: late, the director no longer waits for the crew to finish what's on them.
+        double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
+        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo);
+        _pressure = Math.Min(p.Max, _pressure + rate);
+        Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions);
+    }
+
+    /// <summary>A threat engaged with the crew now: telegraphing, committing, grabbing or punishing (note 266).</summary>
+    public static bool Confronting(Enemy e) => !e.Gone && !e.Hazard
+        && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
 
     /// <summary>
     /// App. B.1's caps are on what's active: a Dragger lying dormant under a car's edge all night, a Rattle waiting in its
@@ -382,6 +488,10 @@ public sealed class Director
         if (VotersFor(kind) is { Count: > 0 } voters)
             _cues.Add((kind, voters));
         _spent += Cost(kind);
+        // Spending relieves the pressure (note 266): the trough after a spawn is the pressure building again, and the quiet
+        // counts again from the threat's coming.
+        _pressure = Math.Max(0, _pressure - _t.Pressure.ReliefPerCost * Cost(kind));
+        _sinceThreat = 0;
         string want = WantOf(kind).ToString().ToLowerInvariant();
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)

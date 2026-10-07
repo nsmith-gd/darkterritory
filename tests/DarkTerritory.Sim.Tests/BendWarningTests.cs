@@ -59,7 +59,7 @@ public class BendWarningTests
             Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), route.Build(), from);
             Train.Dynamics.Velocity = speed;
             World = new World(Train, Tuning.Combat) { TrackPlan = route.Plan };
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(quiet, route: null, 1, crew: 1, authority: true);
         }
 
