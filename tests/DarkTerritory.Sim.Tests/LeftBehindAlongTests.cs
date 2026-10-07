@@ -19,7 +19,8 @@ public class LeftBehindAlongTests
         var world = new World(train);
         int alt = Enumerable.Range(0, line.Branches.Count).Single(i => Math.Abs(line.Branches[i].Toe - 21_670) < 1);
         world.SetSwitch(alt, true);
-        while (train.Dynamics.Distance < 22_843)
+        // Its rear car where the alternate runs 250 m from the main line (note 278's bends moved where it's close).
+        while (train.Dynamics.Distance < 23_563)
         {
             train.Dynamics.Velocity = 12;
             world.BeginTick();

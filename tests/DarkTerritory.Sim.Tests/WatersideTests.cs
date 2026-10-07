@@ -63,7 +63,8 @@ public class WatersideTests
     [Theory]
     [InlineData("local:3")]
     [InlineData("frontier:7")]
-    [InlineData("frontier:2")]
+    // Sea shores: frontier:2's went with note 278's bends (a shore is a region's roll, shortened round the towns' pads).
+    [InlineData("frontier:3")]
     public void ShoresAreWetPastTheirEdgeAndDykedFieldsLieFlat(string spec)
     {
         var (plan, line, terrain) = Night(spec);
