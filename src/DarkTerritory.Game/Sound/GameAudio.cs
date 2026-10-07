@@ -592,7 +592,8 @@ public sealed partial class GameAudio
                     break;
                 case EnemyKind.TrackDoll when e.Phase == SpinePhase.Punish:
                     // Haunting: it giggles in the car it's in, or in the cab at the controls (App. A.2). T118: now and then, a
-                    // little demon boy's giggle, never twice alike in pitch or spacing.
+                    // little demon boy's giggle, never twice alike in pitch or spacing. Restless (her next stage coming,
+                    // note 268) the giggles come twice as often: the telegraph that she's been left alone too long.
                     if (entered || _time >= s.Next)
                     {
                         Mixer.Play("doll-giggle", at)?.Also(v =>
@@ -600,7 +601,7 @@ public sealed partial class GameAudio
                             v.Occlusion = occlusion;
                             v.Params.Set("pitch", 0.92 + 0.18 * _rng.Next());
                         });
-                        s.Next = _time + 7 + 9 * _rng.Next();
+                        s.Next = _time + (7 + 9 * _rng.Next()) * (((TrackDoll)e).Restless ? 0.5 : 1);
                     }
                     break;
                 case EnemyKind.TippyToesie when e.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
