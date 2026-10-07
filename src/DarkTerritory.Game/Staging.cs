@@ -236,21 +236,28 @@ public static class Staging
     /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
-    /// with the hand lamp hung from the fist.
+    /// with the hand lamp hung from the fist; each swing further into its blow, with the shovel, crowbar and wrench in turn.
     /// </summary>
     /// <param name="survivor">Who they all are (dt screenshot --survivor prisoner|wildlander): freed survivors' figures (App. D.8).</param>
     public static List<Crewmate> Acts(TrainOnLine train, string content, IEnumerable<string> acts, Art.Survivor survivor = Art.Survivor.None)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         var crew = new List<Crewmate>();
-        int i = 0;
+        int i = 0, swings = 0;
         foreach (var name in acts)
         {
             var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
             var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
+            // A swing (note 275): each one further into its blow than the last, with the shovel, the crowbar, the wrench in turn.
+            double swing = 0;
+            if (act == Art.CrewPose.Swing)
+            {
+                tool = (swings % 3) switch { 0 => Sim.Player.Tool.Shovel, 1 => Sim.Player.Tool.Crowbar, _ => Sim.Player.Tool.Wrench };
+                swing = 0.12 + 0.18 * swings++;
+            }
             crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
-                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor));
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
             i++;
         }
         return crew;

@@ -807,7 +807,8 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
-        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit) == true;
+        // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -988,7 +989,8 @@ public sealed class World
                 best = e;
             }
         }
-        // With a tool a blow; empty-handed (a slot picked with nothing in it) a fraction of one (T108).
+        // By the tool in hand (App. C.2; note 275): the shovel the best club, the crowbar a blow, the wrench less, and
+        // empty-handed (a slot picked with nothing in it) a fraction of one (T108).
         if (best is null)
             return;
         var at = best.WorldPosition(Train) + Ballast.Double3.Up * 0.8;
@@ -1109,6 +1111,11 @@ public sealed class World
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
+        // The shovel nobody has is back on its rack (note 275): its carrier gone from the session, or its body taken off
+        // the line with the car it lay in. Out with a crewmate (living or dead) or on a body, it's out.
+        if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
+            && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
+            Train.Boiler.ShovelOut = false;
         LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
         {
@@ -1477,6 +1484,8 @@ public sealed class World
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
     public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null)
     {
+        Swings.Clear();
+        Swings.AddRange(swings ?? []);
         Hits.Clear();
         Hits.AddRange(hits);
         Swings.Clear();
