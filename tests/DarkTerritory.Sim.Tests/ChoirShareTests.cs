@@ -104,7 +104,8 @@ public class ChoirShareTests
     {
         // A.7: "whoever put the most into the meter during the build. The one shouting at everyone to shut up is usually the
         // one it takes." The quiet one stands right where the swarm wheels; the loud one is at the far end of the train.
-        var n = new Night(6, speed: 10);
+        // (Who it takes, under the old rule: the two of them aren't over the meter's threshold, so note 288's hush would let go.)
+        var n = new Night(6, speed: 10, enemies: E with { Choir = E.Choir with { DrivenOff = false } });
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 6, 4, P);
         Building(n);

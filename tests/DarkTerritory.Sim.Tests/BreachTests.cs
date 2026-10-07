@@ -257,7 +257,8 @@ public class BreachTests
         // boarded up". Shut in a whole car, nobody's taken (EnemyTests); the same car breached, they are.
         foreach (bool breached in new[] { false, true })
         {
-            var n = new Night(6, speed: 10);
+            // (Who it takes, under the old rule: note 288's seize, broken by a hush, is DrivenOffTests'.)
+            var n = new Night(6, speed: 10, enemies: E with { Choir = E.Choir with { DrivenOff = false } });
             n.Crew[1] = new PlayerState { Parent = 3, Position = new Double3(-0.45, T.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
             if (breached)
                 n.Train.Vehicles[3].Breach(Breaches.EndWall(n.Train.Frames[3].Shape)!.Value);

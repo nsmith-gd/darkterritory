@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Towns;
 using Fortresses = DarkTerritory.Sim.Run.Fortresses;
 
 namespace DarkTerritory.Game.Art;
@@ -174,8 +175,10 @@ public sealed partial class WorldArt
     /// </summary>
     /// <param name="lit">A town that has stopped answering (linegen plan §22.4) stands dark: its lamps are out.</param>
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
+    /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
+    /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0)
+        double time = 0, TownSquare? square = null)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
@@ -183,15 +186,24 @@ public sealed partial class WorldArt
         foreach (int side in new[] { -1, 1 })
         {
             var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
+            if (square is { } sq && sq.Side == side)
             {
-                var t = line.Sample(s);
-                var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-                mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
+                // Up to the square and on from it, on the same bay grid (the last piece past the gate as the other side's).
+                WallRun(mesh, line, eye, wall, start, sq.S0, side * WallOut, from, to);
+                WallRun(mesh, line, eye, wall, sq.S1, Math.Ceiling(end / Fortresses.WallBay) * Fortresses.WallBay, side * WallOut, from, to);
             }
+            else
+                for (double s = Math.Floor(a / Fortresses.WallBay) * Fortresses.WallBay; s < b; s += Fortresses.WallBay)
+                {
+                    var t = line.Sample(s);
+                    var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+                    mesh.Instances.Add(new MeshInstance(wall, Basis(t.Tangent, t.Position + r * (side * WallOut), eye, 0)));
+                }
             var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
             for (double s = Math.Ceiling(a / Fortresses.TowerEvery) * Fortresses.TowerEvery; s < b; s += Fortresses.TowerEvery)
             {
+                if (Fortresses.InTheSquare(square, s, side, 3))
+                    continue;
                 var t = line.Sample(s);
                 var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
                 var at = t.Position + r * (side * WallOut);
@@ -218,7 +230,8 @@ public sealed partial class WorldArt
                 }
             }
         }
-        if (lit)
+        // A town (note 281) has its own houses, its plan's (Houses); a fortress that isn't one has note 107's village.
+        if (lit && square is null)
             FortVillage(mesh, line, eye, a, b, start, end, gateAt, platform);
         if (gateAt >= from && gateAt <= to)
         {

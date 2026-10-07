@@ -276,6 +276,12 @@ public sealed partial class WorldArt
                 break;
             default:
                 {
+                    // An open house (note 326): its walls, its door and what's inside, as the sim stands them.
+                    if (b.Open)
+                    {
+                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index)));
+                        break;
+                    }
                     // The layout's footprint parts are (x along its axis, y across); the kit's frame has its axis on −Z.
                     var parts = b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)];
                     for (int i = 0; i < parts.Count; i++)

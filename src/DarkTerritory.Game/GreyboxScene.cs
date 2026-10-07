@@ -105,6 +105,10 @@ public sealed class GreyboxScene
     public Sim.Run.Run? Run { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
+    /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
+    public Sim.Towns.Town? Town { get; set; }
+    /// <summary>Somebody in the town turned to face whoever's talking to them (<see cref="TownTalk"/>), by person id.</summary>
+    public (int Person, Double3 Toward)? TownFacing { get; set; }
     /// <summary>Seconds, for animating things that move on their own.</summary>
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
@@ -1657,6 +1661,7 @@ public sealed class GreyboxScene
             // inside the fortresses' walls (T100): they're told where those are before a cell's built.
             if (Route is not null)
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
+            Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -2079,23 +2084,63 @@ public sealed class GreyboxScene
         }
     }
 
+    /// <summary>One of a fortress's people, standing at <paramref name="feet"/> facing <paramref name="facing"/>: the crew's
+    /// model in their own drab, idling on their own beat (note 107).</summary>
+    /// <param name="drab">How much darker than the crew they're dressed (a town's people, near and talked to, are lighter).</param>
+    /// <param name="pose">How they're standing (a town's people, note 281): "idle", "seated" (at a table, in a chair),
+    /// "crouch" (at the range), "lantern" (out in the street with a lamp, lit).</param>
+    void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle")
+    {
+        var back = -ToF(facing);
+        var right = Vector3.Cross(Vector3.UnitY, back);
+        var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
+        drab += variant % 3 * 0.05f;
+        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", _ => "idle" };
+        var creatures = Look!.Art.Creatures;
+        if (!creatures.Draw(mesh, "crew", clip, Time + variant * 0.73, true, m, variant, seed: variant * 13,
+            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) }))
+            return;
+        // The street's lamp-carriers: the hand lamp hung from the fist, burning.
+        if (pose == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m))
+        {
+            var flame = creatures.LastHanging;
+            mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
+            mesh.Billboard(flame, 0.35f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        }
+    }
+
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
     void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true)
     {
         if (Look is not null)
         {
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time);
+            // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
+            var town = start == 0 && lit ? Town : null;
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
+            if (town is not null)
+            {
+                Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                foreach (var p in town.Plan.People)
+                {
+                    var feet = town.Feet(p);
+                    if ((feet - eye).Length > 160)
+                        continue;
+                    bool talking = TownFacing is { } f && f.Person == p.Id;
+                    var facing = talking && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
+                        ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose);
+                    // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
+                    // a lit door or a fire at their back).
+                    if (talking)
+                        mesh.PointLights.Add(new PointLight(V(feet + facing * 1.1 + Double3.Up * 1.8, eye), Palette.LampAmber * 1.1f, 4.5f));
+                }
+                return;
+            }
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
-                {
-                    var back = -ToF(facing);
-                    var right = Vector3.Cross(Vector3.UnitY, back);
-                    var m = Art.CreatureArt.Basis(V(feet, eye), right, Vector3.UnitY, back);
-                    float drab = 0.45f + variant % 3 * 0.05f;
-                    Look.Art.Creatures.Draw(mesh, "crew", "idle", Time + variant * 0.73, true, m, variant, seed: variant * 13,
-                        adjust: (_, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) });
-                }
+                    Folk(mesh, eye, feet, facing, variant);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);

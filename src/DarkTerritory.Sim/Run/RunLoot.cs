@@ -48,6 +48,7 @@ public sealed partial class Run
                 _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i),
                     StopLoot.Toys(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
+        FindHidingSpots();
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
     }
@@ -153,10 +154,17 @@ public sealed partial class Run
     /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does when the train
     /// first stops there (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
     /// </summary>
-    public void Stock(Physics.Bodies bodies, int stop)
+    /// <param name="searched">Its open houses searched too (note 326), every find out where it was kept (and only that, if its
+    /// loot's already out).</param>
+    public void Stock(Physics.Bodies bodies, int stop, bool searched = false)
     {
-        if (_loot is { } t && _lootLine is { } line && stop >= 0 && stop < _stopLoot.Count)
+        if (_loot is not { } t || _lootLine is not { } line || stop < 0 || stop >= _stopLoot.Count)
+            return;
+        if (!searched || !_stocked[stop])
             Stock(bodies, line, t, stop);
+        if (searched)
+            foreach (var spot in _spots.Where(x => x.Stop == stop).ToList())
+                Reveal(bodies, stop, spot.Container);
     }
 
     /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
@@ -177,8 +185,7 @@ public sealed partial class Run
             // A repair kit (E.12 question 4), lying beside what the container holds: not the crew's until one of them picks it up.
             if (kits.Contains(c.Index))
             {
-                var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                    ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                var put = StopWalls.FindAt(stop, c);
                 bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
             }
             switch (c.Kind)
@@ -195,9 +202,12 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
-                    // A find in a shut house is put out on its step (T114: the houses are walls now, with no way in).
-                    var put = c.Building >= 0 && c.Building < stop.Buildings.Count && StopWalls.Walled(stop, c.Building)
-                        ? StopWalls.Doorstep(stop.Buildings[c.Building], c.Index) : c.At;
+                    // In an open house's cupboard, cabinet, cellar or floor, it's there to be searched for (note 326).
+                    if (Hidden(k, c))
+                        break;
+                    // A find in a shut house is put out on its step (T114: the houses are walls, with no way in); in an open
+                    // one it's inside, where it'd be kept (note 326).
+                    var put = StopWalls.FindAt(stop, c);
                     if (finds.Any(x => x.Container == c.Index))
                         bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     // A toy with it (note 264), beside the find: GDD §19's hand loot, for the Track Doll or the meter.
