@@ -4484,3 +4484,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the lake is wet under the deck, the ground below its level;
         - the stretch is exposed.
       The other waterside tests are unchanged (the formation-at-rail check already skips bridge spans). Seen in `dt screenshot --route deadLines:12 --structure trestle --view trackside`: Bramwell Trestle's bents stand in the black water, the train on the deck. In `--at 6000 --view ahead` the deck runs out across the lake between its riprap banks.
+
+318. **The run map's and the route card's markers where the stops are (B4, queue #57; the director, 7 Oct 2026: "markers on the map in the train dont seem to align properly with stops on the route").** Measured on frontier:7, there were three causes:
+    - **The cab map marked each stop at its zone's start** (`RouteFeature.Start`). Where the train stands is the stop point, 150 to 445 m on (Maddox's halt 445 m, the Grain Elevator's yard 345 m). With the train standing at a halt, its red mark sat a marker's width or two past the halt's. `GreyboxScene.MapStop` marks the layout's stop point (`Run.StopWorld`): the platform, or the yard's working track off to its side. On a hand-laid route, whose stops have no layouts, it marks the zone's middle.
+    - **The train's red mark sampled the main line at the engine's distance**, which is along its own path. On a spur or an alternate that's a point on main somewhere else. It's now the engine's own place (`CarFrame.Origin`), so in a yard it sits off the line by the yard, where the train is.
+    - **The route card's profile** ticked each timetable place at its kilometre (`CardLine.Km`, counted from the outer gate, kilometre post zero, linegen plan §9.7) as if counted from the line's start. That's the same axis as the train's pencil, so every tick was a gate's length (about 1.2 km on frontier:7) early against the train. `PlanHud.ProfileAt` puts a kilometre post where it is on the profile. The 5 km ticks are the posts' too now.
+    - **Verified:** `MapMarkerTests`:
+        - `TheRunMapMarksEachStopWhereTheTrainStandsAtIt`: every stop on frontier:7 is marked within its stop point's offset of where the train stands, and never at its zone's start.
+        - `TheRouteCardTicksEachPlaceWhereTheTrainsPencilWillBeThere`: every main-line landmark's tick is within 60 m of the pencil for a train standing there.
+      Both fail without this. `dt screenshot --route frontier:7 --at 10243 --view cab`, standing at Maddox's halt: the red mark covers the halt's.
