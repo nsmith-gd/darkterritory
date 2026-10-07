@@ -16,7 +16,10 @@ public class BoardingRuleTests
     {
         var h = n.World.AddEnemy(id => new CinderHound(id, 1)
         {
-            LineDistance = n.Train.Dynamics.RearDistance - 10, Lateral = 4, Height = 0.6, Health = E.CinderHounds.Health,
+            LineDistance = n.Train.Dynamics.RearDistance - 10,
+            Lateral = 4,
+            Height = 0.6,
+            Health = E.CinderHounds.Health,
         });
         n.Run(E.CinderHounds.HowlSeconds + 1);
         Assert.Equal(n.Train.Dynamics.Consist.Vehicles[^1].Id, h.Attached);
