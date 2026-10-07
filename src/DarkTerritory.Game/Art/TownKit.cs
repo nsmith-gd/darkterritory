@@ -266,19 +266,17 @@ public static class TownKit
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
         {
-            // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side
-            // (StopWalls.Kept, where the scene draws a searched one opened).
+            // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side,
+            // as solid as the walls (StopWalls.Furniture; the scene draws a searched one opened).
             var (x, y, _, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
             bool endOn = fx != 0;
             switch (c.Kind)
             {
-                case Sim.Stops.ContainerKind.Cupboard:
-                    k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
-                    Box(x, y, endOn ? 0.25 : 0.5, endOn ? 0.5 : 0.25, Floor, 1.9f);
-                    break;
-                case Sim.Stops.ContainerKind.Cabinet:
-                    k.Use("wood_grey", Palette.RustRed, 0.8f, 0.1f, tile: 1);
-                    Box(x, y, endOn ? 0.42 : 0.22, endOn ? 0.22 : 0.42, Floor, 1.0f);
+                case Sim.Stops.ContainerKind.Cupboard or Sim.Stops.ContainerKind.Cabinet:
+                    var piece = Sim.Run.StopWalls.Furniture(b, [c]).Single();
+                    bool cupboard = c.Kind == Sim.Stops.ContainerKind.Cupboard;
+                    k.Use("wood_grey", cupboard ? Palette.DeepBrown : Palette.RustRed, 0.8f, cupboard ? 0.05f : 0.1f, tile: 1);
+                    Box(piece.X, piece.Y, piece.HalfX, piece.HalfY, Floor, cupboard ? 1.9f : 1.0f);
                     break;
                 case Sim.Stops.ContainerKind.Cellar:
                     k.Use("wood_grey", Palette.SootBlack, 0.9f, 0, tile: 1);

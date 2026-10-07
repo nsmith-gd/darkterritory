@@ -4724,9 +4724,9 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the cellar's hatch stood up on its hinge over a black hole;
         - the boards laid by the gap they came from.
       `dt screenshot --searched` searches every open house with its finds out on the floor: `--route frontier:7 --at 10200 --cam 10152.2,101.2,1.6 --target 10148.9,104.9,0.7 --lantern --fov 75 --dawn 0.6` is Maddox's house 20's cupboard (`--cam 10152.0,101.5,1.6 --target 10155.4,104.6,0.5` its cabinet); `--at 10350 --cam 10311.6,48.5,1.7 --target 10313.5,51.4,0` house 15's cellar; `--at 19300 --cam 19258.2,-84.3,1.7 --target 19260,-86.3,0` a floor at stop 4. `SearchTests.WhatsKeptStandsInTheHouseFacingTheRoomWithItsFindInFront` pins `Kept`.
+    - **Solid furniture** (`StopWalls.Furniture`). An open house's cupboards (1 m by 0.5) and cabinets (0.84 by 0.44) stand in `StopWalls` as boxes like its walls, so a crewmate goes round one rather than through it. The art draws them from the same boxes. A find lies just out from the face, and a crewmate stands within the search's reach of it. `OpenHouseTests` walks from the step to just in front of every find, round the furniture, and finds nobody can stand in a cupboard.
     - **Not yet:**
         - Bots that search: a bot crew works the yard and leaves the village's houses alone.
-        - Furniture the crew bump into: the cupboards aren't solid.
         - Rooms and a stair: one room, ground floor.
         - Doors that shut.
         - The L, cross and paired houses.
