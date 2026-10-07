@@ -2086,7 +2086,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **The fort**
 - Fort buildings have no collision, and gun shots hit nothing. *Done (T124, note 274).*
-- Forts must be safe spaces that monsters never enter (§9). *Done (T128, note 273): both forts, all night (`run.json` `forts`): the departure fortress up to its outer gate and the terminus from its gate on, 80 m either side of the line. Nothing is sent while the train is in one, and a creature that comes into one is driven off. Caveat: the fort buildings still have no collision (T124), and the Choir's meter isn't stilled in the terminus.*
+- Forts must be safe spaces that monsters never enter (§9). *Done (T128, note 273): both forts, all night (`run.json` `forts`): the departure fortress up to its outer gate and the terminus from its gate on, 80 m either side of the line. Nothing is sent while the train is in one, and a creature that comes into one is driven off. Caveat: the fort buildings still have no collision (T124), and the Choir's meter isn't stilled in the terminus.* *The fort buildings: done (T124, note 274). The Choir: done (note 296): with the train in a fort the meter doesn't gather, and a swarm that followed it in is gone.*
 
 **Bugs**
 - The train left on its own, with nobody in the cab, after the director got out of the gun seat. It didn't slow down, and the boiler then ruptured. *Done (note 263).*
@@ -2094,7 +2094,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Stoker was killed by crowbar through a shut firebox door (A.5). *Done (notes 263, 271).*
 
 **Abandoned player**
-- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Done (T128, note 273): past 150 m from the train, on the ground and outside the forts, a player builds a pressure of their own (`enemies.json` `director.abandoned`). About 45 s in, a Ribbit pack comes for them alone. Each pack after is bigger (2 to 5) and starts closer (35 m to 18 m). Ribbits can be outrun, and running back into a fort saves them. Caveat: only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground.*
+- A player left behind by the train should feel the world close in: tension, monsters coming, the difficulty spiking for that player. They needn't die at once (§7, §23). *Done (T128, note 273): past 150 m from the train, on the ground and outside the forts, a player builds a pressure of their own (`enemies.json` `director.abandoned`). About 45 s in, a Ribbit pack comes for them alone. Each pack after is bigger (2 to 5) and starts closer (35 m to 18 m). Ribbits can be outrun, and running back into a fort saves them. Caveat: only the Ribbits hunt so far. Hounds or the Gaunt could join once their own rules allow a lone player on the ground.* *The Gaunt: done (note 296): from the third hunt a Gaunt comes with the pack, woken on them, following at their back (talking holds it off), and home onto the train with them. The Cinder Hounds still hunt only the train.*
 
 **Line and derailment**
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *Done (notes 265, 277): boards only on bends that can derail, inked red on the map and on the route card.*
@@ -2131,7 +2131,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - **The world is solid.** The carry that clipped straight through the mountain made everything feel like 2D billboards. Creatures, carries and players must respect the terrain and geometry; everything should be interactable.
 - **UI.** It's still too heavy overall, but players need a way to track all the supplies on board. *Done (notes 264, 277): a supplies panel on I.*
 - **The fortress and the lobby are safe spaces.** Until the run starts, nothing of consequence happens: no boiler overheating, no threats. Players wait for friends, mess about, or walk away for a cigarette, and resume when they're ready (as in Lethal Company's ship). *Done (note 263).*
-- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *In progress.*
+- **Bug:** the guns do nothing. Rounds don't collide where they land and have no visible effect on the monsters. *Done (note 290): every creature in the open has a body a ball stops at, fitted to its model; a ball lands as a heavy blow, answered by the creature's own rule (hurt, a held crewmate freed, a Grumbler turned on the gunner); a hit throws the creature's insides, and a wall keeps the scorch. The Fire Flies and the Choir's ghosts have no body. Whether each can be killed stays with queue #25.*
 
 Further decisions (the director, 6 Oct 2026):
 - **Shut doors stop some boarders, not all.** Some creatures can open, force or get around doors, each by its own rule.
