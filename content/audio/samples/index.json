@@ -896,6 +896,74 @@
   "takes": 3,
   "sha": "817dbf0349f07c25"
  },
+ "crew-cannon-impact/doll": {
+  "cue": "crew-cannon-impact.doll",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Track Doll smashed by a ball, porcelain modelled: her hollow body struck, the shell cracking apart, shards",
+    "key": "porcelain",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "d2f318bb0cfb835c"
+ },
+ "crew-cannon-impact/ground": {
+  "cue": "crew-cannon-impact.ground",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The ball bursting on earth: a crack and a deep boom rolling off the land, then earth and stones raining down",
+    "key": "burst",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8fd046e608da6a8b"
+ },
+ "crew-cannon-impact/water": {
+  "cue": "crew-cannon-impact.water",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball into water from small real splashes slowed down huge: the splash, its gulp, the water crashing back",
+    "key": "column",
+    "sources": [
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:footstep_wet_02",
+     "kenney_impact-sounds:footstep_snow_000",
+     "sfx_100_v2:loop_water_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e4a59dde9d49bb17"
+ },
  "crew-cannon-ram/ram": {
   "cue": "crew-cannon-ram.ram",
   "surface": null,
@@ -4766,6 +4834,30 @@
   "takes": 6,
   "sha": "8fb9265172c88a3d"
  },
+ "crew-gun-lay/lay": {
+  "cue": "crew-gun-lay.lay",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The laying gear as a little steam engine: sharp exhaust chuffs, the valve gear's clack, worm teeth knocking",
+    "key": "engine",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01",
+     "kenney_rpg-audio:handleCoins2",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0e0048d577f303f9"
+ },
  "crew-hurt/body-fall/concrete": {
   "cue": "crew-hurt.body-fall",
   "surface": "concrete",
@@ -6874,6 +6966,68 @@
   ],
   "takes": 2,
   "sha": "36ad30d4a5d3bf55"
+ },
+ "crew-noisy-toys/drummer": {
+  "cue": "crew-noisy-toys.drummer",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wind-up tin drummer from real tin: a toy drum beaten in a steady march, a cymbal's tink, the motor whirring",
+    "key": "tin",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "sfx_100_v2:lock_open_01",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:loop_machine_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f3743473f7b3ae87"
+ },
+ "crew-noisy-toys/music-box": {
+  "cue": "crew-noisy-toys.music-box",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wind-up music box playing Brahms' lullaby: a modelled steel comb, bright and tinkly, the governor whirring",
+    "key": "comb",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "85401f4930ccdc3c"
+ },
+ "crew-noisy-toys/squeaker": {
+  "cue": "crew-noisy-toys.squeaker",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A small rubber squeeze toy, its reed whistle modelled: a bright squeak in, a breathy wheeze out, at uneven gaps",
+    "key": "reed",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4e67998e1aa0bd3d"
  },
  "crew-repair/board-place": {
   "cue": "crew-repair.board-place",
@@ -9234,6 +9388,66 @@
   "takes": 1,
   "sha": "9a0f4ab2eb051f12"
  },
+ "place-depot/powder-blast": {
+  "cue": "place-depot.powder-blast",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A powder car going up: the slow shove, the blast rolling like thunder, planks and iron torn, fire, wreckage raining",
+    "key": "car",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_34",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "1e3f8ecfac1086a0"
+ },
  "place-grain/grain-pour": {
   "cue": "place-grain.grain-pour",
   "surface": null,
@@ -11058,6 +11272,61 @@
   "takes": 4,
   "sha": "880ecfa9a242b51b"
  },
+ "ui-stranded-outro/boiler-tick": {
+  "cue": "ui-stranded-outro.boiler-tick",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The dead engine cooling, from real metal: ticks, pings, a plate's bonk and a seam's creak, uneven, in the dark",
+    "key": "cooling",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactBell_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_rpg-audio:creak2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b6f22b22133f175f"
+ },
+ "ui-stranded-outro/lamp-out": {
+  "cue": "ui-stranded-outro.lamp-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "An oil lamp guttering out: its flame fluttering and spitting, a soft puff as it dies, the hot glass ticking",
+    "key": "gutter",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "25add95cbf2900b0"
+ },
  "voice-callout/bang": {
   "cue": "voice-callout.bang",
   "surface": null,
@@ -11427,6 +11696,77 @@
   ],
   "takes": 1,
   "sha": "49edb83808b4fc71"
+ },
+ "warn-curve/chatter": {
+  "cue": "warn-curve.chatter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The roof irons' real rattle: loose stanchions and brackets knocking in their sockets, rocking in two swells",
+    "key": "irons",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "sfx_100_v2:metal_03",
+     "sfx_100_v2:misc_09",
+     "sfx_100_v2:metal_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fc6734e755bb6f75"
+ },
+ "warn-low-clearance/telltales": {
+  "cue": "warn-low-clearance.telltales",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The telltales as soft cords: cloth and leather flaps sped up, brushing and slapping over the tin and your coat",
+    "key": "cords",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:dropLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f3a2514756c6df65"
+ },
+ "warn-overspeed/bell": {
+  "cue": "warn-overspeed.bell",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A small brass bell's modes (1.2 kHz strike, 2.6 and 4.1 kHz bright pair) rung twice by a real steel hammer",
+    "key": "brass",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "14eb94104cd51fa6"
  },
  "world-brass/cut": {
   "cue": "world-brass.cut",

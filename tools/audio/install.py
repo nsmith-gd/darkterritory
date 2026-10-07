@@ -187,7 +187,10 @@ def candidates(line, cue, stored):
 # tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
 # heard building (build 1121, note 265): the squeal that holds and the shriek that climbs were made for that, where the
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
-FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek"}
+# Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
+# lamp guttering from its flame over cloth whooshes.
+FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
+                "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -268,8 +271,12 @@ SWAPS = {
     "ui-stranded-outro.lamp-out": ("lamp-out", {}),
 }
 # Level on top of each swapped synth definition's, so the takes sit where the synth did (main tuned the mix against
-# it): the synth's loudness less the takes', both through `dt audio render sound:<name>`.
-SWAP_GAIN_DB = {}
+# it): the synth's loudness less the takes', both through `dt audio render sound:<name>`. The toys instead by note 174's
+# test (AudioTests' toys bench: carried on a roof, each 6 dB over the wind and the three within 4 dB): a squeaker that
+# squeaks now and then and a music box's decaying plucks measure quieter than their loudness says.
+SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "gun-lay": 1, "lamp-out": -14,
+                "powder-blast": -3, "toy-drummer": -10, "toy-musicbox": 11, "toy-squeaker": 5, "warn-curve": -6,
+                "warn-low-clearance": 2, "warn-overspeed": 5}
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
@@ -422,6 +429,7 @@ def tell_sounds(chosen):
                 d["loop"] = False
             if not d.get("loop"):
                 d.pop("duration", None)    # a one-shot of takes ends with its take
+            d.pop("cycleSeconds", None)    # the synth's envelopes' period: the takes have none
             if _write_def(os.path.join(SOUNDS, name + ".json"),
                           f"// The {'tell' if line in TELL_SOUNDS else 'cue'}'s takes from the audio checklist, kept or the first candidate under review\n"
                           f"// ({', '.join(fo for fo, _ in folders)}), in place of its synth definition\n"

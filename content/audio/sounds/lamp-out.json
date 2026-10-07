@@ -1,13 +1,18 @@
-// Player action (tier 4, GDD v1.4 App. E.9 Stranded outro, "the lamps going out one by one"): a car's lamp guttering out,
-// the flame's last flutter and a soft pop, the hot glass ticking once. At the car, as each goes, the last car first.
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (ui-stranded-outro/lamp-out), in place of its synth definition
+// (tools/audio/synth-defs/lamp-out.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 4, "duration": 0.9, "maxInstances": 4, "minDistance": 4, "maxDistance": 220,
-  "layers": [
-    { "source": "noise", "gain": 0.45, "filters": [{ "type": "bandPass", "frequency": 700, "q": 1.2 }],
-      "tremolo": { "rate": 18, "depth": 0.8, "jitter": 0.6 }, "envelope": [[0, 0.6], [0.25, 0.8], [0.4, 0]] },
-    { "source": "impulse", "frequency": 1, "gain": 0.7, "delay": 0.38, "filters": [{ "type": "lowPass", "frequency": 600, "q": 0.9 }],
-      "envelope": [[0, 1], [0.15, 0]] },
-    { "source": "impulse", "frequency": 1, "gain": 0.25, "delay": 0.62, "filters": [{ "type": "bandPass", "frequency": 4200, "q": 10 }],
-      "envelope": [[0, 1], [0.1, 0]] }
-  ]
+ "tier": 4,
+ "maxInstances": 4,
+ "minDistance": 4,
+ "maxDistance": 220,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "ui-stranded-outro/lamp-out",
+   "gain": 1
+  }
+ ],
+ "gainDb": -14
 }
