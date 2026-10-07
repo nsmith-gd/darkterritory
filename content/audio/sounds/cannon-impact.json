@@ -1,20 +1,23 @@
-// Player action (tier 4, T121 playtest: "every cannonball should have an impact explosion"): where a ball comes down, the
-// boom of it. A deep thump through the ground that rolls on, the crack of the burst over it, and earth and splinters
-// pattering down after. Played at the impact, heard a long way (it's a cannon: the Choir hears it too).
+// The cue's takes from the audio checklist, kept or the first candidate under review
+// (crew-cannon-impact/ground), in place of its synth definition
+// (tools/audio/synth-defs/cannon-impact.json), keeping its tier, range and level. Written by
+// tools/audio/install.py; edit the cue or that file, not this one.
 {
-  "tier": 4, "duration": 2.2, "maxInstances": 4, "minDistance": 6, "maxDistance": 600, "rolloff": 0.8,
-  "crush": { "bits": 8, "rate": 16000 },
-  "layers": [
-    { "source": "impulse", "frequency": 1, "gain": 2.6,
-      "filters": [{ "type": "lowPass", "frequency": 160, "q": 0.9 }],
-      "envelope": [[0, 1], [0.6, 0.35], [1.6, 0]] },
-    { "source": "sine", "frequency": 48, "gain": 0.9, "pitchEnvelope": [[0, 1.5], [0.4, 0.8]], "envelope": [[0, 1], [0.9, 0]] },
-    { "source": "noise", "gain": 1.3,
-      "filters": [{ "type": "bandPass", "frequency": 1100, "q": 0.8 }],
-      "envelope": [[0, 1], [0.05, 0.45], [0.35, 0]] },
-    { "source": "noise", "gain": 0.45, "delay": 0.25,
-      "filters": [{ "type": "bandPass", "frequency": 2400, "q": 1.4 }],
-      "tremolo": { "rate": 13, "depth": 0.9, "jitter": 0.6 },
-      "envelope": [[0, 0], [0.1, 1], [0.9, 0.3], [1.5, 0]] }
-  ]
+ "tier": 4,
+ "maxInstances": 4,
+ "minDistance": 6,
+ "maxDistance": 600,
+ "rolloff": 0.8,
+ "crush": {
+  "bits": 8,
+  "rate": 16000
+ },
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-cannon-impact/ground",
+   "gain": 1
+  }
+ ],
+ "gainDb": -1
 }
