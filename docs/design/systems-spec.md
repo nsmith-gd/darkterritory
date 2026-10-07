@@ -319,6 +319,31 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
 | Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 
+## B.10 Director pacing
+
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+
+| Parameter | Value |
+|---|---|
+| **Grace period** | **20–90 s**, per night from its seed; the draw above 20 s × 1 Local, 0.85 Frontier, 0.7 Dead Lines, 0.55 Deep Territory |
+| Pressure at the end of the grace | 4 |
+| **Threshold** (spends) | **10** |
+| Pressed (cooldown gives way, curve overdrawn by up to 3) | 16 |
+| Most banked | 18 |
+| **Relief per spawn** | **3 × its cost** |
+| Base | 0.03 /s |
+| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
+| Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
+| Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
+| Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
+| Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
+| **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
+| Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
+| Post-spawn cooldown | 25–45 s (gives way when pressed) |
+
+Early in a night the pressure takes about a minute after a spawn to reach the threshold again; near the end about twenty seconds, and the cooldown sets the pace. In the harness (8 bots, 1,800 s, ARCHITECTURE §8 note 266) that is 4–5 of the director's spawns in the first five minutes against 11–12 in the last, and no quiet over about 30 s.
+
 ## B.11 Fire grid
 
 A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). Each car's floor, side walls and roof are cut into cells of about 1.5 m, never mid-air; the end walls aren't cells, and a fire's way out of a car is through its ends. Each cell has its own heat (0 to 1) and its own fuel, and a cell that burns chars for the rest of the night. The extinguisher puts out the cell you aim at. The numbers live in enemies.json `carFire`.
