@@ -266,6 +266,9 @@ public static class Spawns
         }, c =>
         {
             var t = c.Tuning.Moose;
+            // Only to a stopped train (an insisted night places it without the weight's gates): it's the stop's.
+            if (!c.Stopped)
+                return false;
             var mid = c.Train.Line.Sample(c.Train.Dynamics.Path, c.Front - c.Train.Dynamics.Consist.LengthMetres * 0.5);
             var right = Double3.Cross(mid.Tangent, Double3.Up).Normalized;
             // Its ground: beside the stop, out from the consist's middle on either side, wherever a moose can stand.
