@@ -17,9 +17,9 @@ sealed class Night
     public readonly List<GunShot> Shots = new();
     public TrainControls Controls = new() { Reverser = 1 };
 
-    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null)
+    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null, RailLine? line = null)
     {
-        var line = route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
+        line ??= route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, route is null ? 2_000 : 400, boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);

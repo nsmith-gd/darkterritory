@@ -255,10 +255,35 @@ public sealed class Director
                 return Held("terrain at its ceiling");
         }
         Build(world, active, elapsed, s);
+        // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
+        // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
+        // big the pressure waits (listening) up to holdUntil, and then the biggest draw standing takes it. A quiet crew buys
+        // itself time (GDD §14: "sometimes the correct response to a monster is to go quiet").
+        var draw = _t.Draw;
+        bool answering = false;
+        if (draw.Enabled && First is null)
+        {
+            if (_answer is null && Draws.Top is var top && top.Amount >= draw.AnswerAt)
+            {
+                _answer = (top.Cause, top.Actor, top.Amount, world.Run?.Seconds ?? elapsed);
+                _answerIn = draw.LeadSeconds;
+                _heard.Add((top.Cause, top.Actor));
+                return Held("answering");
+            }
+            if (_answer is not null)
+            {
+                if ((_answerIn -= 1) > 0)
+                    return Held("answering");
+                _pressure = Math.Max(_pressure, _t.Pressure.Threshold);
+                answering = true;
+            }
+            else if (draw.HoldFirst && _pressure >= _t.Pressure.Threshold && _pressure < draw.HoldUntil)
+                return Held("listening");
+        }
         // Past the threshold the director spends; well past it (pressed: a long quiet, or a night the budget's curve can't keep
         // up with) the cooldown gives way, and the curve may be overdrawn by up to pacedCost. The caps and each kind's gates
-        // still hold.
-        bool due = _pressure >= _t.Pressure.PressAt;
+        // still hold. An answered draw is pressed for: the dark said it was coming.
+        bool due = _pressure >= _t.Pressure.PressAt || answering;
         if (_pressure < _t.Pressure.Threshold)
             return Held("building");
         if (_cooldown > 0 && !due)
@@ -323,6 +348,12 @@ public sealed class Director
                     if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
                         options[i] = (options[i].Kind, options[i].Weight * w);
         }
+        // The first threat answers its draw (note 287): what that draw calls comes on more (the whistle the Whistler, a lamp the
+        // Fire Flies, the cargo the Car Hugger).
+        if (draw.Enabled && First is null
+            && draw.Answers.GetValueOrDefault(DrawLedger.Key(_answer?.Cause ?? Draws.Top.Cause)) is { } calls)
+            for (int i = 0; i < options.Count; i++)
+                options[i] = (options[i].Kind, options[i].Weight * calls.GetValueOrDefault(Key(options[i].Kind), 1));
         if (options.Count == 0)
             return Held("nothing fits");
         // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning
@@ -616,9 +647,102 @@ public sealed class Director
 
     readonly Dictionary<string, double> _spentByWant = new();
 
+    /// <summary>The night's draws (note 287), host-side: the World credits each act as it's made, and <see cref="Listen"/> the rest.</summary>
+    public DrawLedger Draws { get; } = new();
+    /// <summary>The night's first threat and what drew it (note 287), once it's come.</summary>
+    public FirstThreat? First { get; private set; }
+    (DrawCause Cause, int Actor, double Amount, double At)? _answer;
+    double _answerIn;
+    readonly List<(DrawCause Cause, int Actor)> _heard = [];
+    readonly SortedDictionary<int, double> _loadsWere = [];
+    bool _listened;
+
+    /// <summary>The answers given since last asked (note 287): the World puts each where it's heard, for every machine.</summary>
+    public List<(DrawCause Cause, int Actor)> TakeAnswers()
+    {
+        var heard = _heard.ToList();
+        _heard.Clear();
+        return heard;
+    }
+
+    /// <summary>
+    /// Once a second, out of the safe yard (note 287): the draws that are a state rather than an act (the firebox held hot, by
+    /// whoever tended it; the engine at speed, by whoever drove; cargo come aboard, by the crewmate nearest the car it came
+    /// into), and the ledger's fade. The acts (the whistle, a round, voices, a toy, a lamp) the World credits as they happen.
+    /// </summary>
+    public void Listen(World world)
+    {
+        var draw = _t.Draw;
+        if (!draw.Enabled)
+            return;
+        Draws.Fade(1, draw.HalfLifeSeconds);
+        var train = world.Train;
+        var a = world.Attribution;
+        if (train.BoilerTuning is { FireboxCapacity: > 0 } bt && !train.Boiler.Ruptured && train.Boiler.Firebox > draw.FireboxFrom)
+            Draws.Add(DrawCause.Firebox, a.Tender, draw.Weight(DrawCause.Firebox)
+                * Math.Clamp((train.Boiler.Firebox - draw.FireboxFrom) / Math.Max(0.1, bt.FireboxCapacity - draw.FireboxFrom), 0, 1));
+        if (draw.EngineFullSpeed > 0)
+            Draws.Add(DrawCause.Engine, a.Driver, draw.Weight(DrawCause.Engine) * Math.Clamp(Math.Abs(train.Dynamics.Speed) / draw.EngineFullSpeed, 0, 1));
+        // Cargo come aboard since last second: loaded at a stop, or a loaded car coupled on. What the train left the fortress
+        // with isn't a draw (the first look only notes it).
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Kind != VehicleKind.Cargo)
+                continue;
+            double loads = v.Cargo == CargoKind.None ? 0
+                : v.Load * _t.Pressure.CargoValue.GetValueOrDefault(char.ToLowerInvariant(v.Cargo.ToString()[0]) + v.Cargo.ToString()[1..], 1);
+            double were = _loadsWere.GetValueOrDefault(v.Id, _listened ? 0 : loads);
+            _loadsWere[v.Id] = loads;
+            if (loads > were + 1e-6 && v.Id < train.Frames.Count)
+                Draws.Add(DrawCause.Cargo, Run.IncidentLog.Nearest(world, train.Frames[v.Id].Origin, world.CrewThisTick).Actor,
+                    draw.Weight(DrawCause.Cargo) * (loads - were));
+        }
+        _listened = true;
+    }
+
+    /// <summary>
+    /// Records the night's first threat (note 287), once: what came, what drew it and who, and the incident report's line (C.9:
+    /// "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."). The director writes the line; it never reads the log.
+    /// </summary>
+    public void Came(World world, EnemyKind kind, DrawCause cause, int actor, double amount, double answeredAt = -1)
+    {
+        if (First is not null)
+            return;
+        double seconds = world.Run?.Seconds ?? world.ElapsedSeconds;
+        // Switched off, it's still noted when the first came (the harness's before and after), but nothing drew it.
+        if (!_t.Draw.Enabled)
+            (cause, actor, amount, answeredAt) = (DrawCause.None, -1, 0, -1);
+        First = new FirstThreat(world.Tick, seconds, world.Train.Dynamics.Distance, kind, cause, actor, amount, answeredAt >= 0,
+            answeredAt >= 0 ? answeredAt : seconds);
+        if (!_t.Draw.Enabled)
+            return;
+        string by = cause == DrawCause.None ? "Drawn by nothing anyone did."
+            : actor >= 0 ? $"Drawn by {DrawLedger.Said(cause)}: {{actor}}." : $"Drawn by {DrawLedger.Said(cause)}.";
+        world.Attribution.Add(Run.IncidentLog.Event(world, Run.IncidentKind.Drawn, $"{Named(kind)} came first", actor, by));
+    }
+
+    /// <summary>A kind as the clerk names it: "The Track Doll", "Cinder Hounds", "The Fire Flies".</summary>
+    static string Named(EnemyKind kind) => kind switch
+    {
+        EnemyKind.CinderHound => "Cinder Hounds",
+        EnemyKind.Dragger => "Draggers",
+        EnemyKind.Climber => "Climbers",
+        EnemyKind.Follower => "Followers",
+        EnemyKind.Ribbit => "The Ribbits",
+        _ => $"The {Run.IncidentLog.Spoken(kind.ToString())}",
+    };
+
     /// <summary>Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5).</summary>
     public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false)
     {
+        // The night's first (note 287): the Stoker is the firebox's own answer (drawn by heat, note 263), whoever tended it last;
+        // anything else, the draw that was answered, or the biggest standing.
+        if (kind == EnemyKind.Stoker)
+            Came(world, kind, DrawCause.Firebox, world.Attribution.Tender, Draws.Of(DrawCause.Firebox, world.Attribution.Tender));
+        else if (_answer is { } answer)
+            Came(world, kind, answer.Cause, answer.Actor, answer.Amount, answer.At);
+        else
+            Came(world, kind, Draws.Top.Cause, Draws.Top.Actor, Draws.Top.Amount);
         // D.11's payoff for the dead: a creature they voted for is coming; the host tells the dead (and only them) who called it.
         if (VotersFor(kind) is { Count: > 0 } voters)
             _cues.Add((kind, voters));

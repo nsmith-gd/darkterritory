@@ -7,9 +7,10 @@ namespace DarkTerritory.Sim.Run;
 /// Note 190: the rows that aren't a death, each the tick it happens: the Track Doll or the Sleepers struck (<see cref="Struck"/>),
 /// the Fire Flies setting a car alight (<see cref="Fire"/>), Followers nesting (<see cref="Nest"/>), a Grumbler craned
 /// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), the Switchman's points (<see cref="Points"/>),
-/// and any other PUNISH that held nobody (<see cref="Punished"/>).
+/// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
+/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Slain }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the
