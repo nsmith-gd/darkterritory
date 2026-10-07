@@ -77,7 +77,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 35 | **Comfort settings:** FIELD OF VIEW (fixed at 75° vertical now), INVERT MOUSE, and CAMERA SHAKE (the boiler's shake and a strained car's judder, notes 263 and 277, scaled down or off), in the settings and the in-night menu (#30). Presentation only: the sim never sees them | F1 | `claude/upbeat-hawking-58yczu` (after #31) | 297 | claimed |
 | 36 | **The yard's fun (GDD §9, the director's decision of 6 Oct: "the crew wait for friends, hang out, dance, try on outfits"):** emotes (dance, wave, point) on a held key's wheel, sent as intent and seen by the crew; outfits tried on at a locker in the fortress yard (the crew's cap or helmet, scarf and coat colour, today fixed by player id), kept in the settings and shown to everyone. **Overlaps:** the dance clip is art's (asked of C1/E1 on their PRs; until then an existing clip stands in); the protocol (a byte in the hello and the player record) | F1 | `claude/upbeat-hawking-58yczu` (after #35) | 298 | claimed |
 | 37 | **The bot gunner takes its gun:** in an 8-bot night with enemies (`dt harness --route frontier:7 --bots 8 --enemies --seconds 600`) the gunner never fires a round (main and #212 alike: 0 rounds, a hound pack aboard, 3 mauled). From the yard it goes into car 1 to catch the mail cranes' bags (`RoofWalkerBot.Look`'s drops) and there's always another ahead, so it never reaches the guard gun (the harness's `posts`: gunner -1). Bots crew solo nights in the app too | D1 | `claude/relaxed-franklin-xkfjgb`, [#215](https://github.com/nsmith-gd/darkterritory/pull/215) | 299 | done |
-| 38 | **Solo, a few runs then friends:** the director (GDD App. F.1, 6 Oct): "a solo player can finish one to three runs before it gets seriously hard and they realise they need friends ... The solo finish target will be tested later." Sweep solo nights (`dt balance --crews 1`) across the early tiers and train lengths, judge them in `balance.json`, and tune if it's off | D1 | `claude/relaxed-franklin-xkfjgb` (after #37) | 300 | claimed |
+| 38 | **Solo, a few runs then friends:** the director (GDD App. F.1, 6 Oct): "a solo player can finish one to three runs before it gets seriously hard and they realise they need friends ... The solo finish target will be tested later." Sweep solo nights (`dt balance --crews 1`) across the early tiers and train lengths, judge them in `balance.json`, and tune if it's off | D1 | `claude/relaxed-franklin-xkfjgb`, [#221](https://github.com/nsmith-gd/darkterritory/pull/221) | 300 | done |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
 14:45 UTC (D1, main at 8caabe7, version 8); whoever lands a gdd.md change republishes it (A1 when it's about).
@@ -92,6 +92,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| Solo tested: two lone-driver stalls fixed, App. F.1's target judged (a bot alone delivers everything; income is the wall) | [#221](https://github.com/nsmith-gd/darkterritory/pull/221) | 300 |
 | The bot gunner takes its gun: the mail cranes' bags are the walkers' | [#215](https://github.com/nsmith-gd/darkterritory/pull/215) | 299 |
 | T128's caveats: the Choir stilled in the forts, a Gaunt among the left-behind's hunters | [#213](https://github.com/nsmith-gd/darkterritory/pull/213) | 296 |
 | The guns' effect on creatures: every body in the open stops a ball, a ball lands as a blow, the hit seen | [#212](https://github.com/nsmith-gd/darkterritory/pull/212) | 290 |
@@ -104,4 +105,5 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 ## Waiting on the director
 
 - GDD D.15, question 3: the answer was cut off.
+- What makes solo "seriously hard" (App. F.1; note 300): a bot alone delivers every night swept, Local to Dead Lines at 10 cars, at about a third of a crew's income. Four untuned options in note 300.
 - Whether the Stoker's hose should be a real cab fitting (a slacking pipe) instead of an extinguisher (note 271).
