@@ -531,6 +531,20 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ATrainStoodAsFarPastItsHoldAsItMayLeavesThePointsFree()
+    {
+        // Note 300: the hold is two metres short of the points, and the driver took a stand up to three past it as there. Its
+        // front on the points, they wouldn't go over, and a crew of one stood at the lever till the cold took it.
+        var night = new Night(cars: 3, walkers: 0, hands: 0, modules: ModuleKind.Crates);
+        night.Until(() => false, 1); // the driver says it'll work the stop itself
+        var plan = StopPlan.Ahead(night.World, night.Train.Dynamics.Distance, new HashSet<int>(), night.Calls);
+        Assert.NotNull(plan);
+        var standing = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 1)), night.Train.Line, plan.Hold + StopDriver.HoldOver, Tuning.Boiler);
+        Assert.False(standing.PointsOccupied(plan.Spur.Index, Tuning.Route.Junctions.PointsLength));
+        Assert.True(plan.StandingAt(standing));
+    }
+
+    [Fact]
     public void WithTheDawnCloseItRunsPast()
     {
         // Every stop is optional (GDD §18): with no time for one before the line goes live, the driver doesn't make it.

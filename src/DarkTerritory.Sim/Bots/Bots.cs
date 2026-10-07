@@ -1447,7 +1447,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             if (_alone is not null && calls is not null)
             {
                 _aloneHand ??= new StopHand(StopJob.None, calls, member);
-                if (_aloneHand.SetBackAlone(self, world, _alone, _aloneTo) is { } getting)
+                // The stop's given the spur up (its Held give-up: the points wouldn't go over) with the switch still for the
+                // main: back up into the cab, not at the lever all night (note 300).
+                var to = _aloneTo && !train.Diverging(_alone.Index) && stops.ThrowAlone(world) is null ? null : _alone;
+                if (_aloneHand.SetBackAlone(self, world, to, _aloneTo) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
                     return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };

@@ -368,7 +368,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 
     /// <summary>The engine's rake is standing where it stops for this, on the main line.</summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 3;
+        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold is > -3 and <= StopDriver.HoldOver;
 
     /// <summary>The engine's rake is at the buffer stop down the spur, standing (where the loading's done).</summary>
     public bool AtTheEnd(TrainOnLine train) =>
@@ -540,8 +540,8 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
     /// up behind is still the train; frontier:7 stood at a dead line's switch till dawn with one, nobody setting it back.
     /// </summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3
-        && train.Rakes.All(r => train.Standing(r) || train.Line.OnMain(r.Path, r.Distance) && Math.Abs(r.Velocity) < 0.05 && r.Distance - Hold < 3);
+        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold <= StopDriver.HoldOver
+        && train.Rakes.All(r => train.Standing(r) || train.Line.OnMain(r.Path, r.Distance) && Math.Abs(r.Velocity) < 0.05 && r.Distance - Hold <= StopDriver.HoldOver);
 }
 
 /// <summary>
@@ -667,6 +667,12 @@ public sealed class StopDriver(CrewCalls calls)
         Doing == Leg.Held && Plan is { PickUp: false } p && !world.Train.Diverging(p.Spur.Index) && !calls.Has(StopJob.Shunter) && calls.DriverHand
             && (p.CutBehind < 0 || world.Train.TrainRakes > 1) && Waited > AloneAfter ? p.Spur : null;
 
+    /// <summary>
+    /// The most the engine may stand past a hold and still be there: under the hold's two metres short of the points. It was
+    /// three, and a train standing 2.5 m over had its front on the points; they wouldn't go over, and a crew of one stood at
+    /// the lever till the cold took it (frontier:2, six cars; note 300).
+    /// </summary>
+    public const double HoldOver = 1.5;
     /// <summary>Seconds the driver waits for someone else to take a dead shunter's part before it gets down itself.</summary>
     const double AloneAfter = 15;
     /// <summary>Seconds it waits for a live shunter who hasn't come: the set-backs that work take well under (46 to 93 s).</summary>
@@ -787,12 +793,12 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.SetBack);
                         return Hold(world);
                     }
-                    return engine.Distance > w.Hold + 3 && (still || engine.Velocity < 0) ? Toward(world, w.Hold, -1, 1) : Toward(world, w.Hold, +1, CruiseSpeed);
+                    return engine.Distance > w.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, w.Hold, -1, 1) : Toward(world, w.Hold, +1, CruiseSpeed);
                 }
             case Leg.OffDeadLine:
                 {
                     var w = Switch!;
-                    if (train.OnMain && still && engine.Distance <= w.Hold + 3)
+                    if (train.OnMain && still && engine.Distance <= w.Hold + HoldOver)
                     {
                         Begin(Leg.SetBack);
                         return Hold(world);
@@ -833,13 +839,13 @@ public sealed class StopDriver(CrewCalls calls)
             case Leg.Approach:
                 {
                     var p = Plan!;
-                    if (still && Math.Abs(engine.Distance - p.Hold) < 3)
+                    if (still && engine.Distance - p.Hold is > -3 and <= HoldOver)
                     {
                         Begin(Leg.Held);
                         return Hold(world);
                     }
                     // Overran it: back up to it (the points won't go over with a wheel on them).
-                    return engine.Distance > p.Hold + 3 && (still || engine.Velocity < 0) ? Toward(world, p.Hold, -1, 1) : Toward(world, p.Hold, +1, CruiseSpeed);
+                    return engine.Distance > p.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, p.Hold, -1, 1) : Toward(world, p.Hold, +1, CruiseSpeed);
                 }
             case Leg.Held:
                 {
@@ -934,7 +940,7 @@ public sealed class StopDriver(CrewCalls calls)
                     if (left is { Velocity: < -RunawayAbove } || left is { Velocity: < -0.5 } && engine.Distance < p.Hold - ChaseFor)
                         left = null;
                     bool together = left is null;
-                    if (together && train.OnMain && still && engine.Distance <= p.Hold + 3)
+                    if (together && train.OnMain && still && engine.Distance <= p.Hold + HoldOver)
                     {
                         Begin(Leg.Clear);
                         return Hold(world);
