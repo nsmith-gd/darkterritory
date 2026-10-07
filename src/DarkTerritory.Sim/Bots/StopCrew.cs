@@ -1076,7 +1076,8 @@ public sealed class StopDriver(CrewCalls calls)
     static IReadOnlyCollection<int> OnTheTrain(TrainOnLine train) => [.. train.Vehicles.Select(v => v.Id)];
 
     /// <summary>
-    /// What the driver plans a stop on (m/s²): half of what the brake does now (faded or not), net of the steam. With steam
+    /// What the driver plans a stop on (m/s²): half of what the brake does now (faded or not), and never more than 0.8 of what
+    /// it does net of the steam. With steam
     /// driving (T97) the engine pulls at full effort against the brake under the speed its steam makes, so a stop from line
     /// speed takes nearly twice the bare brake's distance. Reckoned on the bare brake, the driver set off for a switch set
     /// wrong too late and ran onto the dead line (note 289: frontier:7's harness night took both of its Switchmen's).
@@ -1087,7 +1088,8 @@ public sealed class StopDriver(CrewCalls calls)
         double mass = engine.Consist.MassTonnes;
         double brake = engine.MaxBrakeForce * engine.BrakeEfficiency / mass;
         bool pulling = train.BoilerTuning is { SteamDrive: true } bt && train.Boiler.SteamSpeed(bt, engine.Tuning.MaxSpeed) > 0;
-        return Math.Max(0.1, 0.5 * (brake - (pulling ? engine.MaxTractiveForce / mass : 0)));
+        double pull = pulling ? engine.MaxTractiveForce / mass : 0;
+        return Math.Max(0.1, Math.Min(0.5 * brake, 0.8 * (brake - pull)));
     }
 
     static double StoppingDistance(TrainOnLine train) => train.Dynamics.Speed * train.Dynamics.Speed / (2 * BrakeRate(train));

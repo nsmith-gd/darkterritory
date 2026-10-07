@@ -62,6 +62,29 @@ public class SwitchAuditTests
     }
 
     [Fact]
+    public void ACarStoodJustInsideTheBranchHoldsThePoints()
+    {
+        // A car left at the mouth of a spur, its back wheels a few metres past the toe on the branch's leg, is over the
+        // blades: the points mustn't go over for the main line under it (and a train then run past into its side).
+        const double toe = 1000;
+        var j = Tuning.Route.Junctions;
+        var line = new RailLine(new LineDefinition("switch", [new TrackSegment(4000)]),
+            [new BranchDefinition(BranchKind.Spur, toe, +1,
+                [new TrackSegment(j.DivergeLength, -j.DivergeRadius), new TrackSegment(j.DivergeLength, j.DivergeRadius), new TrackSegment(200)])]);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 2, 1)), line, toe - 300);
+        Assert.True(train.ThrowSwitch(0, true, j.PointsLength));
+        double length = train.Dynamics.Consist.LengthMetres;
+        var state = train.Capture();
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = 0, Distance = toe + 3 + length, Velocity = 0 }] });
+        Assert.True(train.PointsOccupied(0, j.PointsLength));
+        Assert.False(train.ThrowSwitch(0, false, j.PointsLength));
+        // Clear of the blades, they go.
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = 0, Distance = toe + j.PointsLength + 1 + length, Velocity = 0 }] });
+        Assert.False(train.PointsOccupied(0, j.PointsLength));
+        Assert.True(train.ThrowSwitch(0, false, j.PointsLength));
+    }
+
+    [Fact]
     public void AClientThrowsASwitchByHandAndEveryoneSeesItAndTheTrainTakesIt()
     {
         // GDD §17 over the wire: a joining client stands at the stand and holds Use (intent only); the host throws it; the
