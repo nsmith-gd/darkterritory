@@ -68,13 +68,29 @@
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
   // side to the other over gustMetres of line. walking: walking or standing, this of what it is at a roof run (balance).
   // The roof handrails take it to train.json composition.rails.wind of that; a gun's seat is out of it. At the worst
-  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, but stood at the edge in a gust
-  // it walks you off. It's seen as the drift itself: no camera roll, which a headset would feel in the stomach.
+  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, and stood at the edge in a gust it
+  // walks you to the lip (edge, below), not over it (T128). It's seen as the drift itself: no camera roll, which a headset
+  // would feel in the stomach.
   "wind": {
     "drift": 0.3,
     "still": 0.4,
     "walking": 0.5,
     "gustMetres": 120
+  },
+  // T128 (build 1121: "far too easy to fall off the train"; ARCHITECTURE §8 note 273). Not in the spec. Measured by
+  // FallTests' careless walker (a wandering aim, a glance aside every few seconds with the key held, half the cars at a
+  // run, the gaps jumped, a normal night's wind): 54 falls in 20 minutes before, nearly all of them walking off a side
+  // while looking somewhere else. A roof's edge (and a coupler plate's) now holds you when you're only walking: your feet
+  // stop `lip` m short of where the footing ends. You go over the side if you mean to, walking at it within
+  // stepOffDegrees of straight out; off a roof's end only by a jump, a ladder, or onto the train below it (the coupler
+  // plate, a platform, the tender: any of it within catchDrop m under the edge). What still takes you off is real: a
+  // creature's pull (the Draggers), a bend you were warned of taken too fast (sight.json throwOver), a jump that falls
+  // short, and walking off on purpose. windOverLip: true is the old wind, which the lip doesn't hold.
+  "edge": {
+    "lip": 0.3,
+    "stepOffDegrees": 30,
+    "catchDrop": 3.5,
+    "windOverLip": false
   },
   // Spec E drop-out, GDD v1.4 App. D.2 (ARCHITECTURE §8 note 253): a player whose link drops mid-night leaves an inert body
   // (no bot takes over), and the host holds their place (id, name, a token issued at the welcome) for reserveSeconds.

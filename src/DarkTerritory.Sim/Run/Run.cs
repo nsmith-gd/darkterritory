@@ -21,6 +21,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// </summary>
     public bool YardIsSafe { get; init; } = true;
 
+    /// <summary>The forts are safe from creatures all night (GDD §9, T128; ARCHITECTURE §8 note 273): run.json <c>forts</c>.</summary>
+    public FortTuning Forts { get; init; } = new();
+
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
 
@@ -55,6 +58,13 @@ public sealed record EconomyTuning(Dictionary<string, double> PerCar, double Coa
 
 /// <summary>GDD §9: FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS.</summary>
 public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
+
+/// <summary>
+/// GDD §9 "forts must be safe spaces that monsters never enter" (T128; note 273): the departure fortress (the line up to its
+/// outer gate) and the terminus (from its gate on, unless it's a silent settlement whose gate linegen doesn't keep safe), out
+/// to <paramref name="HalfWidthM"/> either side of the line. Field docs live in run.json <c>forts</c>.
+/// </summary>
+public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }

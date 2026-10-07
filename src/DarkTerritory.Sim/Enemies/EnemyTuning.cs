@@ -101,7 +101,11 @@ public sealed record WhistlerTuning
     public double PairRadius { get; init; } = 3;
     public double SpotReach { get; init; } = 2.5;
     public double RunSpeed { get; init; } = 4.5;
-    public double NestDistance { get; init; } = 60;
+    public double NestDistance { get; init; } = 30;
+    public double NestMinDistance { get; init; } = 8;
+    public double NestStep { get; init; } = 4;
+    public double NestMaxSlope { get; init; } = 0.4;
+    public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
@@ -494,6 +498,8 @@ public sealed record DirectorTuning(
     public double GraceMaxSeconds { get; init; } = 90;
     /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
     public PressureTuning Pressure { get; init; } = new();
+    /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
+    public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -564,6 +570,26 @@ public sealed record PressureTuning
     public double HurtRelief { get; init; } = 0.25;
     public double Busy { get; init; } = 0.5;
     public double BusyFade { get; init; } = 1;
+}
+
+/// <summary>
+/// T128 (build 1121: "a player left behind by the train should feel the world close in"; note 273): a pressure of its own
+/// on each crewmate on the ground further than <see cref="BehindM"/> along the line from the train, built once a second on
+/// top of the night's (its tier and conditions), and past <see cref="Threshold"/> a hunt sent at them alone, each bigger
+/// and closer than the last. Mirror of enemies.json <c>director.abandoned</c>; field docs live there.
+/// </summary>
+public sealed record AbandonedTuning
+{
+    public bool On { get; init; } = true;
+    public double BehindM { get; init; } = 150;
+    public double PerSecond { get; init; } = 0.05;
+    public double RampPerSecond { get; init; } = 0.15;
+    public double RampSeconds { get; init; } = 60;
+    public double PerKm { get; init; } = 0.3;
+    public double Threshold { get; init; } = 6;
+    public double Relief { get; init; } = 6;
+    public int[] Pack { get; init; } = [2, 5];
+    public double[] SpawnOut { get; init; } = [35, 18];
 }
 
 /// <summary>
