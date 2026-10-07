@@ -189,7 +189,11 @@
   "tippyToesie": {
     "idleSeconds": 5, "idleBelow": 0.3, "aloneRadius": 8, "startBehind": 9, "approachSpeed": 0.6, "approachSpeedCrewOfTwo": 0.4,
     "seenDegrees": 50, "reach": 0.8, "suffocateSeconds": 20, "waitAfterSeen": 20, "maxFlees": 3, "health": 2, "minCrew": 2,
-    "perIdleWeight": 1
+    "perIdleWeight": 1,
+    // Boarding-first (GDD App. F.1, note 286): "nothing acts inside the train unless it boarded". It slips aboard only with
+    // the train under boardBelow (m/s: a stop), and stays hidden aboard after it until it's fled maxFlees times. Shut doors
+    // don't stop it: it opens them without a sound.
+    "boardBelow": 0.3
   },
 
   // FIRE FLIES · light · interior (App. A.5, B.5). On a lit car lamp in a dark section; left igniteSeconds, the car
@@ -198,7 +202,10 @@
   // is stopped." The director sends them only while the train's under stoppedBelow m/s, at stoppedWeight of their B.5
   // weight; and A.5's "pulls away at speed" is getting under way: pullAwaySpeed was 15 (ARCHITECTURE §8 note 269).
   "fireFlies": {
-    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5
+    "igniteSeconds": 20, "pullAwaySpeed": 2, "pullAwaySeconds": 8, "depthWeight": 2, "stoppedBelow": 0.3, "stoppedWeight": 0.5,
+    // Boarding-first (GDD App. F.1, note 286): "shut doors stop some boarders". A lit car with every door and its hatch shut
+    // (and no breach) keeps them off its lamp: at a stop, it's the cars left open with their lamps lit that draw them.
+    "shutCarKeepsOut": true
   },
 
   // WHERE THE OUTSIDE CREATURES START (level-design H.2; GDD B.6; ARCHITECTURE §8 note 309). A generated stop's layout says
@@ -233,12 +240,17 @@
   // hit, at most once every hitBackEvery s however fast it's struck (was 15 for every blow).
   "choir": { "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10, "around": 12 },
 
-  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. A
-  // derailing one (derailChance) grips the lever at gripAt m, always in time to brake or fire. One cannon round (4 blows)
-  // or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
+  // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
+  // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
+  // cannon round (4 blows) or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
+  // The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that
+  // lead nowhere." throwsUnderTrain false: it never throws points under a train. True (a mod) brings back v1.1's derailing
+  // kind: derailChance of them grip the lever at gripAt m and throw it under the engine. A derailment comes only from
+  // running off the dead line's end (train.json overspeed.deadEndDerailAbove, warned in the cab a full lead ahead).
   "switchman": {
     "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5,
+    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5, "throwsUnderTrain": false, "killedSetsBack": true,
     // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
     // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
     "derailAbove": 6.9, "runThroughDamage": 0.25
@@ -257,7 +269,11 @@
   "draggers": {
     "grabRange": 1.0, "fastFrom": 14, "fastAt": 22, "fastGrabScale": 1.5, "reachAlong": 1.5, "creepSpeed": 1.2,
     "telegraphSeconds": 1.0, "allyRadius": 4, "freeSeconds": 2, "freeReach": 1.5, "aloneSeconds": 0.4, "pullSpeed": 3,
-    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2
+    "rearmSeconds": 8, "stampDamage": 0.5, "hangSeconds": 8, "lingerSeconds": 180, "minCars": 2, "maxAttached": 2,
+    // Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under boardBelow (m/s, 50 km/h: a
+    // stop, a slow bend), with or without anyone up top, and wait there lingerSeconds for someone to walk its roof; a train
+    // at speed never takes one on. bendWeight: as often again on a tight bend (climbers.tightBendRadius).
+    "boardBelow": 14, "bendWeight": 2
   },
 
   // STOKER · heat · interior (App. A.5, B.5; the Hollow merged in). The director's decision of 6 Oct 2026 (build 1121
@@ -301,7 +317,19 @@
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
-    "breachLitCars": false
+    "breachLitCars": false,
+    // Boarding-first (the director's decisions of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 286): "slowing opens the
+    // doors ... tight curves are where things board". They get a grip at the gap only with the train under mountBelow (m/s,
+    // 50 km/h). Faster, they run on alongside, pacing it (the telegraph: a pack beside the train, waiting for it to slow),
+    // and give it up waitForSlowSeconds after their pace; and the director sends them at speed at atSpeedWeight of their
+    // weight. Slow on a tight bend (radius tightBendRadius m or less under the train or within bendAheadM ahead: a frontier
+    // line's tightest, 300 m, is boarded at 14 m/s) they come bendWeight times as often. The counter: keep her over 50, or
+    // hold the gaps as she takes the bend. Their door rule stands as decided 1 Oct: shut doors don't stop them; a dark car
+    // they force through the roof, an empty lit one they open. litShutCarKeepsOut (off; the director's call, note 286): a lit
+    // car with every door and its hatch shut keeps them out, and they go on over it (to the cab, with every car lit and shut
+    // as the train leaves the yard).
+    "mountBelow": 14, "waitForSlowSeconds": 30, "atSpeedWeight": 0.25, "tightBendRadius": 350, "bendAheadM": 300, "bendWeight": 3,
+    "litShutCarKeepsOut": false
   },
 
   // THE GAUNT · sound (silence) · outside (App. A.6, B.6). Asleep; stirs at stirAt m, wakes at wakeAt m and follows its
@@ -399,6 +427,37 @@
     // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
     // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
     "vote": { "perVote": 1.2, "cap": 1.5, "options": 3, "botSeconds": 6 },
+    // The draw (ARCHITECTURE §8 note 287; GDD §14 "Noise", §23.1 "Owned", App. B.1, App. F.1 "Run start: nothing makes the
+    // player feel they've done something that draws a monster"): the night's first threat answers something the crew did.
+    // Every draw is credited to whoever made it on a ledger that halves every halfLifeSeconds (what drew most, lately). After
+    // the grace, the first time one crewmate's draw of one kind stands at answerAt or more, the dark answers it out loud (a
+    // call from answerDistance m ahead and answerLateral m off the line, at the lamp's edge; eyes there at answerHeight for
+    // showSeconds) and the first threat follows leadSeconds later, pressed for (the cooldown and the curve give way as at
+    // pressAt). With no draw that big the pressure, past its threshold, waits ("listening") up to holdUntil, and then the
+    // biggest draw standing takes the blame: a quiet crew buys itself time (holdFirst false: the pressure model as before).
+    // The Stoker is the firebox's own draw (note 263); the Choir the loudest's. Nothing here runs in the safe yard.
+    "draw": {
+      "enabled": true,
+      "halfLifeSeconds": 30, "answerAt": 3, "holdFirst": true, "holdUntil": 16, "leadSeconds": 5,
+      "showSeconds": 7, "answerDistance": 60, "answerLateral": 12, "answerHeight": 0.7,
+      // Raised voices only: the mic level (0..1) above voiceFloor, scaled to the rest (the bots' working chatter is 0.27).
+      // The firebox above fireboxFrom (of 6; the Stoker's heatFirebox). The engine at engineFullSpeed m/s or more.
+      "voiceFloor": 0.4, "fireboxFrom": 4.5, "engineFullSpeed": 20,
+      // A second of: the whistle 1.5 (a proper blast answers, a toot doesn't), voices 0.5 at full shout, a noisy toy carried
+      // 0.15, the firebox 0.25 full, the engine 0.03 at speed (it never answers alone: at most about 1.3 stands). An act of:
+      // a cannon round 3 (one shot answers), a car lamp lit 2, cargo aboard 4 a car-load × pressure.cargoValue.
+      "weights": { "whistle": 1.5, "voices": 0.5, "toy": 0.15, "firebox": 0.25, "engine": 0.03, "cannon": 3, "lamp": 2, "cargo": 4 },
+      // What answers each draw: these kinds weigh this much more for the first threat (only what the night could send anyway).
+      "answers": {
+        "whistle": { "whistler": 3, "cinderHounds": 2 },
+        "cannon": { "cinderHounds": 2, "ribbits": 2, "climbers": 2 },
+        "voices": { "sootChildren": 3, "tippyToesie": 2, "followers": 2 },
+        "toy": { "trackDoll": 4 },
+        "firebox": { "cinderHounds": 2 },
+        "lamp": { "fireFlies": 3 },
+        "cargo": { "carHugger": 3, "grumbler": 2, "cinderHounds": 2 }
+      }
+    },
     // App. B.1.
     "baseBudget": { "local": 90, "frontier": 150, "deadLines": 230, "deepTerritory": 330 },
     "lengthPerCarBeyondThird": 0.15,

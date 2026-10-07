@@ -873,4 +873,29 @@ public sealed partial class GameAudio
     /// <summary>The junction lamp on top of a switch stand.</summary>
     static Double3 Lamp(World world, int branch, Double3 fallback) =>
         branch >= 0 && branch < world.Train.Line.Branches.Count ? Lever(world, branch) + Double3.Up * 0.6 : fallback;
+
+    bool _answerHeard;
+
+    /// <summary>The sound hook for the dark's answer to a draw (note 287), for the audio chat: tell-draw.whistle, .cannon, ….</summary>
+    public static string AnswerCue(DrawCause cause) => $"tell-draw.{DrawLedger.Key(cause)}";
+
+    /// <summary>
+    /// The dark answering what the crew did (note 287; World.Answer, replicated): once, as it starts, a call from out past the
+    /// lamp where it's heard. Its own cue (<see cref="AnswerCue"/>, the audio chat's to make) once installed; until then the
+    /// pack's howl, distant: something out there heard you. The eyes at the lamp's edge are Art/Effects.Eyes.
+    /// </summary>
+    void Answer(World world)
+    {
+        var answer = world.Answer;
+        if (!answer.Showing)
+        {
+            _answerHeard = false;
+            return;
+        }
+        if (_answerHeard)
+            return;
+        _answerHeard = true;
+        string cue = HasCue(AnswerCue(answer.Cause)) ? AnswerCue(answer.Cause) : "hound-howl";
+        Mixer.Play(cue, answer.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
+    }
 }

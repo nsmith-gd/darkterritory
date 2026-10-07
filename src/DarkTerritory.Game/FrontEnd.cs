@@ -58,7 +58,10 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods }
+
+/// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
+public sealed record InstalledMod(string Name, string Version, string? Description);
 
 /// <param name="Detail">A line about the selected item, under the list.</param>
 public sealed record MenuItem(string Label, string? Detail = null, bool Enabled = true);
@@ -67,7 +70,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName }
+public enum TextField { LobbyName, Address, PlayerName, CrewName }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -134,6 +137,15 @@ public sealed class FrontEnd
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
     /// </summary>
     public IReadOnlyList<MusicTrack> Music { get; set; } = [];
+
+    /// <summary>
+    /// The MODS screen's (note 323; note 53's "not yet": "an in-game mods screen"): the mods installed, in the order they're
+    /// laid over the game, and what couldn't be loaded and why. With none of either, the title has no MODS.
+    /// </summary>
+    public IReadOnlyList<InstalledMod> InstalledMods { get; set; } = [];
+    public IReadOnlyList<string> ModProblems { get; set; } = [];
+    /// <summary>Started with <c>--no-mods</c>: the mods are listed, and the base game is what's playing.</summary>
+    public bool ModsOff { get; set; }
     /// <summary>
     /// The player's profile (GDD App. D.12, note 293): the commendations their crews have given them, for the PROFILE page.
     /// The app loads it at the start and again after each night.
@@ -205,6 +217,9 @@ public sealed class FrontEnd
     {
         if (Editing is null)
             return;
+        // A crew's name erased to nothing is its slot's again (note 320).
+        if (Editing == TextField.CrewName && Open is { } crew && crew.Name.Trim().Length == 0)
+            SaveCrew(crew with { Name = DefaultCrewName(crew.Slot) });
         Editing = null;
         _blankName = false;
         Cue?.Invoke(UiCue.Select);
@@ -255,7 +270,7 @@ public sealed class FrontEnd
         }
         Show(Screen switch
         {
-            Screen.Upgrades or Screen.Stores => Screen.Fortress,
+            Screen.Upgrades or Screen.Stores or Screen.DeleteCrew => Screen.Fortress,
             Screen.Fortress => Screen.Slots,
             Screen.Controls => Screen.Settings,
             Screen.Title => Screen.Title,
@@ -317,6 +332,15 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = name });
             return;
         }
+        if (Editing == TextField.CrewName && Open is { } crew)
+        {
+            string name = crew.Name;
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
+                    name += c;
+            SaveCrew(crew with { Name = name.TrimStart() });
+            return;
+        }
         if (Editing != TextField.Address)
             return;
         foreach (char c in text)
@@ -326,6 +350,9 @@ public sealed class FrontEnd
 
     /// <summary>A lobby name's longest: what fits the browser's name column.</summary>
     public const int MaxLobbyName = 24;
+
+    /// <summary>A crew's name's longest (note 320): the lobby's, so the fortress's heading keeps to one line.</summary>
+    public const int MaxCrewName = 24;
 
     public void Erase()
     {
@@ -345,6 +372,11 @@ public sealed class FrontEnd
             Change(Settings with { LobbyName = _blankName ? "" : name });
             return;
         }
+        if (Editing == TextField.CrewName && Open is { Name.Length: > 0 } crew)
+        {
+            SaveCrew(crew with { Name = crew.Name[..^1] });
+            return;
+        }
         if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
     }
@@ -354,6 +386,8 @@ public sealed class FrontEnd
         // The in-night menu's pages are only there over a night (note 292).
         if (screen is Screen.Night or Screen.Leave && Night is null)
             screen = Screen.Title;
+        if (screen is Screen.DeleteCrew && Open is null)
+            screen = Screen.Slots;
         _blankName = false;
         Editing = null;
         Screen = screen;
@@ -463,6 +497,79 @@ public sealed class FrontEnd
             new(new("STAY", cost), stay, Back: true),
             new(new(n.Hosting && n.Others > 0 ? "END THE NIGHT FOR EVERYONE" : "LEAVE", cost), () => new Launch.Leave()),
         ];
+    }
+
+    /// <summary>
+    /// Deleting a crew (note 320), asked as leaving a night is (note 292): KEEP IT first, so Enter on arriving keeps it, and
+    /// what goes said under both. The slot's file goes; the slot lists as empty.
+    /// </summary>
+    List<Entry> DeleteEntries(CampaignState s)
+    {
+        string under = s.Current is null ? "" : ", and the night under way";
+        string cost = $"{s.Cars} cars, {s.Scrip:0} scrip and {s.Runs} {(s.Runs == 1 ? "night" : "nights")}{under}: gone for good.";
+        return
+        [
+            new(new("KEEP IT", cost), Go(Screen.Fortress), Back: true),
+            new(new($"DELETE {CrewName(s).ToUpperInvariant()}", cost), () =>
+            {
+                _saves.Delete(s.Slot);
+                Open = null;
+                Show(Screen.Slots);
+                Message = $"Slot {s.Slot} is empty.";
+                return null;
+            }),
+        ];
+    }
+
+    static string DefaultCrewName(int slot) => $"Crew {slot}";
+
+    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
+    static IEnumerable<string> Wrap(Overlay o, string text, float width)
+    {
+        string line = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string wider = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && o.Font.Measure(wider) > width)
+            {
+                yield return line;
+                line = word;
+            }
+            else
+                line = wider;
+        }
+        if (line.Length > 0)
+            yield return line;
+    }
+
+    /// <summary>The title's MODS line (note 323): how many are on tonight, and how many couldn't load.</summary>
+    string ModsLine()
+    {
+        string notLoaded = ModProblems.Count == 0 ? "" : $", {ModProblems.Count} {(ModProblems.Count == 1 ? "problem" : "problems")}";
+        return ModsOff ? $"{InstalledMods.Count} installed, all off tonight (--no-mods){notLoaded}."
+            : $"{InstalledMods.Count} laid over the game{notLoaded}.";
+    }
+
+    /// <summary>A package's name as it reads (Thunderstore's have no spaces): "LateDispatch", "Late_Dispatch" → "LATE DISPATCH".</summary>
+    public static string ModName(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(name.Replace('_', ' '), "(?<=[a-z0-9])(?=[A-Z])", " ").ToUpperInvariant();
+
+    /// <summary>A scan's problem (<c>ContentMods.Scan</c>: "X isn't loaded: …", "X is installed 2 times: …") as a row's label.</summary>
+    static string ProblemLabel(string problem)
+    {
+        string who = ModName(problem.Split(' ', 2)[0]);
+        return problem.Contains("isn't loaded", StringComparison.Ordinal) ? $"{who}: NOT LOADED"
+            : problem.Contains(" times", StringComparison.Ordinal) ? $"{who}: INSTALLED TWICE" : who;
+    }
+
+    /// <summary>What a crew is called: its name, or its slot's while it has none (erased, mid-typing).</summary>
+    static string CrewName(CampaignState s) => s.Name.Trim() is { Length: > 0 } named ? named : DefaultCrewName(s.Slot);
+
+    /// <summary>A change to the open crew, kept at once (the front end saves every change to the slot).</summary>
+    void SaveCrew(CampaignState s)
+    {
+        _saves.Save(s);
+        Open = s;
     }
 
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
@@ -647,6 +754,7 @@ public sealed class FrontEnd
             new(new("JOIN", "The public games, nearest first, a Steam invite, or an address."), () => { Show(Screen.Join); return null; }),
             new(new("SETTINGS"), () => { Show(Screen.Settings); return null; }),
             new(new("PROFILE", "What your crews have commended you for."), () => { Show(Screen.Profile); return null; }),
+            .. InstalledMods.Count + ModProblems.Count > 0 ? [new Entry(new("MODS", ModsLine()), Go(Screen.Mods))] : (Entry[])[],
             new(new("CREDITS", "The music, and who played it."), () => { Show(Screen.Credits); return null; }),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
@@ -744,6 +852,16 @@ public sealed class FrontEnd
         Screen.Profile => [BackTo(Screen.Title)],
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
+        Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
+        // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
+        // over as the game starts, from its folders or a mod manager's profile (note 53).
+        Screen.Mods =>
+        [
+            .. InstalledMods.Select(m => new Entry(new($"{ModName(m.Name)} {m.Version}", m.Description is { Length: > 0 } d ? d : "No description."))),
+            .. ModProblems.Select(p => new Entry(new(ProblemLabel(p), p))),
+            new(new("BACK", "Laid over as the game starts. A crew all run the same ones."),
+                Go(Screen.Title), Back: true),
+        ],
         Screen.Credits =>
         [
             .. Music.Select(t => new Entry(new($"{t.Work} - {t.Composer}, {t.Year}", CreditLine(t)))),
@@ -804,13 +922,13 @@ public sealed class FrontEnd
         if (s is null)
             return new(new($"SLOT {slot}: EMPTY", "Start a campaign: three cars on local work, and no scrip."), () =>
             {
-                var fresh = Campaign.New(_campaign, slot, $"Crew {slot}", _newSeed());
+                var fresh = Campaign.New(_campaign, slot, DefaultCrewName(slot), _newSeed());
                 _saves.Save(fresh);
                 ShowFortress(slot);
                 return null;
             });
         string underway = s.Current is null ? "" : ", a night under way";
-        return new(new($"SLOT {slot}: {s.Name.ToUpperInvariant()}", $"{s.Cars} cars, {s.Scrip:0} scrip, {s.Runs} nights{underway}"), () =>
+        return new(new($"SLOT {slot}: {CrewName(s).ToUpperInvariant()}", $"{s.Cars} cars, {s.Scrip:0} scrip, {s.Runs} nights{underway}"), () =>
         {
             ShowFortress(slot);
             return null;
@@ -869,6 +987,11 @@ public sealed class FrontEnd
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
+        // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
+        bool naming = Editing == TextField.CrewName;
+        list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
+            naming ? "Type the name; Enter or Esc when it's done." : "Enter to rename the crew."), Field: TextField.CrewName));
+        list.Add(new(new("DELETE THIS CREW", $"Slot {s.Slot} emptied for a new crew. It asks first."), Go(Screen.DeleteCrew)));
         list.Add(BackTo(Screen.Slots));
         return list;
     }
@@ -1073,8 +1196,9 @@ public sealed class FrontEnd
             Screen.Night => "THE NIGHT GOES ON",
             Screen.Leave => Night is { Hosting: true, Others: > 0 } ? "END THE NIGHT?" : "LEAVE THE NIGHT?",
             Screen.Slots => "CAMPAIGN",
+            Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
-                $"{s.Name.ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
+                $"{CrewName(s).ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",
@@ -1082,6 +1206,7 @@ public sealed class FrontEnd
             Screen.Settings => "SETTINGS",
             Screen.Controls => "CONTROLS",
             Screen.Credits => "CREDITS: THE OPERA AT A DERAILMENT (GDD E.6)",
+            Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",
             Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
@@ -1145,10 +1270,12 @@ public sealed class FrontEnd
         }
         y += 6;
         if (Selected < items.Count && items[Selected].Detail is { } detail)
-        {
-            o.Text(x, y, detail.ToUpperInvariant(), Dim);
-            y += 10;
-        }
+            // Wrapped to the screen (note 323): a mod's description is its author's, up to Thunderstore's 250 characters.
+            foreach (var line in Wrap(o, detail.ToUpperInvariant(), width - x - 8))
+            {
+                o.Text(x, y, line, Dim);
+                y += 10;
+            }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"

@@ -51,6 +51,7 @@ public class ConflictSeedingTests
             GraceMinSeconds = 0,
             GraceMaxSeconds = 0,
             Pressure = Tuning.Eager,
+            Draw = Tuning.Unheld,
             CooldownSeconds = [1, 1],
             Costs = Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         };
