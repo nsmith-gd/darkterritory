@@ -30,7 +30,7 @@ make._mats.clear()
 make.LOW.clear()
 
 DRESS = {
-    "skin.whistler_plate": (lambda: make.flat("whistler_plate", (0.28, 0.25, 0.2), rough=0.3), 2),
+    "skin.whistler_plate": (lambda: make.flat("whistler_plate", (0.25, 0.215, 0.16), rough=0.3), 2),
     "skin.whistler_leg": (lambda: make.flat("whistler_leg", (0.09, 0.075, 0.062), rough=0.45), 1),
     "skin.whistler_lip": (lambda: make.flat("whistler_lip", (0.17, 0.05, 0.04), rough=0.15), 2),
     "skin.whistler": (lambda: make.flat("whistler_flesh", (0.38, 0.34, 0.29), rough=0.35), 2),
@@ -127,4 +127,4 @@ base = paint(base, (0.3, 0.26, 0.16), mk[..., 1] * 0.35)      # the plates yello
 base = paint(base, (0.2, 0.08, 0.07), mk[..., 2] * 0.45)      # veins in the flesh
 base = paint(base, (0.01, 0.009, 0.008), mk[..., 0] * 0.85)   # grease
 rough = np.clip(atlas.maps["gloss"][..., 0] - 0.15 * mk[..., 0], 0.05, 1)
-atlas.finish(base, kit, arm, made=make.provenance("whistler", "the Whistler, modelled over tools/blender/whistler.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("whistler", "the Whistler, modelled over tools/blender/whistler.py"), rough=rough, lod=0.4)

@@ -27,6 +27,11 @@ public sealed record EnemyTuning(
     public RibbitTuning Ribbits { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    /// <summary>
+    /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
+    /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
+    /// </summary>
+    public bool TamperReleasesStandingBrake { get; init; }
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -59,6 +64,10 @@ public sealed record TrackDollTuning
     public double CargoPerSecond { get; init; } = 0.001;
     public double StraightNeeded { get; init; } = 250;
     public double EmptyCabWeight { get; init; } = 2;
+    /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
+    public bool CannonShatters { get; init; } = true;
+    public double RailHitRadius { get; init; } = 0.55;
+    public double RailHitHeight { get; init; } = 0.7;
 }
 
 /// <summary>The Car Hugger (v1.1 App. A.3, B.3). Field docs live in enemies.json.</summary>
@@ -235,9 +244,13 @@ public sealed record CarFireTuning
     public double SprayPerSecond { get; init; } = 0.035;
     public double ChargeSeconds { get; init; } = 10;
     public double RechargeSeconds { get; init; } = 90;
-    public int BurnDamage { get; init; } = 10;
     public double BurnReach { get; init; } = 4;
-    public double BurnEverySeconds { get; init; } = 2;
+    /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
+    public double BurnPerSecond { get; init; } = 10;
+    /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>
+    public double BurnBrushShare { get; init; } = 0.5;
+    /// <summary>Note 265: how long in it before it burns at the full rate (s).</summary>
+    public double BurnRampSeconds { get; init; } = 3;
     public double CargoPerSecond { get; init; } = 0.003;
     public double IntegrityPerSecond { get; init; } = 0.0015;
     public double SpreadFrom { get; init; } = 0.8;
@@ -245,8 +258,31 @@ public sealed record CarFireTuning
     public double ChemicalSpread { get; init; } = 2;
     public double ChemicalGrowth { get; init; } = 1.3;
     public double PowderGrowth { get; init; } = 1.6;
+    public double FuelGrowth { get; init; } = 1.4;
+    public double FuelSpread { get; init; } = 2;
+    public double ExplodeAt { get; init; } = 1;
+    public double ExplodeRadius { get; init; } = 14;
+    public double ExplodeKillRadius { get; init; } = 5;
+    public int ExplodeDamage { get; init; } = 150;
     public double BurnOutPerSecond { get; init; } = 0.05;
     public int MaxActive { get; init; } = 3;
+    /// <summary>Note 267: the fire grid's cell size (m; App. F.1 "large cells of 1–2 m").</summary>
+    public double CellSize { get; init; } = 1.5;
+    /// <summary>Note 267: a cell this hot heats the cells round it, at <see cref="CatchPerSecond"/> x its heat, upward x <see cref="Climb"/>.</summary>
+    public double CatchFrom { get; init; } = 0.5;
+    public double CatchPerSecond { get; init; } = 0.04;
+    public double Climb { get; init; } = 2;
+    /// <summary>Note 267: what a cell burns of itself a second at full heat (1: all of it); it chars as it goes.</summary>
+    public double CharPerSecond { get; init; } = 0.01;
+    /// <summary>Note 267: of the spray on a cell, the share the cells round it get; and how long a sprayed cell stays wet (s).</summary>
+    public double SprayShare { get; init; } = 0.4;
+    public double DampSeconds { get; init; } = 3;
+    /// <summary>Note 267: the roof's burn on whoever's under it, of a floor or wall cell's as near.</summary>
+    public double CeilingBurnShare { get; init; } = 0.5;
+    /// <summary>Note 267: how tall a crewmate is to the fire (m): what of them a burning cell can reach.</summary>
+    public double BodyHeight { get; init; } = 1.8;
+    /// <summary>Note 267: a cell cooler than this doesn't burn on its own, and goes out unless a cell round it heats it.</summary>
+    public double OutBelow { get; init; } = 0.05;
 }
 
 /// <summary>The Gaunt (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -273,11 +309,17 @@ public sealed record GauntTuning
     public double SpawnOut { get; init; } = 25;
     public double LongStopWeight { get; init; } = 2;
     public double LongStopSeconds { get; init; } = 120;
+    public double LeaveSpeed { get; init; } = 1.4;
+    public double ClearedAt { get; init; } = 30;
+    public double CarryHigh { get; init; } = 1.7;
+    public double CarryLow { get; init; } = 0.55;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
 public sealed record ClimberTuning
 {
+    /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
+    public double LampOutSeconds { get; init; } = 45;
     public double PaceOut { get; init; } = 2.5;
     public double PaceSeconds { get; init; } = 6;
     public double Catch { get; init; } = 1.2;
@@ -305,17 +347,31 @@ public sealed record ClimberTuning
 /// <summary>The Stoker (App. A.5, B.5). Field docs live in enemies.json.</summary>
 public sealed record StokerTuning
 {
-    public double FeedRate { get; init; } = 1.5;
-    public double StoppedBelow { get; init; } = 0.5;
-    public double LowPressure { get; init; } = 40;
-    public double LowPressureSeconds { get; init; } = 45;
-    public double DoorOpenSeconds { get; init; } = 10;
+    // Note 265, the director's decision of 6 Oct 2026: drawn by heat, boards at the tender, worse once in, a break once beaten.
+    public double HeatFirebox { get; init; } = 4.5;
+    public double HeatSeconds { get; init; } = 20;
+    public double BoardSeconds { get; init; } = 8;
+    public double TenderBlowScale { get; init; } = 4;
+    public double FeedRate { get; init; } = 4;
+    public double Swing { get; init; } = 3;
+    public double SwingSeconds { get; init; } = 3;
+    public double EatPerSecond { get; init; } = 0;
     public double FireDoorShutSeconds { get; init; } = 6;
     public double SootSeconds { get; init; } = 4;
-    public double RunawayRampSeconds { get; init; } = 40;
+    public double RunawayRampSeconds { get; init; } = 20;
     public double Health { get; init; } = 4;
-    public int BurnPerBlow { get; init; } = 12;
-    public double OpenDoorWeight { get; init; } = 3;
+    /// <summary>Note 268 (Stoker v3): the door opened on it burns whoever's at it this much, and the second time this much.</summary>
+    public int DoorBurn { get; init; } = 60;
+    public int DoorKill { get; init; } = 1000;
+    /// <summary>Note 268: starved under this much fire (of the firebox's 6), it leaves.</summary>
+    public double StarveFirebox { get; init; } = 2;
+    /// <summary>Note 268: an extinguisher held into the firebox this long kills it, taking this share of the fire.</summary>
+    public double HoseSeconds { get; init; } = 2;
+    public double HoseFireCost { get; init; } = 0.6;
+    /// <summary>Note 268: how near the fire door (m, across the cab floor) counts as at it, to open it or hose it.</summary>
+    public double DoorReach { get; init; } = 1.8;
+    /// <summary>Note 265 (the director's decision of 6 Oct 2026): once one's gone, none comes back for this long (s).</summary>
+    public double BreakSeconds { get; init; } = 150;
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
@@ -369,11 +425,23 @@ public sealed record SwitchmanTuning
     public double GripAt { get; init; } = 250;
     public double Health { get; init; } = 3;
     public double LingerSeconds { get; init; } = 20;
+    /// <summary>
+    /// T121 playtest ("we appear to have derailed at a very low speed"): points thrown under a train crawling over them
+    /// split, they don't throw it off. At or under this (m/s) the train runs through them: the engine takes
+    /// <see cref="RunThroughDamage"/> and the clock takes the stop. Over it, it's off the rails.
+    /// </summary>
+    public double DerailAbove { get; init; } = 6.9;
+    public double RunThroughDamage { get; init; } = 0.25;
     public int MinJunctions { get; init; } = 3;
     public double DeadLineWeight { get; init; } = 1.5;
 }
 
-public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage);
+/// <summary>enemies.json <c>sleepers</c> (track debris, GDD §22). Field docs live in that file.</summary>
+/// <param name="Enabled">Placed on generated lines and run at all: off since the director's decision of 2026-10-06 (note 265); a mod can bring them back.</param>
+/// <param name="BraceLeadSeconds">Note 266: they brace (and are heard) as far out as a train at its speed needs to brake under them: this long at its speed, then a service stop (train.json overspeed).</param>
+/// <param name="DerailLeadSeconds">Note 266: they derail a train only once their telegraph has been up this long; short of it, they're the heavy damage.</param>
+public sealed record SleeperTuning(double LampRevealDistance, double BraceDistance, double DerailAbove, double HeavyDamageAbove, double HeavyDamage, double MinorDamage,
+    bool Enabled = false, double BraceLeadSeconds = 4, double DerailLeadSeconds = 4);
 
 public sealed record HoundTuning(int[] PackSize, double Health, double Radius, double MaxSpeed, double ClosingSpeed, double SpawnBehind,
     double HowlSeconds, double LeapDistance, int BiteDamage, double BiteEverySeconds, double Reach, double BoredSeconds, double MinTrainSpeed,
@@ -387,18 +455,35 @@ public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);
 
 public sealed record DirectorTuning(
     Dictionary<string, double> BaseBudget, double LengthPerCarBeyondThird, double CrewBase, double CrewPerPlayer, double CrewCap,
-    double GraceSeconds, double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
+    double FacilityLullSeconds, double[] CooldownSeconds, int MaxConcurrentZone,
     int MaxConcurrentSmallCrew, int MaxConcurrentLargeCrew, double[] PhaseShares, Dictionary<string, double> Costs,
     double HoundsLivestockWeight, double HoundsHotBoilerWeight)
 {
     /// <summary>App. B.8: cargo name → (tuning name or "*") → weight.</summary>
     public Dictionary<string, Dictionary<string, double>> CargoWeights { get; init; } = new();
+    /// <summary>
+    /// GDD §18 "something already lives here" (note 185): facility name → (tuning name) → weight, while the train's stopped
+    /// at a facility of that kind.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, double>> Residents { get; init; } = new();
     public bool CometRelaxesGates { get; init; } = true;
-    /// <summary>Quiet this long (nothing showing itself, no board, no bag) and the director sends something, cooldown or not.</summary>
-    public double PaceSeconds { get; init; } = 18;
+    /// <summary>
+    /// A threat that's gone this long with nobody alive within <see cref="LingerRadius"/> of it, short of a grab, gives up and
+    /// goes (T114 playtest: "where are all the monsters": a Climber settled in a car nobody went into held the caps full).
+    /// </summary>
+    public double LingerSeconds { get; init; } = 120;
+    public double LingerRadius { get; init; } = 12;
+    /// <summary>
+    /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
+    /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).
+    /// </summary>
+    public double GraceMinSeconds { get; init; } = 20;
+    public double GraceMaxSeconds { get; init; } = 90;
+    /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
+    public PressureTuning Pressure { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
-    /// <summary>A paced spawn may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
+    /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
     public double PacedCost { get; init; } = 3;
     /// <summary>The in-car incidents' weight, each, against the other threats' 1.</summary>
     public double IncidentWeight { get; init; } = 0.5;
@@ -414,8 +499,9 @@ public sealed record DirectorTuning(
     public string[] SaveFor { get; init; } = [];
     public double SaveFrom { get; init; } = 0.2;
     /// <summary>
-    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run; after, the director's own
-    /// grace (after the playtest, "out of the gate in 20 s") is the rule. Negative: the whole stretch, as the plan has it.
+    /// A generated line's grace stretch (linegen plan §4) bans spawns only this far into the run, or to the end of the night's own
+    /// grace (<see cref="GraceMinSeconds"/>..<see cref="GraceMaxSeconds"/>) if that's later. Negative: the whole stretch, as the
+    /// plan has it.
     /// </summary>
     public double LineGraceSeconds { get; init; } = 20;
     /// <summary>
@@ -427,4 +513,49 @@ public sealed record DirectorTuning(
     public Dictionary<string, double> WantShares { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
+    /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
+    public VoteTuning Vote { get; init; } = new();
 }
+
+/// <summary>
+/// The director's pressure (GDD App. B.1, design decision 2026-10; note 266): once a second after the grace it builds by
+/// <c>tier × conditions × crew relief × busy × escalation × (base + quiet + loudness + cargo)</c>, banks to at most
+/// <see cref="Max"/>, and past <see cref="Threshold"/> the director spends on what its weights pick, each spawn taking
+/// <see cref="ReliefPerCost"/> × its cost off. Mirror of enemies.json <c>director.pressure</c>; field docs live there.
+/// </summary>
+public sealed record PressureTuning
+{
+    public double Threshold { get; init; } = 10;
+    public double Start { get; init; } = 4;
+    public double Max { get; init; } = 18;
+    public double PressAt { get; init; } = 16;
+    public double ReliefPerCost { get; init; } = 3;
+    public double BasePerSecond { get; init; } = 0.03;
+    public double Escalation { get; init; } = 3;
+    public int EscalationPower { get; init; } = 1;
+    public double QuietPerSecond { get; init; } = 0.1;
+    public double QuietRampSeconds { get; init; } = 90;
+    public double LoudPerSecond { get; init; } = 0.1;
+    public double LoudCap { get; init; } = 1.5;
+    public double CargoPerLoad { get; init; } = 0.01;
+    public Dictionary<string, double> CargoValue { get; init; } = new();
+    public Dictionary<string, double> Tier { get; init; } = new();
+    public Dictionary<string, double> GraceTierScale { get; init; } = new();
+    public double Dark { get; init; } = 0.15;
+    public double Cold { get; init; } = 0.1;
+    public double ColdPerStep { get; init; } = 0.05;
+    public double Wet { get; init; } = 0.05;
+    public double Wind { get; init; } = 0.05;
+    public int DownPower { get; init; } = 2;
+    public int HurtBelow { get; init; } = 35;
+    public double HurtRelief { get; init; } = 0.25;
+    public double Busy { get; init; } = 0.5;
+    public double BusyFade { get; init; } = 1;
+}
+
+/// <summary>
+/// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
+/// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
+/// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
+/// </summary>
+public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);

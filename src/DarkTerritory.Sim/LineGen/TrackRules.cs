@@ -9,6 +9,15 @@ namespace DarkTerritory.Sim.LineGen;
 /// it), running onto a washout. And brass rammed above cutting speed damages the engine (GDD §22 "ram it and pay").
 /// Every one of them has a tell a train obeying its authority meets in time; the validator drove it.
 /// </summary>
+/// <summary>A bend taken too fast, as the train has it this tick (<see cref="TrackRules.Assess"/>; note 265).</summary>
+/// <param name="Stress">The bend under the train: 0 at its board's speed or under, 1 at its derailing speed.</param>
+/// <param name="Warning">A bend under it or ahead, within the distance to brake, that the speed now would derail it on.</param>
+/// <param name="AheadM">How far ahead that bend begins (0: the train's on it).</param>
+/// <param name="DerailMs">What that bend derails a train above (m/s).</param>
+/// <param name="PostedMs">What it's boarded at (m/s, linegen plan §8.5).</param>
+/// <param name="OnIt">The train's on that bend.</param>
+public readonly record struct BendStress(double Stress, bool Warning, double AheadM, double DerailMs, double PostedMs, bool OnIt);
+
 public static class TrackRules
 {
     /// <summary>What ended it, for the report and the HUD; null while the train's on the rails.</summary>
@@ -21,12 +30,34 @@ public static class TrackRules
         var r = plan.Rules;
         double v = rake.Speed;
         // A curve too fast anywhere under the train: √(a_derail R).
-        double k = 0;
+        double k = 0, at = rake.Distance;
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
-                k = Math.Max(k, Math.Abs(train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2).Curvature));
+            {
+                double mid = car.FrontDistance - car.Length / 2, kc = Math.Abs(train.Line.Sample(rake.Path, mid).Curvature);
+                if (kc > k)
+                    (k, at) = (kc, mid);
+            }
+        // Note 266: the warning (Assess) counted on the host, tick by tick; a bend commits only once it's been up a full lead.
+        var t = rake.Tuning.Overspeed;
+        var stress = Assess(train, r, t);
+        world.BendWarnSeconds = stress.Warning ? world.BendWarnSeconds + dt : 0;
         if (k > 1e-9 && v > Math.Sqrt(r.ADerail / k))
-            return Derail(world, $"derailed on a {1 / k:0} m curve at {v:0.0} m/s");
+        {
+            // The HUD and the cab's bell have had it up this long, this tick included.
+            if (world.BendWarnSeconds + 1e-9 < t.LeadSeconds)
+            {
+                world.BendsSpared++;
+            }
+            else
+            {
+                // Too fast for it: the throttle's doing, or a Stoker's runaway (App. C.9; note 190).
+                world.BendCommits.Add(world.BendWarnSeconds);
+                string why = BendCause(plan, train.Line, rake.Path, at, v, Math.Sqrt(r.ADerail / k));
+                world.Overspeed(why);
+                return world.DerailCause;
+            }
+        }
 
         var (edge, s) = Locate(plan, train.Line, rake.Path, rake.Distance);
         foreach (var st in plan.Structures)
@@ -52,6 +83,65 @@ public static class TrackRules
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// T121 playtest ("if derailment happens people should know they took the corner too hard and by how much"): the
+    /// bend's posted figure from its board, the speed it was taken at, and how far over the board that was, in the km/h the
+    /// boards and the cab map are painted in. Where no board stands before it, against what the bend holds.
+    /// </summary>
+    public static string BendCause(LinePlan plan, RailLine line, int path, double distance, double v, double holds)
+    {
+        int kmh = (int)Math.Round(v * 3.6);
+        var (edge, s) = Locate(plan, line, path, distance);
+        var board = plan.Signage.Where(b => b is { Type: "speedBoard", Required: true } && b.Edge == edge && b.S <= s && b.S >= s - 900)
+            .OrderByDescending(b => b.S).FirstOrDefault();
+        if (board is not null && int.TryParse(board.Text, System.Globalization.CultureInfo.InvariantCulture, out int posted))
+            return $"took the {posted} km/h bend at {kmh} km/h, {kmh - posted} km/h too fast";
+        return $"took the bend at {kmh} km/h, {kmh - (int)Math.Round(holds * 3.6)} km/h over the {holds * 3.6:0} km/h it holds";
+    }
+
+    /// <summary>
+    /// A bend too fast, as this train has it now (note 265): the stress of the bend under it (0 at its board's speed, 1 at
+    /// its derailing speed), and whether the warning is up: a bend under the train, or ahead within the distance to brake
+    /// below it (<see cref="OverspeedTuning.WarnDistance"/>), that the speed now would derail it on. From the train and the
+    /// line alone, so every machine works it out the same and nothing is sent.
+    /// </summary>
+    public static BendStress Assess(TrainOnLine train, PlanRules r, OverspeedTuning t)
+    {
+        var rake = train.Dynamics;
+        double v = rake.Speed;
+        if (v < 0.5 || train.Wreck is not null)
+            return default;
+        double postShare = Math.Clamp(r.APost / r.ADerail, 0, 0.99);
+        // Under the train: the sharpest bend any of its cars is on.
+        double kOn = 0;
+        foreach (var car in train.Cars)
+            if (rake.Consist.IndexOf(car.Index) >= 0)
+                kOn = Math.Max(kOn, Math.Abs(train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2).Curvature));
+        double pull = v * v * kOn / r.ADerail;
+        double stress = kOn < 1e-9 ? 0 : Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
+        var found = kOn > 1e-9 && pull > 1 ? new BendStress(stress, true, 0, Math.Sqrt(r.ADerail / kOn), Math.Floor(Math.Sqrt(r.APost / kOn)), true) : default;
+        if (found.Warning)
+            return found;
+        // Ahead, the way it's going, out to where a bend that would take any speed short of a stop needs telling.
+        int travel = Math.Sign(rake.Velocity);
+        double from = travel > 0 ? rake.Distance : rake.RearDistance, length = train.Line.PathLength(rake.Path);
+        double rated = rake.RatedBrakeDecel, reach = t.WarnDistance(v, 0, rated, t.LeadSeconds);
+        const double Step = 5;
+        for (double x = Step; x <= reach; x += Step)
+        {
+            double s = from + travel * x;
+            if (s < 0 || s > length)
+                break;
+            double k = Math.Abs(train.Line.Sample(rake.Path, s).Curvature);
+            if (k < 1e-9)
+                continue;
+            double vd = Math.Sqrt(r.ADerail / k);
+            if (v > vd && x <= t.WarnDistance(v, vd, rated, t.LeadSeconds))
+                return new BendStress(stress, true, x, vd, Math.Floor(Math.Sqrt(r.APost / k)), false);
+        }
+        return new BendStress(stress, false, 0, 0, 0, false);
     }
 
     static string Derail(World world, string why)

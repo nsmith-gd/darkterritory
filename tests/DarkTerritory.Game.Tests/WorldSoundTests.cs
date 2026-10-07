@@ -22,7 +22,7 @@ public class WorldSoundTests
     static readonly HoldoutTuning Holdouts = DataFile.Load<HoldoutTuning>(Path.Combine(Content, HoldoutTuning.File));
 
     /// <summary>A client's night with the engine <paramref name="from"/> metres from the start of the first feature like this.</summary>
-    static (World World, RouteFeature Feature) Night(Func<RouteFeature, bool> pick, double from)
+    static (World World, RouteFeature Feature) Night(Func<RouteFeature, bool> pick, double from, TrainTuning? trains = null)
     {
         var routes = RouteTuning.Load(Content);
         foreach (var tier in Enum.GetValues<RouteTier>())
@@ -31,7 +31,7 @@ public class WorldSoundTests
                 var route = RouteGenerator.Generate(routes, tier, seed);
                 if (route.Features.FirstOrDefault(f => f.Start > 900 && pick(f)) is not { } f)
                     continue;
-                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), f.Start + from, Boilers);
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trains ?? Trains, 4, 1)), route.Build(), f.Start + from, Boilers);
                 var world = new World(train);
                 world.EnableRun(Runs, route, 600, authority: false);
                 world.EnableHoldouts(Holdouts, route);
@@ -169,6 +169,29 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void WithTheRadioRangeUpgradeTheStaticStartsWhereTheVoicesStop()
+    {
+        // Spec F.3's radio range (note 196): the radio carries kit.radioReach in from a tunnel's mouth before it dies, so the
+        // static does too (HostSession.ForwardVoice's test, heard where the voices stop).
+        var upgraded = Trains with { Kit = Trains.Kit with { RadioReach = 50 } };
+        var (world, tunnel) = Night(f => f.Kind == FeatureKind.Tunnel && f.Length > 150, from: 120, upgraded);
+        var audio = new GameAudio(Content) { Voice = null };
+        Stand(audio, "voice-radio-sfx.key-down", "voice-radio-sfx.key-up", "voice-radio-sfx.squelch");
+        Held(audio, "voice-radio-sfx.static");
+        var radio = new VoiceChat(audio.Mixer);
+        audio.Voice = radio;
+        var ears = new Ears(audio, world);
+        var mouth = world.Train.Line.Sample(tunnel.Start + 30).Position + Double3.Up * 2;
+        var deep = world.Train.Line.Sample(tunnel.Start + 75).Position + Double3.Up * 2;
+        ears.Tick(mouth);
+        radio.RadioHeld = true;
+        ears.Tick(mouth, 5);
+        Assert.False(Playing(audio, "voice-radio-sfx.static"));
+        ears.Tick(deep, 5);
+        Assert.True(Playing(audio, "voice-radio-sfx.static"));
+    }
+
+    [Fact]
     public void TheCoalingChuteOpensPoursAndShuts()
     {
         var (world, tower) = Night(f => f.Facility == FacilityKind.CoalingTower, from: 20);
@@ -197,36 +220,65 @@ public class WorldSoundTests
     [Fact]
     public void TheGrainSpoutSwingsPoursAndStops()
     {
-        // GDD §18's grain elevator (run.json "grainSpout"): its own sounds, and none of the coaling tower's.
+        // GDD §18's grain elevator (its spout, note 185): its own sounds while someone holds its lever, and none of the
+        // coaling tower's.
         var (world, elevator) = Night(f => f.Facility == FacilityKind.GrainElevator, from: 20);
         var audio = new GameAudio(Content);
         Stand(audio, "place-grain.spout-swing", "place-grain.spout-stop", "place-coaling.chute-open", "place-coaling.chute-shut");
         Held(audio, "place-grain.grain-pour", "place-coaling.coal-pour");
         var run = world.Run!;
-        var facilities = run.Route.Of(FeatureKind.Facility).ToList();
-        int index = facilities.IndexOf(elevator);
-        Assert.True(run.HasSpout(index));
-        double[] left = [.. facilities.Select((_, i) => run.ChuteLeft(i))];
-        Assert.Equal(Runs.GrainSpout.Capacity, left[index]);
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(elevator);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Spout));
+        double[] left = new double[run.FacilityCount];
+        SiteState[] States(bool pouring) => [.. run.Sites.Select(x => new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0, Pouring = pouring && x == site })];
         var ears = new Ears(audio, world);
-        var mouth = run.SpoutAt(index, world.Train.Line).Spout + Double3.Up * 6;
-        ears.Tick(mouth);
-        run.Mirror(RunPhase.AtFacility, RunEnd.None, 900, index, chuteOpen: true, left);
-        ears.Tick(mouth, 10);
+        ears.Tick(site.Spout);
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 900, index, false, left, States(pouring: true));
+        ears.Tick(site.Spout, 10);
         Assert.Single(ears.Started, v => v.Name == "place-grain.spout-swing");
         Assert.True(Playing(audio, "place-grain.grain-pour"));
-        // Shut, or run dry: cut off.
-        run.Mirror(RunPhase.AtFacility, RunEnd.None, 901, index, chuteOpen: false, left);
-        ears.Tick(mouth, SimConstants.TickRate * 2);
+        // Let go, or run dry: cut off.
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 901, index, false, left, States(pouring: false));
+        ears.Tick(site.Spout, SimConstants.TickRate * 2);
         Assert.Single(ears.Started, v => v.Name == "place-grain.spout-stop");
         Assert.False(Playing(audio, "place-grain.grain-pour"));
         Assert.DoesNotContain(ears.Started, v => v.Name.StartsWith("place-coaling", StringComparison.Ordinal));
-        // Opened again and the train moves off (it isn't at the elevator any more): cut off where it was.
-        run.Mirror(RunPhase.AtFacility, RunEnd.None, 902, index, chuteOpen: true, left);
-        ears.Tick(mouth, 10);
-        run.Mirror(RunPhase.Underway, RunEnd.None, 903, -1, chuteOpen: false, left);
-        ears.Tick(mouth, SimConstants.TickRate * 2);
+        // Pouring again and the train moves off (it isn't at the elevator any more): cut off where it was.
+        run.Mirror(RunPhase.AtFacility, RunEnd.None, 902, index, false, left, States(pouring: true));
+        ears.Tick(site.Spout, 10);
+        run.Mirror(RunPhase.Underway, RunEnd.None, 903, -1, false, left, States(pouring: false));
+        ears.Tick(site.Spout, SimConstants.TickRate * 2);
         Assert.Equal(2, ears.Started.Count(v => v.Name == "place-grain.spout-stop"));
         Assert.False(Playing(audio, "place-grain.grain-pour"));
+    }
+
+    [Fact]
+    public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
+    {
+        // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them
+        // (heap-groan, the tell, note 198) with the recorded creaks over it, and comes down with place-wreck's shift.
+        var (world, yard) = Night(f => f.Facility == FacilityKind.WreckYard, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-wreck.creak", "place-wreck.shift");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(yard)]!;
+        var heap = site.Heaps[0];
+        var ear = heap.Centre + new Double3(4, 1.7, 0);
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, 5);
+        Assert.False(Playing(audio, "heap-groan"));
+        var was = heap.State;
+        heap.Mirror(was with { Stability = 0, Groan = 3 });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.True(Playing(audio, "heap-groan"));
+        Assert.Equal(1, audio.Mixer.Voices.Single(v => v.Name == "heap-groan").Def.Tier);
+        Assert.Contains(ears.Started, v => v.Name == "place-wreck.creak");
+        heap.Mirror(was with { Stability = 0, Groan = 0, Shifts = was.Shifts + 1 });
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        Assert.False(Playing(audio, "heap-groan"));
+        Assert.Single(ears.Started, v => v.Name == "place-wreck.shift");
     }
 }

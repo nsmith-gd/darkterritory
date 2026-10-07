@@ -1,0 +1,735 @@
+using System.Security.Cryptography;
+using System.Text;
+using Ballast;
+using Ballast.Audio;
+using DarkTerritory.Sim.Music;
+
+/// <summary>
+/// `dt audio opera`: GDD v1.4 App. E.6's fallback, our own recordings. Every music track is a CC0 1.0 recording of a
+/// public-domain work; nothing found online could be fetched from here (Musopen, Wikimedia Commons, Freesound and the
+/// Internet Archive are all refused by the network), so these are arrangements of the public-domain scores played by a
+/// deliberately cheap, slightly grand synth band (an organ, a brass voice, a plucked band, a sung "aah", timpani and a
+/// crash), rendered here and dedicated CC0 by Dark Territory. It writes the WAVs into content/audio/music, the manifest
+/// with each file's SHA-256 and measured loudness, and CREDITS.md. The output is generated, never hand-edited:
+/// change an arrangement here and run it again. `--check` renders without writing and says whether the files match.
+/// </summary>
+static class OperaCommands
+{
+    /// <summary>Mono at 22.05 kHz, 16-bit: a cheap synth needs nothing above 11 kHz, and the repo stays small.</summary>
+    public const int Rate = 22050;
+    public const string Script = "src/DarkTerritory.Cli/OperaCommands.cs";
+    const string Performers = "Dark Territory, synthesised (dt audio opera)";
+    const string Dedication = "Our own recording: synthesised by `dt audio opera` from the public-domain score, and dedicated to the public domain "
+        + "under CC0 1.0 by Dark Territory (GDD v1.4 App. E.6 fallback; see CREDITS.md). Nothing in it was sampled from anyone else's recording.";
+    const double TargetLufs = MusicFiles.TargetLufs;
+
+    public static object Run(string content, string[] args)
+    {
+        bool check = args.Contains("--check");
+        string dir = Path.Combine(content, "audio", "music");
+        Directory.CreateDirectory(dir);
+        var tracks = new List<MusicTrack>();
+        var results = new List<object>();
+        var rendered = new List<(string File, byte[] Bytes)>();
+        int total = 0;
+        foreach (var a in Arrangements)
+        {
+            var band = new Band(a.Seconds);
+            var (hit, inPoint) = a.Score(band);
+            var samples = band.Master();
+            var bytes = WavBytes(samples);
+            string file = a.Id + ".wav", path = Path.Combine(dir, file);
+            string sha = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            var clip = Wav.Read(bytes);
+            double lufs = Math.Round(Loudness.Integrated(clip.Samples, clip.SampleRate), 2);
+            total += bytes.Length;
+            bool same = File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes);
+            rendered.Add((file, bytes));
+            tracks.Add(new MusicTrack(a.Id, file, a.Work, a.Composer, a.Year, Performers, Script, MusicManifest.Licence,
+                new MusicEvidence(sha, Dedication), a.Mood, Math.Round(inPoint, 3), Math.Round(hit, 3), Math.Round(clip.Seconds, 3), lufs,
+                Math.Round(TargetLufs - lufs, 2)));
+            // Its picture, for looking at without listening (out/audio/opera/<id>.png): the clip at the mixer's rate, as it plays.
+            var stereo = new float[(int)(clip.Seconds * Audio.SampleRate) * 2];
+            for (int i = 0; i < stereo.Length / 2; i++)
+                stereo[i * 2] = stereo[i * 2 + 1] = clip.At(i * (double)clip.SampleRate / Audio.SampleRate);
+            string picture = Path.GetFullPath(Path.Combine("out", "audio", "opera", a.Id + ".png"));
+            Directory.CreateDirectory(Path.GetDirectoryName(picture)!);
+            Ballast.Render.PngWriter.Write(picture, DarkTerritory.Game.Sound.Spectrogram.Render(stereo, 1000, 300), 1000, 300, 1);
+            results.Add(new { a.Id, picture, a.Mood, file, seconds = Math.Round(clip.Seconds, 2), hit = Math.Round(hit, 3), lufs, sha256 = sha, bytes = bytes.Length, unchanged = same });
+        }
+        // E.6's demo bar: with 4 or more CC0 recordings in (`dt audio music`), the fallback only fills a mood they don't cover.
+        string manifestPath = Path.Combine(dir, "manifest.json");
+        string before = File.Exists(manifestPath) ? File.ReadAllText(manifestPath) : "";
+        var recorded = MusicFiles.Load(dir).Where(t => t.Recorded).ToList();
+        var pool = MusicFiles.Pool(recorded, tracks);
+        var written = pool.Where(t => !t.Recorded).Select(t => t.File).ToHashSet();
+        if (!check)
+        {
+            foreach (var (file, bytes) in rendered)
+                if (written.Contains(file))
+                    File.WriteAllBytes(Path.Combine(dir, file), bytes);
+            MusicFiles.Write(dir, [], tracks);
+        }
+        return new
+        {
+            check,
+            dir = Path.GetFullPath(dir),
+            manifestUnchanged = before == MusicFiles.ManifestText(pool),
+            recorded = recorded.Count,
+            inThePool = written,
+            totalBytes = total,
+            tracks = results,
+        };
+    }
+
+    static byte[] WavBytes(float[] samples)
+    {
+        using var stream = new MemoryStream();
+        using (var w = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            int bytes = samples.Length * 2;
+            w.Write("RIFF"u8);
+            w.Write(36 + bytes);
+            w.Write("WAVEfmt "u8);
+            w.Write(16);
+            w.Write((short)1);
+            w.Write((short)1);
+            w.Write(Rate);
+            w.Write(Rate * 2);
+            w.Write((short)2);
+            w.Write((short)16);
+            w.Write("data"u8);
+            w.Write(bytes);
+            foreach (float s in samples)
+                w.Write((short)Math.Clamp(Math.Round(s * 32767), -32768, 32767));
+        }
+        return stream.ToArray();
+    }
+
+    /// <summary>One track: what it is, how long the file runs, and the score, which plays into the band and returns the hit and in-point in seconds.</summary>
+    sealed record Arrangement(string Id, string Work, string Composer, int Year, MusicMood Mood, double Seconds, Func<Band, (double Hit, double InPoint)> Score);
+
+    static readonly Arrangement[] Arrangements =
+    [
+        new("lament-vesti-la-giubba", "\"Vesti la giubba\" (\"Ridi, Pagliaccio\"), Pagliacci", "Ruggero Leoncavallo", 1892, MusicMood.Lament, 23.5, Giubba),
+        new("gallop-infernal-galop", "\"Infernal Galop\", Orpheus in the Underworld", "Jacques Offenbach", 1858, MusicMood.Gallop, 21.5, Galop),
+        new("gallop-william-tell", "Overture finale, William Tell", "Gioachino Rossini", 1829, MusicMood.Gallop, 21.5, Tell),
+        new("doom-dies-irae", "\"Dies irae\", Messa da Requiem", "Giuseppe Verdi", 1874, MusicMood.Doom, 23.5, DiesIrae),
+        new("swagger-la-donna-e-mobile", "\"La donna è mobile\", Rigoletto", "Giuseppe Verdi", 1851, MusicMood.Swagger, 22.5, Donna),
+    ];
+
+    // ---- The arrangements. Notes are "name:beats" ("C5:0.5", "r:1" a rest, "C4+E4+G4:2" a chord), a bar per "|".
+
+    /// <summary>
+    /// Lament: the arioso's "Ridi, Pagliaccio" line, sung by the synth's tenor "aah" (with a sob on the long notes) over a
+    /// tremulous church organ. E minor, a slow four. The hit is the high first note of "Ridi", on a crash and the timpani.
+    /// </summary>
+    static (double, double) Giubba(Band b)
+    {
+        b.Bpm = 66;
+        // Four beats of low organ swelling under a timpani roll: the train running into it.
+        b.Organ(0, 4, "E2+B2+E3", 0.55, attack: 2.4);
+        b.Roll(0.5, 3.5, "E2", 0.05, 0.75);
+        double hit = 4;
+        b.Crash(hit, 1);
+        b.Timpani(hit, "E2", 1);
+        b.Kick(hit, 0.8);
+        // The tune: "Ri-di, Pa-gliac-cio, sul tuo a-mo-re in-fran-to! Ri-di del duol, che t'av-ve-le-na il cor!"
+        b.Line("E5:2 D5:1 C5:1 | B4:1.5 A4:0.5 G4:1 A4:1 | G5:2 F#5:1 E5:1 | D5:0.5 C5:0.5 B4:0.5 A4:0.5 G4:1 F#4:1 | E4:3.5", hit,
+            (at, len, midi) => b.Voice(at, len, midi, 0.85, sob: len >= 1.5));
+        // The organ under it, a chord to a half bar, the pedal an octave down, a soft timpani on each bar.
+        b.Line("E3+G3+B3:2 E3+A3+C4:2 | E3+G3+B3:2 D3+F#3+A3+C4:2 | E3+G3+B3:2 E3+G3+C4:2 | E3+A3+C4:2 D#3+F#3+B3:2 | E3+G3+B3:4", hit,
+            (at, len, midi) => b.Organ(at, len, midi, 0.42));
+        b.Line("E2:2 A1:2 | E2:2 D2:2 | E2:2 C2:2 | A1:2 B1:2 | E2:4", hit, (at, len, midi) => b.Organ(at, len, midi, 0.5));
+        for (int bar = 1; bar < 5; bar++)
+            b.Timpani(hit + bar * 4, bar % 2 == 1 ? "B1" : "E2", 0.35);
+        // The last chord, with a sob, the crash and a final timpani stroke.
+        b.Timpani(hit + 16, "E2", 0.9);
+        b.Crash(hit + 16, 0.5);
+        return (b.T(hit), 0);
+    }
+
+    /// <summary>
+    /// Gallop: the can-can, a trumpet over a banjo and tuba oom-pah with a snare on the off-beats. C major, a fast two. The
+    /// hit is the downbeat of the tune, on a crash.
+    /// </summary>
+    static (double, double) Galop(Band b)
+    {
+        b.Bpm = 152;
+        // Two bars of vamp, two with the snare rolling up to it.
+        for (int bar = 0; bar < 4; bar++)
+            b.OomPah(bar * 2, "C3", "G2", "C4+E4+G4", 0.55 + 0.1 * bar);
+        b.SnareRoll(4, 4, 0.1, 0.8);
+        double hit = 8;
+        b.Crash(hit, 1);
+        b.Timpani(hit, "C2", 0.9);
+        string tune = "C5:2 | D5:0.5 F5:0.5 E5:0.5 D5:0.5 | G5:1 G5:1 | G5:0.5 A5:0.5 E5:0.5 F5:0.5 | D5:1 D5:1 | D5:0.5 F5:0.5 E5:0.5 D5:0.5 | "
+            + "C5:0.5 C6:0.5 B5:0.5 A5:0.5 | G5:0.5 F5:0.5 E5:0.5 D5:0.5 | ";
+        string second = "C5:2 | D5:0.5 F5:0.5 E5:0.5 D5:0.5 | G5:1 G5:1 | G5:0.5 A5:0.5 E5:0.5 F5:0.5 | D5:1 D5:1 | D5:0.5 F5:0.5 E5:0.5 D5:0.5 | "
+            + "C5:0.5 G5:0.5 E5:0.5 D5:0.5 | C5:1 r:1 | ";
+        string tag = "C6:0.5 G5:0.5 E5:0.5 G5:0.5 | C6:1 G5:1 | C6:2";
+        double end = b.Line(tune + second + tag, hit, (at, len, midi) =>
+        {
+            b.Brass(at, len, midi, 0.8);
+            b.Pluck(at, len, midi - 12, 0.25);
+        });
+        string[] harmony = ["C", "G7", "C", "C", "G7", "G7", "C", "G7", "C", "G7", "C", "C", "G7", "G7", "G7", "C", "C", "C"];
+        for (int bar = 0; bar < harmony.Length; bar++)
+        {
+            double at = hit + bar * 2;
+            var (root, fifth, chord) = harmony[bar] == "C" ? ("C3", "G2", "C4+E4+G4") : ("G2", "D3", "B3+D4+F4");
+            b.OomPah(at, root, fifth, chord, 0.8);
+            b.Snare(at + 0.5, 0.25);
+            b.Snare(at + 1.5, 0.25);
+            if (bar % 4 == 0)
+                b.Timpani(at, harmony[bar] == "C" ? "C2" : "G1", 0.5);
+        }
+        // The last chord: everything, and the crash.
+        b.Organ(end - 2, 2, "C3+G3+C4+E4+G4", 0.5);
+        b.Bass(end - 2, 2, "C2", 0.8);
+        b.Crash(end - 2, 0.8);
+        b.Timpani(end - 2, "C2", 0.9);
+        return (b.T(hit), 0);
+    }
+
+    /// <summary>
+    /// Gallop: the overture's finale, the trumpet's "da-da-dum" on one note, the strings' run up, over a galloping tuba
+    /// and snare. E major, a fast two. The hit is the gallop's first downbeat, on a crash.
+    /// </summary>
+    static (double, double) Tell(Band b)
+    {
+        b.Bpm = 152;
+        // The gallop in the drums and the bass, coming up out of nothing.
+        for (int bar = 0; bar < 4; bar++)
+        {
+            b.Timpani(bar * 2, "E2", 0.25 + 0.15 * bar);
+            b.Timpani(bar * 2 + 0.5, "E2", 0.15 + 0.1 * bar);
+            b.Timpani(bar * 2 + 1, "B1", 0.25 + 0.15 * bar);
+        }
+        b.SnareRoll(5, 3, 0.1, 0.8);
+        b.Line("B4:0.25 B4:0.25 B4:0.5 B4:0.25 B4:0.25 B4:0.5", 6, (at, len, midi) => b.Brass(at, len, midi, 0.5));
+        double hit = 8;
+        b.Crash(hit, 1);
+        b.Timpani(hit, "E2", 1);
+        string half = "B4:0.25 B4:0.25 B4:0.5 B4:0.25 B4:0.25 B4:0.5 | B4:0.25 B4:0.25 E5:0.5 F#5:0.5 G#5:0.5 | "
+            + "B4:0.25 B4:0.25 B4:0.5 B4:0.25 B4:0.25 E5:0.5 | G#5:0.5 F#5:0.5 D#5:0.5 B4:0.5 | "
+            + "B4:0.25 B4:0.25 B4:0.5 B4:0.25 B4:0.25 B4:0.5 | B4:0.25 B4:0.25 E5:0.5 F#5:0.5 G#5:0.5 | "
+            + "E5:0.25 G#5:0.25 B5:0.5 G#5:0.25 E5:0.25 F#5:0.5 | D#5:0.5 B4:0.5 E5:1 | ";
+        double end = b.Line(half + half + "E5:0.5 B4:0.5 G#4:0.5 B4:0.5 | E5:2", hit, (at, len, midi) =>
+        {
+            b.Brass(at, len, midi, 0.8);
+            b.Pluck(at, len, midi - 12, 0.2);
+        });
+        string[] harmony = ["E", "E", "E", "B7", "E", "E", "E", "B7", "E", "E", "E", "B7", "E", "E", "E", "B7", "E", "E"];
+        for (int bar = 0; bar < harmony.Length; bar++)
+        {
+            double at = hit + bar * 2;
+            var (root, fifth, chord) = harmony[bar] == "E" ? ("E2", "B2", "G#3+B3+E4") : ("B1", "F#2", "A3+B3+D#4");
+            b.OomPah(at, root, fifth, chord, 0.8);
+            b.Snare(at + 0.5, 0.22);
+            b.Snare(at + 0.75, 0.15);
+            b.Snare(at + 1.5, 0.22);
+            b.Snare(at + 1.75, 0.15);
+        }
+        b.Organ(end - 2, 2, "E3+B3+E4+G#4+B4", 0.5);
+        b.Bass(end - 2, 2, "E2", 0.8);
+        b.Crash(end - 2, 0.8);
+        b.Timpani(end - 2, "E2", 0.9);
+        return (b.T(hit), 0);
+    }
+
+    /// <summary>
+    /// Doom: the Requiem's day of wrath. Hammered G minor chords on the whole band, the bass drum's off-beat blows, the
+    /// strings' scales tumbling down, then the choir: "Di-es i-rae, di-es il-la". A timpani roll leads in; the hit is the
+    /// first chord.
+    /// </summary>
+    static (double, double) DiesIrae(Band b)
+    {
+        b.Bpm = 88;
+        b.Organ(0, 5, "G1+D2+G2", 0.5, attack: 3.2);
+        b.Roll(0.25, 4.75, "G2", 0.05, 0.9);
+        double hit = 5;
+        b.Crash(hit, 1);
+        // Four bars: the chord, the drum on the off-beats, the scale falling through the rest of the bar.
+        string run = "G5:0.25 F5:0.25 Eb5:0.25 D5:0.25 C5:0.25 Bb4:0.25 A4:0.25 G4:0.25 F#4:0.25 G4:0.25 A4:0.25 Bb4:0.25";
+        for (int bar = 0; bar < 4; bar++)
+        {
+            double at = hit + bar * 4;
+            Stab(b, at, bar == 3 ? "D3+F#3+A3+D4" : "G2+D3+G3+Bb3+D4", bar == 3 ? "D4+F#4+A4" : "G4+Bb4+D5", bar == 3 ? "D2" : "G2");
+            b.Kick(at + 1.5, 0.9);
+            b.Kick(at + 2.5, 0.9);
+            b.Timpani(at + 1.5, "D2", 0.5);
+            b.Line(run, at + 1, (t, len, midi) => b.Brass(t, len, midi, 0.38, bright: 1.4));
+            if (bar == 2)
+                b.Crash(at, 0.7);
+        }
+        // The choir, hammered, a chord on every syllable.
+        double sing = hit + 16;
+        b.Line("D5:1 D5:1 D5:1 D5:1 | Eb5:1 D5:1 C5:1 Bb4:1 | D5:4", sing, (t, len, midi) =>
+        {
+            b.Voice(t, len, midi, 0.7);
+            b.Voice(t, len, midi - 7, 0.45);
+            b.Brass(t, Math.Min(len, 0.8), midi - 12, 0.4);
+        });
+        string[] chords = ["G2+D3+G3+Bb3", "G2+D3+G3+Bb3", "G2+D3+G3+Bb3", "G2+D3+G3+Bb3", "C3+Eb3+G3+C4", "G2+D3+G3+Bb3", "D3+F#3+A3+C4", "D3+F#3+A3+D4"];
+        for (int i = 0; i < chords.Length; i++)
+        {
+            b.Organ(sing + i, 0.85, chords[i], 0.45);
+            b.Kick(sing + i, 0.6);
+            b.Timpani(sing + i, i < 6 ? "G2" : "D2", 0.45);
+        }
+        // "Il-la": the last chord, everything, and the roll dying away.
+        double last = sing + 8;
+        Stab(b, last, "G2+D3+G3+Bb3+D4", "G4+Bb4+D5", "G2", 3);
+        b.Crash(last, 1);
+        b.Roll(last + 0.25, 3, "G2", 0.6, 0.1);
+        return (b.T(hit), 0);
+    }
+
+    static void Stab(Band b, double at, string organ, string brass, string timpani, double len = 0.9)
+    {
+        b.Organ(at, len, organ, 0.6);
+        foreach (var n in brass.Split('+'))
+            b.Brass(at, len, Band.Midi(n), 0.55);
+        foreach (var n in brass.Split('+'))
+            b.Voice(at, len, Band.Midi(n), 0.4);
+        b.Timpani(at, timpani, 1);
+        b.Kick(at, 1);
+        b.Bass(at, len, Band.Midi(timpani) - 12, 0.7);
+    }
+
+    /// <summary>
+    /// Swagger: the Duke's song, the trumpet strutting over a mandolin's oom-pah-pah. C major, a quick three (beats are
+    /// eighth notes). The hit is the first "La", on a crash.
+    /// </summary>
+    static (double, double) Donna(Band b)
+    {
+        b.Bpm = 200;
+        for (int bar = 0; bar < 4; bar++)
+            b.OomPahPah(bar * 3, "C3", "C4+E4+G4", 0.5 + 0.1 * bar);
+        b.Line("r:1 G3:1 B3:1 | D4:1 F4:1 G4:1", 6, (t, len, midi) => b.Pluck(t, len, midi, 0.45));
+        double hit = 12;
+        b.Crash(hit, 1);
+        b.Timpani(hit, "G1", 0.9);
+        // "La don-na è mo-bi-le, qual piu-ma al ven-to, mu-ta d'ac-cen-to e di pen-sie-ro", the band answering each line.
+        string tune = "G4:1 G4:1 G4:1 | B4:2 A4:1 | F4:3 | r:3 | F4:1 F4:1 F4:1 | A4:2 G4:1 | E4:3 | r:3 | "
+            + "G4:1 A4:1 G4:1 | F4:2 E4:1 | D4:3 | r:3 | E4:1 F4:1 E4:1 | D4:2 B3:1 | C4:3 | r:3 | C5:1 G4:1 E4:1 | C4:3";
+        double end = b.Line(tune, hit, (t, len, midi) =>
+        {
+            b.Brass(t, len, midi, 0.85);
+            b.Organ(t, len, midi - 12, 0.18);
+        });
+        // The band's answers in the rests.
+        b.Line("D4:1 E4:1 F4:1", hit + 9, (t, len, midi) => b.Pluck(t, len, midi, 0.5));
+        b.Line("E4:1 D4:1 C4:1", hit + 21, (t, len, midi) => b.Pluck(t, len, midi, 0.5));
+        b.Line("F4:1 E4:1 D4:1", hit + 33, (t, len, midi) => b.Pluck(t, len, midi, 0.5));
+        b.Line("G3:1 A3:1 B3:1", hit + 45, (t, len, midi) => b.Pluck(t, len, midi, 0.5));
+        string[] harmony = ["G7", "G7", "G7", "G7", "C", "C", "C", "C", "G7", "G7", "G7", "G7", "C", "G7", "C", "C", "C", "C"];
+        for (int bar = 0; bar < harmony.Length; bar++)
+            b.OomPahPah(hit + bar * 3, harmony[bar] == "C" ? "C3" : "G2", harmony[bar] == "C" ? "C4+E4+G4" : "B3+D4+F4", 0.75);
+        b.Organ(end - 3, 3, "C3+G3+C4+E4", 0.45);
+        b.Crash(end - 3, 0.8);
+        b.Timpani(end - 3, "C2", 0.9);
+        return (b.T(hit), 0);
+    }
+
+    /// <summary>
+    /// The synth band: each instrument renders its notes straight into one buffer at <see cref="Rate"/>, then
+    /// <see cref="Master"/> adds a small hall and sets the peak. Everything random is seeded, so a rerun is byte-identical.
+    /// </summary>
+    sealed class Band(double seconds)
+    {
+        readonly double[] _mix = new double[(int)(seconds * Rate)];
+        uint _seed = 1;
+        public double Bpm = 120;
+
+        public double T(double beat) => beat * 60 / Bpm;
+
+        public static int Midi(string name)
+        {
+            int semis = char.ToUpperInvariant(name[0]) switch { 'C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11, _ => throw new FormatException(name) };
+            int i = 1;
+            for (; i < name.Length && name[i] is '#' or 'b'; i++)
+                semis += name[i] == '#' ? 1 : -1;
+            return 12 * (int.Parse(name[i..]) + 1) + semis;
+        }
+
+        static double Hz(double midi) => 440 * Math.Pow(2, (midi - 69) / 12.0);
+
+        /// <summary>Plays a line of "note:beats" tokens from <paramref name="beat"/>; returns the beat it ends on.</summary>
+        public double Line(string notes, double beat, Action<double, double, int> play)
+        {
+            foreach (var token in notes.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (token == "|")
+                    continue;
+                var parts = token.Split(':');
+                double len = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+                if (parts[0] != "r")
+                    foreach (var n in parts[0].Split('+'))
+                        play(beat, len, Midi(n));
+                beat += len;
+            }
+            return beat;
+        }
+
+        void Add(int i, double v)
+        {
+            if ((uint)i < (uint)_mix.Length)
+                _mix[i] += v;
+        }
+
+        Noise NextNoise() => new(_seed++ * 2654435761u + 12345u);
+
+        static double Adsr(double t, double len, double a, double d, double s, double r)
+        {
+            if (t < 0)
+                return 0;
+            double e = t < a ? t / a : t < a + d ? 1 - (1 - s) * (t - a) / d : s;
+            return t > len ? e * Math.Max(0, 1 - (t - len) / r) : e;
+        }
+
+        static double Blep(double p, double dt)
+        {
+            if (p < dt)
+            {
+                p /= dt;
+                return p + p - p * p - 1;
+            }
+            if (p > 1 - dt)
+            {
+                p = (p - 1) / dt;
+                return p * p + p + p + 1;
+            }
+            return 0;
+        }
+
+        /// <summary>A church organ (a few drawbars, a Leslie's wobble and a key click); <paramref name="attack"/> long for a swell.</summary>
+        public void Organ(double beat, double len, string chord, double vel, double attack = 0.012)
+        {
+            foreach (var n in chord.Split('+'))
+                Organ(beat, len, Midi(n), vel, attack);
+        }
+
+        public void Organ(double beat, double len, int midi, double vel, double attack = 0.012)
+        {
+            double f = Hz(midi), dur = T(len);
+            int start = (int)(T(beat) * Rate), count = (int)((dur + 0.1) * Rate);
+            (double Mult, double Weight)[] bars = [(1, 1), (2, 0.6), (3, 0.38), (4, 0.3), (6, 0.15), (8, 0.1)];
+            var noise = NextNoise();
+            double ph = 0, wob = midi * 0.37;
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate;
+                ph += 2 * Math.PI * f * (1 + 0.0025 * Math.Sin(2 * Math.PI * 6.3 * t + wob)) / Rate;
+                double s = 0;
+                foreach (var (m, w) in bars)
+                    if (m * f < Rate * 0.45)
+                        s += w * Math.Sin(m * ph);
+                double env = Adsr(t, dur, attack, 0.05, 0.9, 0.08) * (1 + 0.14 * Math.Sin(2 * Math.PI * 6.3 * t + wob));
+                double click = t < 0.004 ? 0.25 * noise.Next() * (1 - t / 0.004) : 0;
+                Add(start + i, vel * 0.09 * (env * s / 2.5 + click));
+            }
+        }
+
+        /// <summary>A cheap synth brass: two detuned saws, a scoop up into the note, a filter that blares open and settles, vibrato on long notes.</summary>
+        public void Brass(double beat, double len, int midi, double vel, double bright = 1)
+        {
+            double f = Hz(midi), dur = T(len);
+            int start = (int)(T(beat) * Rate), count = (int)((dur + 0.12) * Rate);
+            double p1 = 0, p2 = 0.37;
+            var lp = new Bq();
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate;
+                double vib = t > 0.25 ? 0.005 * Math.Min(1, (t - 0.25) / 0.2) * Math.Sin(2 * Math.PI * 5.6 * t) : 0;
+                double pitch = f * Math.Pow(2, -0.4 * Math.Exp(-t / 0.035) / 12) * (1 + vib);
+                double d1 = pitch * 1.003 / Rate, d2 = pitch * 0.997 / Rate;
+                p1 += d1;
+                p2 += d2;
+                p1 -= Math.Floor(p1);
+                p2 -= Math.Floor(p2);
+                double saw = (2 * p1 - 1 - Blep(p1, d1)) + (2 * p2 - 1 - Blep(p2, d2));
+                if (i % 16 == 0)
+                {
+                    double open = t < 0.05 ? t / 0.05 : 0.55 + 0.45 * Math.Exp(-(t - 0.05) / 0.2);
+                    lp.LowPass(Math.Min(Rate * 0.45, pitch * (1.2 + 5.5 * open * bright)), 1.1);
+                }
+                Add(start + i, vel * 0.11 * Adsr(t, dur, 0.025, 0.12, 0.8, 0.09) * lp.Run(saw));
+            }
+        }
+
+        /// <summary>A plucked string (banjo, mandolin): decaying partials, the high ones first, and a pick's click.</summary>
+        public void Pluck(double beat, double len, int midi, double vel)
+        {
+            double f = Hz(midi), dur = Math.Min(T(len) + 0.3, 1.6);
+            int start = (int)(T(beat) * Rate), count = (int)(dur * Rate);
+            var noise = NextNoise();
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate, s = 0;
+                for (int k = 1; k <= 8 && k * f < Rate * 0.45; k++)
+                    s += Math.Sin(2 * Math.PI * k * f * t) / k * Math.Exp(-t * (3 + 2.2 * k));
+                double pick = t < 0.003 ? noise.Next() * 0.4 : 0;
+                Add(start + i, vel * 0.2 * (s * Math.Min(1, t / 0.002) * Math.Min(1, (dur - t) / 0.05) + pick));
+            }
+        }
+
+        /// <summary>A tuba's oom: round, short, a little reedy.</summary>
+        public void Bass(double beat, double len, string note, double vel) => Bass(beat, len, Midi(note), vel);
+
+        public void Bass(double beat, double len, int midi, double vel)
+        {
+            double f = Hz(midi), dur = T(len);
+            int start = (int)(T(beat) * Rate), count = (int)((dur + 0.08) * Rate);
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate, ph = 2 * Math.PI * f * t;
+                double s = Math.Sin(ph) + 0.35 * Math.Sin(2 * ph) + 0.18 * Math.Sin(3 * ph) + 0.08 * Math.Sin(4 * ph);
+                Add(start + i, vel * 0.16 * Adsr(t, dur, 0.012, 0.15, 0.55, 0.06) * s);
+            }
+        }
+
+        /// <summary>Oom-pah in two: the root, the chord, the fifth, the chord, on the eighths.</summary>
+        public void OomPah(double beat, string root, string fifth, string chord, double vel)
+        {
+            Bass(beat, 0.45, root, vel);
+            Bass(beat + 1, 0.45, fifth, vel * 0.9);
+            foreach (var n in chord.Split('+'))
+            {
+                Pluck(beat + 0.5, 0.4, Midi(n), vel * 0.35);
+                Pluck(beat + 1.5, 0.4, Midi(n), vel * 0.35);
+            }
+        }
+
+        /// <summary>Oom-pah-pah in three.</summary>
+        public void OomPahPah(double beat, string root, string chord, double vel)
+        {
+            Bass(beat, 0.9, root, vel);
+            foreach (var n in chord.Split('+'))
+            {
+                Pluck(beat + 1, 0.8, Midi(n), vel * 0.33);
+                Pluck(beat + 2, 0.8, Midi(n), vel * 0.33);
+            }
+        }
+
+        /// <summary>
+        /// The singer: a buzz through the formants of an open "aah", with vibrato, two voices a hair apart. A
+        /// <paramref name="sob"/> breaks the end of a long note: the pitch falls and the voice catches.
+        /// </summary>
+        public void Voice(double beat, double len, int midi, double vel, bool sob = false)
+        {
+            double f = Hz(midi), dur = T(len);
+            int start = (int)(T(beat) * Rate), count = (int)((dur + 0.18) * Rate);
+            Bq f1 = default, f2 = default, f3 = default;
+            f1.BandPass(730, 5);
+            f2.BandPass(1090, 6);
+            f3.BandPass(2440, 8);
+            double p1 = 0, p2 = 0.5;
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate;
+                double vib = 0.007 * Math.Min(1, t / 0.3) * Math.Sin(2 * Math.PI * 5.2 * t);
+                double bend = 1;
+                double amp = Adsr(t, dur, 0.06, 0.1, 0.85, 0.16);
+                if (sob && t > dur - 0.3)
+                {
+                    double u = Math.Clamp((t - (dur - 0.3)) / 0.3, 0, 1);
+                    bend = Math.Pow(2, -2.0 * u * u / 12);
+                    amp *= 1 - 0.45 * Math.Abs(Math.Sin(Math.PI * 3 * u));
+                }
+                double pitch = f * bend * (1 + vib);
+                double d1 = pitch * 1.004 / Rate, d2 = pitch * 0.996 / Rate;
+                p1 += d1;
+                p2 += d2;
+                p1 -= Math.Floor(p1);
+                p2 -= Math.Floor(p2);
+                double buzz = (2 * p1 - 1 - Blep(p1, d1)) + (2 * p2 - 1 - Blep(p2, d2));
+                double s = f1.Run(buzz) + 0.6 * f2.Run(buzz) + 0.3 * f3.Run(buzz);
+                Add(start + i, vel * 0.32 * amp * s);
+            }
+        }
+
+        /// <summary>A timpani stroke: a falling, ringing drum note and the mallet's thump.</summary>
+        public void Timpani(double beat, string note, double vel)
+        {
+            double f = Hz(Midi(note));
+            int start = (int)(T(beat) * Rate), count = (int)(2.4 * Rate);
+            var noise = NextNoise();
+            Bq thump = default;
+            thump.LowPass(260, 0.7);
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate, g = 1 + 0.05 * Math.Exp(-t / 0.05);
+                double s = Math.Sin(2 * Math.PI * f * g * t) + 0.5 * Math.Sin(2 * Math.PI * 1.5 * f * g * t) * Math.Exp(-t * 2.5)
+                    + 0.3 * Math.Sin(2 * Math.PI * 1.99 * f * g * t) * Math.Exp(-t * 4);
+                double hitNoise = thump.Run(noise.Next()) * Math.Exp(-t / 0.03) * 3;
+                Add(start + i, vel * 0.32 * (s * Math.Exp(-t / 0.55) * Math.Min(1, t / 0.002) + hitNoise));
+            }
+        }
+
+        /// <summary>A timpani roll, strokes every 55 ms, from one level to another.</summary>
+        public void Roll(double beat, double len, string note, double from, double to)
+        {
+            double seconds = T(len);
+            var noise = NextNoise();
+            for (double t = 0; t < seconds; t += 0.055)
+                Timpani(beat + t * Bpm / 60, note, (from + (to - from) * t / seconds) * (0.85 + 0.15 * noise.Next()));
+        }
+
+        /// <summary>A crash cymbal: bright noise blooming and ringing away.</summary>
+        public void Crash(double beat, double vel)
+        {
+            int start = (int)(T(beat) * Rate), count = (int)(2.8 * Rate);
+            var noise = NextNoise();
+            Bq hp = default, ring = default;
+            hp.HighPass(3500, 0.7);
+            ring.BandPass(6200, 2);
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate, n = noise.Next();
+                double s = hp.Run(n) * Math.Exp(-t / 0.7) + 0.6 * ring.Run(n) * Math.Exp(-t / 1.1);
+                Add(start + i, vel * 0.42 * s * Math.Min(1, t / 0.002));
+            }
+        }
+
+        /// <summary>The orchestra's bass drum: a deep, falling boom.</summary>
+        public void Kick(double beat, double vel)
+        {
+            int start = (int)(T(beat) * Rate), count = (int)(1.0 * Rate);
+            var noise = NextNoise();
+            double ph = 0;
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate;
+                ph += 2 * Math.PI * (48 + 60 * Math.Exp(-t / 0.035)) / Rate;
+                double s = Math.Sin(ph) * Math.Exp(-t / 0.42) + noise.Next() * 0.3 * Math.Exp(-t / 0.006);
+                Add(start + i, vel * 0.5 * s);
+            }
+        }
+
+        /// <summary>A snare: rattle and a short tone.</summary>
+        public void Snare(double beat, double vel)
+        {
+            int start = (int)(T(beat) * Rate), count = (int)(0.35 * Rate);
+            var noise = NextNoise();
+            Bq band = default;
+            band.BandPass(2200, 0.8);
+            for (int i = 0; i < count; i++)
+            {
+                double t = (double)i / Rate;
+                double s = band.Run(noise.Next()) * 1.6 * Math.Exp(-t / 0.09) + 0.4 * Math.Sin(2 * Math.PI * 190 * t) * Math.Exp(-t / 0.05);
+                Add(start + i, vel * 0.3 * s);
+            }
+        }
+
+        public void SnareRoll(double beat, double len, double from, double to)
+        {
+            double seconds = T(len);
+            var noise = NextNoise();
+            for (double t = 0; t < seconds; t += 0.04)
+                Snare(beat + t * Bpm / 60, (from + (to - from) * t / seconds) * (0.8 + 0.2 * noise.Next()));
+        }
+
+        /// <summary>
+        /// The finished track: a small hall (four combs and two all-passes, Schroeder's), its peaks limited,
+        /// the last half second faded, and the peak set at −1 dBFS. The manifest's gain, not this, brings it to −16 LUFS.
+        /// </summary>
+        public float[] Master()
+        {
+            int[] combs = [557, 593, 641, 677], passes = [225, 341];
+            var wet = new double[_mix.Length];
+            foreach (int delay in combs)
+            {
+                var line = new double[delay];
+                double damp = 0;
+                for (int i = 0, k = 0; i < _mix.Length; i++, k = (k + 1) % delay)
+                {
+                    double out_ = line[k];
+                    damp = out_ * 0.7 + damp * 0.3;
+                    line[k] = _mix[i] + damp * 0.8;
+                    wet[i] += out_ * 0.25;
+                }
+            }
+            foreach (int delay in passes)
+            {
+                var line = new double[delay];
+                for (int i = 0, k = 0; i < wet.Length; i++, k = (k + 1) % delay)
+                {
+                    double buffered = line[k], x = wet[i];
+                    line[k] = x + buffered * 0.5;
+                    wet[i] = buffered - x * 0.5;
+                }
+            }
+            var mix = new double[_mix.Length];
+            for (int i = 0; i < mix.Length; i++)
+                mix[i] = _mix[i] + 0.22 * wet[i];
+            // A look-ahead limiter, as cheap radio does it: the crashes and the drums would otherwise set the peak and leave
+            // the tune far under it. Each sample takes the least gain the next 3 ms need, and lets go over 80 ms.
+            double threshold = mix.Max(Math.Abs) * 0.4, gain = 1, releaseK = Math.Exp(-1 / (0.08 * Rate));
+            int ahead = (int)(0.003 * Rate);
+            var need = mix.Select(x => Math.Abs(x) > threshold ? threshold / Math.Abs(x) : 1).ToArray();
+            for (int i = 0; i < mix.Length; i++)
+            {
+                double least = 1;
+                for (int k = i; k < Math.Min(mix.Length, i + ahead); k++)
+                    least = Math.Min(least, need[k]);
+                gain = Math.Min(least, gain * releaseK + (1 - releaseK));
+                mix[i] *= gain;
+            }
+            int fade = (int)(0.5 * Rate);
+            for (int i = 0; i < fade && i < mix.Length; i++)
+                mix[mix.Length - 1 - i] *= (double)i / fade;
+            double peak = mix.Max(Math.Abs);
+            double k0 = peak > 0 ? Math.Pow(10, -1 / 20.0) / peak : 1;
+            return [.. mix.Select(x => (float)(x * k0))];
+        }
+    }
+
+    /// <summary>An RBJ biquad at the band's own rate (Ballast's is fixed to the mixer's 48 kHz).</summary>
+    struct Bq
+    {
+        double _b0, _b1, _b2, _a1, _a2, _z1, _z2;
+
+        void Set(double b0, double b1, double b2, double a0, double a1, double a2)
+        {
+            _b0 = b0 / a0;
+            _b1 = b1 / a0;
+            _b2 = b2 / a0;
+            _a1 = a1 / a0;
+            _a2 = a2 / a0;
+        }
+
+        static (double Cos, double Alpha) W(double f, double q)
+        {
+            double w = 2 * Math.PI * Math.Clamp(f, 10, Rate * 0.45) / Rate;
+            return (Math.Cos(w), Math.Sin(w) / (2 * q));
+        }
+
+        public void LowPass(double f, double q)
+        {
+            var (c, a) = W(f, q);
+            Set((1 - c) / 2, 1 - c, (1 - c) / 2, 1 + a, -2 * c, 1 - a);
+        }
+
+        public void HighPass(double f, double q)
+        {
+            var (c, a) = W(f, q);
+            Set((1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + a, -2 * c, 1 - a);
+        }
+
+        public void BandPass(double f, double q)
+        {
+            var (c, a) = W(f, q);
+            Set(a, 0, -a, 1 + a, -2 * c, 1 - a);
+        }
+
+        public double Run(double x)
+        {
+            double y = _b0 * x + _z1;
+            _z1 = _b1 * x - _a1 * y + _z2;
+            _z2 = _b2 * x - _a2 * y;
+            return y;
+        }
+    }
+}

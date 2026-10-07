@@ -35,15 +35,15 @@ HR = np.array(g["HR"], np.float32)
 SLIT_W = g["SLIT_W"]
 
 DRESS = {
-    "skin.grumbler_face": (lambda: make.flat("grumbler_face", (0.15, 0.15, 0.125), rough=0.55), 3),
+    "skin.grumbler_face": (lambda: make.flat("grumbler_face", (0.18, 0.18, 0.145), rough=0.55), 3),
     "skin.grumbler_teeth": (lambda: make.flat("grumbler_teeth", (0.3, 0.25, 0.15), rough=0.4), 1),
-    "skin.grumbler": (lambda: make.flat("grumbler_skin", (0.13, 0.13, 0.105), rough=0.6), 2),
+    "skin.grumbler": (lambda: make.flat("grumbler_skin", (0.17, 0.17, 0.13), rough=0.6), 2),
     "glass_dirty.grumbler_eye": (lambda: make.flat("grumbler_eye", (0.42, 0.4, 0.34), rough=0.1), 2),
     "tar.grumbler_mouth": (lambda: make.flat("grumbler_mouth", (0.02, 0.006, 0.005), rough=0.15), 1),
     "tar.grumbler_nail": (lambda: make.flat("grumbler_nail", (0.04, 0.032, 0.022), rough=0.5), 1),
-    "wool.grumbler_shirt": (lambda: make.flat("grumbler_shirt", (0.16, 0.15, 0.115), rough=0.9), 2),
+    "wool.grumbler_shirt": (lambda: make.flat("grumbler_shirt", (0.045, 0.055, 0.07), rough=0.9), 2),
     "wool.grumbler_waistcoat": (lambda: make.flat("grumbler_waistcoat", (0.045, 0.04, 0.034), rough=0.85), 2),
-    "wool.grumbler_trousers": (lambda: make.flat("grumbler_trousers", (0.06, 0.055, 0.047), rough=0.9), 2),
+    "wool.grumbler_trousers": (lambda: make.flat("grumbler_trousers", (0.032, 0.03, 0.027), rough=0.9), 2),
     "wool.grumbler_cap": (lambda: make.flat("grumbler_cap", (0.065, 0.058, 0.046), rough=0.95), 2),
 }
 

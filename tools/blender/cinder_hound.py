@@ -420,8 +420,28 @@ for f, (w, back, interp) in enumerate(((0, 0.0, "CONSTANT"), (28, 0.03, "CONSTAN
                          root__loc=(0, -0.04 - back, -0.1), tail_01=(-12, 0, -w), spine_02=(4, 0, -w * 0.2)), interp)
 bite.close(32)
 
+# Board (1.1 s, once; COMMIT, onto the rear car): the checklist's boarding leap, not the lunge. Off the ballast behind the
+# car (the root starts a car's roof-height below and 2.5 m back of where the sim puts it, on the roof near the end), a
+# bound onto the car's end, the body reared up it and the hind legs scrabbling at the planks, the forelegs hooked over the
+# roof's lip, then a heave up and over onto the roof, landing in the pack fight's crouch.
+REAR = over(LAUNCH, root=(62, 0, 0), chest=(-6, 0, 0), neck_01=(-20, 0, 0), head=(-20, 0, 0), jaw=(-35, 0, 0),
+            tail_01=(30, 0, 0), tail_02=(14, 0, 0))
+REAR.update(mirror({"upperarm_r": (110, 0, 0), "lowerarm_r": (-30, 0, 0), "hand_r": (-60, 0, 0), "finger_r": (-50, 0, 0)}))
+board = Clip("board", loop=False)
+board.key(0, over(gallop(0.0), root__loc=(0, -3.6, -3.75)), "LINEAR")
+board.key(5, over(LAUNCH, root__loc=(0, -3.3, -3.55)), "LINEAR")
+board.key(11, over(REAR, root__loc=(0, -2.75, -1.55)), "BEZIER")
+for f, d in ((14, 1), (17, -1), (20, 1)):
+    # Scrabbling: the forelegs hooked over the lip, the hind legs kicking at the car's end out of step.
+    board.key(f, over(REAR, root=(58 + 4 * d, 0, 0), root__loc=(0, -2.62 + 0.02 * d, -1.05 + 0.08 * (f - 14) / 6),
+                      thigh_r=(-20 + 45 * d, 0, 0), calf_r=(20 - 40 * d, 0, 0), thigh_l=(-20 - 45 * d, 0, 0), calf_l=(20 + 40 * d, 0, 0),
+                      head=(-24, 0, 8 * d)), "CONSTANT")
+board.key(25, over(LAUNCH, root=(18, 0, 0), root__loc=(0, -1.3, -0.25)), "BEZIER")
+board.key(30, over(LAND, root__loc=(0, -0.2, -0.06)), "BEZIER")
+board.key(33, CROUCH, "LINEAR")
+
 kit.build()
-rig.bake(sk, [prowl, run, crouch, lunge, hit, bite],
+rig.bake(sk, [prowl, run, crouch, lunge, board, hit, bite],
          plant=rig.feet_planter(sk, bones=("hand_l", "hand_r", "foot_l", "foot_r", "finger_l", "finger_r", "toe_l", "toe_r"),
                                 clips={"prowl", "crouch", "bite"}, lowest=0.014))
 rig.export(rig.args()[0] if rig.args() else "cinder_hound.glb", kit)

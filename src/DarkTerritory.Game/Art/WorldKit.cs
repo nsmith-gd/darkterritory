@@ -14,46 +14,77 @@ public static class WorldKit
     /// A black-forest spruce as the 2008-2012 benchmarks built their trees, not the old crossed pictures of one: a tapered
     /// trunk carrying whorls of boughs from low on it to the leader, each bough a card of one spruce branch (pine_bough)
     /// bent in two, rising off the trunk and drooping to its tip, longest at the bottom, packed close enough to overlap into a
-    /// mass. Alternate boughs roll either way about their length so none is ever seen edge-on. About 1500 triangles; the
+    /// mass. Alternate boughs roll either way about their length so none is ever seen edge-on. About 2000 triangles; the
     /// lineside keeps <see cref="PineCard"/> for the far field. <paramref name="variant"/> turns the whorls and jitters the boughs so a stand isn't one tree repeated.
     /// </summary>
-    public static MeshAsset Pine(Look? look, int variant, float height)
+    public static MeshAsset Pine(Look? look, int variant, float height) =>
+        Boughs(look, variant, height, reach: 0.34f, whorls: 18, core: "pine_card", tint: null, club: false, name: $"pine-{variant}-{height:0}");
+
+    /// <summary>
+    /// A black spruce near the line (maritime-rules.md §5: narrow, ragged, clubbed), modelled as <see cref="Pine"/> is: short
+    /// boughs in many whorls close up the trunk, so it stands a narrow spire with a mass, not crossed cards that read from
+    /// above as a column of separate clumps (the 5 October audit, the chase camera), and a club of dense growth at the top.
+    /// Bluer and darker than the pines, like the far field's cards (NovaKit.Conifer).
+    /// </summary>
+    public static MeshAsset Spruce(Look? look, int variant, float height) =>
+        Boughs(look, variant, height, reach: 0.15f, whorls: 24, core: look?.Layer("spruce_card") >= 0 ? "spruce_card" : "pine_card",
+            tint: new Vector3(0.75f, 0.85f, 0.85f), club: true, name: $"spruce3d-{variant}-{height:0}");
+
+    static MeshAsset Boughs(Look? look, int variant, float height, float reach, int whorls, string core, Vector3? tint, bool club, string name)
     {
         var k = new Kit(look, 200 + variant);
         k.Use("pine_bark", Palette.DeepBrown, 0.6f, 0, tile: 1.5f);
-        k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.96f, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.003f);
+        // (The trunk stops in the leader: it never shows above it as a bare stick.)
+        k.Cylinder(Vector3.Zero, new Vector3(0, height * 0.88f, 0), height * 0.015f, 7, caps: false, radiusB: height * 0.004f);
+        // A slim core of the far field's crossed cards inside the boughs: from above, or with the sky behind, the gaps
+        // between the whorls are foliage, not a stack of separate discs (the 5 October audit, the chase camera).
+        k.Use(core, Palette.PineDark, 0.3f, 0, tile: 1);
+        k.Baked = 0;
+        if (tint is { } t)
+            k.Tint = t;
+        for (int i = 0; i < 2; i++)
+        {
+            float a = variant * 0.7f + i * MathF.PI / 2;
+            k.Panel(new Vector3(0, height * 0.52f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, height * Math.Min(0.3f, reach * 1.6f), height * 0.86f,
+                Vector2.Zero, Vector2.One, twoSided: true);
+        }
         k.Use("pine_bough", Palette.PineDark, 0.3f, 0, tile: 1);
         k.Baked = 0;
+        if (tint is { } t2)
+            k.Tint = t2;
         float Jit(int i, float scale) => (Frac(MathF.Sin(i * 12.9898f + variant * 78.233f) * 43758.5f) - 0.5f) * scale;
-        const int Whorls = 14;
         int n = 0;
-        for (int w = 0; w < Whorls; w++)
+        void Bough(float y, float length, float droop, float a)
         {
-            float f = w / (float)(Whorls - 1);
+            var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
+            float l = length * (0.85f + Jit(n + 90, 0.3f));
+            var p0 = new Vector3(0, y, 0) + dir * height * 0.012f;
+            var p1 = p0 + dir * l * 0.55f + Vector3.UnitY * l * 0.06f;
+            var p2 = p1 + Vector3.Normalize(dir - Vector3.UnitY * droop) * l * 0.47f;
+            // The card's width, rolled about the bough (alternately), so from the side it still has breadth.
+            float roll = (n % 2 == 0 ? 1 : -1) * 0.55f;
+            var flat = Vector3.Cross(Vector3.UnitY, dir);
+            var across = Vector3.Normalize(flat * MathF.Cos(roll) + Vector3.UnitY * MathF.Sin(roll)) * MathF.Max(l * 0.34f, height * 0.035f);
+            k.Quad(p0 - across * 0.7f, p0 + across * 0.7f, p1 + across, p1 - across,
+                new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.55f, 1), new Vector2(0.55f, 0), twoSided: true);
+            k.Quad(p1 - across, p1 + across, p2 + across * 0.8f, p2 - across * 0.8f,
+                new Vector2(0.55f, 0), new Vector2(0.55f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
+        }
+        for (int w = 0; w < whorls; w++)
+        {
+            float f = w / (float)(whorls - 1);
             float y = height * (0.1f + 0.82f * f) + Jit(n, 0.25f);
             // Longest at the bottom, a spike of short ones at the top; the lower ones droop more, weighed down.
-            float length = height * 0.34f * MathF.Pow(1 - f, 0.75f) + height * 0.05f;
+            float length = height * reach * MathF.Pow(1 - f, 0.75f) + height * 0.05f;
             int count = f > 0.85f ? 5 : 9;
             float turn = variant * 0.9f + w * 0.73f;
             for (int b = 0; b < count; b++, n++)
-            {
-                float a = turn + b * MathF.Tau / count + Jit(n + 50, 0.5f);
-                var dir = new Vector3(MathF.Sin(a), 0, MathF.Cos(a));
-                float l = length * (0.85f + Jit(n + 90, 0.3f));
-                float droop = 0.3f + 0.35f * (1 - f);
-                var p0 = new Vector3(0, y, 0) + dir * height * 0.012f;
-                var p1 = p0 + dir * l * 0.55f + Vector3.UnitY * l * 0.06f;
-                var p2 = p1 + Vector3.Normalize(dir - Vector3.UnitY * droop) * l * 0.47f;
-                // The card's width, rolled about the bough (alternately), so from the side it still has breadth.
-                float roll = (b % 2 == 0 ? 1 : -1) * 0.55f;
-                var flat = Vector3.Cross(Vector3.UnitY, dir);
-                var across = Vector3.Normalize(flat * MathF.Cos(roll) + Vector3.UnitY * MathF.Sin(roll)) * l * 0.34f;
-                k.Quad(p0 - across * 0.7f, p0 + across * 0.7f, p1 + across, p1 - across,
-                    new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.55f, 1), new Vector2(0.55f, 0), twoSided: true);
-                k.Quad(p1 - across, p1 + across, p2 + across * 0.8f, p2 - across * 0.8f,
-                    new Vector2(0.55f, 0), new Vector2(0.55f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
-            }
+                Bough(y, length, 0.3f + 0.35f * (1 - f), turn + b * MathF.Tau / count + Jit(n + 50, 0.5f));
         }
+        // Black spruce's club: a knot of short dense boughs at the very top, stood out round the leader.
+        if (club)
+            for (int b = 0; b < 10; b++, n++)
+                Bough(height * (0.82f + 0.012f * b), height * 0.07f, 0.15f, variant * 1.3f + b * 2.4f);
         // The leader: two short crossed boughs pointing up out of the top whorl.
         for (int i = 0; i < 2; i++)
         {
@@ -63,7 +94,7 @@ public static class WorldKit
             k.Quad(b0 - side * 0.35f, b0 + side * 0.35f, b1 + side * 0.12f, b1 - side * 0.12f,
                 new Vector2(0.2f, 0), new Vector2(0.2f, 1), new Vector2(1, 1), new Vector2(1, 0), twoSided: true);
         }
-        return k.Build($"pine-{variant}-{height:0}");
+        return k.Build(name);
     }
 
     /// <summary>
@@ -132,29 +163,48 @@ public static class WorldKit
         return k.Build($"tuft-{variant}-{weed}");
     }
 
-    /// <summary>A boulder: an icosahedron pushed about, flat-shaded, wet dark rock.</summary>
+    /// <summary>
+    /// A boulder: an icosahedron split once (80 facets), each point pushed in or out by a few broad swells round it so
+    /// it's lumped and fractured rather than a cut gem; flat-shaded, wet dark rock, squat and sunk into the ground.
+    /// </summary>
     public static MeshAsset Rock(Look? look, int variant, float size)
     {
         var k = new Kit(look, 500 + variant);
         k.Use("rock_cliff", Palette.Charcoal, 0.6f, 0.1f, tile: 1.5f);
         float t = (1 + MathF.Sqrt(5)) / 2;
-        Vector3[] v =
+        Vector3[] ico =
         [
             new(-1, t, 0), new(1, t, 0), new(-1, -t, 0), new(1, -t, 0), new(0, -1, t), new(0, 1, t),
             new(0, -1, -t), new(0, 1, -t), new(t, 0, -1), new(t, 0, 1), new(-t, 0, -1), new(-t, 0, 1),
         ];
         int[] f = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
-        for (int i = 0; i < v.Length; i++)
+        // The swells: a few directions of the variant's own, each lifting the side it points to.
+        var swells = new (Vector3 Dir, float Amount)[5];
+        for (int i = 0; i < swells.Length; i++)
         {
-            float j = 0.75f + 0.45f * Frac(MathF.Sin(i * 12.9898f + variant * 78.233f) * 43758.5f);
-            var p = Vector3.Normalize(v[i]) * j;
-            // Squat: wider than tall, sunk into the ground.
-            v[i] = new Vector3(p.X * size, (p.Y * 0.6f + 0.2f) * size, p.Z * size * 0.85f);
+            float h(float x) => Frac(MathF.Sin(x * 12.9898f + variant * 78.233f + i * 37.719f) * 43758.5f);
+            swells[i] = (Vector3.Normalize(new Vector3(h(1) - 0.5f, h(2) - 0.5f, h(3) - 0.5f) + new Vector3(0, 0, 1e-4f)), (h(4) - 0.35f) * 0.5f);
+        }
+        Vector3 Shape(Vector3 dir)
+        {
+            float r = 0.92f;
+            foreach (var (d, a) in swells)
+                r += a * MathF.Max(0, Vector3.Dot(dir, d)) * MathF.Max(0, Vector3.Dot(dir, d));
+            // A flat fracture across one side: the face it broke away along.
+            float cut = Vector3.Dot(dir, swells[0].Dir);
+            r = MathF.Min(r, 0.78f / MathF.Max(0.2f, -cut + 1e-3f) * 0.5f + 0.55f);
+            var p = dir * r;
+            return new Vector3(p.X * size, (p.Y * 0.6f + 0.2f) * size, p.Z * size * 0.85f);
         }
         for (int i = 0; i < f.Length; i += 3)
         {
-            var (a, b, c) = (v[f[i]], v[f[i + 1]], v[f[i + 2]]);
-            k.Tri(a, b, c, new(a.X + a.Z, -a.Y), new(b.X + b.Z, -b.Y), new(c.X + c.Z, -c.Y));
+            var (a, b, c) = (Vector3.Normalize(ico[f[i]]), Vector3.Normalize(ico[f[i + 1]]), Vector3.Normalize(ico[f[i + 2]]));
+            var (ab, bc, ca) = (Vector3.Normalize(a + b), Vector3.Normalize(b + c), Vector3.Normalize(c + a));
+            var (A, B, C, AB, BC, CA) = (Shape(a), Shape(b), Shape(c), Shape(ab), Shape(bc), Shape(ca));
+            k.Tri(A, AB, CA);
+            k.Tri(AB, B, BC);
+            k.Tri(CA, BC, C);
+            k.Tri(AB, BC, CA);
         }
         return k.Build($"rock-{variant}");
     }

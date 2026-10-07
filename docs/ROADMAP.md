@@ -1,20 +1,25 @@
 # Roadmap
 
-Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 2027, launch mid–late March 2027.
+Anchored to the GDD's gates (§36): **Coming Soon page early Oct 2026** (due now), **public demo December 2026**, the
+**15 Dec checkpoint** (under ~600 wishlists a week and the target isn't happening), Next Fest registration ~4 Jan,
+**trailers pulled for the event trailer 18 Jan 2027**, **Steam Next Fest 22 Feb 2027**, launch mid–late March 2027.
 
-**Schedule risk, stated plainly:** building the engine and the game in the same window leaves about ten weeks to the December demo. The plan below front-loads the systems that answer the GDD's riskiest design questions (spec G.1: does the 4:1 speed ratio feel right?) and defers engine polish. If M2 slips past early November, the demo should drop VR and ship flat-screen first.
+**Where it stands (4 Oct audit):** the game is built to GDD v1.4 end to end, and every live row of the art and audio
+checklists is at L1 (first pass: its own art and sound in the game, readable, rough) or better. What's left before the
+demo is quality, not features: the director's review of what's at L1 (nothing counts as shippable, L2, until signed
+off), the few pieces still greybox, and testing on real machines with real people. The priority orders are at the end.
 
-| Milestone | Target | Deliverable | Exit test |
+| Milestone | Status | Deliverable | Left |
 |---|---|---|---|
-| **M0 — Foundation** | done | Solution, CI, `dt` CLI, data + hot reload, train longitudinal sim pinned to spec B, loopback transport | `dotnet test` green. `dt train table` reproduces spec B.4–B.6. |
-| **M1 — Feel prototype** | ready for play-test | SDL3 window, Vulkan greybox renderer, offscreen screenshots, FPS controller, rail spline, train you can drive and walk on (moving frames §6.1), jump-off death, Jolt crates | Director plays it and answers spec G.1 and G.2. Agent can screenshot any scene headless. |
-| **M2 — Crew of eight** | in progress | Snapshot replication, prediction/reconciliation, interpolation, physics object sync, Steam transport + lobby, bots over loopback, `dt harness` skeleton | 8 clients on `LinkConditions.Rough` with no desync over 30 min, run by the harness overnight |
-| **M3 — Voice** | +5.5 wk | Capture, Opus, host routing, proximity falloff, occlusion, radio item, dead channel | 8-player voice test. Radio dies in a tunnel. |
-| **M4 — VR** | in progress | OpenXR, stereo, action mapping, hand interactions (shovel, levers, ladders), VR body IK, comfort options | Quest via Link and SteamVR both playable in the M1 scene |
-| **M5 — Demo slice** | +9 wk | Procedural line v1, one fortress, two facilities, 5 demo enemies (one per pressure zone), director budget, audio mixer + tier ducking, art pass to style sheet, simple editor (module + rail + tuning) | Screenshot test (GDD §32) passes director review. Harness sweeps the demo roster. |
-| **M6 — Demo ship** | Dec 2026 | Steam demo build, itch build (EOS transport), crash reporting, settings | Steam demo live |
-| M7 — Next Fest | Feb 2027 | Mod loader v1, more facilities and enemies, balance sweeps | |
-| M8 — Launch | Mar 2027 | Full roster pass, economy, save slots | |
+| **M0 — Foundation** | done | Solution, CI, `dt` CLI, data + hot reload, train sim pinned to spec B, loopback transport | — |
+| **M1 — Feel prototype** | done | Window, Vulkan renderer, headless screenshots, FPS controller on moving frames, a drivable train | Spec G.1/G.2 answered through four playtest rounds (T90–T121) |
+| **M2 — Crew of eight** | done on LAN | Replication, prediction, interest management, physics sync, Steam lobby code, bots, nightly 8-client rough-link soak, LAN host/join lobby, rejoining after a drop (note 253) | A first run on real Steam between two accounts; a real two-machine LAN night |
+| **M3 — Voice** | done | Opus, host routing, proximity and occlusion, the radio item, the dead channel, the GRAB on the radio, the hard-cut | An eight-person voice test |
+| **M4 — VR** | backburner (5 Oct) | OpenXR, controllers, hand interactions, two-handed grips, HUD in the headset, arms and gloves, the body the crew see (a spine that leans, crouches and twists under the headset, stepping legs: T82, note 210), multiview stereo: both eyes in one pass, a pass an eye where the GPU can't (note 221) | On the backburner (see Status) |
+| **M5 — Demo slice** | built, in review | Procedural line, fortress, facilities and their set pieces, the v1.4 roster of five plus the Choir, director, mixer, art and audio at L1 | The director's sign-off to L2 on the demo's rows; set pieces still greybox |
+| **M6 — Demo ship** | in progress | Packaged Windows/Linux builds from CI, the demo edition, upload scripts, crash reports, settings, store art at L1 | The Coming Soon page, store art and trailer to L2, itch build (EOS) |
+| M7 — Next Fest | partly | Mod loader v1 (Thunderstore), balance sweeps | Feb build polish, more facilities and enemies |
+| M8 — Launch | partly | Campaign, economy, three save slots | Full roster pass |
 
 ## Status
 
@@ -31,7 +36,7 @@ Anchored to the GDD's gates: **public demo December 2026**, Next Fest 22 Feb 202
 - **Play a night:** `DarkTerritory -- --route frontier:7` runs one, enemies and all (`--no-enemies` for a quiet line). The HUD prints text cues for the telegraphs until there's audio.
 - **Guns and the Choir:** two mounted guns with real arcs, and the Choir's global aggro.
 - **Demo roster and director (M5's "5 demo enemies"):**
-  - Sleepers, Cinder Hounds, Clingers and the Hollow run on the shared five-state spine, with the fairness rule enforced in code.
+  - The v1.4 demo five (Track Doll, Car Hugger, Whistler, Tippy Toesie, Ribbits) with the Choir underneath (GDD §21), on the shared spine with GRAB and the fairness rule enforced in code; the full seventeen run outside the demo edition. (The first demo roster, Sleepers, Cinder Hounds, Clingers and the Hollow, was retired by GDD v1.1.)
   - The pressure director follows App. B.1.
   - Greybox stand-ins for each: `dt screenshot --threats`.
   - `dt harness --route frontier:7 --enemies` plays a whole night with bots and reports pacing, punishes, deaths by cause and fairness violations.
@@ -93,7 +98,7 @@ M3 is done but for a test with eight people.
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
 - Crashes leave a report in the user's app data.
 - **The demo edition (T79, GDD §21, §35):**
-  - the demo roster of five (Sleepers, Cinder Hounds, Clingers, the Hollow, and the Choir), the trouble in the cars, and the Frontier with two facilities and no Grease;
+  - the demo roster of GDD §21 (Track Doll, Car Hugger, Whistler, Tippy Toesie, Ribbits, the Choir underneath; `editions/demo/tuning/enemies.json`), the trouble in the cars, and the Frontier with two facilities;
   - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
   - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line; asked for another tier, it plays the Frontier;
   - `tools/upload.sh --demo` sends only a demo build, and the game's upload refuses one.
@@ -252,6 +257,7 @@ M3 is done but for a test with eight people.
 **Session rules (M2):**
 - Interest management for enemies and bodies (520 m, past the farthest tell), with per-client baselines.
 - Someone who drops out leaves an inert body.
+- Their place is held for 3 minutes: back with the host's token, by address or through the lobby, they get their crewmate back where the body lies (note 253).
 - Joiners with different tuning are refused, with the files named.
 - Mid-run joiners wait and board at the next stop (spec E drop-in at POIs).
 
@@ -297,7 +303,26 @@ Remaining for M2:
 
 - **The crew see a headset's arms (T47):** the hands go out in snapshots (free for keyboard players), and a two-bone arm reaches from the shoulder to each; `dt screenshot --view roof --crew` shows them.
 
-Remaining for M4:
-- the rest of body IK (a spine that follows the headset, stepping legs)
-- multiview
-- the exit test on a real Quest and SteamVR
+**Backburner (the director, 5 Oct 2026):** VR support is on the backburner for now. What's built stays as it is, and nothing in VR is in the priority orders. Its remaining items wait until it's picked up again: hands that hold what they carry, the exit test on a real Quest and SteamVR, and multiview's numbers on a real GPU (note 221). (The body under the headset is done, note 210, and multiview, note 221.)
+
+**GDD v1.4 (1–4 Oct, #127–#149):**
+- **Playtest rounds 2–4:** the gun seat, a rarer and musical Choir, solo nights planned for one, a cause on every death, the LAN host/join lobby with a game list, the giggling Track Doll, crew lockers, the voice hard-cut, hit confirms (T112–T121).
+- **Run ends:** Stranded (a ruptured boiler and every engineering kit lost), the incident report with C.9's failure attribution and an itemised fee for every death and mishap (#135, #148).
+- **The derailment as a film:** rigid-body wreck physics, slow motion, everyone's own death, the cause card, the skip vote, and the opera (#127, #138, #139).
+- **The dead:** bookmarks, the queue they can see, the Call Out and the Live Mic, the creature vote, commendations, bodies as loot carrying what they had (#139, #140).
+- **The night's content:** cargo and contracts and the child, hazards (deep cold, wind, tunnels, fouled guns, broken radios), the consist's cars and upgrades, the facilities' set pieces, the switchyard and the wreck yard (#140–#143).
+- **Bots that get there:** the repair kit brought forward from any car, car fires answered, Fire Flies outrun, a rolling cut caught; the verification harness's combination sweep and cascade audit (#143, #144, #146).
+- **Art to L1 across the checklist,** brought into the real game: weather, running gear, biomes, eight crew told apart, the dawn, the UI's own look, store art, `dt trailer`, `dt art reel` (#133, #137, #145, #147, #149).
+
+## Priority orders (4 Oct audit)
+
+1. **P0, correctness:** ~~protocol 21 for #149's body record~~ (done, #152). Land or close the open PRs from other sessions (#150 the CC0 opera, #151 the Dragger).
+2. **P1, nothing bought that does nothing:** (done, note 196) lamp armour, gun cooling, repair kit charges, radio range and the powered switch thrower, modelled (note 184's "not yet").
+3. **P1, what a crewmate sees:** (done, note 197) remote crewmates' tool swings replicated (note 146).
+4. **P1, the set pieces heard:** (done, note 198) the spout's pour, the herd, the hose's leak, the wreck yard's heaps groaning (notes 185, 187); their models are the art pass's.
+5. **P2, real machines:** (rehearsed here in two app windows, note 199: a dropped joiner fixed) a two-machine LAN night and a two-account Steam night from the CI packages, then the eight-person voice test.
+6. **P3, the director's review:** the art and audio checklists' In-review rows (112 art, 104 audio, 291 audio cues), demo scope first, with store art and the trailer ahead of the Coming Soon page.
+7. **P4, the rest:** (done, notes 201–204) WP14 (wind on footing, the cold on the HUD), WP11 (a vote screen), WP8 (per-player bookmark shots), WP17 (the sweep over more routes and crew sizes).
+
+VR is not in these orders: it's on the backburner (the director, 5 Oct 2026; M4 above).
+

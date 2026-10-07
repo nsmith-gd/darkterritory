@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>Driver inputs for one tick, as set by the cab controls (or the Deadman).</summary>
@@ -70,6 +72,9 @@ public sealed class TrainDynamics
         ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) * Consist.LoadedMassTonnes(Tuning, Consist.CarCount)
         : Handbrake ? Tuning.Couplings.HandbrakeDecel * Consist.MassTonnes : 0;
 
+    /// <summary>Spec B.5's brake column for this length (m/s², before fade): what a warning reckons a stop on (note 265).</summary>
+    public double RatedBrakeDecel => Consist.HasEngine ? Lookup(Tuning.Performance, r => r.Cars, r => r.Brake) : 0;
+
     /// <summary>Handbrakes wound on across a rake without an engine (parked cars, GDD §17).</summary>
     public bool Handbrake { get; set; }
     /// <summary>Front-of-rake distance at the start of the current tick, for render interpolation.</summary>
@@ -86,7 +91,7 @@ public sealed class TrainDynamics
         int reverser = controls.Reverser >= 0 ? 1 : -1;
         double traction = Math.Clamp(track.Traction, 0, 1);
 
-        double gravityAccel = -Tuning.Gravity * Math.Sin(Math.Atan(track.GradePercent / 100.0));
+        double gravityAccel = -Tuning.Gravity * DMath.Sin(DMath.Atan(track.GradePercent / 100.0));
         // The spec's accel and brake figures are what the train achieves, net of rolling and air
         // resistance. So full throttle overcomes resistance and full brake includes it; resistance
         // only shows on its own when coasting, which is when it matters (GDD §23: boiler dies).
@@ -130,7 +135,7 @@ public sealed class TrainDynamics
     public double MaxClimbableGradePercent()
     {
         double ratio = MaxTractiveForce / Consist.MassTonnes / Tuning.Gravity;
-        return ratio >= 1 ? double.PositiveInfinity : Math.Tan(Math.Asin(ratio)) * 100;
+        return ratio >= 1 ? double.PositiveInfinity : DMath.Tan(DMath.Asin(ratio)) * 100;
     }
 
     int CarCount => Consist.CarCount;

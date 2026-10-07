@@ -28,7 +28,7 @@ public enum StopJob : byte
 /// radio ("I'm in the cab", "on the ground at the points"); bots share this instead. It carries only what they'd say.
 /// Everything they do still goes through intent (CLAUDE.md), and what they see comes from their own client's world.
 /// </summary>
-public sealed class CrewCalls
+public sealed partial class CrewCalls
 {
     public readonly record struct Call(StopJob Job, int Vehicle, bool Alive);
 
@@ -36,26 +36,30 @@ public sealed class CrewCalls
     readonly Dictionary<int, uint> _followed = new();
 
     /// <summary>"Stand still, there's something on your back" (App. A.3): an observer calls who a Follower's on.</summary>
-    public void Followed(int playerId, uint tick) => _followed[playerId] = tick;
+    public void Followed(int playerId, uint tick) => Heard(-1, "followed", playerId, true, () => _followed[playerId] = Voice is null ? tick : _now);
     /// <summary>Whether someone's called in the last second that there's a Follower on this player.</summary>
     public bool IsFollowed(int playerId, uint tick) => _followed.TryGetValue(playerId, out var at) && tick - at <= SimConstants.TickRate;
     readonly Dictionary<int, int> _carryingTo = new();
     readonly Dictionary<int, Double3> _standing = new();
 
     /// <summary>"I'm here": a bot that knows its player id says where it stands, so a hand coming to help knows which end is free.</summary>
-    public void Standing(int playerId, Double3 world) => _standing[playerId] = world;
+    public void Standing(int playerId, Double3 world) => Heard(playerId, "standing", playerId, world, () => _standing[playerId] = world);
     public Double3? Where(int playerId) => _standing.TryGetValue(playerId, out var at) ? at : null;
 
     /// <summary>"This one's for car n": a crate hand says which car the crate in its arms is going to (−1 when empty-handed).</summary>
-    public void CarryingTo(int member, int car) => _carryingTo[member] = car;
+    public void CarryingTo(int member, int car) => Heard(member, "carrying", member, car, () => _carryingTo[member] = car);
     /// <summary>Crates other hands are taking to a car.</summary>
     public int BoundFor(int car, int except) => _carryingTo.Count(c => c.Key != except && c.Value == car);
 
     /// <summary>A crew member says where they are: a vehicle id, or <see cref="PlayerState.World"/> on the ground.</summary>
     public void Say(int member, StopJob job, in PlayerState s)
     {
-        _crew[member] = new(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
-        _held.Add(job);
+        var call = new Call(job, s.Alive ? s.Parent : PlayerState.World, s.Alive);
+        Heard(member, "say", member, call, () =>
+        {
+            _crew[member] = call;
+            _held.Add(job);
+        });
     }
 
     /// <summary>Every part anyone has said they have: one nobody alive has now was left, by a death or a stand-in.</summary>
@@ -77,15 +81,88 @@ public sealed class CrewCalls
     /// <summary>Whether this member is among the first <paramref name="n"/> alive with that part (by member number).</summary>
     public bool AmongFirst(int member, StopJob job, int n) =>
         _crew.Where(c => c.Value.Alive && c.Value.Job == job).Select(c => c.Key).Take(n).Contains(member);
-    /// <summary>A shunter and two for the winch, alive: the crew a winch stop needs.</summary>
-    public bool CanWorkWinch => Has(StopJob.Shunter) && Has(StopJob.Winch0) && Has(StopJob.Winch1);
-    /// <summary>Hands for the crates: everyone with a part but the shunter (the winch pair carry where there's no winch).</summary>
-    public int CrateHands => _crew.Values.Count(c => c.Alive && c.Job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates);
+    // Note 261: the stop worked by the crew that's there. Spec D.2's "Crew" column counts people at a module, whoever they
+    // are: the shunter's free once the train's in, the driver can get down (facilities.json crew.driverWorks), and people
+    // playing are hands as much as bots are (crew.peopleAreHands).
+
+    /// <summary>The driver gets down to make up a stop's crew (facilities.json crew.driverWorks; the driver says so).</summary>
+    public bool DriverWorks { get; set; }
+    /// <summary>People playing count as hands at a stop (facilities.json crew.peopleAreHands; the driver says so).</summary>
+    public bool PeopleAreHands { get; set; } = true;
+    /// <summary>People playing, alive, as the driver sees them (note 261): what anyone can see, so not over the voice.</summary>
+    public int People { get; private set; }
+    public void Playing(int people) => People = people;
+    /// <summary>People counted as hands at a stop.</summary>
+    public int PeopleHands => PeopleAreHands ? People : 0;
+
+    /// <summary>The driver's alive and gets down to work a stop when there's no one else.</summary>
+    public bool DriverHand => DriverWorks && Has(StopJob.Driver);
+    /// <summary>Someone to throw the spur's switch and set it back: the shunter, or with none, the driver.</summary>
+    public bool CanShunt => Has(StopJob.Shunter) || DriverHand;
+
+    /// <summary>
+    /// Bots for a pair module (spec D.2: the capstan winch and the gantry crane "2 mandatory", the livestock ramp 2–3), at
+    /// most two: the winch pair, then the shunter (spare once the train's in), then the driver.
+    /// </summary>
+    public int PairBots => Math.Min(2, (Has(StopJob.Winch0) ? 1 : 0) + (Has(StopJob.Winch1) ? 1 : 0) + (Has(StopJob.Shunter) ? 1 : 0) + (DriverHand ? 1 : 0));
+    /// <summary>The bots alone can work a pair module (and the train in and out).</summary>
+    public bool CanWorkPair => CanShunt && PairBots >= 2;
+    /// <summary>The bots and the people playing between them can: the bots take their places, and the rest is people's.</summary>
+    public bool PairWithPeople => CanShunt && PairBots + PeopleHands >= 2;
+
+    /// <summary>
+    /// The driver's call that the loading's got nowhere for a while (facilities.json crew.peopleWait): whatever the bots can't
+    /// do without people playing, nobody's doing, so the bots leave it (note 261).
+    /// </summary>
+    public bool PeopleIdle { get; private set; }
+    public void Idle(bool idle) => PeopleIdle = idle;
+    /// <summary>A pair module's worth being at now: the bots can work it, or people are making up the pair and getting somewhere.</summary>
+    public bool PairNow => CanWorkPair || PairWithPeople && !PeopleIdle;
+    /// <summary>Someone to mind the hose (D.2 fluid gantry "1–2"): the first of the pair, or a spare hand in their place.</summary>
+    public bool HoseHand => Has(StopJob.Winch0) || PairPart(StopJob.Shunter) == StopJob.Winch0 || PairPart(StopJob.Driver) == StopJob.Winch0;
+
+    /// <summary>
+    /// The part of the pair a spare hand takes at the loading (note 261): the shunter the first one with nobody alive on it,
+    /// the driver the next. None when the pair's whole without them.
+    /// </summary>
+    public StopJob PairPart(StopJob who)
+    {
+        var missing = new[] { StopJob.Winch0, StopJob.Winch1 }.Where(j => !Has(j)).ToList();
+        int i = who == StopJob.Shunter ? 0 : who == StopJob.Driver && DriverHand ? Has(StopJob.Shunter) ? 1 : 0 : int.MaxValue;
+        return i < missing.Count ? missing[i] : StopJob.None;
+    }
+
+    /// <summary>Bots with a part that carries crates (the winch pair carry where there's no winch, or once it's done).</summary>
+    int CrateBots => _crew.Values.Count(c => c.Alive && c.Job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates);
+
+    /// <summary>
+    /// Whether a spare hand carries crates too (note 261): the shunter where fewer than two bots do (one or two carry, D.2's
+    /// "heavy items need two"); the driver where nobody else does at all.
+    /// </summary>
+    public bool Carries(StopJob who) => who switch
+    {
+        StopJob.Shunter => Has(StopJob.Shunter) && CrateBots < 2,
+        StopJob.Driver => DriverHand && CrateBots == 0 && !Has(StopJob.Shunter),
+        _ => false,
+    };
+
+    /// <summary>
+    /// What a spare hand (the shunter, the driver) takes on at the loading, with the train at the end of the spur (note 261):
+    /// a missing part of the pair while there's that work left and the pair can be made up; else the crates, while there
+    /// are any to carry and too few bots carrying them. None: back to the cab.
+    /// </summary>
+    public StopJob Lend(StopJob who, Func<StopJob, bool> pairWork, bool crateWork) =>
+        PairPart(who) is var pair && pair != StopJob.None && PairNow && pairWork(pair) ? pair
+        : crateWork && Carries(who) ? StopJob.Crates : StopJob.None;
+
+    /// <summary>Hands for the crates: everyone with a part but the shunter (the winch pair carry where there's no winch), and a spare hand that carries.</summary>
+    public int CrateHands => CrateBots + (Carries(StopJob.Shunter) ? 1 : 0) + (Carries(StopJob.Driver) ? 1 : 0);
     /// <summary>Crate hands that know their own player id, so can take a heavy crate (T45).</summary>
-    public int HeavyHands => _crew.Count(c => c.Value.Alive && c.Value.Job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates && _knows.Contains(c.Key));
+    public int HeavyHands => _crew.Count(c => c.Value.Alive && _knows.Contains(c.Key)
+        && (c.Value.Job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates || c.Value.Job == StopJob.Shunter && Carries(StopJob.Shunter)));
     readonly HashSet<int> _knows = [];
     /// <summary>A member says it knows its own player id.</summary>
-    public void Knows(int member) => _knows.Add(member);
+    public void Knows(int member) => Heard(member, "knows", member, true, () => _knows.Add(member));
 
     readonly Dictionary<int, int> _shutting = new();
 
@@ -95,19 +172,19 @@ public sealed class CrewCalls
     /// whole aboard wait.
     /// </summary>
     public bool Leaving { get; private set; }
-    public void Leave(bool leaving) => Leaving = leaving;
+    public void Leave(bool leaving) => Heard(-1, "leave", -1, leaving, () => Leaving = leaving);
     /// <summary>
     /// The driver's away from the controls (T105: out on the running board sanding; T107: down on the ballast, or pulled off
     /// by something): the fireman minds them.
     /// </summary>
     public bool DriverAway { get; private set; }
-    public void Away(bool away) => DriverAway = away;
+    public void Away(bool away) => Heard(-1, "away", -1, away, () => DriverAway = away);
     /// <summary>The fireman's in the cab to mind the controls if the driver goes out (T107).</summary>
     public bool FiremanMinding { get; private set; }
-    public void Mind(bool minding) => FiremanMinding = minding;
+    public void Mind(bool minding) => Heard(-1, "mind", -1, minding, () => FiremanMinding = minding);
     /// <summary>The fireman's out of the cab at the blow-off (T106): the driver doesn't leave the controls meanwhile.</summary>
     public bool Venting { get; private set; }
-    public void Vent(bool venting) => Venting = venting;
+    public void Vent(bool venting) => Heard(-1, "vent", -1, venting, () => Venting = venting);
 
     /// <summary>
     /// Which door a hand shuts once the crates are in (T50): the one it has claimed while that's still open, else the
@@ -129,10 +206,27 @@ public sealed class CrewCalls
     /// <summary>A hand lets go of the door it claimed (it's gone off to do something else).</summary>
     public void Unclaim(int member) => _shutting.Remove(member);
 
-    /// <summary>A site this crew can load at: a winch with the pair for it, or crates with anyone to carry them.</summary>
-    public bool CanWork(Site site) => Has(StopJob.Shunter)
-        && (site.Has(ModuleKind.Winch) && site.SledsLeft > 0 && CanWorkWinch || site.Has(ModuleKind.Crates) && site.CrateCount > 0 && CrateHands > 0
-            || site.Crane is { Left: > 0 } && CanWorkWinch);
+    /// <summary>
+    /// A site this crew can load at: a winch with the pair for it, or crates with anyone to carry them; the grain elevator's
+    /// spout with the shunter for its lever, the slaughterhouse's herd with two to drive it, the chemical works' hose with a
+    /// hand to mind it (GDD §18; note 185).
+    /// </summary>
+    public bool CanWork(Site site) => CanShunt
+        && (site.Has(ModuleKind.Winch) && site.SledsLeft > 0 && PairWithPeople
+            || site.Has(ModuleKind.Crates) && site.CrateCount > 0 && CrateHands + PeopleHands > 0
+            || site.Crane is { Left: > 0 } && PairWithPeople
+            // The spout's lever is the shunter's, while the driver walks the cars under it.
+            || site.Has(ModuleKind.Spout) && site.Bin > 0 && Has(StopJob.Shunter)
+            || site.Has(ModuleKind.Ramp) && site.Head > 0 && PairWithPeople
+            // The hose wants one (D.2 fluid gantry "1–2"): its own hand, or a spare one (note 261).
+            || site.Has(ModuleKind.Hose) && HoseHand
+            // The wreck yard's salvage (note 187): carried out like crates.
+            || site.Has(ModuleKind.Wreck) && site.Heaps.Count > 0 && CrateHands + PeopleHands > 0);
+
+    /// <summary>Everyone alive with a part at the stop but <paramref name="except"/> is aboard one of these vehicles (the spout's lever hand stays down).</summary>
+    public bool RidingBut(IReadOnlyCollection<int> vehicles, StopJob except) =>
+        _crew.Where(c => c.Value.Alive && c.Value.Job is not (StopJob.None or StopJob.Driver) && c.Value.Job != except)
+            .All(c => vehicles.Contains(c.Value.Vehicle));
 
     /// <summary>
     /// Everyone alive with a part at the stop is on one of these vehicles, bar anyone gone in out of the cold ("I'm getting
@@ -144,13 +238,13 @@ public sealed class CrewCalls
 
     readonly HashSet<int> _warming = [];
     /// <summary>A member says it's going in to get warm, or that it's back out.</summary>
-    public void Warming(int member, bool on)
+    public void Warming(int member, bool on) => Heard(member, "warming", member, on, () =>
     {
         if (on)
             _warming.Add(member);
         else
             _warming.Remove(member);
-    }
+    });
 
     /// <summary>Nobody alive is on the ground.</summary>
     public bool AllAboard => _crew.Values.All(c => !c.Alive || c.Vehicle != PlayerState.World);
@@ -175,6 +269,30 @@ public sealed class CrewCalls
 
     /// <summary>Someone's on their way to (or at) a Holdout's door: the driver waits for them (T96).</summary>
     public bool Breaching => _breach.Count > 0;
+
+    // Note 258: who in the crew is a bot, and which of them could go and breach a Holdout (a walker or the gunner, alive).
+    readonly SortedSet<int> _bots = [];
+    readonly SortedSet<int> _breachers = [];
+
+    /// <summary>A bot says which player it is: anyone else aboard is someone playing (note 259).</summary>
+    public void Bot(int playerId) => _bots.Add(playerId);
+    /// <summary>Whether this player is one of the bots (said so), not someone playing.</summary>
+    public bool IsBot(int playerId) => _bots.Contains(playerId);
+
+    /// <summary>
+    /// A bot says whether it's one to breach a Holdout (a walker or the gunner, alive): the driver leaves the breach to them,
+    /// and goes itself only with none of them left (note 259). Instant, like the claims: it's who goes where.
+    /// </summary>
+    public void CanBreach(int playerId, bool can)
+    {
+        if (can)
+            _breachers.Add(playerId);
+        else
+            _breachers.Remove(playerId);
+    }
+
+    /// <summary>Some living walker or gunner could take a Holdout's breach (note 259).</summary>
+    public bool AnyBreacher => _breachers.Count > 0;
 }
 
 /// <summary>
@@ -185,6 +303,16 @@ public sealed class CrewCalls
 /// <param name="CutBehind">The vehicle whose rear coupling is cut to leave the rest waiting, or −1 if the train fits.</param>
 public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold, int Fit, int CutBehind)
 {
+    /// <summary>
+    /// Only to couple up to a switchyard's cars standing on this siding and bring them out (GDD §18; note 187): nothing's
+    /// loaded here. The engine goes in with whatever it's already picked up ahead of it and one car of its own behind.
+    /// </summary>
+    public bool PickUp { get; init; }
+
+    /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up.</summary>
+    public int Key => PickUp ? PickUpKeys + Spur.Index : Facility;
+    const int PickUpKeys = 1 << 16;
+
     /// <summary>The next stop the crew can work whose points are ahead of <paramref name="from"/>, if any.</summary>
     public static StopPlan? Ahead(World world, double from, IReadOnlySet<int> done, CrewCalls calls)
     {
@@ -193,21 +321,47 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         var train = world.Train;
         double points = world.Switches?.Tuning.PointsLength ?? 12;
         var g = train.Dynamics.Tuning.Geometry;
+        var vehicles = train.Dynamics.Consist.Vehicles;
+        // The engine's place in its rake: a switchyard's cars picked up go on ahead of it (note 187).
+        int engine = vehicles.ToList().FindIndex(v => v.IsEngine);
         StopPlan? best = null;
         foreach (var site in run.Sites)
         {
-            if (site is not { Spur: >= 0 } || done.Contains(site.Index) || !calls.CanWork(site))
+            if (site is not { Spur: >= 0 } || !calls.CanShunt)
                 continue;
-            var spur = train.Line.Branches[site.Spur];
-            double hold = spur.Toe - points - 2;
-            if (hold < from - 5 || best is not null && hold >= best.Hold)
-                continue;
-            int fit = SpurDrill.Capacity(g, spur, points);
-            var vehicles = train.Dynamics.Consist.Vehicles;
-            // Nothing to stop for if the cars that would go in have no room.
-            if (!vehicles.Skip(1).Take(fit).Any(v => v.Kind == VehicleKind.Cargo && v.Load < 1 - 1e-6))
-                continue;
-            best = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1);
+            foreach (int track in run.YardTracks(site.Index))
+            {
+                bool own = track == site.Spur;
+                var spur = train.Line.Branches[track];
+                int standing = Run.Run.StandingOn(train, track);
+                // Its own track for its loading (and any cars standing there); any other only for the cars standing on it.
+                if (own ? done.Contains(site.Index) || !calls.CanWork(site) && standing == 0 : standing == 0 || done.Contains(PickUpKeys + track))
+                    continue;
+                double hold = spur.Toe - points - 2;
+                if (hold < from - 5 || best is not null && hold >= best.Hold)
+                    continue;
+                int fit = SpurDrill.Capacity(g, spur, points) - standing;
+                if (own)
+                {
+                    // In front of the engine's own cars, what's ahead of it goes in too; and nothing to stop for if the cars that
+                    // would go in have no room and there's nothing standing to fetch.
+                    if (fit < engine || standing == 0 && !vehicles.Take(fit + 1).Any(v => v.Kind == VehicleKind.Cargo && v.Load < 1 - 1e-6))
+                        continue;
+                    // The driver shunting alone throws the switch from the ground but can't get between the cars to cut them
+                    // (note 261): only a train that goes in whole.
+                    if (!calls.Has(StopJob.Shunter) && vehicles.Count - 1 > fit)
+                        continue;
+                    best = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1);
+                }
+                else
+                {
+                    // In with what's ahead of the engine and a car of its own behind it (a coupling anyone can cut), the rest
+                    // left waiting on the main line.
+                    if (fit < engine + 1 || !calls.Has(StopJob.Shunter))
+                        continue;
+                    best = new StopPlan(site.Index, site, spur, hold, engine + 1, vehicles.Count - 1 > engine + 1 ? vehicles[engine + 1].Id : -1) { PickUp = true };
+                }
+            }
         }
         return best;
     }
@@ -225,6 +379,64 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo
             && StopHand.SideDoor(train.Frames[v.Id].Shape, Site.Side) is { } door && v.DoorOpen(door)).Select(v => v.Id);
 
+    /// <summary>
+    /// The grain elevator's next car (GDD §18 "one spout, one car at a time"): the car with room in the engine's rake whose
+    /// middle comes under the spout with the engine furthest up the spur (short of its buffer stop), and where the engine's
+    /// front stands for that. The train's walked back under the spout a car at a time, the way it backs out anyway.
+    /// Null when there's no grain, no car left with room that it reaches, or the engine's not down the spur.
+    /// </summary>
+    public (int Car, double Front)? SpoutTarget(World world)
+    {
+        var rake = world.Train.Dynamics;
+        if (!Site.Has(ModuleKind.Spout) || Site.Bin <= 1e-6 || rake.Path != Spur.Index)
+            return null;
+        double spout = Spur.Toe + Site.SpoutAlong;
+        (int Car, double Front)? best = null;
+        var vehicles = rake.Consist.Vehicles;
+        for (int i = 0; i < vehicles.Count; i++)
+        {
+            var v = vehicles[i];
+            if (v.Kind != VehicleKind.Cargo || v.Load >= 1 - 1e-6)
+                continue;
+            double front = spout + rake.Consist.OffsetOf(i) + v.Length(rake.Consist.Tuning) / 2;
+            if (front <= Spur.End - 1 && (best is null || front > best.Value.Front))
+                best = (v.Id, front);
+        }
+        return best;
+    }
+
+    /// <summary>The herd still to go up the ramp, with a car at its top to take them, while the engine's at the end.</summary>
+    public bool HerdLeft(World world) => Site.Has(ModuleKind.Ramp) && Site.Head > 0 && AtTheEnd(world.Train)
+        && world.Run?.CarAtRamp(world.Train, Site) is not null;
+
+    /// <summary>The hose still to work: on a car (to mind, and take off once it's full), or a car with room by the stand to put it on.</summary>
+    public bool HoseLeft(World world) => Site.Has(ModuleKind.Hose) && AtTheEnd(world.Train)
+        && (Site.HoseCar >= 0 || world.Run?.CarAtHose(world.Train, Site) is not null);
+
+    /// <summary>
+    /// Work left for a part of the pair (note 261), with the engine's rake at the end of the spur: the crane's castings, the
+    /// herd, the hose (the first of the pair's), or the winch's sleds with somewhere to go.
+    /// </summary>
+    public bool PairWork(World world, StopJob part)
+    {
+        var train = world.Train;
+        return Site.Crane is { } crane && (StopHand.CraneTarget(crane, train) is not null || crane.Hooked is not null)
+            || HerdLeft(world) || part == StopJob.Winch0 && HoseLeft(world)
+            || Site.Has(ModuleKind.Winch) && Site.SledsLeft > 0 && world.Run is { } r && r.SledHasRoom(train, Site);
+    }
+
+    /// <summary>Crates (or salvage) still to carry, or a door they went in by still to shut (note 261).</summary>
+    public bool CrateWork(World world, int heavyHands) =>
+        (Site.Has(ModuleKind.Crates) || Site.Has(ModuleKind.Wreck)) && (CratesToLoad(world, heavyHands) || OpenSideDoors(world.Train).Any());
+
+    /// <summary>
+    /// How far the loading's got (note 261), for telling whether anyone's at it: what's in the cars, the winch's sled along
+    /// its haul and the castings set down.
+    /// </summary>
+    public double Progress(World world) =>
+        world.Train.Dynamics.Consist.Vehicles.Sum(v => v.Load) + Site.Progress + Site.SledsLeft * -1.0
+        + (Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0);
+
     /// <summary>Cargo cars in the engine's rake with room for more.</summary>
     public static IEnumerable<Vehicle> WithRoom(TrainOnLine train) =>
         train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1 - 1e-6);
@@ -237,8 +449,11 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// <param name="hands">Crate hands in the crew: two can take a heavy crate between them, one can lend a hand to someone holding one (T45).</param>
     public bool CratesToLoad(World world, int hands = 0)
     {
-        if (!Site.Has(ModuleKind.Crates) || !Site.Stocked)
-            return Site.Has(ModuleKind.Crates) && Site.CrateCount > 0;
+        // The wreck yard's salvage is carried out as crates are (note 187): what the lamps have found of it.
+        if (!Site.Has(ModuleKind.Crates) && !Site.Has(ModuleKind.Wreck))
+            return false;
+        if (Site.Has(ModuleKind.Crates) && !Site.Stocked)
+            return Site.CrateCount > 0;
         var train = world.Train;
         var room = WithRoom(train).Select(v => v.Id).ToHashSet();
         if (room.Count == 0)
@@ -261,8 +476,11 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
             return false;
         if (b.Parent == PlayerState.World)
         {
-            // At the site, on its side of the train (there's no carrying one round the train).
-            if (Site.CrateStack.Length == 0 || (b.Centre - Site.CrateStack[0]).Length >= 60)
+            // At the site, on its side of the train (there's no carrying one round the train): by the crate stack, or by a wreck
+            // heap it came out of (note 187), and not by one that's groaning.
+            bool atStack = Site.CrateStack.Length > 0 && (b.Centre - Site.CrateStack[0]).Length < 60;
+            bool atHeap = Site.Heaps.Any(h => (b.Centre - h.Centre).Length < 60);
+            if (!atStack && !atHeap || world.Run?.Groaning(b.Centre, 0.5) is not null)
                 return false;
             double hint = Site.Mid;
             var s = Site.Track.Sample(Site.Track.Nearest(b.Centre, ref hint).Distance);
@@ -323,7 +541,7 @@ public sealed record SwitchPlan(Branch Branch, double Hold)
     /// </summary>
     public bool StandingAt(TrainOnLine train) =>
         train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance - Hold < 3
-        && train.Rakes.All(r => train.Line.OnMain(r.Path, r.Distance) && Math.Abs(r.Velocity) < 0.05 && r.Distance - Hold < 3);
+        && train.Rakes.All(r => train.Standing(r) || train.Line.OnMain(r.Path, r.Distance) && Math.Abs(r.Velocity) < 0.05 && r.Distance - Hold < 3);
 }
 
 /// <summary>
@@ -359,7 +577,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 
     /// <summary>The engine's standing with its tender under the spout (well inside run.json's spout tolerance).</summary>
     public bool StandingAt(TrainOnLine train) =>
-        train.OnMain && train.Rakes.Count == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 1.5;
+        train.OnMain && train.TrainRakes == 1 && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 1.5;
 }
 
 /// <summary>
@@ -367,14 +585,14 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// <see cref="SpurDrill"/>, done by a crew): stop short of the spur's points; once the rest are cut off, the switch is
 /// over and the ones riding in are aboard, run the empties in to the buffer stop; wait for the winch; back out onto the
 /// cars left waiting, at a crawl so they couple; stop clear of the points; once the switch is back and everyone's
-/// aboard, go. It only stops where the crew can work the stop (<see cref="CrewCalls.CanWorkWinch"/>).
+/// aboard, go. It only stops where the crew can work the stop (<see cref="CrewCalls.CanWork"/>; note 261: the crew that's there).
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night.
-    const double HeldGiveUp = 240, LoadingGiveUp = 300, AboardGiveUp = 120, CoalGiveUp = 150;
+    const double HeldGiveUp = 240, LoadingGiveUp = 300, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
@@ -410,7 +628,7 @@ public sealed class StopDriver(CrewCalls calls)
         double stopped = _log.Sum(r => r.Seconds) + Seconds(_ticks - _stopStart);
         double moving = run.Seconds - _underway.Value.Seconds - stopped;
         // Cruise is whatever it's set to now (down a spur, a crawl): the fastest it's been set is the line's.
-        _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
+        _cruiseTop = Math.Max(_cruiseTop, Reckoned);
         return moving < 60 ? _cruiseTop : Math.Clamp((at - _underway.Value.Distance) / moving, 3, Math.Max(_cruiseTop, 3));
     }
 
@@ -439,6 +657,14 @@ public sealed class StopDriver(CrewCalls calls)
         return branch is { } b && train.Diverging(b.Index) && (!calls.Has(StopJob.Shunter) && Waited > AloneAfter || Waited > ShunterGiveUp) ? b : null;
     }
 
+    /// <summary>
+    /// The spur's switch at a stop the driver's making with no shunter (note 261): it gets down and throws it over itself,
+    /// once it's waited as long as for a dead shunter's set-back (someone playing may be on their way to it). Null otherwise.
+    /// </summary>
+    public Branch? ThrowAlone(World world) =>
+        Doing == Leg.Held && Plan is { PickUp: false } p && !world.Train.Diverging(p.Spur.Index) && !calls.Has(StopJob.Shunter) && calls.DriverHand
+            && (p.CutBehind < 0 || world.Train.TrainRakes > 1) && Waited > AloneAfter ? p.Spur : null;
+
     /// <summary>Seconds the driver waits for someone else to take a dead shunter's part before it gets down itself.</summary>
     const double AloneAfter = 15;
     /// <summary>Seconds it waits for a live shunter who hasn't come: the set-backs that work take well under (46 to 93 s).</summary>
@@ -452,6 +678,12 @@ public sealed class StopDriver(CrewCalls calls)
     double _tenderAtStart;
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
     public double CruiseSpeed { get; set; } = 14;
+    /// <summary>
+    /// The most the run home is reckoned at: the driver's open-line cruise. A cruise put up for a few seconds to drive away
+    /// from Fire Flies (note 188) isn't the night's pace.
+    /// </summary>
+    public double ReckonTop { get; set; } = double.MaxValue;
+    double Reckoned => Math.Min(CruiseSpeed, ReckonTop);
     /// <summary>The stops worked so far.</summary>
     public IReadOnlyList<StopRecord> Log => _log;
 
@@ -471,6 +703,12 @@ public sealed class StopDriver(CrewCalls calls)
             _legs[Doing.ToString()] = Math.Round(_legs.GetValueOrDefault(Doing.ToString()) + Waited, 1);
         Doing = leg;
         _legStart = _ticks;
+        if (leg == Leg.Loading)
+        {
+            _progressAt = _ticks;
+            _progress = double.NaN;
+            calls.Idle(false);
+        }
     }
 
     /// <summary>This tick's cab intent while working a stop; null while there's none to work (drive as usual).</summary>
@@ -480,6 +718,7 @@ public sealed class StopDriver(CrewCalls calls)
         var train = world.Train;
         var engine = train.Dynamics;
         _stillTicks = Math.Abs(engine.Velocity) < 0.05 ? _stillTicks + 1 : 0;
+        Watch(world);
         if (!self.Alive || !PlayerMotor.InCab(self, train))
             return null;
         bool still = _stillTicks >= SimConstants.TickRate;
@@ -493,7 +732,7 @@ public sealed class StopDriver(CrewCalls calls)
                         BeginSwitch(down, Leg.OffDeadLine);
                         return Hold(world);
                     }
-                    if (train.Rakes.Count > 1 || !train.OnMain || world.Run is not { } run)
+                    if (train.TrainRakes > 1 || !train.OnMain || world.Run is not { } run)
                         return null;
                     // A switch lamp ahead reading wrong: stop short of its points and have it set back (App. A.7).
                     if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(engine) + 80)
@@ -505,8 +744,8 @@ public sealed class StopDriver(CrewCalls calls)
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
                     if (run.Seconds > 0)
                         _underway ??= (engine.Distance, run.Seconds);
-                    _cruiseTop = Math.Max(_cruiseTop, CruiseSpeed);
-                    double spare = run.DawnIn - (run.Route.Length - engine.Distance) / CruiseSpeed;
+                    _cruiseTop = Math.Max(_cruiseTop, Reckoned);
+                    double spare = run.DawnIn - (run.Route.Length - engine.Distance) / Reckoned;
                     // A stop's worth making only with its loading's time in hand, reckoned as the loading's own lateness is
                     // (T74): at the pace the night's kept, a stop that would be late the moment it starts loading isn't one.
                     double spareAtPace = run.DawnIn - Home(world, run, engine.Distance);
@@ -604,11 +843,13 @@ public sealed class StopDriver(CrewCalls calls)
                 {
                     var p = Plan!;
                     bool set = train.Diverging(p.Spur.Index);
-                    bool cut = p.CutBehind < 0 || train.Rakes.Count > 1;
-                    if (!set && (!calls.Has(StopJob.Shunter) || Waited > HeldGiveUp))
+                    bool cut = p.CutBehind < 0 || train.TrainRakes > 1;
+                    // Note 261: the driver throws it alone, but can't cut the train: with the shunter lost before the cut, go on.
+                    bool canThrow = calls.Has(StopJob.Shunter) || calls.DriverHand && cut;
+                    if (!set && (!canThrow || Waited > HeldGiveUp))
                     {
                         // Nobody to throw it: couple back up if the rest were cut off, and go.
-                        Begin(train.Rakes.Count > 1 ? Leg.BackOut : Leg.Clear);
+                        Begin(train.TrainRakes > 1 ? Leg.BackOut : Leg.Clear);
                         return Hold(world);
                     }
                     // Everyone with a part aboard the engine's rake, or long enough waiting that someone isn't coming (kept off
@@ -625,28 +866,30 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.Loading);
                         return Hold(world);
                     }
+                    // A switchyard's cars standing at the end (note 187): onto them at a crawl, so they couple, as onto a cut.
+                    var standing = train.Rakes.FirstOrDefault(r => r.Path == p.Spur.Index && train.Standing(r));
+                    if (standing is not null)
+                    {
+                        var g = engine.Tuning.Geometry;
+                        double onto = standing.RearDistance - g.CouplingGap + 0.5;
+                        return Toward(world, onto, +1, onto - engine.Distance < 15 ? 0.8 : SetBackTop);
+                    }
                     return Toward(world, p.Spur.End - 1, +1, SetBackTop);
                 }
             case Leg.Loading:
                 {
                     var p = Plan!;
-                    // Winched: nothing left to haul, nobody to haul it, or nowhere for it to go (T66: the cars the sleds load
-                    // full already, with the crane's castings, and cranking on hauls nothing).
-                    bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.CanWorkWinch
-                        || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
-                    // The castings on (T54): the pair on the crane, until there's none left or no room under the gantry.
-                    bool craned = p.Site.Crane is not { } crane || !calls.CanWorkWinch || StopHand.CraneTarget(crane, train) is null;
-                    // Crates in, and the doors they went in by shut again: nobody moves a train with its doors open.
-                    bool crated = calls.CrateHands == 0 || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
-                    // Late: the dawn won't wait for the rest (T70). What's left of the night against the run home at the pace
-                    // the night's actually kept (its curves and grades and what's been on the line; cruise is flattery), and
-                    // the leaving.
-                    // Measured from where the train left the main line: down the spur, the engine's distance is the spur's.
-                    // And the wait for everyone aboard after it, which can run to its give-up (T74: hands down off the cars
-                    // for trouble in them kept frontier:2's crew of eight waiting the whole of it), on a line that needn't be
-                    // as quick after the stop as before it.
-                    bool late = world.Run is { } lr && lr.DawnIn < Home(world, lr, p.Hold) + LateSpare + AboardGiveUp;
-                    bool loaded = winched && crated && craned || Waited > LoadingGiveUp || late;
+                    // Late: the dawn won't wait for the rest (T70).
+                    bool late = Late(world, p);
+                    // A pick-up's loading is the coupling, done once it's run up to the end (note 187).
+                    bool loaded = p.PickUp || Loaded(world, p) || Waited > LoadingGiveUp || late;
+                    // The rest in, the grain elevator's spout next (GDD §18): walked under it a car at a time, the shunter on
+                    // its lever, the rest of the crew aboard.
+                    if (loaded && !late && Waited <= LoadingGiveUp && calls.Has(StopJob.Shunter) && p.SpoutTarget(world) is not null)
+                    {
+                        Begin(Leg.Spouting);
+                        return Hold(world);
+                    }
                     // Everyone aboard, or long enough waited for them since the loading was done (not since it began: a stop
                     // given up for the dawn waited out the whole give-up again for a hand still out, T70).
                     if (loaded && _loadedAt < 0)
@@ -656,10 +899,39 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.BackOut);
                     return Hold(world);
                 }
+            case Leg.Spouting:
+                {
+                    var p = Plan!;
+                    bool late = world.Run is { } sr && sr.DawnIn < Home(world, sr, p.Hold) + LateSpare + AboardGiveUp;
+                    var target = p.SpoutTarget(world);
+                    calls.Leave(false);
+                    if (target is null || late || !calls.Has(StopJob.Shunter) || Waited > SpoutGiveUp)
+                    {
+                        // Done (or given up): all aboard, and back out as from any stop.
+                        calls.Leave(true);
+                        if (calls.Riding(OnTheTrain(train)) || Waited > SpoutGiveUp + AboardGiveUp)
+                            Begin(Leg.BackOut);
+                        return Hold(world);
+                    }
+                    // Nobody moves the train with a hand still climbing aboard, or while the grain's coming down.
+                    if (!calls.RidingBut(OnTheTrain(train), StopJob.Shunter) && Waited < AboardGiveUp || world.Run?.Sites[p.Facility]?.Pouring == true)
+                        return Hold(world);
+                    double front = target.Value.Front;
+                    if (Math.Abs(engine.Distance - front) < 0.5)
+                        return Hold(world);
+                    return Toward(world, front, engine.Distance > front ? -1 : 1, 1.5);
+                }
             case Leg.BackOut:
                 {
                     var p = Plan!;
-                    bool together = train.Rakes.Count == 1;
+                    var left = train.TrainRakes == 1 ? null : train.Rakes.First(r => r != engine && !train.Standing(r));
+                    // Note 261: a cut running away down the grade (the Passenger let its brakes off) faster than a set-back, or
+                    // still rolling once the engine's gone a long way back after it, is lost, not chased: deepTerritory:2's
+                    // engine went after one at 22 m/s for 7 km, its crew left at the mine head, and a crew of eight's followed
+                    // one at 6 m/s for a kilometre and more, never closing. Back to the points without it, and on.
+                    if (left is { Velocity: < -RunawayAbove } || left is { Velocity: < -0.5 } && engine.Distance < p.Hold - ChaseFor)
+                        left = null;
+                    bool together = left is null;
                     if (together && train.OnMain && still && engine.Distance <= p.Hold + 3)
                     {
                         Begin(Leg.Clear);
@@ -668,14 +940,13 @@ public sealed class StopDriver(CrewCalls calls)
                     // Onto the cars left waiting: aim a little into them so the rakes touch (at a crawl, so they couple) rather
                     // than stop just short; then the whole train back clear of the points.
                     var g = engine.Tuning.Geometry;
-                    var left = together ? null : train.Rakes.First(r => r != engine);
                     double target = left is null ? p.Hold : left.Distance + g.CouplingGap - 0.5;
                     bool close = left is not null && engine.RearDistance - target < 15;
                     // Closing on them at a crawl, over whatever they're doing themselves: cars left on a grade roll away down it
                     // (deepTerritory:1's mine head: at a metre a second, with the engine creeping after them at 0.8 for 1,010 s
                     // and a kilometre, and a hand left on the ballast).
-                    double crawl = 0.8 + (left is { Velocity: < 0 } ? -left.Velocity : 0);
-                    return Toward(world, target, -1, close ? crawl : SetBackTop, rear: !together);
+                    double rolling = left is { Velocity: < 0 } ? -left.Velocity : 0, crawl = 0.8 + rolling;
+                    return Toward(world, target, -1, close ? crawl : SetBackTop + rolling, rear: !together, away: rolling);
                 }
             case Leg.Clear:
                 if (!train.Diverging(Plan!.Spur.Index) && (calls.AllAboard || Waited > AboardGiveUp))
@@ -692,6 +963,70 @@ public sealed class StopDriver(CrewCalls calls)
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Late for the dawn (T70): what's left of the night against the run home at the pace the night's actually kept (its
+    /// curves and grades and what's been on the line; cruise is flattery), and the leaving. Measured from where the train
+    /// left the main line: down the spur, the engine's distance is the spur's. And the wait for everyone aboard after it,
+    /// which can run to its give-up (T74: hands down off the cars for trouble in them kept frontier:2's crew of eight waiting
+    /// the whole of it), on a line that needn't be as quick after the stop as before it.
+    /// </summary>
+    bool Late(World world, StopPlan p) => world.Run is { } lr && lr.DawnIn < Home(world, lr, p.Hold) + LateSpare + AboardGiveUp;
+
+    /// <summary>
+    /// Everything at the stop this crew can load, loaded (note 261: by the crew that's there). The winch: nothing left to haul,
+    /// nobody to haul it, or nowhere for it to go (T66: the cars the sleds load full already, with the crane's castings, and
+    /// cranking on hauls nothing). The castings on (T54), until there's none left or no room under the gantry. The crates in,
+    /// and the doors they went in by shut again: nobody moves a train with its doors open. GDD §18's set pieces (note 185):
+    /// the herd up the ramp, the hose off again. A pair module the bots can't make up alone is waited on while the people
+    /// playing are getting somewhere with the loading (<see cref="CrewCalls.PairNow"/>), and so are crates only they carry.
+    /// </summary>
+    bool Loaded(World world, StopPlan p)
+    {
+        var train = world.Train;
+        bool pairs = calls.PairNow;
+        bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !pairs || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
+        bool craned = p.Site.Crane is not { } crane || !pairs || StopHand.CraneTarget(crane, train) is null;
+        bool crated = calls.CrateHands == 0 && (calls.PeopleHands == 0 || calls.PeopleIdle)
+            || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
+        bool herded = !pairs || !p.HerdLeft(world);
+        bool hosed = !calls.HoseHand || !p.HoseLeft(world);
+        return winched && crated && craned && herded && hosed;
+    }
+
+    double _progress;
+    int _progressAt;
+
+    /// <summary>
+    /// Note 261: what the driver gets down to do at the loading, with the train at the end of the spur and too few others for
+    /// it (<see cref="CrewCalls.Lend"/>): a winch handle (or the crane's, the ramp's or the hose's part), or the crates. None
+    /// while it's not at a loading, the loading's done or given up, or there's nothing for it.
+    /// </summary>
+    public StopJob DriverPart(World world)
+    {
+        if (Doing != Leg.Loading || Plan is not { PickUp: false } p || _loadedAt >= 0 || calls.Leaving || !p.AtTheEnd(world.Train)
+            || Waited > LoadingGiveUp || Late(world, p) || !calls.DriverHand)
+            return StopJob.None;
+        return calls.Lend(StopJob.Driver, part => p.PairWork(world, part), p.CrateWork(world, calls.HeavyHands));
+    }
+
+    /// <summary>
+    /// At the loading, whether it's getting anywhere (note 261): with nothing in the cars, the sleds or the castings moving
+    /// for <c>crew.peopleWait</c>, the driver calls it idle, and what only the people playing could do is left.
+    /// </summary>
+    void Watch(World world)
+    {
+        if (Doing != Leg.Loading || Plan is not { } p)
+            return;
+        double now = p.Progress(world);
+        if (double.IsNaN(_progress) || Math.Abs(now - _progress) > 1e-6)
+        {
+            _progress = now;
+            _progressAt = _ticks;
+        }
+        double wait = world.Run?.FacilityTuning?.Crew.PeopleWait ?? new StopCrewTuning().PeopleWait;
+        calls.Idle(Seconds(_ticks - _progressAt) > wait);
     }
 
     void BeginSwitch(SwitchPlan plan, Leg leg)
@@ -723,8 +1058,8 @@ public sealed class StopDriver(CrewCalls calls)
     {
         var p = Plan!;
         Begin(Leg.Cruise);
-        _done.Add(p.Facility);
-        _log.Add(new StopRecord(p.Facility, p.Site.Feature.Facility?.ToString() ?? "", Math.Round(Seconds(_ticks - _stopStart), 1),
+        _done.Add(p.Key);
+        _log.Add(new StopRecord(p.Facility, (p.Site.Feature.Facility?.ToString() ?? "") + (p.PickUp ? $"PickUp{p.Spur.Index}" : ""), Math.Round(Seconds(_ticks - _stopStart), 1),
             _sledsAtStart - p.Site.SledsLeft, new Dictionary<string, double>(_legs),
             Castings: p.Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0));
         Plan = null;
@@ -757,8 +1092,13 @@ public sealed class StopDriver(CrewCalls calls)
     /// their mark by <see cref="Toward"/>'s own curve, so the top is only the open stretch between.
     /// </summary>
     public const double SetBackTop = 6;
+    /// <summary>A cut left on the main line rolling away faster than this (m/s) is lost, not chased (note 261).</summary>
+    const double RunawayAbove = SetBackTop;
+    /// <summary>How far back past its points the engine goes after a cut that's still rolling away (m; note 261).</summary>
+    const double ChaseFor = 400;
 
-    internal static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false)
+    /// <param name="away">How fast the target itself is going on the way we're going (m/s): rolling cars to catch up.</param>
+    public static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false, double away = 0)
     {
         var engine = world.Train.Dynamics;
         var controls = world.Controls;
@@ -772,7 +1112,9 @@ public sealed class StopDriver(CrewCalls calls)
         double left = (target - (rear ? engine.RearDistance : engine.Distance)) * direction;
         if (left <= 0.3)
             return Hold(world);
-        double wanted = Math.Min(top, Math.Sqrt(2 * BrakeRate(engine) * left));
+        // Closing on it at what stops us there, over its own speed: braking for a target that moves away from under the curve,
+        // the engine settled a couple of metres behind rolling cars at their speed and never touched them (note 188).
+        double wanted = Math.Min(top, Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(engine) * left));
         double speed = engine.Velocity * direction;
         return speed < wanted - 0.3 ? new PlayerIntent { ThrottleNotch = Notch(controls, 0.5) }
             : speed > wanted + 0.2 ? Hold(world)
@@ -926,12 +1268,21 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             _wentIn = true;
         _reachedEnd |= p.AtTheEnd(train);
         // The train's back together and away up the main line: that stop's over, done or not.
-        if (train.OnMain && train.Rakes.Count == 1 && train.Dynamics.Distance > p.Hold + 20 && !train.Diverging(p.Spur.Index))
+        if (train.OnMain && train.TrainRakes == 1 && train.Dynamics.Distance > p.Hold + 20 && !train.Diverging(p.Spur.Index))
         {
-            _done.Add(p.Facility);
+            _done.Add(p.Key);
             _plan = null;
             return null;
         }
+        // A pick-up (note 187) is the shunter's and the driver's: everyone else stays aboard.
+        if (p.PickUp && job != StopJob.Shunter)
+            return null;
+        // Note 261: the shunter's free once the train's in: a place in the pair nobody else has, or the crates with too few
+        // carrying them. Back to the cab once there's none left (anything in its arms put down first).
+        _lent = job == StopJob.Shunter && !p.PickUp && _reachedEnd && p.AtTheEnd(train) && !calls.Leaving
+            ? calls.Lend(StopJob.Shunter, j => p.PairWork(world, j), p.CrateWork(world, calls.HeavyHands)) : StopJob.None;
+        if (job == StopJob.Shunter && _lent == StopJob.None && self.Has(PlayerFlags.Heavy))
+            return Press();
         // Mid-air, nothing to do; on a ladder or inside a car, the walker knows the way out (unless it's in there to load).
         var part = Part(p, world);
         if (self.Surface == Surface.Air)
@@ -958,21 +1309,94 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         }
         // The gantry crane (T54, spec D.2): the pair work it first, one at the controls and one rigging, while the cars under
         // the gantry still have room (the crates and the sleds would fill them); then the winch.
-        if (job is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
             && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
-            return job == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
+            return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
         if (_atControls)
         {
             // Done at the crane: let go of the controls (and so step down) before anything else.
             _atControls = false;
             return new PlayerIntent();
         }
+        // GDD §18's set pieces (note 185): the pair drive the herd up the ramp; the first of them minds the hose.
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && calls.PairNow && !calls.Leaving && p.HerdLeft(world))
+            return Herd(self, world, p);
+        if (Pair == StopJob.Winch0 && !calls.Leaving && p.HoseLeft(world))
+            return Hose(self, world, p);
         return part switch
         {
             StopJob.Shunter => Shunt(self, world, p),
             StopJob.Crates => Carry(self, world, p),
             _ => Crank(self, world, p),
         };
+    }
+
+    /// <summary>The part a spare hand (the shunter, the driver) has taken at this loading (note 261), or None.</summary>
+    StopJob _lent;
+    /// <summary>Its place in the pair (spec D.2's winch, crane and ramp): its own part, or one it's taken in a missing hand's place.</summary>
+    StopJob Pair => job is StopJob.Winch0 or StopJob.Winch1 ? job : _lent is StopJob.Winch0 or StopJob.Winch1 ? _lent : StopJob.None;
+
+    /// <summary>
+    /// The driver down at the loading (note 261, <see cref="StopDriver.DriverPart"/>): this tick's intent for the part it's
+    /// taken, the train standing at the end of the spur. Null when there's nothing more it can do there (it goes back up).
+    /// </summary>
+    public PlayerIntent? Lend(in PlayerState self, World world, StopPlan plan, StopJob part)
+    {
+        _plan = plan;
+        _wentIn = _reachedEnd = true;
+        _lent = part;
+        Doing = "";
+        var train = world.Train;
+        if (self.Surface == Surface.Air)
+            return new PlayerIntent();
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.Site.Crane is { } crane && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
+            return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
+        if (_atControls)
+        {
+            _atControls = false;
+            return new PlayerIntent();
+        }
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.HerdLeft(world))
+            return Herd(self, world, plan);
+        if (Pair == StopJob.Winch0 && plan.HoseLeft(world))
+            return Hose(self, world, plan);
+        // On a car it isn't working from (a crate put down, and the next for another car): off it the way it came, as a walker
+        // would find its own way.
+        return Part(plan, world) switch
+        {
+            StopJob.Crates => Carry(self, world, plan),
+            StopJob.Winch0 or StopJob.Winch1 => Crank(self, world, plan),
+            _ => null,
+        } ?? OffTheCar(self, world, plan);
+    }
+
+    /// <summary>Lets go of what's in its arms (the press that put it down), for the driver going back to the cab (note 261).</summary>
+    public PlayerIntent LetGo() => Press();
+
+    /// <summary>On a car's landing or inside it at a stop: out by its side door and down its steps. Null when it isn't.</summary>
+    PlayerIntent? OffTheCar(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        if (self.Surface != Surface.Deck || self.Parent <= 0 || train.Dynamics.Tuning.Geometry.Interior is not { } layout)
+            return null;
+        int side = p.Site.Side;
+        double w = train.Frames[self.Parent].Shape.Bounds.Max.X, sd = layout.SideDoorWidth / 2;
+        var landing = new Double3(side * (w + layout.StepWidth / 2), layout.FloorHeight, 0);
+        double facingIn = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        if (Math.Abs(self.Position.X) < w - layout.WallThickness)
+            return Walk(self, landing, facingIn + Math.PI, "out of the car");
+        return Walk(self, landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.5 }, Math.PI, "down the steps");
+    }
+
+    /// <summary>
+    /// Done with its part at the loading: aboard, for a hand whose stop that is. The shunter still has the switch to set back
+    /// and the driver the train to drive (note 261): off the car it was shutting up, and back to the cab.
+    /// </summary>
+    PlayerIntent? Done(in PlayerState self, World world, StopPlan p)
+    {
+        if (job is not (StopJob.Shunter or StopJob.Driver))
+            return Aboard(self, p);
+        return OffTheCar(self, world, p) ?? Ride(self, world.Train, p);
     }
 
     bool _atControls, _fired;
@@ -1140,10 +1564,15 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     static int SideOf(TrainOnLine train, StopPlan p, Double3 world, double hint) =>
         TrackCoords(train.Line, p.Spur.Index, world, hint).Across >= 0 ? 1 : -1;
 
-    /// <summary>The part this stop: the winch pair carry crates where there's no winch, or once its sleds are in.</summary>
-    StopJob Part(StopPlan p, World world) => job is StopJob.Winch0 or StopJob.Winch1
-        && (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || world.Run is { } r && !r.SledHasRoom(world.Train, p.Site))
-        && p.Site.Has(ModuleKind.Crates) ? StopJob.Crates : job;
+    /// <summary>
+    /// The part this stop: the winch pair carry crates where there's no winch, or once its sleds are in; note 261: and where
+    /// the pair can't be made up (one of them, and nobody else for the other handle). A spare hand that's taken the crates
+    /// carries them.
+    /// </summary>
+    StopJob Part(StopPlan p, World world) => Pair is StopJob.Winch0 or StopJob.Winch1
+        ? (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.PairNow || world.Run is { } r && !r.SledHasRoom(world.Train, p.Site))
+            && (p.Site.Has(ModuleKind.Crates) || p.Site.Has(ModuleKind.Wreck)) ? StopJob.Crates : Pair
+        : _lent == StopJob.Crates ? StopJob.Crates : job;
 
     PlayerIntent? Shunt(in PlayerState self, World world, StopPlan p)
     {
@@ -1151,12 +1580,15 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         bool set = train.Diverging(p.Spur.Index);
         if (!_wentIn)
         {
-            if (!set && p.CutBehind >= 0 && train.Rakes.Count == 1)
+            if (!set && p.CutBehind >= 0 && train.TrainRakes == 1)
                 return Cut(self, train, p);
             return set ? Ride(self, train, p) : Throw(self, train, p.Spur);
         }
-        // In the cab while the empties are down the spur, until the whole train's back together short of the points.
-        bool back = train.Rakes.Count == 1 && train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance <= p.Hold + 3;
+        // In the cab while the empties are down the spur, until the whole train's back together short of the points. At the
+        // grain elevator, down on the spout's lever first while there's a car to fill under it (GDD §18; note 185).
+        bool back = train.TrainRakes == 1 && train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance <= p.Hold + 3;
+        if (!back && _reachedEnd && p.SpoutTarget(world) is not null && !calls.Leaving)
+            return Spout(self, world, p);
         if (!back)
             return Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
@@ -1171,17 +1603,104 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             return Ride(self, train, p);
         // Nothing to haul, nowhere for a sled to go (T66), or the driver's called all aboard (T76): aboard.
         if (!atEnd || p.Site.SledsLeft == 0 || calls.Leaving || world.Run is { } r && !r.SledHasRoom(train, p.Site))
-            return Aboard(self, p);
+            return Done(self, world, p);
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, p.Spur.Side);
         // At its handle, on the track side of it, holding on. It only turns with both handles held (spec D.2).
-        var handle = p.Site.Handles[job == StopJob.Winch0 ? 0 : 1];
+        var handle = p.Site.Handles[Pair == StopJob.Winch0 ? 0 : 1];
         var (along, across) = TrackCoords(train.Line, p.Spur.Index, handle, self.LineHint);
         var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) - 0.4));
         var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
         if (!there)
             return step;
         Doing = "cranking";
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
+    }
+
+    /// <summary>
+    /// On the grain elevator's lever (GDD §18): down on the lever's side, beside it, and holding it while a car with room
+    /// stands under the spout, letting go as it fills (the overflow strains the car) or once it's moving.
+    /// </summary>
+    PlayerIntent? Spout(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.SpoutLever, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, site.SpoutLever, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = "to the spout";
+            return step;
+        }
+        // Let go the tick it's full: what comes down meanwhile is a tick's pour, a fraction of a percent of a car-load.
+        var car = world.Run?.CarUnderSpout(train, site);
+        bool fill = car is not null && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05;
+        Doing = fill ? "pouring" : "at the spout";
+        return fill ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// Driving the herd (spec D.2 livestock ramp, "2–3 crew"): down on the pen's side, into the pen (each of the pair at
+    /// its own end of it), and holding Use there while there's head left and a car at the ramp.
+    /// </summary>
+    PlayerIntent? Herd(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (!_reachedEnd)
+            return Ride(self, train, p);
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.Pen, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, site.Pen, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along + (Pair == StopJob.Winch0 ? -1.5 : 1.5), across);
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.6)
+        {
+            Doing = "to the pen";
+            return step;
+        }
+        Doing = "driving the herd";
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
+    }
+
+    // The hose stand's state when this hand began holding Use at it: once it's changed, let go before holding again.
+    int? _hoseFrom;
+
+    /// <summary>
+    /// The fluid gantry (spec D.2: "connect hoses, monitor pressure, disconnect cleanly"): down to the stand, hold Use to put
+    /// the hose on the car by it, stand there minding it while it fills (the pressure climbs with nobody there), and hold
+    /// Use again to take it off once the car's full.
+    /// </summary>
+    PlayerIntent? Hose(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (!_reachedEnd)
+            return Ride(self, train, p);
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.HoseStand, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, site.HoseStand, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + 0.6));
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = "to the hose";
+            _hoseFrom = null;
+            return step;
+        }
+        bool full = site.HoseCar >= 0 && site.HoseCar < train.Vehicles.Count && train.Vehicles[site.HoseCar].Load >= 1 - 1e-6;
+        bool want = site.HoseCar < 0 || full;
+        if (!want || _hoseFrom is { } from && from != site.HoseCar)
+        {
+            _hoseFrom = null;
+            Doing = "minding the hose";
+            return new PlayerIntent();
+        }
+        _hoseFrom ??= site.HoseCar;
+        Doing = site.HoseCar < 0 ? "putting the hose on" : "taking the hose off";
         return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
 
@@ -1322,7 +1841,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (!p.AtTheEnd(train))
         {
             _car = -1;
-            return heavy ? Press() : Aboard(self, p);
+            return heavy ? Press() : Done(self, world, p);
         }
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
         // alone, go and take the other end.
@@ -1344,7 +1863,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (!heavy && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
             calls.CarryingTo(member, -1);
-            return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Aboard(self, p);
+            return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
         if (!heavy || _car < 0)
             _car = Roomiest(world, p, calls, member);
@@ -1412,6 +1931,15 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "over the train";
             return heavy ? Press() : null;
         }
+        // A wreck heap groaning by us (note 187): clear of it first, whatever's in our arms.
+        var here = PlayerMotor.WorldPosition(self, train);
+        if (world.Run?.Groaning(here, 1.0) is { } groaning && world.Run.FacilityTuning is { } ft)
+        {
+            var away = (here - groaning.Centre) with { Y = 0 };
+            var clear = groaning.Centre + (away.Length > 0.01 ? away.Normalized : new Double3(1, 0, 0)) * (ft.Wreck.CrushRadius + 2.5);
+            Doing = "clear of the wreck";
+            return WalkTo(self, train.Line, p.Spur.Index, clear with { Y = here.Y }, null).Step;
+        }
         // On the ground: the door first, then a crate, then up the steps with it.
         var foot = frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 });
         if (!open || heavy)
@@ -1448,7 +1976,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "to a crate";
             return step;
         }
-        double yaw = Math.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
+        double yaw = DMath.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         Doing = "picking one up";
@@ -1479,7 +2007,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "to lend a hand";
             return step;
         }
-        double yaw = Math.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
+        double yaw = DMath.Atan2(-(at.X - self.Position.X), -(at.Z - self.Position.Z));
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         Doing = "taking the other end";
@@ -1521,7 +2049,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         {
             // Keep facing it while the front end stands.
             var to = self.Parent == PlayerState.World ? at : train.Frames[self.Parent].ToLocal(at);
-            double yaw = Math.Atan2(-(to.X - self.Position.X), -(to.Z - self.Position.Z));
+            double yaw = DMath.Atan2(-(to.X - self.Position.X), -(to.Z - self.Position.Z));
             Doing = "holding the back end";
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         }
@@ -1618,7 +2146,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     {
         Doing = doing;
         var to = new Double3(target.X - self.Position.X, 0, target.Z - self.Position.Z);
-        double turn = Wrap(Math.Atan2(-to.X, -to.Z) - self.Yaw);
+        double turn = Wrap(DMath.Atan2(-to.X, -to.Z) - self.Yaw);
         return new PlayerIntent { LookYaw = (float)Math.Clamp(turn, -0.4, 0.4), MoveZ = Math.Abs(turn) < 0.3 ? 0.6f : 0 };
     }
 
@@ -1633,7 +2161,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
             Doing = "boarding";
             return null;
         }
-        _done.Add(p.Facility);
+        _done.Add(p.Key);
         _plan = null;
         Worked++;
         return null;
@@ -1723,10 +2251,11 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     /// The driver on its own (<see cref="StopDriver.SetBackAlone"/>): down out of the cab, the switch set back, and back up
     /// into the cab. Null once it's back at the controls with the switch right.
     /// </summary>
-    public PlayerIntent? SetBackAlone(in PlayerState self, World world, Branch? branch)
+    /// <param name="toBranch">Over for the branch instead (a stop's spur with no shunter, note 261).</param>
+    public PlayerIntent? SetBackAlone(in PlayerState self, World world, Branch? branch, bool toBranch = false)
     {
         var train = world.Train;
-        if (branch is { } b && train.Diverging(b.Index))
+        if (branch is { } b && train.Diverging(b.Index) != toBranch)
             return self.Surface == Surface.Air ? new PlayerIntent() : Throw(self, train, b);
         if (PlayerMotor.InCab(self, train))
             return null;
@@ -1771,7 +2300,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
-        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, Math.Atan2(-inward.X, -inward.Z));
+        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
     }
 
@@ -1825,13 +2354,18 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         double half = train.Frames[self.Parent].Shape.HalfLength, z = self.Position.Z;
-        double lateral = Math.Clamp(-self.Position.X * 0.8 * (direction < 0 ? 1 : -1), -1, 1);
+        // Jumping the gaps, along the middle; stepping off into one, over its plate (on the end doors' line, note 231).
+        var g = train.Dynamics.Tuning.Geometry;
+        double across = (jumpGaps ? 0 : g.PlateX) - self.Position.X;
+        double lateral = Math.Clamp(across * 0.8 * (direction < 0 ? 1 : -1), -1, 1);
         var intent = new PlayerIntent { MoveZ = 1, MoveX = (float)lateral, Buttons = jumpGaps ? PlayerButtons.Run : PlayerButtons.None };
         bool nearEnd = direction < 0 ? z < -half + 0.45 : z > half - 0.45;
+        if (!jumpGaps && Math.Abs(direction < 0 ? z + half : z - half) < 0.8 && Math.Abs(across) >= g.CouplerWidth / 2 - WarmUp.PlateMargin)
+            intent.MoveZ = 0; // square up over the plate first
         int beyond = direction < 0 ? train.VehicleAhead(self.Parent) : train.VehicleBehind(self.Parent);
         if (jumpGaps && nearEnd && beyond > 0)
         {
-            if (WarmUp.CanJumpGap(self, train, null))
+            if (WarmUp.CanJumpGap(self, train, null, beyond))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0; // square up on the centreline first (or wait out the curve)
@@ -1871,7 +2405,7 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         double distance = to.Length;
         if (aim == target && distance < 0.25)
             return yaw is not { } y || Aligned(self, y) ? (new PlayerIntent(), true) : (new PlayerIntent { LookYaw = Turn(self, y) }, false);
-        double heading = Math.Atan2(-to.X, -to.Z);
+        double heading = DMath.Atan2(-to.X, -to.Z);
         double turn = Wrap(heading - self.Yaw);
         bool far = (target - self.Position).Length > 4;
         return (new PlayerIntent

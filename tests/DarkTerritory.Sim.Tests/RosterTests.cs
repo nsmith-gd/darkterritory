@@ -40,7 +40,9 @@ public class RosterTests
     {
         Director = Tuning.Enemies.Director with
         {
-            GraceSeconds = 0,
+            GraceMinSeconds = 0,
+            GraceMaxSeconds = 0,
+            Pressure = Tuning.Eager,
             CooldownSeconds = [1, 1],
             Roster = roster,
             Costs = costs is null ? Tuning.Enemies.Director.Costs : Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
@@ -77,15 +79,19 @@ public class RosterTests
     [Fact]
     public void WhatsOffTheRosterDoesntComeUpOnItsConditionEither()
     {
-        // The Stoker's low fire (App. B.5: pressure under 40 for 45 s), stopped: off the roster, it never comes.
+        // The Stoker's hot fire (note 263, the director's decision of 6 Oct 2026: a firebox run hot draws it), stopped: off the
+        // roster, it never comes.
         World Low(string[] roster)
         {
             var world = Night(With(roster, new Dictionary<string, double>()), Frontier(), at: 10_000, speed: 0, boiler: true);
-            var b = world.Train.Boiler;
-            b.Firebox = 0;
-            b.Pressure = 10;
-            world.Train.Boiler = b;
-            Run(world, 90, 0);
+            for (int s = 0; s < 90; s++)
+            {
+                var b = world.Train.Boiler;
+                b.Firebox = Tuning.Boiler.FireboxCapacity;
+                b.Pressure = 70;
+                world.Train.Boiler = b;
+                Run(world, 1, 0);
+            }
             return world;
         }
         Assert.DoesNotContain(Low(["trackDoll"]).ActiveEnemies, e => e.Kind == EnemyKind.Stoker);

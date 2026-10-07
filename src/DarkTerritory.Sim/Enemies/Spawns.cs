@@ -283,6 +283,7 @@ public static class Spawns
                 return false;
             bool soot = !c.World.NextChildReal && c.Director.NextRange(0, 1) >= t.RealChance;
             c.World.NextChildReal = false;
+            c.World.ChildCalled = true;
             var at = c.Out(centre, t.CallOut);
             c.Add(i => SootChildren.Calls(i, at, soot, t));
             return true;

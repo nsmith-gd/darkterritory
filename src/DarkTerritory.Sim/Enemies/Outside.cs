@@ -150,7 +150,9 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
 /// run. Rule: keep talking to it. It punishes silence while the Choir punishes noise.
 /// </summary>
 /// <remarks>
-/// <see cref="Enemy.Extra"/> is its waker (−1 asleep), <see cref="Enemy.Extra2"/> its anger (the lean). Talking only stops
+/// <see cref="Enemy.Extra"/> is its waker (−1 asleep), <see cref="Enemy.Extra2"/> its anger (the lean). Leaving
+/// (<see cref="SpinePhase.BreakOff"/>), <see cref="Enemy.Extra"/> is instead the id of the body it's carrying off (−1: it
+/// took some of a car's freight, nothing to carry), and loose off the train <see cref="Enemy.LineDistance"/> its ground hint. Talking only stops
 /// the anger rising (GDD Part Eleven Q9, open): the tuning flag <c>anyVoiceCounts</c> says whose voice counts.
 /// </remarks>
 public sealed class Gaunt(int id) : Enemy(id)
@@ -225,24 +227,132 @@ public sealed class Gaunt(int id) : Enemy(id)
                 }
             case SpinePhase.Grab:
                 return;
+            case SpinePhase.BreakOff:
+                Leave(ctx, t);
+                return;
             default:
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
     }
 
+    /// <summary>
+    /// LEAVES with it (App. A.6: "it carries the body out at walking pace, in full view, and the crew can still chase it down
+    /// before it clears the train"): to its car's nearest door (opening it if it's shut), down beside the car, and straight
+    /// off from the train, holding what it took; gone with it once it's <see cref="GauntTuning.ClearedAt"/> from the train.
+    /// </summary>
+    void Leave(EnemyContext ctx, GauntTuning t)
+    {
+        var train = ctx.Train;
+        double step = t.LeaveSpeed * SimConstants.TickSeconds;
+        Double3 way;
+        bool low = false;
+        if (Attached >= 0)
+        {
+            if (Attached >= train.Frames.Count)
+            {
+                Away(ctx);
+                return;
+            }
+            var frame = train.Frames[Attached];
+            var shape = frame.Shape;
+            var here = Local;
+            low = shape.Interior is { } room && room.Contains(here);
+            // The nearest way out: a door's middle, or (a car without one) its side.
+            var doors = shape.DoorList;
+            var door = doors.Count > 0 ? doors.MinBy(d => ((d.Box.Centre - here) with { Y = 0 }).Length) : (Door?)null;
+            var exit = door is { } dd ? dd.Box.Centre with { Y = here.Y } : new Double3((here.X >= 0 ? 1 : -1) * shape.HalfWidth, here.Y, here.Z);
+            var to = (exit - here) with { Y = 0 };
+            way = to.Length > 1e-6 ? to.Normalized : new Double3(1, 0, 0);
+            if (door is { } d && to.Length < 1.0 && !train.Vehicles[Attached].DoorOpen(d.Index))
+                train.Vehicles[Attached].ToggleDoor(d.Index);
+            if (to.Length > step)
+                Local = here + way * step;
+            else
+            {
+                // Out through it and down onto the ground beside the car (an end door: off the end).
+                bool side = Math.Abs(exit.X) > shape.HalfWidth * 0.6;
+                var outward = side ? new Double3(exit.X >= 0 ? 1 : -1, 0, 0) : new Double3(0, 0, exit.Z >= 0 ? 1 : -1);
+                var world = frame.ToWorld(exit + outward * 1.0);
+                double hint = train.Dynamics.Distance;
+                Attached = Loose;
+                Local = world with { Y = PlayerMotor.GroundAt(world, train.Line, ref hint) };
+                LineDistance = hint;
+            }
+            Carry(ctx, t, way, low);
+            return;
+        }
+        // Loose: straight off from the nearest car, across the line's way.
+        var at = Local;
+        var near = train.Frames.MinBy(f => ((f.Origin - at) with { Y = 0 }).Length);
+        var away = (at - near.Origin) with { Y = 0 };
+        if (away.Length >= t.ClearedAt)
+        {
+            Away(ctx);
+            return;
+        }
+        double across = Double3.Dot(away, near.Right);
+        way = near.Right * (across >= 0 ? 1 : -1);
+        var next = at + way * step;
+        double ground = LineDistance;
+        Local = next with { Y = PlayerMotor.GroundAt(next, train.Line, ref ground) };
+        LineDistance = ground;
+        Carry(ctx, t, way, false);
+    }
+
+    /// <summary>What it took, held under it as it goes (Bodies.TakeAlong), facing the way it's going.</summary>
+    void Carry(EnemyContext ctx, GauntTuning t, Double3 way, bool low)
+    {
+        if (Extra < 0 || ctx.World.Bodies.All.FirstOrDefault(b => b.Id == (int)Extra) is not { } load)
+            return;
+        // (Its yaw in the frame it's in, as the way it's going is: a car's, or the world's.)
+        double yaw = DMath.Atan2(-way.X, -way.Z);
+        ctx.World.Bodies.TakeAlong(load, ctx.Train, Id, Attached >= 0 ? Attached : PlayerState.World,
+            Local + Double3.Up * (low ? t.CarryLow : t.CarryHigh), yaw);
+    }
+
+    /// <summary>Cleared the train: gone for the run, and what it carried with it.</summary>
+    void Away(EnemyContext ctx)
+    {
+        foreach (var b in ctx.World.Bodies.All.Where(b => b.TakenBy == Id).ToList())
+            ctx.World.Bodies.Remove(b);
+        Enter(ctx, SpinePhase.Gone);
+    }
+
+    /// <summary>Killed (or gone some other way) while carrying something off: it's dropped where it is (App. A.6).</summary>
+    void DropIfGone(EnemyContext ctx)
+    {
+        if (!Gone)
+            return;
+        foreach (var b in ctx.World.Bodies.All.Where(b => b.TakenBy == Id))
+            ctx.World.Bodies.LetGo(b);
+    }
+
+    public override void Struck(EnemyContext ctx, int by, double damage)
+    {
+        base.Struck(ctx, by, damage);
+        DropIfGone(ctx);
+    }
+
+    public override bool Hit(EnemyContext ctx, double damage)
+    {
+        bool killed = base.Hit(ctx, damage);
+        DropIfGone(ctx);
+        return killed;
+    }
+
     /// <summary>At its waker's back, at arm's length: in their car's frame aboard, loose in the world off it.</summary>
     void Follow(EnemyContext ctx, in PlayerState w, GauntTuning t)
     {
         var train = ctx.Train;
-        var behind = new Double3(Math.Sin(w.Yaw), 0, Math.Cos(w.Yaw)) * t.FollowAt;
+        var behind = new Double3(DMath.Sin(w.Yaw), 0, DMath.Cos(w.Yaw)) * t.FollowAt;
         if (w.Parent >= 0)
         {
             Attached = w.Parent;
             Local = w.Position + behind;
             return;
         }
-        var want = PlayerMotor.WorldPosition(w, train) + new Double3(Math.Sin(PlayerMotor.WorldYaw(w, train)), 0, Math.Cos(PlayerMotor.WorldYaw(w, train))) * t.FollowAt;
+        var want = PlayerMotor.WorldPosition(w, train) + new Double3(DMath.Sin(PlayerMotor.WorldYaw(w, train)), 0, DMath.Cos(PlayerMotor.WorldYaw(w, train))) * t.FollowAt;
         var from = WorldPosition(train);
         Attached = Loose;
         var to = want - from;
@@ -260,16 +370,21 @@ public sealed class Gaunt(int id) : Enemy(id)
         if (w.Parent <= 0 || w.Parent >= train.Frames.Count || train.Frames[w.Parent].Shape.Interior is not { } room || !room.Contains(w.Position))
             return false;
         int car = w.Parent;
-        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && Bodies.Value(b.Kind) > 0).MaxBy(b => Bodies.Value(b.Kind));
         var vehicle = train.Vehicles[car];
+        // What's in a shut crew locker it doesn't get at (note 173); an open one's as good as the floor.
+        // Never the rescued child (A.6: "cannot be harmed"; note 182): it passes over them for the next best thing.
+        var loot = ctx.World.Bodies.All.Where(b => b.Parent == car && b.Carrier < 0 && b.TakenBy < 0 && Bodies.Prey(b) > 0 && (!b.Stowed || vehicle.LockerOpen(b.Locker)))
+            .MaxBy(b => Bodies.Prey(b));
         if (loot is null && (vehicle.Load <= 0.01 || vehicle.CargoIntegrity <= 0.01))
             return false;
-        if (loot is not null)
-            ctx.World.Bodies.Remove(loot);
-        else
+        // It takes it up and leaves with it (Leave): what was freight is lost here and now; a thing in the hand, a body, is
+        // carried out in full view, to be fought for.
+        if (loot is null)
             vehicle.CargoIntegrity = Math.Max(0, vehicle.CargoIntegrity - t.LootCargo);
+        Extra = loot?.Id ?? -1;
         Enter(ctx, SpinePhase.BreakOff);
-        Enter(ctx, SpinePhase.Gone);
+        if (loot is not null)
+            Carry(ctx, t, new Double3(0, 0, -1), true);
         return true;
     }
 
@@ -317,6 +432,8 @@ public sealed class Gaunt(int id) : Enemy(id)
 public sealed class Follower(int id) : Enemy(id)
 {
     int _car = -1;
+    /// <summary>Who brought it aboard on their back (host only: for the report, C.9 "who carried it aboard").</summary>
+    int _carriedBy = -1;
 
     public override EnemyKind Kind => EnemyKind.Follower;
     public override PressureZone Zone => PressureZone.Outside;
@@ -345,7 +462,7 @@ public sealed class Follower(int id) : Enemy(id)
 
     void Ride(TrainOnLine train, in PlayerState s)
     {
-        var back = new Double3(Math.Sin(s.Yaw), 0, Math.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
+        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
         if (s.Parent >= 0)
         {
             Attached = s.Parent;
@@ -355,7 +472,7 @@ public sealed class Follower(int id) : Enemy(id)
         {
             Attached = Loose;
             double yaw = PlayerMotor.WorldYaw(s, train);
-            Local = PlayerMotor.WorldPosition(s, train) + new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
+            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
         }
     }
 
@@ -388,6 +505,7 @@ public sealed class Follower(int id) : Enemy(id)
                         && PhaseSeconds >= ctx.Tuning.MinReactionSeconds && Richest(ctx) is { } car && Enter(ctx, SpinePhase.Commit))
                     {
                         _car = car;
+                        _carriedBy = Carrier;
                         Extra = -1;
                     }
                     return;
@@ -417,7 +535,7 @@ public sealed class Follower(int id) : Enemy(id)
     {
         var train = ctx.Train;
         return train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && train.Frames[v.Id].Shape.Interior is not null)
-            .Select(v => (v.Id, Worth: v.Load * v.CargoIntegrity + ctx.World.Bodies.All.Where(b => b.Parent == v.Id).Sum(b => Bodies.Value(b.Kind))))
+            .Select(v => (v.Id, Worth: v.Load * v.CargoIntegrity + ctx.World.Bodies.All.Where(b => b.Parent == v.Id).Sum(b => Bodies.Prey(b))))
             .Where(x => x.Worth > 0.01).OrderByDescending(x => x.Worth).ThenBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
     }
 
@@ -457,10 +575,16 @@ public sealed class Follower(int id) : Enemy(id)
         }
     }
 
+    /// <summary>C.9's Followers row (note 190): the nest built, and who carried it aboard.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Nest,
+        $"Followers nested in car {_car}", _carriedBy, _carriedBy >= 0 ? "Carried aboard by {actor}." : "Nobody seen carrying them aboard.", _car);
+
+    /// <summary>Its carrier can't reach round and hit it: only a friend can (App. A.6).</summary>
+    public override bool Strikable(int by) => base.Strikable(by) && by != Carrier;
+
     /// <summary>Clubbed off a friend's back, as it crawls, or its nest beaten in: any blow that finishes it.</summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        // Its carrier can't reach round and hit it: only a friend can (App. A.6).
         if (by == Carrier)
             return;
         base.Struck(ctx, by, damage);

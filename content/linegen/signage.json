@@ -15,6 +15,9 @@
     "facility":      { "text": "{name} {value}", "heightM": 2.6, "widthM": 2.0, "visibleM": 250, "reflective": true },
     "bridge":        { "text": "{name}",        "heightM": 2.2, "widthM": 1.6,  "visibleM": 200, "reflective": true },
     "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 2.4, "widthM": 1.8, "visibleM": 250, "reflective": true },
+    // What a speed board that isn't for a bend is for, on its own post just past it (note 265, build 1121: "20" boards on
+    // straight track read as speed traps): BRASS for a brass field's cutting speed. A bend's board stands alone, as ever.
+    "limitReason":   { "text": "{name}",        "heightM": 2.4, "widthM": 1.4,  "visibleM": 250, "reflective": true },
     "lineClosed":    { "text": "LINE CLOSED",   "heightM": 2.6, "widthM": 2.0,  "visibleM": 250, "reflective": true },
     "yardLimit":     { "text": "YARD LIMIT",    "heightM": 2.4, "widthM": 1.8,  "visibleM": 250, "reflective": true },
     "stationName":   { "text": "{name}",        "heightM": 2.2, "widthM": 2.4,  "visibleM": 150, "reflective": true },

@@ -16,6 +16,10 @@ layout(set = 0, binding = 6) uniform sampler2DShadow moonShadow;
 layout(set = 0, binding = 7) uniform sampler2DArray heroDiffuse;
 layout(set = 0, binding = 8) uniform sampler2DArray heroSpec;
 layout(set = 0, binding = 9) uniform sampler2DArray heroNormal;
+// ...and the big ones (RenderAssets.BigHeroSize): a slot from 64 up (GreyboxRenderer.BigHero) is in these.
+layout(set = 0, binding = 11) uniform sampler2DArray bigDiffuse;
+layout(set = 0, binding = 12) uniform sampler2DArray bigSpec;
+layout(set = 0, binding = 13) uniform sampler2DArray bigNormal;
 
 float heroSlot(float layer) {
     int l = int(layer + 0.5);
@@ -260,14 +264,14 @@ void main() {
         }
     } else if (textured) {
         float hero = ps2 ? -1.0 : heroSlot(vLayer);
-        tex = hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
+        tex = hero >= 64.0 ? texture(bigDiffuse, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
         if (tex.a < 0.5)
             discard; // alpha test, never blend (pipeline: "alpha test at 0.5")
-        specMap = (hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
+        specMap = (hero >= 64.0 ? texture(bigSpec, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroSpec, vec3(vUv, hero)) : texture(specMaps, vec3(vUv, vLayer))).rgb;
         if (ps2)
             specMap = vec3(specMap.r * 0.5, 0.2, specMap.b);
         else
-            n = perturb(n, vPos, vUv, normalize((hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
+            n = perturb(n, vPos, vUv, normalize((hero >= 64.0 ? texture(bigNormal, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
     if (vWear > 0.0)
@@ -297,6 +301,12 @@ void main() {
     float night = 1.0 - inside;
     float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night;
     albedo *= 1.0 - 0.3 * wet;
+    // Frost: a pale rime over what's out in the night, thick on what faces the sky (roofs, ballast, the tops of
+    // things), thin on the walls, broken up by the surface's own grain so it lies in the texture's hollows and edges.
+    // (Pitch, worn under 0.015 (PlanArt.PitchWear: the tar ponds), stays black and wet: it doesn't rime.)
+    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6) * (vWear > 0.0 && vWear < 0.015 ? 0.0 : 1.0);
+    float rime = frost * (0.22 + 0.6 * smoothstep(0.2, 0.9, n.y)) * (0.55 + 0.45 * smoothstep(0.02, 0.2, dot(albedo, vec3(0.33))));
+    albedo = mix(albedo, vec3(0.5, 0.54, 0.6), clamp(rime, 0.0, 0.8));
 
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
@@ -309,8 +319,16 @@ void main() {
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
     float specStrength = specMap.r;
     float up = smoothstep(0.5, 0.95, n.y) * wet;
-    specStrength = max(specStrength, 0.16 * up);
+    // Standing water where the surface dips (the ground's hollows, a roof's sag, the ballast between the ties): a mirror
+    // of the sky in patches, the rest only filmed over.
+    float puddle = up * smoothstep(0.58, 0.72, noise(vSurface / 3.0)) * (textured ? 1.0 : 0.0);
+    albedo *= 1.0 - 0.35 * puddle;
+    specStrength = max(specStrength, 0.3 * up + 0.4 * puddle);
     shininess = mix(shininess, 70.0, up);
+    shininess = mix(shininess, 110.0, puddle);
+    // Its crystals glint.
+    specStrength = max(specStrength, 0.22 * rime);
+    shininess = mix(shininess, 90.0, rime);
     // Torn edges catch the light; scorch doesn't; a hole throws nothing back.
     specStrength = mix(mix(specStrength, specStrength * 0.3, scar.x), 0.4, scar.z) * (1.0 - scar.w);
     shininess = mix(shininess, 56.0, scar.z);
@@ -331,7 +349,7 @@ void main() {
     vec3 lampC = frame.lampColour.rgb * frame.lampColour.a;
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
-    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * 0.08 * moonLit;
+    spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * (0.08 + 0.5 * up) * moonLit;
 
     // Practical lights, per pixel and unshadowed: warm pools the crew work in.
     int count = int(frame.params.x);
@@ -354,7 +372,8 @@ void main() {
     // wet steel, a puddle) head on too; the rough ones hardly at all. Indoors it's the lamplit room, warm and dim.
     if (!ps2) {
         float gloss = textured ? specMap.g : 0.45;
-        gloss = mix(gloss, 0.8, up);
+        gloss = mix(gloss, 0.85, up);
+        gloss = mix(gloss, 0.97, puddle);
         float f0 = mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
         // (A face seen from behind, a card or a thin plate, reflects off the side that faces the eye.)
         vec3 nf = dot(n, v) < 0.0 ? -n : n;

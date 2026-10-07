@@ -13,7 +13,7 @@ on:
 jobs:
   soak:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -42,6 +42,33 @@ jobs:
           # Exits 1 if a check fails: survivable at 2, non-trivial at 8, fair throughout (tuning/balance.json).
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --tiers frontier --seeds 2 --crews 2,8 --cars 10 > out/soak/balance.json
           jq -c '{checks, byCrew, byCars}' out/soak/balance.json
+      # GDD §34's other checks (note 186). They report what they find without failing the soak: each is a sieve for the
+      # director to read (unwinnable or trivial meetings, a chain the bots couldn't come back from, a grab nobody broke).
+      - name: Combination fairness, every pair against every hazard set, and a sample of the triples
+        continue-on-error: true
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --every-hazard > out/soak/pairs.json || echo "pairs: flagged"
+          jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, neverExercised: .result.neverExercised}' out/soak/pairs.json
+          # And on the wide grid (note 204): two routes, crews of two and eight, two seeds a cell; unwinnable is a cell lost
+          # every night.
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --wide > out/soak/pairs-wide.json || echo "pairs, wide: flagged"
+          jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, byCell: [.result.byCell[] | {route, crew, nights, lost, unwinnable: (.unwinnable | length)}]}' out/soak/pairs-wide.json
+          # And what comes at a stop, met at a facility the crew get down and work at.
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --pairs --at-stops > out/soak/pairs-stops.json || echo "pairs at stops: flagged"
+          jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial, neverExercised: .result.neverExercised}' out/soak/pairs-stops.json
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- balance --triples > out/soak/triples.json || echo "triples: flagged"
+          jq -c '{seconds, verdicts: .result.verdicts, unwinnable: .result.unwinnable, trivial: .result.trivial}' out/soak/triples.json
+      - name: Cascade audit and the per-tree GRAB check
+        continue-on-error: true
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- audit cascades > out/soak/cascades.json || echo "cascades: unrecovered"
+          jq -c '{pass, unrecovered}' out/soak/cascades.json
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- audit grabs > out/soak/grabs.json || echo "grabs: found one"
+          jq -c '{pass, uninterruptible, neverGrabbed}' out/soak/grabs.json
+      - name: Degraded comms, a night on frontier:7 with eight bots on a poor voice
+        run: |
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- harness --route frontier:7 --bots 8 --enemies --comms poor --seconds 3600 > out/soak/comms.json
+          jq -c '{seconds, deaths, run: .run.end, net: .run.net, voice, stops: [.stops[]? | {kind, seconds}]}' out/soak/comms.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

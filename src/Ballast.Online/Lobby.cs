@@ -9,6 +9,10 @@ namespace Ballast.Online;
 public sealed class Lobby : IDisposable
 {
     public const string GameKey = "game", ProtocolKey = "protocol", HostKey = "host";
+    /// <summary>"1" on a listed lobby (<see cref="LobbyVisibility.Public"/>): a search can ask for these only.</summary>
+    public const string PublicKey = "public";
+    /// <summary>The owner's <see cref="IOnlineBackend.LocalPingLocation"/>, for a browser's ping estimate.</summary>
+    public const string PingKey = "ping";
 
     public enum State : byte { Creating, Joining, Open, Failed, Closed }
 
@@ -16,10 +20,16 @@ public sealed class Lobby : IDisposable
     readonly string _game;
     readonly int _protocol;
     readonly List<OnlineEvent> _events = new();
+    readonly IReadOnlyDictionary<string, string> _data;
+    readonly LobbyVisibility _visibility;
     LobbyId? _target;
+    bool _pingPublished;
 
-    Lobby(IOnlineBackend online, string game, int protocol, bool host, LobbyId? target)
+    Lobby(IOnlineBackend online, string game, int protocol, bool host, LobbyId? target, LobbyVisibility visibility = LobbyVisibility.FriendsOnly,
+        IReadOnlyDictionary<string, string>? data = null)
     {
+        _visibility = visibility;
+        _data = data ?? new Dictionary<string, string>();
         _online = online;
         _game = game;
         _protocol = protocol;
@@ -28,13 +38,17 @@ public sealed class Lobby : IDisposable
         Status = host ? State.Creating : State.Joining;
     }
 
-    /// <summary>Creates a friends-only lobby for a game we host.</summary>
-    public static Lobby Host(IOnlineBackend online, string game, int protocol, int maxMembers)
+    /// <summary>Creates a lobby for a game we host: friends-only, or listed for anyone to find.</summary>
+    /// <param name="data">The game's own values to set on it once it exists (a name, a tier), beside the game and protocol.</param>
+    public static Lobby Host(IOnlineBackend online, string game, int protocol, int maxMembers, LobbyVisibility visibility = LobbyVisibility.FriendsOnly,
+        IReadOnlyDictionary<string, string>? data = null)
     {
-        var lobby = new Lobby(online, game, protocol, host: true, target: null);
-        online.CreateLobby(maxMembers);
+        var lobby = new Lobby(online, game, protocol, host: true, target: null, visibility, data) { MemberLimit = maxMembers };
+        online.CreateLobby(maxMembers, visibility);
         return lobby;
     }
+
+    public LobbyVisibility Visibility => _visibility;
 
     /// <summary>Joins a friend's lobby (from an invite, "Join Game", or <c>+connect_lobby</c>).</summary>
     public static Lobby Join(IOnlineBackend online, LobbyId id, string game, int protocol)
@@ -83,6 +97,9 @@ public sealed class Lobby : IDisposable
                     _online.SetLobbyData(Id, GameKey, _game);
                     _online.SetLobbyData(Id, ProtocolKey, _protocol.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     _online.SetLobbyData(Id, HostKey, _online.NameOf(_online.Me));
+                    _online.SetLobbyData(Id, PublicKey, _visibility == LobbyVisibility.Public ? "1" : "0");
+                    foreach (var (key, value) in _data)
+                        _online.SetLobbyData(Id, key, value);
                     Status = State.Open;
                     break;
                 case OnlineEventKind.LobbyEntered when Status == State.Joining && e.Lobby == _target:
@@ -96,6 +113,20 @@ public sealed class Lobby : IDisposable
                     break;
             }
         }
+        // The platform measures where we are a few seconds after it starts; the lobby carries it once it has, so a
+        // browser can estimate its ping to us.
+        if (IsHost && Status == State.Open && !_pingPublished && _online.LocalPingLocation is { Length: > 0 } where)
+        {
+            _online.SetLobbyData(Id, PingKey, where);
+            _pingPublished = true;
+        }
+    }
+
+    /// <summary>Sets one of the lobby's values (the host's only: the crew aboard as it changes).</summary>
+    public void SetData(string key, string value)
+    {
+        if (IsHost && Status == State.Open && _online.LobbyData(Id, key) != value)
+            _online.SetLobbyData(Id, key, value);
     }
 
     void Entered(LobbyId id)
@@ -125,12 +156,31 @@ public sealed class Lobby : IDisposable
         Status = State.Failed;
     }
 
-    /// <summary>Closes the doors (a run that has left the yard, a full crew) or opens them again.</summary>
+    /// <summary>Closes the doors (a full crew) or opens them again. Only said to the platform when it changes.</summary>
     public void SetJoinable(bool joinable)
     {
-        if (IsHost && Status == State.Open)
+        if (IsHost && Status == State.Open && Joinable != joinable)
+        {
             _online.SetJoinable(Id, joinable);
+            Joinable = joinable;
+        }
     }
+
+    /// <summary>Whether the doors are open, as this host last set them (a new lobby's are).</summary>
+    public bool Joinable { get; private set; } = true;
+
+    /// <summary>How many the platform lets in (the crew cap); only said to the platform when it changes.</summary>
+    public void SetMemberLimit(int max)
+    {
+        if (IsHost && Status == State.Open && MemberLimit != max)
+        {
+            _online.SetMemberLimit(Id, max);
+            MemberLimit = max;
+        }
+    }
+
+    /// <summary>The member limit as this host created it or last set it (0 for a lobby joined).</summary>
+    public int MemberLimit { get; private set; }
 
     public void ShowInviteDialog()
     {

@@ -1,0 +1,11 @@
+// The fortress on the radio (GDD §9; notes 178, 240), tier 2 like any voice on the set: the open channel's static under
+// the dispatcher's manifest and the clerk's tally, for as long as the yard's on the air. The voice is radio-clerk-voice,
+// a line at a time.
+{
+  "tier": 2, "loop": true, "flat": true, "maxInstances": 1, "gainDb": -4,
+  "crush": { "bits": 8, "rate": 11025 },
+  "layers": [
+    { "source": "noise", "gain": 0.07, "filters": [{ "type": "bandPass", "frequency": 1900, "q": 0.7 }],
+      "tremolo": { "rate": 0.7, "depth": 0.3, "jitter": 0.9 } }
+  ]
+}

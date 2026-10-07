@@ -74,6 +74,21 @@ public static class TrainKit
     }
 
     /// <summary>A modelled piece (tools/models car_gear) appended at <paramref name="at"/>, when the look has it.</summary>
+    /// <summary>
+    /// The engine's main rod, a unit of it: from its big end at the origin back along +Z to its little end
+    /// <paramref name="length"/> away (SceneArt.Gear lays it from the crank pin to the crosshead each frame).
+    /// </summary>
+    public static MeshAsset MainRod(Look? look, float length)
+    {
+        var k = new Kit(look, 141);
+        k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+        k.Rod(Vector3.Zero, new Vector3(0, 0, length), 0.045f);
+        // The big end's strap round the pin, and the little end's eye at the crosshead.
+        k.Cylinder(new Vector3(-0.05f, 0, 0), new Vector3(0.05f, 0, 0), 0.075f, 10);
+        k.Cylinder(new Vector3(-0.04f, 0, length), new Vector3(0.04f, 0, length), 0.06f, 8);
+        return k.Build("engine-main-rod");
+    }
+
     static bool Prop(Kit k, string name, Matrix4x4 at)
     {
         if (k.Look is not { } look || PropArt.Of(look).Get(name) is not { } piece)
@@ -108,11 +123,14 @@ public static class TrainKit
         k.Box(new Vector3(-HalfGauge - 0.2f, 0.62f, z - 0.2f), new Vector3(HalfGauge + 0.2f, 0.78f, z + 0.2f));
     }
 
-    /// <summary>A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).</summary>
+    /// <summary>
+    /// A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).
+    /// Where the modelled ones are built (tools/models car_gear: coupler_knuckle, coupler_open) they're not baked in: the
+    /// scene draws each end's per frame, shut or cut (<see cref="CouplerEnds"/>, SceneArt.Car), so a cut shows.
+    /// </summary>
     static void Coupler(Kit k, float z, float dir, float height)
     {
-        // The modelled one points forward (−Z) with its centre line 0.9 m up: turned for the rear, raised or lowered.
-        if (Prop(k, "coupler_knuckle", (dir > 0 ? Matrix4x4.CreateRotationY(MathF.PI) : Matrix4x4.Identity) * Kit.At(0, height - 0.9f, z)))
+        if (k.Look is { } look && PropArt.Of(look).Get("coupler_knuckle") is not null)
             return;
         k.Use("wheel_iron", Palette.SootBlack, 0.7f, 0.35f);
         float z0 = z, z1 = z + dir * 0.35f;
@@ -125,6 +143,18 @@ public static class TrainKit
 
     /// <summary>How far apart a ladder's rungs are (also a climber's hand-over-hand: GameAudio's rung cues).</summary>
     public const float RungPitch = 0.3f;
+
+    /// <summary>
+    /// Where a vehicle's two couplers stand (its frame, 0.9 m up): the front's and the rear's along it, and the way each
+    /// points (±1, the modelled one pointing −Z, turned for the rear). The engine's front one stands a little proud of the
+    /// pilot beam.
+    /// </summary>
+    public static (Matrix4x4 Front, Matrix4x4 Rear) CouplerEnds(CarShape shape)
+    {
+        float l = (float)shape.HalfLength;
+        float front = shape.Cab is not null ? -l - 0.05f : -l;
+        return (Matrix4x4.CreateTranslation(0, 0, front), Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateTranslation(0, 0, l));
+    }
 
     /// <summary>An iron ladder up a face: two stiles and rungs every <see cref="RungPitch"/>, standing off it by a hand's depth.</summary>
     public static void RungLadder(Kit k, Vector3 foot, float top, Vector3 inward, float from = 0.2f)
@@ -157,7 +187,37 @@ public static class TrainKit
     /// so it reads as heavy and hand-made), the lamp sits in an armoured box at the front like an eye, the stack is a
     /// tapered funnel, and behind the cab the tender's coal is heaped under a flared coal board.
     /// </summary>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant)
+    /// <summary>The drivers' radius (m), and their places along the engine (its frame's Z), front to back.</summary>
+    public const float DriverRadius = 0.7f;
+    public static float[] Drivers(CarShape shape)
+    {
+        float l = (float)shape.HalfLength;
+        return [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
+    }
+
+    /// <summary>A side's crank angle at rest (rad): the pins a quarter turn apart side to side, so it never stops on a dead centre.</summary>
+    public static float CrankPhase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
+
+    /// <summary>
+    /// A modelled driver (tools/models engine_parts, its pin towards +Z) turned to its side's crank at <paramref name="turn"/>
+    /// (rad, the wheels' roll: distance over <see cref="DriverRadius"/>), at <paramref name="at"/> (and, on the left, round to face out).
+    /// </summary>
+    public static Matrix4x4 DriverAt(int side, Vector3 at, float turn) => side > 0
+        ? Matrix4x4.CreateRotationX(-(CrankPhase(side) + turn)) * Kit.At(at)
+        : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - (CrankPhase(side) + turn)) * Kit.At(at);
+
+    /// <summary>A side's crank pin off its driver's centre at <paramref name="turn"/> (rad).</summary>
+    public static Vector3 CrankPin(int side, float turn) =>
+        new Vector3(0, MathF.Sin(CrankPhase(side) + turn), MathF.Cos(CrankPhase(side) + turn)) * 0.3f;
+
+    /// <summary>Where a side's rods run (x), and the crosshead's height and its place at the rest crank (frame Z).</summary>
+    public static float RodX(int side) => side * (HalfGauge + 0.2f) + side * 0.06f;
+    public const float CrossheadY = 0.95f;
+    public static float CrossheadRestZ(CarShape shape) => -(float)shape.HalfLength + 3.0f;
+
+    /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
+    /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true)
     {
         var k = new Kit(look, 101 + variant);
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
@@ -172,20 +232,15 @@ public static class TrainKit
         float roofLow = (float)roof.Min.Y, roofTop = (float)roof.Max.Y;
 
         // Running gear: pilot truck, four drivers, the steam cylinders ahead of them, and the tender's two axles.
-        const float driverR = 0.7f;
-        float[] drivers = [-l + 3.8f, -l + 5.4f, -l + 7.0f, -l + 8.6f];
-        // The crank pins are a quarter turn apart side to side, so the train never stops on a dead centre.
-        static float Phase(int side) => side < 0 ? 0.4f : 0.4f + MathF.PI / 2;
-        // A modelled driver (tools/models engine_parts) has its pin towards +Z: turned to its side's phase (and, on the
-        // left, round to face out first).
-        static Matrix4x4 Turned(int side, Vector3 at) => side > 0
-            ? Matrix4x4.CreateRotationX(-Phase(side)) * Kit.At(at)
-            : Matrix4x4.CreateRotationY(MathF.PI) * Matrix4x4.CreateRotationX(MathF.PI - Phase(side)) * Kit.At(at);
+        const float driverR = DriverRadius;
+        float[] drivers = Drivers(shape);
+        static float Phase(int side) => CrankPhase(side);
         foreach (float z in drivers)
         {
             bool modelled = true;
             foreach (int side in new[] { -1, 1 })
-                modelled &= Prop(k, "driver_wheel", Turned(side, new Vector3(side * HalfGauge, driverR, z)));
+                modelled &= gear ? Prop(k, "driver_wheel", DriverAt(side, new Vector3(side * HalfGauge, driverR, z), 0))
+                    : k.Look is { } lk && PropArt.Of(lk).Get("driver_wheel") is not null;
             if (!modelled)
                 Axle(k, z, driverR, 12, driver: true);
             else
@@ -221,11 +276,14 @@ public static class TrainKit
             var pin = new Vector3(0, MathF.Sin(phase), MathF.Cos(phase)) * 0.3f;
             float x = side * (HalfGauge + 0.2f);
             var rodAt = new Vector3(x, driverR + pin.Y, (drivers[0] + drivers[^1]) / 2 + pin.Z);
-            if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
-                k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
-            k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
-            var crosshead = new Vector3(x + side * 0.06f, 0.95f, -l + 3.0f);
-            k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            if (gear)
+            {
+                if (!Prop(k, "coupling_rod", (side > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * Kit.At(rodAt)))
+                    k.Box(new Vector3(x - 0.03f, driverR + pin.Y - 0.06f, drivers[0] + pin.Z - 0.1f), new Vector3(x + 0.03f, driverR + pin.Y + 0.06f, drivers[^1] + pin.Z + 0.1f));
+                k.Use("wheel_iron", Palette.IronGrey, 0.5f, 0.7f);
+                var crosshead = new Vector3(x + side * 0.06f, CrossheadY, CrossheadRestZ(shape));
+                k.Rod(crosshead, new Vector3(x + side * 0.06f, driverR + pin.Y, drivers[2] + pin.Z), 0.045f);
+            }
             // Crosshead guides and the cylinder, with its drain cocks.
             if (Prop(k, side > 0 ? "cylinder_r" : "cylinder_l", Kit.At(side * 1.12f, 0.98f, -l + 1.65f)))
                 continue;
@@ -443,14 +501,16 @@ public static class TrainKit
         float face = cabFront + BackheadDepth;
         float fy = FireDoor(shape).Y;
         // The backhead's plate, round the firebox door's opening (it's a hole: through it the fire, drawn with the fire's
-        // glow by the scene, and a Stoker if one's in there).
-        k.Use("iron_smokebox", Palette.SootBlack, 0.8f, 0.3f);
+        // glow by the scene, and a Stoker if one's in there): riveted boiler plate, sooted, its seams and rivet rows on it
+        // (the crazed smokebox iron read as cobbles at this size, the checklist's "the firebox texture").
+        k.Use("iron_plate", Palette.SootBlack * 1.6f, 0.8f, 0.35f, tile: 0.9f);
         float ox = FireDoorHalfWidth, oy = FireDoorHalfHeight;
         k.Box(new Vector3(-bw, deck, cabFront), new Vector3(-ox, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(ox, deck, cabFront), new Vector3(bw, top, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, deck, cabFront), new Vector3(ox, fy - oy, face), Kit.Faces.PosZ);
         k.Box(new Vector3(-ox, fy + oy, cabFront), new Vector3(ox, top, face), Kit.Faces.PosZ);
-        // The firehole's sides, back to the fire.
+        // The firehole's sides, back to the fire: the firebox's lining of firebrick, black with soot, lit by the fire.
+        k.Use("brick_soot", Palette.SootBlack * 2.2f, 0.9f, 0.1f, tile: 2.2f);
         k.Box(new Vector3(-ox - 0.02f, fy - oy, cabFront - 0.1f), new Vector3(-ox, fy + oy, face), Kit.Faces.PosX);
         k.Box(new Vector3(ox, fy - oy, cabFront - 0.1f), new Vector3(ox + 0.02f, fy + oy, face), Kit.Faces.NegX);
         k.Box(new Vector3(-ox, fy - oy - 0.02f, cabFront - 0.1f), new Vector3(ox, fy - oy, face), Kit.Faces.PosY);
@@ -537,6 +597,35 @@ public static class TrainKit
     }
 
     /// <summary>A painted grip over a lever's handle, centred on it (T101: the brake's red, found at a glance).</summary>
+    /// <summary>
+    /// Where the whistle cord's handle hangs in the cab (car frame): the sim's whistle interactable (note 264), in the
+    /// driver's front corner over the brake valve, at its height (GDD §12: the real whistle has a hand on it; the Whistler's
+    /// has none, App. A.4). Hauled down 0.2 m while it blows.
+    /// </summary>
+    public static Ballast.Double3 WhistleCordHandle(CarShape engine, bool pulled)
+    {
+        foreach (var i in engine.Interactables)
+            if (i.Kind == InteractableKind.Whistle)
+                return i.Position + Ballast.Double3.Up * (i.Aim - (pulled ? 0.2 : 0));
+        var reg = engine.Levers?.Regulator ?? default;
+        return new Ballast.Double3(reg.X - 0.12, reg.Y + (pulled ? 0.22 : 0.4), reg.Z + 0.4);
+    }
+
+    /// <summary>
+    /// The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a T-handle painted signal red (note
+    /// 267: "I don't see a switch for a whistle"), so it reads at a glance as the brake's grip does; its origin at the handle.
+    /// </summary>
+    public static MeshAsset WhistleCord(Look? look, float length)
+    {
+        var k = new Kit(look, 63);
+        k.Use("wood_grey", new Vector3(0.62f, 0.56f, 0.42f), 0.85f, 0.05f, tile: 0.3f);
+        k.Cylinder(new Vector3(0, 0.02f, 0), new Vector3(0, length, 0), 0.009f, 5);
+        k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
+        k.Cylinder(new Vector3(-0.1f, 0, 0), new Vector3(0.1f, 0, 0), 0.022f, 6);
+        k.Cylinder(new Vector3(0, -0.01f, 0), new Vector3(0, 0.06f, 0), 0.012f, 5);
+        return k.Build("whistle-cord");
+    }
+
     public static MeshAsset Grip(Look? look, Vector3 colour)
     {
         var k = new Kit(look, 62);
@@ -1080,23 +1169,221 @@ public static class TrainKit
         CargoKind.Chemicals => "freight_carboys",
         CargoKind.Ore => "freight_ore",
         CargoKind.Heavy => "heavy_crate",
-        CargoKind.Salvage or CargoKind.Comet => "freight_parts",
+        CargoKind.Salvage => "freight_parts",
+        CargoKind.Comet => "freight_comet",
+        // The contracts' freight (note 182): the goods mix's own cases, and coal in the ore's lumps.
+        CargoKind.Medicine => "freight_medicine",
+        CargoKind.Timber => "freight_timber",
+        CargoKind.Coal => "freight_ore",
         _ => null,
     };
+
+    /// <summary>
+    /// Goods (the cars' own freight, GDD §19 "timber, medicine, machine parts"): a mix by the case, crates, bundles of
+    /// timber and chests of medical stores, so a car of goods reads as freight, not one block.
+    /// </summary>
+    static readonly string[] Goods = ["stores_crate", "freight_timber", "freight_medicine", "freight_parts"];
 
     /// <summary>
     /// A car's load (its cargo solids, as the sim has them) as its cargo's cases stacked to fill them: each case the size of
     /// a crate's body, scaled a little to the cell, turned a touch either way so the face isn't one plane. The plain crate
     /// stack when the cargo has no case of its own (<see cref="LoadProp"/>) or it isn't built.
     /// </summary>
+    /// <summary>
+    /// A utility car's fit-out (GDD §10: "experienced crews run engine, armour, cannons, utility cars"; §4's read: "crew /
+    /// utility car: cramped, lamp-lit, human-scale"), in the cargo car's body where its load would be: bunks two high down
+    /// one side, a pot-bellied stove at the rear end with its pipe up through the roof, a table and benches, lockers and
+    /// a coat rail, the floor worn; and outside, its lit windows and the stovepipe smoking, so it reads from the roofs as
+    /// where the crew lives. <see cref="StovePipe"/> is where the pipe comes out.
+    /// </summary>
+    public static MeshAsset UtilityFit(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 990);
+        var room = shape.Interior!.Value;
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        float floor = (float)room.Min.Y + 0.1f, xIn = (float)room.Max.X, zMin = (float)room.Min.Z + 0.3f, zMax = (float)room.Max.Z - 0.3f;
+        // The bunks: down the right side, a lower and an upper berth each with its blanket, end boards between.
+        foreach (float y in new[] { floor + 0.45f, floor + 1.35f })
+        {
+            k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, tile: 1);
+            k.Box(new Vector3(xIn - 0.75f, y - 0.06f, zMin + 1.2f), new Vector3(xIn, y, zMax - 0.4f));
+            k.Use("wool", Palette.BlueGrey, 0.9f, 0, tile: 1.4f);
+            k.Box(new Vector3(xIn - 0.72f, y, zMin + 1.25f), new Vector3(xIn - 0.04f, y + 0.12f, zMax - 0.45f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, tile: 1);
+        for (float z = zMin + 1.2f; z <= zMax - 0.35f; z += (zMax - zMin - 1.6f) / 3)
+            k.Box(new Vector3(xIn - 0.78f, floor, z - 0.03f), new Vector3(xIn, floor + 1.75f, z + 0.03f));
+        // The stove at the rear end on the left, on its iron plate, its door to the car and its pipe up through the roof.
+        var stove = StoveAt(shape);
+        k.Use("iron_plate", Palette.IronGrey, 0.8f, 0.3f);
+        k.Box(new Vector3(stove.X - 0.45f, floor - 0.02f, stove.Z - 0.45f), new Vector3(stove.X + 0.45f, floor + 0.02f, stove.Z + 0.45f));
+        k.Use("iron_smokebox", Palette.SootBlack, 0.9f, 0.3f);
+        k.Cylinder(new Vector3(stove.X, floor, stove.Z), new Vector3(stove.X, floor + 0.75f, stove.Z), 0.26f, 10, radiusB: 0.22f);
+        k.Cylinder(new Vector3(stove.X, floor + 0.75f, stove.Z), new Vector3(stove.X, h + 0.7f, stove.Z), 0.07f, 8);
+        k.Lathe(new Vector3(stove.X, h + 0.7f, stove.Z), [new(0.15f, 0), new(0.15f, 0.08f), new(0.02f, 0.2f)], 8, smooth: false);
+        // Its door's glow.
+        k.Use("ember_crack", Palette.FurnaceOrange, 0.2f, 0);
+        k.Panel(new Vector3(stove.X, floor + 0.32f, stove.Z - 0.25f), -Vector3.UnitZ, Vector3.UnitY, 0.18f, 0.14f);
+        // A table and its two benches mid-car on the left, a coat rail on the end wall, lockers by the door.
+        k.Use("wood_crate", Palette.DeepBrown, 0.85f, 0, tile: 1);
+        float tx = -xIn + 0.55f, tz = 0.4f;
+        k.Box(new Vector3(tx - 0.4f, floor + 0.72f, tz - 0.6f), new Vector3(tx + 0.4f, floor + 0.78f, tz + 0.6f));
+        k.Box(new Vector3(tx - 0.05f, floor, tz - 0.05f), new Vector3(tx + 0.05f, floor + 0.72f, tz + 0.05f));
+        foreach (float bz in new[] { tz - 0.95f, tz + 0.95f })
+            k.Box(new Vector3(tx - 0.38f, floor + 0.4f, bz - 0.17f), new Vector3(tx + 0.38f, floor + 0.46f, bz + 0.17f));
+        // (The kit's car has the crew's own row of lockers there, note 173: those are drawn as the car's.)
+        if (shape.Lockers.Count == 0)
+        {
+            k.Use("paint_olive", Palette.MuddyOlive, 0.9f, 0.2f);
+            k.Box(new Vector3(-xIn, floor, zMin + 0.2f), new Vector3(-xIn + 0.45f, floor + 1.8f, zMin + 1.4f));
+        }
+        k.Use("coat_oilskin", Palette.MuddyOlive, 0.9f, 0.2f, tile: 1);
+        for (int i = 0; i < 3; i++)
+            k.Box(new Vector3(-xIn + 0.05f, floor + 0.9f, zMax - 2.6f + i * 0.45f), new Vector3(-xIn + 0.2f, floor + 1.6f, zMax - 2.25f + i * 0.45f));
+        // Outside: its windows lit, along both sides, and a stencilled band to say what it is.
+        k.Use("window_lit", Palette.LampAmber, 0.2f, 0.4f, tile: 0.5f);
+        foreach (int side in new[] { -1, 1 })
+            for (float z = -l + 2.0f; z < l - 1.6f; z += (2 * l - 3.6f) / 3)
+            {
+                float x = side * (w + 0.012f);
+                k.Panel(new Vector3(x, floor + 1.65f, z), new Vector3(side, 0, 0), Vector3.UnitY, 0.55f, 0.42f);
+                k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f);
+                k.Box(new Vector3(x - 0.03f, floor + 1.9f, z - 0.36f), new Vector3(x + 0.03f, floor + 1.97f, z + 0.36f));
+                k.Use("window_lit", Palette.LampAmber, 0.2f, 0.4f, tile: 0.5f);
+            }
+        return k.Build("utility-fit");
+    }
+
+    /// <summary>
+    /// Where a utility car's stove stands (its rear end, on the left), so its pipe's smoke comes out over it: the crew car's
+    /// own (<see cref="CarShape.Stove"/>, note 184), or where it would go in a cargo car's shell (a still frame's).
+    /// </summary>
+    public static Vector3 StoveAt(CarShape shape)
+    {
+        if (shape.Stove is { } stove)
+            return new Vector3((float)stove.Centre.X, (float)stove.Min.Y, (float)stove.Centre.Z);
+        var room = shape.Interior!.Value;
+        return new Vector3((float)room.Min.X + 0.55f, (float)room.Min.Y + 0.1f, (float)room.Max.Z - 0.75f);
+    }
+
+    /// <summary>
+    /// An armoured car's plate (spec F.3 armoured car conversion, GDD §26 "reinforced plating, heavier mass"; note 184), over
+    /// whatever livery it wears: riveted plates hung proud of each side and end wall (clear of its doorways), a deep skirt
+    /// down over the trucks, and angle iron along the eaves. Heavy, flat, bolted on: it reads from the roofs and from the
+    /// lineside as a different car.
+    /// </summary>
+    public static MeshAsset ArmourPlate(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 1840);
+        var room = shape.Interior!.Value;
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
+        float floor = (float)room.Min.Y + 0.1f, ceiling = (float)room.Max.Y;
+        const float Proud = 0.07f, Thick = 0.04f;
+        // The side door's opening, if it has one: the plate stops either side of it.
+        float sd = shape.DoorList.Where(d => d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).Select(d => (float)(d.Box.Max.Z - d.Box.Min.Z) / 2).DefaultIfEmpty(0).Max();
+        var runs = sd > 0 ? new[] { (-l, -sd - 0.12f), (sd + 0.12f, l) } : new[] { (-l, l) };
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side * (w + Proud - Thick), x1 = side * (w + Proud);
+            var (lo, hi) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
+            foreach (var (z0, z1) in runs)
+            {
+                // Plates a metre and a half long, seamed, from the skirt's foot to the eaves.
+                int plates = Math.Max(1, (int)MathF.Round((z1 - z0) / 1.6f));
+                float each = (z1 - z0) / plates;
+                for (int i = 0; i < plates; i++)
+                {
+                    float a = z0 + i * each + 0.012f, b = z0 + (i + 1) * each - 0.012f;
+                    k.Use("iron_plate", Palette.IronGrey, 0.95f, 0.35f, tile: 1.1f);
+                    k.Box(new Vector3(lo, 0.55f, a), new Vector3(hi, ceiling - 0.05f, b));
+                    // Its rivet lines: a strap down each edge and across the top and the floor line.
+                    k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+                    float face = side * (w + Proud + 0.012f);
+                    var (f0, f1) = (MathF.Min(face, face - side * 0.02f), MathF.Max(face, face - side * 0.02f));
+                    foreach (float z in new[] { a + 0.05f, b - 0.05f })
+                        k.Box(new Vector3(f0, 0.6f, z - 0.025f), new Vector3(f1, ceiling - 0.1f, z + 0.025f), side > 0 ? Kit.Faces.PosX | Kit.Faces.PosY : Kit.Faces.NegX | Kit.Faces.PosY);
+                    foreach (float y in new[] { floor - 0.05f, ceiling - 0.15f })
+                        k.Box(new Vector3(f0, y - 0.025f, a + 0.05f), new Vector3(f1, y + 0.025f, b - 0.05f), side > 0 ? Kit.Faces.PosX | Kit.Faces.PosY : Kit.Faces.NegX | Kit.Faces.PosY);
+                }
+            }
+            // Angle iron along the eaves, the whole length.
+            k.Use("paint_black", Palette.SootBlack, 0.9f, 0.3f);
+            k.Box(new Vector3(MathF.Min(side * w, side * (w + Proud + 0.03f)), ceiling - 0.05f, -l - 0.04f), new Vector3(MathF.Max(side * w, side * (w + Proud + 0.03f)), ceiling + 0.03f, l + 0.04f));
+        }
+        // The end walls: a plate either side of the end doorway, proud of the wall, down to the end beam.
+        var doors = shape.DoorList.Where(d => d.Box.Max.X - d.Box.Min.X > d.Box.Max.Z - d.Box.Min.Z).ToList();
+        foreach (int end in new[] { -1, 1 })
+        {
+            var door = doors.FirstOrDefault(d => MathF.Sign((float)d.Box.Centre.Z) == end);
+            float d0 = door.Box.Max.X > door.Box.Min.X ? (float)door.Box.Min.X - 0.06f : 0, d1 = door.Box.Max.X > door.Box.Min.X ? (float)door.Box.Max.X + 0.06f : 0;
+            float z0 = end * (l + 0.01f), z1 = end * (l + 0.01f + Thick);
+            var (lo, hi) = (MathF.Min(z0, z1), MathF.Max(z0, z1));
+            k.Use("iron_plate", Palette.IronGrey, 0.95f, 0.35f, tile: 1.1f);
+            k.Box(new Vector3(-w - Proud, floor - 0.2f, lo), new Vector3(d0, ceiling - 0.05f, hi));
+            k.Box(new Vector3(d1, floor - 0.2f, lo), new Vector3(w + Proud, ceiling - 0.05f, hi));
+        }
+        return k.Build("armour-plate");
+    }
+
+    /// <summary>
+    /// Roof handrails (spec F.3 "Dragger resistance"; note 184): an iron rail on stanchions down each edge of the roof, knee
+    /// high, a hand's reach from the walk, with gaps at the ladder heads so the ladders still come up onto the roof.
+    /// </summary>
+    public static MeshAsset RoofHandrails(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 1841);
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        const float Height = 0.5f, In = 0.08f;
+        k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.35f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x = side * (w - In);
+            // Broken where a side ladder comes up at this edge.
+            var heads = shape.Ladders.Where(d => d.Foot.Y < 0.2 && MathF.Sign((float)d.Foot.X) == side && Math.Abs(d.Foot.X) > w).Select(d => (float)d.Foot.Z).ToList();
+            var runs = new List<(float, float)>();
+            float from = -l + 0.35f;
+            foreach (float z in heads.Order())
+            {
+                if (z - 0.45f > from)
+                    runs.Add((from, z - 0.45f));
+                from = z + 0.45f;
+            }
+            if (l - 0.35f > from)
+                runs.Add((from, l - 0.35f));
+            foreach (var (z0, z1) in runs)
+            {
+                k.Rod(new Vector3(x, h + Height, z0), new Vector3(x, h + Height, z1), 0.022f, 6);
+                int posts = Math.Max(1, (int)MathF.Ceiling((z1 - z0) / 2.2f));
+                for (int i = 0; i <= posts; i++)
+                {
+                    float z = z0 + (z1 - z0) * i / posts;
+                    k.Rod(new Vector3(x, h - 0.02f, z), new Vector3(x, h + Height, z), 0.018f, 4);
+                }
+            }
+        }
+        return k.Build("roof-handrails");
+    }
+
     public static MeshAsset Load(Look? look, CarShape shape, CargoKind cargo, int variant)
     {
         var k = new Kit(look, 64 + (int)cargo);
         var name = LoadProp(cargo);
         var prop = name is not null && look is not null ? PropArt.Of(look).Get(name) : null;
+        var mix = cargo == CargoKind.Goods && look is not null ? Goods.Select(g => PropArt.Of(look).Get(g)).OfType<MeshAsset>().ToArray() : [];
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.Cargo))
         {
             var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            // Livestock: no cases, a pen: straw down and a rail along its open side (the animals: SceneArt.Livestock).
+            if (cargo == CargoKind.Livestock)
+            {
+                Pen(k, min, max);
+                continue;
+            }
+            if (mix.Length > 1)
+            {
+                GoodsStack(k, mix, min, max, variant);
+                continue;
+            }
             if (prop is null)
             {
                 CrateStack(k, min, max, variant);
@@ -1120,6 +1407,44 @@ public static class TrainKit
                     }
         }
         return k.Build($"load-{cargo}-{variant}");
+    }
+
+    /// <summary>A livestock pen in a load's volume: straw bedding over its floor, posts and two rails along the aisle side.</summary>
+    static void Pen(Kit k, Vector3 min, Vector3 max)
+    {
+        k.Use("grass_card", new Vector3(0.75f, 0.62f, 0.38f), 0.95f, 0, tile: 0.6f);
+        k.Box(new Vector3(min.X, min.Y, min.Z), new Vector3(max.X, min.Y + 0.05f, max.Z));
+        k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0, tile: 1.2f);
+        for (float z = min.Z; z <= max.Z + 0.01f; z += (max.Z - min.Z) / MathF.Max(1, MathF.Round((max.Z - min.Z) / 1.2f)))
+            k.Box(new Vector3(min.X - 0.04f, min.Y, z - 0.04f), new Vector3(min.X + 0.04f, min.Y + 1.15f, z + 0.04f));
+        foreach (float y in new[] { 0.55f, 1.05f })
+            k.Box(new Vector3(min.X - 0.03f, min.Y + y, min.Z), new Vector3(min.X + 0.03f, min.Y + y + 0.1f, max.Z));
+    }
+
+    /// <summary>A volume of goods: crate-sized cells, each one of <paramref name="mix"/> by a hash of the cell, scaled into it.</summary>
+    static void GoodsStack(Kit k, MeshAsset[] mix, Vector3 min, Vector3 max, int variant)
+    {
+        var size = max - min;
+        const float cellSize = 0.88f;
+        int nx = Math.Max(1, (int)MathF.Round(size.X / cellSize)), ny = Math.Max(1, (int)MathF.Round(size.Y / cellSize)),
+            nz = Math.Max(1, (int)MathF.Round(size.Z / cellSize));
+        var cell = new Vector3(size.X / nx, size.Y / ny, size.Z / nz);
+        for (int x = 0; x < nx; x++)
+            for (int y = 0; y < ny; y++)
+                for (int z = 0; z < nz; z++)
+                {
+                    uint h = (uint)(x * 73856093 ^ y * 19349663 ^ z * 83492791 ^ variant * 2654435761);
+                    var prop = mix[h % (uint)mix.Length];
+                    var (pmin, pmax) = Extent(prop);
+                    var psize = pmax - pmin;
+                    var scale = new Vector3(cell.X / psize.X, cell.Y / psize.Y, cell.Z / psize.Z) * 0.97f;
+                    // Each case keeps its own proportions, fitted to the cell by its tightest side.
+                    float s = MathF.Min(scale.X, MathF.Min(scale.Y, scale.Z));
+                    var centre = min + cell * new Vector3(x + 0.5f, y, z + 0.5f) - new Vector3(0, pmin.Y * s, 0);
+                    float jitter = MathF.Sin((x * 7 + y * 13 + z * 5 + variant) * 1.7f);
+                    k.Append(prop, Matrix4x4.CreateTranslation(-(pmin + pmax) * new Vector3(0.5f, 0, 0.5f)) * Matrix4x4.CreateScale(s)
+                        * Matrix4x4.CreateRotationY(jitter * 0.08f + (h >> 8) % 2 * MathF.PI) * Matrix4x4.CreateTranslation(centre));
+                }
     }
 
     static (Vector3 Min, Vector3 Max) Extent(MeshAsset m)

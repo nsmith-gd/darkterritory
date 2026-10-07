@@ -20,6 +20,7 @@ public sealed class SoundInstance
         Id = id;
         Name = name;
         Def = def;
+        _seed = seed;
         _layers = new LayerState[def.Layers.Length];
         var takes = new string?[_layers.Length];
         for (int i = 0; i < _layers.Length; i++)
@@ -47,6 +48,17 @@ public sealed class SoundInstance
     public StreamBuffer? Stream { get; set; }
     readonly float[] _streamBlock = new float[Audio.Block];
 
+    /// <summary>
+    /// How fast it plays, 1 as made: below 1 everything in it (pitch, envelopes, tremolo, takes) runs slower and lower, as a
+    /// tape does. The mixer sets it (GDD v1.4 App. E.6: the game at half speed under the opera); a stream or a clip keeps its own.
+    /// </summary>
+    public double Rate { get; set; } = 1;
+
+    /// <summary>The recording a <see cref="SourceKind.Sample"/> layer plays (App. E.6's music).</summary>
+    public AudioClip? Clip { get; set; }
+    /// <summary>Where in <see cref="Clip"/> the next block starts, in the clip's seconds: set it to start from an in-point.</summary>
+    public double ClipSeconds { get; set; }
+
     public int Id { get; }
     public string Name { get; }
     public SoundDef Def { get; internal set; }
@@ -54,6 +66,11 @@ public sealed class SoundInstance
     public Double3 Position { get; set; }
     /// <summary>0 = clear line to the listener, 1 = fully behind a car wall (spec A.5: −12 dB, 900 Hz lowpass).</summary>
     public float Occlusion { get; set; }
+    /// <summary>
+    /// What the game's geometry found between the ear and this voice (the walls in the way), 0..1, set each frame. The mixer
+    /// hears the greater of it and <see cref="Occlusion"/>, so a caller's own judgement is never undone.
+    /// </summary>
+    public float Walls { get; set; }
     /// <summary>Extra gain the game applies (e.g. a clinger's drill louder as it works through).</summary>
     public float Volume { get; set; } = 1;
     public double Age { get; private set; }
@@ -66,7 +83,8 @@ public sealed class SoundInstance
     /// enough to go to a worker (it starts from the top when it arrives). With any sample layers, the sound is over once they all have
     /// played out, and not before its duration only if it has synth layers too and gives one. An all-sample one-shot
     /// ignores the duration: its takes are its length, so a 0.2 s footstep frees its voice at 0.2 s (not after 0.8 s of
-    /// silence holding a voice and an instance), and a 3 s take isn't cut off at a default second.
+    /// silence holding a voice and an instance), and a 3 s take isn't cut off at a default second. A sound playing its
+    /// <see cref="Clip"/> (the opera) is over when the clip is.
     /// </summary>
     public bool Finished => Stopped || !Def.Loop && Ended;
 
@@ -74,6 +92,8 @@ public sealed class SoundInstance
     {
         get
         {
+            if (Clip is { } clip)
+                return ClipSeconds >= clip.Seconds;
             if (!_hasSamples)
                 return Age >= (Def.Duration ?? 1);
             foreach (var layer in _layers)
@@ -96,6 +116,12 @@ public sealed class SoundInstance
     // Mixer-side state.
     internal Smoothed LeftGain, RightGain;
     internal Biquad OcclusionFilter;
+    // Through the listener's head (MixDef.Head): made the first block the voice is heard positioned.
+    internal HeadState? Head;
+    // The formant shift (SoundDef.Formant), made the first block it renders.
+    FormantShifter? _formant;
+    // The music bus's low-pass on the rest of the game (App. E.6), two stages for a clear muffle.
+    internal Biquad GameFilterA, GameFilterB;
     internal float LastAudibleGain;
     // The listener's space: shut out by it (ramped, not cut), and a voice's compressor (its level at the ear in dB, and the
     // gain it's giving, makeup included).
@@ -113,19 +139,79 @@ public sealed class SoundInstance
         // One read per block, shared by every stream layer (a radio is the stream plus its static).
         if (Stream is not null)
             Stream.Read(_streamBlock.AsSpan(0, output.Length));
+        else if (Clip is not null)
+            ReadClip(output.Length);
+        double rate = Stream is null && Clip is null ? Rate : 1;
+        var (drift, driftGain) = Drift();
         foreach (var layer in _layers)
-            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop);
+            layer.Render(output, _scratch, Params, Age, Def.CycleSeconds, _streamBlock, Def.Loop, rate * drift);
+        if (driftGain != 1)
+            for (int i = 0; i < output.Length; i++)
+                output[i] *= driftGain;
+        if (Def.Formant is { } formant)
+            (_formant ??= new FormantShifter(formant)).Process(output);
         if (Def.Crush is { } crush)
             Crush(output, crush);
-        Age += (double)output.Length / Audio.SampleRate;
+        Age += rate * output.Length / Audio.SampleRate;
+    }
+
+    readonly uint _seed;
+    // The loop's wander (SoundDef.Drift): the walk's last point and its next, in semitones and dB, and when it left the last.
+    double _driftFrom, _driftTo, _driftDbFrom, _driftDbTo, _driftAt;
+    Noise _driftNoise;
+    bool _drifting;
+
+    /// <summary>The pitch factor and gain the loop's wandered to now (1, 1 without a drift), eased between the walk's points.</summary>
+    (double Pitch, float Gain) Drift()
+    {
+        if (Def.Drift is not { } d)
+            return (1, 1);
+        double period = Math.Max(0.1, d.Seconds);
+        if (!_drifting)
+        {
+            // From where it was made, so it starts as it was made.
+            _driftNoise = new Noise(_seed * 2654435761u ^ 0xD1F7u);
+            _driftTo = d.Semitones * _driftNoise.Next();
+            _driftDbTo = d.Db * _driftNoise.Next();
+            _drifting = true;
+        }
+        while (Age >= _driftAt + period)
+        {
+            (_driftFrom, _driftDbFrom) = (_driftTo, _driftDbTo);
+            _driftTo = d.Semitones * _driftNoise.Next();
+            _driftDbTo = d.Db * _driftNoise.Next();
+            _driftAt += period;
+        }
+        double u = 0.5 - 0.5 * Math.Cos(Math.PI * (Age - _driftAt) / period);
+        return (Math.Pow(2, (_driftFrom + (_driftTo - _driftFrom) * u) / 12), Audio.DbToGain(_driftDbFrom + (_driftDbTo - _driftDbFrom) * u));
+    }
+
+    /// <summary>The clip's next block at the mixer's rate, into the stream block (sample layers read it there).</summary>
+    void ReadClip(int count)
+    {
+        var clip = Clip!;
+        double step = (double)clip.SampleRate / Audio.SampleRate, at = ClipSeconds * clip.SampleRate;
+        for (int i = 0; i < count; i++)
+        {
+            if (Def.Loop && at >= clip.Samples.Length)
+                at -= clip.Samples.Length;
+            _streamBlock[i] = clip.At(at);
+            at += step;
+        }
+        ClipSeconds += (double)count / Audio.SampleRate;
+        if (Def.Loop && ClipSeconds >= clip.Seconds)
+            ClipSeconds -= clip.Seconds;
     }
 
     /// <summary>Advances time without producing sound (a virtualised voice keeps its place).</summary>
     internal void Skip(int samples)
     {
+        double rate = Stream is null && Clip is null ? Rate : 1;
         foreach (var layer in _layers)
-            layer.Skip(samples, Params, Age, Def.CycleSeconds, Def.Loop);
-        Age += (double)samples / Audio.SampleRate;
+            layer.Skip((int)Math.Round(samples * rate), Params, Age, Def.CycleSeconds, Def.Loop);
+        Age += rate * samples / Audio.SampleRate;
+        if (Clip is not null)
+            ClipSeconds += (double)samples / Audio.SampleRate;
         // A virtual stream still consumes, or it would play stale speech when it comes back.
         Stream?.Read(_streamBlock.AsSpan(0, Math.Min(samples, _streamBlock.Length)));
     }
@@ -154,7 +240,7 @@ public sealed class SoundInstance
         readonly Biquad[] _filters;
         // An impulse fires on the first sample, so a one-shot clunk lands when it's played.
         double _phase, _tremoloPhase, _vibratoPhase;
-        double _tremoloRate, _gateJitter;
+        double _tremoloRate, _gateJitter, _filterRate = 1;
         bool _filtersSet;
         // Picked once from the seed, each with its own hash of it: drawing them doesn't move a noise layer's sequence,
         // so a sound without jitter or takes renders exactly as it did before they existed.
@@ -201,7 +287,8 @@ public sealed class SoundInstance
 
         /// <param name="cycleSeconds">If positive, envelopes repeat on this period (a loop's breathing, a pack's howls).</param>
         /// <param name="loop">The sound loops, so a take wraps round instead of ending.</param>
-        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, bool loop)
+        /// <param name="rate">How fast it plays (<see cref="SoundInstance.Rate"/>): its time, pitch and filters all scaled.</param>
+        public void Render(Span<float> output, float[] scratch, ParamSet p, double age, double cycleSeconds, float[] stream, bool loop, double rate = 1)
         {
             double t = age - def.Delay - _late;
             if (t < 0)
@@ -209,10 +296,11 @@ public sealed class SoundInstance
             if (Resolve())
             {
                 // Due, but the take's still decoding: silence, and the take starts that much later.
-                _late += (double)output.Length / Audio.SampleRate;
+                _late += rate * output.Length / Audio.SampleRate;
                 return;
             }
-            if (def.Source == SourceKind.Sample && PlayedOut)
+            // A take played out is silence; a sample layer naming no take plays the instance's clip (the stream block).
+            if (def.Source == SourceKind.Sample && def.Sample is not null && PlayedOut)
                 return;
             double EnvelopeTime(double at) => cycleSeconds > 0 ? at % cycleSeconds : at;
             var buffer = scratch.AsSpan(0, output.Length);
@@ -222,22 +310,24 @@ public sealed class SoundInstance
             if (gain <= 0)
             {
                 // Silent this block, but a take plays on: a one-shot still has to reach its end, a loop to keep its place.
-                Advance(frequency * buffer.Length, loop);
+                Advance(frequency * buffer.Length * rate, loop);
                 return;
             }
 
-            // Filters retune per block: a filter frequency on a curve follows its parameter.
+            // Filters retune per block: a filter frequency on a curve follows its parameter, and all of them the rate (a
+            // slowed sound's resonances go down with it).
             if (def.Filters is { } filters)
                 for (int f = 0; f < filters.Length; f++)
                 {
                     var fd = filters[f];
-                    double ff = fd.Frequency.Evaluate(p);
-                    if (!_filtersSet || fd.Frequency.Param is not null)
+                    double ff = fd.Frequency.Evaluate(p) * rate;
+                    if (!_filtersSet || fd.Frequency.Param is not null || rate != _filterRate)
                         _filters[f].Set(fd.Type, ff, fd.Q, fd.GainDb);
                 }
             _filtersSet = true;
+            _filterRate = rate;
 
-            double dt = 1.0 / Audio.SampleRate;
+            double dt = rate / Audio.SampleRate;
             double vibRate = def.Vibrato?.Rate.Evaluate(p) ?? 0, vibDepth = def.Vibrato?.Depth ?? 0;
             for (int i = 0; i < buffer.Length; i++)
             {
@@ -249,7 +339,7 @@ public sealed class SoundInstance
                 }
                 if (_take is not null)
                 {
-                    buffer[i] = Read(_take, f, loop);
+                    buffer[i] = Read(_take, f * rate, loop);
                     continue;
                 }
                 double prev = _phase;
@@ -262,7 +352,7 @@ public sealed class SoundInstance
                     SourceKind.Sine => (float)Math.Sin(2 * Math.PI * _phase),
                     SourceKind.Saw => (float)(2 * _phase - 1),
                     SourceKind.Square => _phase < 0.5 ? 1f : -1f,
-                    SourceKind.Stream => stream[i],
+                    SourceKind.Stream or SourceKind.Sample => stream[i],
                     // A click when the phase wraps, with a little noise so repeats aren't identical.
                     SourceKind.Impulse => _phase < prev ? 1f + 0.3f * _noise.Next() : 0f,
                     _ => 0f,

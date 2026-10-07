@@ -29,7 +29,7 @@ public class ClimberTests
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), Line, 2_000);
             train.Dynamics.Velocity = speed;
             World = new World(train, Tuning.Combat);
-            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceSeconds = 1e9 } };
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
             World.EnableEnemies(enemies ?? quiet, route: null, 1, crew: 2, authority: true);
         }
 
@@ -130,6 +130,9 @@ public class ClimberTests
         Assert.True(c.Inside);
         Assert.Equal(1, c.Attached);
         Assert.Equal(Tuning.Player.Health, night.Crew[inside - 1].Health);
+        // GDD §23 "lights fail" (note 183): the lamp went out as it came in; the occupied car's stays lit.
+        Assert.False(night.Train.Vehicles[1].LampLit);
+        Assert.True(night.Train.Vehicles[2].LampLit);
     }
 
     [Fact]
@@ -280,7 +283,7 @@ public class ClimberTests
         var d = Tuning.Enemies.Director;
         var only = Tuning.Enemies with
         {
-            Director = d with { GraceSeconds = 0, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "climbers" ? 0.5 : 1e9) },
+            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "climbers" ? 0.5 : 1e9) },
         };
         var slow = new Night(speed: C.MinSpeed - 2, cars: 5, only);
         slow.Run(10);

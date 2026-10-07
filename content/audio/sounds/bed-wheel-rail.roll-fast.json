@@ -6,7 +6,7 @@
  "minDistance": 4,
  "maxDistance": 200,
  "rolloff": 0.8,
- "gainDb": -17,
+ "gainDb": -13,
  "flat": false,
  "layers": [
   {

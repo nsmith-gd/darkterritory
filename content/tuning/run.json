@@ -12,6 +12,53 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // The director's decision of 6 Oct 2026 (GDD §9, ARCHITECTURE §8 note 263): until the run begins (the train through the
+  // gate, above), the fortress yard is a safe space, like the ship in Lethal Company. The crew wait for friends, try on
+  // outfits, walk away from the keyboard; nothing of consequence happens. Nothing spawns, the boiler and its fire hold (no
+  // overheating, no rupture, no running out), the cold doesn't bite, and the train only moves off when someone in the cab
+  // lets the brake off and drives it out.
+  "yardIsSafe": true,
+  // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
+  // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
+  // bored pace), never less than lineSeconds.
+  // Note 267 (the director's notes on build 1121: the opening reading is "a bit long... a pain for localization... a bit
+  // cheesy"): `manifest` false drops the dispatcher's manifest at the gate, voice and card both. What it read (the crew,
+  // the coal, powder and shot, the cars, the freight) is all on the roster, the gauges and the board already. The clerk's
+  // tally at the terminus stays.
+  "radio": { "lineSeconds": 1.6, "pauseSeconds": 0.5, "manifest": false },
+
+  // GDD v1.4 §23.2, Stranded: a ruptured boiler with the engineering kit lost ends the night once the train is at rest.
+  "stranded": {
+    // A cut car on the main line is gone (and the kit in it) this far from every living crewmate: D.13's release distance.
+    "kitLostBeyond": 400,
+    // The dawn freight's tow, billed in the tier's per-car values (E.10: 0.5, range 0.25-1.0).
+    "recoveryFee": 0.5,
+    // Not in the GDD: lost this long first, so a hand-off between ticks can't strand a night.
+    "lostForSeconds": 1
+  },
+
+  // GDD v1.4 App. D.12, the run-end screen's bookmarks: a still at every GRAB start and every PUNISH, from the nearest living
+  // crewmate who can see the victim (else the victim's own eyes); one per crew member at a derailment; the Stranded outro's
+  // last frame; and a dead player's own button. ARCHITECTURE §8 note 176.
+  "bookmarks": {
+    // D.13: automatic bookmarks kept per run (12, range 8-20), and which survive the cap first (derailment cinematic >
+    // PUNISH > GRAB start). Not in D.13: the outro's frame ranks with the derailment (the night's end, one picture).
+    "autoCap": 12,
+    "priority": ["derail", "stranded", "punish", "grab"],
+    // Not in the GDD: a crewmate farther than this from the victim didn't see it, line of sight or not (it's night).
+    "witnessRange": 60,
+    // The camera's eye over the feet (the game's Eyes.Height), and where on the victim a witness looks (the chest).
+    "eyeHeight": 1.65,
+    "chestHeight": 1.1,
+    // Not in the GDD: a GRAB or PUNISH sits beside the victim's death line if they died within this long of it; otherwise it
+    // has a line of its own ("Got away.").
+    "lineWindowSeconds": 30,
+    // Not in the GDD: GRABs and PUNISHes recorded per run before the host stops taking them (each is a still on every machine).
+    "recordLimit": 48,
+    // Not in the GDD: manual bookmarks per dead player per run, and on the report in all.
+    "manualPerPlayer": 3,
+    "manualPerRun": 8
+  },
 
   // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours
   // whether you're ready or not; coal that misses the tender is lost, and overfilling damages the engine.
@@ -25,31 +72,6 @@
     "overfillDamagePerUnit": 0.0015
   },
 
-  // Grain elevator (GDD §18 facility roster: "Bulk, cheap. One spout, one car at a time. Endless repositioning and switch
-  // calls"): spec D.2's gravity chute over a cargo car, worked like the coaling chute (its lever: chute.leverReach and
-  // chute.leverSeconds). Someone on the ground pulls the lever; grain pours into the cargo car under the spout as its
-  // load (food, facilities.json "cargo", paid like any load: economy below), onto the ballast and lost with no car there.
-  // A full car takes no more and the rest spills over it, damaging it (D.2 "overfill damages car and spills"). It shuts
-  // when the train moves off, as the chute does: the crew spot each car under it, one at a time. The crates stay too.
-  // Not in the spec: first-pass numbers. "on": false and the grain elevator is crates only, as before.
-  "grainSpout": {
-    "on": true,
-    // Down the elevator's spur, this far back from its buffer stop: over the fourth car behind the engine with the engine
-    // up at the stop (engine 20 m, three cars and four gaps 48 m, half a car 7 m, and the metre short of the buffer the
-    // driver leaves; train.json geometry). The spur takes the engine and four cars (route.json "junctions"), so every
-    // one of them can be backed under it in turn, the first with the train's tail out past the points.
-    "fromBuffer": 76,
-    // How far a car's middle can be from under the spout and still catch it: the middle 6 m of a 14 m car.
-    "spoutTolerance": 3,
-    // In loads (a full car is 1) a second: the half a car the night left the fortress with fills in 20 s.
-    "pourPerSecond": 0.025,
-    // Loads in the bin: the four cars the spur takes topped up from the fortress's half load (run.json departureLoad).
-    "capacity": 2,
-    // Integrity off the car per load spilt over it: the whole bin over a full car costs it 0.4, as the whole chute over
-    // a full tender costs the engine (chute.overfillDamagePerUnit × chute.capacity).
-    "overfillDamagePerLoad": 0.2
-  },
-
   // GDD §17-18: cargo is loaded at facilities, and "every facility is optional. Skipping them is safe and poor."
   // Cars leave the fortress this full (a fraction of a load each); filling them is the facilities' work. Not in the
   // spec: F.1's table is the fully loaded train, which is the ceiling.
@@ -61,6 +83,18 @@
     // Running costs, priced so a competent night averages spec F.1's 15% of gross.
     "coalPerUnit": 2,
     "roundsPerRound": 1,
-    "repairPerIntegrity": 150
+    "repairPerIntegrity": 150,
+    // GDD §18-19, App. B.9 (note 182): a delivered car-load of each cargo pays this share of the tier's perCar. Goods pay 1,
+    // so F.1's table (the fully loaded train) still holds for a night of goods. §18: the chemical works is "top payout", the
+    // military depot "best payout", the wreck yard "high value"; §19's medicine is "high value", machine parts (heavy)
+    // "inert, safe", coal and timber bulk. B.9: comet material "is the best freight payout", above them all. Not listed: 1.
+    "cargoRates": {
+      "goods": 1, "grain": 1, "heavy": 1, "ore": 1, "food": 1, "livestock": 1.1, "salvage": 1.2, "timber": 0.9, "coal": 0.8,
+      "medicine": 1.4, "chemicals": 1.4, "ammunition": 1.5, "comet": 1.8
+    },
+    // GDD §19 "the most valuable cargo there is", B.9 "highest payout": each rescued child brought home (in a car still on
+    // the engine, or in someone's arms) pays this many of the tier's perCar: more than any one car-load of anything, the
+    // comet's included.
+    "childPay": 3
   }
 }

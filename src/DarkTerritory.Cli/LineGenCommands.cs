@@ -15,9 +15,28 @@ static class LineGenCommands
         "transect" => Transect(content, args),
         "water" => Water(content, args),
         "sky" => Sky(content, args),
+        "prints" => Prints(content, args),
         "debug" => LineGenerator.Debug(LineGenContent.Load(content), Parameters(args), (int)Opt(args, "--attempt", 0)).ToList(),
         _ => throw new ArgumentException($"linegen {verb}? (generate, sweep)"),
     };
+
+    /// <summary>
+    /// The line's and the land's checksums for some nights (T116 cross-play): a joiner builds the host's night itself and
+    /// is refused if either differs, so CI runs this on Windows and Linux and compares. Each part of the plan gets its own
+    /// checksum too, so a mismatch says where (the alignment, the pieces, the validator's run) rather than just that.
+    /// </summary>
+    static object Prints(string content, string[] args)
+    {
+        var specs = Str(args, "--routes", "frontier:1,frontier:7,deadLines:3,deepTerritory:2").Split(',');
+        return specs.Select(spec =>
+        {
+            var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
+            var line = route.Build();
+            using var plan = System.Text.Json.JsonDocument.Parse(route.Plan!.ToJson());
+            var parts = plan.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => Streams.Hash(p.Value.GetRawText()).ToString("x16"));
+            return new { route = spec, plan = route.Plan!.Fingerprint(), terrain = new PlanConditions(route.Plan!, line).Terrain.Print(), parts };
+        }).ToList();
+    }
 
     static string Str(string[] args, string name, string fallback)
     {

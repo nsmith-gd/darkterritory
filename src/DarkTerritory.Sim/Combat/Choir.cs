@@ -24,13 +24,15 @@ public struct ChoirState
     public double QuietSeconds;
     /// <summary>A floor under the loudness: livestock aboard, never quiet (App. B.9).</summary>
     public double Floor;
+    /// <summary>T113: seconds left before, driven off, it can gather again.</summary>
+    public double Rest;
 
     public static ChoirState Quiet => new();
 
     public readonly ChoirPhase Phase(ChoirTuning t) => Present ? ChoirPhase.Swarm : Build > 0 ? ChoirPhase.Approach : ChoirPhase.Distant;
 
     /// <summary>A cannon fired: a burst of loudness (App. C.7 "every cannon shot feeds the loudness meter").</summary>
-    public void RoundFired(ChoirTuning t) => Loudness += t.RoundLoudness;
+    public void RoundFired(ChoirTuning t, double scale = 1) => Loudness += t.RoundLoudness * scale;
 
     /// <summary>
     /// Something as loud as <paramref name="roundsPerSecond"/> cannon rounds a second, for <paramref name="dt"/> (a Holdout's
@@ -53,7 +55,8 @@ public struct ChoirState
             Present = false;
             return false;
         }
-        bool loud = Loudness >= t.Threshold;
+        Rest = Math.Max(0, Rest - dt);
+        bool loud = Loudness >= t.Threshold && (Present || Rest <= 0);
         if (Present)
         {
             QuietSeconds = loud ? 0 : QuietSeconds + dt;
@@ -67,12 +70,13 @@ public struct ChoirState
         return true;
     }
 
-    /// <summary>The swarm's gone (quiet held, or its one taken).</summary>
-    public void Disperse(bool took)
+    /// <summary>The swarm's gone (quiet held, or its one taken); driven off, it rests a while before it can gather again.</summary>
+    public void Disperse(bool took, double rest = 0)
     {
         Present = false;
         Build = 0;
         QuietSeconds = 0;
         Spent |= took;
+        Rest = rest;
     }
 }

@@ -53,20 +53,22 @@ OPUS_KBPS = 64
 # the fire buried the cab's tells with the fire door open (AudioTests' bench: a writhe at -2.4 dB, the Choir at -5.2).
 # The train bed and its alarms (GameAudio.Train), levelled to the synthesised bed they replace: as recorded they buried
 # every tell in AudioTests' chaos and tells benches (the wheels and the wind 20 dB over the synth, a hound at -13 dB).
+# Then too far down (build 1121, the director: "the train doesn't appear to be making any noise while it's on the rail"):
+# the rolling, the joints and the exhaust back up 4-6 dB (note 265), the tells still 6 dB over the bed in AudioTests.
 CUE_GAIN_DB = {
     "cs-stoker.in-fire": -10,
-    "bed-wheel-rail.roll-slow": -21,
-    "bed-wheel-rail.roll-fast": -21,
-    "bed-wheel-rail.joint": -22,
+    "bed-wheel-rail.roll-slow": -17,
+    "bed-wheel-rail.roll-fast": -17,
+    "bed-wheel-rail.joint": -16,
     "bed-wheel-rail.flange": -10,
     "bed-wind.wind-slow": -10,
     "bed-wind.wind-fast": -16,
     "bed-wind.gust": -10,
     "bed-boiler-roar.roar-low": -12,
     "bed-boiler-roar.roar-high": -12,
-    "bed-chuff.chuff": -16,
-    "bed-chuff.chuff-heavy": -16,
-    "bed-chuff.rod-clank": -24,
+    "bed-chuff.chuff": -10,
+    "bed-chuff.chuff-heavy": -10,
+    "bed-chuff.rod-clank": -18,
     "bed-brake.drag": -12,
     "bed-brake.drag-hot": -9,
     "bed-brake.apply": -10,
@@ -209,7 +211,11 @@ TELL_SOUNDS = {
     "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
     "tell-car-fire": ("car-fire", [("smoulder", {"gain": {"param": "progress", "points": [[0, 1], [0.5, 0.7], [1, 0]]}}),
                                    ("alight", {"gain": {"param": "progress", "points": [[0, 0], [0.4, 0.25], [1, 1]]}})]),
-    "tell-track-doll": ("doll-giggle", [("giggle", {})]),
+    # T118: the game plays the giggle now and then, each at its own "pitch" (0.92-1.10), so the take follows it.
+    # A presence lift on the porcelain's ring: the kept giggle has less in its 3-6 kHz tell band than T118's synth, and the
+    # cab's din buries it there (AudioTests); lifting the band, not the whole giggle, keeps it from being loud and crazy (T115).
+    "tell-track-doll": ("doll-giggle", [("giggle", {"rate": {"param": "pitch", "points": [[0, 0], [2, 2]]},
+                                                    "filters": [{"type": "peak", "frequency": 4200, "q": 0.9, "gainDb": 11}]})]),
     "tell-car-hugger": ("hugger-grind", [("grind", {})]),
     "tell-ribbits": ("ribbit-swell", [("swell", {})]),
     "tell-hounds": ("hound-howl", [("howl-far", {})]),
@@ -239,6 +245,11 @@ SYNTH_DEFS = os.path.join(HERE, "synth-defs")
 
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
+# Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
+KEEP_SAMPLES = {"voice-clerk"}
+# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
+TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
+TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
 VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 
@@ -271,6 +282,11 @@ CUE_DEF = {
 }
 
 
+# Spec A.4 rule 4, a tell "non-repeating at short intervals" (note 250): every looping tell wanders a little in pitch and
+# level (Ballast.Audio DriftDef), so no two passes round its loop are the same.
+TELL_DRIFT = {"semitones": 0.4, "db": 1.5, "seconds": 2.5}
+
+
 def sound_def(item, cue, folder, line):
     tier, lo, hi, roll, g = AREA.get(item.get("area"), (4, 1, 40, 1.0, 2))
     if isinstance(item.get("tier"), int):
@@ -288,6 +304,8 @@ def sound_def(item, cue, folder, line):
                      "pitchJitter": 0 if cue["kind"] == "loop" or flat else 0.4,
                      "gainJitter": 0 if cue["kind"] == "loop" or flat else 1.0}]}
     d["layers"][0].update(LAYER_EXTRAS.get(f"{line}.{cue['id']}", {}))
+    if tier == 1 and d["loop"]:
+        d["drift"] = dict(TELL_DRIFT)
     d.update(CUE_DEF.get(f"{line}.{cue['id']}", {}))
     return d
 
@@ -364,14 +382,19 @@ def main():
     args = [a for a in args if a != store]
     dry = "--dry" in sys.argv
     if not args and not dry:
-        # A full install starts clean: what the checklist no longer picks leaves the game.
-        shutil.rmtree(SAMPLES, ignore_errors=True)
+        # A full install starts clean: what the checklist no longer picks leaves the game. The clerk's word bank isn't a
+        # checklist pick (clerk.py builds it), so it stays.
+        for entry in os.listdir(SAMPLES) if os.path.isdir(SAMPLES) else []:
+            if entry not in KEEP_SAMPLES and os.path.isdir(os.path.join(SAMPLES, entry)):
+                shutil.rmtree(os.path.join(SAMPLES, entry))
         for f in os.listdir(SOUNDS):
             with open(os.path.join(SOUNDS, f)) as fh:
                 if "tools/audio/install.py" in fh.readline():
                     os.unlink(os.path.join(SOUNDS, f))
     index_path = os.path.join(SAMPLES, "index.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
+    if not args and not dry:
+        index = {rel: e for rel, e in index.items() if rel.split("/")[0] in KEEP_SAMPLES}
     n_cues = n_files = 0
     for line, cues in C.CUES.items():
         if args and line not in args:
@@ -423,7 +446,8 @@ def main():
                 index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
                               "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
                                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
-                                              "licence": "Sonniss GDC" if k.get("restricted") else "CC0"} for k in chosen],
+                                              "licence": "Sonniss GDC" if k.get("restricted")
+                                              else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen],
                               "takes": len(takes),
                               "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
                                                              for f in sorted(os.listdir(folder)))).hexdigest()[:16]}

@@ -6,8 +6,8 @@ high-resolution copy and bakes it into one 1024 atlas:
   * the skin grey-white and wet as something that lives under a stone, warted down the back, the warts darker, blotched
     with grey-green; the belly paler, loose, creased where it hangs;
   * the bare ears thin enough to show their veins, pinkish; the throat's sac paler still and veined, stretched shiny;
-  * the eyes milky, a pinprick of pupil in each; the gums dark red, wet; the teeth a row of human teeth, flat and
-    square, yellowed, brown at the roots.
+  * the eyes milky, grey-green, a toad's flat bar of pupil clouded over in each; the gums dark red, wet; the teeth a
+    row of human teeth, flat and square, yellowed, brown at the roots.
 Wet all over (rough 0.25); the eyes wetter.
 
     tools/models/build.sh ribbit
@@ -38,7 +38,7 @@ DRESS = {
     "skin.ribbit_ear": (lambda: make.flat("ribbit_ear", (0.3, 0.2, 0.19), rough=0.35), 3),
     "skin.ribbit_teeth": (lambda: make.flat("ribbit_teeth", (0.45, 0.4, 0.3), rough=0.4), 0),
     "skin.ribbit": (lambda: make.flat("ribbit_skin", (0.22, 0.18, 0.175), rough=0.3), 3),
-    "glass_dirty.ribbit_eye": (lambda: make.flat("ribbit_eye", (0.5, 0.52, 0.53), rough=0.05), 2),
+    "glass_dirty.ribbit_eye": (lambda: make.flat("ribbit_eye", (0.3, 0.31, 0.27), rough=0.05), 2),
     "flesh.ribbit_gum": (lambda: make.flat("ribbit_gum", (0.05, 0.015, 0.015), rough=0.2), 2),
     "tar.ribbit_mouth": (lambda: make.flat("ribbit_mouth", (0.02, 0.006, 0.006), rough=0.1), 1),
 }
@@ -83,7 +83,7 @@ def veins_of(p):
 
 SHAPE = {"skin.ribbit_belly": belly_shape, "skin.ribbit_ear": ear_shape, "skin.ribbit_teeth": lambda p, n: 0 * p[:, 0],
          "skin.ribbit": skin_shape}
-BAKED = ["body", "head", "legs"]
+BAKED = ["body", "skull", "head", "paws"]   # (the legs grown into the body, the head's skin one: rig.fuse)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] ribbit highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
@@ -100,17 +100,23 @@ def marks(p, kind):
 
 
 def eyes_and_teeth(p, kind):
-    """R: the pupils, pinpricks; G: the teeth's roots, brown; B: nothing."""
+    """R: the pupils, clouded bars; G: the teeth's roots, brown; B: nothing."""
     out = np.zeros((len(p), 3), np.float32)
     if kind.startswith("glass_dirty.ribbit_eye"):
         for e in EYES.values():
             rel = p - e
             r = np.linalg.norm(rel, axis=1)
-            look = np.array([0, 0.6, 0.8], np.float32) if e[0] < 0 else np.array([0, 0.6, 0.8], np.float32)
-            look = (look + np.array([np.sign(e[0]) * 0.6, 0, 0], np.float32))
+            near = r < 0.05
+            d = rel / np.maximum(r, 1e-6)[:, None]
+            # Looking out and forward; a toad's pupil, a flat bar across, clouded over.
+            look = np.array([np.sign(e[0]) * 0.75, 0.55, 0.35], np.float32)
             look /= np.linalg.norm(look)
-            c = (rel @ look) / np.maximum(r, 1e-6)
-            out[:, 0] = 0 * out[:, 0]  # (no pupils: milky through)
+            right = np.cross(look, np.array([0, 0, 1], np.float32))
+            right /= np.linalg.norm(right)
+            up = np.cross(right, look)
+            u, v, c = d @ right, d @ up, d @ look
+            bar = (c > 0) & ((u / 0.5) ** 2 + (v / 0.17) ** 2 < 1)
+            out[:, 0] = np.maximum(out[:, 0], (near & bar) * 0.75)
     if kind.startswith("skin.ribbit_teeth"):
         out[:, 1] = smooth01(0.6, 0.592, p[:, 2])
     return out
@@ -126,7 +132,7 @@ def kind_of(m):
 atlas = overbake.Atlas("ribbit", parts, BAKED, kind_of)
 atlas.unwrap(boosts={FACE: 2.5})
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
-atlas.bake(groups, cages={"body": (0.01, 0.03), "head": (0.006, 0.02), "legs": (0.008, 0.02)}, height=1.2,
+atlas.bake(groups, cages={"body": (0.008, 0.03), "skull": (0.006, 0.02), "head": (0.006, 0.02), "paws": (0.004, 0.012)}, height=1.2,
            masks={"marks": marks, "eyes": eyes_and_teeth})
 
 M = atlas.maps
@@ -147,4 +153,4 @@ base = paint(base, (0.12, 0.07, 0.03), ey[..., 1] * 0.7)      # teeth's roots
 
 rough = np.full(base.shape[:2], 0.25, np.float32)
 rough = rough + 0.15 * mk[..., 0]
-atlas.finish(base, kit, arm, made=make.provenance("ribbit", "the Ribbits, modelled over tools/blender/ribbit.py"), rough=rough)
+atlas.finish(base, kit, arm, made=make.provenance("ribbit", "the Ribbits, modelled over tools/blender/ribbit.py"), rough=rough, lod=0.4)

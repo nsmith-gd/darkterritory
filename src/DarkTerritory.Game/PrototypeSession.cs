@@ -31,11 +31,15 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>Plays a generated route from the fortress yard to the terminus, against the dawn clock.</summary>
     /// <param name="enemies">Run the pressure director and the route's Sleepers (GDD App. B).</param>
-    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true)
-        : this(contentRoot, route.Build(), route, cars, 0)
+    /// <param name="crew">The crew the director plans the night for (App. B: what it fields scales with it); one, played
+    /// solo. dt playthrough asks for more to meet the roster a bigger crew does.</param>
+    /// <param name="at">Where the engine's front starts along the line (a staged moment, `dt screenshot --roof-warning`);
+    /// null, at the fortress's gate.</param>
+    public PrototypeSession(string contentRoot, Route route, int cars = 6, bool enemies = true, int crew = 1, double? at = null)
+        : this(contentRoot, route.Build(), route, cars, at ?? double.NaN)
     {
         if (enemies)
-            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: 1, authority: true);
+            World.EnableEnemies(DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)), route, route.Seed, crew: Math.Max(1, crew), authority: true);
         var routeTuning = RouteTuning.Load(contentRoot);
         World.EnableSwitches(routeTuning.Junctions);
         World.EnableRun(DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File)), route,
@@ -56,7 +60,7 @@ public sealed class PrototypeSession : IPlaySession
         var runTuning = DataFile.Load<RunTuning>(Path.Combine(contentRoot, RunTuning.File));
         var consist = Consist.Uniform(_trainTuning.Value, cars, route is null ? 1 : runTuning.DepartureLoad);
         // On a route, start at the fortress's gate, ready to depart (run.json departShortOfGateM), the train in the yard.
-        if (route is not null)
+        if (route is not null && double.IsNaN(start))
             start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
@@ -253,10 +257,10 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Climber, SpinePhase.Commit) => "something's up on the roofs, heading for the engine",
         (EnemyKind.Climber, SpinePhase.Grab) => "a Climber's got someone in a car: club it off",
         (EnemyKind.Climber, SpinePhase.BreakOff) => "it drops back off the train",
-        (EnemyKind.Stoker, SpinePhase.Telegraph) => "soot falling in the cab: something's in the firebox",
-        (EnemyKind.Stoker, SpinePhase.Commit) => "the pressure's climbing on its own: vent it, or open up and club it",
+        (EnemyKind.Stoker, SpinePhase.Telegraph) => "something on the coal, coming for the fire: club it before it's in",
+        (EnemyKind.Stoker, SpinePhase.Commit) => "it's in the firebox: don't open the door. Vent and starve it (no coal), or hose it",
         (EnemyKind.Stoker, SpinePhase.Punish) => "too fast for the line",
-        (EnemyKind.Stoker, SpinePhase.BreakOff) => "driven out of the firebox",
+        (EnemyKind.Stoker, SpinePhase.BreakOff) => "starved out: it's going back the way it came",
         (EnemyKind.TippyToesie, SpinePhase.Grab) => "someone's gone quiet: something's got its hand over their mouth",
         (EnemyKind.TippyToesie, SpinePhase.BreakOff) => "it tiptoes off",
         (EnemyKind.FireFlies, SpinePhase.Telegraph) => "glow and buzzing round a lamp: lamps off",
@@ -267,7 +271,7 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Ribbit, SpinePhase.BreakOff) => "the toads hop off",
         (EnemyKind.Gaunt, SpinePhase.Alert) => "something woke and it's following someone: keep talking to it",
         (EnemyKind.Gaunt, SpinePhase.Telegraph) => "it's leaning in, head tilted: talk",
-        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's gone",
+        (EnemyKind.Gaunt, SpinePhase.BreakOff) => "the thin thing's leaving with something: run it down before it's off the train",
         // A Follower's lump is on its host's back: they can't see it, so no cue until it's off them (GDD v1.1 A.6).
         (EnemyKind.Follower, SpinePhase.Punish) => "something's nesting in the loot: find it, bludgeon it",
         (EnemyKind.Follower, SpinePhase.BreakOff) => "the parasite's dead",
@@ -327,7 +331,7 @@ public sealed class PrototypeSession : IPlaySession
     string Gunnery()
     {
         var c = _combatTuning.Value;
-        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.Jammed ? " FOULED (hold Use)" : Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
+        string gun = Guns.MannedGun(Player, Train, c.Guns) is { } g ? $" GUN {Train.Vehicles[g].Gun.Ammo} rds{(Train.Vehicles[g].Gun.ReloadNeeded > 0 ? " RELOAD (hold Use)" : "")} |" : "";
         return $"{gun} choir {World.Choir.Phase(c.Choir).ToString().ToLowerInvariant()} {World.Choir.Loudness:0.0} |";
     }
 
@@ -367,20 +371,43 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add(left == 0 ? "the castings are loaded" : site.Cranes.Any(c => c.Hooked is not null) ? $"{gantries}: a casting on the hook"
                 : $"{gantries}: {left} castings to rig and lift (one in the cab, one on the ground)");
         }
+        // GDD §18's set pieces (note 185).
+        if (site.Has(ModuleKind.Spout))
+            parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)"
+                : $"one spout: walk each car under it, someone on its lever ({site.Bin:0.0} loads)");
+        if (site.Has(ModuleKind.Ramp))
+            parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left), LOUD"
+                : $"{site.Head} head in the pen: two to drive them up the ramp");
+        if (site.Has(ModuleKind.Hose))
+            parts.Add(site.Leaking ? "HOSE LEAKING: get clear, or get to the stand" : site.HoseCar >= 0 ? $"hose on, pressure {site.Pressure * 100:0}%: someone stay by the stand"
+                : "hose stand: put it on a car, mind it, take it off (and do not fire the guns in here)");
+        // GDD §18's switchyard and wreck yard (note 187).
+        if (site.Has(ModuleKind.Rakes))
+            parts.Add("cars standing on the sidings: throw each switch, couple up and bring them out (they come away ahead of the engine)");
+        if (site.Heaps.Count > 0)
+        {
+            int dark = site.Heaps.Count(h => !h.Found && h.Salvage > 0);
+            parts.Add(site.Heaps.Any(h => h.Groan > 0) ? "THE WRECK'S GOING: get clear of it"
+                : dark > 0 ? $"wreck: {dark} of {site.Heaps.Count} heaps not yet seen (no lamps here: take one to them)" : "wreck: carry the salvage to the cars, gently");
+        }
+        if (site.Feature.Facility == FacilityKind.MilitaryDepot && site.Has(ModuleKind.Crates))
+            parts.Add("powder kegs: set them down, never throw or drop them");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED: out of rhythm" : $"winch: two on the capstan ({site.SledsLeft} sleds)");
         return " — " + string.Join(", ", parts);
     }
 
-    /// <summary>A grain elevator's spout (GDD §18 "one spout, one car at a time"), where it has one.</summary>
-    static string SpoutStatus(Run run)
-    {
-        if (!run.HasSpout(run.Facility))
-            return "";
-        double left = run.ChuteLeft(run.Facility);
-        return run.ChuteOpen ? $", spout POURING ({left:0.00} loads left)"
-            : left > 0 ? $", the spout: a car under it, then the lever on the ground, hold E ({left:0.00} loads)" : ", the spout's bin is empty";
-    }
+    /// <summary>
+    /// On a generated line, the next place by its name, as the route card has it (linegen plan §13.3), and how far: what
+    /// the HUD's strip across the top says (note 264).
+    /// </summary>
+    public static string NextPlace(Route route, double s) =>
+        route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
+            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
+            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
+            : route.NextLandmark(s) is { } l
+            ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
+            : "terminus ahead";
 
     public static string RouteStatus(Route? route, World world, TrainOnLine train)
     {
@@ -397,7 +424,7 @@ public sealed class PrototypeSession : IPlaySession
         string stop = run?.FacilityFeature is { } f
             ? $" | STOPPED AT {f.Facility.ToString()!.ToUpperInvariant()}" + (f.Facility == FacilityKind.CoalingTower
                 ? run.ChuteOpen ? $" — chute POURING ({run.ChuteLeft(run.Facility):0} left)" : run.ChuteLeft(run.Facility) > 0 ? " — lever on the ground, hold E" : " — chute empty"
-                : SiteStatus(run.CurrentSite) + SpoutStatus(run))
+                : SiteStatus(run.CurrentSite))
             : "";
         double s = train.Dynamics.Distance;
         // Pulled up by a facility that's down a spur (GDD §17): say how much of the train it takes.
@@ -409,13 +436,7 @@ public sealed class PrototypeSession : IPlaySession
                     stop = $" | {zone.Facility.ToString()!.ToUpperInvariant()} IS DOWN THE SPUR: ENGINE + {fit} CARS FIT" +
                         (train.Dynamics.Consist.CarCount > fit ? ", CUT THE REST" : "");
                 }
-        // On a generated line, the next place by its name, as the route card has it (linegen plan §13.3).
-        string next = route.Plan?.Landmarks.Where(p => p.Edge == "main" && p.S0 > s).MinBy(p => p.S0) is { } place
-            ? $"{place.Name} in {(place.S0 - s) / 1000:0.0} km"
-            : route.Plan is { } plan ? $"{plan.Terminus.Name} in {Math.Max(0, plan.Terminus.GateM - s) / 1000:0.0} km"
-            : route.NextLandmark(s) is { } l
-            ? $"{(l.Kind == FeatureKind.Facility ? $"{l.Facility}" : $"{l.Kind}").ToLowerInvariant()} in {(l.Start - s) / 1000:0.0} km"
-            : "terminus ahead";
+        string next = NextPlace(route, s);
         string tunnel = route.InTunnel(s) ? " | IN TUNNEL" : "";
         return $" | {route.Name} | {clock} | {next}{tunnel}{stop}{HoldoutStatus(world)}";
     }

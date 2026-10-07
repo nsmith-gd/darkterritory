@@ -74,6 +74,11 @@ public abstract class Enemy
     public double Height { get; set; }
     /// <summary>Hit volume radius; 0 means it can't be shot (Clingers, Sleepers, the Hollow in the stack).</summary>
     public virtual double HitRadius => 0;
+    /// <summary>How far over where it stands its hit volume is centred (the Track Doll's body, over the rail she stands on).</summary>
+    public virtual double HitHeight => 0;
+
+    /// <summary>The centre of its hit volume (world): what's aimed at, and what a round has to pass through.</summary>
+    public Double3 HitCentre(TrainOnLine train) => WorldPosition(train) + Double3.Up * HitHeight;
     /// <summary>
     /// Lies on the main line wherever the train is (Sleepers across the rail). Everything else off the train is
     /// placed along the engine's path: it's after the train, down a branch too.
@@ -97,6 +102,18 @@ public abstract class Enemy
     /// How far a tool swing reaches it from (App. C.2): 0 can't be struck at all. Most things on the train can be clubbed.
     /// </summary>
     public virtual double MeleeRadius => 0;
+
+    /// <summary>
+    /// Whether a swing by <paramref name="by"/> can land on it now (App. C.2): in reach of a tool at all, and by default by
+    /// anyone. A blow that's picked lands, and every client is told it did (T121's hit confirm).
+    /// </summary>
+    public virtual bool Strikable(int by) => MeleeRadius > 0;
+
+    /// <summary>
+    /// Whether a swing can get at it where it is now (the Stoker: only through the open firebox door, App. A.5; note 263).
+    /// From replicated state, so a client's prompt and whiff agree with the host.
+    /// </summary>
+    public virtual bool Reachable(World world) => true;
     /// <summary>A crewmate holding Use at the victim pulls them free of this grab (Draggers, the Car Hugger, Tippy Toesie).</summary>
     public virtual bool PullsFree => false;
 
@@ -183,10 +200,19 @@ public abstract class Enemy
         _struggle = 0;
         Enter(ctx, SpinePhase.Grab);
         ctx.Hold(victim);
+        // App. A.9: every GRAB start writes an attribution record (and, with D.12's bookmarks, a still).
+        if (ctx.World.Run is not null && ctx.Crew.FirstOrDefault(c => c.Player.Id == victim) is { Player.State: var held })
+        {
+            string what = $"Grabbed by the {Run.IncidentLog.Spoken(Kind.ToString())}";
+            ctx.World.Attribution.Add(Run.IncidentLog.Grab(ctx.World, victim, held, what));
+            ctx.World.Bookmarks.Grab(ctx.World, victim, what, CrewOf(ctx));
+        }
         return true;
     }
 
     double _struggle;
+
+    static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
     /// <summary>The held player's own struggle, counted by the world at a crew of one (the solo rule): Use presses.</summary>
     internal void Struggle(EnemyContext ctx, double amount)
@@ -219,6 +245,18 @@ public abstract class Enemy
     {
         Holding = -1;
         Enter(ctx, SpinePhase.BreakOff);
+    }
+
+    /// <summary>
+    /// The attribution record (App. C.9) for a PUNISH that holds nobody, written the tick it begins; null for none (when
+    /// another record already says it: a derailment's, a death's). The default is C.9's last row: the nearest living
+    /// crewmate to it, and how far off they were.
+    /// </summary>
+    protected virtual Run.Incident? Punished(EnemyContext ctx)
+    {
+        var at = WorldPosition(ctx.Train);
+        var (actor, action) = Run.IncidentLog.Nearest(ctx.World, at, CrewOf(ctx));
+        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Punished, $"Punished by the {Run.IncidentLog.Spoken(Kind.ToString())}", actor, action, at);
     }
 
     /// <summary>The rescue window ran out (App. A.1 PUNISH): what it does to its victim. The default is death.</summary>
@@ -270,6 +308,13 @@ public abstract class Enemy
             return false;
         if (next is not (SpinePhase.Grab or SpinePhase.Punish))
             Holding = -1;
+        // GDD v1.4 App. D.12: every PUNISH is an auto-bookmark, of whoever it holds (else of the thing itself).
+        if (next == SpinePhase.Punish && ctx.World.Run is not null)
+            ctx.World.Bookmarks.Punish(ctx.World, Id, Kind.ToString(), Holding, WorldPosition(ctx.Train), CrewOf(ctx));
+        // App. A.9, C.9: every PUNISH writes an attribution record. One that holds someone is their death's (written as their
+        // body goes down); one that holds nobody writes its own (note 190).
+        if (next == SpinePhase.Punish && Holding < 0 && Punished(ctx) is { } record)
+            ctx.World.Attribution.Add(record);
         ctx.Events.Add(new EnemyEvent(ctx.Tick, Id, Kind, Phase, next, PhaseSeconds));
         Phase = next;
         PhaseSeconds = 0;

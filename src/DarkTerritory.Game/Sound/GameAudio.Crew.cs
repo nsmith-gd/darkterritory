@@ -6,6 +6,7 @@ using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
 using Kit = DarkTerritory.Sim.Player.Kit;
 
@@ -16,8 +17,8 @@ namespace DarkTerritory.Game.Sound;
 /// shovel, the cab's controls, switches, couplings, the boiler's mending, the cannons, carrying, the extinguisher, tools,
 /// getting hurt, jumping off and the cold. Everything is read off replicated state (out/audio/hooks-map.md): an edge
 /// against last tick is the event, kept per player, vehicle, gun and body by id, so a client hears what the host does.
-/// The listener's own swing (and trigger) are the exception: crewmates' aren't replicated, so only this machine's own
-/// intent (<see cref="OwnIntent"/>) can say when one happens.
+/// The listener's own swing (and trigger) are the exception: heard from this machine's own intent (<see cref="OwnIntent"/>),
+/// the tick it's pressed. A crewmate's swing is the host's <c>World.Swings</c> (note 197), landed or not.
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -107,9 +108,9 @@ public sealed partial class GameAudio
 
     sealed class CrewGun
     {
-        public bool Mounted, BallIn, Traversing;
+        public bool Mounted, BallIn, Traversing, Laying;
         public int Ammo, Needed;
-        public double Z, Progress, LastMove;
+        public double Z, Progress, LastMove, Traverse, Elevation, LastLaid;
     }
 
     sealed class CrewBody
@@ -118,9 +119,13 @@ public sealed partial class GameAudio
         public bool Lifted, Falling, Thrown, OnMount, Spraying;
         public double Charge, LastDrain = double.NegativeInfinity, ReleasedAt, Hint;
         public Double3 Local;
-        public int Still;
+        public int Still, MendTicks;
         public int? CarrierSpace;
+        public bool Broken;
     }
+
+    // Hold owners for a radio's mending, clear of the players' ids (the boiler's ratchet is held by player).
+    const int RadioMendOwner = 20_000;
 
     sealed class CrewEngine
     {
@@ -132,15 +137,15 @@ public sealed partial class GameAudio
     partial void EndNightCrew()
     {
         _crewMembers.Clear();
+        _heardSwings.Clear();
+        _swingsPrimed = false;
         _crewCars.Clear();
         _crewGuns.Clear();
         _crewBodies.Clear();
-        _crewEnemyHealth.Clear();
         _crewRakes.Clear();
         _crewSwitches = null;
         _crewCouplings = null;
         _crewEngine = null;
-        _crewLastShot = double.NegativeInfinity;
         _crewLater.Clear();
     }
 
@@ -148,12 +153,10 @@ public sealed partial class GameAudio
     readonly Dictionary<int, CrewCar> _crewCars = new();
     readonly Dictionary<int, CrewGun> _crewGuns = new();
     readonly Dictionary<int, CrewBody> _crewBodies = new();
-    readonly Dictionary<int, double> _crewEnemyHealth = new();
     readonly Dictionary<int, (int Count, bool On)> _crewRakes = new();
     HashSet<(int, int)>? _crewCouplings;
     bool[]? _crewSwitches;
     CrewEngine? _crewEngine;
-    double _crewLastShot = double.NegativeInfinity;
     bool _crewFireWas;
     readonly List<(double At, string Name, Double3 Where, float Occlusion)> _crewLater = new();
 
@@ -172,7 +175,6 @@ public sealed partial class GameAudio
         CrewCouplings(world);
         CrewSwitchStands(world);
         CrewCarried(world, firePressed);
-        CrewStruck(world);
     }
 
     /// <summary>Plays what was put off till now (a latch after a slam, a pin after the knuckles).</summary>
@@ -217,11 +219,23 @@ public sealed partial class GameAudio
 
     // ------------------------------------------------------------------------------------------------ the crew themselves
 
+    readonly HashSet<int> _heardSwings = [], _swungNow = [];
+    bool _swingsPrimed;
+
     void CrewPeople(World world)
     {
         var train = world.Train;
         var tuning = PlayerTuning;
         var seen = new HashSet<int>();
+        // Who started a swing since the last update (note 197's SwingEvent: one per recovery, landed or not), each once. On
+        // the first update what's there is old news. Your own is heard from your intent instead, a round trip sooner.
+        _swungNow.Clear();
+        foreach (var w in world.Swings)
+            if (_heardSwings.Add(w.Id) && _swingsPrimed && w.By != OwnId)
+                _swungNow.Add(w.By);
+        _swingsPrimed = true;
+        if (_heardSwings.Count > 64)
+            _heardSwings.IntersectWith(world.Swings.Select(w => w.Id));
         var weather = (world.Route ?? world.Run?.Route)?.Weather;
         foreach (var (id, s) in CrewStates)
         {
@@ -401,7 +415,7 @@ public sealed partial class GameAudio
             else
                 c.NextBreath = Math.Max(c.NextBreath, _time + 0.5 + 0.37 * (id % 5));
 
-            // ---- tools (App. C.2): into the hand, back on the belt; your own swing.
+            // ---- tools (App. C.2): into the hand, back on the belt; your own swing and a crewmate's.
             var held = Kit.Held(s);
             if (held != c.Held)
             {
@@ -426,6 +440,13 @@ public sealed partial class GameAudio
             }
             else
                 c.NextSwing = Math.Min(c.NextSwing, _time);
+            if (_swungNow.Contains(id))
+            {
+                Cue(held != Tool.None ? $"crew-melee.{ToolName(held)}-swing" : "crew-mishaps.bare-swing", hands, occlusion);
+                // Their blow on the train's iron or wood, from their replicated look, as your own is (note 245).
+                if (held != Tool.None)
+                    OwnBlow(world, s, held, occlusion);
+            }
 
             // ---- hands at work.
             Working(world, id, s, c, occlusion);
@@ -491,12 +512,18 @@ public sealed partial class GameAudio
         // The shovel by hand (T29): coal onto the blade at the tender's face.
         if (s.Has(PlayerFlags.Shovelful) && !c.Shovelful)
             CoalFace(train, occlusion);
-        // Your own hand on a switch stand's lever (its hold is host-only): the latch lifted as you take hold.
+        // Your own hand on a switch stand's lever (its hold is host-only): the latch lifted as you take hold. At the powered
+        // thrower's lever in the cab (note 196) it's that lever's, in the cab, not the stand's down the line.
         if (id == OwnId && world.Switches is { } stands)
         {
             int? lever = OwnIntent.Has(PlayerButtons.Use) ? stands.InReach(s, train, world.Hand) : null;
             if (Rose("crew-switch.lever", id, lever is not null) && lever is { } b)
-                Cue("crew-switch.lever-unlatch", stands.LeverAt(train.Line, b), Occlusion(PlayerMotor.Outside));
+            {
+                if (SwitchStands.AtThrower(s, train, world.Hand) && CabLever(train) is { } cab)
+                    Cue("crew-switch.lever-unlatch", cab, Occlusion(0));
+                else
+                    Cue("crew-switch.lever-unlatch", stands.LeverAt(train.Line, b), Occlusion(PlayerMotor.Outside));
+            }
         }
         if (s.Parent == PlayerState.World || s.ActionProgress <= 0)
             return;
@@ -569,9 +596,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// Your own blow landing on the train (hooks-map: the sim's swing only tests enemies): a ray from the eye along the look,
-    /// as far as the tool reaches, onto the first solid; iron or wood by what it is. With something to hit in reach, it's
-    /// that (its Health drop is <see cref="CrewStruck"/>'s), not the train.
+    /// A blow landing on the train (hooks-map: the sim's swing only tests enemies): a ray from the eye along the look, as far
+    /// as the tool reaches, onto the first solid; iron or wood by what it is. Your own as you swing; a crewmate's from their
+    /// swing on the wire and their replicated look (note 245). With something to hit in reach, it's that (the host's hit
+    /// record, GameAudio.Strikes), not the train.
     /// </summary>
     void OwnBlow(World world, in PlayerState s, Tool held, float occlusion)
     {
@@ -583,7 +611,8 @@ public sealed partial class GameAudio
         double cos = Math.Cos(melee.ConeDegrees * Math.PI / 180);
         foreach (var e in world.ActiveEnemies)
         {
-            if (e.Gone || e.MeleeRadius <= 0)
+            // A Stoker behind the shut firebox door (note 263) isn't struck: the blow rings on the iron.
+            if (e.Gone || e.MeleeRadius <= 0 || !e.Reachable(world))
                 continue;
             var to = e.WorldPosition(train) + Double3.Up * 0.8 - eye;
             var flat = to with { Y = 0 };
@@ -642,51 +671,6 @@ public sealed partial class GameAudio
                 return null;
         }
         return near;
-    }
-
-    /// <summary>
-    /// A blow landing on something (App. C.2): its Health dropped with no cannon fired just now, and a crewmate with a tool
-    /// in hand is in reach of it (the host's who-hit-what isn't sent: the nearest is taken for it).
-    /// </summary>
-    void CrewStruck(World world)
-    {
-        var train = world.Train;
-        var melee = world.Enemies?.Melee ?? new MeleeTuning();
-        var live = new HashSet<int>();
-        foreach (var e in world.ActiveEnemies)
-        {
-            if (e.Gone)
-                continue;
-            live.Add(e.Id);
-            double was = _crewEnemyHealth.GetValueOrDefault(e.Id, e.Health);
-            _crewEnemyHealth[e.Id] = e.Health;
-            if (e.Health >= was - 1e-6 || e.MeleeRadius <= 0 || _time - _crewLastShot < 0.3)
-                continue;
-            var at = e.WorldPosition(train) + Double3.Up * 0.8;
-            (Tool Tool, double D)? best = null;
-            double bare = double.PositiveInfinity;
-            foreach (var (_, s) in CrewStates)
-            {
-                var tool = Kit.Held(s);
-                if (!s.Alive || s.Parent != PlayerState.World && s.Parent >= train.Frames.Count)
-                    continue;
-                // Generous, as the host is with a remote crewmate's reach.
-                double d = (PlayerMotor.WorldPosition(s, train) + Double3.Up * ChestUp - at).Length;
-                if (d > melee.Reach + e.MeleeRadius + 0.5)
-                    continue;
-                if (tool == Tool.None)
-                    bare = Math.Min(bare, d);
-                else if (best is null || d < best.Value.D)
-                    best = (tool, d);
-            }
-            var struckOcclusion = Occlusion(e.Attached >= 0 ? e.Attached : PlayerMotor.Outside);
-            if (best is { } by)
-                Cue($"crew-melee.{ToolName(by.Tool)}-hit-flesh", at, struckOcclusion);
-            else if (bare < double.PositiveInfinity)
-                Cue("crew-mishaps.bare-slap", at, struckOcclusion);   // only empty hands in reach: a fraction of a blow (T108)
-        }
-        foreach (var gone in _crewEnemyHealth.Keys.Where(k => !live.Contains(k)).ToList())
-            _crewEnemyHealth.Remove(gone);
     }
 
     // ------------------------------------------------------------------------------------------------ doors and lamps
@@ -782,9 +766,19 @@ public sealed partial class GameAudio
         {
             _crewEngine = new CrewEngine
             {
-                FireDoor = boiler.FireDoorOpen, Vented = boiler.Vented, Lamp = world.LampLit, WrenchOut = boiler.WrenchOut, Ruptured = boiler.Ruptured,
-                Tender = boiler.Tender, SinceShovel = sinceShovel, Throttle = controls.Throttle, Brake = controls.Brake, Reverser = controls.Reverser,
-                Sand = train.Sand, Whistle = world.WhistleSeconds, LampOut = world.LampOutSeconds,
+                FireDoor = boiler.FireDoorOpen,
+                Vented = boiler.Vented,
+                Lamp = world.LampLit,
+                WrenchOut = boiler.WrenchOut,
+                Ruptured = boiler.Ruptured,
+                Tender = boiler.Tender,
+                SinceShovel = sinceShovel,
+                Throttle = controls.Throttle,
+                Brake = controls.Brake,
+                Reverser = controls.Reverser,
+                Sand = train.Sand,
+                Whistle = world.WhistleSeconds,
+                LampOut = world.LampOutSeconds,
             };
             return;
         }
@@ -849,7 +843,8 @@ public sealed partial class GameAudio
         float outside = Occlusion(PlayerMotor.Outside);
         if (cord && (e.Whistle <= 0 || e.Released && whistle > e.WhistleLow + 0.15))
         {
-            var cordAt = shape.Cab is { } cabBox ? engine.ToWorld(new Double3(0, cabBox.Max.Y - 0.2, cabBox.Centre.Z)) : dome;
+            // At the cord's handle (note 264: in the driver's front corner).
+            var cordAt = engine.ToWorld(Art.TrainKit.WhistleCordHandle(shape, pulled: true));
             Cue("crew-cab-controls.whistle-cord", cordAt, cab);
             if (CordWhistles(world))
                 Cue("crew-cab-controls.whistle-start", dome, outside);
@@ -1013,12 +1008,28 @@ public sealed partial class GameAudio
                 continue;
             _crewSwitches[i] = diverging;
             var toe = line.Sample(line.Branches[i].Toe).Position;
-            var lever = world.Switches?.LeverAt(line, i) ?? toe;
             float outside = Occlusion(PlayerMotor.Outside);
-            Cue("crew-switch.lever-throw", lever, outside);
             Cue("crew-switch.points-move", toe, outside);
-            CrewAfter(LeverLatchAfter, "crew-switch.lever-latch", lever, outside);
+            // Thrown from the cab (the powered thrower, note 196: someone at its lever, and these the points it reaches), the
+            // lever that goes over is the cab's, where the driver is; otherwise the stand's, beside the points.
+            bool fromCab = CabLever(train) is { } cab && SwitchStands.PointsAhead(train) == i
+                && CrewStates.Any(p => SwitchStands.AtThrower(p.State, train, world.Hand));
+            var (lever, heard) = fromCab ? (CabLever(train)!.Value, Occlusion(0)) : (world.Switches?.LeverAt(line, i) ?? toe, outside);
+            Cue("crew-switch.lever-throw", lever, heard);
+            CrewAfter(LeverLatchAfter, "crew-switch.lever-latch", lever, heard);
         }
+    }
+
+    /// <summary>The powered switch thrower's lever in the cab (spec F.3, note 196), in the world; null when it isn't fitted.</summary>
+    static Double3? CabLever(TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.SwitchThrower || train.Frames.Count == 0)
+            return null;
+        var engine = train.Frames[0];
+        foreach (var i in engine.Shape.Interactables)
+            if (i.Kind == InteractableKind.Points)
+                return engine.ToWorld(i.Position);
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------------ the cannons
@@ -1032,7 +1043,6 @@ public sealed partial class GameAudio
     {
         var train = world.Train;
         int steps = world.Combat?.Guns.ReloadSteps ?? 3;
-        bool shotHeard = false;
         foreach (var v in train.Vehicles)
         {
             if (v.Id >= train.Frames.Count)
@@ -1040,7 +1050,16 @@ public sealed partial class GameAudio
             var g = v.Gun;
             if (!_crewGuns.TryGetValue(v.Id, out var m))
             {
-                _crewGuns[v.Id] = new CrewGun { Mounted = g.Mounted, Ammo = g.Ammo, Z = g.Z, Needed = g.ReloadNeeded, Progress = g.ReloadProgress };
+                _crewGuns[v.Id] = new CrewGun
+                {
+                    Mounted = g.Mounted,
+                    Ammo = g.Ammo,
+                    Z = g.Z,
+                    Needed = g.ReloadNeeded,
+                    Progress = g.ReloadProgress,
+                    Traverse = g.Traverse,
+                    Elevation = g.Elevation
+                };
                 continue;
             }
             if (g.Mounted && Guns.Mount(train, v.Id) is { } mount)
@@ -1050,7 +1069,6 @@ public sealed partial class GameAudio
                 float outside = Occlusion(PlayerMotor.Outside);
                 if (m.Mounted && g.Ammo < m.Ammo && g.LastShotTick > 0)
                 {
-                    shotHeard = true;
                     bool far = (muzzle - Mixer.Listener.Position).Length > ShotFar;
                     if (Cue(far ? "crew-cannon-fire.shot-far" : "crew-cannon-fire.shot-close", muzzle, outside) is null
                         && Cue(far ? "crew-cannon-fire.shot-close" : "crew-cannon-fire.shot-far", muzzle, outside) is null)
@@ -1071,6 +1089,23 @@ public sealed partial class GameAudio
                 {
                     m.Traversing = false;
                     Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside);
+                }
+                // Laid by its seated gunner (T112): the steam motor and its gear while it turns or lifts, faster the faster it
+                // goes (combat.json's traverse rate is full), and the gear's clunk as it stops.
+                double laid = Math.Abs(g.Traverse - m.Traverse) + Math.Abs(g.Elevation - m.Elevation);
+                if (laid > 1e-5)
+                {
+                    m.LastLaid = _time;
+                    double full = (world.Combat?.Guns.TraverseDegreesPerSecond ?? 70) * Math.PI / 180 * SimConstants.TickSeconds;
+                    m.Laying = true;
+                    Hold("gun-lay", v.Id, frame.ToWorld(mount.Position), outside)?.Params.Set("speed", Math.Clamp(laid / full, 0, 1));
+                }
+                else if (m.Laying && _time - m.LastLaid < 0.1)
+                    Hold("gun-lay", v.Id, frame.ToWorld(mount.Position), outside);
+                else if (m.Laying)
+                {
+                    m.Laying = false;
+                    Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside, 0.6f);
                 }
                 // The reload: powder, ball, ram (App. C.3), a step at a time while Use is held.
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
@@ -1101,11 +1136,11 @@ public sealed partial class GameAudio
             m.Mounted = g.Mounted;
             m.Ammo = g.Ammo;
             m.Z = g.Z;
+            m.Traverse = g.Traverse;
+            m.Elevation = g.Elevation;
             m.Needed = g.ReloadNeeded;
             m.Progress = g.ReloadProgress;
         }
-        if (shotHeard)
-            _crewLastShot = _time;
     }
 
     // ------------------------------------------------------------------------------------------------ what's carried
@@ -1130,8 +1165,18 @@ public sealed partial class GameAudio
             bool lifted = b.Kind == BodyKind.Heavy ? b.Lifted : b.Carrier >= 0;
             if (!_crewBodies.TryGetValue(b.Id, out var m))
             {
-                _crewBodies[b.Id] = new CrewBody { Carrier = b.Carrier, Parent = b.Parent, Lifted = lifted, Charge = b.Charge, Local = b.Centre,
-                    OnMount = OnMount(train, b), Hint = train.Dynamics.Distance };
+                _crewBodies[b.Id] = new CrewBody
+                {
+                    Carrier = b.Carrier,
+                    Parent = b.Parent,
+                    Lifted = lifted,
+                    Charge = b.Charge,
+                    Local = b.Centre,
+                    OnMount = OnMount(train, b),
+                    Hint = train.Dynamics.Distance,
+                    Broken = b.Broken,
+                    MendTicks = b.MendTicks,
+                };
                 continue;
             }
             if (lifted && !m.Lifted)
@@ -1139,6 +1184,8 @@ public sealed partial class GameAudio
                 m.Falling = false;
                 string? lift = b.Kind switch
                 {
+                    // A powder keg (GDD §18-19; note 185's kegs, note 245): the cask's own, the powder shifting in it.
+                    BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition => "crew-carry.keg-lift",
                     BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => "crew-carry.crate-lift",
                     BodyKind.Lamp => "crew-carry.lamp-lift",
                     BodyKind.Toy => "crew-carry.toy-lift",
@@ -1231,6 +1278,23 @@ public sealed partial class GameAudio
                     Cue("crew-extinguisher.dry-trigger", at, occlusion);
                 m.Spraying = spraying;
             }
+            // A broken radio mended with the repair kit (note 201): the kit opened at it as the hands go to work, the
+            // ratchet's small turns while they stay at it, and once it's whole the kit shut and the set coming back to
+            // life with a squelch, so the crew hear their radio's back (note 241).
+            if (b.Kind == BodyKind.Radio)
+            {
+                if (b.MendTicks > 0 && m.MendTicks == 0)
+                    Cue("crew-repair.kit-open", centre, occlusion, 0.6f);
+                if (b.MendTicks > 0 && Hold("crew-repair.ratchet", RadioMendOwner + b.Id, centre, occlusion) is { } ratchet)
+                    ratchet.Volume = 0.55f;
+                if (m.Broken && !b.Broken)
+                {
+                    Cue("crew-repair.done", centre, occlusion, 0.7f);
+                    Cue("voice-radio-sfx.squelch", centre, occlusion);
+                }
+                m.MendTicks = b.MendTicks;
+                m.Broken = b.Broken;
+            }
             m.Carrier = b.Carrier;
             m.Lifted = lifted;
             m.Parent = b.Parent;
@@ -1250,6 +1314,8 @@ public sealed partial class GameAudio
         string mat = Footing.UnderBody(world, b.Parent, lowest.Position - Double3.Up * lowest.Radius, ref m.Hint);
         string? name = b.Kind switch
         {
+            // Set down by hand, a keg is fine (a hard knock sends it up: SetPieces.Kegs, World.Blast): its own careful thunk.
+            BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition && !m.Thrown => "crew-carry.keg-set",
             BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => m.Thrown ? "crew-carry.crate-land" : "crew-carry.crate-set",
             BodyKind.Lamp => "crew-carry.lamp-set",
             BodyKind.Toy => "crew-carry.toy-drop",
@@ -1263,6 +1329,10 @@ public sealed partial class GameAudio
             Cue(name, centre, occlusion);
         else if (name is not null)
             Cue(name, mat, centre, occlusion);
+        // A noisy toy jostled as it lands sounds its own noise a moment (the checklist's crew-noisy-toys "while carried
+        // or jostled"; note 250): the squeaker squeaks, the music box plinks, the drummer rattles.
+        if (b.Kind == BodyKind.Toy && b.Noise != Sim.Physics.ToyNoise.None)
+            _jostled[b.Id] = _time + JostleSeconds;
         if (b.Kind is BodyKind.Ragdoll or BodyKind.Child && Surfaced("crew-mishaps.body-boot", mat) is { } boot)
             CrewAfter(BootAfterBody, boot, centre, occlusion);
     }

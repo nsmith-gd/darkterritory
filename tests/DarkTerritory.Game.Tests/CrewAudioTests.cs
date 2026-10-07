@@ -5,6 +5,7 @@ using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -32,9 +33,13 @@ public class CrewAudioTests
         public int Tick;
 
         public Bench(params string[] cues)
+            : this(new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), 5_000), C), cues)
         {
-            var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
-            World = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        }
+
+        public Bench(World world, params string[] cues)
+        {
+            World = world;
             foreach (var cue in cues)
                 Audio.Bank.Add(cue, new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
             Audio.PlayerTuning = P;
@@ -181,6 +186,79 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void APowderKegIsHandledAsAKegNotACrate()
+    {
+        // Note 245: a keg (the depot's powder, cargo Ammunition) goes up from a hard knock and is fine set down by hand
+        // (SetPieces.Kegs); its own lift, the powder shifting in it, and its own careful set-down.
+        var b = new Bench("crew-carry.keg-lift", "crew-carry.keg-set", "crew-carry.crate-lift", "crew-carry.crate-set");
+        b.World.EnableBodies();
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var keg = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 0), Sim.Physics.BodyKind.Cargo);
+        keg.Cargo = CargoKind.Ammunition;
+        for (int i = 0; i < 5; i++)
+            b.Step();
+        keg.Carrier = 1;
+        b.Step();
+        Assert.Equal(1, b.Count("crew-carry.keg-lift"));
+        Assert.Equal(0, b.Count("crew-carry.crate-lift"));
+        keg.Carrier = -1;
+        for (int i = 0; i < SimConstants.TickRate * 2; i++)
+            b.Step();
+        Assert.Equal(1, b.Count("crew-carry.keg-set"));
+        Assert.Equal(0, b.Count("crew-carry.crate-set"));
+    }
+
+    [Fact]
+    public void ANoisyToyJostledAsItLandsSoundsAMomentThenGoesQuiet()
+    {
+        // The checklist's crew-noisy-toys, "while carried or jostled" (note 250): dropped, the squeaker squeaks as it lands
+        // as well as the drop, and lying still it's quiet again.
+        var b = new Bench("crew-carry.toy-lift", "crew-carry.toy-drop");
+        b.World.EnableBodies();
+        var room = b.Train.Frames[1].Shape.Interior!.Value;
+        var toy = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 0), Sim.Physics.BodyKind.Toy);
+        toy.Noise = Sim.Physics.ToyNoise.Squeaker;
+        int Squeaking() => b.Audio.Mixer.Voices.Count(v => v.Name == "toy-squeaker" && !v.Finished);
+        for (int i = 0; i < 5; i++)
+            b.Step();
+        Assert.Equal(0, Squeaking());
+        toy.Carrier = 1;
+        b.Step();
+        Assert.Equal(1, Squeaking());
+        toy.Carrier = -1;
+        int landedAt = -1;
+        for (int i = 0; i < SimConstants.TickRate * 2 && landedAt < 0; i++)
+        {
+            b.Step();
+            // The drop's on whatever it lands on (crew-carry.toy-drop.wood and the rest).
+            if (b.Heard.Any(h => h.Name.StartsWith("crew-carry.toy-drop", StringComparison.Ordinal)))
+                landedAt = b.Tick;
+        }
+        Assert.True(landedAt >= 0, "the toy never landed");
+        Assert.Equal(1, Squeaking());
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step();
+        Assert.Equal(0, Squeaking());
+    }
+
+    [Fact]
+    public void ACrewmatesBlowOnTheTrainIsHeardFromTheirOwnLook()
+    {
+        // Note 245: a crewmate's swing (World.Swings) that meets no creature lands on the train where their replicated
+        // look puts it, iron or wood, as your own does.
+        var b = new Bench("crew-melee.crowbar-swing", "crew-melee.crowbar-hit-metal", "crew-melee.crowbar-hit-wood");
+        b.Audio.OwnId = 1;
+        var you = PlayerMotor.SpawnOnRoof(b.Train, 2, 3, P);
+        // Stood on the roof, looking down at it.
+        var mate = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0, Pitch = -1.2 };
+        b.Step((1, you), (2, mate));
+        b.World.Swings.Add(new SwingEvent(9, b.World.Tick, 2));
+        b.Step((1, you), (2, mate));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-swing"));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-hit-metal") + b.Count("crew-melee.crowbar-hit-wood"));
+    }
+
+    [Fact]
     public void ACrewmateKilledWithAToolInHandDropsItABeatAfterTheBody()
     {
         var b = new Bench("crew-hurt.body-fall.roof", "crew-melee.wrench-drop.roof");
@@ -268,6 +346,146 @@ public class CrewAudioTests
             b.Step((1, s with { HeldSlot = 0 }));
         Assert.True(b.Count("crew-melee.crowbar-swing") > 0);
         Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
+    }
+
+    [Fact]
+    public void ACrewmatesSwingIsHeardInTheirHandsLandedOrNot()
+    {
+        // Note 197: the host logs every swing (World.Swings), so a crewmate's is heard on every machine, once, with the
+        // tool in their hands; your own is heard from your intent, so the log doesn't play it twice.
+        var b = new Bench("crew-mishaps.bare-swing", "crew-melee.crowbar-swing");
+        b.Audio.OwnId = 1;
+        var you = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        var mate = PlayerMotor.SpawnOnRoof(b.Train, 2, 2, P) with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0 };
+        // Already in the log when this machine first looks: old news.
+        b.World.Swings.Add(new SwingEvent(1, b.World.Tick, 2));
+        b.Step((1, you), (2, mate));
+        Assert.Empty(b.Heard);
+        b.World.Swings.Add(new SwingEvent(2, b.World.Tick, 2));
+        b.World.Swings.Add(new SwingEvent(3, b.World.Tick, 1));
+        for (int i = 0; i < 5; i++)
+            b.Step((1, you), (2, mate));
+        var swing = Assert.Single(b.Heard, h => h.Name == "crew-melee.crowbar-swing");
+        Assert.True((swing.At - b.Train.Frames[2].ToWorld(mate.Position)).Length < 2.5);
+        Assert.Equal(0, b.Count("crew-mishaps.bare-swing"));
+        // Empty-handed, it's a sleeve.
+        b.World.Swings.Add(new SwingEvent(4, b.World.Tick, 2));
+        b.Step((1, you), (2, mate with { HeldSlot = 3 }));
+        Assert.Equal(1, b.Count("crew-mishaps.bare-swing"));
+        Assert.Equal(1, b.Count("crew-melee.crowbar-swing"));
+    }
+
+    [Fact]
+    public void ThePoweredThrowersLeverGoesOverInTheCabNotAtTheStand()
+    {
+        // Spec F.3's powered switch thrower (note 196): the driver throws the points ahead from a lever in the cab. Taking
+        // hold of it and its going over are heard there, where they are; the points still move at the points.
+        var fitted = T with { Composition = T.Composition with { SwitchThrower = true } };
+        var junctions = RouteTuning.Load(Content).Junctions;
+        const double Toe = 3_000;
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(8_000)]),
+            [new BranchDefinition(BranchKind.DeadLine, Toe, +1,
+                [new TrackSegment(junctions.DivergeLength, -junctions.DivergeRadius), new TrackSegment(junctions.DivergeLength, junctions.DivergeRadius), new TrackSegment(500)])]);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(fitted, 4, 1)), line, Toe - 150), C);
+        world.EnableBodies();
+        world.EnableSwitches(junctions);
+        world.SetSwitch(0, true);
+        var b = new Bench(world, "crew-switch.lever-unlatch", "crew-switch.lever-throw", "crew-switch.points-move", "crew-switch.lever-latch");
+        b.Audio.OwnId = 1;
+        var leverAt = b.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Points).Position;
+        var s = PlayerMotor.SpawnInCab(b.Train, P);
+        s.Position = s.Position with { X = Math.Clamp(leverAt.X, -1.05, 1.05), Z = leverAt.Z };
+        Assert.True(SwitchStands.AtThrower(s, b.Train));
+        var cab = b.Train.Frames[0].ToWorld(leverAt);
+        b.Step((1, s));
+        b.Audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Use };
+        b.Step((1, s));
+        var unlatch = Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-unlatch");
+        Assert.True((unlatch.At - cab).Length < 0.01);
+        // The host throws it (replicated as the switch's setting): the cab's lever over and latched, the points at the toe.
+        world.SetSwitch(0, false);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((1, s));
+        var thrown = Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-throw");
+        Assert.True((thrown.At - cab).Length < 0.01);
+        Assert.True((Assert.Single(b.Heard, h => h.Name == "crew-switch.lever-latch").At - cab).Length < 0.01);
+        Assert.True((Assert.Single(b.Heard, h => h.Name == "crew-switch.points-move").At - line.Sample(Toe).Position).Length < 0.01);
+    }
+
+    sealed class Windy(double wind) : ITrackConditions
+    {
+        public double Ground(Double3 world) => 0;
+        public double Adhesion(int path, double distance) => 1;
+        public double Drag(int path, double distance, double speed) => 0;
+        public int ColdStep(int path, double distance) => 0;
+        public double Wind(int path, double distance) => wind;
+    }
+
+    [Fact]
+    public void OnARoofTheGustPushingYouIsHeardOnTheSideItBlowsFrom()
+    {
+        // Note 201's wind on a roof's footing (note 241): the gust that pushes you is a gale's roar off the side it comes
+        // from, as loud as it pushes, so you hear it build before it walks you to the edge.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = new Windy(1) };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        world.Train.Dynamics.Velocity = T.MaxSpeed;
+        var b = new Bench(world, "crew-footsteps.walk.roof");
+        b.Audio.OwnId = 1;
+        b.Audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Run };
+        var roof = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        // Two places along the line with strong gusts from opposite sides.
+        double From(double sign) => Enumerable.Range(0, 400).Select(i => 5_000.0 + i * 7).First(x => sign * PlayerMotor.Gust(x, P.Wind.GustMetres) > 0.8);
+        SoundInstance? Gale() => b.Audio.Mixer.Voices.SingleOrDefault(v => v.Name == "world-wind.gale" && !v.Finished);
+        foreach (double sign in new[] { 1.0, -1.0 })
+        {
+            var s = roof with { LineHint = From(sign) };
+            for (int i = 0; i < 3; i++)
+                b.Step((1, s));
+            double push = PlayerMotor.WindPush(s, b.Audio.OwnIntent, b.Train, P, T);
+            Assert.Equal(Math.Sign(sign), Math.Sign(push));
+            var gale = Gale();
+            Assert.NotNull(gale);
+            // Off the car's left for a push to its right, and the other way round.
+            var frame = b.Train.Frames[2];
+            double side = Double3.Dot(gale!.Position - frame.ToWorld(s.Position), frame.Right);
+            Assert.True(side * push < 0, $"gale {side:0.0} m across, push {push:0.00}");
+            Assert.InRange(gale.Volume, 0.5f, 1f);
+        }
+        // Down off the roof, in the car: no push, no gale.
+        var inside = PlayerMotor.SpawnInCab(b.Train, P);
+        for (int i = 0; i < 3; i++)
+            b.Step((1, inside));
+        Assert.Null(Gale());
+    }
+
+    [Fact]
+    public void ARadioMendedWithTheKitIsHeardComingBack()
+    {
+        // Note 201's mending (note 241): the kit opened as the hands go to work, its ratchet while they stay at it, and the
+        // set's squelch with the kit shut once the radio's whole.
+        var b = new Bench("crew-repair.kit-open", "crew-repair.ratchet", "crew-repair.done", "voice-radio-sfx.squelch");
+        b.Audio.Bank.Add("crew-repair.ratchet", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.Audio.Bank.Add("voice-radio-sfx.squelch", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Duration: 0.1, MaxInstances: 64));
+        b.World.EnableBodies();
+        var s = PlayerMotor.SpawnOnRoof(b.Train, 2, 0, P);
+        var radio = b.World.Bodies.SpawnCrate(b.Train, 2, new Double3(0.5, b.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Radio);
+        radio.Broken = true;
+        b.Step((1, s));
+        for (int i = 1; i <= 20; i++)
+        {
+            radio.MendTicks = i;
+            b.Step((1, s));
+        }
+        Assert.Equal(1, b.Count("crew-repair.kit-open"));
+        Assert.Contains(b.Audio.Mixer.Voices, v => v.Name == "crew-repair.ratchet" && !v.Finished);
+        Assert.Equal(0, b.Count("crew-repair.done"));
+        radio.Broken = false;
+        radio.MendTicks = 0;
+        for (int i = 0; i < 5; i++)
+            b.Step((1, s));
+        Assert.Equal(1, b.Count("crew-repair.done"));
+        Assert.True(b.Heard.Any(h => h.Name == "voice-radio-sfx.squelch") || b.Audio.Mixer.Voices.Any(v => v.Name == "voice-radio-sfx.squelch"));
+        Assert.DoesNotContain(b.Audio.Mixer.Voices, v => v.Name == "crew-repair.ratchet" && !v.Finished);
     }
 
     [Fact]
@@ -377,7 +595,10 @@ public class CrewAudioTests
         var roof = PlayerMotor.SpawnOnRoof(b.Train, 1, 0, P);
         var inside = new PlayerState
         {
-            Parent = 1, Position = new Double3(T.Geometry.Interior!.DoorX, room.Min.Y, 0), Surface = Surface.Deck, Health = P.Health,
+            Parent = 1,
+            Position = new Double3(T.Geometry.Interior!.DoorX, room.Min.Y, 0),
+            Surface = Surface.Deck,
+            Health = P.Health,
             LineHint = b.Train.Cars[1].FrontDistance,
         };
         var child = b.World.Bodies.SpawnCrate(b.Train, 1, new Double3(0, room.Min.Y, 1), Sim.Physics.BodyKind.Child);
@@ -547,6 +768,31 @@ public class CrewAudioTests
         Assert.Equal(1, b.Count("crew-cannon-fire.shot-close") + b.Count("crew-cannon-fire.shot-far"));
         Assert.True(b.Count("crew-cannon-fire.traverse") >= 1);
         Assert.True(b.Count("crew-cannon-fire.traverse-stop") >= 1);
+    }
+
+    [Fact]
+    public void LayingTheSeatedGunRunsItsSteamMotorWhileItTurnsAndClunksAsItStops()
+    {
+        // T112: the seated gunner lays it (Traverse and Elevation on the replicated gun); spec C.2: the turrets run on steam.
+        var b = new Bench("crew-cannon-fire.traverse-stop");
+        var gun = b.Train.Vehicles.Last(v => v.HasGun);
+        bool Laying() => b.Audio.Mixer.Voices.Any(v => v.Name == "gun-lay" && !v.Finished);
+        b.Step();
+        Assert.False(Laying());
+        for (int i = 0; i < 10; i++)
+        {
+            gun.Gun.Traverse += 0.02;
+            b.Step();
+        }
+        Assert.True(Laying());
+        // At its rate: faster turning, a faster gear.
+        var lay = b.Audio.Mixer.Voices.First(v => v.Name == "gun-lay" && !v.Finished);
+        Assert.InRange(lay.Params.Get("speed"), 0.3, 1);
+        // Still: it stops, once, with the gear's clunk.
+        for (int i = 0; i < 10; i++)
+            b.Step();
+        Assert.False(Laying());
+        Assert.Equal(1, b.Count("crew-cannon-fire.traverse-stop"));
     }
 
     [Fact]

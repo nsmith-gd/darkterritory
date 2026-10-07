@@ -1,12 +1,15 @@
 // Tell (tier 1), the Choir: "layered voices, multiplying", 300 Hz-4 kHz, wide (spec A.4). One voice of
-// many: the game adds voices as aggro climbs and moves them in around the train. "pitch" detunes each.
+// many: the game adds voices as aggro climbs and moves them in around the train. "pitch" is each voice's chord tone
+// (T113: a sung minor chord rising, sustained vowel "ah", slow breath; not a detuned cluster).
 {
+  // Spec A.4 rule 4, never the same twice round (note 250): the loop wanders a little in pitch and level.
+  "drift": { "semitones": 0.4, "db": 1.5, "seconds": 2.5 },
   "tier": 1, "loop": true, "maxInstances": 8, "minDistance": 20, "maxDistance": 600, "rolloff": 0.6, "gainDb": 8,
   "layers": [
-    { "source": "saw", "gain": 0.45, "frequency": { "param": "pitch", "points": [[0, 0], [2, 440]] },
+    { "source": "saw", "gain": 0.45, "frequency": { "param": "pitch", "points": [[0, 0], [4, 880]] },
       "filters": [{ "type": "bandPass", "frequency": 720, "q": 5 }, { "type": "peak", "frequency": 1180, "q": 6, "gainDb": 9 }, { "type": "peak", "frequency": 2650, "q": 7, "gainDb": 7 }],
-      "vibrato": { "rate": 5.3, "depth": 0.014 }, "tremolo": { "rate": 0.23, "depth": 0.6, "jitter": 0.5 } },
-    { "source": "noise", "gain": 0.08, "filters": [{ "type": "bandPass", "frequency": 3400, "q": 3 }],
+      "vibrato": { "rate": 4.6, "depth": 0.008 }, "tremolo": { "rate": 0.12, "depth": 0.45, "jitter": 0.4 } },
+    { "source": "noise", "gain": 0.05, "filters": [{ "type": "bandPass", "frequency": 3400, "q": 3 }],
       "tremolo": { "rate": 0.23, "depth": 0.6, "jitter": 0.5 } }
   ]
 }

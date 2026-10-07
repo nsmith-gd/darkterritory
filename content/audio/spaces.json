@@ -1,6 +1,6 @@
 // How each space sounds to whoever's in it (spec A.6: "convolution with cheap impulse responses", car
 // interiors, tunnels, facility spaces). GameAudio picks the space from where the listener is: inside a car,
-// in the cab, in a tunnel (the route's), at a facility, or outside. The mixer convolves everything
+// in the cab, in a tunnel (the route's), down the mine spur, at a facility, or outside. The mixer convolves everything
 // positioned with the space's response, each tier at its send; flat sounds (the UI, music, the radio)
 // stay dry.
 //
@@ -42,6 +42,18 @@
       "reverb": { "decay": 2.6, "length": 1.8, "highDecay": 0.35, "crossover": 1200, "predelay": 0.012, "lowcut": 90,
                   "early": [[0.018, 0.45], [0.036, 0.34], [0.054, 0.26], [0.072, 0.2], [0.09, 0.15], [0.108, 0.11], [0.126, 0.08]],
                   "wetDb": -6, "width": 1, "seed": 37 },
+      "sends": [0.35, 0.9, 0.6, 0.9, 0.6, 0.5, 0],
+      "muted": ["wind", "bed-wind", "world-night", "world-wind", "world-rain.rain-out", "world-rain.thunder"],
+      "voice": { "thresholdDb": -26, "ratio": 3, "attackSeconds": 0.005, "releaseSeconds": 0.2, "makeupDb": 8 }
+    },
+
+    // Down the mine spur (spec A.5 "radio range dies in tunnels and mine spurs"; the checklist's place-mine "the space
+    // closing in"; note 250): a timbered adit narrower than a tunnel and rough-walled, so its reflections come quicker
+    // and the tail's shorter and darker. No outside, as in a tunnel, and the crew's voices close and even.
+    "mine": {
+      "reverb": { "decay": 1.7, "length": 1.3, "highDecay": 0.28, "crossover": 1000, "predelay": 0.008, "lowcut": 110,
+                  "early": [[0.009, 0.5], [0.017, 0.38], [0.026, 0.3], [0.035, 0.22], [0.044, 0.16], [0.061, 0.1]],
+                  "wetDb": -5, "width": 1, "seed": 61 },
       "sends": [0.35, 0.9, 0.6, 0.9, 0.6, 0.5, 0],
       "muted": ["wind", "bed-wind", "world-night", "world-wind", "world-rain.rain-out", "world-rain.thunder"],
       "voice": { "thresholdDb": -26, "ratio": 3, "attackSeconds": 0.005, "releaseSeconds": 0.2, "makeupDb": 8 }

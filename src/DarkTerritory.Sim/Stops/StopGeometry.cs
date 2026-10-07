@@ -23,7 +23,8 @@ public static class StopSeed
 
     // Keys for the sub-streams: arbitrary, and fixed forever (changing one reshuffles that stream on every seed).
     public const ulong Stop = 0x53544f50, Halt = 0x48414c54, Attempt = 0x41545450, Layout = 0x4c41594f, Yard = 0x59415244,
-        Roads = 0x524f4144, Village = 0x56494c4c, Loot = 0x4c4f4f54, Holdout = 0x484f4c44, Lair = 0x4c414952, Power = 0x504f5752, Grade = 0x47524144;
+        Roads = 0x524f4144, Village = 0x56494c4c, Loot = 0x4c4f4f54, Holdout = 0x484f4c44, Lair = 0x4c414952, Power = 0x504f5752, Grade = 0x47524144,
+        Kit = 0x4b495453, Toy = 0x544f5953;
 }
 
 /// <summary>A seeded generator for one sub-system of a stop (PCG32, so the same on every machine).</summary>
@@ -44,7 +45,7 @@ sealed class Dice(ulong seed)
 /// <summary>Plane geometry in the rail frame: footprints as oriented rectangles, polylines, curves.</summary>
 static class Plan
 {
-    public static Pt Axis(double yaw) => new(Math.Cos(yaw), Math.Sin(yaw));
+    public static Pt Axis(double yaw) => new(DMath.Cos(yaw), DMath.Sin(yaw));
 
     public static Pt[] Corners(StopBuilding b, double pad = 0)
     {
@@ -80,7 +81,8 @@ static class Plan
     public static double Distance(Pt p, StopBuilding b)
     {
         var (x, y) = Local(p, b);
-        return Math.Sqrt(Math.Pow(Math.Max(Math.Abs(x) - b.Length / 2, 0), 2) + Math.Pow(Math.Max(Math.Abs(y) - b.Width / 2, 0), 2));
+        double dx = Math.Max(Math.Abs(x) - b.Length / 2, 0), dy = Math.Max(Math.Abs(y) - b.Width / 2, 0);
+        return Math.Sqrt(dx * dx + dy * dy);
     }
 
     /// <summary>Separating-axis test between two footprints, the first grown by <paramref name="pad"/>.</summary>
@@ -188,8 +190,8 @@ static class Plan
             for (int i = 0; i < n; i++)
             {
                 double mid = heading + turn / 2;
-                s += Math.Cos(mid) * ds;
-                d += Math.Sin(mid) * ds;
+                s += DMath.Cos(mid) * ds;
+                d += DMath.Sin(mid) * ds;
                 heading += turn;
                 pts.Add(new(s, d));
             }
@@ -200,7 +202,7 @@ static class Plan
     /// <summary>An S-curve's out-and-back arcs to reach <paramref name="offset"/> beside the main line: each arc's length and how far along it takes.</summary>
     public static (double Arc, double Advance) Turnout(double radius, double offset)
     {
-        double theta = Math.Acos(1 - offset / (2 * radius));
-        return (radius * theta, 2 * radius * Math.Sin(theta));
+        double theta = DMath.Acos(1 - offset / (2 * radius));
+        return (radius * theta, 2 * radius * DMath.Sin(theta));
     }
 }

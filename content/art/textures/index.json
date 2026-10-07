@@ -1380,7 +1380,7 @@
     "sources": [
       {
         "generator": "tools/art/textures.py",
-        "what": "recursive gnarled branches (strokes), bark furrows",
+        "what": "recursive gnarled branches (tapered strokes, kept inside the card), bark furrows",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }
@@ -1543,6 +1543,27 @@
       {
         "generator": "tools/art/textures.py",
         "what": "stockinette knit, fuzz, pilling",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "fleece",
+    "diffuse": "fleece.png",
+    "spec": "fleece_s.png",
+    "normal": "fleece_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "cloth",
+    "alphaTest": false,
+    "albedoTarget": 0.2,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "stamped crimped locks, tufts, soot",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }
@@ -2332,7 +2353,7 @@
     "sources": [
       {
         "generator": "tools/art/textures.py",
-        "what": "noise-eaten flame tongues, scrolled once round a loop",
+        "what": "noise-eaten flame tongues, ragged roots, scrolled once round a loop",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }

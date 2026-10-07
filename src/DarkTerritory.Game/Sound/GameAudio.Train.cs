@@ -39,20 +39,37 @@ public sealed partial class GameAudio
     // Four exhaust beats to a turn of the driving wheels, 1.7 m across (chuff.json); 12 m rails (wheel-rail.json); the trucks
     // 0.2 of a car's length in from each end (TrainOnLine.UpdatePoses), their axles a metre either side.
     const double DriverWheelM = 1.7, RailM = 12, AxleOffsetM = 1.0;
+    // The roll's at its loudest from here (m/s): the top of the frontier's line speed and over (note 265).
+    const double RollFullSpeed = 18;
 
     readonly Pcg32Ish _trainRng = new(20261002);
     readonly List<(double At, string Cue, Double3 Where, float Occlusion, float Volume)> _cuesLater = new();
     readonly List<(double At, Double3 Where, float Volume, bool RunIn)> _slackQueue = new();
     readonly Dictionary<int, double> _axles = new();
     readonly Dictionary<int, double> _preDerail = new();
-    readonly List<Wreck.Happening> _happened = new();
-    bool _exposed, _trainPrimed, _derailedSeen;
+    bool _exposed, _trainPrimed, _derailedSeen, _lurched;
+    // Note 266: the worst stress any car's bend has this tick (0 at its board, 1 at its derailing speed), and when the
+    // cab's bell rings again while the warning's up.
+    double _bendStress, _bellAgain;
     double _trainClock = double.NaN, _chuffBeats, _slackAccel, _valveLiftedAt = double.NegativeInfinity, _derailedAt;
-    Wreck? _wreck;
-    TrainDynamics? _wreckRake;
+    // The wreck as heard (Derailing): each car's state, the couplings as they were when it came off (with their gaps then),
+    // the ones torn since, and the synthesised grind standing in where the recorded ones aren't installed.
+    readonly Dictionary<int, WreckCar> _wreckCars = new();
+    readonly Dictionary<(int Ahead, int Behind), double> _wreckLinks = new();
+    readonly HashSet<(int, int)> _wreckTorn = new();
+    SoundInstance? _wreckGrind;
 
-    /// <summary>The derailment being heard, if the train's off the rails (for the tests and `dt audio`).</summary>
-    public Wreck? Derailment => _wreck;
+    /// <summary>What's been heard of one car in the wreck, so each thing it does is heard once, or as long as it goes on.</summary>
+    sealed class WreckCar
+    {
+        public Double3 Velocity;
+        public double LastHit = double.NegativeInfinity;
+        public bool Off, Over, Moved, Rested;
+    }
+
+    /// <summary>What's been heard of each car of the wreck (the tests' view), by vehicle id: off the rails, over, at rest.</summary>
+    public IReadOnlyDictionary<int, (bool Off, bool Over, bool Rested)> Derailment =>
+        _wreckCars.ToDictionary(c => c.Key, c => (c.Value.Off, c.Value.Over, c.Value.Rested));
 
     partial void EndNightTrain()
     {
@@ -60,13 +77,11 @@ public sealed partial class GameAudio
         _slackQueue.Clear();
         _axles.Clear();
         _preDerail.Clear();
-        _happened.Clear();
         _trainPrimed = _derailedSeen = false;
         _trainClock = double.NaN;
         _chuffBeats = _slackAccel = _derailedAt = 0;
         _valveLiftedAt = double.NegativeInfinity;
-        _wreck = null;
-        _wreckRake = null;
+        ForgetWreck();
     }
 
     /// <summary>+1 the tick <paramref name="now"/> turns true, −1 the tick it turns false, 0 otherwise. Nothing on the first tick heard.</summary>
@@ -123,6 +138,7 @@ public sealed partial class GameAudio
         BedBrakes(train, rake, primed, derailed);
         BedAirflow(world, train, rake, dt, derailed);
         BedLabour(train, rake, dt, derailed);
+        BendWarning(world, train, derailed);
         BoilerAlarms(train, engine, dt, primed);
         TrainDamage(train, engine, rake);
         Derailing(world, train, dt, primed);
@@ -220,10 +236,13 @@ public sealed partial class GameAudio
     /// </summary>
     void BedWheels(World world, TrainOnLine train, double dt, bool derailed)
     {
+        _bendStress = 0;
         if (derailed)
             return;
         var ear = Mixer.Listener.Position;
         double aDerail = world.TrackPlan?.Rules.ADerail ?? 1.0;
+        // Note 266: the bend's stress from its board's speed (0) to its derailing speed (1), plan §8.5's two accelerations.
+        double postShare = Math.Clamp((world.TrackPlan?.Rules.APost ?? 0.7) / aDerail, 0, 0.99);
         bool rolling = Sampled("wheel-rail");
         var near = train.Frames.OrderBy(f => (f.Origin - ear).Length).Take(4).Select(f => f.Index).ToHashSet();
         foreach (var rake in train.Rakes)
@@ -236,17 +255,22 @@ public sealed partial class GameAudio
                 double length = pose.Length, centre = pose.FrontDistance - length / 2;
                 double k = Math.Abs(train.Line.Sample(rake.Path, centre).Curvature);
                 double pull = speed * speed * k / aDerail;
-                double scream = Math.Max(Math.Clamp((pull - 0.85) / 0.25, 0, 1), BoardScream(world, train, rake, v, pose));
+                // The scream is the stress's last half (train.json overspeed: the warning's own sound under the train),
+                // full from the derailing speed (was from 0.85 of its pull: 8% of the speed short of coming off).
+                double stress = Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
+                _bendStress = Math.Max(_bendStress, stress);
+                double scream = Math.Max(Math.Clamp((stress - 0.5) / 0.5, 0, 1), BoardScream(world, train, rake, v, pose));
                 if (scream > 0)
                     HoldLevel("state-derail.flange-scream", v.Id, frame.ToWorld(new Double3(0, 0.4, 0)), Occlusion(PlayerMotor.Outside), 0.4 + 0.6 * scream);
                 if (!near.Contains(v.Id))
                     continue;
                 var under = frame.ToWorld(new Double3(0, 0.5, 0));
                 if (rolling)
+                    // Louder all the way up to full speed (was full by 12 m/s), so speed is heard as well as felt (note 265).
                     HoldCrossfade("bed-wheel-rail.roll-slow", "bed-wheel-rail.roll-fast", v.Id, (speed - 8) / 10, under, 0,
-                        Math.Pow(Math.Clamp(speed / 12, 0, 1), 0.8), "speed", speed);
+                        Math.Pow(Math.Clamp(speed / RollFullSpeed, 0, 1), 0.8), "speed", speed);
                 if (scream <= 0 && speed > 3 && pull > 0.35)
-                    HoldLevel("bed-wheel-rail.flange", v.Id, under, 0, Math.Clamp((pull - 0.35) / 0.4, 0.15, 1));
+                    HoldLevel("bed-wheel-rail.flange", v.Id, under, 0, Math.Clamp((pull - 0.35) / Math.Max(0.05, postShare - 0.35), 0.15, 1));
                 // The rail joints, axle by axle (the synth's clicks are in its own roll, while it plays).
                 for (int a = 0; a < 4; a++)
                 {
@@ -354,7 +378,8 @@ public sealed partial class GameAudio
         double air = (derailed ? 0 : rake.Speed) + 8 * night;
         if (Sampled("wind"))
             HoldCrossfade("bed-wind.wind-slow", "bed-wind.wind-fast", 0, (air - 6) / 10, ear + Double3.Up * 0.5, 0, Math.Clamp(air / 10, 0, 1), "wind", air);
-        if (air > 6 && Odds(0.03 + 0.1 * Math.Clamp(air / 22, 0, 1), dt))
+        // On a line with weather the gusts are the line's own (GameAudio.Outside, note 241), heard from their side, not dice.
+        if (air > 6 && train.Line.Conditions is null && Odds(0.03 + 0.1 * Math.Clamp(air / 22, 0, 1), dt))
             Cue("bed-wind.gust", ear + Mixer.Listener.Right * (_trainRng.Next() < 0.5 ? -3 : 3), 0, (float)(0.5 + 0.5 * _trainRng.Next()));
     }
 
@@ -373,11 +398,52 @@ public sealed partial class GameAudio
         if (speed < 0.5)
             return;
         double k = Math.Abs(train.Line.Sample(rake.Path, rake.Distance).Curvature);
-        if (Odds(0.05 + Math.Min(0.6, speed * speed * k * 0.8) + Math.Max(0, climb - 1) * 0.1, dt))
+        // A bend over its board: the couplings and the frames creak the harder it pulls (note 265), up to three a second.
+        if (Odds(0.05 + Math.Min(0.6, speed * speed * k * 0.8) + Math.Max(0, climb - 1) * 0.1 + 2.5 * _bendStress, dt))
         {
             double z = (_trainRng.Next() * 2 - 1) * nearest.Shape.HalfLength;
             Cue("bed-groan.creak", nearest.ToWorld(new Double3(0, 1.5, z)), Occlusion(nearest.Index), (float)(0.4 + 0.6 * _trainRng.Next()));
         }
+    }
+
+    /// <summary>
+    /// A bend too fast (note 265; train.json overspeed): the cab's bell while the warning's up (a bend ahead or under the
+    /// train that the speed now would derail it on: LineGen.TrackRules.Assess, the HUD's own), every repeatSeconds; and
+    /// the lurch, the slack running in down the train, as a bend's stress first passes lurchAt. From the line and the
+    /// train as this machine has them, so nothing's sent.
+    /// </summary>
+    void BendWarning(World world, TrainOnLine train, bool derailed)
+    {
+        var t = train.Dynamics.Tuning.Overspeed;
+        if (derailed || world.TrackPlan is not { } plan)
+        {
+            _lurched = false;
+            return;
+        }
+        if (_bendStress >= t.LurchAt && !_lurched)
+        {
+            _lurched = true;
+            foreach (var rake in train.Rakes)
+                for (int i = 0; i + 1 < rake.Consist.Vehicles.Count; i++)
+                {
+                    var frame = train.Frames[rake.Consist.Vehicles[i].Id];
+                    _slackQueue.Add((_time + i * 0.11, frame.ToWorld(new Double3(0, 1.0, frame.Shape.HalfLength)), 1f, true));
+                }
+        }
+        else if (_bendStress < t.LurchAt * 0.5)
+            _lurched = false;
+        if (!Sim.LineGen.TrackRules.Assess(train, plan.Rules, t).Warning)
+        {
+            _bellAgain = 0;
+            return;
+        }
+        if (_time < _bellAgain)
+            return;
+        _bellAgain = _time + t.RepeatSeconds;
+        var engine = train.Frames[0];
+        // On the cab's roof plate, over the driver's head.
+        var bell = engine.Shape.Cab is { } cab ? engine.ToWorld(cab.Centre with { Y = cab.Max.Y - 0.2 }) : engine.ToWorld(new Double3(0, 3.6, engine.Shape.HalfLength * 0.6));
+        Mixer.Play(t.WarningSound, bell);
     }
 
     // ---- The boiler ------------------------------------------------------------------------------------------------------
@@ -470,19 +536,30 @@ public sealed partial class GameAudio
 
     // ---- Derailment ------------------------------------------------------------------------------------------------------
 
+    // A car's velocity jumping by this much in a tick is a hit (as GameAudio's synth crash took it, T117); not again for a beat.
+    const double WreckHitJump = 3, WreckHitEvery = 0.5;
+    // Off the rails: sliding sideways faster than this (or this share of its speed). Over: its up past 55° from the sky's.
+    const double WreckSlip = 0.5, WreckSlipShare = 0.04, WreckOver = 0.5736;
+    // A coupling torn: the cars it joined this much further apart than when they came off (it's slack, then it's gone).
+    const double WreckTear = 1.5;
+
     /// <summary>
-    /// state-derail: on the tick World.Derailed comes on, the wreck the train was in for (<see cref="Wreck"/>) from each car's
-    /// speed the tick before, its curve, its mass and load, and the track under it; then each thing that happens in it as
-    /// its own sound, where it happens: wheels climbing the rail, cars slamming together and tearing, going over and
-    /// hitting the ground, scraping on the rails and grinding along the ballast, settling. The engine's pipes tear as the
-    /// art shows them (Art/Effects.Derailment), so it bursts and hisses on.
+    /// state-derail: the wreck as it's heard, read off the derailment's physics (T117, note 162: each car a rigid body the host
+    /// steps and every client is sent the poses of), so each derailment is heard as its own carnage (the audio director, 2 Oct:
+    /// "individual sounds that trigger when the conditions to trigger them are met ... relying on what the physics creates").
+    /// Per car: its wheels climbing off the rail as it starts to slide sideways; a hit where its velocity jumps, on the ground
+    /// when the jump's more up and down than along, into another car otherwise; going over as it rolls past 55°; steel on
+    /// the rails while it slides still on them, grinding through the ballast once it's off; settling as it comes to rest. Each
+    /// coupling torn as the cars it joined pull apart past the slack. The engine's pipes tear as it comes off, so it bursts
+    /// and hisses on. Where a recorded cue isn't installed, the synthesised crash and grind stand in (wreck-crash, wreck-grind).
     /// </summary>
     void Derailing(World world, TrainOnLine train, double dt, bool primed)
     {
         int edge = Flipped("state-derail", 0, world.Derailed, primed);
         if (!world.Derailed)
         {
-            _wreck = null;
+            if (_derailedSeen || _wreckCars.Count > 0)
+                ForgetWreck();
             _derailedSeen = false;
             foreach (var rake in train.Rakes)
                 foreach (var v in rake.Consist.Vehicles)
@@ -494,132 +571,124 @@ public sealed partial class GameAudio
         {
             _derailedAt = _time;
             _slackQueue.Clear();
-            (_wreck, _wreckRake) = StartWreck(world, train);
             if (!train.Boiler.Ruptured)
                 Cue("state-rupture.burst", train.Frames[0].ToWorld(new Double3(0, 2.6, -train.Frames[0].Shape.HalfLength * 0.4)), Occlusion(0),
                     (float)Math.Clamp(Math.Abs(_preDerail.GetValueOrDefault(0)) / 12, 0.5, 1));
+            // The couplings as they were on the tick it came off: each pair, ahead and behind, and later how far apart.
+            foreach (var rake in train.Rakes)
+                for (int i = 0; i + 1 < rake.Consist.Vehicles.Count; i++)
+                    _wreckLinks[(rake.Consist.Vehicles[i].Id, rake.Consist.Vehicles[i + 1].Id)] = double.NaN;
         }
         // The hiss of the torn pipes: hard for the first seconds, then on and on (as the art's steam goes).
-        if (edge > 0 || _wreck is not null)
+        double since = _time - _derailedAt;
+        var e = train.Frames[0];
+        HoldLevel("state-rupture.steam-out", 1, e.ToWorld(new Double3(0, 2.4, -e.Shape.HalfLength * 0.4)), Occlusion(0), since < 3 ? 1 - 0.65 * since / 3 : 0.35);
+        // While the derailment film plays, its own recorded wreck is what's heard (GameAudio.Film); the live one goes quiet.
+        if (!double.IsNaN(_filmAt))
         {
-            double since = _time - _derailedAt;
-            var e = train.Frames[0];
-            HoldLevel("state-rupture.steam-out", 1, e.ToWorld(new Double3(0, 2.4, -e.Shape.HalfLength * 0.4)), Occlusion(0), since < 3 ? 1 - 0.65 * since / 3 : 0.35);
+            _wreckGrind?.Stop();
+            _wreckGrind = null;
         }
-        if (_wreck is not { } wreck || _wreckRake is not { } wreckRake)
-            return;
-        _happened.Clear();
-        wreck.Advance(dt, _happened);
-        double travel = _preDerail.GetValueOrDefault(wreckRake.Consist.Vehicles.Count > 0 ? wreckRake.Consist.Vehicles[0].Id : 0) >= 0 ? 1 : -1;
-        foreach (var h in _happened)
-            WreckHeard(train, wreck, h, travel);
-        for (int i = 0; i < wreck.Cars.Count; i++)
-        {
-            var c = wreck.Cars[i];
-            var frame = train.Frames[c.From.Id];
-            if (c.Scraping)
-                HoldLevel("state-derail.rail-scrape", c.From.Id, frame.ToWorld(new Double3(0, 0.3, 0)), Occlusion(c.From.Id), Math.Clamp(c.V / 10, 0.25, 1));
-            if (c.Grinding)
-                HoldLevel("state-derail.grind", c.From.Id, frame.ToWorld(new Double3(0, 0.6, 0)), Occlusion(c.From.Id), Math.Clamp(c.V / 8, 0.3, 1));
-        }
+        else if (train.Wreck is { } wreck)
+            WreckHeard(wreck);
     }
 
-    /// <summary>One thing the wreck did, as its sound, where it happened on the train.</summary>
-    void WreckHeard(TrainOnLine train, Wreck wreck, Wreck.Happening h, double travel)
+    /// <summary>Each car of the wreck this tick: what it did since the last, as its own sound where it did it.</summary>
+    void WreckHeard(Wreck wreck)
     {
-        var car = wreck.Cars[h.Car];
-        var frame = train.Frames[car.From.Id];
-        double hl = frame.Shape.HalfLength;
-        float volume = (float)h.Strength, occlusion = Occlusion(car.From.Id);
-        // Its front in the way it was going (a car's −Z is its front), and the coupling to the car ahead of it.
-        double lead = travel > 0 ? -1 : 1;
-        Double3 Coupling() => frame.ToWorld(new Double3(0, 1.0, lead * (hl + 0.75)));
-        switch (h.Kind)
+        WreckBody? fastest = null;
+        var bodies = new Dictionary<int, WreckBody>();
+        foreach (var b in wreck.Bodies)
         {
-            case Wreck.Kind.Climb:
-                Cue("state-derail.climb", frame.ToWorld(new Double3(0, 0.4, lead * hl * 0.65)), occlusion, volume);
-                break;
-            case Wreck.Kind.Collide:
-                Cue("state-derail.collide", Coupling(), occlusion, volume);
-                break;
-            case Wreck.Kind.RunIn:
-                Mixer.Play(HasCue("bed-slack.run-in") ? "bed-slack.run-in" : "slack-clunk", Coupling(), volume);
-                break;
-            case Wreck.Kind.RunOut:
-                Mixer.Play(HasCue("bed-slack.run-out") ? "bed-slack.run-out" : "slack-clunk", Coupling(), volume);
-                break;
-            case Wreck.Kind.Tear:
-                Cue("state-derail.tear", h.Other >= 0 ? Coupling() : frame.ToWorld(new Double3(0, 2, 0)), occlusion, volume);
-                break;
-            case Wreck.Kind.Tip:
-                Cue("state-derail.tip", frame.ToWorld(new Double3(0, 2, 0)), occlusion, volume);
-                break;
-            case Wreck.Kind.Impact:
-                Cue("state-derail.impact", "ground", frame.ToWorld(new Double3(0, 0.5, 0)), occlusion, volume);
-                break;
-            case Wreck.Kind.Settle:
-                Cue("state-derail.settle", frame.ToWorld(new Double3(0, 1.5, (_trainRng.Next() * 2 - 1) * hl)), occlusion, volume);
-                break;
-        }
-    }
-
-    /// <summary>
-    /// The wreck the train's in for, from the tick before it came off: the engine's rake front to back the way it was
-    /// going, each car's speed, how hard its curve was throwing it out, how top-heavy it is, and whether the track's gone
-    /// from under it (a washout, or a weak span over its limit: TrackRules). The first car over its curve's limit comes off
-    /// first; failing that, one where the track's gone; failing that, the leading one (the Sleepers, the Switchman's points).
-    /// </summary>
-    (Wreck?, TrainDynamics?) StartWreck(World world, TrainOnLine train)
-    {
-        var rake = train.Dynamics;
-        var t = rake.Tuning;
-        var plan = world.TrackPlan;
-        double aDerail = plan?.Rules.ADerail ?? 1.0;
-        var vehicles = rake.Consist.Vehicles;
-        if (vehicles.Count == 0)
-            return (null, null);
-        double velocity = _preDerail.GetValueOrDefault(vehicles[0].Id);
-        bool forward = velocity >= 0;
-        var order = forward ? vehicles.ToList() : vehicles.Reverse().ToList();
-        var starts = new List<Wreck.Start>();
-        foreach (var v in order)
-        {
-            var pose = train.Cars[v.Id];
-            double speed = Math.Abs(_preDerail.GetValueOrDefault(v.Id, velocity));
-            double centre = pose.FrontDistance - pose.Length / 2;
-            double k = Math.Abs(train.Line.Sample(rake.Path, centre).Curvature);
-            double lateral = speed * speed * k / aDerail;
-            if (world.Lineside is { } lineside && rake.Path == RailLine.MainPath)
-                foreach (var sign in lineside.Signs)
-                    if (sign.Kind == Sim.Route.SignKind.SpeedLimit && sign.Limit > 0 && centre >= sign.Start && centre <= sign.End)
-                        lateral = Math.Max(lateral, Math.Pow(speed / (sign.Limit * lineside.Tuning.DerailRatio), 2));
-            double top = v.IsEngine ? 0.75 : 0.9 + 0.35 * v.Load + (v.Cargo is CargoKind.Livestock or CargoKind.Grain ? 0.15 : 0);
-            starts.Add(new Wreck.Start(v.Id, v.MassTonnes(t), v.Length(t), speed, lateral, top, TrackGone(world, train, plan, rake, centre), CoupledAhead: true));
-        }
-        int origin = starts.FindIndex(s => s.Lateral >= 0.98);
-        if (origin < 0)
-            origin = starts.FindIndex(s => s.Drop > 0);
-        ulong seed = (ulong)Math.Abs(Math.Round(rake.Distance)) * 2654435761UL;
-        // What's still on the rails has its brakes on (the train line's parted): as hard as this train's brakes stop it.
-        double brake = Math.Clamp(rake.MaxBrakeForce / Math.Max(1, rake.Consist.MassTonnes), 0.5, 4);
-        return (new Wreck(starts, Math.Max(0, origin), t.Geometry.CouplingGap, seed, brake), rake);
-    }
-
-    /// <summary>How far a car falls where the track's gone from under it: into a washout, or with a weak span over its limit.</summary>
-    static double TrackGone(World world, TrainOnLine train, Sim.LineGen.LinePlan? plan, TrainDynamics rake, double centre)
-    {
-        if (plan is null)
-            return 0;
-        var (edge, s) = Sim.LineGen.TrackRules.Locate(plan, train.Line, rake.Path, centre);
-        foreach (var st in plan.Structures)
-        {
-            if (st.Edge != edge || s < st.S0 || s > st.S1)
+            bodies[b.Vehicle] = b;
+            double speed = b.Velocity.Length;
+            if (!wreck.Settled && (fastest is null || speed > fastest.Velocity.Length))
+                fastest = b;
+            if (!_wreckCars.TryGetValue(b.Vehicle, out var c))
+            {
+                _wreckCars[b.Vehicle] = new WreckCar { Velocity = b.Velocity };
                 continue;
-            if (st.Type == Sim.LineGen.StructureType.Washout)
-                return 2.5;
-            if (st.Weak is { } weak && plan.Rules.WeakBridgeCollapses && rake.Consist.CarCount > weak.MaxCars)
-                return Math.Max(3, st.HeightM);
+            }
+            float occlusion = Occlusion(b.Vehicle);
+            // Its wheels off the rail: it's sliding sideways (a car still held to the rails runs along its length).
+            double slip = Math.Abs(Double3.Dot(b.Velocity, b.Right));
+            if (!c.Off && slip > Math.Max(WreckSlip, WreckSlipShare * speed))
+            {
+                c.Off = true;
+                double ahead = Double3.Dot(b.Velocity, b.Back) > 0 ? 1 : -1;
+                Cue("state-derail.climb", b.ToWorld(new Double3(0, 0.4, ahead * b.HalfLength * 0.65)), occlusion, (float)Math.Clamp(speed / 15, 0.4, 1));
+            }
+            // A hit: the ground, or another car.
+            var jump = b.Velocity - c.Velocity;
+            double dv = jump.Length;
+            if (dv > WreckHitJump && _time - c.LastHit > WreckHitEvery)
+            {
+                c.LastHit = _time;
+                float volume = (float)Math.Clamp(dv / 9, 0.35, 1);
+                bool ground = Math.Abs(jump.Y) > 0.6 * dv;
+                var hit = ground ? Cue("state-derail.impact", "ground", b.ToWorld(new Double3(0, 0.5, 0)), occlusion, volume)
+                    : Cue("state-derail.collide", b.Centre, occlusion, volume);
+                if (hit is null)
+                    Mixer.Play("wreck-crash", b.Centre, volume)?.Also(v => v.Occlusion = occlusion);
+            }
+            // Going over.
+            if (!c.Over && b.Up.Y < WreckOver)
+            {
+                c.Over = true;
+                Cue("state-derail.tip", b.Centre + b.Up * 0.5, occlusion, (float)Math.Clamp(0.5 + speed / 15, 0.5, 1));
+            }
+            // Sliding: on the rails, then through the ballast; held while it goes, louder the faster.
+            if (!wreck.Settled && speed > 0.6)
+            {
+                string slide = c.Off ? "state-derail.grind" : "state-derail.rail-scrape";
+                if (HasCue(slide))
+                    HoldLevel(slide, b.Vehicle, b.ToWorld(new Double3(0, 0.4, 0)), occlusion, Math.Clamp(speed / (c.Off ? 8 : 10), 0.25, 1));
+            }
+            // At rest after it's been moving: it settles, creaking.
+            c.Moved |= speed > 2;
+            if (c.Moved && !c.Rested && speed < 0.3)
+            {
+                c.Rested = true;
+                Cue("state-derail.settle", b.ToWorld(new Double3(0, 1.5, 0)), occlusion, 0.7f);
+            }
+            c.Velocity = b.Velocity;
         }
-        return 0;
+        // The couplings: the gap each had as it came off, and torn once its cars are pulled apart past the slack.
+        foreach (var (pair, rest) in _wreckLinks.ToList())
+        {
+            if (!bodies.TryGetValue(pair.Ahead, out var a) || !bodies.TryGetValue(pair.Behind, out var n))
+                continue;
+            var rear = a.ToWorld(new Double3(0, 0.9, a.HalfLength));
+            var front = n.ToWorld(new Double3(0, 0.9, -n.HalfLength));
+            double gap = (front - rear).Length;
+            if (double.IsNaN(rest))
+                _wreckLinks[pair] = gap;
+            else if (gap > rest + WreckTear && _wreckTorn.Add(pair))
+                Cue("state-derail.tear", (rear + front) * 0.5, Occlusion(pair.Ahead), 1);
+        }
+        // No recorded grind installed: the synthesised one, at the fastest car still sliding (T117).
+        if (!HasCue("state-derail.grind") && fastest is { } f && f.Velocity.Length > 0.6)
+        {
+            _wreckGrind ??= Mixer.Play("wreck-grind");
+            if (_wreckGrind is not null)
+            {
+                _wreckGrind.Position = f.Centre;
+                _wreckGrind.Volume = (float)Math.Clamp(f.Velocity.Length / 12, 0.15, 1);
+            }
+        }
+        else if (_wreckGrind is not null)
+        {
+            _wreckGrind.Stop();
+            _wreckGrind = null;
+        }
+    }
+
+    void ForgetWreck()
+    {
+        _wreckCars.Clear();
+        _wreckLinks.Clear();
+        _wreckTorn.Clear();
+        _wreckGrind?.Stop();
+        _wreckGrind = null;
     }
 }

@@ -58,7 +58,7 @@ public sealed class SoundBank
     }
 
     IEnumerable<string> TakesOf(string name) =>
-        (Get(name)?.Layers ?? []).Where(l => l.Source == SourceKind.Sample).SelectMany(l => Samples.Takes(l.Sample));
+        (Get(name)?.Layers ?? []).Where(l => l.Source == SourceKind.Sample && l.Sample is not null).SelectMany(l => Samples.Takes(l.Sample));
 
     /// <summary>Loads new and changed files. A malformed edit keeps the previous definition.</summary>
     public bool Refresh()
@@ -98,7 +98,8 @@ public sealed class SoundBank
     void CheckSamples(string name, SoundDef def)
     {
         foreach (var layer in def.Layers)
-            if (layer.Source == SourceKind.Sample && Samples.Takes(layer.Sample).Count == 0)
+            // A sample layer naming no take plays its instance's clip (the opera's, SoundInstance.Clip): nothing to find here.
+            if (layer.Source == SourceKind.Sample && layer.Sample is not null && Samples.Takes(layer.Sample).Count == 0)
                 LastError = $"{name}.json: sample '{layer.Sample}' isn't a folder of {SampleLibrary.Extension} takes or a file under {Samples.Root ?? "(no samples root)"}";
     }
 }

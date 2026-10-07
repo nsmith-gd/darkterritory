@@ -19,10 +19,10 @@ public class CrewActsTests
     static readonly PlayerTuning P = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
     static readonly CombatTuning C = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File));
 
-    static World World()
+    static World World(double at = 5_000)
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
-        return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, at), C);
     }
 
     [Fact]
@@ -32,13 +32,8 @@ public class CrewActsTests
         Assert.NotNull(crew);
         foreach (var pose in Enum.GetValues<CrewPose>())
         {
-            string clip = pose switch
-            {
-                CrewPose.Crouch => "crouch_idle",
-                CrewPose.CarryWalk => "carry_walk",
-                CrewPose.LanternWalk => "lantern_walk",
-                _ => pose.ToString().ToLowerInvariant(),
-            };
+            string clip = CreatureArt.ClipOf(pose);
+            Assert.True(pose == CrewPose.Idle || clip != "idle", $"{pose} has no clip of its own");
             Assert.True(crew!.Clip(clip) is not null, $"{pose}: the crew has no '{clip}' clip");
         }
     }
@@ -82,6 +77,39 @@ public class CrewActsTests
     }
 
     [Fact]
+    public void AtTheControlsTheHandsAreOnTheLeversAndTheCordOnlyForTheRealWhistle()
+    {
+        // GDD §12: the whistle with no hand on it is the Whistler's tell (App. A.4), so the real one is seen pulled.
+        var w = World();
+        var levers = w.Train.Frames[0].Shape.Levers!.Value;
+        var s = PlayerMotor.SpawnInCab(w.Train, P) with { Position = levers.Regulator with { X = levers.Regulator.X + 0.2, Y = 0, Z = levers.Regulator.Z + 0.5 } };
+        s.Position = s.Position with { Y = PlayerMotor.SpawnInCab(w.Train, P).Position.Y };
+        Assert.Equal(CrewPose.Drive, CrewActs.Of(s, 1, w));
+        var c = CrewActs.Crewmate(1, s, w, w.Train.Frames);
+        Assert.NotNull(c.Reach);
+        // Each hand within an arm's reach of the shoulders: the levers are where they stand.
+        foreach (var hand in new[] { c.Reach!.Value.A, c.Reach.Value.B })
+            Assert.InRange((hand - new Double3(0, 1.45, 0)).Length, 0.1, 0.9);
+        w.Whistled(1);
+        Assert.Equal(CrewPose.Whistle, CrewActs.Of(s, 1, w));
+        Assert.True(CrewActs.CrewWhistling(w));
+    }
+
+    [Fact]
+    public void AFriendOverTheEdgeIsHauledUpAndALampHangsFromTheFist()
+    {
+        var w = World();
+        var s = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P);
+        var below = s with { Position = s.Position + new Double3(0.9, -0.8, 0), Flags = PlayerFlags.Held };
+        Assert.Equal(CrewPose.HaulUp, CrewActs.Of(s, 1, w, [s, below]));
+        var lamp = w.Bodies.SpawnCrate(w.Train, 2, new Double3(0, w.Train.Frames[2].Shape.RoofHeight, 0), Sim.Physics.BodyKind.Lamp);
+        lamp.Carrier = 1;
+        Assert.True(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
+        lamp.Carrier = -1;
+        Assert.False(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
+    }
+
+    [Fact]
     public void AtTheGunTheyreSatOnItsSeat()
     {
         var w = World();
@@ -99,6 +127,77 @@ public class CrewActsTests
         Assert.Equal(mount.Facing.Z < 0 ? 0 : Math.PI, Math.Abs(seat.Yaw), 3);
         // The pan, the clip's sat height over those feet: the cannon's seat 0.42 under the pivot.
         Assert.Equal(mount.Position.Y + TrainKit.CannonSeat.Y, seat.Position.Y + CrewActs.GunnerPan, 3);
+    }
+
+    [Fact]
+    public void TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain()
+    {
+        // App. C.5; SceneArt.Crewmate. Carried, it's on the hip; at work on a fire (GreyboxScene's Spraying), braced and
+        // kicking. At the bracket the sim says TakeDown either way: come to it empty-handed it's lifted off; come to it
+        // carrying, it's hung back, and that plays on through the drop rather than snapping to stood.
+        var art = new SceneArt(Look.Load(Content));
+        var stood = new Crewmate(1, new Double3(0, 0, -5_000), 0, true);
+        void At(double t, CrewPose? act) => art.Crewmate(new Ballast.Render.MeshBuilder(), stood with { Act = act }, default, t);
+
+        At(0.0, CrewPose.Extinguish);
+        Assert.Equal(CrewPose.Extinguish, art.LastPose);
+        art.Spraying = new HashSet<int> { 1 };
+        At(0.1, CrewPose.Extinguish);
+        Assert.Equal(CrewPose.Spray, art.LastPose);
+        art.Spraying = null;
+
+        // Back to its bracket carrying it: hung up, through the drop, then stood.
+        At(0.2, CrewPose.Extinguish);
+        At(0.3, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(0.8, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(1.0, null);
+        Assert.Equal(CrewPose.HangUp, art.LastPose);
+        At(1.8, null);
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+
+        // Come to it with nothing: taken down.
+        At(2.0, CrewPose.TakeDown);
+        Assert.Equal(CrewPose.TakeDown, art.LastPose);
+    }
+
+    [Fact]
+    public void ACrewmateStoodOnAMovingCarIsIdleNotRunning()
+    {
+        // Note 206: their pace is how fast they move over the car they're on, not over the ground. The train at 15 m/s,
+        // drawn at 15 fps: a metre along the line each frame, with them stood still on car 2's roof.
+        const double Dt = 1.0 / 15, Speed = 15;
+        var art = new SceneArt(Look.Load(Content));
+        var stood = PlayerMotor.SpawnOnRoof(World().Train, 2, 0, P);
+        for (int i = 0; i < 8; i++)
+        {
+            var w = World(5_000 + Speed * Dt * i);
+            art.Crewmate(new Ballast.Render.MeshBuilder(), CrewActs.Crewmate(1, stood, w, w.Train.Frames), default, Dt * i);
+        }
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+
+        // Walking along the roof (1.5 m/s over the car) while it moves: a walk, not a run.
+        for (int i = 0; i < 8; i++)
+        {
+            var w = World(5_000 + Speed * Dt * i);
+            var walking = stood with { Position = stood.Position + new Double3(0, 0, -1.5 * Dt * i) };
+            art.Crewmate(new Ballast.Render.MeshBuilder(), CrewActs.Crewmate(2, walking, w, w.Train.Frames), default, Dt * i);
+        }
+        Assert.Equal(CrewPose.Walk, art.LastPose);
+
+        // On the ground they're in the world's frame: stood still is idle, and 1.5 m/s over it a walk.
+        var ground = new PlayerState { Parent = PlayerState.World, Position = new Double3(4, 0, -5_000) };
+        for (int i = 0; i < 8; i++)
+            art.Crewmate(new Ballast.Render.MeshBuilder(), CrewActs.Crewmate(3, ground, World(), World().Train.Frames), default, Dt * i);
+        Assert.Equal(CrewPose.Idle, art.LastPose);
+        for (int i = 0; i < 8; i++)
+        {
+            var w = World();
+            var on = ground with { Position = ground.Position + new Double3(1.5 * Dt * i, 0, 0) };
+            art.Crewmate(new Ballast.Render.MeshBuilder(), CrewActs.Crewmate(4, on, w, w.Train.Frames), default, Dt * i);
+        }
+        Assert.Equal(CrewPose.Walk, art.LastPose);
     }
 
     [Fact]

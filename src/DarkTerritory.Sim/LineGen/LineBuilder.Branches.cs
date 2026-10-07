@@ -13,7 +13,7 @@ sealed partial class LineBuilder
         [new HPrim(length, side / radius, side / radius), new HPrim(length, -side / radius, -side / radius)];
 
     (double Advance, double Offset) TurnoutSize(double radius, double length) =>
-        (2 * radius * Math.Sin(length / radius), 2 * radius * (1 - Math.Cos(length / radius)));
+        (2 * radius * DMath.Sin(length / radius), 2 * radius * (1 - DMath.Cos(length / radius)));
 
     Item Branchy(string type, double s0, double s1, List<HPrim> prims, bool level = true) => new()
     {
@@ -53,7 +53,7 @@ sealed partial class LineBuilder
         }
         double length = Math.Round(wanted);
         double turnout = 2 * j.TurnoutLength;
-        double chordHeading = Math.Atan2(-dx, -dz);
+        double chordHeading = DMath.Atan2(-dx, -dz);
         double reserve = _t.Alternates.ClosureReserveM;
         double bodyEnd = length - turnout - reserve;
         // The bow is done by the end of the body, back alongside the main line for the closure to line it up with the
@@ -65,7 +65,7 @@ sealed partial class LineBuilder
         if (attempt % 2 == 1 && w.MainBow == 0)
             side = -side;
         e.Side = side;
-        double Guide(double u) => chordHeading - side * beta * Math.Sin(2 * Math.PI * Math.Clamp((u - turnout) / (bodyEnd - turnout), 0, 1));
+        double Guide(double u) => chordHeading - side * beta * DMath.Sin(2 * Math.PI * Math.Clamp((u - turnout) / (bodyEnd - turnout), 0, 1));
 
         // The script: turnout, the trade-off in the middle, connectors, the closure reserve, the turnout back in.
         var items = new List<Item> { Branchy("turnout", 0, turnout, TurnoutOut(side, j.TurnoutRadius, j.TurnoutLength)) };
@@ -114,7 +114,7 @@ sealed partial class LineBuilder
                 var at = reference[Math.Clamp((int)Math.Round(item.S0 / 10), 0, reference.Count - 1)];
                 double cross = (here.X - at.X) * at.Right.X + (here.Z - at.Z) * at.Right.Z;
                 // Right of the bow's path, turn left (heading up), over a few hundred metres.
-                double correction = Math.Atan2(cross, 700);
+                double correction = DMath.Atan2(cross, 700);
                 Realise(item, ref pose, u => Guide(u) + Math.Clamp(correction, -0.6, 0.6), ref rng, _l.LineSpeed);
             }
             else

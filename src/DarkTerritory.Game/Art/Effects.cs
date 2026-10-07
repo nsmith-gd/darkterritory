@@ -31,9 +31,11 @@ public sealed partial class Effects(Look look)
     /// <param name="vent">Someone's holding the blow-off open on the running board (T101): a roaring white jet out sideways,
     /// seen from the cab.</param>
     /// <param name="safety">The safety valve's lifting: a column of steam straight up off the boiler.</param>
+    /// <param name="whistle">The whistle's blowing (a crewmate on the cord, or the Whistler on it): a hard white jet straight up
+    /// off the whistle on the boiler's top, ahead of the cab, rolling back over the roof with the going.</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        bool vent = false, bool safety = false, Bite tailBite = default)
+        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -115,6 +117,21 @@ public sealed partial class Effects(Look look)
                     mesh.Billboard(p, 0.35f + t * 2.6f, h * 6.28f, new Vector4(0.62f, 0.63f, 0.66f, 0.7f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
                 }
             }
+        // The whistle: a thin hard jet up off it, opening into a plume and laid back over the cab by the train's going.
+        if (whistle && shape.Cab is { } wcab)
+        {
+            var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+            var at = engine.ToWorld(new Double3(0.25, boiler.Max.Y + 0.45, wcab.Min.Z - 0.4)).RelativeTo(eye);
+            for (int k = 0; k < 22; k++)
+            {
+                float h = Hash(k * 4.43f);
+                float period = 0.6f + h * 0.4f;
+                float age = (float)((time * 1.4 + h * 3) % period);
+                float t = age / period;
+                var p = at + up * (age * 9f - age * age * 3f) + (right * (h - 0.5f) + back * (Hash(k + 0.3f) - 0.5f)) * age * 0.8f - velocity * age;
+                mesh.Billboard(p, 0.25f + t * 2.6f, h * 6.28f, new Vector4(0.78f, 0.79f, 0.82f, 0.9f * (1 - t)), _steam, FxBlend.Alpha, (int)(t * 15.99f), 4);
+            }
+        }
         // The safety valve lifting: straight up off the boiler ahead of the cab.
         if (safety && shape.Cab is { } cab)
         {
@@ -176,7 +193,7 @@ public sealed partial class Effects(Look look)
     static Vector3 FurnaceTint(float fire) => new Vector3(0.12f, 0.05f, 0.01f) * fire;
 
     /// <summary>A cone of light: rings along its length, bright at the lamp and gone at the far end.</summary>
-    static void Beam(MeshBuilder mesh, Vector3 apex, Vector3 dir, float halfAngle, float length, Vector3 colour)
+    public static void Beam(MeshBuilder mesh, Vector3 apex, Vector3 dir, float halfAngle, float length, Vector3 colour)
     {
         const int sides = 14, rings = 6;
         dir = Vector3.Normalize(dir);
@@ -218,6 +235,134 @@ public sealed partial class Effects(Look look)
     /// Rain, when the night's wet: streaks in a box of world cells round the eye (so they fall past you rather than moving
     /// with you), slanted by the wind, grey where the night lights them and gone into the fog.
     /// </summary>
+    readonly List<(Vector3 At, float Born, float Size)> _dust = [];
+    double _wreckSeen = -1, _lastPuff;
+
+    /// <summary>
+    /// The derailment (T117): sparks where steel drags on the ground, dust thrown up behind every car that's ploughing and
+    /// left hanging over the wreck after, and the wrecked engine pouring steam and smoke. The dust is kept (it lingers), so
+    /// this one isn't worked out from the time alone: a screenshot of a wreck draws it as it has built up.
+    /// </summary>
+    /// <param name="ground">The land's height at (x, z).</param>
+    public void Wreck(MeshBuilder mesh, Sim.Train.Wreck wreck, IReadOnlyList<CarFrame> frames, Double3 eye, double time, Func<double, double, double> ground)
+    {
+        if (_wreckSeen < 0 || time < _wreckSeen)
+        {
+            _wreckSeen = time;
+            _dust.Clear();
+        }
+        float since = (float)(time - _wreckSeen);
+        bool puff = time - _lastPuff > 0.06;
+        if (puff)
+            _lastPuff = time;
+        foreach (var b in wreck.Bodies)
+        {
+            if (b.Vehicle >= frames.Count)
+                continue;
+            var f = frames[b.Vehicle];
+            float speed = (float)b.Velocity.Length;
+            if (speed < 1.2f)
+                continue;
+            var dir = F(b.Velocity) / speed;
+            // Where it's on the ground: its bottom and top edges every quarter of its length.
+            for (int k = 0; k <= 4; k++)
+                for (int side = -1; side <= 1; side += 2)
+                    foreach (double y in (ReadOnlySpan<double>)[0, b.Height])
+                    {
+                        var p = f.ToWorld(new Double3(side * b.HalfWidth, y, -b.HalfLength + k * b.HalfLength / 2));
+                        if (p.Y - ground(p.X, p.Z) > 0.4)
+                            continue;
+                        var at = p.RelativeTo(eye);
+                        float h = Hash(b.Vehicle * 31 + k * 7 + side + (float)y + (float)(time * 37));
+                        int sparks = (int)MathF.Min(5, speed / 3);
+                        for (int i = 0; i < sparks; i++)
+                        {
+                            float r = Hash(h * 91 + i);
+                            var fly = (-dir * (0.4f + r * 1.6f) + new Vector3(Hash(r * 17) - 0.5f, 0.3f + Hash(r * 29), Hash(r * 43) - 0.5f) * 1.2f) * MathF.Min(1, speed / 10);
+                            mesh.Billboard(at + fly, 0.08f + 0.06f * r, 0, new Vector4(1.0f, 0.55f + 0.3f * r, 0.15f, 1), _spark, FxBlend.Additive, i % 4, 2, stretch: 3.5f);
+                        }
+                        if (h > 0.85f)
+                            mesh.PointLights.Add(new PointLight(at, new Vector3(1.4f, 0.75f, 0.3f) * MathF.Min(1, speed / 12), 9));
+                        if (puff && _dust.Count < 500 && h < 0.35f)
+                            _dust.Add((F(p) + new Vector3(0, 0.5f, 0), (float)time, 1.2f + speed * 0.08f));
+                    }
+        }
+        // The dust: billowing, rising a little, thinning over eight seconds.
+        _dust.RemoveAll(d => time - d.Born > 8);
+        foreach (var (at, born, size) in _dust)
+        {
+            float age = (float)(time - born), t = age / 8;
+            var p = new Double3(at.X, at.Y + age * 0.35f, at.Z).RelativeTo(eye);
+            mesh.Billboard(p, size + age * 1.9f, Hash(born) * 6.28f + age * 0.1f, new Vector4(0.42f, 0.38f, 0.33f, 0.5f * (1 - t) * MathF.Min(1, age * 4)), _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
+        }
+        // The engine's boiler gone: steam and smoke pouring up off it, for most of a minute.
+        if (wreck.Bodies.Count > 0 && frames.Count > 0 && since < 50)
+        {
+            var e = frames[wreck.Bodies[0].Vehicle];
+            var top = e.ToWorld(new Double3(0, wreck.Bodies[0].Height * 0.6, -wreck.Bodies[0].HalfLength * 0.4));
+            float strength = MathF.Max(0, 1 - since / 50);
+            for (int k = 0; k < 30; k++)
+            {
+                float life = 6, age = (float)((time * 5 + k) % (life * 5)) / 5;
+                float h = Hash(k * 13.1f);
+                var p = (top + new Double3((h - 0.5) * 1.5, age * (1.6 + h), (Hash(h * 7) - 0.5) * 1.5)).RelativeTo(eye);
+                var colour = k % 3 == 0 ? new Vector4(0.12f, 0.11f, 0.1f, 0.55f) : new Vector4(0.62f, 0.63f, 0.66f, 0.45f);
+                mesh.Billboard(p, 0.8f + age * 1.4f, h * 6.28f, colour with { W = colour.W * strength * (1 - age / life) }, k % 3 == 0 ? _smoke : _steam, FxBlend.Alpha, (int)(age / life * 15.99f), 4);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sparks off steel being chewed (the Car Hugger feeding on its car, App. A.3: "the teeth grinding"): spat out of the
+    /// mouth at <paramref name="at"/> in bursts, flying out and falling, around <paramref name="back"/> (the way out of it).
+    /// </summary>
+    public void Grind(MeshBuilder mesh, Vector3 at, Vector3 up, Vector3 back, double time, int seed)
+    {
+        var right = Vector3.Normalize(Vector3.Cross(up, back));
+        // In bursts, as the jaws close on the plate.
+        float burst = MathF.Max(0, MathF.Sin((float)time * 5.3f + seed)) * 0.7f + 0.3f;
+        for (int k = 0; k < 30; k++)
+        {
+            float h = Hash(k * 3.37f + seed * 0.71f);
+            float period = 0.35f + h * 0.3f;
+            float age = (float)((time + h * 2) % period);
+            float t = age / period;
+            var fly = back * (0.6f + h * 1.4f) + right * ((Hash(k + 0.5f) - 0.5f) * 5f) + up * (2.0f + Hash(k + 1.5f) * 2.4f);
+            var p = at + fly * age - up * (4.9f * age * age);
+            mesh.Billboard(p, 0.45f + 0.35f * h, 0.3f, new Vector4(1.6f, 0.95f, 0.35f, burst * (1 - t * t)), _spark, FxBlend.Additive, k % 4, 2, stretch: 3f);
+        }
+    }
+
+    /// <summary>
+    /// Soot falling in the cab (the checklist's Stoker glow: "the firebox glows the wrong colour; soot falls in the cab"):
+    /// black flakes coming down out of the roof over the footplate, turning as they fall, settling slowly. <paramref name="o"/>
+    /// is the cab floor's middle, <paramref name="half"/> its half extent across (x) and along (z), <paramref name="height"/>
+    /// the roof's height over the floor.
+    /// </summary>
+    public void SootFall(MeshBuilder mesh, Vector3 o, Vector3 right, Vector3 up, Vector3 back, Vector2 half, float height, double time, float amount)
+    {
+        // Flakes as tiny flat cards (geometry, not a puff of smoke: a flake's edge is hard), each tumbling as it comes down.
+        float e = mesh.Emissive;
+        for (int k = 0; k < 240; k++)
+        {
+            float h = Hash(k * 1.913f), g = Hash(k * 7.37f + 2), q = Hash(k * 3.11f + 5);
+            float period = 3.5f + h * 3f;
+            float age = (float)((time + h * 40) % period);
+            float t = age / period;
+            float sway = MathF.Sin(age * 2.3f + k) * 0.08f;
+            var p = o + right * ((g * 2 - 1) * half.X + sway) + back * ((q * 1.4f - 1) * half.Y) + up * (height * (1 - t));
+            float spin = age * (2.5f + h * 3);
+            var a = Vector3.Normalize(right * MathF.Cos(spin) + up * MathF.Sin(spin) * 0.6f + back * 0.3f);
+            var b = Vector3.Normalize(Vector3.Cross(a, up + right * 0.3f));
+            var c = Vector3.Normalize(Vector3.Cross(a, b));
+            float size = (0.018f + 0.02f * g) * amount;
+            // Some catch the fire's light along an edge.
+            mesh.Emissive = k % 6 == 0 ? 0.6f : 0;
+            mesh.Box(p, a, b, c, new Vector3(size, size * 0.7f, 0.001f), k % 6 == 0 ? new Vector3(0.05f, 0.11f, 0.05f) : new Vector3(0.006f, 0.005f, 0.005f));
+        }
+        mesh.Emissive = e;
+    }
+
     public void Rain(MeshBuilder mesh, Double3 eye, double time, float wind, Vector3 fogColour)
     {
         const float cell = 2.5f, height = 12, fall = 9;

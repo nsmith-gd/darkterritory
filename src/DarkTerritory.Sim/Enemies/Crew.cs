@@ -60,8 +60,8 @@ public static class CrewSense
         if (to.Length < 1e-6)
             return true;
         double yaw = PlayerMotor.WorldYaw(s, train);
-        var facing = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
-        return Double3.Dot(facing, to.Normalized) >= Math.Cos(degrees * Math.PI / 180);
+        var facing = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        return Double3.Dot(facing, to.Normalized) >= DMath.Cos(degrees * Math.PI / 180);
     }
 
     /// <summary>The middle of the coupling gap behind a vehicle, in that vehicle's frame.</summary>

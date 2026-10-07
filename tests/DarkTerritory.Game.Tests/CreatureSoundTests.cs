@@ -229,19 +229,51 @@ public class CreatureSoundTests
     [Fact]
     public void ABlowFromEmptyHandsIsALimpSlap()
     {
+        // A blow landing is the host's hit record (T121, note 171), heard once: the tool in the hitter's hand on flesh, or a
+        // slap from empty hands, whoever else is near.
         using var scene = new Scene(2, "crew-mishaps.bare-slap", "crew-melee.crowbar-hit-flesh");
         var at = scene.Train.Frames[2].ToWorld(new Double3(-4, 0, 0));
         var near = PlayerMotor.SpawnOnGround(at + new Double3(0.6, 0, 0), scene.Train.Line, 1200, Player);
-        Ribbit Toad(double health) => Record(new Ribbit(61, 0), SpinePhase.Dormant, 0, health, Enemy.Loose, at, extra: 1);
-        // Only bare hands in reach of it as it's hurt: the slap.
-        scene.Audio.CrewStates = [(1, near with { Kit = 0 })];
-        scene.Tick(Toad(3));
-        Assert.Contains("crew-mishaps.bare-slap", scene.Tick(Toad(2.9)));
-        // A crowbar in reach: it's the crowbar's, however close the empty hands are.
+        var toad = Record(new Ribbit(61, 0), SpinePhase.Dormant, 0, 3, Enemy.Loose, at, extra: 1);
         scene.Audio.CrewStates = [(1, near with { Kit = 0 }), (2, near with { Kit = Kit.Of([Tool.Crowbar]), HeldSlot = 0, Position = near.Position + new Double3(0.3, 0, 0) })];
-        var heard = scene.Tick(Toad(1.9));
+        scene.Tick(toad);
+        HitConfirm Blow(int id, int by) => new(id, scene.World.Tick, 61, EnemyKind.Ribbit, by, HitSource.Melee, at + Double3.Up * 0.8, Double3.Up, false);
+        scene.World.Hits.Add(Blow(1, by: 1));
+        Assert.Contains("crew-mishaps.bare-slap", scene.Tick(toad));
+        scene.World.Hits.Add(Blow(2, by: 2));
+        var heard = scene.Tick(toad);
         Assert.Contains("crew-melee.crowbar-hit-flesh", heard);
         Assert.DoesNotContain("crew-mishaps.bare-slap", heard);
+    }
+
+    [Fact]
+    public void AKilledCreatureCrumblesAsItsSeenToAndOneThatGoesOtherwiseDoesnt()
+    {
+        // Note 244: killed is the host's word (HitConfirm.Killed), and a creature that stands on something goes over and
+        // crumbles from halfway through Effects.DeathSeconds (note 208): the crumble's heard then, once.
+        using var scene = new Scene(2, "creature-crumble", "cs-ribbits.hit");
+        var at = scene.Train.Frames[2].ToWorld(new Double3(-4, 0, 0));
+        Ribbit Toad(int id) => Record(new Ribbit(id, 0), SpinePhase.Dormant, 0, 3, Enemy.Loose, at, extra: 1);
+        HitConfirm Blow(int id, int enemy, bool killed) =>
+            new(id, scene.World.Tick, enemy, EnemyKind.Ribbit, 1, HitSource.Melee, at + Double3.Up * 0.5, Double3.Up, killed);
+        scene.Tick(Toad(70), Toad(71));
+        // One's killed, and its record goes with the blow.
+        scene.World.Hits.Add(Blow(1, 70, killed: true));
+        var heard = scene.Tick(Toad(71));
+        Assert.Contains("cs-ribbits.hit", heard);
+        Assert.DoesNotContain("creature-crumble", heard);
+        var later = new List<string>();
+        for (int i = 0; i < (int)(DarkTerritory.Game.Art.Effects.DeathSeconds * 0.5 * SimConstants.TickRate) + 2; i++)
+            later.AddRange(scene.Tick(Toad(71)));
+        Assert.Single(later, h => h == "creature-crumble");
+        // The other's struck and goes, but not killed (it hopped off): no death, no crumble, whatever its health was.
+        scene.World.Hits.Add(Blow(2, 71, killed: false));
+        scene.Tick(Record(new Ribbit(71, 0), SpinePhase.Dormant, 0, 0.5, Enemy.Loose, at, extra: 1));
+        var after = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate * 2; i++)
+            after.AddRange(scene.Tick());
+        Assert.DoesNotContain("creature-crumble", after);
+        Assert.DoesNotContain("cs-ribbits.hit", after);
     }
 
     [Fact]

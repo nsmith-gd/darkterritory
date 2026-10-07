@@ -79,4 +79,49 @@ public class RollBackTests
         Assert.True(fastest < 3, $"it ran back at {fastest:0.0} m/s");
         Assert.True(start - train.Dynamics.Distance < 30, $"and {start - train.Dynamics.Distance:0} m back down the hill");
     }
+
+    [Fact]
+    public void BackingOntoCarsRollingAwayDownTheGradeTheDriverCatchesThemAndCouples()
+    {
+        // Note 188: the cut left on the main line at a stop on a grade, its brakes let off (the Passenger), rolls away down it.
+        // Backing out onto it, the driver braked for where it was, not for where it was going: it settled a couple of metres
+        // behind at the cars' own speed for 400 m, and never touched them. Closing on them over their speed, it couples.
+        var line = new LineDefinition("climb", [new TrackSegment(400), new TrackSegment(3000, 0, 2), new TrackSegment(400)]);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), new RailLine(line), 1500, Tuning.Boiler);
+        var world = new World(train);
+        train.Boiler.Pressure = 70;
+        Assert.True(train.Uncouple(train.Dynamics.Consist.Vehicles[3].Id));
+        var cut = train.Rakes.Single(r => r != train.Dynamics);
+        cut.Handbrake = false;
+        var d = PlayerMotor.SpawnInCab(train, P);
+        var c = new TrainControls { Reverser = 1, Brake = 1 };
+        double gap = T.Geometry.CouplingGap;
+        uint tick = 0;
+        void Step(PlayerIntent di)
+        {
+            if (CabControls.Clears(c, train, CabControls.ReleasesBrake(di, d, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, di, d, train);
+            world.BeginTick();
+            world.CrewAct(ref d, di, 1);
+            world.Step(c);
+            PlayerMotor.Step(ref d, di, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            tick++;
+        }
+        // Left standing on the brake while the cut gets going.
+        for (int t = 0; t < 30 * SimConstants.TickRate; t++)
+            Step(new PlayerIntent { Buttons = PlayerButtons.Brake });
+        Assert.True(cut.Velocity < -0.3, $"the cut rolls ({cut.Velocity:0.00} m/s)");
+        double from = cut.Distance;
+        for (int t = 0; t < 300 * SimConstants.TickRate && train.TrainRakes > 1; t++)
+        {
+            var left = train.Rakes.First(r => r != train.Dynamics);
+            double rolling = Math.Max(0, -left.Velocity), target = left.Distance + gap - 0.5;
+            bool close = train.Dynamics.RearDistance - target < 15;
+            Step(StopDriver.Toward(world, target, -1, close ? 0.8 + rolling : StopDriver.SetBackTop + rolling, rear: true, away: rolling));
+        }
+        Assert.Equal(1, train.TrainRakes);
+        Assert.False(world.Derailed);
+        Assert.True(from - train.Dynamics.RearDistance < 300, $"caught {from - train.Dynamics.RearDistance:0} m on");
+    }
 }

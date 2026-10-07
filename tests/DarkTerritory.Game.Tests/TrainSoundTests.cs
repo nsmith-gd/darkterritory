@@ -11,7 +11,7 @@ namespace DarkTerritory.Game.Tests;
 /// <summary>
 /// The train's cues (GameAudio.Train, tools/audio/cues.py "bed-*" and "state-*"): the bed's recordings in place of its
 /// synths where they're installed (and the synths where they aren't), the boiler's alarms on their edges, the slack running
-/// in and out, and a derailment heard as what its wreck does (Wreck), not one sound.
+/// in and out, and a derailment heard as what its wreck does (the physics, T117), not one sound.
 /// </summary>
 public class TrainSoundTests
 {
@@ -200,95 +200,63 @@ public class TrainSoundTests
     }
 
     static readonly string[] Derailing = ["state-derail.climb", "state-derail.collide", "state-derail.tear", "state-derail.tip", "state-derail.impact.ground",
-        "state-derail.settle", "bed-slack.run-in", "bed-slack.run-out", "state-rupture.burst"];
+        "state-derail.settle", "state-rupture.burst"];
+
+    /// <summary>A train derailed at <paramref name="speed"/>, its wreck heard to the end: every cue started, and the world.</summary>
+    static (List<SoundInstance> Heard, World World, GameAudio Audio) Derailed(double speed, int cars = 8)
+    {
+        var audio = new GameAudio(Content);
+        Stand(audio, Derailing);
+        Held(audio, "state-derail.rail-scrape", "state-derail.grind", "state-rupture.steam-out");
+        var world = Train(cars: cars, speed: speed);
+        Run(audio, world, 15, speed: speed);
+        world.Derail("a test");
+        var heard = new List<SoundInstance>();
+        for (int i = 0; i < 40 && world.Train.Wreck is { Settled: false }; i++)
+            heard.AddRange(Run(audio, world, SimConstants.TickRate));
+        heard.AddRange(Run(audio, world, SimConstants.TickRate));
+        return (heard, world, audio);
+    }
 
     [Fact]
     public void ADerailmentIsTheManySoundsOfItsWreckWhereTheyHappen()
     {
-        // GDD §23 and the director's note: not one sound, but each thing the wreck does where it does it. The sim stops the
-        // train dead; what each car was doing the tick before decides the rest.
-        var audio = new GameAudio(Content);
-        Stand(audio, Derailing);
-        Held(audio, "state-derail.rail-scrape", "state-derail.grind", "state-rupture.steam-out");
-        var world = Train(cars: 8, speed: 18);
-        Run(audio, world, 15, speed: 18);
-        var frames = world.Train.Frames.ToList();
-        world.Derail("a test");
-        var heard = Run(audio, world, SimConstants.TickRate * 12, speed: 0);
+        // GDD §23 and the director's note: not one sound, but each thing the wreck does where it does it, read off the
+        // derailment's physics (T117): cars off the rails, hitting the ground and each other, sliding, settling.
+        var (heard, world, audio) = Derailed(18);
+        var wreck = world.Train.Wreck!;
+        Assert.True(wreck.Settled);
         Assert.Contains(heard, v => v.Name == "state-derail.climb");
-        Assert.Contains(heard, v => v.Name == "state-derail.collide");
+        Assert.Contains(heard, v => v.Name is "state-derail.collide" or "state-derail.impact.ground");
         Assert.Contains(heard, v => v.Name == "state-derail.settle");
-        Assert.Contains(heard, v => v.Name == "state-derail.rail-scrape" || v.Name == "state-derail.grind");
+        Assert.Contains(heard, v => v.Name is "state-derail.rail-scrape" or "state-derail.grind");
         Assert.True(Playing(audio, "state-rupture.steam-out"));
-        // Each one at the train, where a car is.
+        // Each one where the wreck is (the cars move in it: within a car's length or so of one at rest).
         foreach (var v in heard.Where(v => v.Name.StartsWith("state-derail.")))
-            Assert.True(frames.Min(f => (f.Origin - v.Position).Length) < 15, $"{v.Name} at {v.Position}, away from every car");
-        // The wreck's played itself out: nothing still scraping or grinding, the hiss of the torn pipes going on.
-        Assert.True(audio.Derailment!.Done);
+            Assert.True(wreck.Bodies.Min(b => (b.Centre - v.Position).Length) < 40, $"{v.Name} at {v.Position}, away from every car");
+        // Played out: every car that moved has come to rest, nothing still scraping or grinding, the torn pipes hissing on.
+        Assert.All(audio.Derailment.Values, c => Assert.True(c.Rested || !c.Off));
         Assert.False(Playing(audio, "state-derail.rail-scrape"));
         Assert.False(Playing(audio, "state-derail.grind"));
-        // And the bed's quiet: no slack clunking down a train that's stopped dead.
+        // And the bed's quiet: no slack clunking down a train that's off the rails.
         Assert.DoesNotContain(heard, v => v.Name == "slack-clunk");
     }
 
     [Fact]
     public void AFasterDerailmentIsABiggerWreck()
     {
-        int Count(double speed, Wreck.Kind kind) => Pile(speed, curve: 0).Count(h => h.Kind == kind);
-        Assert.True(Count(20, Wreck.Kind.Collide) + Count(20, Wreck.Kind.Tear) > Count(4, Wreck.Kind.Collide) + Count(4, Wreck.Kind.Tear));
-        Assert.True(Count(20, Wreck.Kind.Climb) > Count(4, Wreck.Kind.Climb), "more cars come off at speed");
-        Assert.Equal(1, Count(1.5, Wreck.Kind.Climb));
+        static int Hits(List<SoundInstance> heard) => heard.Count(v => v.Name is "state-derail.collide" or "state-derail.impact.ground" or "state-derail.tear" or "state-derail.tip");
+        var (fast, _, _) = Derailed(22);
+        var (slow, _, _) = Derailed(4);
+        Assert.True(Hits(fast) > Hits(slow), $"{Hits(fast)} hits at 22 m/s, {Hits(slow)} at 4");
+        Assert.True(fast.Count(v => v.Name == "state-derail.climb") >= slow.Count(v => v.Name == "state-derail.climb"));
     }
 
     [Fact]
-    public void ACurveTakenTooFastThrowsTheCarsOver()
+    public void AWreckIsHeardTheSameEveryTimeFromTheSameStart()
     {
-        var thrown = Pile(18, curve: 1.3);
-        Assert.Contains(thrown, h => h.Kind == Wreck.Kind.Tip);
-        // Each car that goes over lands, after it starts to.
-        foreach (var tip in thrown.Where(h => h.Kind == Wreck.Kind.Tip))
-            Assert.Contains(thrown, h => h.Kind == Wreck.Kind.Impact && h.Car == tip.Car);
-        Assert.DoesNotContain(Pile(4, curve: 0), h => h.Kind == Wreck.Kind.Tip);
-    }
-
-    [Fact]
-    public void AWreckIsTheSameEveryTimeFromTheSameStart()
-    {
-        Assert.Equal(Pile(16, curve: 1.1), Pile(16, curve: 1.1));
-        Assert.NotEqual(Pile(16, curve: 1.1), Pile(16, curve: 1.1, seed: 2));
-    }
-
-    [Fact]
-    public void WhereTheTrackGoesTheCarsOnItFallAndLand()
-    {
-        var starts = Enumerable.Range(0, 6).Select(i => new Wreck.Start(i, i == 0 ? 90 : 40, i == 0 ? 20 : 14, 12, Drop: i is 2 or 3 ? 8 : 0)).ToList();
-        var wreck = new Wreck(starts, 2, 1.5, 1);
-        var heard = new List<(double At, Wreck.Happening What)>();
-        var step = new List<Wreck.Happening>();
-        for (int i = 0; i < SimConstants.TickRate * 15 && !wreck.Done; i++)
-        {
-            step.Clear();
-            wreck.Advance(SimConstants.TickSeconds, step);
-            heard.AddRange(step.Select(h => (wreck.Time, h)));
-        }
-        // Over the edge at once, and down 8 m in about 1.3 s.
-        foreach (int car in new[] { 2, 3 })
-        {
-            Assert.Contains(heard, h => h.What.Kind == Wreck.Kind.Climb && h.What.Car == car && h.At < 0.1);
-            Assert.Contains(heard, h => h.What.Kind == Wreck.Kind.Impact && h.What.Car == car && h.At > 1.1 && h.At < 1.5);
-        }
-        Assert.True(wreck.Done);
-    }
-
-    /// <summary>A loaded train of seven cars behind its engine derailing at a speed, on a curve of this severity (1: its limit).</summary>
-    static List<Wreck.Happening> Pile(double speed, double curve, ulong seed = 1)
-    {
-        var starts = Enumerable.Range(0, 8).Select(i => new Wreck.Start(i, i == 0 ? 90 : 40, i == 0 ? 20 : 14, speed, curve, i == 0 ? 0.75 : 1.25)).ToList();
-        var wreck = new Wreck(starts, 0, 1.5, seed);
-        var heard = new List<Wreck.Happening>();
-        for (int i = 0; i < SimConstants.TickRate * 20 && !wreck.Done; i++)
-            wreck.Advance(SimConstants.TickSeconds, heard);
-        Assert.True(wreck.Done);
-        return heard;
+        var a = Derailed(16).Heard.Select(v => v.Name).ToList();
+        var b = Derailed(16).Heard.Select(v => v.Name).ToList();
+        Assert.Equal(a, b);
     }
 }

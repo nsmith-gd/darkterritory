@@ -44,8 +44,8 @@ public sealed class EditionTests : IDisposable
         // GDD v1.1 §21's five (the Choir runs underneath), and the hazards and fire.
         Assert.Equal(["trackDoll", "carHugger", "whistler", "tippyToesie", "ribbits", "sleepers", "drift", "carFire"], roster);
         // The rest of enemies.json is the base game's, patched, not replaced.
-        Assert.Equal(DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Director.PaceSeconds,
-            DataFile.Load<EnemyTuning>(Path.Combine(demo, EnemyTuning.File)).Director.PaceSeconds);
+        Assert.Equal(DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Director.Pressure.Threshold,
+            DataFile.Load<EnemyTuning>(Path.Combine(demo, EnemyTuning.File)).Director.Pressure.Threshold);
         foreach (ulong seed in new ulong[] { 1, 3, 7 })
         {
             var route = Sim.LineGen.Routes.Generate(demo, RouteTier.Frontier, seed, 6);

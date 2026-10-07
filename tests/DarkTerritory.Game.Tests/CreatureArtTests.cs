@@ -29,15 +29,20 @@ public class CreatureArtTests
     {
         // Characters (GDD §27: 4-10k; the crew brief: at most 9k, aim for chunky 3-5k). SK_Human: at most 60 bones.
         // Its actions come from crew_clips.glb, merged on load (note 145).
-        ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "carry_walk", "drag", "door",
+        ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "carry_walk", "drag", "drag_fwd", "door",
             "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk"], ["dead", "swing", "fp_swing"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
+        // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
+        ["survivor_prisoner"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        ["survivor_wildlander"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
+        ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "board", "hit"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
@@ -50,11 +55,11 @@ public class CreatureArtTests
         // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
         ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
         // A character (App. A.5), SK_Human stretched: over two metres on its points, so it stoops indoors and ducks through doors.
-        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit"]),
+        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit", "recoil"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
-        ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run"], ["hit"]),
+        ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run", "carry"], ["hit"]),
         // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
-        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue"], ["hit"]),
+        ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue", "creep", "devour"], ["hit"]),
         // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
         ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
@@ -137,6 +142,60 @@ public class CreatureArtTests
         Assert.Contains(Get("crew").Materials, m => m.Name.EndsWith(".paint", StringComparison.Ordinal) && m.Texture == "crew_0");
         var colours = Enumerable.Range(0, 8).Select(Look.Tuning.CrewColour).ToList();
         Assert.Equal(8, colours.Distinct().Count());
+    }
+
+    /// <summary>
+    /// No crew clip puts an arm or a leg through the body, the coat, the head or the other limbs (Look Review notes: arms
+    /// through the chest, the hips and a knee, an arm through the head; note 256). Contact within the coat's slop
+    /// (Clearance.Touching) reads as touching; the two-handed swing's forearms meet on the haft, and a forearm rests on a
+    /// knee, a little deeper.
+    /// </summary>
+    [Fact]
+    public void TheCrewsLimbsStayOutOfTheirBodies()
+    {
+        var through = Clearance.Check(Art, "crew").Where(o => o.Depth > 0.1f).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    /// <summary>
+    /// The demo's creatures, from their own meshes (Clearance.Mesh: a capsule fitted to each bone's share of the skin):
+    /// no part of one goes through another in any clip deeper than reads as touching, beyond how they sit at rest (a
+    /// Car Hugger's folded arm through its mouth, a Track Doll's fingers through its head; note 262).
+    /// </summary>
+    [Theory]
+    [InlineData("ribbit")]
+    [InlineData("track_doll")]
+    [InlineData("car_hugger")]
+    [InlineData("whistler")]
+    [InlineData("tippy_toesie")]
+    [InlineData("choir")]
+    public void TheDemoCreaturesStayOutOfThemselves(string name)
+    {
+        var through = Clearance.Mesh(Get(name)).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    /// <summary>
+    /// At their full budgets the demo's creatures would put a headset's frame over tuning/perf.json's triangles (each is
+    /// drawn for two eyes and the shadows), so each has a distance copy, drawn past look.json's creatureLodMetres: two
+    /// fifths of it or so, on the same bones (note 262).
+    /// </summary>
+    [Theory]
+    [InlineData("ribbit")]
+    [InlineData("track_doll")]
+    [InlineData("car_hugger")]
+    [InlineData("whistler")]
+    [InlineData("tippy_toesie")]
+    [InlineData("choir")]
+    public void TheDemoCreaturesHaveADistanceCopy(string name)
+    {
+        var full = Get(name);
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 4, a * 6 / 10);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+        Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
     }
 
     [Theory]
@@ -234,10 +293,24 @@ public class CreatureArtTests
                 Assert.True(Art.Crewmate(mesh, Matrix4x4.Identity, pose, 3.3, variant));
                 Assert.InRange(mesh.Flattened().Length / 3, 2000, 9000);
             }
-        // Six sleepers from one call, and one child (GDD v1.1 A.6: a single voice calling).
-        mesh.Clear();
-        Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, SpinePhase.Dormant, 0, 0);
-        Assert.Equal(6 * Get("sleeper").Triangles(), mesh.Flattened().Length / 3);
+        // Track debris (GDD v1.1 §22, Art/DebrisKit): one heap across the line, which kind by the hazard's id, the same in
+        // every phase (it's inert: the v1.0 Sleepers' writhe is gone).
+        var debris = new HashSet<int>();
+        for (int id = 0; id < DebrisKit.Kinds; id++)
+        {
+            int Tris(SpinePhase phase)
+            {
+                mesh.Clear();
+                Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.Sleepers, phase, 0, 0, extra2: id);
+                // (The fallen pine is the root plate and WorldKit's spruce laid down: two pieces.)
+                Assert.Equal(id == 0 ? 2 : 1, mesh.Instances.Count);
+                return mesh.Flattened().Length / 3;
+            }
+            Assert.Equal(Tris(SpinePhase.Dormant), Tris(SpinePhase.Telegraph));
+            debris.Add(Tris(SpinePhase.Dormant));
+        }
+        Assert.Equal(DebrisKit.Kinds, debris.Count);
+        // And one child (GDD v1.1 A.6: a single voice calling).
         mesh.Clear();
         Art.Enemy(mesh, Matrix4x4.Identity, EnemyKind.SootChildren, SpinePhase.Dormant, 0, 0);
         // (One of its two variants, the real child or the Soot Child: most of the model, not its other eyes and hands.)
@@ -272,6 +345,200 @@ public class CreatureArtTests
         new GreyboxScene { Look = Look, Time = 0.37, Crew = [new Crewmate(3, feet, 0, true, up)] }.Build(mesh, train, feet + new Double3(3, 1.5, 0));
         var at = (feet + up).RelativeTo(feet + new Double3(3, 1.5, 0));
         Assert.InRange(mesh.Flattened().Min(v => Vector3.Distance(v.Position, at)), 0, 0.1f);
+    }
+
+    [Fact]
+    public void AKilledCreatureGoesOverThenIsGone()
+    {
+        // GreyboxScene.Deaths: out of the sim at once, but drawn going over and crumbling until Effects.DeathSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var living = Staging.Threats(train);
+        var dead = living.First(e => e.Kind == EnemyKind.Switchman);
+        living.Remove(dead);
+        var eye = dead.WorldPosition(train) + new Double3(3, 1.6, 2);
+        int Drawn(double age, bool kill)
+        {
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = living, Tick = Staging.StrikeTick + (long)Math.Round(age * Sim.SimConstants.TickRate) };
+            if (kill)
+                scene.Killed(dead, Staging.StrikeTick, new Vector3(1, 0, 0));
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("switchman", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.Equal(0, Drawn(0.6, kill: false));
+        Assert.True(Drawn(0.6, kill: true) > 0, "going over");
+        Assert.True(Drawn(Effects.DeathSeconds * 0.8, kill: true) > 0, "crumbling");
+        Assert.Equal(0, Drawn(Effects.DeathSeconds + 0.1, kill: true));
+    }
+
+    [Fact]
+    public void TheChoirDrivenOffIsSeenGoingUpAndAwayThenIsGone()
+    {
+        // GreyboxScene.Leaving: the sim dismisses the swarm the tick it's driven off (World: quiet held); the scene that saw
+        // its ghosts last frame draws them going, higher and higher, until CreatureArt.ChoirLeaveSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var ghosts = threats.Where(e => e.Kind == EnemyKind.Choir).ToList();
+        Assert.NotEmpty(ghosts);
+        var eye = ghosts[0].WorldPosition(train) + new Double3(6, -1, 4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Tick = Staging.StrikeTick };
+        float[] Heights(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("choir", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation.Y)];
+        }
+        var there = Heights(-1.0 / Sim.SimConstants.TickRate);
+        Assert.NotEmpty(there);
+        scene.Enemies = [.. threats.Except(ghosts)];
+        var going = Heights(0.1);
+        var gone = Heights(CreatureArt.ChoirLeaveSeconds * 0.8);
+        Assert.Equal(there.Length, going.Length);
+        Assert.Equal(there.Length, gone.Length);
+        Assert.True(gone.Max() > there.Max() + 4, $"going up: from {there.Max()} to {gone.Max()}");
+        // (Going from the frame that first missed them, 0.1 s in.)
+        Assert.Empty(Heights(0.1 + CreatureArt.ChoirLeaveSeconds + 0.1));
+    }
+
+    [Fact]
+    public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
+    {
+        // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
+        // front of the mouth on their own floor, facing into it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Hugger(Staging.Threats(train), "swallow");
+        var caught = Staging.Swallowed(train);
+        var eye = caught.Feet + new Double3(1, 1.5, -3);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [caught], Tick = Staging.StrikeTick };
+        scene.Build(new MeshBuilder(), train, eye);
+        Assert.True(Look.Art.Creatures!.Clutches.TryGetValue(caught.Id, out var mouth));
+        Assert.False(mouth.Hung);
+        var at = eye + new Double3(mouth.At.X, mouth.At.Y, mouth.At.Z);
+        // Where the scene stands them: in front of the mouth, along the way into it, not where the sim caught them.
+        var feet = (at - new Double3(mouth.Forward.X, 0, mouth.Forward.Z) * CreatureArt.SwallowReach) with { Y = caught.Feet.Y };
+        Assert.True((feet - caught.Feet).Length > 0.5, "moved from where they were caught");
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        var local = rear.ToLocal(feet);
+        Assert.InRange(local.X, -0.9, 0.1);
+        Assert.InRange(rear.Shape.HalfLength - local.Z, 0.2, 1.6);
+    }
+
+    [Fact]
+    public void TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles()
+    {
+        // App. A.5 "any friend hits or pulls it -> it flees": the sim hides it again at once (Dormant). Where it was, it's
+        // seen jerked back off them and held a beat (its recoil), not moving; then it scuttles off, and then it's gone.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        Vector3? Tippy(double ago)
+        {
+            var threats = Staging.Tippy(Staging.Threats(train), train, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"recoil:{ago}"));
+            var at = threats.OfType<TippyToesie>().First().WorldPosition(train);
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats };
+            var mesh = new MeshBuilder();
+            var eye = at + new Double3(2, 1.5, 3);
+            scene.Build(mesh, train, eye);
+            var drawn = mesh.Instances.Where(i => i.Asset.Name.Contains("tippy_toesie", StringComparison.OrdinalIgnoreCase)).ToList();
+            return drawn.Count == 0 ? null : drawn[0].Model.Translation;
+        }
+        var start = Tippy(0.02);
+        Assert.NotNull(start);
+        // Held where it was through its recoil...
+        Assert.True(Vector3.Distance(start!.Value, Tippy(0.3)!.Value) < 0.01f, "still, recoiling");
+        // ...then off, still seen past the old half second of scuttle...
+        Assert.True(Tippy(0.6) is { } going && Vector3.Distance(start.Value, going) > 0.2f, "scuttling off");
+        // ...and gone.
+        Assert.Null(Tippy(1.5));
+    }
+
+    [Fact]
+    public void TheCarHuggerCutLooseRidesItsCarOffNotBlinkingOut()
+    {
+        // GreyboxScene.Riding (App. A.3, "cut loose, it goes with its car into the dark"): the sim's done with it the tick its
+        // car's cut from the train; the scene keeps it clamped on that car as it falls behind. Gone off a car still in the
+        // train (killed, say), it isn't.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        int Huggers(bool cut)
+        {
+            var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+            var threats = Staging.Threats(train);
+            var hugger = threats.OfType<CarHugger>().First(h => h.Attached >= 0);
+            int car = hugger.Attached;
+            var eye = train.Frames[car].ToWorld(new Double3(-5.5, 1.7, train.Frames[car].Shape.HalfLength + 7.5));
+            var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Tick = Staging.StrikeTick };
+            scene.Build(new MeshBuilder(), train, eye);
+            if (cut)
+                Assert.True(train.Uncouple(train.VehicleAhead(car)));
+            hugger.Restore(SpinePhase.Gone, 0, hugger.Health, car, hugger.Local, 0, 0, 0, hugger.Extra, hugger.Extra2);
+            var mesh = new MeshBuilder();
+            scene.Tick = Staging.StrikeTick + Sim.SimConstants.TickRate;
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("car_hugger", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.True(Huggers(cut: true) > 0, "still on its car, cut loose");
+        Assert.Equal(0, Huggers(cut: false));
+    }
+
+    [Fact]
+    public void TheRibbitWithItsCatchFrozenCreepsInOnThemThenDevoursThem()
+    {
+        // App. A.6 GRAB: the tongues hold them and the leader hops in at a quarter speed, stopping 0.8 m short. Out in the
+        // pack's line it creeps; on them it devours (and its own tongue's in them, not drawn out to them).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var them = Staging.Lone(train).Feet;
+        float Leader(string mode)
+        {
+            var leader = Staging.Ribbits(Staging.Threats(train), mode, train).OfType<Ribbit>().MinBy(r => r.Id)!;
+            var off = (leader.Local - them) with { Y = 0 };
+            return (float)off.Length;
+        }
+        Assert.Equal("creep", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("tongue")));
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, Leader("devour")));
+        Assert.Equal("tongue", CreatureArt.RibbitClip(SpinePhase.Commit, Leader("devour")));
+        // Where the sim's hop stops is close enough to be on them.
+        Assert.Equal("devour", CreatureArt.RibbitClip(SpinePhase.Grab, 0.8f));
+    }
+
+    [Fact]
+    public void TheTrackDollFlickersOutWhereItWasNotWalkingOff()
+    {
+        // GreyboxScene.Vanishing: come at, the sim moves it to another car from one tick to the next; the scene that saw it
+        // last frame draws it where it was for a flicker (and its dust), then only where it is.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Threats(train);
+        var doll = threats.OfType<Sim.Enemies.TrackDoll>().First(d => d.Attached == 0);
+        threats.RemoveAll(e => e is Sim.Enemies.TrackDoll && e != doll);
+        var room = train.Frames[2].Shape.Interior!.Value;
+        doll.Restore(SpinePhase.Punish, 3, 1, 2, room.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        var eye = doll.WorldPosition(train) + new Double3(0.5, 1.4, -4);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats };
+        int Dolls(double at)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(at * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("track_doll", StringComparison.OrdinalIgnoreCase));
+        }
+        int one = Dolls(0);
+        Assert.True(one > 0);
+        // Come at: it's in car 3 now.
+        doll.Restore(SpinePhase.Punish, 3, 1, 3, train.Frames[3].Shape.Interior!.Value.Centre with { Y = room.Min.Y }, 0, 0, 0, 0, 0);
+        Assert.Equal(2 * one, Dolls(1.0 / Sim.SimConstants.TickRate));
+        Assert.Equal(one, Dolls(0.5));
+        Assert.Equal(one, Dolls(Effects.VanishSeconds + 0.2));
     }
 
     [Fact]
@@ -441,6 +708,7 @@ public class CreatureArtTests
         "clinger" => (new Vector3(0, 1.3f, 0), 1.7f),
         "sleeper" => (Vector3.Zero, 3.0f),
         "soot_child" => (Vector3.Zero, 0.9f),
+        "sheep" => (Vector3.Zero, 0.9f),
         "cinder_hound" => (Vector3.Zero, 1.2f),
         "hollow" => (Vector3.Zero, 2.2f),
         "dragger" => (new Vector3(0.2f, 0.1f, 0), 1.4f),

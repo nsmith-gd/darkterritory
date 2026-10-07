@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Pure C# mixer and synthesis: no devices, so it renders offline in tests and the harness (ARCHITECTURE §6.4).
-       Concentus (managed Opus, as Ballast.Voice uses) decodes the recorded takes in content/audio/samples. -->
+       Concentus (managed Opus, as Ballast.Voice uses) decodes the recorded takes in content/audio/samples and the music's recordings (note 194). -->
   <PropertyGroup>
     <RootNamespace>Ballast.Audio</RootNamespace>
   </PropertyGroup>

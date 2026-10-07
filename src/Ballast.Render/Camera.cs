@@ -67,6 +67,13 @@ public struct Camera
 }
 
 /// <summary>
+/// How a headset's two eyes are drawn (ARCHITECTURE §8 note 221): <see cref="Multiview"/> both in one pass, into a
+/// two-layer target, where the device has the feature (<see cref="GpuContext.Multiview"/>); <see cref="PerEye"/> each
+/// with its own renderer, the second sampling the first's shadow maps (the fallback, and how it was before).
+/// </summary>
+public enum StereoPath : byte { Multiview, PerEye }
+
+/// <summary>
 /// An asymmetric frustum as OpenXR gives it: the angles (radians) of each edge from straight ahead,
 /// left and down negative. A headset eye's view is off-centre towards the nose.
 /// </summary>
@@ -100,6 +107,14 @@ public struct FrameLighting
     public float LampIntensity;
     /// <summary>How wet everything is, 0..1: rain darkens surfaces and puts a sheen on what faces the sky.</summary>
     public float Wetness;
+    /// <summary>How hard the frost is, 0..1: a pale rime on what's outdoors, heaviest on what faces the sky.</summary>
+    public float Frost;
+    /// <summary>How far the dawn's up (0..1), and the glow it puts low on the sky on the sun's side.</summary>
+    public float Dawn;
+    public Vector3 DawnGlow;
+    /// <summary>The wind (m/s, world axes): the foliage's cards and boughs bend with it (<see cref="Gusts"/> how unevenly).</summary>
+    public Vector3 Wind;
+    public float Gusts;
     /// <summary>Seconds, for what drifts (clouds, grain). Screenshots keep it fixed so they're repeatable.</summary>
     public double Time;
 

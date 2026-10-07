@@ -12,11 +12,32 @@ public sealed record Settings
     public static string DefaultPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DarkTerritory", "settings.json");
 
     public bool Mute { get; init; }
+    /// <summary>Everything you hear, 0..1 (the audio checklist's mix-settings).</summary>
+    public double MasterVolume { get; init; } = 1;
+    /// <summary>The game's sounds: the train, the world, the tells, your own hands (the mixer's tiers 1 and 3-6).</summary>
+    public double EffectsVolume { get; init; } = 1;
+    /// <summary>The music: the work's drone and the derailment's opera.</summary>
+    public double MusicVolume { get; init; } = 1;
+    /// <summary>The crew's voices: near, on the radio, on the dead channel, and the yard's.</summary>
+    public double VoiceVolume { get; init; } = 1;
+    /// <summary>The microphone you talk into, by its name; empty, the system's default.</summary>
+    public string MicDevice { get; init; } = "";
+    /// <summary>A gain on the microphone before anything hears it (the voice activity too): 1 as it comes, up to 3.</summary>
+    public double MicLevel { get; init; } = 1;
     /// <summary>Hold V to talk, rather than an open mic that opens on your voice.</summary>
     public bool PushToTalk { get; init; }
     public bool Hud { get; init; } = true;
     public VrTurn VrTurn { get; init; } = VrTurn.Snap;
     public bool VrVignette { get; init; } = true;
+    /// <summary>The name the crew and the incident report know you by (GDD v1.4 App. D.12); empty, your online or system name.</summary>
+    public string PlayerName { get; init; } = "";
+    /// <summary>
+    /// Hosting, listed for anyone to find (the LAN beacon, a public Steam lobby) or private (friends, invites and the address
+    /// only); the host screen's VISIBILITY, remembered (the user's playtest: "If it's a private lobby its not listed").
+    /// </summary>
+    public bool PublicLobby { get; init; } = true;
+    /// <summary>What the host calls the lobby in the browser; empty, "&lt;name&gt;'S RUN".</summary>
+    public string LobbyName { get; init; } = "";
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
     /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
@@ -110,11 +131,18 @@ public sealed record Settings
 
     /// <summary>Settings are the same when every choice is, the keys by what's in them (a record compares a dictionary by reference).</summary>
     public bool Equals(Settings? other) => other is not null && Mute == other.Mute && PushToTalk == other.PushToTalk && Hud == other.Hud
+        && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
+        && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
+        && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
-    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count, HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale));
+    public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
+        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel)));
+
+    /// <summary>The volumes as the mixer takes them.</summary>
+    public Ballast.Audio.MixVolumes Volumes => new((float)MasterVolume, (float)EffectsVolume, (float)VoiceVolume, (float)MusicVolume);
 
     /// <summary>The comfort defaults from content, with the player's choices over them.</summary>
     public VrTuning Apply(VrTuning t) => t with { Turn = VrTurn, Vignette = t.Vignette with { Enabled = VrVignette } };

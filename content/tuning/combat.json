@@ -3,7 +3,16 @@
   "guns": {
     // The fastest it fires when loaded; in practice each shot waits on the reload below.
     "roundsPerSecond": 1,
-    "range": 80,
+    // Spec B.7. T121 playtest ("I shot the track doll and it did nothing while she was on the track"): 220, not 80. The
+    // forward gun sits behind the engine's stack, which masks the rail closer than about 60 m, and the doll shows in the
+    // lamp at 200 m; at 80 the shot that saves you had a second or two's window. Now it's from first sight to the stack.
+    "range": 220,
+    // GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): a shot fouls the bore one time in 25 (×2.5 on wet
+    // rail), and clearSeconds of Use held at the gun clears it. GDD §22 wind: a round's loudness ×(1 + windLoudness × wind).
+    "foulChance": 0.04,
+    "foulWetFactor": 2.5,
+    "clearSeconds": 4,
+    "windLoudness": 0.6,
     // Total traverse either side of the gun's facing is half of this.
     "traverseDegrees": 200,
     // Spec B.7: no firing within this many degrees of the train's own body axis.
@@ -23,14 +32,31 @@
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
     "reloadStepSeconds": 1.5,
-    // GDD §23's failure table, "Cannon fouls: someone clears it by hand, under fire" (spec B.7): a pull of the trigger on a
-    // loaded gun misfires this often (a dead click; no round goes, the charge stays in) and the gun's fouled until someone
-    // at it holds Use this long. Rare by design, a cascade and not a chore: about one gun in two fouls once if it fires all
-    // its shot in a night (1 - 0.97^24 = 52%), and a night's usual dozen shots or so foul one time in three. The roll is
-    // a hash of the night's seed, the gun's car, its shot left and its fouls so far (Guns.Misfires): the host and a
-    // predicting client pull the same trigger the same way.
-    "foulChance": 0.03,
-    "foulClearSeconds": 6
+    // T112 playtest ("a gun seat with its own controls"): Use at a loaded gun sits you in its seat, this far behind the
+    // pivot; seated, the mouse lays it and the gun follows at these rates (a heavy carriage on a turntable), the left
+    // button fires where the barrel points, Use held loads it, Jump gets up. Only a seated gunner fires it.
+    "seatBehind": 0.75,
+    "traverseDegreesPerSecond": 70,
+    "elevateDegreesPerSecond": 35,
+    // Bots fire once the barrel's within this of the mark.
+    "laidDegrees": 2.5,
+    // T121 playtest ("every cannonball should have an impact explosion and VFX to show where impact was"): a ball's path is
+    // searched in steps this long for the ground, water or a stop building's wall it comes down on before what it was
+    // aimed at; one that hits nothing comes down where its range runs out.
+    "impactStep": 0.5
+  },
+  // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
+  // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the
+  // boom, and the one who landed it gets the crosshair's marker, through a dropped snapshot or two. The impact's is as
+  // long as its smoke hangs.
+  // GDD App. B.9 (note 182): "firing a cannon near chemical cars is lethal to the crew". A shot from a gun on a loaded
+  // chemicals car, or on a car within `cars` couplings of one, sets the fumes off: the gunner and everyone within gasM of that
+  // car (its nearest side) take damage (150: dead). Not in the GDD's numbers: "near" is the next car, so the guard van's gun
+  // with chemicals ahead of it is lethal and the engine's, with them three cars back, isn't.
+  "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
+  "hits": {
+    "keepSeconds": 1,
+    "impactKeepSeconds": 8
   },
   "choir": {
     // App. C.7: the meter is the crew's combined loudness "measured over a few seconds so single shouts don't count": an
@@ -46,11 +72,18 @@
     // Held above this, it gathers: buildSeconds of loudness and the swarm comes (App. A.7's long rising telegraph). Quiet,
     // what's gathered drains at quietDecayPerSecond. DESIGN-TODO: the GDD gives no numbers for the meter; these are a
     // first pass that three players talking normally doesn't trip and three shouting (or cannon fire every few seconds) does.
+    // T113 playtest ("they show up WAY TOO OFTEN"): 40 s held loud to gather (was 25), and driven off by quiet it rests
+    // restSeconds before it can begin again. (Alone, an open mic no longer counts: it was the train through the speakers.)
     "threshold": 0.6,
-    "buildSeconds": 25,
+    "buildSeconds": 40,
+    "restSeconds": 300,
     "quietDecayPerSecond": 0.06,
     "maxLoudness": 3,
     // App. B.9: livestock aboard is never quiet: a floor under the meter.
-    "livestockFloor": 0.3
+    "livestockFloor": 0.3,
+    // GDD v1.4 App. C item 4, C.7: a noisy toy carried feeds the meter in the carrier's name, this much each (a normal
+    // voice is about 0.22). Alone none of them trips the threshold; a squeaker carried by someone shouting does, and they're
+    // the one the Choir comes for (A.7 loudest first). DESIGN-TODO: first pass, no GDD numbers.
+    "toys": { "squeaker": 0.2, "musicBox": 0.15, "drummer": 0.3 }
   }
 }

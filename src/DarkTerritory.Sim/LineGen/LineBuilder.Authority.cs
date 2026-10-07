@@ -161,9 +161,10 @@ sealed partial class LineBuilder
                 }
             }
         }
-        // Sleeper country (§15.2): zones on the main line where Sleepers would lie, ×1 / ×2 / ×3.5 by tier.
+        // Sleeper country (§15.2): zones on the main line where Sleepers would lie, ×1 / ×2 / ×3.5 by tier. None with the
+        // Sleepers off (note 265, the director's decision of 2026-10-06): their R boards would be a speed trap for nothing.
         double km = (_terminus - _gate) / 1000;
-        int zones = rng.Round(a.RestrictedPerKm * _l.SleeperDensity * km);
+        int zones = _c.Enemies.Sleepers.Enabled ? rng.Round(a.RestrictedPerKm * _l.SleeperDensity * km) : 0;
         var main = Main;
         var blocked = new List<(double, double)> { (0, _gate + _t.Budget.GraceM), (_terminus - _t.Terminus.SpawnBanM - 800, _end) };
         foreach (var f in _facilities)
@@ -286,7 +287,7 @@ sealed partial class LineBuilder
         for (double x = Math.Max(0, s - guess); x <= s; x += 20, k++)
             g += line.Sample(x).GradePercent;
         g = k > 0 ? g / k : 0;
-        double down = g < 0 ? _c.Train.Gravity * Math.Sin(Math.Atan(-g / 100)) : 0;
+        double down = g < 0 ? _c.Train.Gravity * DMath.Sin(DMath.Atan(-g / 100)) : 0;
         double net = brake - down;
         if (net <= 0.02)
             return double.PositiveInfinity;

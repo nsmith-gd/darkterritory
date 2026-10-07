@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Physics;
@@ -51,7 +52,7 @@ public sealed partial class GameAudio
         public EnemyKind Kind;
         public SpinePhase Phase;
         public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance;
-        public int Attached, Holding, Space;
+        public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
         // moved and was last hit, and whether its car's breaking away has been heard.
@@ -117,7 +118,7 @@ public sealed partial class GameAudio
             else
             {
                 // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going.
-                _creatures[e.Id] = was = new Creature { CutAway = e.Attached >= 0 && Cut(train, e.Attached) };
+                _creatures[e.Id] = was = new Creature { Id = e.Id, CutAway = e.Attached >= 0 && Cut(train, e.Attached) };
             }
             was.Take(e, at, space);
         }
@@ -520,6 +521,10 @@ public sealed partial class GameAudio
         var train = world.Train;
         float occ = Occlusion(c.Space);
         bool killed = Killed(world, c);
+        // Killed, it goes over and crumbles to ash from halfway (note 208's GreyboxScene.Deaths, Effects.DeathSeconds): the
+        // crumble's heard as it's seen, the kill confirmed whatever it was (note 244).
+        if (killed && GreyboxScene.Falls(c.Kind))
+            CueLater(Effects.DeathSeconds * 0.5, "creature-crumble", c.At, occ);
         switch (c.Kind)
         {
             case EnemyKind.TrackDoll when c.Phase == SpinePhase.Punish:
@@ -591,11 +596,23 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// Killed: the last record's Health was within one blow (a tool's, or a round's just after a gun fired), and something
-    /// could have dealt it: a gun just fired, or a crewmate in reach (or no crew records to say otherwise).
+    /// Killed: the host's word, where it's given (T121's HitConfirm.Killed: a blow, a round or a blast that killed it, on the
+    /// wire with the record it ends; note 244). With no hit on it at all to go by: the last record's Health was within one
+    /// blow (a tool's, or a round's just after a gun fired), and something could have dealt it: a gun just fired, or a
+    /// crewmate in reach (or no crew records to say otherwise).
     /// </summary>
     bool Killed(World world, Creature c)
     {
+        bool hit = false;
+        foreach (var h in world.Hits)
+            if (h.EnemyId == c.Id)
+            {
+                if (h.Killed)
+                    return true;
+                hit = true;
+            }
+        if (hit)
+            return false;
         var melee = world.Enemies?.Melee ?? new MeleeTuning();
         bool shot = _time - _lastShot <= ShotKills;
         double blow = Math.Max(melee.Damage, shot ? world.Combat?.Guns.DamagePerRound ?? 4 : 0);

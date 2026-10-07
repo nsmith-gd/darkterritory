@@ -41,11 +41,18 @@ public sealed class Dragger(int id) : Enemy(id)
         };
     }
 
-    /// <summary>A player on its car's roof, on its side, within grab range of the edge (farther at speed), and near it along the car.</summary>
+    /// <summary>
+    /// A player on its car's roof, on its side, within grab range of the edge (farther at speed; nearer with the roof
+    /// handrails, spec F.3 "Dragger resistance", note 184), and near it along the car.
+    /// </summary>
     public bool Reaches(in PlayerState s, TrainOnLine train, DraggerTuning t) =>
         s.Alive && s.Surface == Surface.Roof && s.Parent == Attached && Math.Sign(s.Position.X + 1e-9) == Side
-        && train.Frames[Attached].Shape.HalfWidth - Math.Abs(s.Position.X) <= t.GrabAt(train.Dynamics.Speed)
+        && train.Frames[Attached].Shape.HalfWidth - Math.Abs(s.Position.X) <= t.GrabAt(train.Dynamics.Speed) * Rails(train, r => r.DraggerGrab)
         && Math.Abs(s.Position.Z - Local.Z) <= t.ReachAlong;
+
+    /// <summary>What the roof handrails do to it, if the train has them (train.json <c>composition</c>): 1 without.</summary>
+    static double Rails(TrainOnLine train, Func<HandrailTuning, double> of) =>
+        train.Dynamics.Tuning.Composition is { Handrails: true } c ? of(c.Rails) : 1;
 
     protected override void Tick(EnemyContext ctx)
     {
@@ -92,8 +99,9 @@ public sealed class Dragger(int id) : Enemy(id)
                         return;
                     }
                     Creep(mark.State.Position.Z, t, shape);
+                    // A hand on the handrail holds on longer: friends have longer to haul them back (note 184).
                     if (PhaseSeconds >= t.TelegraphSeconds && Enter(ctx, SpinePhase.Commit))
-                        Grab(ctx, reaching, t.HangSeconds);
+                        Grab(ctx, reaching, t.HangSeconds * Rails(train, r => r.DraggerHang));
                     return;
                 }
             case SpinePhase.Grab:
@@ -458,6 +466,8 @@ public sealed class Climber(int id) : Enemy(id)
                 v.Breach(roof);
             Local = room.Centre with { Y = room.Min.Y };
             Extra = -1; // inside: the interior threat
+            // GDD §23 "lights fail" (note 183): in the dark is how it likes it; the lamp goes out as it comes in.
+            train.Vehicles[car].LampLit = false;
             return;
         }
         if (z > -shape.HalfLength + 0.3)
@@ -479,6 +489,8 @@ public sealed class Climber(int id) : Enemy(id)
             Attached = 0;
             Local = train.Frames[0].Shape.Cab!.Value.Centre;
             Extra = -1;
+            // Coming over the tender into the cab, it smashes the forward lamp for a while (§23 "lights fail", note 183).
+            ctx.World.SmashLamp(t.LampOutSeconds);
             return;
         }
         var next = train.Frames[ahead].Shape;

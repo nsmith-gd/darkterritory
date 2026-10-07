@@ -27,19 +27,20 @@ public sealed class Sleepers(int id) : Enemy(id)
         if (!ctx.Train.Line.OnMain(engine.Path, LineDistance))
             return;
         double ahead = LineDistance - engine.Distance;
-        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= t.BraceDistance) && ahead > 0)
+        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= BraceAt(t, engine)) && ahead > 0)
             Enter(ctx, SpinePhase.Telegraph);
         if (ahead > 0.5)
             return;
 
-        // The engine is on them. Speed decides.
+        // The engine is on them. Speed decides, and only after a telegraph long enough to have braked for them (note 265).
         double speed = engine.Speed;
+        bool warned = Phase == SpinePhase.Telegraph && PhaseSeconds + 1e-9 >= t.DerailLeadSeconds;
         bool fair = Enter(ctx, SpinePhase.Commit);
         var front = ctx.Train.Vehicles[engine.Consist.Vehicles[0].Id];
-        if (fair && speed > t.DerailAbove)
+        if (fair && warned && speed > t.DerailAbove)
         {
+            ctx.World.Overspeed($"ran onto the Sleepers at {speed * 3.6:0} km/h, {(speed - t.DerailAbove) * 3.6:0} km/h over the {t.DerailAbove * 3.6:0} km/h they'll take");
             Enter(ctx, SpinePhase.Punish);
-            ctx.World.Derail($"onto the Sleepers at {speed:0.0} m/s");
         }
         else if (fair && speed > t.HeavyDamageAbove)
         {
@@ -52,6 +53,20 @@ public sealed class Sleepers(int id) : Enemy(id)
         }
         Enter(ctx, SpinePhase.Gone);
     }
+
+    /// <summary>
+    /// How far out they brace for a train coming at its speed now (note 265): never closer than braceDistance, and as far as
+    /// braceLeadSeconds at that speed and a service stop to under derailAbove need (train.json overspeed's reckoning).
+    /// </summary>
+    public static double BraceAt(SleeperTuning t, TrainDynamics engine) =>
+        Math.Max(t.BraceDistance, engine.Tuning.Overspeed.WarnDistance(engine.Speed, t.DerailAbove - 0.5, engine.RatedBrakeDecel, t.BraceLeadSeconds));
+
+    /// <summary>
+    /// C.9's track debris row (note 190): hit hard enough to hurt, the throttle and the speed. Hit hard enough to derail, the
+    /// derailment's record says it.
+    /// </summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) =>
+        ctx.World.Derailed ? null : Run.IncidentLog.Struck(ctx.World, "Ran onto the Sleepers");
 }
 
 /// <summary>
@@ -73,6 +88,8 @@ public sealed class Drift(int id) : Enemy(id)
     public override Sense Sense => Sense.Movement;
 
     public double Radius => Extra;
+    /// <summary>On a player it isn't holding (its CONSUME): their death, if it comes to it, writes the record.</summary>
+    protected override Run.Incident? Punished(EnemyContext ctx) => null;
     /// <summary>Who it's surging at or on, or 0.</summary>
     public int Target => (int)Math.Round(Extra2);
 

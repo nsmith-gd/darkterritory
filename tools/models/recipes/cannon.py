@@ -160,12 +160,10 @@ def carriage(m):
 
 def ball_part(m, at, r=BORE * 0.96, low=True):
     """A round of shot: an iron sphere (and its game-mesh twin, coarser)."""
-    import bpy
     for segs, rings, keep in ((10, 6, low), (20, 12, True)):
         if not keep:
             continue
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=segs, ring_count=rings, radius=r, location=tuple(at))
-        o = bpy.context.view_layer.objects.active
+        o = cook.uv_sphere(segs, rings, r, Matrix.Translation(Vector(at)))
         o.data.materials.append(m["cast"])
         if segs == 10:
             o.name = "ball_low"

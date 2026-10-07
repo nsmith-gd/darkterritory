@@ -1,6 +1,7 @@
 using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 
@@ -32,8 +33,8 @@ public sealed partial class GameAudio
     /// <summary>Staging (the benches): hear everything as if in this space; null works it out from where the listener is.</summary>
     public string? SpaceOverride { get; set; }
 
-    /// <summary>The music's voice while it plays.</summary>
-    public SoundInstance? Music => _music;
+    /// <summary>The work's drone (ui-music, tier 7) while it plays.</summary>
+    public SoundInstance? Drone => _music;
 
     /// <summary>
     /// At startup: every space's response synthesised now rather than as the listener first walks into it, and the music's
@@ -54,7 +55,7 @@ public sealed partial class GameAudio
                 Mixer.Prepare(reverb);
     }
 
-    /// <summary>Each tick: the listener's space into the mixer, and the music on while a night's under way.</summary>
+    /// <summary>Each tick: the listener's space into the mixer, and the drone on while the work's under way.</summary>
     void MixAround(World world, Listener listener)
     {
         if (_spaces!.Refresh())
@@ -62,9 +63,10 @@ public sealed partial class GameAudio
         Space = SpaceOverride ?? SpaceOf(world, listener.Position, ref _spaceHint);
         Mixer.Space = _spaces.Value.Spaces.GetValueOrDefault(Space);
 
-        // From the moment a run leaves the yard to the end of the night, flat (its definition is: install.py writes ui-
-        // sounds flat), on tier 7 under everything. Not installed, nothing plays.
-        if (world.Run is { Phase: not RunPhase.Yard } && HasCue(MusicCue))
+        // While the work's under way: from the moment a run leaves the yard until the night's over or the train's off the
+        // rails (then it's the opera's, GDD v1.4 App. E.1, or E.9's silence), flat (install.py writes ui- sounds flat), on
+        // tier 7 under everything. Not installed, nothing plays.
+        if (world.Run is { Phase: not RunPhase.Yard, Over: false } && !world.Derailed && HasCue(MusicCue))
         {
             if (_music is null || _music.Finished)
                 _music = Mixer.Play(MusicCue);
@@ -106,6 +108,9 @@ public sealed partial class GameAudio
             double off = Math.Sqrt((on.X - ear.X) * (on.X - ear.X) + (on.Z - ear.Z) * (on.Z - ear.Z));
             if (off <= TunnelReach && route.InTunnel(along))
                 return "tunnel";
+            // Down the mine spur (note 250): the adit closing in, the outside gone.
+            if (world.Run is { } run && run.Underground(new PlayerState { Parent = PlayerState.World, Position = ear, LineHint = hint }, train))
+                return "mine";
             if (!cab && off <= FacilityReach && route.Features.Any(f => f.Kind == FeatureKind.Facility && f.Contains(along)))
                 return "facility";
         }

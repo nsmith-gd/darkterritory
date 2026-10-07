@@ -17,15 +17,15 @@ sealed partial class LineBuilder
         if (s <= _gate)
             return 0;
         double u = s - _gate;
-        double h = _guideA * (0.65 * Math.Sin(2 * Math.PI * u / _guideL1 + _guideP1) + 0.35 * Math.Sin(2 * Math.PI * u / _guideL2 + _guideP2))
-            - _guideA * (0.65 * Math.Sin(_guideP1) + 0.35 * Math.Sin(_guideP2));
+        double h = _guideA * (0.65 * DMath.Sin(2 * Math.PI * u / _guideL1 + _guideP1) + 0.35 * DMath.Sin(2 * Math.PI * u / _guideL2 + _guideP2))
+            - _guideA * (0.65 * DMath.Sin(_guideP1) + 0.35 * DMath.Sin(_guideP2));
         // Eased in over the threshold: the line leaves the gate on the fortress's bearing.
         h *= Math.Clamp(u / _t.Budget.GraceM, 0, 1);
         foreach (var w in _alts)
             if (w.MainBow != 0 && s > w.T && s < w.J)
             {
                 double f = (s - w.T) / (w.J - w.T);
-                h += w.MainBow * BowFor(w) * Math.Sin(2 * Math.PI * f);
+                h += w.MainBow * BowFor(w) * DMath.Sin(2 * Math.PI * f);
             }
         double band = _t.Alignment.BandDeg * Math.PI / 180 * 0.8;
         return Math.Clamp(h, -band, band);
@@ -58,7 +58,7 @@ sealed partial class LineBuilder
         for (int i = 0; i <= n; i++)
         {
             double t = Math.PI * i / n, w = i == 0 || i == n ? 1 : i % 2 == 1 ? 4 : 2;
-            sum += w * Math.Cos(x * Math.Sin(t));
+            sum += w * DMath.Cos(x * DMath.Sin(t));
         }
         return sum * (Math.PI / n / 3) / Math.PI;
     }

@@ -47,6 +47,9 @@ def main():
         composed = f'$"{line}.{{' in code
         hooked = [c for c in live if tell or f'"{line}.{c["id"]}' in code
                   or composed and "-" in c["id"] and f'}}-{c["id"].split("-", 1)[1]}"' in code
+                  # or by tool and then by what it hit, $"crew-melee.{ToolName(held)}-hit-{(wood ? "wood" : "metal")}"
+                  or composed and c["id"].count("-") >= 2
+                  and f'}}-{c["id"].split("-")[1]}-{{' in code and f'"{c["id"].split("-", 2)[2]}"' in code
                   # or by a kind after a fixed head, $"crew-mishaps.startle-{kind}"
                   or "-" in c["id"] and f'{line}.{c["id"].rsplit("-", 1)[0]}-{{' in code
                   or (f'"{line}' in code and re.search(r'["\.]' + re.escape(c["id"]) + r'["\.]', code))]

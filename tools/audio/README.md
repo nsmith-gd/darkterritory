@@ -47,7 +47,12 @@ DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
 - `levels.py` where each line stands in the game: installed and hooked (L1), cue by cue. A cue whose `need` starts
   "Not in the game yet" waits on an action the sim doesn't have, and doesn't count.
 - Voices are stand-ins from Piper's LibriTTS model (CC BY 4.0, credit "LibriTTS, Zen et al. 2019") in out/audio/tts:
-  the prisoners (`recipes/voices.py`) and the Soot Children's call, made a child's size (`recipes/children.py`).
+  the prisoners (`recipes/voices.py`) and the Soot Children's call, made a child's size (`recipes/children.py`). Get it
+  with `pip install piper-tts` and the model from Piper's own release (Hugging Face is blocked from cloud sessions):
+  `curl -L https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-libritts-high.tar.gz | tar xz -C out/audio/tts`.
+- `clerk.py` the yard's voice on the radio (note 240): the clerk's vocabulary, a take per phrase and word, into
+  `content/audio/samples/voice-clerk/bank` (with `bank.json`), which the game strings into lines. Not a checklist pick:
+  `--speaker N` rebuilds it in the voice the director keeps; `--previews DIR` reads a sample in each candidate's voice.
 
 ## Sources and licences
 

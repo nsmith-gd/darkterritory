@@ -114,7 +114,7 @@ sealed partial class LineBuilder
                 var line = LineOf(e);
                 var p = line.Sample(mid);
                 _pads.Add(new PlanPad($"town{_pads.Count}", R(p.Position.X), R(p.Position.Z), R(p.Position.Y), town ? 40 : 18, (item.Length) / 2,
-                    Math.Round(Math.Atan2(-p.Tangent.X, -p.Tangent.Z) * 180 / Math.PI, 3)));
+                    Math.Round(DMath.Atan2(-p.Tangent.X, -p.Tangent.Z) * 180 / Math.PI, 3)));
             }
 
         // Tunnels and bridges (§13.3): "Tunnel 2 — Blackwell", "Harrow Trestle".
@@ -142,7 +142,7 @@ sealed partial class LineBuilder
         var a = _line!.Sample(s0);
         var b = _line.Sample(s1);
         var mid = _line.Sample((s0 + s1) / 2);
-        double heading = Math.Atan2(-(b.Position.X - a.Position.X), -(b.Position.Z - a.Position.Z)) * 180 / Math.PI;
+        double heading = DMath.Atan2(-(b.Position.X - a.Position.X), -(b.Position.Z - a.Position.Z)) * 180 / Math.PI;
         return new PlanPad(id, R(mid.Position.X), R(mid.Position.Z), R(mid.Position.Y), radius, R((s1 - s0) / 2), Math.Round(heading, 3));
     }
 

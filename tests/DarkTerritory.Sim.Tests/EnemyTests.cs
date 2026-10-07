@@ -17,13 +17,13 @@ sealed class Night
     public readonly List<GunShot> Shots = new();
     public TrainControls Controls = new() { Reverser = 1 };
 
-    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1)
+    public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null)
     {
         var line = route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, route is null ? 2_000 : 400, boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);
-        World.EnableEnemies(Tuning.Enemies, route, seed, crew: 4, authority: true);
+        World.EnableEnemies(enemies ?? Tuning.Enemies, route, seed, crew: 4, authority: true);
     }
 
     public TrainOnLine Train => World.Train;
@@ -87,12 +87,16 @@ public class EnemyTests
         n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P);
         SleepersAhead(n, 400);
+        // Note 266: braced (and heard) as far out as six cars at 20 m/s need to brake under them, past the lamp's 120 m.
+        double brace = Sleepers.BraceAt(E.Sleepers, n.Train.Dynamics);
         n.Run(25);
         var telegraph = n.Events.First(e => e.To == SpinePhase.Telegraph);
         var commit = n.Events.First(e => e.To == SpinePhase.Commit);
-        // The lamp found them 120 m out: six seconds at 20 m/s.
-        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, 5.5, 6.5);
+        Assert.True(brace > E.Sleepers.LampRevealDistance);
+        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, brace / 20 - 0.5, brace / 20 + 0.5);
         Assert.True(n.World.Derailed);
+        // Each dies on their own hit in the wreck (GDD v1.4 App. E.2 step 1; note 258), inside their first person's window.
+        n.Run(n.World.WreckTuning.Film.FirstPersonMax + 1);
         Assert.All(n.Crew.Values, s => Assert.Equal(DeathCause.Derailed, s.Death));
         n.AssertFair();
     }
@@ -123,17 +127,48 @@ public class EnemyTests
     }
 
     [Fact]
-    public void WithTheLampDownYouOnlyHearThemAtSixtyMetres()
+    public void WithTheLampDownTheyStillBraceAsFarOutAsTheTrainNeedsToStop()
     {
+        // Note 266 (build 1121: "ran onto the Sleepers at 43 km/h ... I didn't see the threat"): lamps down they were heard
+        // only at 60 m, three seconds at 20 m/s. Now they brace as far out as the train needs, lamp or no lamp.
         var n = new Night(6, speed: 20);
         n.World.LampLit = false;
-        SleepersAhead(n, 300);
-        n.Run(20);
+        SleepersAhead(n, 600);
+        n.Run(35);
         var telegraph = n.Events.First(e => e.To == SpinePhase.Telegraph);
         var commit = n.Events.First(e => e.To == SpinePhase.Commit);
-        Assert.InRange((commit.Tick - telegraph.Tick) * SimConstants.TickSeconds, 2.8, 3.3);
+        double lead = (commit.Tick - telegraph.Tick) * SimConstants.TickSeconds;
+        Assert.True(lead >= E.Sleepers.DerailLeadSeconds, $"{lead:0.0} s");
+        Assert.True(lead * 20 >= Tuning.Train.Overspeed.WarnDistance(20, E.Sleepers.DerailAbove - 0.5, n.Train.Dynamics.RatedBrakeDecel, E.Sleepers.BraceLeadSeconds) - 1);
         Assert.True(n.World.Derailed);
         n.AssertFair();
+    }
+
+    [Theory]
+    [InlineData(6, 17.0)]
+    [InlineData(6, 22.0)]
+    [InlineData(20, 17.0)]
+    [InlineData(20, 22.0)]
+    public void AtCruiseWithTheLampDownADriverWhoBrakesOnTheirTelegraphGetsUnderTheirSpeed(int cars, double cruise)
+    {
+        // Note 266, App. A.1's lead measured: lamps down, at the frontier's line speed (17 m/s) and flat out, the driver
+        // brakes a reaction window (4 s) after the writhe starts, regulator shut, and is under 40 km/h when the engine
+        // reaches them. (Off by default since 2026-10-06; this is for a mod that brings them back.)
+        var n = new Night(cars, speed: cruise);
+        n.World.LampLit = false;
+        var sleepers = SleepersAhead(n, 1500);
+        double braced = double.NaN;
+        for (int i = 0; i < 200 * SimConstants.TickRate && !sleepers.Gone && !n.World.Derailed; i++)
+        {
+            bool held = double.IsNaN(braced) || n.World.ElapsedSeconds < braced + 4;
+            if (sleepers.Phase == SpinePhase.Telegraph && double.IsNaN(braced))
+                braced = n.World.ElapsedSeconds;
+            if (!held)
+                n.Controls = new TrainControls { Brake = 1, Reverser = 1 };
+            n.Run(SimConstants.TickSeconds, holdSpeed: held);
+        }
+        Assert.False(double.IsNaN(braced));
+        Assert.False(n.World.Derailed, n.World.DerailCause);
     }
 
     static List<CinderHound> Pack(Night n, int size = 3)
@@ -185,6 +220,7 @@ public class EnemyTests
         var mount = n.Train.Frames[guard].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(n.Train, guard, mount.Position.Z - 0.7, P);
         gunner.Yaw = Math.PI;
+        gunner.Flags |= PlayerFlags.Seated; // T112: in the gun's seat
         n.Crew[1] = gunner;
         var pack = Pack(n);
         n.Run(90, id =>
@@ -193,7 +229,7 @@ public class EnemyTests
             if (n.Crew[id].Has(PlayerFlags.Held))
                 return default;
             // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
-            if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0)
+            if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed)
                 return new PlayerIntent { Buttons = PlayerButtons.Use };
             var target = pack.Where(h => !h.Gone && h.Attached < 0).OrderByDescending(h => h.LineDistance).FirstOrDefault();
             // Nothing to shoot at: a gunner with no restraint fires anyway.
@@ -203,7 +239,9 @@ public class EnemyTests
             var offset = target.WorldPosition(n.Train) - frame.ToWorld(mount.Position);
             var d = frame.DirToLocal(offset).Normalized;
             n.Crew[id] = n.Crew[id] with { Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Asin(d.Y) };
-            return fireAtRange(offset.Length) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
+            // The gun follows the view at its own pace (T112): fire once it's laid on the mark.
+            bool laid = Guns.Laid(Guns.Mount(n.Train, guard)!.Value, n.Train.Vehicles[guard].Gun, d, Tuning.Combat.Guns);
+            return laid && fireAtRange(offset.Length) ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
         });
         return (n, pack, guard);
     }
@@ -224,6 +262,9 @@ public class EnemyTests
         // GDD §14: "The gunner's job is less about accuracy than restraint." Firing at everything, out of range and in,
         // loads the meter (App. C.7) until the Choir gathers (App. A.7), and it seizes the one exposed on the roof.
         var (n, _, guard) = GunnerVersusPack(_ => true);
+        // Gathered and out over the train; a fouled bore or two (GDD §23, note 183) can hold the swarm off past the 90 s.
+        if (n.Crew[1].Alive && n.World.Choir.Present)
+            n.Run(30, _ => default);
         Assert.True(n.Crew[1].Death == DeathCause.Seized, $"{n.Crew[1].Death}: build {n.World.Choir.Build:0.00} present {n.World.Choir.Present} spent {n.World.Choir.Spent} loud {n.World.Choir.Loudness:0.00} ammo {n.Train.Vehicles[guard].Gun.Ammo} ghosts {n.World.ActiveEnemies.Count(e => e is ChoirGhost)}");
     }
 
@@ -235,10 +276,10 @@ public class EnemyTests
         int guard = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         var mount = n.Train.Frames[guard].Shape.Gun!.Value;
         var gunner = PlayerMotor.SpawnOnRoof(n.Train, guard, mount.Position.Z - 0.7, P);
-        n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6 };
+        n.Crew[1] = gunner with { Yaw = Math.PI, Pitch = 0.6, Flags = gunner.Flags | PlayerFlags.Seated };
         var pack = Pack(n);
         var muzzle = () => n.Train.Frames[guard].ToWorld(mount.Position);
-        n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 ? new PlayerIntent { Buttons = PlayerButtons.Use }
+        n.Run(60, _ => n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed ? new PlayerIntent { Buttons = PlayerButtons.Use }
             : pack.Any(h => !h.Gone && (h.WorldPosition(n.Train) - muzzle()).Length <= Tuning.Combat.Guns.Range)
             ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default);
         Assert.All(pack, h => Assert.True(h.Gone && h.Health == E.CinderHounds.Health, $"hound {h.Id} {h.Phase} hp {h.Health}"));
@@ -286,6 +327,38 @@ public class EnemyTests
     }
 
     [Fact]
+    public void ADirectorPlannedForFourGoesByWhoIsActuallyThere()
+    {
+        // T115 playtest ("I'll be in the cab piloting the train and suddenly I can't move, and a few seconds later I die"): a
+        // solo host was planned for four, and Tippy Toesie (minCrew 2: it needs a friend to pull it off) came for them.
+        var n = new Night(6, speed: 14);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        Assert.Equal(4, n.World.Director!.Crew);
+        n.Run(2);
+        Assert.Equal(1, n.World.Director.Crew);
+        Assert.True(n.World.Director.Crew < Tuning.Enemies.TippyToesie.MinCrew);
+    }
+
+    [Fact]
+    public void DrivenOffTheChoirRestsBeforeItCanGatherAgain()
+    {
+        // T113 playtest ("too frequent, no counterplay"): hushing it off buys the crew a long stretch where noise is free.
+        var t = Tuning.Combat.Choir;
+        var choir = new ChoirState { Present = true, Build = 1 };
+        choir.Disperse(took: false, t.RestSeconds);
+        double dt = SimConstants.TickSeconds;
+        for (double s = 0; s < t.RestSeconds - 1; s += dt)
+            Assert.False(choir.Step(t, t.MaxLoudness, dt));
+        Assert.Equal(0, choir.Build);
+        // Rested, the same din gathers it again, over the build's long telegraph and no sooner.
+        double gathered = 0;
+        for (double s = 0; s < t.BuildSeconds * 3 && gathered == 0; s += dt)
+            if (choir.Step(t, t.MaxLoudness, dt))
+                gathered = s;
+        Assert.InRange(gathered, t.BuildSeconds * 0.9, t.BuildSeconds * 1.5);
+    }
+
+    [Fact]
     public void TheDirectorKeepsItsPacingRules()
     {
         // App. B.9: grace period, troughs, caps and terminus silence, over whole generated nights.
@@ -298,16 +371,17 @@ public class EnemyTests
             Assert.NotEmpty(d.Log);
             // The condition-triggered ones (App. B.5) come whenever their condition holds, grace or no: here, nobody's
             // minding the fire.
-            // Paced spawns (quiet too long) come when they must, cooldown or not.
+            // Nothing of the director's own before the night's grace, pressed or not (note 266).
+            Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker), l => Assert.True(l.Tick * SimConstants.TickSeconds >= d.Grace, $"spawn at {l.Tick / 30} s"));
+            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not.
             var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
-            Assert.All(spawns, l => Assert.True(l.Tick * SimConstants.TickSeconds >= E.Director.GraceSeconds, $"spawn at {l.Tick / 30} s"));
             for (int i = 1; i < spawns.Count; i++)
                 Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5).
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
                 l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= E.Director.MaxConcurrentSmallCrew, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));
-            // The budget holds for what's spent on its curve; a paced spawn may overdraw it (a quiet night's worse).
+            // The budget holds for what's spent on its curve; a pressed spawn may overdraw it (a quiet night's worse).
             Assert.True(d.Log.Where(l => !l.Paced).Sum(l => l.Cost) <= d.Budget + 1e-9);
             n.AssertFair();
         }

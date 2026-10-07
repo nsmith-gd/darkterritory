@@ -86,8 +86,9 @@ def high_of(o, dress, shapes=None, dense=False):
         if dense:
             pass
         elif subdiv:
+            # A game mesh already subdivided once (rig.densify) needs a level less for the same high copy.
             mod = h.modifiers.new("sub", "SUBSURF")
-            mod.levels = mod.render_levels = subdiv
+            mod.levels = mod.render_levels = max(1, subdiv - (1 if o.get("dt_densified") else 0))
             bpy.ops.object.modifier_apply(modifier=mod.name)
         else:
             mod = h.modifiers.new("bevel", "BEVEL")
@@ -197,7 +198,9 @@ class Atlas:
         for f in bm.faces:
             f.select = not self.keep[f.index] and int(self.kind_of[f.index]) not in special
         bmesh.update_edit_mesh(low.data)
-        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.006, area_weight=0.0, scale_to_bounds=True)
+        # 75 degrees and a tight margin: the islands come out bigger and pack closer (a creature's atlas went from 38-55%
+        # used to 61-68%, the Car Hugger's from 23% to 53%: GDD §27's texel density for the same texture).
+        bpy.ops.uv.smart_project(angle_limit=math.radians(75), island_margin=0.002, area_weight=0.0, scale_to_bounds=True)
         bm = bmesh.from_edit_mesh(low.data)
         uvl = bm.loops.layers.uv.active
         for f in bm.faces:
@@ -217,7 +220,7 @@ class Atlas:
                     loop[uvl].uv *= k
         bmesh.update_edit_mesh(low.data)
         bpy.ops.uv.select_all(action="SELECT")
-        bpy.ops.uv.pack_islands(rotate=True, margin=0.006)
+        bpy.ops.uv.pack_islands(rotate=True, margin=0.002 if self.size >= 2048 else 0.003)
         bpy.ops.object.mode_set(mode="OBJECT")
         low.data.uv_layers.remove(low.data.uv_layers["UVMap"])
         low.data.uv_layers["baked"].name = "UVMap"
@@ -360,12 +363,14 @@ class Atlas:
     def height(self, scale=1.8):
         return self.maps["EMIT"][..., 0] * scale
 
-    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None, rough=None):
+    def finish(self, base, kit, arm, source_ids=(), made=(), family="creature", split=None, rough=None, lod=None):
         """Writes the atlas (`base` linear HxWx3), with `rough` (HxW, 0 glazed .. 1 matte; default 0.75 all over) its gloss,
         splits the parts back out with
         their names and extras, bakes the layers, and exports content/art/models/<name>.glb with the rig and clips.
         `split` {kind: suffix}: those faces draw the atlas under a material of their own, <name>_0.<suffix> (the same
-        texture; the engine tells them apart by name: the crew's paint, tinted per player)."""
+        texture; the engine tells them apart by name: the crew's paint, tinted per player). `lod` (a fraction) also
+        exports <name>.lod1.glb: every part of 400 triangles or more collapsed to that share of them, the same rig, clips,
+        atlas and materials, which the engine draws past look.json's creatureLodMetres (rig.export_lod)."""
         S = self.size
         low = self.low
         bimg = bpy.data.images.new(f"{self.name}_base", S, S, alpha=True)
@@ -456,6 +461,8 @@ class Atlas:
             bpy.data.objects.remove(o, do_unlink=True)
         arm.data.pose_position = "POSE"
         rig.export(os.path.join(cook.ROOT, "content", "art", "models", f"{self.name}.glb"), kit)
+        if lod:
+            rig.export_lod(os.path.join(cook.ROOT, "content", "art", "models", f"{self.name}.lod1.glb"), kit, lod)
 
 
 def _attribute_material(name):

@@ -25,15 +25,15 @@ public static class Breaches
 
     /// <summary>
     /// The breached car this player can board up now, if any: inside it on its floor, within <see cref="BreachTuning.BoardReach"/>
-    /// of the hole across the floor (a headset's reaching hand, T29, measured from the hand), and with the kit in hand if
-    /// boarding needs it (<see cref="BreachTuning.NeedsKit"/>: the wrench, T109, until the repair kit's an item).
+    /// of the hole across the floor (a headset's reaching hand, T29, measured from the hand), and carrying the repair kit if
+    /// boarding needs it (<see cref="BreachTuning.NeedsKit"/>; note 150).
     /// </summary>
     public static int? Within(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (!s.Alive || s.Parent <= 0 || s.Parent >= train.Frames.Count || !train.Vehicles[s.Parent].Breached || !PlayerMotor.Indoors(s, train))
             return null;
         var t = train.Dynamics.Tuning.Breach;
-        if (t.NeedsKit && Kit.Held(s) != Tool.Wrench)
+        if (t.NeedsKit && !s.Has(PlayerFlags.RepairKit))
             return null;
         var from = (hand is not null && s.Hand != default ? PlayerMotor.HandAt(s) : null) ?? s.Position;
         var hole = train.Vehicles[s.Parent].BreachAt;

@@ -102,6 +102,177 @@ public static class StructureKit
     }
 
     /// <summary>
+    /// One bay of an iron girder viaduct over a gorge <paramref name="depth"/> deep (GDD §30's rail bridges, linegen
+    /// plan §12.3 "girders"): a steel trestle tower at z = 0, four battered legs on stone footings, braced in Xs storey by
+    /// storey; and on it the deck girders to the next tower, two deep riveted plate girders under the rails, stiffened
+    /// every metre and a half, cross-framed between, carrying the open timber deck, an iron-railed walkway either side.
+    /// Red oxide gone to rust: nothing like the masonry viaduct's stone, and lighter-looking than it is.
+    /// </summary>
+    public static MeshAsset GirderBay(Look? look, float depth, bool lastPier)
+    {
+        var k = new Kit(look, 920);
+        const float girder = 1.0f, deep = 1.7f, flange = 0.28f;
+        float under = -0.35f, bottom = under - deep;
+        // The tower: legs battered out to its foot, braced across and along every storey.
+        foreach (float tz in lastPier ? new[] { 0f, -Bay } : new[] { 0f })
+        {
+            float foot = -depth - 0.5f;
+            k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2f);
+            float spreadFoot = 1.6f + depth * 0.09f;
+            foreach (float sx in new[] { -1f, 1f })
+                foreach (float sz in new[] { -1f, 1f })
+                    k.Box(new Vector3(sx * spreadFoot - 0.7f, foot - 1.5f, tz + sz * 2.2f - 0.7f), new Vector3(sx * spreadFoot + 0.7f, foot + 0.4f, tz + sz * 2.2f + 0.7f),
+                        Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("rust_heavy", Palette.RustRed, 0.75f, 0.35f, tile: 1.2f);
+            Vector3 Leg(float sx, float sz, float y) => new(sx * (1.6f + (bottom - y) * 0.09f), y, tz + sz * 2.2f);
+            foreach (float sx in new[] { -1f, 1f })
+                foreach (float sz in new[] { -1f, 1f })
+                    k.Rod(Leg(sx, sz, foot + 0.4f), Leg(sx, sz, bottom), 0.17f);
+            k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1.5f);
+            const float storey = 7f;
+            for (float y = bottom; y > foot + 1; y -= storey)
+            {
+                float y1 = MathF.Max(y - storey, foot + 0.4f);
+                // Struts round the storey's top, and an X in each face.
+                foreach (float sz in new[] { -1f, 1f })
+                {
+                    k.Rod(Leg(-1, sz, y), Leg(1, sz, y), 0.09f);
+                    k.Rod(Leg(-1, sz, y), Leg(1, sz, y1), 0.045f);
+                    k.Rod(Leg(1, sz, y), Leg(-1, sz, y1), 0.045f);
+                }
+                foreach (float sx in new[] { -1f, 1f })
+                {
+                    k.Rod(Leg(sx, -1, y), Leg(sx, 1, y), 0.09f);
+                    k.Rod(Leg(sx, -1, y), Leg(sx, 1, y1), 0.045f);
+                    k.Rod(Leg(sx, 1, y), Leg(sx, -1, y1), 0.045f);
+                }
+            }
+            // The cap the girders bear on.
+            k.Box(new Vector3(-2.0f, bottom - 0.45f, tz - 2.5f), new Vector3(2.0f, bottom, tz + 2.5f));
+        }
+        // The girders: web, flanges top and bottom, and a stiffener every metre and a half.
+        k.Use("paint_oxide", Palette.RustRed, 0.85f, 0.25f, tile: 1.4f);
+        foreach (float sx in new[] { -girder, girder })
+        {
+            k.Box(new Vector3(sx - 0.02f, bottom, -Bay), new Vector3(sx + 0.02f, under, 0));
+            foreach (float y in new[] { bottom, under - 0.05f })
+                k.Box(new Vector3(sx - flange / 2, y, -Bay), new Vector3(sx + flange / 2, y + 0.05f, 0));
+            for (float z = -0.75f; z > -Bay; z -= 1.5f)
+                foreach (float face in new[] { -1f, 1f })
+                    k.Box(new Vector3(sx + face * 0.02f - (face < 0 ? 0.08f : 0), bottom + 0.05f, z - 0.06f),
+                        new Vector3(sx + face * 0.02f + (face > 0 ? 0.08f : 0), under - 0.05f, z + 0.06f), top: false, bottom: false);
+        }
+        // Cross-frames between them, every three metres.
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1.5f);
+        for (float z = -1.5f; z > -Bay; z -= 3f)
+        {
+            k.Rod(new Vector3(-girder, under - 0.1f, z), new Vector3(girder, bottom + 0.1f, z), 0.035f);
+            k.Rod(new Vector3(girder, under - 0.1f, z), new Vector3(-girder, bottom + 0.1f, z), 0.035f);
+        }
+        // The open deck: walkway planks either side of the track's own ties, an iron handrail on posts.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side < 0 ? -2.4f : 1.55f, x1 = side < 0 ? -1.55f : 2.4f;
+            k.Box(new Vector3(x0, under - 0.08f, -Bay), new Vector3(x1, under + 0.02f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+            // Its brackets out from the girder.
+            for (float z = -1.5f; z > -Bay; z -= 3f)
+                k.Rod(new Vector3(side * girder, bottom + 0.5f, z), new Vector3(side * 2.3f, under - 0.1f, z), 0.04f);
+        }
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f, tile: 1.5f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            for (float z = 0; z > -Bay; z -= 2.5f)
+                k.Rod(new Vector3(side * 2.35f, under, z), new Vector3(side * 2.35f, under + 1.05f, z), 0.025f);
+            k.Rod(new Vector3(side * 2.35f, under + 1.05f, 0), new Vector3(side * 2.35f, under + 1.05f, -Bay), 0.03f);
+            k.Rod(new Vector3(side * 2.35f, under + 0.55f, 0), new Vector3(side * 2.35f, under + 0.55f, -Bay), 0.02f);
+        }
+        return k.Build($"girder-{depth:0}-{lastPier}");
+    }
+
+    /// <summary>
+    /// One span of an iron through truss (linegen plan §12.3 "truss": the long crossings), Bay long, on a stone pier at
+    /// z = 0: a Pratt truss either side, its end posts raked down to the bearings, verticals at each panel and the
+    /// diagonals slanting in toward the middle; the top chords braced across overhead in a lattice (the train runs
+    /// inside it, the bracing going over the roofs a man's height up: mind your head); floor beams and stringers under
+    /// the track. Each span reads on its own from up the line, a cage, unlike the open girders.
+    /// </summary>
+    public static MeshAsset TrussSpan(Look? look, float depth, bool lastPier)
+    {
+        var k = new Kit(look, 930);
+        const float half = 2.7f, high = 7.0f, low = -0.55f, z0 = -0.6f, z1 = -Bay + 0.6f, panel = (z0 - z1) / 5;
+        // The pier.
+        k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        foreach (float pz in lastPier ? new[] { 0f, -Bay } : new[] { 0f })
+        {
+            k.Box(new Vector3(-half - 0.9f, -depth - 3, pz - 1.3f), new Vector3(half + 0.9f, low - 0.35f, pz + 1.3f), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Shade(1.1f);
+            k.Box(new Vector3(-half - 1.05f, low - 0.6f, pz - 1.45f), new Vector3(half + 1.05f, low - 0.35f, pz + 1.45f), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
+        }
+        k.Use("rust_heavy", Palette.RustRed, 0.75f, 0.35f, tile: 1.3f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x = side * half;
+            // Chords: the bottom the whole span, the top between the end posts' heads.
+            float top0 = z0 - panel, top1 = z1 + panel;
+            k.Box(new Vector3(x - 0.18f, low - 0.2f, z1), new Vector3(x + 0.18f, low + 0.2f, z0));
+            k.Box(new Vector3(x - 0.22f, high - 0.22f, top1), new Vector3(x + 0.22f, high + 0.22f, top0));
+            // The raked end posts.
+            k.Rod(new Vector3(x, low, z0), new Vector3(x, high, top0), 0.2f);
+            k.Rod(new Vector3(x, low, z1), new Vector3(x, high, top1), 0.2f);
+            // Verticals at the panel points, and the diagonals slanting down toward the middle (Pratt).
+            for (int i = 1; i < 5; i++)
+            {
+                float z = z0 - i * panel;
+                k.Rod(new Vector3(x, low, z), new Vector3(x, high, z), 0.11f);
+            }
+            // Panel 1 slants down toward the middle, panel 3 likewise from the far end; the middle panel's crossed.
+            float p1 = z0 - panel, p2 = z0 - 2 * panel, p3 = z0 - 3 * panel, p4 = z0 - 4 * panel;
+            k.Rod(new Vector3(x, high, p1), new Vector3(x, low, p2), 0.07f);
+            k.Rod(new Vector3(x, high, p4), new Vector3(x, low, p3), 0.07f);
+            k.Rod(new Vector3(x, high, p2), new Vector3(x, low, p3), 0.05f);
+            k.Rod(new Vector3(x, high, p3), new Vector3(x, low, p2), 0.05f);
+        }
+        // Overhead: struts across at each top panel point, an X between each.
+        for (int i = 1; i < 5; i++)
+        {
+            float z = z0 - i * panel;
+            k.Rod(new Vector3(-half, high, z), new Vector3(half, high, z), 0.09f);
+            // Knee braces down the verticals, the portal's look at the ends.
+            k.Rod(new Vector3(-half, high - 1.1f, z), new Vector3(-half + 0.9f, high, z), 0.05f);
+            k.Rod(new Vector3(half, high - 1.1f, z), new Vector3(half - 0.9f, high, z), 0.05f);
+            if (i < 4)
+            {
+                k.Rod(new Vector3(-half, high, z), new Vector3(half, high, z - panel), 0.035f);
+                k.Rod(new Vector3(half, high, z), new Vector3(-half, high, z - panel), 0.035f);
+            }
+        }
+        // The portals at either end, a plate across the end posts' heads with the lattice under it.
+        k.Use("paint_oxide", Palette.RustRed, 0.85f, 0.25f, tile: 1.4f);
+        foreach (float z in new[] { z0 - panel * 0.55f, z1 + panel * 0.55f })
+        {
+            k.Box(new Vector3(-half, high - 1.4f, z - 0.06f), new Vector3(half, high - 0.6f, z + 0.06f));
+        }
+        // Floor beams at the panel points and the stringers under the rails; a walkway either side of the track.
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1.5f);
+        for (int i = 0; i <= 5; i++)
+        {
+            float z = z0 - i * (z0 - z1) / 5;
+            k.Box(new Vector3(-half, low - 0.45f, z - 0.15f), new Vector3(half, low - 0.05f, z + 0.15f));
+        }
+        foreach (float sx in new[] { -0.75f, 0.75f })
+            k.Box(new Vector3(sx - 0.12f, low - 0.05f, z1), new Vector3(sx + 0.12f, low + 0.3f, z0));
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side < 0 ? -half + 0.25f : 1.55f, x1 = side < 0 ? -1.55f : half - 0.25f;
+            k.Box(new Vector3(x0, low + 0.22f, z1), new Vector3(x1, low + 0.3f, z0), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+        return k.Build($"truss-{depth:0}-{lastPier}");
+    }
+
+    /// <summary>
     /// A timber trestle bent (a weak bridge, GDD §17: "a bridge that takes four cars"): four raked posts from the gorge
     /// floor, sway bracing, a cap, and the stringers and deck timbers to the next bent. Handrails of rough timber.
     /// </summary>
@@ -371,12 +542,6 @@ public static class StructureKit
     public static readonly Vector3 Lantern = new(6.6f, 3.3f, -4);
 
     /// <summary>
-    /// Where the grain elevator's spout hangs from its distributor on the headhouse, in the elevator's frame on side +1
-    /// (X goes with the side): the scene draws the spout from here down to over the track.
-    /// </summary>
-    public static readonly Vector3 SpoutHead = new(10, 28, 0);
-
-    /// <summary>
     /// A facility's buildings (GDD §30: "oversized, dangerous, partially abandoned, barely operable, dimly lit"), beside
     /// the line on <paramref name="side"/> (+1 right), centred along it. Each kind reads by shape: the coaling tower's
     /// bunker on stilts, the elevator's silos, the foundry's sawtooth sheds and stack, sheds and gantries for the rest.
@@ -419,12 +584,8 @@ public static class StructureKit
                     k.Box(new Vector3(x - 4, 26, -18), new Vector3(x + 4, 32, 18));
                     k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
                     k.Box(new Vector3(x - 4.4f, 32, -18.4f), new Vector3(x + 4.4f, 32.5f, 18.4f));
-                    // The spout's distributor on the headhouse's face to the track. The spout itself, down from it to over the
-                    // car under it, is drawn where the run puts it (GreyboxScene.Spout, run.json "grainSpout"): its foot moves
-                    // with the spur's length, and it swings over the car when it's opened.
                     k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
-                    float face = x - s * 4, head = s * SpoutHead.X;
-                    k.Box(new Vector3(MathF.Min(face, head) - 0.2f, SpoutHead.Y - 0.9f, -0.9f), new Vector3(MathF.Max(face, head) + 0.2f, SpoutHead.Y + 1.1f, 0.9f));
+                    k.Rod(new Vector3(x - s * 4, 28, 0), new Vector3(s * 2.5f, 6, 0), 0.35f);
                     k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
                     k.Panel(new Vector3(x - s * 4.01f, 29, 6), new Vector3(-s, 0, 0), Vector3.UnitY, 0.8f, 1.1f, Vector2.Zero, Vector2.One);
                     break;
@@ -649,6 +810,23 @@ public static class StructureKit
         k.Use("paint_black", Palette.SootBlack, 0.8f, 0.3f);
         k.Box(new Vector3(-0.12f, 1.2f, -0.12f), new Vector3(0.12f, 1.55f, 0.12f));
         return k.Build("buffer-stop");
+    }
+
+    /// <summary>
+    /// A switch stand's throw lever, from its pivot (the origin) along +Z: a flat iron bar with a weighted handle at its end
+    /// and the latch at the pivot; turned about X to throw it.
+    /// </summary>
+    public static MeshAsset SwitchLever(Look? look)
+    {
+        var k = new Kit(look, 996);
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        k.Box(new Vector3(-0.025f, -0.02f, -0.06f), new Vector3(0.025f, 0.02f, 0.75f));
+        k.Cylinder(new Vector3(-0.07f, 0, 0), new Vector3(0.07f, 0, 0), 0.05f, 8);
+        // The handle's grip and its counterweight ball, painted (a lever you can find in the lamp's light).
+        k.Use("paint_oxide", Palette.RustRed, 0.7f, 0.3f);
+        k.Cylinder(new Vector3(-0.08f, 0, 0.7f), new Vector3(0.08f, 0, 0.7f), 0.03f, 6);
+        k.Lathe(new Vector3(0, 0, 0.82f), [new(0, -0.08f), new(0.07f, -0.05f), new(0.08f, 0), new(0.07f, 0.05f), new(0, 0.08f)], 8);
+        return k.Build("switch-lever");
     }
 
     /// <summary>A switch stand: an iron post, the throw lever's pivot, and the target lamp's housing on top (its glass lit per frame).</summary>

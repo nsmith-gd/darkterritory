@@ -92,15 +92,141 @@
     "dropAbove": 0.6,
     "crushRadius": 1.4
   },
+  // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
+  // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,
+  // read for grain). The spout hangs over the track this far back from its buffer stop (or as far back as the standing track
+  // allows, short of 4 m from its start), this high; the lever stands "leverAlong" on from it, "leverLateral" out on the
+  // site's side. Grain comes down while someone holds the lever (within "leverReach"), "pourPerSecond" car-loads a second
+  // out of a bin of "bin" car-loads, into the cargo car whose middle is within "tolerance" of it. No car there, it's on the
+  // ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
+  // "overfill damages car and spills"). The machinery's loud while it runs (combat.json machineryLoudness).
+  "spout": {
+    "back": 80,
+    "height": 5.2,
+    "leverAlong": 2.0,
+    "leverLateral": 3.4,
+    "leverReach": 1.2,
+    "tolerance": 1.5,
+    "pourPerSecond": 0.05,
+    "bin": 3.0,
+    "overfillDamagePerLoad": 0.6
+  },
+  // The slaughterhouse's livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew. Constant noise. Raises
+  // Choir floor while active"). The ramp's top is "rampLateral" out from the track at "along"; the pen "penLateral" out,
+  // "penRadius" across, with "head" animals in it. With "herders" or more in the pen holding Use and a cargo car with room
+  // within "carReach" of the ramp's top, one goes up every "secondsPerHead" (each herder past the needed ones quickens it by
+  // "extraHerder"), each "loadPerHead" of a car-load. From the first one up until the last, the herd's stirred: the Choir's
+  // floor is "choirFloor" (combat.json choir livestockFloor is the stock car's own, once they're aboard). GDD §18 "something
+  // already lives here": enemies.json director "residents".
+  "ramp": {
+    "along": -10,
+    "rampLateral": 2.6,
+    "penLateral": 10,
+    "penRadius": 4,
+    "head": [4, 6],
+    "loadPerHead": 0.2,
+    "secondsPerHead": 6,
+    "herders": 2,
+    "extraHerder": 0.25,
+    "carReach": 9,
+    "choirFloor": 0.35
+  },
+  // The chemical works' fluid gantry (spec D.2: "connect hoses, monitor pressure, disconnect cleanly. 1–2. Leaks if unattended.
+  // Chemical spill contaminates the car"; GDD §18 "Leaks. Do not fire indoors"). The stand is "lateral" out at "along". Hold
+  // Use at it (within "reach") for "connectSeconds" to put the hose on the cargo car with room within "carReach", and again to
+  // take it off. On, it fills the car at "flowPerSecond" a second, and its pressure climbs "pressureRise" a second, falling
+  // "bleed" a second while anyone stands at the stand. At 1 it leaks: everyone within "leakRadius" of the stand takes
+  // "leakDamagePerSecond", and the car's load spoils "spoilPerSecond". The car moving more than "tearSlack" past "carReach"
+  // tears it off: it sprays for "tornSeconds" and the car's load spoils "tornSpoil" at once.
+  // "Indoors" is within "indoorsM" of the stand: in among the works' tanks and pipe racks, which takes in every car down its
+  // spur. A cannon fired there gasses as one beside a chemicals car does (combat.json fumes; note 182).
+  "hose": {
+    "along": 4,
+    "lateral": 4.2,
+    "reach": 1.4,
+    "carReach": 9,
+    "tearSlack": 2,
+    "connectSeconds": 2.5,
+    "flowPerSecond": 0.04,
+    "pressureRise": 0.05,
+    "bleed": 0.15,
+    "leakRadius": 6,
+    "leakDamagePerSecond": 12,
+    "spoilPerSecond": 0.02,
+    "tornSeconds": 20,
+    "tornSpoil": 0.25,
+    "indoorsM": 60
+  },
+  // The military depot's powder (GDD §18 "best payout, worst cargo"; §19 "explodes"). Its crates are kegs (cargo
+  // "ammunition" below). One brought up short by more than "blowSpeed" m/s (thrown, or dropped off a roof: set down by hand
+  // it falls a hand's height, about 3.7 m/s) goes up: everyone within "killRadius" takes "damage", less out to "radius";
+  // cars within "killRadius" of it lose "carDamage" integrity; and every keg within "chain" goes up the tick after.
+  "kegs": {
+    "blowSpeed": 6,
+    "killRadius": 3,
+    "radius": 9,
+    "damage": 150,
+    "chain": 3,
+    "carDamage": 0.3
+  },
+  // GDD §18's switchyard and wreck yard (WP15b, ARCHITECTURE §8 note 187).
+  // The switchyard: "mixed. Cars scattered across six sidings. A live track puzzle solved by shouting." Its cars stand on every
+  // track of its yard but its own (on its own, if that's all it has), "cars" to a siding, "back" metres short of the buffer
+  // stop, handbrakes on, each loaded somewhere in "load" with one of "cargoes" (mixed: the run's cargo rates pay each by its
+  // own). Couple up to them and bring them away, and they're the crew's. The sidings' points all face up the line, so they come
+  // away ahead of the engine, and the crew go in for each siding's with every car already picked up still in front: so never
+  // more in all than the shortest of those sidings takes with the engine and "spare" of the train's own cars behind it.
+  "rakes": {
+    "cars": [1, 2],
+    "load": [0.5, 1.0],
+    "cargoes": ["goods", "food", "timber", "heavy", "medicine", "coal"],
+    "back": 1.0,
+    "spare": 1
+  },
+  // The wreck yard: "salvage, high value. Pull cargo off derailed trains. Unstable, unlit, already occupied" (the occupants are
+  // enemies.json director "residents"). The last train came off at the end of the yard's line: "heaps" of its cars lie where
+  // "layout" puts them, metres along from its buffer stop (on beyond it, positive) and out on the site's side, each with
+  // "salvage" pieces in it (cargo "salvage" below, carried out by hand as crates are, each crates.loadPerCrate of a car). There
+  // are no lamps: a heap's salvage is only found (comes out onto the ground beside it) once a hand lamp is within "lampReach"
+  // of it, carried or set down, or it's in the engine's headlamp (within "beamLength" ahead, "beamSpread" metres wider for each
+  // metre on, from 2 m either side). Every piece picked up costs its heap "strainPerPiece" of its stability; at none it groans
+  // for "warnSeconds" (the tell) and shifts: everyone within "crushRadius" of it takes "damage", and it settles at "settle".
+  // It shifts at most "shifts" times.
+  "wreck": {
+    "heaps": [3, 4],
+    "layout": [[8, 1.5], [20, 4.5], [-24, 12], [16, 15]],
+    "salvage": [2, 3],
+    "lampReach": 6,
+    "beamLength": 40,
+    "beamSpread": 0.2,
+    "strainPerPiece": 0.4,
+    "warnSeconds": 3,
+    "crushRadius": 3.5,
+    "damage": 45,
+    "settle": 0.6,
+    "shifts": 2
+  },
+  // Who works a stop (note 261; spec D.2's "Crew" column, which counts people at a module, not who they are). The shunter
+  // is free once the train's in, and takes a pair module's missing place (or carries, where fewer than two do).
+  "crew": {
+    // D.2 doesn't say whether the driver is one of a module's crew. Read so that a crew of two can work a winch ("2
+    // mandatory") at all: with too few others, the driver leaves the train standing on its brake and gets down to it.
+    "driverWorks": true,
+    // People playing are hands at a stop: the bots stop for what the crew, people and bots together, can load.
+    "peopleAreHands": true,
+    // A pair module only people playing can make up (one bot at the winch, someone playing for the other handle) is waited
+    // on while the loading's getting somewhere: this long with nothing loading, and the bots leave it (seconds).
+    "peopleWait": 45
+  },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
-    "grainElevator": ["crates"],
-    "switchyard": ["crates"],
+    "grainElevator": ["spout"],
+    "switchyard": ["rakes", "crates"],
     "foundry": ["crane", "winch", "crates"],
-    "slaughterhouse": ["crates"],
-    "wreckYard": ["winch"],
+    "slaughterhouse": ["ramp", "crates"],
+    "wreckYard": ["wreck", "winch"],
     "mineHead": ["winch", "crates"],
-    "chemicalWorks": ["crates"],
+    "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]
   },
   // What each facility puts in a car (GDD §18-19; App. B.8's modifiers go by it). A car takes the cargo of the last one that

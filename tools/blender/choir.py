@@ -316,10 +316,13 @@ besiege.close(36)
 REST = done(trail(sing(pulse({}, 0.0), 0.5), 0.0))
 hit = Clip("hit", loop=False)
 hit.key(0, REST, "CONSTANT")
-hit.key(2, done(trail(sing(pulse({"root": (20, 0, 30), "root@loc": (0, -0.1, 0.05)}, 1.0, 40), 1.0), 1.0, sway=0.2)), "CONSTANT")
+# (The rim curled in hard, but not through the curtain under it: dt art clearance.)
+hit.key(2, done(trail(sing(pulse({"root": (20, 0, 30), "root@loc": (0, -0.1, 0.05)}, 1.0, 15), 1.0), 1.0, sway=0.2)), "CONSTANT")
 hit.key(8, done(trail(sing(pulse({}, 0.3), 0.6), 2.0, sway=0.1)), "LINEAR")
 hit.key(12, REST, "CONSTANT")
 
+# Up toward GDD §27's budget (a swarm's, kept under 3k): rig.densify rounds the forms out (a Look Review ask).
+kit.target_tris = 2950
 kit.build()
 rig.bake(sk, [drift, swoop, seize, besiege, hit])
 print("[dt] choir", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))

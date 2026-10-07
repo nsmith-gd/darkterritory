@@ -62,7 +62,7 @@ public class RadioTests
         Assert.True(world.Bodies.HasRadio(1));
         Assert.Null(world.Bodies.CarriedBy(1));
         // Still a pair of free hands: the lamp beside it comes too, and the radio stays on the belt.
-        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp);
+        var lamp = world.Bodies.All.First(b => b.Kind == BodyKind.Lamp && !b.Stowed);
         s = Beside(world, lamp);
         Press(world, ref s, PlayerButtons.Use);
         Assert.Same(lamp, world.Bodies.CarriedBy(1));
@@ -164,5 +164,63 @@ public class RadioTests
         Assert.Equal(0, Heard());
         radios[1].Carrier = listener.PlayerId!.Value;
         Assert.Equal(1, Heard());
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. C.8, "radio broadcast of a GRAB": a grabbed player wearing a radio keys it open for the whole GRAB, so
+    /// everyone else on the radio hears them, whatever they meant to send it on; it closes at break-off and with the
+    /// hard-cut at death (D.2), when there's only the dead channel, and only the dead hear that.
+    /// </summary>
+    [Fact]
+    public void AGrabKeysTheVictimsRadioOpenUntilItLetsGoOrTheyDie()
+    {
+        var net = new LoopbackNetwork();
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 12, 1)), Line, 1_000);
+        var world = new World(Train());
+        world.EnableBodies();
+        world.Stock();
+        var host = new HostSession(net.CreateHost(), world, Tuning.Train, P);
+        var talker = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var listener = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        void Step(int ticks = 1)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                net.Advance(SimConstants.TickSeconds);
+                host.Step();
+                talker.Step(default);
+                listener.Step(default);
+            }
+        }
+        Step(30);
+        byte t = talker.PlayerId!.Value, l = listener.PlayerId!.Value;
+        host.SetPlayerState(l, PlayerMotor.SpawnOnRoof(host.Train, 11, 0, P));
+        var radios = world.Bodies.All.Where(b => b.Kind == BodyKind.Radio).ToList();
+        radios[0].Carrier = t;
+        radios[1].Carrier = l;
+        Step(5);
+        // Held is the sim's, each tick, from whatever has hold of you; here it's set just before the frame reaches the host,
+        // which routes voice before it steps.
+        VoicePath Heard(bool held, bool dead = false)
+        {
+            listener.VoiceFrames.Clear();
+            var me = host.Players.First(p => p.Id == t).State;
+            var flags = held ? me.Flags | PlayerFlags.Held : me.Flags & ~PlayerFlags.Held;
+            host.SetPlayerState(t, dead ? me with { Flags = flags, Health = 0, Death = DeathCause.Eaten } : me with { Flags = flags, Health = P.Health, Death = DeathCause.None });
+            // Not on the radio: just talking (or screaming).
+            talker.SendVoice(1, radio: false, new byte[] { 1, 2, 3 });
+            net.Advance(SimConstants.TickSeconds);
+            host.Step();
+            Step(2);
+            return listener.VoiceFrames.Aggregate(VoicePath.None, (p, f) => p | f.Path);
+        }
+        Assert.False(Heard(held: false).HasFlag(VoicePath.Radio));
+        Assert.True(Heard(held: true).HasFlag(VoicePath.Radio), "a held player is on the radio");
+        // Let go: off it again.
+        Assert.False(Heard(held: false).HasFlag(VoicePath.Radio));
+        // Dead mid-GRAB: cut. Nothing of them reaches a living listener, near or on the radio: only the host's cut, so what
+        // they had of the last words is dropped (D.2).
+        Assert.Equal(VoicePath.Cut, Heard(held: true, dead: true));
+        Assert.Equal(VoicePath.None, Heard(held: true, dead: true));
     }
 }

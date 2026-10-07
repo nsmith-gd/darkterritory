@@ -29,7 +29,8 @@ import rig  # noqa: E402
 from rig import Bone, Clip, Mat, Skeleton, Vector, hexc, mirror, noise3  # noqa: E402
 
 rig.reset()
-BZ = 0.6                                       # the body's middle over the ground at rest
+BZ = 0.38                                      # the body's middle over the ground at rest: the belly a hand off it
+LIFT = 0.6 - BZ                                # what the reared-up clips raise the root by to stand where they did
 SPINE = [Vector((0, -0.55, BZ)), Vector((0, -0.25, BZ + 0.02)), Vector((0, 0.02, BZ + 0.03)), Vector((0, 0.26, BZ + 0.04)), Vector((0, 0.46, BZ + 0.04))]
 NECK = [SPINE[-1], Vector((0, 0.62, BZ + 0.06)), Vector((0, 0.78, BZ + 0.07))]
 HEAD_TIP = Vector((0, 1.12, BZ + 0.03))
@@ -101,7 +102,7 @@ for q in pts:
         radii.append((0.09 * (1 - t) + 0.01, 0.08 * (1 - t) + 0.01))
     elif y <= SPINE[-1].y:                    # the body, deepest through the chest
         t = (y - SPINE[0].y) / (SPINE[-1].y - SPINE[0].y)
-        radii.append((0.14 + 0.05 * math.sin(math.pi * t), 0.12 + 0.05 * math.sin(math.pi * min(1.0, t * 1.2))))
+        radii.append((0.16 + 0.06 * math.sin(math.pi * t), 0.11 + 0.04 * math.sin(math.pi * min(1.0, t * 1.2))))
     else:                                     # the neck
         radii.append((0.095, 0.09))
 
@@ -124,7 +125,7 @@ body.tube(pts, radii, 16, SKIN, (BODY_BONES, 5.0), ref=(0, 0, 1), shape=ribs, ca
 for k in range(11):
     y = SPINE[0].y + 0.1 + k * 0.09
     seg = "pelvis" if y < SPINE[1].y else "spine_01" if y < SPINE[2].y else "spine_02" if y < SPINE[3].y else "spine_03"
-    top = Vector((0, y, BZ + 0.14 + 0.01 * math.sin(k)))
+    top = Vector((0, y, BZ + 0.12 + 0.01 * math.sin(k)))
     body.tube([top - Vector((0, 0, 0.03)), top + Vector((0, -0.02, 0.025 + 0.01 * (k % 3)))], [0.011, 0.001], 5, HOOK, seg, ref=(0, 1, 0))
 
 # --- the head: a smooth blunt wedge, eyeless; the lamprey's mouth under its front --------------------------------
@@ -166,23 +167,31 @@ limbs = kit.part("limbs")
 for s, sx in (("r", 1), ("l", -1)):
     for limb in LIMBS:
         up_, lo, ha, ho = (f"{part}_{limb}{s}" for part in ("upper", "lower", "hand", "hook"))
-        big = 1.15 if limb == "h" else 1.0
+        big = 1.4 if limb == "h" else 1.22
         limbs.tube([H(up_) + (H(up_) - T(up_)).normalized() * 0.04, H(up_).lerp(T(up_), 0.5), T(up_)], [0.065 * big, 0.052 * big, 0.04 * big], 10, SKIN,
                    ([up_, lo] + (["spine_03"] if limb == "f" else ["spine_01"] if limb == "m" else ["pelvis"]), 6.0), ref=(0, 0, 1),
                    fmat=belly_or_back)
         limbs.blob(T(up_), (0.044 * big, 0.044 * big, 0.044 * big), 8, 6, SKIN, {up_: 0.5, lo: 0.5})
         limbs.tube([H(lo), H(lo).lerp(T(lo), 0.5), T(lo)], [0.04 * big, 0.03 * big, 0.024 * big], 8, SKIN, ([lo, ha], 6.0), ref=(0, 1, 0))
-        # The hand: a narrow palm, three long hooked fingers off its end.
+        # The hand: a broad flat palm, three heavy knuckled fingers off its end, each ending in a black hook, and a short
+        # thumb-hook off its inner side. (Thin fingers read as a fork at the gap, from the roof; these are made for steel.)
         w, e = H(ha), T(ha)
         fwd = (e - w).normalized()
         across = fwd.cross(Vector((0, 0, 1))).normalized()
-        limbs.blob(w.lerp(e, 0.5), (0.03, 0.06, 0.016), 8, 5, SKIN, {ha: 1.0}, rot=Vector((0, 1, 0)).rotation_difference(fwd).to_matrix().to_4x4())
+        hand_rot = Vector((0, 1, 0)).rotation_difference(fwd).to_matrix().to_4x4()
+        limbs.blob(w.lerp(e, 0.55), (0.046, 0.068, 0.022), 10, 6, SKIN, {ha: 1.0}, rot=hand_rot)
         for f in (-1, 0, 1):
-            root = e + across * 0.018 * f
-            tip = T(ho) + across * 0.03 * f + fwd * 0.03 + Vector((0, 0, 0.034))
-            curl = tip - Vector((0, 0, 0.035))
-            limbs.tube([root, root.lerp(tip, 0.5) + Vector((0, 0, 0.012)), tip, curl], [0.011, 0.009, 0.006, 0.0012], 6, SKIN, ho, ref=(0, 0, 1),
-                       fmat=lambda pts_, n, curl=curl, tip=tip: HOOK if (sum(pts_, Vector()) / len(pts_) - curl).length < (tip - curl).length * 1.4 else SKIN)
+            root = e + across * 0.026 * f - fwd * 0.012
+            tip = T(ho) + across * 0.042 * f + fwd * (0.04 - 0.008 * abs(f)) + Vector((0, 0, 0.03))
+            knuckle = root.lerp(tip, 0.45) + Vector((0, 0, 0.026))
+            curl = tip - Vector((0, 0, 0.031)) - fwd * 0.012      # down to the floor at rest, not through it
+            limbs.blob(knuckle, (0.015, 0.015, 0.014), 6, 4, SKIN, {ho: 1.0})
+            limbs.tube([root, knuckle, tip, curl], [0.017, 0.014, 0.009, 0.0015], 7, SKIN, ho, ref=(0, 0, 1),
+                       fmat=lambda pts_, n, curl=curl, tip=tip: HOOK if (sum(pts_, Vector()) / len(pts_) - curl).length < (tip - curl).length * 1.5 else SKIN)
+        inner = -across * (1 if s == "r" else -1)
+        troot = w.lerp(e, 0.6) + inner * 0.04
+        ttip = troot + inner * 0.03 + fwd * 0.02 + Vector((0, 0, 0.012))
+        limbs.tube([troot, ttip, ttip - Vector((0, 0, 0.022))], [0.011, 0.006, 0.0012], 6, HOOK, ha, ref=(0, 0, 1))
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -269,7 +278,7 @@ run.close(15)
 # Scrabble (0.6 s, loop): up between the cars facing in, the body stood up the gap like a lizard on a wall, the forehooks
 # on the car ends above, the middle on the buffers, the hind on the coupler; climbing, the hands going in quick snatches,
 # the head pressed up and turning in jerks.
-UPRIGHT = {"root@loc": (0, -0.2, 0.25), "pelvis": (62, 0, 0), "spine_01": (8, 0, 0), "spine_02": (6, 0, 0), "spine_03": (4, 0, 0),
+UPRIGHT = {"root@loc": (0, -0.2, 0.25 + LIFT), "pelvis": (62, 0, 0), "spine_01": (8, 0, 0), "spine_02": (6, 0, 0), "spine_03": (4, 0, 0),
            "neck_01": (-14, 0, 0), "neck_02": (-10, 0, 0), "head": (-16, 0, 0), "tail_01": (-50, 0, 0), "tail_02": (-20, 0, 0)}
 scrabble = Clip("scrabble")
 GRIP = {"f": (0.36, 0.42, 1.75), "m": (0.46, 0.4, 1.2), "h": (0.32, 0.22, 0.75)}
@@ -305,7 +314,7 @@ walk.close(60)
 
 # Crouch (4 s, loop): inside an unlit car, folded up in a corner, sat back on its hind limbs, the others drawn in under
 # it, the body tipped up and the head lifted and cocked, still; once, the head snaps to the other side.
-SIT = {"root@loc": (0, 0.1, -0.2), "pelvis": (22, 0, 0), "spine_01": (4, 0, 0), "spine_02": (2, 0, 0), "neck_01": (-12, 0, 0), "neck_02": (-8, 0, 0),
+SIT = {"root@loc": (0, 0.1, -0.2 + LIFT), "pelvis": (22, 0, 0), "spine_01": (4, 0, 0), "spine_02": (2, 0, 0), "neck_01": (-12, 0, 0), "neck_02": (-8, 0, 0),
        "tail_01": (-30, 0, 30), "tail_02": (0, 0, 40), "tail_03": (0, 0, 40)}
 SIT_WR = {("f", "r"): (0.24, 0.62, 0.05), ("f", "l"): (-0.24, 0.6, 0.05), ("m", "r"): (0.36, 0.3, 0.05), ("m", "l"): (-0.36, 0.28, 0.05),
           ("h", "r"): (0.4, -0.3, 0.05), ("h", "l"): (-0.4, -0.32, 0.05)}
@@ -318,7 +327,7 @@ crouch.close(120)
 
 # Grab (1.2 s, loop): reared up over its victim in front of it, the forehooks over their head, the middle hooks in
 # their shoulders, the hind limbs braced; the head pressed down at their face, the sucker opening on it, and working.
-REAR = {"root@loc": (0, -0.25, 0.1), "pelvis": (40, 0, 0), "spine_01": (10, 0, 0), "spine_02": (6, 0, 0), "spine_03": (-6, 0, 0),
+REAR = {"root@loc": (0, -0.25, 0.1 + LIFT), "pelvis": (40, 0, 0), "spine_01": (10, 0, 0), "spine_02": (6, 0, 0), "spine_03": (-6, 0, 0),
         "neck_01": (-24, 0, 0), "neck_02": (-24, 0, 0), "head": (-30, 0, 0), "tail_01": (-30, 0, 0)}
 GRAB_WR = {("f", "r"): (0.16, 0.62, 1.72), ("f", "l"): (-0.16, 0.6, 1.72), ("m", "r"): (0.26, 0.5, 1.4), ("m", "l"): (-0.26, 0.5, 1.42),
            ("h", "r"): (0.4, -0.55, 0.05), ("h", "l"): (-0.4, -0.55, 0.05)}

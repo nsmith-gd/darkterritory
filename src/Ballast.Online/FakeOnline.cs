@@ -10,6 +10,8 @@ namespace Ballast.Online;
 /// <item>Lobby results arrive on a later <see cref="IOnlineBackend.Poll"/>, never inside the call.</item>
 /// <item>Lobbies have a member limit and can be closed; the owner leaving hands the lobby on.</item>
 /// <item>Datagrams reach you only from users in a lobby with you, or users you've sent to first.</item>
+/// <item>A lobby search finds only public, joinable lobbies that match its filter, as Steam's does.</item>
+/// <item>Each account is somewhere (a point on a plane, in milliseconds), and the ping estimate between two is the distance.</item>
 /// </list>
 /// </summary>
 public sealed class FakeOnline
@@ -23,19 +25,24 @@ public sealed class FakeOnline
     public int Delivered { get; private set; }
     public int Lobbies => _lobbies.Count;
 
-    public IOnlineBackend SignIn(string name)
+    /// <summary>A lobby's member limit and whether it's joinable, as its owner last set them (a test's look behind the search); null if gone.</summary>
+    public (int Max, bool Joinable)? Doors(LobbyId lobby) => _lobbies.TryGetValue(lobby, out var r) ? (r.Max, r.Joinable) : null;
+
+    /// <param name="where">Where the account's machine is, for ping estimates: a point in milliseconds from anywhere.</param>
+    public IOnlineBackend SignIn(string name, (double X, double Y) where = default)
     {
-        var user = new User(this, new UserId(_nextUser++), name);
+        var user = new User(this, new UserId(_nextUser++), name, where);
         _users[user.Me] = user;
         return user;
     }
 
-    sealed class Room(UserId owner, int max)
+    sealed class Room(UserId owner, int max, LobbyVisibility visibility)
     {
+        public readonly LobbyVisibility Visibility = visibility;
         public UserId Owner = owner;
         public readonly List<UserId> Members = [owner];
         public readonly Dictionary<string, string> Data = new();
-        public readonly int Max = max;
+        public int Max = max;
         public bool Joinable = true;
     }
 
@@ -46,7 +53,7 @@ public sealed class FakeOnline
                 u.Pending.Enqueue(new OnlineEvent(OnlineEventKind.MembersChanged, id, changed));
     }
 
-    sealed class User(FakeOnline cloud, UserId me, string name) : IOnlineBackend, IDatagramCarrier<UserId>
+    sealed class User(FakeOnline cloud, UserId me, string name, (double X, double Y) where) : IOnlineBackend, IDatagramCarrier<UserId>
     {
         public readonly Queue<OnlineEvent> Pending = new();
         readonly Queue<(UserId From, byte[] Datagram)> _inbox = new();
@@ -65,10 +72,10 @@ public sealed class FakeOnline
                 into.Add(e);
         }
 
-        public void CreateLobby(int maxMembers)
+        public void CreateLobby(int maxMembers, LobbyVisibility visibility)
         {
             var id = new LobbyId(cloud._nextLobby++);
-            cloud._lobbies[id] = new Room(me, maxMembers);
+            cloud._lobbies[id] = new Room(me, maxMembers, visibility);
             Pending.Enqueue(new OnlineEvent(OnlineEventKind.LobbyCreated, id));
         }
 
@@ -122,6 +129,39 @@ public sealed class FakeOnline
             if (cloud._lobbies.TryGetValue(lobby, out var r) && r.Owner == me)
                 r.Joinable = joinable;
         }
+
+        public void SetMemberLimit(LobbyId lobby, int max)
+        {
+            if (cloud._lobbies.TryGetValue(lobby, out var r) && r.Owner == me)
+                r.Max = max;
+        }
+
+        public void RequestLobbyList(LobbyFilter filter)
+        {
+            string? protocol = filter.Protocol?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var found = cloud._lobbies
+                .Where(l => l.Value.Joinable && (!filter.PublicOnly || l.Value.Visibility == LobbyVisibility.Public)
+                    && l.Value.Data.GetValueOrDefault(Lobby.GameKey) == filter.Game
+                    && (protocol is null || l.Value.Data.GetValueOrDefault(Lobby.ProtocolKey) == protocol))
+                .OrderBy(l => l.Key.Value)
+                .Select(l => new LobbyListing(l.Key, l.Value.Members.Count, l.Value.Max, new Dictionary<string, string>(l.Value.Data),
+                    EstimatePingMs(l.Value.Data.GetValueOrDefault(Lobby.PingKey, ""))))
+                .ToList();
+            Pending.Enqueue(new OnlineEvent(OnlineEventKind.LobbyList, default, Listings: found));
+        }
+
+        public string LocalPingLocation => Location(where);
+
+        public int? EstimatePingMs(string location)
+        {
+            var parts = location.StartsWith("fake:", StringComparison.Ordinal) ? location[5..].Split(',') : [];
+            if (parts.Length != 2 || !double.TryParse(parts[0], System.Globalization.CultureInfo.InvariantCulture, out double x)
+                || !double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out double y))
+                return null;
+            return (int)Math.Round(Math.Sqrt((x - where.X) * (x - where.X) + (y - where.Y) * (y - where.Y)));
+        }
+
+        static string Location((double X, double Y) p) => FormattableString.Invariant($"fake:{p.X},{p.Y}");
 
         public int InviteDialogsShown { get; private set; }
         public void ShowInviteDialog(LobbyId lobby) => InviteDialogsShown++;

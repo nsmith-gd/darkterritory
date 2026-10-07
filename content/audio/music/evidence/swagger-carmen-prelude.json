@@ -1,0 +1,62 @@
+{
+  "title": "File:Carmen - Prelude to Act 1.ogg",
+  "cc0": true,
+  "metaSaysCc0": true,
+  "licence": "cc0",
+  "licenceShortName": "CC0",
+  "licenceUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Carmen_-_Prelude_to_Act_1.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+  "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Carmen_-_Prelude_to_Act_1.ogg",
+  "sha1": "0c6eae8d8c5f323f21ff19c18f0eacbe0a4d67c0",
+  "size": 1820266,
+  "mime": "application/ogg",
+  "artist": "Musopen",
+  "credit": "This work comes from the non profit U.S. organization Musopen where it is available at the following link: https://musopen.org/music/1059/georges-bizet/carmen/ The Musopen website requires all uploaders to \"represent and warrant that content uploaded to the site is in the public domain\" (see FAQ #4). Musopen's own works (\"Musopen Materials\" and \"Musopen Service\", not user content or public domain content), are fully copyrighted and may not be used freely as stated in their Terms and Conditions of Use.",
+  "description": "Prelude to Act 1 for Carmen by Georges Bizet",
+  "date": "1875",
+  "revision": 848754102,
+  "revisionTimestamp": "2024-02-04T00:25:10Z",
+  "user": "Morn",
+  "refused": [],
+  "id": "swagger-carmen-prelude",
+  "work": "Prelude, Carmen",
+  "composer": "Georges Bizet",
+  "sourceSha256": "deefeb327ce0a06b78e7a8bf493395a638b5a7e840e8b95c7aa97b9c633753c8",
+  "fetched": "2026-10-03T17:55:58Z",
+  "licenceTemplates": [
+    "cc-zero"
+  ],
+  "licenceSection": "{{Cc-zero}}\n\n[[Category:Audio files of Carmen]]",
+  "information": "{{Information\n|Description    ={{en|1=Prelude to Act 1 for ''Carmen'' by Georges Bizet}}\n                 {{fr|1=Prélude  à l'acte I de ''Carmen'' de Georges Bizet}}\n|Source         ={{Musopen|https://musopen.org/music/1059/georges-bizet/carmen/}}\n|Author         =Musopen\n|Date           =1875\n|Permission     =\n|other_versions =\n}}",
+  "wikitext": "== {{int:filedesc}} ==\n{{Information\n|Description    ={{en|1=Prelude to Act 1 for ''Carmen'' by Georges Bizet}}\n                 {{fr|1=Prélude  à l'acte I de ''Carmen'' de Georges Bizet}}\n|Source         ={{Musopen|https://musopen.org/music/1059/georges-bizet/carmen/}}\n|Author         =Musopen\n|Date           =1875\n|Permission     =\n|other_versions =\n}}\n{{Media of the day|2014|06|25}}\n\n== {{int:license-header}} ==\n{{Cc-zero}}\n\n[[Category:Audio files of Carmen]]",
+  "performers": "Musopen (performers uncredited)",
+  "hitNote": "the opening march's return, fortissimo with the cymbals, before the fate motif",
+  "hitClock": "1:25.4",
+  "file": "swagger-carmen-prelude.opus",
+  "hitGuess": 24.0,
+  "sourceSeconds": 125.052,
+  "window": [
+    61.44,
+    106.44
+  ],
+  "hitInSource": 85.44,
+  "analysis": {
+    "score": 17.68,
+    "range": [
+      50,
+      90
+    ]
+  },
+  "inputLufs": -20.4,
+  "inputTruePeak": -1.72,
+  "normalization": "dynamic",
+  "outputLufs": -16.3,
+  "limiterGainDb": 0.7,
+  "limitDb": -2.83,
+  "decodedPeakDb": -1.79,
+  "hitCheck": {
+    "jumpDb": 11.1,
+    "loudnessRank": 0.04,
+    "weak": false
+  }
+}

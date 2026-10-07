@@ -6,6 +6,9 @@
   "roofWalkSafe": 1.8,
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
+  // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
+  // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
+  "soloBodyClimb": 0.4,
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this.
   "pushGun": 1.2,
   "jumpGap": 2.2,
@@ -16,6 +19,8 @@
   // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
   // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench.
   "kit": ["crowbar"],
+  // What the bots go by (GDD v1.4 App. D.12: the incident report names everyone): a crew's names, in the order they board.
+  "botNames": ["Dunmore", "Okafor", "Reyes", "Halloran", "Petrov", "Achebe", "Lindqvist", "Moreau"],
   "gravity": 9.81,
   "radius": 0.3,
   "height": 1.8,
@@ -53,6 +58,49 @@
     "onsetSpeedScale": 0.9,
     // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
     // comes on at this fraction of the rate outside.
-    "indoorsRate": 0.25
+    "indoorsRate": 0.25,
+    // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
+    // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
+    "perColdStep": 0.25
+  },
+  // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
+  // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
+  // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
+  // side to the other over gustMetres of line. walking: walking or standing, this of what it is at a roof run (balance).
+  // The roof handrails take it to train.json composition.rails.wind of that; a gun's seat is out of it. At the worst
+  // (exposed track, full speed, running) about 0.45 m/s: walking against it holds you, but stood at the edge in a gust
+  // it walks you off. It's seen as the drift itself: no camera roll, which a headset would feel in the stomach.
+  "wind": {
+    "drift": 0.3,
+    "still": 0.4,
+    "walking": 0.5,
+    "gustMetres": 120
+  },
+  // Spec E drop-out, GDD v1.4 App. D.2 (ARCHITECTURE §8 note 253): a player whose link drops mid-night leaves an inert body
+  // (no bot takes over), and the host holds their place (id, name, a token issued at the welcome) for reserveSeconds.
+  // Back in time with the token, they get their own crewmate back. reclaimBody: true, they stand up where their body
+  // lies now, with whatever kit is still on it (it may have been carried, looted, or fallen off the train); dead when they
+  // dropped, they're dead still, on the dead channel. false is D.2's letter: the body stays and they come back as a lobbied
+  // player (the respawn queue, or with no Holdouts a drop-in). A body gone (the Gaunt has it) is always D.2's letter.
+  // Past reserveSeconds the slot frees and a returning player is a new joiner.
+  // greetSeconds: a joiner says hello (with the token, if it has one) before it's welcomed; one that says nothing in this
+  // long stops holding up the others, and is welcomed only once it does (note 253). The client retries a dropped link `retries` times, retrySeconds apart, then offers RECONNECT.
+  "rejoin": {
+    "reserveSeconds": 180,
+    "reclaimBody": true,
+    "greetSeconds": 1,
+    "retries": 5,
+    "retrySeconds": 3
+  },
+  // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
+  // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
+  // `cap`: told CREW FULL (n/cap), the lobby listed FULL and its platform lobby shut, open again when a place frees. Bots
+  // hold crewmates, so they count. A player coming back with a held place's token always gets in. A mod raises it with a
+  // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
+  // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
+  // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
+  "crew": {
+    "cap": 8,
+    "refuseLingerSeconds": 3
   }
 }
