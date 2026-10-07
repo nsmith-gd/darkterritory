@@ -62,15 +62,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
+| 29 | **The Look Review's open creature notes (the director, 6 Oct):** the Choir more ethereal and ghostly; the Ribbit's loose-looking geometry, a much bigger swell and a real tongue; the Cinder Hounds' animations a full overhaul; the Switchman's shuffle-flee more fluid, slow and intentioned; the Tippy-toesie creepier. Models and clips only (`tools/blender`, the creature rigs); no Sim rules changed | E1 | `claude/friendly-heisenberg-z67r2v` | 291 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **281**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **292**, counting claims on open PRs (281–290: #194, #198, #203, #205, #206, #208). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 291 (E1's Look Review creature notes). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 
