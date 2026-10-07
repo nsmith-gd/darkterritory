@@ -1239,7 +1239,8 @@ public sealed class World
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
             // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
             // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
+            // Nor is what stays aboard until it's dealt with (Cinder Hounds, note 269): that's the point of it.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire || e.StaysAboard)
             {
                 _unmet.Remove(e.Id);
                 continue;

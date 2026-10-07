@@ -134,6 +134,10 @@ public sealed record FireFliesTuning
     public double PullAwaySpeed { get; init; } = 15;
     public double PullAwaySeconds { get; init; } = 8;
     public double DepthWeight { get; init; } = 2;
+    /// <summary>GDD App. F, 6 Oct 2026 (note 269): the director sends them only while the train is under this (m/s).</summary>
+    public double StoppedBelow { get; init; } = 0.3;
+    /// <summary>Note 269: "their pull … is rare": their weight at a stop, against the rest of the table.</summary>
+    public double StoppedWeight { get; init; } = 0.5;
 }
 
 /// <summary>Ribbits (v1.1 App. A.6, B.6). Field docs live in enemies.json.</summary>
@@ -449,6 +453,15 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
 {
     /// <summary>A crewmate pinned in the pack fight has this long for a friend to club it off (v1.1 App. A.1 GRAB).</summary>
     public double MaulSeconds { get; init; } = 8;
+    /// <summary>
+    /// GDD App. F, 6 Oct 2026 (note 269): "Cinder Hounds that board stay aboard." Off restores the v1.1 drop-off after
+    /// <see cref="BoredSeconds"/> with nobody near.
+    /// </summary>
+    public bool StayAboard { get; init; } = true;
+    /// <summary>Note 269: aboard with nobody near, each eats this share of its car's cargo a second.</summary>
+    public double CargoPerSecond { get; init; } = 0.002;
+    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
+    public double IgniteEverySeconds { get; init; } = 20;
 }
 
 public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);
