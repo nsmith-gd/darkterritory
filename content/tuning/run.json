@@ -18,6 +18,13 @@
   // overheating, no rupture, no running out), the cold doesn't bite, and the train only moves off when someone in the cab
   // lets the brake off and drives it out.
   "yardIsSafe": true,
+  // GDD §9, the director's note on build 1121 (T128, ARCHITECTURE §8 note 273): "forts must be safe spaces that monsters
+  // never enter". yardIsSafe only holds before the run begins; this holds all night, for both forts: the departure fortress
+  // (the line up to its outer gate) and the terminus (from its gate on; a silent settlement's only if linegen keeps its gate
+  // safe), out to halfWidthM either side of the line. The director sends nothing while any of the train is in one, nothing
+  // is put down inside one, and a creature that comes into one is driven off (it lets go of whoever it holds, and is gone).
+  // A crewmate left behind near the gate can run back inside.
+  "forts": { "safe": true, "halfWidthM": 80 },
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
   // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
   // bored pace), never less than lineSeconds.

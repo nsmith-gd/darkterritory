@@ -1043,6 +1043,35 @@ public sealed class World
     /// </summary>
     public bool SafeYard => Run is { Phase: Sim.Run.RunPhase.Yard, Tuning.YardIsSafe: true };
 
+    /// <summary>
+    /// GDD §9 "forts must be safe spaces that monsters never enter" (T128; run.json <c>forts</c>, note 273): whether a world
+    /// point is inside one of the night's forts, all night long. The departure fortress is the main line up to its outer gate
+    /// (the run's yard); the terminus is from its gate on (a generated line's plan says where, and whether a silent
+    /// settlement's gate is kept safe; otherwise the run's terminus zone). Either reaches <see cref="Sim.Run.FortTuning.HalfWidthM"/>
+    /// out from the line. No forts without a run.
+    /// </summary>
+    public bool InFort(Ballast.Double3 world)
+    {
+        if (Run is not { Tuning.Forts: { Safe: true } forts } run)
+            return false;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(world, ref hint);
+        double along = hint;
+        var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
+        if (((world - rail.Position) with { Y = 0 }).Length > forts.HalfWidthM)
+            return false;
+        if (along <= run.YardLength)
+            return true;
+        var terminus = run.Route.Plan?.Terminus;
+        if (terminus is { Silent: true, GateSafe: false })
+            return false;
+        return along >= (terminus?.GateM ?? run.Route.Length - run.Tuning.TerminusZone);
+    }
+
+    /// <summary>Any of the train in a fort (note 273): the director sends nothing then.</summary>
+    public bool TrainInFort => Run is { Tuning.Forts.Safe: true } && Train.Frames.Count > 0
+        && (InFort(Train.Frames[0].Origin) || InFort(Train.Frames[Train.Dynamics.Consist.Vehicles[^1].Id].Origin));
+
     public void Step(in TrainControls controls)
     {
         Controls = controls;
@@ -1331,7 +1360,7 @@ public sealed class World
                 rule.Spawn(new SpawnContext(this, t, d));
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
-                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker))
+                && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort)
             {
                 d.Charge(this, EnemyKind.Stoker, _enemies);
                 _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
@@ -1344,11 +1373,19 @@ public sealed class World
                 _driftMarsh = marsh.Start;
                 SpawnDrift(t);
             }
+            // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
+            d.Abandoned(this, _enemies);
         }
 
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
+        // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
+        if (Run is { Tuning.Forts.Safe: true })
+            foreach (var e in _enemies)
+                if (!e.Gone && !e.Hazard && e is not Sim.Enemies.Incident && InFort(e.WorldPosition(Train)))
+                    e.Dismiss();
 
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
