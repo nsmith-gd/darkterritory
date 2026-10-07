@@ -404,8 +404,32 @@ public static class Hud
     /// <summary>Whether you've a radio on you (T41), under the link: without one, T does nothing and nobody's on it for you.</summary>
     /// <summary>Where the repair kit is, for a ruptured boiler (T109): it's what mends it, and somebody has to go and get it.</summary>
     /// <summary>Which way a switch goes when it's thrown: back to the main line, or over for its branch.</summary>
-    static string SwitchTo(TrainOnLine train, int branch) =>
-        train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
+    /// <remarks>
+    /// An alternate goes by the route card's name for it ("high line", "low line"; linegen plan §9.7). Note 289: every branch
+    /// that wasn't a spur said "the dead line", so a crew at a junction choosing the card's high line was told it was throwing
+    /// the train onto a dead line.
+    /// </remarks>
+    static string SwitchTo(Sim.World world, TrainOnLine train, int branch)
+    {
+        if (train.Diverging(branch))
+            return "THE MAIN LINE";
+        return train.Line.Branches[branch].Kind switch
+        {
+            BranchKind.Spur => "THE SPUR",
+            BranchKind.Alternate => $"THE {(CardName(world, branch) ?? "ALTERNATE").ToUpperInvariant()}",
+            _ => "THE DEAD LINE",
+        };
+    }
+
+    /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
+    static string? CardName(Sim.World world, int branch)
+    {
+        if (world.Run?.Route.Plan is not { } plan || plan.Alignment.FirstOrDefault(a => a.Branch == branch) is not { } edge)
+            return null;
+        string tag = $" ({edge.Edge})";
+        var grade = plan.RouteCard.KnownGrades.FirstOrDefault(k => k.Route.EndsWith(tag, StringComparison.Ordinal));
+        return grade?.Route[..^tag.Length];
+    }
 
     public static string RepairKitWhere(Sim.World world, int playerId)
     {
@@ -1445,7 +1469,7 @@ public static class Hud
                     double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
                     return !lever.Slow ? $"POWERED POINTS {off:0} M AHEAD: SLOW TO {thrower.MaxSpeed * 3.6:0} KM/H TO THROW THEM"
                         : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POWERED POINTS: HELD, A WHEEL IS ON THEM"
-                        : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
+                        : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(world, train, ahead)}";
                 }
         }
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
@@ -1490,7 +1514,7 @@ public static class Hud
             // Say which way it'll go, and when it won't: the points don't move with a wheel on them.
             return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength)
                 ? "SWITCH: POINTS HELD, A WHEEL IS ON THEM"
-                : $"[E] HOLD: THROW THE SWITCH TO {SwitchTo(train, branch)}";
+                : $"[E] HOLD: THROW THE SWITCH TO {SwitchTo(world, train, branch)}";
         }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
