@@ -9,6 +9,7 @@ using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Stops;
+using DarkTerritory.Sim.Towns;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -46,9 +47,11 @@ public static partial class Hud
     /// by bookmark id: the report shows each beside its line.</param>
     /// <param name="pixels">How many of the drawn image's pixels each of the canvas's is (the renderer's height over the
     /// canvas's): the prompt's fine print is as small as stays crisp at that (<see cref="PromptScaleAt"/>).</param>
+    /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
+    /// app's seconds, for its card.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        float pixels = 4)
+        float pixels = 4, TownTalk? talk = null, double now = 0)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
@@ -85,8 +88,13 @@ public static partial class Hud
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, s, lobby, line);
+        // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
+        // own foot says what Use does next, so the town's prompt under the crosshair stands down.
+        var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
+        if (townCard is not null)
+            TownCardOn(o, width, height, townCard, line);
         string? prompt = over ? null : Prompt(s);
-        if (prompt is not null)
+        if (prompt is not null && !(townCard is not null && TownTarget(s) is not null))
             PromptPlate(o, width, height, Bound(prompt));
         if (p.Alive && !over)
         {
@@ -389,9 +397,43 @@ public static partial class Hud
             o.TextRight(right, 5, $"PING {ping:0} MS", colour, k);
     }
 
+    /// <summary>An open house's hiding spot as the prompt says it (note 326).</summary>
+    static string SpotName(DarkTerritory.Sim.Stops.ContainerKind kind) => kind switch
+    {
+        DarkTerritory.Sim.Stops.ContainerKind.Cupboard => "CUPBOARD",
+        DarkTerritory.Sim.Stops.ContainerKind.Cabinet => "CABINET",
+        DarkTerritory.Sim.Stops.ContainerKind.Cellar => "CELLAR",
+        DarkTerritory.Sim.Stops.ContainerKind.UnderFloor => "LOOSE BOARDS",
+        _ => "PLACE",
+    };
+
     /// <summary>Which way a switch goes when it's thrown: back to the main line, or over for its branch.</summary>
-    static string SwitchTo(TrainOnLine train, int branch) =>
-        train.Diverging(branch) ? "THE MAIN LINE" : $"THE {(train.Line.Branches[branch].Kind == BranchKind.Spur ? "SPUR" : "DEAD LINE")}";
+    /// <remarks>
+    /// An alternate goes by the route card's name for it ("high line", "low line"; linegen plan §9.7). Note 289: every branch
+    /// that wasn't a spur said "the dead line", so a crew at a junction choosing the card's high line was told it was throwing
+    /// the train onto a dead line.
+    /// </remarks>
+    static string SwitchTo(Sim.World world, TrainOnLine train, int branch)
+    {
+        if (train.Diverging(branch))
+            return "THE MAIN LINE";
+        return train.Line.Branches[branch].Kind switch
+        {
+            BranchKind.Spur => "THE SPUR",
+            BranchKind.Alternate => $"THE {(CardName(world, branch) ?? "ALTERNATE").ToUpperInvariant()}",
+            _ => "THE DEAD LINE",
+        };
+    }
+
+    /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
+    static string? CardName(Sim.World world, int branch)
+    {
+        if (world.Run?.Route.Plan is not { } plan || plan.Alignment.FirstOrDefault(a => a.Branch == branch) is not { } edge)
+            return null;
+        string tag = $" ({edge.Edge})";
+        var grade = plan.RouteCard.KnownGrades.FirstOrDefault(k => k.Route.EndsWith(tag, StringComparison.Ordinal));
+        return grade?.Route[..^tag.Length];
+    }
 
     /// <summary>
     /// Where the repair kit is, for a ruptured boiler (T109; GDD §23.2: where it is decides the night): where, not what it's
@@ -1147,6 +1189,55 @@ public static partial class Hud
             o.Rect(x, height - 8, MathF.Round((float)(w * s.SkipHold)), 1, Ink);
     }
 
+    /// <summary>
+    /// The fortress town's thing a Use press is for: what <see cref="Prompt"/> is offering, when what it offers is the
+    /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
+    /// </summary>
+    public static TownTarget? TownTarget(IPlaySession s) =>
+        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
+
+    /// <summary>
+    /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
+    /// sheet at the top of the screen, like the route card; a thing looked at, on a plate.
+    /// </summary>
+    static void TownCardOn(Overlay o, int width, int height, TownCard card, int line)
+    {
+        bool paper = card.Kind == TownCardKind.Paper;
+        float w = paper ? Math.Min(width - 16, 260) : Math.Min(width - 24, 340);
+        int chars = Math.Max(16, (int)((w - 12) / o.Font.Advance));
+        var body = Wrap(card.Text.ToUpperInvariant(), chars).ToList();
+        int rows = 1 + body.Count + (card.Footer.Length > 0 ? 1 : 0) + (paper ? 1 : 0);
+        float h = rows * line + 10 + (paper ? 3 : 0), x = MathF.Round((width - w) / 2), y = paper ? MathF.Round((height - h) / 2) - 16 : height - 46 - 6 - h;
+        if (paper)
+        {
+            o.Rect(x, y, w, h, PaperSheet);
+            o.Outline(x, y, w, h, PaperRule);
+        }
+        else
+            UiStyle.Plate(o, x, y, w, h, UiStyle.Brass, 0.9f);
+        float ty = y + 5;
+        string heading = card.Heading.ToUpperInvariant();
+        o.Text(x + 6, ty, heading.Length > chars ? heading[..chars] : heading, paper ? PaperStamp : Dim, shadow: !paper);
+        ty += line * (paper ? 2 : 1);
+        foreach (var text in body)
+        {
+            o.Text(x + 6, ty, text, paper ? PaperInk : Ink, shadow: !paper);
+            ty += line;
+        }
+        if (card.Footer.Length > 0)
+        {
+            ty += paper ? 3 : 0;
+            string footer = Bound(card.Footer);
+            UiStyle.Keyed(o, x + w - 6 - UiStyle.MeasureKeyed(o, footer), ty, footer, paper ? PaperStamp : Dim);
+        }
+    }
+
+    // A paper's colours: the route card's (PlanHud).
+    static readonly Vector4 PaperSheet = new(0.80f, 0.76f, 0.64f, 0.94f);
+    static readonly Vector4 PaperInk = new(0.10f, 0.09f, 0.08f, 1);
+    static readonly Vector4 PaperRule = new(0.35f, 0.28f, 0.2f, 0.8f);
+    static readonly Vector4 PaperStamp = new(0.55f, 0.12f, 0.08f, 1);
+
     static IEnumerable<string> Wrap(string text, int chars)
     {
         var line = new System.Text.StringBuilder();
@@ -1463,9 +1554,13 @@ public static partial class Hud
                     // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
                     return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
                         : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
-                        : $"THROW TO {SwitchTo(train, ahead)} : HOLD [E]";
+                        : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
                 }
         }
+        // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
+        // so a lamp at somebody's feet doesn't take the press meant for them.
+        if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
+            return TownTalk.Prompt(town, there);
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
             return thing.Kind switch
@@ -1479,6 +1574,11 @@ public static partial class Hud
                 BodyKind.Heavy => p.Hand != default ? "TAKE AN END : GRIP" : "TAKE AN END : [E]",
                 _ => "PICK UP : [E]",
             };
+        // An open house's hiding spot (note 326), what it is said and the search under way, empty-handed only.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && world.Run?.SpotInReach(p, train) is { } spot)
+            return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
+                ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
+                : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
@@ -1505,7 +1605,7 @@ public static partial class Hud
         {
             // Which way it'll go, and when it won't: the points don't move with a wheel on them.
             return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength) ? "POINTS HELD"
-                : $"THROW TO {SwitchTo(train, branch)} : HOLD [E]";
+                : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
         }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)

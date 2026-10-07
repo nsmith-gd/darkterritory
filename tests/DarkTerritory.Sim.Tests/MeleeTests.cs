@@ -34,7 +34,8 @@ public class MeleeTests
     [InlineData(Tool.None)]
     public void EachToolLandsItsOwnBlow(Tool tool)
     {
-        var (n, e) = HitConfirmTests.Staged(EnemyKind.Climber);
+        // A Cinder Hound: a lone blow wears it down (a Climber's needs the crew together now, note 288).
+        var (n, e) = HitConfirmTests.Staged(EnemyKind.CinderHound);
         n.Crew[1] = n.Crew[1] with { Kit = Kit.Of([tool]), HeldSlot = 0 };
         Assert.Equal(tool, Kit.Held(n.Crew[1]));
         double before = e.Health;
