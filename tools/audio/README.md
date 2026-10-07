@@ -51,6 +51,11 @@ DIR is the store's `items` as an ArtifactData list saves them with `out_dir`.
   deepTerritory:2's first bend that can derail it at its board and on past its derailing speed, and reports each of
   those a second at a time: read it before changing any of them (`recipes/stress.py` has the squeal and scream that
   were made for it).
+- **The voice booth** (queue #42; https://claude.ai/artifact/3VvuCkMwP3hJ6iDb1PZaoe): the director records lines where a
+  real voice beats a stand-in (the prisoners, the Soot Children's call, the clerk, the crew's breath, creature sources)
+  and `booth.py make LINE TAKE --out DIR` disguises each take so it isn't the director's voice (another throat: formants
+  moved with the pitch), a few versions a take, for Keep or Redo on the page. The page's source and its draft script are
+  in `booth/`.
 - `CUE_DEF` (install.py) overrides one cue's tier or range where it isn't like its line (the low-steam whistle is still
   the train's whistle, tier 1; the startled livestock are the world's); `FIRST_CHOICE` names the candidate that plays
   while nothing's kept, where the director's brief already says which (the tunnel's bonk).
