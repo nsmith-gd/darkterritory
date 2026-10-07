@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
@@ -334,5 +335,38 @@ public class HitConfirmTests
         Assert.Single(n.World.Impacts);
         n.Run(2);
         Assert.Empty(n.World.Impacts);
+    }
+
+    [Fact]
+    public void ABallFiredAtTheFortWallStopsAtItWithAnImpact()
+    {
+        // T124 (build 1121: "gun shots hit nothing"): in the home fortress's yard, laid on the wall 50 m ahead and to the side
+        // (a house between may take it first): the ball strikes a building, short of the wall's far face, where a ball's
+        // impact is told to everyone, and the stone isn't passed through to the ground beyond.
+        var route = Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6);
+        var n = new Night(4, speed: 0, route);
+        n.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        Assert.InRange(n.Train.Dynamics.Distance, 100, 500);
+        n.Crew[1] = Gunner(n);
+        foreach (int side in new[] { -1, 1 })
+        {
+            var t = n.Train.Line.Sample(n.Train.Dynamics.Distance + 50);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+            var wall = t.Position + right * (side * Run.Fortresses.WallOut) + Double3.Up * 3;
+            (n.Train.Vehicles[0].Gun.Cooldown, n.Train.Vehicles[0].Gun.ReloadNeeded) = (0, 0);
+            int before = n.World.Impacts.Count;
+            n.Crew[1] = LaidOn(n, n.Crew[1], wall);
+            n.Run(1.0 / SimConstants.TickRate, id => Fire);
+            var impact = Assert.Single(n.World.Impacts.Skip(before));
+            Assert.Equal(ImpactSurface.Structure, impact.Surface);
+            var muzzle = n.Train.Frames[0].ToWorld(Guns.Mount(n.Train, 0)!.Value.Position);
+            Assert.True((impact.At - muzzle).Length <= (wall - muzzle).Length + Run.Fortresses.WallHalf / Math.Abs(Double3.Dot((wall - muzzle).Normalized, right)) + 0.1,
+                $"the ball went {(impact.At - muzzle).Length:0.0} m, past the wall at {(wall - muzzle).Length:0.0} m");
+            Assert.Contains(n.Train.Walls!.Near(impact.At), w =>
+            {
+                var l = w.ToLocal(impact.At);
+                return Math.Abs(l.X) <= w.HalfLength + 0.05 && Math.Abs(l.Z) <= w.HalfWidth + 0.05;
+            });
+        }
     }
 }

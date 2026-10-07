@@ -2085,7 +2085,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - There's a walkie-talkie aboard. *Noted.*
 
 **The fort**
-- Fort buildings have no collision, and gun shots hit nothing. *In progress (T124).*
+- Fort buildings have no collision, and gun shots hit nothing. *Done (T124, note 274).*
 - Forts must be safe spaces that monsters never enter (§9). *Open (T128).*
 
 **Bugs**
