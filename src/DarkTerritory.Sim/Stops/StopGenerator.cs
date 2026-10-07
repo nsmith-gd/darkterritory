@@ -63,6 +63,24 @@ public static partial class StopGenerator
         return -1;
     }
 
+    /// <summary>
+    /// Derelict cars on some of the yard's sidings (level-design D.1, D.2, P18; note 294): the tier's <c>blocked</c> count
+    /// of tracks, never the facility's own (its loading modules are there), so never all. Each holds <c>derelict.cars</c>,
+    /// at most what its face takes. A switchyard's sidings already have its standing cars (note 187), and none of these.
+    /// </summary>
+    static void BlockSidings(StopDraft g, Dice R, StopTuning t, StopTier tt)
+    {
+        var open = g.Tracks.Where(tr => !tr.Primary && tr.Capacity > 0).Select(tr => tr.Index).ToList();
+        int n = Math.Min(R.Int(tt.Blocked), open.Count);
+        for (int k = 0; k < n; k++)
+        {
+            int pick = open[R.Int(0, open.Count - 1)];
+            open.Remove(pick);
+            int at = g.Tracks.FindIndex(tr => tr.Index == pick);
+            g.Tracks[at] = g.Tracks[at] with { Derelicts = Math.Clamp(R.Int(t.Derelict.Cars), 1, g.Tracks[at].Capacity) };
+        }
+    }
+
     /// <summary>The tier's band for this kind of stop: a yard's, or a village halt's (P15).</summary>
     public static double[] Band(StopTuning t, StopLayout layout) =>
         layout.HasYard ? t.Tiers[layout.Tier].Band.Yard : t.Tiers[layout.Tier].Band.Village;
@@ -208,6 +226,9 @@ public static partial class StopGenerator
             var RP = new Dice(StopSeed.Of(s, StopSeed.Power));
             power = RP.Pick<PowerState>(tt.Power);
             powerhouse = PlacePowerhouse(g, RP, t, sY);
+            // Blocked sidings (D.2), from their own seed, so a stop's track and buildings are what they were without them.
+            if (cx.Facility != FacilityKind.Switchyard)
+                BlockSidings(g, new Dice(StopSeed.Of(s, StopSeed.Blocked)), t, tt);
         }
 
         // Last, from their own seeds: the Holdouts (App. D.4) and where the outside creatures live (B.6, B.8).
@@ -262,7 +283,7 @@ public static partial class StopGenerator
     public static StopMoves Measure(StopTuning t, StopTier tt, StopLayout l)
     {
         var w = t.Score;
-        int trips = 0, throws = 0, couplings = 0, reversals = 0, blind = 0, respots = 0, hand = 0;
+        int trips = 0, throws = 0, couplings = 0, reversals = 0, blind = 0, respots = 0, hand = 0, clearances = 0;
         double left = tt.Empties, walk = 0, carry = 0;
         bool blocked = false;
         if (l.HasYard)
@@ -293,6 +314,14 @@ public static partial class StopGenerator
                 couplings += 2;
                 reversals += 1;
                 blind += 1;
+                // A blocked siding is cleared first (D.1): its derelicts pulled out and put away on a track already worked,
+                // two more throws for that one's switch and a reversal.
+                if (next.Blocked)
+                {
+                    clearances++;
+                    throws += 2;
+                    reversals += 1;
+                }
                 // The switchman walks from the waiting cars to the points and back; across the line for a split yard's far spur.
                 walk += 2 * (Math.Abs(next.Toe - l.CutFront) + (next.Across ? 8 : 0)) * w.WalkFactor;
                 double room = Math.Min(left, next.Capacity), craned = 0, filled = 0;
@@ -328,7 +357,7 @@ public static partial class StopGenerator
         // A hard pull: the loaded train dragged up a steep grade out of the yard.
         bool hardPull = l.ExitGrade >= w.HardPullFrom;
         double yard = !l.HasYard ? 0 : throws * w.Throw + couplings * w.Coupling + reversals * w.Reversal + blind * w.BlindMove + respots * w.Respot
-            + hand * w.HandCar + carry / w.CarryMetresPerPoint + walk / w.MetresPerPoint + (blocked ? w.BlockedCrossing : 0)
+            + hand * w.HandCar + clearances * w.Clearance + carry / w.CarryMetresPerPoint + walk / w.MetresPerPoint + (blocked ? w.BlockedCrossing : 0)
             + power + (hardPull ? l.ExitGrade * w.HardPull : 0);
 
         double villageWalk = 0, village = 0;
@@ -347,6 +376,7 @@ public static partial class StopGenerator
             Throws = throws,
             Couplings = couplings,
             Reversals = reversals,
+            Clearances = clearances,
             BlindMoves = blind,
             Respots = respots,
             HandCars = Math.Max(0, hand),

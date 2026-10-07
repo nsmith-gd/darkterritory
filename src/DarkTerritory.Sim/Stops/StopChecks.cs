@@ -41,6 +41,11 @@ static class StopChecks
                 }
             Add("Tracks never cross", closest >= 4.5, closest == double.MaxValue ? "one track a side" : $"closest {closest:0.0} m apart past the points (P6)");
 
+            // Blocked sidings (D.2 "never all"): the facility's own track is always open.
+            int blocked = l.Tracks.Count(tr => tr.Blocked);
+            Add("Blocked sidings leave a way in", l.Tracks.All(tr => !tr.Primary || !tr.Blocked) && (blocked == 0 || blocked < l.Tracks.Count),
+                $"{blocked} of {l.Tracks.Count} tracks blocked by derelicts, the facility's own open (D.2)");
+
             bool inZone = l.Tracks.All(tr => tr.Toe > 0 && tr.Path.All(p => p.S >= 0 && p.S <= cx.ZoneLength));
             Add("The yard is inside the level zone", inZone, "switches and track on the zone's straight, level main line");
         }

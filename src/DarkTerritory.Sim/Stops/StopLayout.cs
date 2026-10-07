@@ -107,6 +107,12 @@ public sealed record YardTrack(int Index, int Side, double Toe, double Offset, I
     public bool Primary { get; init; }
     /// <summary>On the far side of the main line (a split yard).</summary>
     public bool Across { get; init; }
+    /// <summary>
+    /// Derelict cars standing at the buffer stop when the night begins (level-design D.1, D.2 "blocked sidings"; note 294):
+    /// bad-order stock nobody moved, handbrakes on, on the loading face. The crew pull them clear before the track's any use.
+    /// </summary>
+    public int Derelicts { get; init; }
+    [JsonIgnore] public bool Blocked => Derelicts > 0;
     [JsonIgnore] public double Length => Segments.Sum(s => s.Length);
 }
 
@@ -152,6 +158,8 @@ public sealed record StopMoves
     public int Throws { get; init; }
     public int Couplings { get; init; }
     public int Reversals { get; init; }
+    /// <summary>Blocked sidings the crew clear to use (D.1): each also costs two throws and a reversal, counted in those.</summary>
+    public int Clearances { get; init; }
     public int BlindMoves { get; init; }
     public int Respots { get; init; }
     public int HandCars { get; init; }
