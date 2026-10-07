@@ -457,6 +457,18 @@ public sealed class Climber(int id) : Enemy(id)
                     }
                     if (PhaseSeconds >= t.PaceSeconds && Math.Abs(want - LineDistance) <= 1.5)
                     {
+                        // Boarding-first (GDD App. F.1, note 286): "slowing opens the doors". Too fast to get a grip, it
+                        // runs on alongside (the telegraph: a pack pacing the train, waiting for it to slow), and gives it
+                        // up after a while.
+                        if (train.Dynamics.Speed >= t.MountBelow)
+                        {
+                            if (PhaseSeconds >= t.PaceSeconds + t.WaitForSlowSeconds)
+                            {
+                                Enter(ctx, SpinePhase.BreakOff);
+                                Enter(ctx, SpinePhase.Gone);
+                            }
+                            break;
+                        }
                         if (Held(ctx, Gap, Brought(ctx), t))
                         {
                             Retry(ctx, t);
@@ -476,8 +488,9 @@ public sealed class Climber(int id) : Enemy(id)
                     Enter(ctx, SpinePhase.Commit);
                 break;
             case SpinePhase.Telegraph:
-                // Enough of the crew get to the gap as it scrabbles: outnumbered, it drops back and tries another.
-                if (Held(ctx, Gap, Brought(ctx), t))
+                // Enough of the crew get to the gap as it scrabbles: outnumbered, it drops back and tries another. So it
+                // does if the train picks up past what it can hold on at (note 286).
+                if (Held(ctx, Gap, Brought(ctx), t) || train.Dynamics.Speed >= t.MountBelow)
                 {
                     Retry(ctx, t);
                     break;
@@ -538,7 +551,9 @@ public sealed class Climber(int id) : Enemy(id)
         double z = Local.Z - t.TraverseSpeed * SimConstants.TickSeconds;
         // Over the middle of a car with a room in it, unlit or with nobody inside (App. A.4 ENTER): in it goes. Shut up and
         // dark, it forces its way in through the roof (the hatch torn off): the car's breached (decided 1 Oct).
-        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)))
+        // Boarding-first (note 286): a lit car shut up tight keeps it out; it forces only a dark one.
+        bool keptOut = train.Vehicles[car].LampLit && t.LitShutCarKeepsOut && !t.BreachLitCars && Boarding.ShutUp(train, car);
+        if (Local.Z > 0 && z <= 0 && shape.Interior is { } room && (!train.Vehicles[car].LampLit || !Occupied(ctx, car)) && !keptOut)
         {
             var v = train.Vehicles[car];
             if (v.DoorsOpen == 0 && (!v.LampLit || t.BreachLitCars) && Breaches.Roof(shape) is { } roof)
