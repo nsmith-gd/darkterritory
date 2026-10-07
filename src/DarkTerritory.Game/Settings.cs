@@ -65,9 +65,9 @@ public sealed record Settings
 
     /// <summary>The resolutions on offer (16:9, the HUD's own shape: ARCHITECTURE §8 note 57's 720p is the least).</summary>
     public static readonly string[] Resolutions = ["1280x720", "1600x900", "1920x1080", "2560x1440"];
-    /// <summary>The fields of view on offer (note 294), vertical degrees: 75 is about 107 across a 16:9 screen.</summary>
+    /// <summary>The fields of view on offer (note 297), vertical degrees: 75 is about 107 across a 16:9 screen.</summary>
     public static readonly double[] FieldsOfView = [60, 65, 70, 75, 80, 85, 90];
-    /// <summary>The camera shake on offer (note 294): off, a quarter, half, three quarters, all of it.</summary>
+    /// <summary>The camera shake on offer (note 297): off, a quarter, half, three quarters, all of it.</summary>
     public static readonly double[] CameraShakes = [0, 0.25, 0.5, 0.75, 1];
     /// <summary>The render scales on offer.</summary>
     public static readonly double[] RenderScales = [0.5, 0.75, 1];
@@ -159,7 +159,7 @@ public sealed record Settings
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
             HashCode.Combine(InvertMouse, FieldOfView, CameraShake)));
 
-    /// <summary>The field of view the eyes are drawn at (note 294): the setting if it's one on offer, else 75.</summary>
+    /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);
 
     /// <summary>The volumes as the mixer takes them.</summary>

@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Game.Tests;
 
-/// <summary>Comfort settings (note 294): the field of view, an inverted mouse and the camera's shake, saved as they change.</summary>
+/// <summary>Comfort settings (note 297): the field of view, an inverted mouse and the camera's shake, saved as they change.</summary>
 public sealed class ComfortSettingsTests : IDisposable
 {
     static readonly string Content = DataFile.FindContentRoot();
