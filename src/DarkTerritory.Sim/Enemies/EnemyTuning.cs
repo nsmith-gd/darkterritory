@@ -32,6 +32,24 @@ public sealed record EnemyTuning(
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
     /// </summary>
     public bool TamperReleasesStandingBrake { get; init; }
+    /// <summary>
+    /// Every creature's body as a cannonball finds it (note 290, enemies.json <c>bodies</c>): a stack of spheres, each
+    /// [radius, height of its centre over where it stands], keyed by <see cref="EnemyKind"/>'s name.
+    /// </summary>
+    public Dictionary<string, double[][]> Bodies { get; init; } = new();
+    /// <summary>A sleeping Gaunt's body, curled up: this share of its height (note 290).</summary>
+    public double GauntAsleep { get; init; } = 0.35;
+
+    Dictionary<EnemyKind, (double Radius, double Height)[]>? _bodies;
+
+    /// <summary>The spheres of a kind's body; none for a kind that has no body (a ball goes through it).</summary>
+    public (double Radius, double Height)[] Body(EnemyKind kind)
+    {
+        _bodies ??= Bodies.ToDictionary(
+            b => Enum.Parse<EnemyKind>(b.Key, ignoreCase: true),
+            b => b.Value.Select(s => (s[0], s[1])).ToArray());
+        return _bodies.TryGetValue(kind, out var body) ? body : [];
+    }
 }
 
 /// <summary>App. C.2 melee: the tools already on the train. Field docs live in enemies.json.</summary>
@@ -66,8 +84,6 @@ public sealed record TrackDollTuning
     public double EmptyCabWeight { get; init; } = 2;
     /// <summary>T121: a cannonball shatters her on the rail (gone for the run, as stopped short); off, it goes through her.</summary>
     public bool CannonShatters { get; init; } = true;
-    public double RailHitRadius { get; init; } = 0.55;
-    public double RailHitHeight { get; init; } = 0.7;
     /// <summary>Her escalation when ignored (the director, 6 Oct 2026; note 268): stage 2's neglect, stage 3's, the warning before each.</summary>
     public double ControlsAfter { get; init; } = 120;
     public double ReleaseAfter { get; init; } = 300;
@@ -113,7 +129,11 @@ public sealed record WhistlerTuning
     public double PairRadius { get; init; } = 3;
     public double SpotReach { get; init; } = 2.5;
     public double RunSpeed { get; init; } = 4.5;
-    public double NestDistance { get; init; } = 60;
+    public double NestDistance { get; init; } = 30;
+    public double NestMinDistance { get; init; } = 8;
+    public double NestStep { get; init; } = 4;
+    public double NestMaxSlope { get; init; } = 0.4;
+    public double NestMaxRise { get; init; } = 6;
     public double NestSeconds { get; init; } = 20;
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
@@ -541,6 +561,8 @@ public sealed record DirectorTuning(
     public double GraceMaxSeconds { get; init; } = 90;
     /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
     public PressureTuning Pressure { get; init; } = new();
+    /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
+    public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -611,6 +633,28 @@ public sealed record PressureTuning
     public double HurtRelief { get; init; } = 0.25;
     public double Busy { get; init; } = 0.5;
     public double BusyFade { get; init; } = 1;
+}
+
+/// <summary>
+/// T128 (build 1121: "a player left behind by the train should feel the world close in"; note 273): a pressure of its own
+/// on each crewmate on the ground further than <see cref="BehindM"/> along the line from the train, built once a second on
+/// top of the night's (its tier and conditions), and past <see cref="Threshold"/> a hunt sent at them alone, each bigger
+/// and closer than the last. Mirror of enemies.json <c>director.abandoned</c>; field docs live there.
+/// </summary>
+public sealed record AbandonedTuning
+{
+    public bool On { get; init; } = true;
+    public double BehindM { get; init; } = 150;
+    public double PerSecond { get; init; } = 0.05;
+    public double RampPerSecond { get; init; } = 0.15;
+    public double RampSeconds { get; init; } = 60;
+    public double PerKm { get; init; } = 0.3;
+    public double Threshold { get; init; } = 6;
+    public double Relief { get; init; } = 6;
+    public int[] Pack { get; init; } = [2, 5];
+    public double[] SpawnOut { get; init; } = [35, 18];
+    /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
+    public int GauntFrom { get; init; } = 2;
 }
 
 /// <summary>
