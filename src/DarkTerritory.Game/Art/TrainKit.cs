@@ -338,7 +338,7 @@ public static class TrainKit
             foreach (float y in new[] { deck + 1.13f, StrakesOnCab[1].Y })
             {
                 float x = side * (RoundedX(bw, deck + 0.02f, top, y) + 0.01f);
-                k.Cylinder(new Vector3(x, y, cabBack + 0.95f), new Vector3(x, y, smokebox - 1.25f), 0.035f, 6);
+                k.Rod(new Vector3(x, y, cabBack + 0.95f), new Vector3(x, y, smokebox - 1.25f), 0.03f);
             }
         // The smokebox at the rear, in its sooted iron, under the stack; its end a flat armour face with the door's ring on
         // it, looking back down the train.
@@ -522,7 +522,7 @@ public static class TrainKit
     /// A rounded section for the boiler's casing (counter-clockwise): a squared-off barrel, its sides near straight and its
     /// top near flat (the boiler top is walked on), the corners well rounded. A superellipse of exponent 3.2.
     /// </summary>
-    static Vector2[] Rounded(float halfWidth, float y0, float y1, int points = 24)
+    static Vector2[] Rounded(float halfWidth, float y0, float y1, int points = 16)
     {
         float yc = (y0 + y1) / 2, hh = (y1 - y0) / 2;
         var p = new Vector2[points];
@@ -549,10 +549,15 @@ public static class TrainKit
 
     // The prow's rows, bottom to top (note 311): how high, how wide, and how far ahead of the engine's front its middle is
     // (m; its ends sweep back to the cab's front line). The foot is a plough at the rail; it rakes back up past the
-    // headlamp's eye to the cab's window sills.
+    // headlamp's eye to the cab's window sills. Nothing of it stands more than ProwReach ahead of the engine's front: the
+    // headlamp's shadow map starts 0.3 m out from the lens (GreyboxRenderer.LampViewProjection), and a piece that reaches
+    // past that is drawn into it whole. The engine casts no shadow in its own lamp, and its 18k triangles stay out of that
+    // pass (the frame's budget, tuning/perf.json, has no room for them: PerfBudgetTests).
+    const float ProwReach = 0.28f;
+
     static readonly (float Y, float HalfWidth, float Ahead)[] ProwRows =
     [
-        (0.14f, 1.2f, 0.62f), (0.5f, 1.42f, 0.47f), (0.92f, 1.5f, 0.32f), (1.45f, 1.53f, 0.16f), (2.0f, 1.53f, -0.06f), (2.52f, 1.5f, -0.5f),
+        (0.14f, 1.2f, ProwReach), (0.5f, 1.42f, 0.26f), (0.92f, 1.5f, 0.2f), (1.45f, 1.53f, 0.1f), (2.0f, 1.53f, -0.06f), (2.52f, 1.5f, -0.5f),
     ];
 
     // How the prow's face curves back across it in plan: its ends lag its middle by the lag times |across|^this.
@@ -597,17 +602,20 @@ public static class TrainKit
                 var b = rows[r + 1][i] + new Vector3(0, 0, -0.03f);
                 k.Rod(a, b, 0.035f);
             }
-        // Ram spikes at the buffer's height, out of the plough's top, for Sleepers and worse.
+        // Ram spikes at the buffer's height, out of the plough's top, for Sleepers and worse: short and raked down, inside
+        // the prow's reach.
         foreach (float x in new[] { -0.75f, 0, 0.75f })
         {
-            var root = new Vector3(x, 0.86f, -l - 0.3f + (cabFront + l + 0.3f) * MathF.Pow(MathF.Abs(x) / 1.5f, ProwCurve) + 0.05f);
-            k.Cylinder(root, root + new Vector3(0, -0.08f, -0.42f), 0.09f, 6, radiusB: 0.004f, smooth: false);
+            float back = -l - 0.2f + (cabFront + l + 0.2f) * MathF.Pow(MathF.Abs(x) / 1.5f, ProwCurve) + 0.02f;
+            var root = new Vector3(x, 0.92f, back);
+            var tip = new Vector3(x, 0.72f, MathF.Max(-l - ProwReach, back - 0.32f));
+            k.Cylinder(root, tip, 0.08f, 5, radiusB: 0.004f, smooth: false, caps: false);
         }
         // The sill: a rolled rail along the prow's top, round from one side of the cab to the other.
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
         var top = rows[^1];
-        for (int i = 0; i + 1 < top.Length; i++)
-            k.Cylinder(top[i] + new Vector3(0, 0.03f, 0), top[i + 1] + new Vector3(0, 0.03f, 0), 0.055f, 6, caps: false);
+        for (int i = 0; i + 2 < top.Length; i += 2)
+            k.Rod(top[i] + new Vector3(0, 0.03f, 0), top[i + 2] + new Vector3(0, 0.03f, 0), 0.05f);
         // The strakes the cab's sides carry, round the prow at the same heights.
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
         foreach (var (y, _) in StrakesOnCab)
@@ -616,15 +624,15 @@ public static class TrainKit
             var (lo, hi) = (ProwRows[r - 1], ProwRows[r]);
             float f = (y - lo.Y) / (hi.Y - lo.Y);
             var line = ProwRow((y, float.Lerp(lo.HalfWidth, hi.HalfWidth, f) + 0.02f, float.Lerp(lo.Ahead, hi.Ahead, f) + 0.03f), l, cabFront);
-            for (int i = 0; i + 1 < line.Length; i++)
-                if (MathF.Abs(line[i].X) > 0.42f || MathF.Abs(line[i + 1].X) > 0.42f || y < HeadlampY - 0.45f || y > HeadlampY + 0.45f)
-                    k.Cylinder(line[i], line[i + 1], 0.03f, 6, caps: false);
+            for (int i = 0; i + 2 < line.Length; i += 2)
+                if (MathF.Abs(line[i].X) > 0.42f || MathF.Abs(line[i + 2].X) > 0.42f || y < HeadlampY - 0.45f || y > HeadlampY + 0.45f)
+                    k.Rod(line[i], line[i + 2], 0.026f);
         }
         k.Use("wheel_iron", Palette.SootBlack, 0.8f, 0.4f);
         // A horizontal seam strap across the plate between the plough and the eye, the prow's other line.
         var seam = Enumerable.Range(0, top.Length).Select(i => Vector3.Lerp(rows[2][i], rows[3][i], 0.55f) + new Vector3(0, 0, -0.025f)).ToArray();
-        for (int i = 0; i + 1 < seam.Length; i++)
-            k.Rod(seam[i], seam[i + 1], 0.03f);
+        for (int i = 0; i + 2 < seam.Length; i += 2)
+            k.Rod(seam[i], seam[i + 2], 0.03f);
     }
 
     /// <summary>
@@ -636,9 +644,9 @@ public static class TrainKit
         var lens = new Vector3(0, HeadlampY, -l - 0.06f);
         var root = lens + new Vector3(0, 0, 0.45f);
         k.Use("iron_smokebox", Palette.SootBlack * 1.4f, 0.8f, 0.35f);
-        k.Cylinder(root, lens + new Vector3(0, 0, 0.02f), 0.34f, 16);
+        k.Cylinder(root, lens + new Vector3(0, 0, 0.02f), 0.34f, 12, capA: false);
         k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
-        k.Cylinder(lens + new Vector3(0, 0, 0.04f), lens - new Vector3(0, 0, 0.01f), 0.4f, 16, caps: false);
+        k.Cylinder(lens + new Vector3(0, 0, 0.04f), lens - new Vector3(0, 0, 0.01f), 0.4f, 12, caps: false);
         // The hood: an arc of plate over the top half, standing out past the lens.
         k.Use("iron_plate", Palette.IronGrey, 0.85f, 0.35f);
         var hood = new List<Vector3[]>();
@@ -647,7 +655,7 @@ public static class TrainKit
         k.Loft(hood, twoSided: true, facing: Vector3.UnitY);
         k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.64f);
         k.Emissive = 1;
-        k.Disc(lens, -Vector3.UnitZ, 0.34f, 16);
+        k.Disc(lens, -Vector3.UnitZ, 0.34f, 12);
         k.Emissive = 0;
         // The cage: three bars across it and a ring.
         k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
@@ -705,11 +713,11 @@ public static class TrainKit
             k.Box(new Vector3(side * (w + 0.07f) - 0.025f, 2.0f, mid + 0.45f), new Vector3(side * (w + 0.07f) + 0.025f, 2.3f, mid + 0.85f));
             // The rolled rail along the waist.
             k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
-            k.Cylinder(new Vector3(side * (w + 0.03f), waist + 0.03f, cabFront), new Vector3(side * (w + 0.03f), waist + 0.03f, doorFront), 0.055f, 6);
+            k.Rod(new Vector3(side * (w + 0.03f), waist + 0.03f, cabFront), new Vector3(side * (w + 0.03f), waist + 0.03f, doorFront), 0.05f);
             // The strakes: two lines along the side at the belly, as round the prow and on along the boiler.
             k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
             foreach (var (y, o) in StrakesOnCab)
-                k.Cylinder(new Vector3(side * (w + o + 0.02f), y, cabFront), new Vector3(side * (w + o + 0.02f), y, doorFront), 0.03f, 6);
+                k.Rod(new Vector3(side * (w + o + 0.02f), y, cabFront), new Vector3(side * (w + o + 0.02f), y, doorFront), 0.026f);
             // The shutter over the side windows, propped out and down off its hinge under the eave.
             k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
             float h0 = roofLow - EaveAt(cabFront + 0.25f, cabFront, cabBack) - 0.02f;
@@ -755,9 +763,9 @@ public static class TrainKit
         {
             float x = side * (w + 0.04f), z0 = doorFront, z1 = cabBack - 0.15f;
             k.Use("rust_heavy", Palette.RustRed, 0.85f, 0.3f);
-            k.Cylinder(new Vector3(x, deck, z0), new Vector3(x, lintel + 0.06f, z0), 0.05f, 6);
-            k.Cylinder(new Vector3(x, deck, z1), new Vector3(x, lintel + 0.06f, z1), 0.05f, 6);
-            k.Cylinder(new Vector3(x, lintel + 0.06f, z0 - 0.05f), new Vector3(x, lintel + 0.06f, z1 + 0.05f), 0.05f, 6);
+            k.Rod(new Vector3(x, deck, z0), new Vector3(x, lintel + 0.06f, z0), 0.045f);
+            k.Rod(new Vector3(x, deck, z1), new Vector3(x, lintel + 0.06f, z1), 0.045f);
+            k.Rod(new Vector3(x, lintel + 0.06f, z0 - 0.05f), new Vector3(x, lintel + 0.06f, z1 + 0.05f), 0.045f);
             // The lamp on the cab's back corner over the doorway, out on a bracket, lit back along the board and out to the
             // side: what a crewmate coming forward from car 1 walks towards.
             var lamp = new Vector3(side * (w + 0.16f), lintel - 0.05f, cabBack + 0.06f);
@@ -837,7 +845,7 @@ public static class TrainKit
         for (int i = 3; i <= 9; i++)
         {
             var root = rings[0][i];
-            k.Cylinder(root, root + new Vector3(0, -0.05f, -0.24f), 0.045f, 5, radiusB: 0.003f, smooth: false);
+            k.Cylinder(root, root + new Vector3(0, -0.05f, -0.24f), 0.045f, 4, radiusB: 0.003f, smooth: false, caps: false);
         }
         // A rib over the roof where the brow meets it, and the brow's riveted edge.
         k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.25f);
