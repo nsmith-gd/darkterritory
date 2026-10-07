@@ -164,7 +164,7 @@ static class FilmCommands
             DerailSequence.Fog(ref lighting, shown);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
             overlay.Clear();
-            Hud.Build(overlay, UiWidth, UiHeight, session);
+            Hud.Build(overlay, UiWidth, UiHeight, session, pixels: (float)height / UiHeight);
             var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, overlay);
             PngWriter.Write(Path.Combine(dir, $"frame_{frame:0000}.png"), pixels, width, height, 1);
             if (shown.Filming is { Shot: { Kind: ShotKind.Player } subjectShot } && shown.Film is { } shooting
@@ -319,6 +319,8 @@ static class FilmCommands
         scene.LampLit = session.World.LampShining;
         scene.Venting = train.Boiler.Vented;
         scene.SafetyValve = train.Boiler.SafetyValveLifting;
+        scene.Ruptured = train.Boiler.Ruptured;
+        scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
         if (session.Watching >= 0)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];

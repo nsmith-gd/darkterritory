@@ -11,7 +11,7 @@ public sealed record TownCard(TownCardKind Kind, string Heading, string Text, st
 
 /// <summary>
 /// Talking and reading in a fortress town, on this machine alone (GDD §3.1, App. F.1: "text-only lines from the
-/// townspeople ... little notes"; ARCHITECTURE §8 note 278). A Use press at the town's prompt opens a card; Use again
+/// townspeople ... little notes"; ARCHITECTURE §8 note 281). A Use press at the town's prompt opens a card; Use again
 /// hears the next line or turns to the next notice; walking off closes it. Nothing here changes the night, so nothing is
 /// sent: the press is the app's to keep from the host (<see cref="Hud.TownTarget"/>).
 /// </summary>

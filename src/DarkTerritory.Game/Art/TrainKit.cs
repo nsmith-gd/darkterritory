@@ -216,7 +216,7 @@ public static class TrainKit
     public static float CrossheadRestZ(CarShape shape) => Drivers(shape)[0] - 0.8f;
 
     /// <summary>The steam cylinders' middle along the engine: ahead of the drivers, under the cab's back.</summary>
-    static float CylinderZ(CarShape shape) => Drivers(shape)[0] - 2.15f;
+    public static float CylinderZ(CarShape shape) => Drivers(shape)[0] - 2.15f;
 
     /// <summary>How high over the rail the headlamp's lens is: on the cab's nose under the front windows (note 276).</summary>
     public static float HeadlampY => (float)Sim.World.LampHeight;
@@ -447,6 +447,107 @@ public static class TrainKit
 
     /// <summary>Where the whistle stands on the boiler top (frame Z), beside the safety valves (Effects plumes there).</summary>
     public static float WhistleZ(CarShape shape) => (float)shape.Cab!.Value.Max.Z + 0.35f;
+
+    /// <summary>
+    /// Where the boiler tears when it ruptures (spec B.6, GDD §23): a seam on its left flank, high, between the first two
+    /// straps behind the cab, so the burst's seen from the cab's left doorway and from the line; in the engine's frame, on
+    /// the casing's face (its outward normal the engine's −X).
+    /// </summary>
+    public static Vector3 RuptureSeam(CarShape shape)
+    {
+        var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+        return new(-(float)boiler.Max.X, (float)boiler.Max.Y - 0.85f, (float)shape.Cab!.Value.Max.Z + 2.7f);
+    }
+
+    /// <summary>
+    /// The tear itself, drawn over the casing at <see cref="RuptureSeam"/> while she's ruptured: a ragged black hole
+    /// in a scorch of soot, its plate peeled back in petals bent out from the edge, and burst tubes curling out of it.
+    /// Its own frame: the casing's face is x = 0, outward −X; Y up, Z along the engine.
+    /// </summary>
+    public static MeshAsset RuptureTear(Look? look)
+    {
+        var k = new Kit(look, 77);
+        const int n = 9;
+        // The hole's ragged edge: an ellipse, longer along the seam than across it, each point in or out a little.
+        var edge = new Vector3[n];
+        for (int i = 0; i < n; i++)
+        {
+            float ang = i * MathF.Tau / n;
+            float r = 0.8f + 0.35f * Frac(MathF.Sin(i * 91.7f) * 437.5f);
+            edge[i] = new Vector3(0, MathF.Sin(ang) * 0.3f * r, MathF.Cos(ang) * 0.55f * r);
+        }
+        // The scorch: soot blown over the plate round it, wider and ragged.
+        k.Use("iron_smokebox", Palette.SootBlack, 0.95f, 0.1f, tile: 0.8f);
+        for (int i = 0; i < n; i++)
+        {
+            var e0 = edge[i] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
+            var e1 = edge[(i + 1) % n] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
+            // (Both windings: it's seen from out along −X, and cheap.)
+            k.Tri(new Vector3(-0.004f, 0, 0), e1, e0);
+            k.Tri(new Vector3(-0.004f, 0, 0), e0, e1);
+        }
+        // The hole: black, the dark of the boiler's inside.
+        k.Use("paint_black", new Vector3(0.01f, 0.01f, 0.01f), 1, 0);
+        for (int i = 0; i < n; i++)
+        {
+            k.Tri(new Vector3(-0.008f, 0, 0), edge[(i + 1) % n] with { X = -0.008f }, edge[i] with { X = -0.008f });
+            k.Tri(new Vector3(-0.008f, 0, 0), edge[i] with { X = -0.008f }, edge[(i + 1) % n] with { X = -0.008f });
+        }
+        // The torn edge: raw bright iron where the plate parted, a thin lip round the hole.
+        k.Use("iron_plate", new Vector3(0.62f, 0.6f, 0.56f), 0.2f, 0.7f, tile: 0.3f);
+        k.Tint = new Vector3(1.6f, 1.55f, 1.45f);
+        for (int i = 0; i < n; i++)
+        {
+            var e0 = edge[i];
+            var e1 = edge[(i + 1) % n];
+            k.Quad(e0 with { X = -0.03f }, e1 with { X = -0.03f }, (e1 * 0.84f) with { X = 0.01f }, (e0 * 0.84f) with { X = 0.01f }, twoSided: true);
+        }
+        // The petals: each length of edge's plate torn up from the hole and bent out about it, ragged at the tip.
+        // (Rusted on the inside, which is what's turned out: they read orange-brown against the grey casing.)
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 0.5f);
+        k.Tint *= 1.4f;
+        for (int i = 0; i < n; i++)
+        {
+            var b0 = edge[i];
+            var b1 = edge[(i + 1) % n];
+            var mid = (b0 + b1) / 2;
+            var outIn = Vector3.Normalize(mid with { X = 0 });
+            float h = Frac(MathF.Sin(i * 37.3f) * 911.1f);
+            float len = 0.22f + 0.22f * h;
+            // In the casing's plane the petal would lie over the hole (pointing in); torn, it swings out about its base by
+            // 100 to 150 degrees, so it stands proud of the plate and leans back away from the hole.
+            var tipA = b0 * 0.85f - outIn * len * 0.6f;
+            var tipB = b1 * 0.85f - outIn * len;
+            var axis = Vector3.Normalize(b1 - b0);
+            var turn = Quaternion.CreateFromAxisAngle(axis, -(1.75f + 0.85f * h));
+            Vector3 Bend(Vector3 p) => b0 + Vector3.Transform(p - b0, turn);
+            var ta = Bend(tipA);
+            var tb = Bend(tipB);
+            // Make sure it's bent outward (−X), whichever way the edge runs.
+            if (ta.X + tb.X > 0)
+            {
+                turn = Quaternion.CreateFromAxisAngle(axis, 1.75f + 0.85f * h);
+                ta = Bend(tipA);
+                tb = Bend(tipB);
+            }
+            var jag = Vector3.Lerp(ta, tb, 0.5f) + (ta - b0) * 0.25f;
+            k.Quad(b0, b1, tb, jag, twoSided: true);
+            k.Quad(b0, jag, ta, ta, twoSided: true);
+        }
+        // Burst tubes: copper, curling out of the hole and back along the engine.
+        k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.7f);
+        foreach (var (y, z, reach) in new[] { (0.04f, -0.08f, 0.38f), (-0.06f, 0.06f, 0.3f), (0.1f, 0.12f, 0.24f) })
+        {
+            var p0 = new Vector3(0.05f, y, z);
+            var p1 = new Vector3(-reach * 0.6f, y + 0.04f, z + reach * 0.2f);
+            var p2 = new Vector3(-reach, y - 0.02f, z + reach * 0.7f);
+            k.Rod(p0, p1, 0.022f, 6);
+            k.Rod(p1, p2, 0.022f, 6);
+        }
+        return k.Build("rupture-tear");
+    }
+
+    static float Frac(float x) => x - MathF.Floor(x);
 
     /// <summary>An octagon (counter-clockwise) for a box with its top corners cut by <paramref name="topBevel"/> and its bottom by <paramref name="bottomBevel"/>.</summary>
     static Vector2[] Octagon(float x0, float y0, float x1, float y1, float topBevel, float bottomBevel) =>

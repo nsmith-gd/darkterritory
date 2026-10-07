@@ -11,7 +11,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 278): each its own custom, people with lines, papers
+/// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): each its own custom, people with lines, papers
 /// to read, made alike on every machine, solid where they stand.
 /// </summary>
 public class TownTests

@@ -193,15 +193,17 @@ public static class Spawns
             return true;
         }),
         // B.5 · Fire Flies: lineside in dark forest and open sections, at least one lamp lit inside a car; ×2 at night depth,
-        // ×0 with every car lamp out.
+        // ×0 with every car lamp out. Only to a stopped train, and rarely (note 269).
         new(EnemyKind.FireFlies, c =>
         {
             var t = c.Tuning.FireFlies;
             var lit = LitCars(c);
-            if (lit.Count == 0 || c.AtFacility || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.FireFlies) >= 1
+            // GDD App. F, 6 Oct 2026 (note 269): "their pull on Fire Flies is rare, and only while the car is stopped".
+            if (lit.Count == 0 || c.AtFacility || c.Train.Dynamics.Speed >= t.StoppedBelow
+                || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.FireFlies) >= 1
                 || c.World.Route?.Features.Any(f => f.Kind is FeatureKind.Tunnel && f.Contains(c.Front)) == true)
                 return null;
-            return c.World.Route is { } r && c.Front > r.Length * 0.5 ? t.DepthWeight : 1;
+            return t.StoppedWeight * (c.World.Route is { } r && c.Front > r.Length * 0.5 ? t.DepthWeight : 1);
         }, c =>
         {
             var lit = LitCars(c);

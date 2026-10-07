@@ -3,7 +3,7 @@ using DarkTerritory.Sim.LineGen;
 
 namespace DarkTerritory.Sim.Towns;
 
-/// <summary>Mirror of content/tuning/towns.json (GDD §3.1; ARCHITECTURE §8 note 278). Field docs live in that file.</summary>
+/// <summary>Mirror of content/tuning/towns.json (GDD §3.1; ARCHITECTURE §8 note 281). Field docs live in that file.</summary>
 public sealed record TownTuning
 {
     public const string File = "tuning/towns.json";

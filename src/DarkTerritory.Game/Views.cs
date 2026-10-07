@@ -34,6 +34,11 @@ public static class Views
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // Low off the right of the target car, on the ballast, along its wheels (the flange sparks: --strain).
+            // Side on to the staged row of the film's crew at their work (dt screenshot --wreck-poses), off the target car's right.
+            "poses" => Camera.LookAt(target.ToWorld(new Double3(7.4, 1.3, -target.Shape.HalfLength * 0.6 + 1.95)),
+                target.ToWorld(new Double3(2.6, 0.85, -target.Shape.HalfLength * 0.6 + 1.95)), 55),
+            "flanges" => Camera.LookAt(target.ToWorld(new Double3(4.5, 0.9, -target.Shape.HalfLength - 3)), target.ToWorld(new Double3(0.6, 0.3, 0)), 60),
             // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
             "trail" => TrailCamera(train),
             // Behind the rear car and off its side, a little over its roof, looking at the roof's end and down the car's end: where
@@ -104,6 +109,8 @@ public static class Views
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             // (Not one of Names.) Off the engine's right side ahead of it, the whole of it three-quarters on (note 276, the cab
             // forward): the cab and its lamp leading, the boiler and the stack behind, car 1 coupled on.
+            // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
+            "rupture" => Camera.LookAt(engine.ToWorld(new Double3(-14, 2.4, -engineHalf + 1)), engine.ToWorld(new Double3(-0.7, 3.0, 0.5)), 60),
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),

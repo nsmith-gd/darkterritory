@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Towns;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// Talking and reading in a fortress town (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 278): the prompt for what's in
+/// Talking and reading in a fortress town (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): the prompt for what's in
 /// front of you, a card that opens on Use, turns on Use again, and closes when you walk off.
 /// </summary>
 public class TownTalkTests

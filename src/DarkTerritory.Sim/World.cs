@@ -597,7 +597,7 @@ public sealed class World
     }
 
     /// <summary>
-    /// The departure fortress's town (GDD §3.1; note 278): its square, its people and papers, and their walls, built alike
+    /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
     /// on every machine from the route and the content. Null where the content has no towns or they're switched off.
     /// </summary>
     public Towns.Town? Town { get; private set; }
@@ -733,8 +733,13 @@ public sealed class World
             if (!s.Alive)
                 continue;
             int inside = s.Parent >= 0 && s.Parent < Train.Frames.Count && PlayerMotor.Indoors(s, Train) ? s.Parent : -1;
+            // What they were at (App. F.2 take 4): the film starts their body in it.
+            var task = s.Has(PlayerFlags.Seated) ? FilmTask.Gunning
+                : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
+                : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
+                : FilmTask.None;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated)));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
         }
         return crew;
     }
@@ -1069,7 +1074,9 @@ public sealed class World
         // Build 1121 (note 263): a train standing on the brake it was left on stays on it, whatever's at the controls. With
         // steam driving (T97) a standing engine off its brake pulls away, so a Stoker's runaway took a train held in the yard
         // off with nobody in the cab. (Clients alike, from the same replicated state: prediction holds the brake as the host does.)
-        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow)
+        // The one exception is the director's (note 268): a Track Doll left alone to her last stage, at the controls a while.
+        if (Enemies is { TamperReleasesStandingBrake: false } && controls.Brake > 0 && Train.Dynamics.Speed < Net.CabControls.StandingBelow
+            && !_enemies.Any(e => !e.Gone && e.ReleasesStandingBrake(this)))
             applied.Brake = Math.Max(applied.Brake, controls.Brake);
         // The boards the lamp reaches, and the rail's grip where the engine is (both machines alike: it's prediction).
         Lineside?.See(Train, LampShining);
@@ -1257,7 +1264,11 @@ public sealed class World
             // Only what has someone in its grip is spared; a car fire's "punish" is the car burning, with nobody in it.
             // A car fire is never dismissed for want of company (build 1121, note 263): App. C.5's fire grows and jumps the
             // couplings with nobody in the car, and while the crew fought one, the rest went out by themselves.
-            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire)
+            // Nor is what stays aboard until it's dealt with (Cinder Hounds, note 269): that's the point of it. Nor a haunting
+            // Track Doll (the director's decision of 6 Oct 2026, note 268): being left alone is what makes her worse, and only
+            // getting her off the train ends her, so she can't give up and go for want of company.
+            if (!DarkTerritory.Sim.Enemies.Director.Engaged(e) || e.Holding >= 0 || e.Kind == EnemyKind.CarFire || e.StaysAboard
+                || e is DarkTerritory.Sim.Enemies.TrackDoll { Haunting: true })
             {
                 _unmet.Remove(e.Id);
                 continue;

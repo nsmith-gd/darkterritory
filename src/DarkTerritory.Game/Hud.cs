@@ -42,12 +42,15 @@ public static class Hud
     /// a still frame passes them (<c>dt screenshot --hud --report ... --commend</c>).</param>
     /// <param name="stills">The night's bookmark stills taken on this machine (GDD v1.4 App. D.12, <see cref="BookmarkStills"/>),
     /// by bookmark id: the report shows each beside its line.</param>
-    /// <param name="talk">This machine's talking and reading in a fortress town (note 278), and <paramref name="now"/> the
+    /// <param name="pixels">How many of the drawn image's pixels each of the canvas's is (the renderer's height over the
+    /// canvas's): the prompt's fine print is as small as stays crisp at that (<see cref="PromptScaleAt"/>).</param>
+    /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        TownTalk? talk = null, double now = 0)
+        float pixels = 4, TownTalk? talk = null, double now = 0)
     {
+        _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
         o.Clear();
@@ -77,25 +80,14 @@ public static class Hud
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, height, s, lobby, line);
-        // A fortress town's card (note 278): what somebody's saying to you, or the paper you're reading.
-        if (talk is not null && s.World.Town is { } town && talk.Card(town, now) is { } card)
-            TownCardOn(o, width, height, card, line);
+        // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
+        // own foot says what Use does next, so the town's prompt under the crosshair stands down.
+        var townCard = talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
+        if (townCard is not null)
+            TownCardOn(o, width, height, townCard, line);
         // (The night over, its report has the screen: no prompts over it.)
-        if (s.World.Run?.Report is null && Prompt(s) is { } written)
-        {
-            string prompt = Bound(written);
-            float w = UiStyle.MeasureKeyed(o, prompt) + 10;
-            float px = MathF.Round((width - w) / 2);
-            UiStyle.Plate(o, px, height - 46, w, line + 8);
-            UiStyle.Keyed(o, px + 5, height - 42, prompt, Ink);
-            // A hold under way ("... (40%)"): how far it's got, as a bar along the plate's foot.
-            if (System.Text.RegularExpressions.Regex.Match(prompt, @"\((\d+)%\)") is { Success: true } held
-                && float.TryParse(held.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture, out float pct))
-            {
-                o.Rect(px + 3, height - 46 + line + 5, w - 6, 2, Track);
-                o.Rect(px + 3, height - 46 + line + 5, MathF.Round((w - 6) * Math.Clamp(pct / 100f, 0, 1)), 2, UiStyle.Lit);
-            }
-        }
+        if (s.World.Run?.Report is null && Prompt(s) is { } written && !(townCard is not null && TownTarget(s) is not null))
+            PromptPlate(o, width, height, Bound(written));
         Night(o, height, s, line);
         if (p.Alive)
         {
@@ -345,6 +337,11 @@ public static class Hud
             UiStyle.Keyed(o, x, y + line, levers, Dim);
             return;
         }
+        // Out of the cab, nothing (the director's "too much UI ... not enough in world or embodied", hud-look): the train's
+        // going is felt and heard, the driver's gauges are in the cab, and what's aboard is the supplies view's (I). A
+        // rupture or a bend taken too fast has the screen's middle (Alerts) wherever you are.
+        if (train.BoilerTuning is { SteamDrive: true })
+            return;
         UiStyle.Plate(o, 2, 2, 150, 4 * line + 6);
         o.Text(x, y, $"{Math.Abs(d.Speed) * 3.6,3:0} KM/H", Ink);
         o.Text(x + 64, y, band.ToString().ToUpperInvariant(), band >= SpeedBand.Cruise ? Amber : Dim);
@@ -1170,13 +1167,13 @@ public static class Hud
 
     /// <summary>
     /// The fortress town's thing a Use press is for: what <see cref="Prompt"/> is offering, when what it offers is the
-    /// town's (note 278). The app keeps that press from the host (nothing in a town changes the night).
+    /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
         s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
 
     /// <summary>
-    /// A town card (note 278): a person's line on a plate over the prompt, their name and work above it; a paper as a
+    /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
     /// sheet at the top of the screen, like the route card; a thing looked at, on a plate.
     /// </summary>
     static void TownCardOn(Overlay o, int width, int height, TownCard card, int line)
@@ -1328,6 +1325,36 @@ public static class Hud
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();
 
+    /// <summary>
+    /// The prompt's print (App. F.1 on the prompts, "they're good but they are too big ... so they take up less space"):
+    /// fine print a hand's breadth under the crosshair, where the eye already is, on a thin strip of iron rather than a
+    /// riveted plate. Half the HUD's own wherever that still gives each of the font's pixels two of the screen's (1080p and
+    /// up); in half steps bigger below that, so it's never mush.
+    /// </summary>
+    public static float PromptScaleAt(float pixels) => Math.Clamp(MathF.Ceiling(2 * 2 / MathF.Max(1, pixels)) / 2, 0.5f, 1);
+
+    static float _promptScale = 0.5f;
+
+    /// <summary>How far under the screen's middle (the crosshair) the prompt's strip sits, in canvas pixels.</summary>
+    public const float PromptDrop = 16;
+
+    /// <summary>The prompt, small, under the crosshair; a hold under way ("... (40%)") as a bar along its foot.</summary>
+    static void PromptPlate(Overlay o, int width, int height, string prompt)
+    {
+        float k = _promptScale;
+        float w = UiStyle.MeasureKeyed(o, prompt, k) + 8 * k, h = (o.Font.LineHeight + 6) * k;
+        float px = MathF.Round((width - w) / 2), py = MathF.Round(height / 2f + PromptDrop);
+        o.Rect(px, py, w, h, UiStyle.Iron with { W = 0.55f });
+        o.Rect(px, py + h - k, w, k, UiStyle.Brass with { W = 0.35f });
+        UiStyle.Keyed(o, px + 4 * k, py + 3.5f * k, prompt, Ink, k);
+        if (System.Text.RegularExpressions.Regex.Match(prompt, @"\((\d+)%\)") is { Success: true } held
+            && float.TryParse(held.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture, out float pct))
+        {
+            o.Rect(px, py + h, w, 1, Track);
+            o.Rect(px, py + h, MathF.Round(w * Math.Clamp(pct / 100f, 0, 1)), 1, UiStyle.Lit);
+        }
+    }
+
     /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
     public static string Bound(string prompt) =>
         // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
@@ -1478,7 +1505,7 @@ public static class Hud
                         : $"[E] HOLD: THROW THE POINTS {off:0} M AHEAD TO {SwitchTo(train, ahead)}";
                 }
         }
-        // A fortress town (note 278): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
+        // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
             return TownTalk.Prompt(town, there);

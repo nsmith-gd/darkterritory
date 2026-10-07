@@ -113,7 +113,7 @@ M3 is done but for a test with eight people.
 - Settings are saved: sound, voice, HUD, VR comfort, mouse.
 - `dt screenshot --menu fortress` shows it.
 
-**Fortress towns (T133, GDD §3.1, note 278), first pass:**
+**Fortress towns (T133, GDD §3.1, note 281), first pass:**
 - The departure fortress is a town with a custom of its own: one of fourteen, each the human answer to one creature's rule (only the edition's creatures; never the last night's custom), with habits and a trade.
 - Its square, beside the engine at the gate, where the walls step back: the custom's hall, the clerk's office, the stores, a centrepiece, a notice board, stalls, lamps. All of it is solid.
 - Sixteen to twenty townspeople, text only (Use to talk, again for the next line). Three or four notices on the board and notes about the square, with threads of the world's mystery through them.
