@@ -11,7 +11,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The HUD's hands (note 281; GDD §32 "The HUD: your hands and the dark"). The director, 7 Oct: "There's too much UI on
+/// The HUD's hands (note 285; GDD §32 "The HUD: your hands and the dark"). The director, 7 Oct: "There's too much UI on
 /// screen. I like the way Repo and Lethal Company do their UI/UX designs." As theirs do: a dot to aim with; small slots
 /// with a picture of what's in them, the name only for a moment after a change of hands; in the corner, in fine print,
 /// what what you hold (or the cab, or the gun) does; at the crosshair only what you're looking at. Everything else comes
@@ -102,7 +102,7 @@ public static partial class Hud
     public const float SlotSize = 15;
 
     /// <summary>
-    /// The hotbar (T108; note 281): bottom centre, a small square for each slot with a tool in it and for the one in hand
+    /// The hotbar (T108; note 285): bottom centre, a small square for each slot with a tool in it and for the one in hand
     /// (empty, your hands), each with its tool's picture and its number; the one in hand lit. The tool's name over it for a
     /// moment after a change of hands. With something in both hands the slots dim (the corner names what's held). A radio
     /// you're wearing is a slot of its own at the right, with its key; a broken one's drawn red.
@@ -155,7 +155,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The corner (note 281): what what's in your hands, or where you are, lets you do; Lethal Company's item tips. A head
+    /// The corner (note 285): what what's in your hands, or where you are, lets you do; Lethal Company's item tips. A head
     /// (the speed when you can drive, what you're carrying, the gun and its shot, the crane) over lines of a key and a few
     /// words. Null head and no lines when there's nothing to say, which is most of the time.
     /// </summary>
@@ -224,7 +224,7 @@ public static partial class Hud
     static void Corner(Overlay o, int width, int height, IPlaySession s)
     {
         var (head, lines) = Hints(s);
-        // The player's setting (note 281): with the hints off, the corner's only what it's about.
+        // The player's setting (note 285): with the hints off, the corner's only what it's about.
         if (!Keys.ControlHints)
             lines = [];
         if (head is null && lines.Count == 0)
@@ -242,7 +242,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The crosshair (note 281): a dot, as Lethal Company's; with something under it you can use (a prompt), four corners
+    /// The crosshair (note 285): a dot, as Lethal Company's; with something under it you can use (a prompt), four corners
     /// round it, so the eye finds the prompt under it. The hit marker over both.
     /// </summary>
     static void Crosshair(Overlay o, int width, int height, IPlaySession s, bool usable)

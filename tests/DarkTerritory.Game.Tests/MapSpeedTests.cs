@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The director, 7 Oct (on the HUD overhaul, note 281): keep "max speed on rail sections on the map that can't handle top
+/// The director, 7 Oct (on the HUD overhaul, note 285): keep "max speed on rail sections on the map that can't handle top
 /// speed without derailment". Every stretch of the main line the engine would come off at its top speed has its figure on
 /// the map (PostedSpeeds: the route card's profile and the cab's run map ink the same list).
 /// </summary>

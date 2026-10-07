@@ -826,7 +826,7 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
 - **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
 
-The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 281.
+The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 285.
 
 ### The screenshot test
 
@@ -2081,7 +2081,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
-- Far too much UI for what's on screen. *Done (§32 "The HUD: your hands and the dark", the director's decision of 7 Oct; notes 264, 277 and 281): only the crosshair and the hotbar are always on screen, the prompts are in fine print under the crosshair, and the rest comes and goes.*
+- Far too much UI for what's on screen. *Done (§32 "The HUD: your hands and the dark", the director's decision of 7 Oct; notes 264, 277 and 285): only the crosshair and the hotbar are always on screen, the prompts are in fine print under the crosshair, and the rest comes and goes.*
 - The hold-to-vent control feels off. *In progress (T126).*
 - There's no whistle cord, and people will want one. *In progress (T126).*
 - The coal shovel is fun. *Keep.*

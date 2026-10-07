@@ -26,7 +26,7 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | Name | Agent ids | What it is | Log |
 |---|---|---|---|
 | **A** | A1; its agents A1.1, A1.2, … | Claude Code, the director's main cloud session, and the agents it launches | [docs/log/A1.md](log/A1.md) |
-| **B** | B1, B2; their agents B1.1, B2.1, … | Claude Code on the director's second account: B1 is **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 is **UI/UX** (the HUD overhaul) | [docs/log/B1.md](log/B1.md), [docs/log/B2.md](log/B2.md) |
+| **B** | B1, B2, B3; their agents B1.1, B2.1, B3.1, … | Claude Code on the director's second account: B1 is **Level Design** (the line generator's set pieces, sites, and the world's solidity); B2 is **Towns** (registered on [#194](https://github.com/nsmith-gd/darkterritory/pull/194)); B3 is **UI/UX** (the HUD overhaul) | [docs/log/B1.md](log/B1.md), docs/log/B2.md (on #194), [docs/log/B3.md](log/B3.md) |
 | **C** | C1; its agents C1.1, … | Claude Code, the director's art session: the art checklist (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Look Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm) and the art's implementation | [docs/log/C1.md](log/C1.md) |
 | **Audio** | — | The director's audio chat: owns all audio work except the derailment opera | — |
 
@@ -61,16 +61,16 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 13 | **Bends worth braking for:** every line carries bends that derail the train under its top speed, boarded and on the map; note 265's open call | B1 | `claude/level-design-derailment-terrain-93awvc` | 278 | claimed |
 | 14 | **The world is solid:** creatures, carries and players respect terrain and geometry (past T128's grab destinations and creatures on the ground); the world's structures interactable | B1 | `claude/level-design-derailment-terrain-93awvc` (after #13) | 279 | claimed |
 | 15 | **The cab, everything facing forward:** the director on #190: "the controls and firebox need to be in front not facing the back" | C1 | `claude/busy-carson-0i3g8d` (after #195) | 280 | claimed |
-| 16 | **The HUD overhaul, Lethal Company / R.E.P.O. style:** only the crosshair and your hands always on screen; what you look at at the crosshair, what you hold in the corner; the rest when it matters (the director, 7 Oct: "too much UI on screen"). It takes #12's smaller prompts and lighter HUD (#195) further | B2 | `ccr-7c2927a4-nh28k9` | 281 | claimed |
+| 21 | **The HUD overhaul, Lethal Company / R.E.P.O. style:** only the crosshair and your hands always on screen; what you look at at the crosshair as ACTION : [KEY], nothing foretold; what you hold in the corner (CONTROL HINTS to hide it); the rest when it matters (the director, 7 Oct: "too much UI on screen"; "consequences need to be learned"). It takes #12's smaller prompts and lighter HUD (#195) further. **Overlaps:** `PostedSpeeds` (an S-bend's second curve had no figure on the map: the map half of B1's #13; B1's branch has no code yet); `Hud.cs` with #194, #201 and #202 (told on each) | B3 | `ccr-7c2927a4-nh28k9` | 285 | claimed |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 6 Oct at
 23:38 UTC; A1 republishes it whenever gdd.md changes on main.
 
 ## ARCHITECTURE §8 note numbers
 
-The next free number is **282**. Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
+The next free number is **286** (281–284 are claimed on open PRs: 281 by #194, #198 and #203, 282–283 on #198, 284 on #205). Reserved: 266 (pacing), 268 (Track Doll), 269 (boarding rules), 270 (run length), 271
 (Stoker v3), 272 (damage model), 273 (T128), 274 (T124), 275 (WP19, renumbered from its old 191), 276 (cab forward,
-renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 281 (B2's HUD overhaul). Take a number by adding it here and to your queue row.
+renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's solid world), 280 (C1's cab facing forward), 285 (B3's HUD overhaul). Take a number by adding it here and to your queue row.
 
 ## Done (since 6 Oct)
 

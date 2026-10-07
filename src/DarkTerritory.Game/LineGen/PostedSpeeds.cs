@@ -31,7 +31,7 @@ public static class PostedSpeeds
             }
             // The bends it's for. A demand's board can govern more than one: an S-bend has a limit on each curve and one
             // board before both (deepTerritory:2 at 33 km), and the director wants every stretch that can't take top speed
-            // on the map (note 281). So each curve limit of its figure in its reach is a bend; a board with none (one of
+            // on the map (note 285). So each curve limit of its figure in its reach is a bend; a board with none (one of
             // Signage's own, a bend to a board) is for the sharpest curve in the next 600 m.
             var stretches = demand is null ? [] : plan.Authority.Limits
                 .Where(l => l.Edge == "main" && l.Source == LimitSource.Curve && Math.Abs(l.VMs - b.Value!.Value) < 0.01 && l.S0 >= b.S - 1 && l.S0 <= b.S + 600)

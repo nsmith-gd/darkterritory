@@ -80,7 +80,7 @@ public class HudTests
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
-        // At the controls looking at nothing (note 281): nothing at the crosshair; driving them is the corner's.
+        // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
         s.Player = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
         Assert.Null(Hud.Prompt(s));
         Assert.Equal(s.Train.BoilerTuning?.SteamDrive == true ? "RELEASE BRAKE : [R]" : "REGULATOR : [R/F]", Hud.Hints(s).Lines[0]);
@@ -105,7 +105,7 @@ public class HudTests
     [Fact]
     public void TheCabSaysTheCordTheVentAndTheBrakeAndLittleElse()
     {
-        // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says to pull it (note 281: "PULL CORD :
+        // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says to pull it (note 285: "PULL CORD :
         // [E]", and not that it's loud: that's learned); the vent's one key is in the corner with the brake's, and held, the
         // prompt says it's venting.
         var s = new PrototypeSession(Content, "test-loop", 4);
@@ -148,7 +148,7 @@ public class HudTests
     }
 
     /// <summary>
-    /// The director, 7 Oct (note 281): prompts are short, Lethal Company's "PULL CORD : [E]", and never foretell what an
+    /// The director, 7 Oct (note 285): prompts are short, Lethal Company's "PULL CORD : [E]", and never foretell what an
     /// action does: "consequences need to be learned". Every key is the action's (after " : "), and nothing says loud, quiet,
     /// faster, slower, what mends what, or who hears.
     /// </summary>

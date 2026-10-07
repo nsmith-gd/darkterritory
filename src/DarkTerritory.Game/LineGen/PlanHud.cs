@@ -15,7 +15,7 @@ public static class PlanHud
     static readonly Vector4 InkDark = new(0.10f, 0.09f, 0.08f, 1);
     static readonly Vector4 Rule = new(0.35f, 0.28f, 0.2f, 0.8f);
     static readonly Vector4 Stamp = new(0.55f, 0.12f, 0.08f, 1);
-    /// <summary>The crew's own pencil on the card: where the train is (note 281).</summary>
+    /// <summary>The crew's own pencil on the card: where the train is (note 285).</summary>
     static readonly Vector4 Pencil = new(0.12f, 0.3f, 0.62f, 1);
     static readonly Vector4 Ink = new(0.88f, 0.84f, 0.74f, 1);
     static readonly Vector4 Dim = new(0.60f, 0.58f, 0.53f, 1);
@@ -27,7 +27,7 @@ public static class PlanHud
     /// <param name="rail">The night's line: with it, the card's first side carries the line's profile under its title,
     /// drawn as the depot would ink it (its height along the night, its stops ticked in red), the climbs read at a glance.</param>
     /// <param name="at">Where the train is along the main line (m): pencilled on the profile. With the strip gone from the
-    /// top of the screen (note 281), the card is where a player finds where they are in the night.</param>
+    /// top of the screen (note 285), the card is where a player finds where they are in the night.</param>
     public static int RouteCard(Overlay o, int width, int height, LinePlan plan, int page = 0, Sim.Rail.RailLine? rail = null, double? at = null)
     {
         var card = plan.RouteCard;
@@ -133,7 +133,7 @@ public static class PlanHud
             o.Rect(tx - 1, ty - 1, tw + 1, o.Font.LineHeight - 1, Paper);
             o.Text(tx, ty, figure, Stamp, shadow: false);
         }
-        // Where the train is (note 281), pencilled over the ink: a line down the profile and a mark over it.
+        // Where the train is (note 285), pencilled over the ink: a line down the profile and a mark over it.
         if (at is { } here && line.Length > 0)
         {
             float px = MathF.Round(x + (float)Math.Clamp(here / line.Length, 0, 1) * (w - 1));

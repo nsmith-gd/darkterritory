@@ -14,7 +14,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The flat-screen HUD (T23), drawn in the low-res frame's own pixels with the pixel font. Since note 281 (the director,
+/// The flat-screen HUD (T23), drawn in the low-res frame's own pixels with the pixel font. Since note 285 (the director,
 /// 7 Oct: "too much UI on screen ... I like the way Repo and Lethal Company do their UI/UX designs"; GDD §32 "The HUD: your
 /// hands and the dark") only the crosshair and your hands are always there, and nothing in play sits on a plate:
 /// <list type="bullet">
@@ -126,7 +126,7 @@ public static partial class Hud
 
     /// <summary>
     /// The lobby (T116, the co-op games' way: Lethal Company's ship, PEAK's airport): top left while the train's in the yard,
-    /// with no plate and in fine print (note 281): who's aboard, how friends get in, and how the night starts.
+    /// with no plate and in fine print (note 285): who's aboard, how friends get in, and how the night starts.
     /// Drop-in is open here; once the train's out the gate, only at a facility (spec E).
     /// </summary>
     static void Lobby(Overlay o, IPlaySession s, LinkInfo link, int line)
@@ -160,7 +160,7 @@ public static partial class Hud
 
     /// <summary>
     /// The crew's loudness meter (T113 playtest: "no counterplay" for the Choir), over the hotbar, and only once it matters
-    /// (note 281): the crew loud enough to count (hud.json <c>noiseShowAt</c> of the Choir's threshold), or the Choir
+    /// (note 285): the crew loud enough to count (hud.json <c>noiseShowAt</c> of the Choir's threshold), or the Choir
     /// gathering or here. How loud against its threshold (the tick), and how far it's gathered. Seeing it climb is the
     /// counterplay: go quiet before it fills.
     /// </summary>
@@ -273,7 +273,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The link, top right (note 281). In the lobby the ping to the host, big (spec E: "shown prominently ... in browser and
+    /// The link, top right (note 285). In the lobby the ping to the host, big (spec E: "shown prominently ... in browser and
     /// lobby"); out on the line only once it's bad (hud.json <c>pingWarnMs</c>) or gone, and then what's being done about it.
     /// The host has no ping to show; the crew's count and roles are the roster's (Q).
     /// </summary>
@@ -313,7 +313,7 @@ public static partial class Hud
 
     /// <summary>
     /// Where the repair kit is, for a ruptured boiler (T109; GDD §23.2: where it is decides the night): where, not what it's
-    /// for (note 281, the director: "consequences need to be learned").
+    /// for (note 285, the director: "consequences need to be learned").
     /// </summary>
     public static string RepairKitWhere(Sim.World world, int playerId)
     {
@@ -425,7 +425,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// Top centre (note 281), each only while it matters: the dawn clock in the night's last stretch (hud.json
+    /// Top centre (note 285), each only while it matters: the dawn clock in the night's last stretch (hud.json
     /// <c>dawnClockSeconds</c>; Lethal Company's clock), a place coming up (its name and how far, for a few seconds once
     /// it's near), and the cold getting deeper where you are (GDD §22, note 201: how much faster it comes on outside, for a
     /// few seconds as you go into it). The whole night, and where you are in it, is the route card's (C).
@@ -475,7 +475,7 @@ public static partial class Hud
         var p = s.Player;
         var world = s.World;
         float y = height * 0.28f;
-        // Note 281: an alarm's headline is big only when it's urgent (a rupture counting, a grab, the rail coming off); what
+        // Note 285: an alarm's headline is big only when it's urgent (a rupture counting, a grab, the rail coming off); what
         // to do about it is in fine print under it, keys as keycaps. The run's end keeps the HUD's own size.
         void Big(string text, Vector4 colour, bool urgent = true)
         {
@@ -623,7 +623,7 @@ public static partial class Hud
         if (p.Alive && p.Has(PlayerFlags.Held))
         {
             Big("SOMETHING HAS YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
-            // Alone, Use held struggles free (the solo rule). With a crew, who can help is learned (note 281).
+            // Alone, Use held struggles free (the solo rule). With a crew, who can help is learned (note 285).
             if (s.Roster().Count(l => l.Alive) <= 1)
                 Small(Bound("STRUGGLE : HOLD [E]"), Ink);
         }
@@ -652,7 +652,7 @@ public static partial class Hud
     /// won't fit says how many more.
     /// </summary>
     /// <summary>
-    /// The dead's card (GDD App. D.6-D.10), in the lower middle with no plate (note 281), clear of what they're watching: DEAD
+    /// The dead's card (GDD App. D.6-D.10), in the lower middle with no plate (note 285), clear of what they're watching: DEAD
     /// and how, who they're watching and the keys to change it, and the way back (where they'll wait, or the Holdout
     /// they're in and what's happening at its door), each key a keycap.
     /// </summary>
@@ -695,7 +695,7 @@ public static partial class Hud
             }
             else
             {
-                // (Where the dead wait, and whether the crew stops for them, is learned: note 281.)
+                // (Where the dead wait, and whether the crew stops for them, is learned: note 285.)
                 rows.Add(("LET SOMEONE ELSE GO FIRST : [RMB]", Dim));
             }
             // D.11: the creature vote has a plate of its own (BallotPlate, note 202); once cast, the card keeps a line of it.
@@ -707,7 +707,7 @@ public static partial class Hud
             if (QueueLine(world, holdouts, s.PlayerId) is { } queue)
                 rows.Add((queue, Ink));
         }
-        // Note 281: no plate, low in the frame, clear of what they're watching: DEAD, then how and the rest in fine print.
+        // Note 285: no plate, low in the frame, clear of what they're watching: DEAD, then how and the rest in fine print.
         float k = Fine, rowH = (line + 4) * k;
         float h = 2 * line + 4 + rows.Count * rowH;
         float y = MathF.Round(Math.Min(height * 0.6f, height - h - 12));
@@ -771,7 +771,7 @@ public static partial class Hud
     {
         if (BallotRows(s) is not { } rows)
             return;
-        // Note 281: fine print on a dark backing, lit along its top while there's a vote to cast; no rivets.
+        // Note 285: fine print on a dark backing, lit along its top while there's a vote to cast; no rivets.
         float k = Fine, rowH = (line + 5) * k, pad = 6 * k;
         float notes = rows.Max(r => r.Note is null ? 0 : o.Measure(r.Note, k) + 12 * k);
         float w = MathF.Round(Math.Max(o.Measure(BallotTitle, k), rows.Max(r => UiStyle.MeasureKeyed(o, r.Text, k) + (r.Note is null ? 0 : notes))) + 2 * pad);
@@ -1411,7 +1411,7 @@ public static partial class Hud
     };
 
     /// <summary>
-    /// Top left in fine print (note 281): what a stop's waiting on while the train's at one (the chute, the cranes, the spur,
+    /// Top left in fine print (note 285): what a stop's waiting on while the train's at one (the chute, the cranes, the spur,
     /// a Holdout lit), and alone in the yard, the way out. Not the route's name, the next place or the clock: the route card
     /// has the night, and the top centre says a place as it comes up and the dawn when it's near.
     /// </summary>

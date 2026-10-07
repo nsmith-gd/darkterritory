@@ -9,7 +9,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The HUD's rule since note 281 (GDD §32 "The HUD: your hands and the dark"; the director, 7 Oct: "too much UI on screen
+/// The HUD's rule since note 285 (GDD §32 "The HUD: your hands and the dark"; the director, 7 Oct: "too much UI on screen
 /// ... I like the way Repo and Lethal Company do their UI/UX designs"): only the crosshair and your hands are always there,
 /// and everything else comes up when it matters and goes when it doesn't.
 /// </summary>
@@ -144,7 +144,7 @@ public class QuietHudTests
     [Fact]
     public void WithTheControlHintsOffTheCornerKeepsOnlyWhatItsAbout()
     {
-        // The director (note 281): "a setting to hide corner controls". In the cab, the corner's the speed over the keys;
+        // The director (note 285): "a setting to hide corner controls". In the cab, the corner's the speed over the keys;
         // with the hints off, the speed alone.
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);

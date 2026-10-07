@@ -481,7 +481,7 @@ public sealed class FrontEndTests : IDisposable
         Choose(m, "SETTINGS");
         Choose(m, "VOICE");
         Choose(m, "VR TURNING");
-        // Note 281: the corner's control hints, on unless turned off.
+        // Note 285: the corner's control hints, on unless turned off.
         Assert.True(m.Settings.ControlHints);
         Choose(m, "CONTROL HINTS");
         Pick(m, "MOUSE SPEED");

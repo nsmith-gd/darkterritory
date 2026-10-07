@@ -28,7 +28,7 @@ public sealed record Settings
     public bool PushToTalk { get; init; }
     public bool Hud { get; init; } = true;
     /// <summary>
-    /// The keys in the HUD's corner for what you're holding or driving (note 281, the director: "a setting to hide corner
+    /// The keys in the HUD's corner for what you're holding or driving (note 285, the director: "a setting to hide corner
     /// controls"). Off, the corner keeps only what it's about (the speed, what's in your hands); the prompts at the
     /// crosshair stay.
     /// </summary>

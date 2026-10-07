@@ -1,4 +1,4 @@
-// The flat-screen HUD's timings and thresholds (GDD §32 "The HUD: your hands and the dark"; ARCHITECTURE §8 note 281).
+// The flat-screen HUD's timings and thresholds (GDD §32 "The HUD: your hands and the dark"; ARCHITECTURE §8 note 285).
 // The director, 7 Oct: "There's too much UI on screen. I like the way Repo and Lethal Company do their UI/UX designs."
 // Only the crosshair and your hands are always there; everything else comes up when it matters and fades when it doesn't.
 // Not in the systems spec: these are presentation, not rules.

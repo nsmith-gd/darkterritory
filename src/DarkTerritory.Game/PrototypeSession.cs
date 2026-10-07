@@ -355,7 +355,7 @@ public sealed class PrototypeSession : IPlaySession
 
     /// <summary>
     /// What there is to load at a facility (spec D), as it stands: what's here, and what's under way or stopped. Not how to
-    /// work it or what happens if you don't (note 281, the director: "consequences need to be learned").
+    /// work it or what happens if you don't (note 285, the director: "consequences need to be learned").
     /// </summary>
     static string SiteStatus(Site? site)
     {
@@ -394,7 +394,7 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add("powder kegs");
         if (site.Has(ModuleKind.Winch))
             parts.Add(site.SledsLeft == 0 ? "the winch is done" : site.Turning ? $"winch HAULING {site.Progress * 100:0}%" : site.OutOfRhythm ? "winch STALLED" : $"winch: {site.SledsLeft} sleds");
-        // "; " between them (each can have its own commas): the HUD puts each on a line of its own (note 281).
+        // "; " between them (each can have its own commas): the HUD puts each on a line of its own (note 285).
         return " — " + string.Join("; ", parts);
     }
 

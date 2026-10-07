@@ -2,7 +2,7 @@ namespace DarkTerritory.Game;
 
 /// <summary>
 /// The flat-screen HUD's timings and thresholds (content/tuning/hud.json; GDD §32 "The HUD: your hands and the dark",
-/// note 281): what comes and goes, when, and for how long. The defaults are the file's.
+/// note 285): what comes and goes, when, and for how long. The defaults are the file's.
 /// </summary>
 public sealed record HudTuning
 {
