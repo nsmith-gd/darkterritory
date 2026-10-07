@@ -34,7 +34,9 @@ public class WreckSessionTests
         var film = WaitForFilm(night);
         Assert.Equal(DerailBeat.Film, DerailSequence.Beat(tuning, tuning.FirstPersonSeconds + tuning.ReplaySeconds + 0.1, film));
         Assert.Equal(tuning.FirstPersonSeconds + tuning.ReplaySeconds + film.CutLength, DerailSequence.Length(tuning, film), 9);
-        for (int i = 0; i < DerailSequence.Length(tuning, film) * SimConstants.TickRate; i++)
+        // The session's own sequence (its first person is this player's, to their death in the film), not the file's: they
+        // differ, and the steps taken waiting on the film used to cover the difference, until a slower step didn't.
+        for (int i = 0; i < DerailSequence.Length(night.SequenceTuning, film) * SimConstants.TickRate; i++)
             night.Step(default);
         Assert.False(night.WreckCinematic);
     }
