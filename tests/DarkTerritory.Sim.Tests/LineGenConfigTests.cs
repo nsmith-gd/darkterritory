@@ -72,7 +72,7 @@ public class LineGenConfigTests
     {
         var c = LineGenContent.Load(Content);
         Assert.Equal("linegen-1.0.0", c.Config.Tiers.Version);
-        Assert.Equal(18, c.Config.Tiers.Columns.Local.LengthKm);
+        Assert.Equal(3, c.Config.Tiers.Columns.Local.Facilities);
         Assert.Contains(c.Config.SetPieces.Pieces, p => p.Id == "theDrop");
     }
 
@@ -82,7 +82,8 @@ public class LineGenConfigTests
         var c = LineGenContent.Load(Content);
         // §3.1: Frontier at severity 0.4 is 40% of the way to Dead lines.
         var f = new Limits(c, new RunParameters(RouteTier.Frontier, 1, 0.4, 3, []));
-        Assert.Equal(23 + 0.4 * 6, f.LengthKm, 6);
+        // Spec B.8 (note 270): one night length whatever the tier or severity.
+        Assert.Equal(c.Route.NightLengthKm, f.LengthKm, 6);
         Assert.Equal(300 + 0.4 * (220 - 300), f.MinRadius, 6);
         // §3.4: a 20-car train gets a ruling grade of at most 85% of the 1.8% it can climb.
         var heavy = new Limits(c, new RunParameters(RouteTier.DeepTerritory, 1, 0.5, 20, []));
@@ -90,7 +91,8 @@ public class LineGenConfigTests
         Assert.Equal(0.85 * heavy.ClimbMax, heavy.MainGrade, 6);
         Assert.InRange(heavy.MainGrade, 1.45, 1.6);
         // Deep territory lerps toward the "deep max" column.
-        Assert.Equal(34 + 0.5 * 6, heavy.LengthKm, 6);
+        Assert.Equal(3, heavy.Facilities, 6);
+        Assert.Equal(c.Route.NightLengthKm, heavy.LengthKm, 6);
     }
 
     [Fact]

@@ -597,6 +597,13 @@ public sealed record PressureTuning
     public int EscalationPower { get; init; } = 1;
     public double QuietPerSecond { get; init; } = 0.1;
     public double QuietRampSeconds { get; init; } = 90;
+    /// <summary>
+    /// GDD App. F.1 (the director, 6 Oct 2026; note 270): quiet counted in line run, not seconds. Over 0, the quiet ramps over
+    /// this many metres run since a threat was engaged, or over <see cref="QuietBackstopSeconds"/> if that's sooner (a
+    /// stopped train can't wait it out); 0 keeps the ramp in seconds (<see cref="QuietRampSeconds"/>).
+    /// </summary>
+    public double QuietRampMetres { get; init; }
+    public double QuietBackstopSeconds { get; init; } = 120;
     public double LoudPerSecond { get; init; } = 0.1;
     public double LoudCap { get; init; } = 1.5;
     public double CargoPerLoad { get; init; } = 0.01;

@@ -404,7 +404,11 @@
       // Quiet builds pressure: + quietPerSecond × (seconds since a threat was engaged (telegraphing, committing, grabbing,
       // punishing) or sent / quietRampSeconds, to 1), so no
       // stretch goes much past a minute and a half without something, even at the gate.
-      "quietPerSecond": 0.1, "quietRampSeconds": 90,
+      // GDD App. F.1 (the director, 6 Oct 2026; note 270): "quiet stretches are counted in kilometres, not seconds." With
+      // quietRampMetres set, the ramp is the line run since then over quietRampMetres (1,260 m: the old 90 s at spec B.3's
+      // 14 m/s cruise), or the seconds over quietBackstopSeconds if that's sooner, so a stopped train can't wait it out.
+      // quietRampSeconds is the ramp only with quietRampMetres 0.
+      "quietPerSecond": 0.1, "quietRampSeconds": 90, "quietRampMetres": 1260, "quietBackstopSeconds": 120,
       // The crew's loudness (App. C.7, the Choir meter): + loudPerSecond × (meter / the Choir's threshold, to at most loudCap).
       "loudPerSecond": 0.1, "loudCap": 1.5,
       // Cargo aboard (App. B.9): + cargoPerLoad per car-load (load × cargo integrity × cargoValue, 1 for what isn't listed).
