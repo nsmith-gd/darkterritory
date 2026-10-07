@@ -8,8 +8,8 @@ public class BalanceTests
 {
     static readonly BalanceTuning T = new(SurvivableCrew: 2, SurvivableDelivered: 0.5, NonTrivialCrew: 8, NonTrivialPunishes: 5);
 
-    static BalanceRow Night(int crew, bool delivered, int punishes, int unfair = 0, int cars = 10, int lost = 0) =>
-        new(RouteTier.Frontier, 1, crew, cars, delivered ? "Delivered" : "DawnMissed", delivered, delivered ? 3000 : -500, lost,
+    static BalanceRow Night(int crew, bool delivered, int punishes, int unfair = 0, int cars = 10, int lost = 0, RouteTier tier = RouteTier.Frontier) =>
+        new(tier, 1, crew, cars, delivered ? "Delivered" : "DawnMissed", delivered, delivered ? 3000 : -500, lost,
             new Dictionary<string, int>(), punishes, unfair, 3000, 26);
 
     [Fact]
@@ -50,6 +50,23 @@ public class BalanceTests
         Assert.Equal([6, 20], report.ByCars.Select(g => g.Value));
         Assert.Equal(3, Assert.Single(report.ByCars, g => g.Value == 20).MeanCrewLost);
         Assert.DoesNotContain(report.Checks, c => c.Name.Contains("cars"));
+    }
+
+    [Fact]
+    public void SoloFinishesItsFirstRunsAndNoMore()
+    {
+        // App. F.1 (note 300): alone, the first runs' line and train get home; where a crew advances to, they mostly don't.
+        BalanceRow Solo(RouteTier tier, int cars, bool delivered) => Night(1, delivered, 0, cars: cars, tier: tier);
+        var ok = Balance.Judge([Solo(RouteTier.Local, 3, true), Solo(RouteTier.Local, 3, true), Solo(RouteTier.Local, 3, false),
+            Solo(RouteTier.Frontier, 6, false), Solo(RouteTier.Frontier, 6, false), Solo(RouteTier.Frontier, 6, true)], T);
+        Assert.True(Check(ok, "solo finishes local at 3 cars").Pass, Check(ok, "solo finishes local at 3 cars").Detail);
+        Assert.True(Check(ok, "solo is hard on frontier at 6 cars").Pass, Check(ok, "solo is hard on frontier at 6 cars").Detail);
+        // Can't finish a first run alone; or can go anywhere alone.
+        Assert.False(Check(Balance.Judge([Solo(RouteTier.Local, 3, false), Solo(RouteTier.Local, 3, true)], T), "solo finishes local at 3 cars").Pass);
+        Assert.False(Check(Balance.Judge([Solo(RouteTier.Frontier, 6, true), Solo(RouteTier.Frontier, 6, false)], T), "solo is hard on frontier at 6 cars").Pass);
+        // Not judged without solo nights in the cell (a crew of 2 there, or solo on another train).
+        Assert.DoesNotContain(Balance.Judge([Night(2, true, 1, cars: 3, tier: RouteTier.Local), Solo(RouteTier.Frontier, 10, true)], T).Checks,
+            c => c.Name.StartsWith("solo"));
     }
 
     static BalanceCheck Check(BalanceReport r, string name) => Assert.Single(r.Checks, c => c.Name == name);

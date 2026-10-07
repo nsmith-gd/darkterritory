@@ -7,7 +7,7 @@ namespace DarkTerritory.Sim.Train;
 /// What a player does with their hands, all by holding Use (without pushing forward, which is
 /// how you grab a ladder instead):
 /// <list type="bullet">
-/// <item>at the firebox, shovel coal: one unit per 1.2 s (spec B.6);</item>
+/// <item>at the firebox, shovel coal: one unit per 1.2 s (spec B.6), the shovel in hand (<see cref="TakeShovel"/>);</item>
 /// <item>at the vent valve, hold it open;</item>
 /// <item>on a coupler plate, nothing but the doors: the coupling is cut by <see cref="Uncoupling"/> (T91);</item>
 /// <item>at a car's brake wheel, wind its rake's handbrakes on or off;</item>
@@ -65,6 +65,12 @@ public static class CrewActions
         if (Hand(s, hand) && train.BoilerTuning is { } boiler && PlayerMotor.InCab(s, train)
             && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null)
         {
+            if (boiler.ShovelInHand && !TakeShovel(ref s, train))
+            {
+                s.ActionProgress = 0;
+                s.Flags &= ~PlayerFlags.Shovelful;
+                return;
+            }
             ShovelByHand(ref s, near?.Thing.Kind, train, boiler, dt);
             return;
         }
@@ -102,6 +108,12 @@ public static class CrewActions
                 }
                 break;
             case InteractableKind.Firebox when train.BoilerTuning is { } bt && PlayerMotor.InCab(s, train):
+                // The shovel into hand first (note 275): no shovel, no coal.
+                if (bt.ShovelInHand && !TakeShovel(ref s, train))
+                {
+                    s.ActionProgress = 0;
+                    break;
+                }
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= bt.ShovelSeconds)
                 {
@@ -120,7 +132,8 @@ public static class CrewActions
                 s.ActionProgress = 0;
                 break;
             // The cab's tool rack (T109): a press takes the wrench, into the first free slot and into hand; with it in hand,
-            // a press puts it back. It's a tool to swing; the repair kit is what mends the boiler.
+            // a press puts it back. It's a tool to swing; the repair kit is what mends the boiler. The shovel in hand is hung
+            // back on it the same way (note 275).
             case InteractableKind.ToolRack when PlayerMotor.InCab(s, train):
                 s.ActionProgress += dt;
                 if (before < RackSeconds && s.ActionProgress >= RackSeconds)
@@ -181,9 +194,15 @@ public static class CrewActions
     /// <summary>How long Use is held at the rack to take the wrench or put it back.</summary>
     const double RackSeconds = 0.4;
 
-    /// <summary>The wrench out of its rack into hand, or back into it (T109). There's the one.</summary>
+    /// <summary>The wrench out of its rack into hand, or back into it (T109); or the shovel in hand back onto it (note 275). There's the one of each.</summary>
     static void Rack(ref PlayerState s, TrainOnLine train)
     {
+        if (Kit.Held(s) == Tool.Shovel)
+        {
+            s.Kit = Kit.With(s.Kit, s.HeldSlot, Tool.None);
+            train.Boiler.ShovelOut = false;
+            return;
+        }
         if (Kit.Held(s) == Tool.Wrench)
         {
             s.Kit = Kit.With(s.Kit, s.HeldSlot, Tool.None);
@@ -200,6 +219,43 @@ public static class CrewActions
                 train.Boiler.WrenchOut = true;
                 return;
             }
+    }
+
+    /// <summary>
+    /// The shovel into hand to fire with (App. C.2, GDD §12; note 275): already there; else out of your own kit; else off the
+    /// cab's tool rack into the first free slot, if it's on it. False when it's out with someone else (or your hands are
+    /// full): the fire waits for whoever has it. Worked out alike everywhere, so a client predicts the take.
+    /// </summary>
+    public static bool TakeShovel(ref PlayerState s, TrainOnLine train)
+    {
+        if (Kit.Held(s) == Tool.Shovel)
+            return true;
+        for (int i = 0; i < Kit.Slots; i++)
+            if (Kit.At(s.Kit, i) == Tool.Shovel)
+            {
+                s.HeldSlot = (byte)i;
+                return true;
+            }
+        if (train.Boiler.ShovelOut)
+            return false;
+        for (int i = 0; i < Kit.Slots; i++)
+            if (Kit.At(s.Kit, i) == Tool.None)
+            {
+                s.Kit = Kit.With(s.Kit, i, Tool.Shovel);
+                s.HeldSlot = (byte)i;
+                train.Boiler.ShovelOut = true;
+                return true;
+            }
+        return false;
+    }
+
+    /// <summary>Whether <paramref name="s"/> could fire now, as far as the shovel goes (<see cref="TakeShovel"/>, without taking it).</summary>
+    public static bool HasShovel(in PlayerState s, TrainOnLine train)
+    {
+        if (train.BoilerTuning is not { ShovelInHand: true } || Kit.Has(s.Kit, Tool.Shovel))
+            return true;
+        ulong spare = s.Kit;
+        return !train.Boiler.ShovelOut && Kit.TryAdd(ref spare, Tool.Shovel);
     }
 
     /// <summary>
