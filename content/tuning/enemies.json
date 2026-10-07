@@ -535,15 +535,17 @@
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
     // the train, and not in a fort, is afoot. While anyone is, the night's pressure builds by + perSecond × the share of the
     // living afoot (inside the pressure model's other factors: tier, conditions, relief, busy, escalation), so encounters come
-    // sooner off the train; and the crew is watched: firstSign s after someone first steps off, and every signEvery [min, max]
-    // s after while anyone's afoot, one of them (in turn) is shown a sign: a pair of eyes for signSeconds out at signOut
-    // [min, max] m (the hand lamp's edge), toward a site of a creature that lives at this stop (note 309's lairs, within
-    // signReach m of them; within signSpread degrees of its bearing), at that creature's eye height (signHeight by its tuning
-    // name, else signHeightDefault), and its sound from there. Honest: only what lives here and the night could send; with
-    // no site in reach, a Ribbit's (they come for whoever's on the ground anywhere), from away from the train. A sign is never
-    // a spawn: nothing's there when you walk up to it.
+    // sooner off the train; and what it sends then is more often met out there: the outside creatures, and whatever lives at
+    // the stops' sites, weigh × (1 + (outsideWeight − 1) × that share). And the crew is watched: firstSign s after someone
+    // first steps off, and every signEvery [min, max] s after while anyone's afoot, one of them (in turn) is shown a sign: a
+    // pair of eyes for signSeconds out at signOut [min, max] m (the hand lamp's edge; nearer if a wall's in the way), within
+    // signSpread degrees of the bearing of a creature that lives at this stop (one kind drawn from those with a site, note
+    // 309's lairs, within signReach m; its nearest site), at that creature's eye height (signHeight by its tuning name, else
+    // signHeightDefault), and its sound from there. Honest: only what lives here and the night could send; with no site in
+    // reach, a Ribbit's (they come for whoever's on the ground anywhere), from away from the train. A sign is never a spawn:
+    // nothing's there when you walk up to it.
     "afoot": {
-      "on": true, "fromTrainM": 20, "perSecond": 0.08,
+      "on": true, "fromTrainM": 20, "perSecond": 0.08, "outsideWeight": 2.5,
       "signEvery": [12, 24], "firstSign": 6, "signOut": [14, 22], "signReach": 160, "signSeconds": 3.5, "signSpread": 35,
       "signHeight": { "ribbits": 0.35, "gaunt": 2.3, "followers": 1.6, "sootChildren": 1.0, "grumbler": 1.5, "whistler": 2.0 },
       "signHeightDefault": 0.7

@@ -710,6 +710,7 @@ public sealed record AfootTuning
     public bool On { get; init; } = true;
     public double FromTrainM { get; init; } = 20;
     public double PerSecond { get; init; } = 0.08;
+    public double OutsideWeight { get; init; } = 2.5;
     public double[] SignEvery { get; init; } = [12, 24];
     public double FirstSign { get; init; } = 6;
     public double[] SignOut { get; init; } = [14, 22];

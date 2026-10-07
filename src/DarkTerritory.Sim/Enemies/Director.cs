@@ -370,6 +370,10 @@ public sealed class Director
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
         options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
+        // Note 327: with crew afoot off the train, what comes for them out there (the outside creatures, and whatever lives at
+        // the stops' sites) weighs more, by their share: more of the night is met off the train.
+        if (_t.Afoot.On && AfootShare > 0 && _t.Afoot.OutsideWeight != 1)
+            options = [.. options.Select(o => (o.Kind, Outdoors(o.Kind) ? o.Weight * (1 + (_t.Afoot.OutsideWeight - 1) * AfootShare) : o.Weight))];
         options = WeighVotes(options);
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
@@ -623,22 +627,31 @@ public sealed class Director
         _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]);
         var (who, from) = afoot[_signTurn++ % afoot.Count];
         // The sites of what lives here, in reach of them, of what the night could send: the nearest.
-        (Double3 At, EnemyKind Kind)? site = null;
-        double best = a.SignReach;
+        // Each kind's nearest site in reach; one kind drawn from them, so a village with a warren, a roost and a child's call
+        // shows all three in time, not only the nearest over and over.
+        var near = new List<(Double3 At, EnemyKind Kind, double D)>();
         foreach (var lair in Enum.GetValues<Stops.LairKind>())
         {
             var kind = Lives(lair);
             if (!Allows(kind))
                 continue;
+            (Double3 At, double D)? nearest = null;
             foreach (var (at, _) in CreatureSites.Of(world, lair, world.Enemies?.Sites.Around ?? 300))
             {
                 double d = ((at - from) with { Y = 0 }).Length;
-                if (d < best)
-                {
-                    best = d;
-                    site = (at, kind);
-                }
+                if (d < a.SignReach && (nearest is null || d < nearest.Value.D))
+                    nearest = (at, d);
             }
+            if (nearest is { } n)
+                near.Add((n.At, kind, n.D));
+        }
+        (Double3 At, EnemyKind Kind)? site = null;
+        double best = a.SignReach;
+        if (near.Count > 0)
+        {
+            var pick = near[(int)Math.Min(near.Count - 1, _signRng.NextDouble() * near.Count)];
+            site = (pick.At, pick.Kind);
+            best = pick.D;
         }
         Double3 toward;
         EnemyKind what;
@@ -659,12 +672,26 @@ public sealed class Director
             return null;
         if (toward.Length < 1e-3)
             toward = new Double3(1, 0, 0);
-        double turn = _signRng.Range(-a.SignSpread, a.SignSpread) * Math.PI / 180;
-        var dir = toward.Normalized;
-        dir = new Double3(dir.X * DMath.Cos(turn) - dir.Z * DMath.Sin(turn), 0, dir.X * DMath.Sin(turn) + dir.Z * DMath.Cos(turn));
+        double turn = _signRng.Range(-a.SignSpread, a.SignSpread);
         // At the lamp's edge, or at the site itself if that's nearer.
         double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : Math.Max(a.SignOut[0] * 0.5, best));
-        var spot = from + dir * out_;
+        // Seen, not through a wall: the bearing drawn, then others across the spread, the first with a clear line out that far
+        // past the stop's walls; with none, the drawn one, as far as its first wall (something at the corner of a house).
+        Double3 spot = default;
+        double clearest = -1;
+        foreach (double deg in new[] { turn, 0, -a.SignSpread, a.SignSpread, -a.SignSpread / 2, a.SignSpread / 2 })
+        {
+            var dir = Turned(toward.Normalized, deg * Math.PI / 180);
+            double clear = Clear(train.Walls, from, dir, out_);
+            if (clear > clearest)
+                (spot, clearest) = (from + dir * clear, clear);
+            if (clear >= out_)
+                break;
+        }
+        out_ = clearest;
+        // Walled in close all round: nothing's seen this time (eyes a step away would be a lie).
+        if (out_ < a.SignOut[0] * 0.5)
+            return null;
         double gh = train.Dynamics.Distance;
         spot = spot with { Y = PlayerMotor.GroundAt(spot, train.Line, ref gh) + a.SignHeight.GetValueOrDefault(Key(what), a.SignHeightDefault) };
         if (world.InFort(spot))
@@ -672,6 +699,31 @@ public sealed class Director
         Signs.Add(new SignShown(world.Tick, who, what, site is not null, out_));
         return new Watcher(a.SignSeconds, what, spot, who);
     }
+
+    static Double3 Turned(Double3 d, double rad) =>
+        new(d.X * DMath.Cos(rad) - d.Z * DMath.Sin(rad), 0, d.X * DMath.Sin(rad) + d.Z * DMath.Cos(rad));
+
+    /// <summary>How far out along <paramref name="dir"/> from <paramref name="from"/> is clear of the stop's walls, to <paramref name="out_"/> (a metre short of the first wall).</summary>
+    static double Clear(Run.StopWalls? walls, Double3 from, Double3 dir, double out_)
+    {
+        if (walls is null)
+            return out_;
+        for (double d = 1; d <= out_; d += 1)
+        {
+            var p = from + dir * d + Double3.Up * 1;
+            foreach (var w in walls.Near(p))
+            {
+                var l = w.ToLocal(p);
+                if (Math.Abs(l.X) <= w.HalfLength + 0.3 && Math.Abs(l.Z) <= w.HalfWidth + 0.3 && l.Y >= w.Bottom && l.Y <= w.Top)
+                    return Math.Max(1, d - 1);
+            }
+        }
+        return out_;
+    }
+
+    /// <summary>A creature met on foot off the train (note 327): the outside zone's, or one that lives at the stops' sites.</summary>
+    public static bool Outdoors(EnemyKind kind) =>
+        Profile(kind).Zone == PressureZone.Outside || Enum.GetValues<Stops.LairKind>().Any(l => Lives(l) == kind);
 
     /// <summary>What lives at a site of this kind (level-design H.2; note 309).</summary>
     public static EnemyKind Lives(Stops.LairKind lair) => lair switch
