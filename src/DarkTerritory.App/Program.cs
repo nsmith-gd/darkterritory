@@ -755,6 +755,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else if (inMenu)
         {
+            // What leaving costs, and who's here, as of now (the report up, someone joined, the gate passed).
+            frontEnd.RefreshNight(NightNow());
             Launch? chosen = null;
             window.TextInput = frontEnd.WantsText;
             if (frontEnd.Capturing is not null)

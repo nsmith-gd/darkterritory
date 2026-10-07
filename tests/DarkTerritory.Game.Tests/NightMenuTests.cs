@@ -124,6 +124,27 @@ public sealed class NightMenuTests : IDisposable
     }
 
     [Fact]
+    public void TheMenuFollowsTheNightWhileItsOpen()
+    {
+        var m = Menu();
+        m.OpenNight(new NightMenu(Hosting: true, Others: 2));
+        Choose(m, "END THE NIGHT");
+        Assert.Contains("all 2 others", m.Items[1].Detail);
+        // Someone left while it was open: the confirmation says so, still on the same page.
+        m.RefreshNight(new NightMenu(Hosting: true, Others: 1));
+        Assert.Equal(Screen.Leave, m.Screen);
+        Assert.Contains("the other one", m.Items[1].Detail);
+        // The report came up: leaving goes at once from the first page.
+        m.Back();
+        m.RefreshNight(new NightMenu(Hosting: true, Others: 1, Over: true));
+        Assert.IsType<Launch.Leave>(Choose(m, "LEAVE"));
+        // Shut, a refresh opens nothing.
+        m.CloseNight();
+        m.RefreshNight(new NightMenu());
+        Assert.Null(m.Night);
+    }
+
+    [Fact]
     public void InviteIsSteamsWhenThereIsALobbyAndOtherwiseSaysTheAddress()
     {
         var m = Menu();

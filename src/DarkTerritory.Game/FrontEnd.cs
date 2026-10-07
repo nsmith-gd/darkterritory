@@ -391,6 +391,20 @@ public sealed class FrontEnd
         Cue?.Invoke(UiCue.Select);
     }
 
+    /// <summary>
+    /// The night as it is now, while the menu's open (note 292): someone joins or leaves, the report comes up, the train goes
+    /// through the gate. The page and the selection stay where they are.
+    /// </summary>
+    public void RefreshNight(NightMenu night)
+    {
+        if (Night is null || Night == night)
+            return;
+        Night = night;
+        int count = Entries().Count;
+        if (Selected >= count)
+            Selected = Math.Max(0, count - 1);
+    }
+
     /// <summary>Shuts the in-night menu (RESUME, or Escape on its first page): back to the night.</summary>
     public void CloseNight()
     {
