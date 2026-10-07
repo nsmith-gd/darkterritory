@@ -621,6 +621,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
     // The supplies aboard (the director's decision of 2026-10-06; note 264): toggled on and off, never always there.
     bool showSupplies = args.Contains("--supplies");
+    bool rosterOut = false;
     double stokerSince = -1;
     bool showPlan = args.Contains("--overlay");
     // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
@@ -872,8 +873,23 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
         if (Pressed(Key.F5)) net?.Reconnect();
         // A generated line's route card (C: the paper the crew is handed) and the designer's overlay (F3).
-        if (Hit(Control.RouteCard)) cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
-        if (Hit(Control.Supplies)) showSupplies = !showSupplies;
+        if (Hit(Control.RouteCard))
+        {
+            cardPage = cardPage + 1 >= cardPages ? -1 : cardPage + 1;
+            // The panels heard (note 322): the card drawn out, paged, put away.
+            sound.Ui(cardPage < 0 ? UiCue.PanelClose : cardPage == 0 ? UiCue.PanelOpen : UiCue.PanelPage);
+        }
+        if (Hit(Control.Supplies))
+        {
+            showSupplies = !showSupplies;
+            sound.Ui(showSupplies ? UiCue.PanelOpen : UiCue.PanelClose);
+        }
+        // Q held is the roster: out as it's pressed, away as it's let go.
+        if (Held(Control.Roster) != rosterOut)
+        {
+            rosterOut = !rosterOut;
+            sound.Ui(rosterOut ? UiCue.PanelOpen : UiCue.PanelClose);
+        }
         if (Pressed(Key.F3)) showPlan = !showPlan;
         // An invite accepted (or "Join Game" on a friend) while playing: leave this game for theirs.
         if (Invited(net) is { } invitedTo)

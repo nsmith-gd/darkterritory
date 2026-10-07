@@ -688,10 +688,45 @@ public sealed partial class GameAudio
         // The shots are heard from the guns' replicated state, everyone's (GameAudio.Crew.cs, CrewGuns): world.Shots is only
         // ever this machine's own predicted one.
         Strikes(world);
+        Gestures(world);
     }
 
-    readonly HashSet<int> _heardHits = [], _heardImpacts = [];
-    bool _strikesPrimed;
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [];
+    readonly Dictionary<int, byte> _outfitsHeard = [];
+    bool _strikesPrimed, _gesturesPrimed;
+
+    /// <summary>
+    /// The crew's gestures (note 298), each once where its player stands (note 322): an emote from the wheel (a dance's feet
+    /// are its own: it moves nobody, so there are no footsteps), and an outfit tried on in the yard. What's there on the first
+    /// update is old news, as with the strikes.
+    /// </summary>
+    void Gestures(World world)
+    {
+        bool primed = _gesturesPrimed;
+        foreach (var e in world.Emotes)
+        {
+            if (!_heardEmotes.Add(e.Id) || !primed)
+                continue;
+            string? cue = e.Kind switch
+            {
+                Emote.Dance => "crew-emotes.dance",
+                Emote.Wave => "crew-emotes.wave",
+                Emote.Point => "crew-emotes.point",
+                _ => null,
+            };
+            if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)
+                Cue(cue, at + Double3.Up * 1.1, OccludedAt(world.Train, s.Parent, s.Position));
+        }
+        if (_heardEmotes.Count > 64)
+            _heardEmotes.IntersectWith(world.Emotes.Select(e => e.Id));
+        foreach (var (id, outfit) in world.Outfits)
+        {
+            if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
+                Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
+            _outfitsHeard[id] = outfit;
+        }
+        _gesturesPrimed = true;
+    }
 
     /// <summary>
     /// What landed (T121), from the replicated world, each once: a ball's boom where it came down (a splash in water, and the
@@ -706,8 +741,18 @@ public sealed partial class GameAudio
             if (!_heardImpacts.Add(i.Id) || !_strikesPrimed)
                 continue;
             // Nobody's shot (World.Blast: a powder keg or a powder car going up, notes 182 and 185) is its own, bigger blast.
+            // Note 290: a ball meets bodies and walls, and each lands as what it struck (note 322): into a creature (the doll's
+            // porcelain is its own, below), on a fort's stone, on the train's own iron. Not installed, it's the boom.
+            string? on = i.Surface switch
+            {
+                ImpactSurface.Creature when i.Struck != Sim.Enemies.EnemyKind.TrackDoll => "crew-cannon-impact.flesh",
+                ImpactSurface.Structure => "crew-cannon-impact.structure",
+                ImpactSurface.Train => "crew-cannon-impact.train",
+                _ => null,
+            };
             string boom = i.Shooter < 0 && Bank.Get("powder-blast") is not null ? "powder-blast"
-                : i.Surface == ImpactSurface.Water ? "cannon-splash" : "cannon-impact";
+                : i.Surface == ImpactSurface.Water ? "cannon-splash"
+                : on is not null && Bank.Get(on) is not null ? on : "cannon-impact";
             Mixer.Play(boom, i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
             if (i.Struck == Sim.Enemies.EnemyKind.TrackDoll)
                 Mixer.Play("doll-shatter", i.At)?.Also(v => v.Occlusion = Occlusion(PlayerMotor.Outside));
@@ -786,7 +831,9 @@ public sealed partial class GameAudio
         _toys.Clear();
         _heardHits.Clear();
         _heardImpacts.Clear();
-        _strikesPrimed = false;
+        _heardEmotes.Clear();
+        _outfitsHeard.Clear();
+        _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;
         _lampsOut = 0;
         _wasRuptured = false;
