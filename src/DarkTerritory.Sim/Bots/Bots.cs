@@ -1974,8 +1974,10 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             _firedToLeave = false;
             return null;
         }
-        // Only with nobody else alive to fight them (a crew's walkers and gunner go at a pack aboard: Heed.Hounds), from the cab.
-        if (front < 0 || Crewmates?.Any(c => c.Alive) == true || !PlayerMotor.InCab(self, train))
+        // Only with nobody else to fight them (a crew's walkers and gunner go at a pack aboard: Heed.Hounds), from the cab. Note
+        // 484: nobody fit to. A walker under Heed.PackFightHealth keeps clear of a pack, so a crew of two with its walker hurt
+        // had nobody fight it and nobody cut it: D1.3's frontier:7 seed 2, the train stood 750 s with a fire every 20 s.
+        if (front < 0 || Crewmates?.Any(c => c.Alive && c.Health >= Heed.PackFightHealth) == true || !PlayerMotor.InCab(self, train))
             return null;
         if (train.Dynamics.Speed > 0.05)
             return hold;

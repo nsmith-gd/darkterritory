@@ -124,4 +124,18 @@ public class BoardedPackTests
         Assert.False(n.Driver.CuttingAlone);
         Assert.False(stood);
     }
+
+    [Fact]
+    public void WithOnlyAHurtCrewmateTheDriverCutsThePackLooseItself()
+    {
+        // Note 484 (D1.3's frontier:7 seed 2, a crew of two): the walker hurt under Heed.PackFightHealth keeps clear of a pack, so
+        // nobody fought it and nobody cut it, and the train stood 750 s with a fire every 20 s. Nobody fit to fight it is alone.
+        var n = new Lone(cars: 4, speed: 12);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 3);
+        n.Mate = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Health = Heed.PackFightHealth - 25 };
+        n.Until(() => pack.All(h => h.Gone), 300);
+        Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}");
+        Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
+    }
 }
