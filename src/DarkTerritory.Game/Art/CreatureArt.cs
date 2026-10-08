@@ -34,6 +34,9 @@ public enum CrewPose
     // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
     // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
     Jump, Stumble,
+    // A friend hauled free by what has them (App. A.1's rescue, note 378): out of the Car Hugger's mouth, the Tippy Toesie's
+    // fingers prised off, hauled down from the Whistler or the Choir.
+    PullMouth, PryOff, HaulDown,
 }
 
 /// <summary>
@@ -667,6 +670,9 @@ public sealed class CreatureArt
         CrewPose.Reload => "reload",
         CrewPose.Jump => "jump",
         CrewPose.Stumble => "stumble",
+        CrewPose.PullMouth => "pull_mouth",
+        CrewPose.PryOff => "pry_off",
+        CrewPose.HaulDown => "haul_down",
         _ => "idle",
     };
 

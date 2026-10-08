@@ -5343,3 +5343,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet judged:** P2 and P5 (the guns' targets and the hound runs on a hot night) need express sweeps (note 376's `--express` in `dt balance`); P4 and P7 are App. B.1's cooldown and terminus silence, already in the harness's pacing; P6 (grabs at stops) and P8 (solo, one at a time: `LiveCrewTests`) are tests, not sweeps.
     - **Verified:** `BalanceTests.ThePacingTargetsAreReportedAndAdvisoryTheyNeverFailTheSweep` (a night slack 120 s past and 35 % engaged: both flagged, the sweep passing; within targets both pass; advisory off, a miss fails it) and `ACrewOfOneHasNoPacingTargets`.
 
+378. **The rescue matched to the grab (queue #115, E1; the art checklist's `crew-rescue` "next": "matched to the victim's clip, and a pull free from a mouth").** A friend hauling someone free played `haul` (down on a knee at their collar), or `haul_up` for a friend over an edge below, whatever had hold of them. Now `CrewActs.Rescue` finds the holding creature nearest the held friend (every machine mirrors the enemies) and plays the rescue for its grab (`RescueOf`, App. A.1):
+    - **Out of the Car Hugger's mouth** (`pull_mouth`; D1's swallowed rescue, note 310): feet braced, the front leg straight against the pull, the body leant far back, both fists at the waist's height heaved in, then a fresh grip hand over hand.
+    - **The Tippy Toesie's fingers prised off a face** (`pry_off`; App. A.5's smother): squared up, feet wide, both hands up at the face, the fingers wrenched off to one side and then the other, the body leant into it.
+    - **Lifted away by the Whistler or the Choir** (`haul_down`): reached up overhead for the legs, then the whole weight dropped onto them, knees bending, the fists hauled down to the chest.
+    - **A Dragger's, over the edge**, is still `haul_up`; the rest (the Ribbit's tongue, a pin) still `haul`.
+    - Art only: the sim's rescue (the grab broken by a friend in reach) is unchanged.
+    - **Staging:** `dt screenshot --threats --hugger swallow --rescue --view swallow` (a friend pulling the swallowed one; `Staging.SwallowRescuer`), and `--act pull_mouth,pry_off,haul_down`.
+    - **Verified:** `CrewActsTests.TheRescueIsMatchedToWhatHasThem`; `CreatureArtTests` carries the new clips (and note 375's) in the crew's list. `dt art clearance --only crew` adds no failures (the same 18).
+
