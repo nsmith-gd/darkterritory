@@ -197,7 +197,9 @@ FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": 
                 "cs-gannet-strike.hit": "squawk",
                 # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
                 # the headframe's rope, whose tones can read as a whine.
-                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
+                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine",
+                # Note 409: the shut's the Choir's rule, so the one that bangs home and drops its latch last; the open's long creak.
+                "crew-house-door.shut": "sag", "crew-house-door.open": "creak"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -336,6 +338,8 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
+    "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
     "crew-mishaps.startle-cattle": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},

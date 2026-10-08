@@ -5724,3 +5724,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `dt art check`: everything is well under the large prop's 8,000; the chemical works' facility is 5,410 of its 90,000.
         - The Game suite.
         - Looked at: each site from its building camera, closer, from the air and (the tip) shifted, at dawn, before and after, and each piece on the turntable.
+409. **The village houses' doors heard (AU1, queue #145; B4's note 401: "a house shut up is behind a closed door").** A house door shut or opened was silent, though shutting it is the Choir's rule (GDD §21, "not behind a closed door"). The Choir's BESIEGE beat on the door of a shut car (`GameAudio.ChoirSwarm`) but not of a house shut up, so whoever hid in one heard nothing at the door.
+    - **How:**
+        - `GameAudio.HouseDoors` plays `crew-house-door.shut` or `.open` when a door flips, read off `StopWalls.Shut`, the doors shut as replicated (`RecordKind.Door`). Host and client hear the same. The 0.6 s hold is the host's alone (`World.DoorAct`), so the sound starts as the door flips and the art pops it.
+        - The sound plays at `GameAudio.DoorSound`: the leaf, a hand's height up, half a metre in from the doorway's outside edge, inside the house's footprint (`EarRoom.Holds`).
+            - From inside the house, it's in the room with the ear: no `roomWall` (note 396), no occlusion.
+            - From the street, it's clear.
+            - From a shut car, or from another house shut up, it's muffled as anything outside (`DoorOcclusion`).
+        - BESIEGE counts a house shut up as a space somebody's shut in (`PlayerMotor.HouseSpace`), the listener's own or a crewmate's. It beats on one of that house's doors at random, with the wooden `cs-choir.bang-door` at the same spot.
+        - Inside a shut house, the outside was already muffled before this note: the house is a space of its own, so `GameAudio.Occlusion` gives anything outside it a full wall, which is more than `roomWall`.
+    - **The sounds** (`tools/audio/recipes/house_doors.py`): a ledged plank door, swollen in its frame, on strap hinges with a thumb latch. Four candidates are on the Audio Checklist's new `crew-house-door` line. The installed pick (`install.py` `FIRST_CHOICE`) is listed first for each.
+        - Shut, `sag`: the hinge's creak, the foot dragging over the sill, a hard bang, and the latch's bar dropping last. Installed because a shut door must be heard and trusted. It carries 60 m at +3 dB (`CUE_DEF`), across a village street.
+        - Shut, `pull`: Kenney's door closing with a dull thump.
+        - Open, `creak`: the latch lifted, the leaf jerking free, a long creak with the leaf's weight groaning under it, and a bump against the wall.
+        - Open, `door`: Kenney's door opening, with the foot catching the sill.
+    - **Captions** (note 349): A DOOR SLAMMING SHUT, A DOOR CREAKING OPEN, and BANGING ON THE DOOR. The Choir's beating at a shut car had no caption either.
+    - **Not yet:**
+        - The hold itself, 0.6 s of a hand on a sagging door, isn't heard. It's the host's alone and isn't replicated.
+        - Searching an open house's cupboards and cellars (note 326) is silent. That's the next item.
+    - **Pinned:**
+        - `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp`. A door shut from the street is heard once, at `DoorSound`, clear. Opened and shut again from inside, the ear is in the house's space, the space is "room", and nothing stands between the ear and the door. Shut up in the house while the Choir besieges, 2–5 beats in 3 s on its door, with nothing between.
+        - `CaptionsTests`' theory names the three captions.
