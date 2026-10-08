@@ -10,7 +10,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// The crew bots answer the six creatures of 8 Oct (ARCHITECTURE §8 note 491; the director: "have the bots handle the six new
+/// The crew bots answer the six creatures of 8 Oct (ARCHITECTURE §8 note 367; the director: "have the bots handle the six new
 /// creatures too"), each by the counter-play on its design page: the Mourners scattered off a body, Tower Jaw driven off and
 /// its wreck cleared with the driver stopped short of it, the Brakeman's brakes unwound and the man cornered by two, the
 /// Knotter's gap never walked and the Knotter killed slack at a stand and the cars coupled up, the Freight Beetle driven

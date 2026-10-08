@@ -596,7 +596,7 @@ public sealed partial class Run
         if (!Over && CurrentSite is { } here && s.Alive)
             foreach (var crane in here.Cranes)
             {
-                if (crane.AtControls(s, intent, train))
+                if (crane.Operates(s, intent, train))
                 {
                     crane.Operator = playerId;
                     _craneIntent = intent;

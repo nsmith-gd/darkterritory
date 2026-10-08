@@ -2099,8 +2099,9 @@ public static partial class Hud
             // At its controls, they're the corner's (Hints).
             if (p.Has(PlayerFlags.Operating))
                 return null;
-            if (p.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(p, train) - crane.Controls) with { Y = 0 }).Length <= crane.Tuning.ControlsReach)
-                return "THE CRANE : HOLD [E]";
+            // A press takes the controls, and the next lets them go (Crane.Operates; the director, 8 Oct).
+            if (crane.AtStand(p, train))
+                return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
         }

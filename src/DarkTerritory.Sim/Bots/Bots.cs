@@ -1176,7 +1176,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // got into (App. A.4): its client can see both.
         if (_warm is not null)
         {
-            // Nor onto a Knotter's back (note 491): its gap behind the car is the rope, slipped off at speed.
+            // Nor onto a Knotter's back (note 367): its gap behind the car is the rope, slipped off at speed.
             _warm.Barred = car => world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == car
                 || e is CarHugger { Latched: true } h && h.Attached == car || e is Whistler w && !w.Gone && w.Attached == car)
                 || car > 0 && car < world.Train.Vehicles.Count && world.Train.Vehicles[car].Knot > 0;
@@ -1411,7 +1411,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         for (int i = 1; i < train.Vehicles.Count && i < train.Frames.Count; i++)
         {
             var f = train.Frames[i];
-            // Not down into a Knotter's gap (note 491): it's its back down there, not the plate.
+            // Not down into a Knotter's gap (note 367): it's its back down there, not the plate.
             if (train.Vehicles[i].Knot > 0)
                 continue;
             if (hb is not null && train.Vehicles[i].HotBox > 0)
@@ -1648,7 +1648,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             else
             {
                 // Not a jump to make from here (off the centreline, a curve pulling the roof away, or too cold to run at it):
-                // stand at the end and square up, and chilled, turn back rather than try it. A Knotter's gap (note 491) is
+                // stand at the end and square up, and chilled, turn back rather than try it. A Knotter's gap (note 367) is
                 // never one: turned back from at once.
                 intent.MoveZ = 0;
                 if (cold is { } c && self.Cold >= c.OnsetSeconds || Heed.Knotted(train, self.Parent, beyond))
@@ -2280,7 +2280,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
             _clubbed = false;
         }
-        // Note 491: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
+        // Note 367: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
         if (ForTheSix(self, world, ref cruise) is { } six)
             return Work(self, train, six) with { Lamp = lamp };
         // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
@@ -3304,7 +3304,7 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     {
         int ahead = train.VehicleAhead(_car);
         int way = ahead == 0 ? 1 : self.Position.Z >= 0 ? 1 : -1;
-        // Never out onto a Knotter's back (note 491): the other end, where that's a way out.
+        // Never out onto a Knotter's back (note 367): the other end, where that's a way out.
         bool knot = way > 0 ? train.Vehicles[_car].Knot > 0 : ahead > 0 && train.Vehicles[ahead].Knot > 0;
         bool other = way > 0 ? ahead > 0 && train.Vehicles[ahead].Knot <= 0 : train.Vehicles[_car].Knot <= 0;
         return knot && other ? -way : way;

@@ -475,7 +475,7 @@
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
   },
 
-  // The crew bots' answers to the six of 8 Oct (ARCHITECTURE §8 note 491; notes 362–367; not the creatures' own numbers, the
+  // The crew bots' answers to the six of 8 Oct (ARCHITECTURE §8 note 367; notes 362–367; not the creatures' own numbers, the
   // bots' judgement of them). A bot not driving goes to a body the Mourners are about within mournersWithin m of it, stands
   // over it and clubs them, chasing none further than mournersLeash m from it. On foot within towerJawWithin m of Tower Jaw
   // at its post it clubs it; gnawed past towerJawClearFrom it keeps crushRadius + towerJawClearBy m from where it falls. A

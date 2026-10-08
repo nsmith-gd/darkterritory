@@ -108,7 +108,7 @@ HOME      the body in a car of the train (or the train leaving) → they keen, a
   anyone; they drag only when no one's over the body, straight away from the line; a crewmate close or a blow makes them
   drop it and scatter; a blow kills one; a body carried is followed, not touched; 120 m out the body and its refund are
   gone; a body home sends them away; deterministic.
-- `BotsAnswerTheSixTests` (the bots, note 491): a crew bot within 30 m of a body they're hauling goes to it; once it's
+- `BotsAnswerTheSixTests` (the bots, note 367): a crew bot within 30 m of a body they're hauling goes to it; once it's
   over the body they drop it, and it clubs them, killing one. None taken. The body isn't carried home yet.
 
 ## 11. Decisions taken overnight (G1's calls, for the director)

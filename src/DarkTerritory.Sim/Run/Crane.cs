@@ -85,10 +85,18 @@ public sealed class Crane
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
 
-    /// <summary>A player's hands on the controls: standing at the stand, holding Use. Deterministic, so a client predicts it too.</summary>
-    public bool AtControls(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
-        s.Alive && s.Parent == PlayerState.World && intent.Has(PlayerButtons.Use)
-        && ((PlayerMotor.WorldPosition(s, train) - Controls) with { Y = 0 }).Length <= _t.ControlsReach;
+    /// <summary>Standing at the control stand, on the ground and alive: where the controls are taken.</summary>
+    public bool AtStand(in PlayerState s, TrainOnLine train) =>
+        s.Alive && s.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(s, train) - Controls) with { Y = 0 }).Length <= _t.ControlsReach;
+
+    /// <summary>
+    /// A player's hands on the controls this tick (the director, 8 Oct: "Cranes should also enter with E and exit with E, it
+    /// shouldn't be a hold function"). At the stand, the press (<see cref="PlayerActions.Seat"/>, sent on the Use key's press
+    /// as at a gun) takes the controls and the next press lets them go; dying or the run moving on lets them go too. From
+    /// the player's state before this tick's update, so the run and the world agree; deterministic, so a client predicts it.
+    /// </summary>
+    public bool Operates(in PlayerState s, in PlayerIntent intent, TrainOnLine train) =>
+        AtStand(s, train) && s.Has(PlayerFlags.Operating) != intent.Has(PlayerActions.Seat);
 
     /// <summary>
     /// What's under the hook: a car it's over (and that car's roof height, or, down through its open roof hatch, what's
