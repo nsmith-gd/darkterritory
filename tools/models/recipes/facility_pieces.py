@@ -47,6 +47,11 @@ so each kind reads by its shape from the line:
   * coaling_tower (note 422): the coaling stage's concrete bunker on its braced timber trestle, the steel hopper and the
     chute out over the track hung from its jib, its mouth where the sim's chute pours (CHUTE_MOUTH), ladders, the stop's
     lamp on its chain, coal spilled round its feet.
+  * the wreck yard's dressing (note 427): its older dead, from before the train's time (the heaps the crew work are the
+    train's own cars, SceneArt.Wreckage): dead_boxcar, a wooden boxcar off its trucks, boards gapped and charred, a door
+    gone, its roof fallen in; dead_gondola, a steel one rusted and holed, a side stove in, scrap heaped in it;
+    loose_truck, a freight truck off its car; yard_shed, the engine shed, corrugated iron rusted through, a bay fallen
+    in, its open end's doors off and the rails running in.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -92,6 +97,7 @@ def materials():
         "lead": make.lib("iron_plate", 0.6, tint=(0.5, 0.52, 0.55), rough=0.65, metal=0.3),
         "glow": make.flat("glow", (1.0, 0.42, 0.12), rough=0.5),
         "coal": make.lib("coal", 0.5, tint=(0.5, 0.5, 0.52), rough=0.55),
+        "chalk": make.flat("chalk", (0.42, 0.4, 0.36), rough=0.9),
     }
 
 
@@ -1348,6 +1354,174 @@ def coaling_tower(m):
     return p, []
 
 
+def dead_boxcar(m):
+    """An old wooden boxcar dead in the wreck yard, from before the train's time: off its trucks on its sills, its boards
+    gapped, charred and gone in places, a door gone and the other hanging, the roof fallen in at one end, faded marks.
+    Its origin is on the ground at its middle, +X along it."""
+    p = []
+    L, W, F, H = 6.2, 1.4, 0.55, 3.55
+    p.append(make.box((0, 0, 0.22), (L - 0.4, 0.22, 0.22), m["rust"], bevel=0.01, name="centre_sill"))
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * (W - 0.1), F - 0.12), (L, 0.1, 0.12), m["rust"], bevel=0.01, name="side_sill"))
+    p.append(make.box((0, 0, F - 0.03), (L, W, 0.03), m["timber"], bevel=0.005, name="floor"))
+    # The sides and ends: shells, their boards baked on, gapped and wobbling; holes where boards are gone, char.
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * W, (F + H) / 2), (L, 0.04, (H - F) / 2), m["timber"], bevel=0.005, name="side"))
+        y0, y1 = sorted((sy * (W + 0.04), sy * (W + 0.075)))
+        p += make.planks((-L, y0, F), (L, y1, H), 0, 30, m["timber"], gap=0.018, wobble=0.004, seed=3 + sy)
+        for x0 in (-L + 0.3, -1.6, 1.6, L - 0.3):
+            p.append(make.box((x0, sy * (W + 0.09), (F + H) / 2), (0.07, 0.02, (H - F) / 2), m["timber"], bevel=0.005, name="post", low=False))
+        for xa, xb in ((-L + 0.3, -1.6), (1.6, L - 0.3)):
+            mid = Vector(((xa + xb) / 2, sy * (W + 0.095), (F + H) / 2))
+            d = Vector((xb - xa, 0, H - F))
+            rot = Matrix.Rotation(-math.atan2(d.z, d.x) * (1 if sy < 0 else 1), 4, "Y")
+            p.append(make.box(mid, (d.length / 2, 0.015, 0.06), m["timber"], bevel=0.004, name="brace", rot=rot, low=False))
+        for x, z, h in ((-3.9, 2.4, 0.5), (4.3, 1.6, 0.7), (2.6, 2.9, 0.35)):
+            p.append(make.box((x * sy, sy * (W + 0.1), z), (0.35, 0.01, h), m["dark"], bevel=0, name="boards_gone", low=False))
+        p.append(make.box((4.6, sy * (W + 0.1), 2.4), (1.4, 0.01, 1.1), m["streak"], bevel=0, name="char", low=False))
+    for sx in (-1, 1):
+        p.append(make.box((sx * L, 0, (F + H) / 2), (0.04, W + 0.04, (H - F) / 2), m["timber"], bevel=0.005, name="end"))
+        x0, x1 = sorted((sx * (L + 0.04), sx * (L + 0.075)))
+        p += make.planks((x0, -W, F), (x1, W, H), 1, 8, m["timber"], gap=0.018, wobble=0.004, seed=9 + sx)
+    # The doors: one side's gone (the dark of the car), the other's hanging off its rail.
+    p.append(make.box((0, -W - 0.11, (F + 3.1) / 2), (0.95, 0.01, (3.1 - F) / 2), m["dark"], bevel=0, name="doorway", low=False))
+    p.append(make.box((0.3, W + 0.16, 1.9), (0.95, 0.05, 1.25), m["timber"], bevel=0.01, name="door", rot=Matrix.Rotation(0.18, 4, "X")))
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * (W + 0.12), 3.2), (2.4, 0.03, 0.04), m["rust"], bevel=0.004, name="door_rail", low=False))
+    # The roof: whole over the -X end, fallen in at the other, its boards split; the running board along what's left.
+    p.append(make.box((-L / 2 + 0.3, 0, H + 0.06), (L / 2 + 0.35, W + 0.12, 0.05), m["timber"], bevel=0.005, name="roof"))
+    p.append(make.box((-L / 2 + 0.3, 0, H + 0.14), (L / 2 + 0.3, 0.25, 0.03), m["grey"], bevel=0.005, name="running_board"))
+    drop = math.atan2(1.7, L - 1.4)
+    p.append(make.box(((0.7 + L - 0.6) / 2, 0, H - 0.85), ((L - 1.3) / 2 / math.cos(drop), W - 0.15, 0.05), m["timber"], bevel=0.005,
+                      name="roof_fallen", rot=Matrix.Rotation(drop, 4, "Y")))
+    p.append(make.box((L - 0.3, 0, H - 0.3), (0.2, W - 0.1, 0.25), m["streak"], bevel=0, name="char_end", low=False))
+    # The end's brake wheel and grab irons; faded marks.
+    p.append(make.cyl((-L - 0.12, 0.6, H - 0.3), (-L - 0.12, 0.6, 0.9), 0.03, m["rust"], n=6, bevel=0, name="brake_staff", low=4))
+    p += make.handwheel((-L - 0.12, 0.6, H - 0.25), (0, 0, 1), 0.3, m["rust"], spokes=4, name="brake_wheel")
+    for k in range(5):
+        z = F + 0.5 + k * 0.42
+        p.append(make.cyl((-L - 0.1, -W + 0.15, z), (-L - 0.1, -W + 0.55, z), 0.015, m["rust"], n=5, bevel=0, name="grab", low=3))
+    p.append(make.stencil("D T R  3127", (-2.6, -W - 0.11, 2.5), (0, -1, 0), (0, 0, 1), 0.24, m["chalk"], name="marks"))
+    return p, []
+
+
+def dead_gondola(m):
+    """An old steel gondola dead in the wreck yard: off its trucks, its sides of riveted plate gone to rust and holed,
+    one stove in amidships, scrap and ballast heaped in it. Its origin is on the ground at its middle, +X along it."""
+    p = []
+    L, W, F, H = 6.0, 1.45, 0.6, 1.85
+    p.append(make.box((0, 0, 0.24), (L - 0.4, 0.24, 0.24), m["rust"], bevel=0.01, name="centre_sill"))
+    p.append(make.box((0, 0, F - 0.03), (L, W, 0.04), m["rust"], bevel=0.005, name="floor"))
+    for sx in (-1, 1):
+        p.append(make.box((sx * L, 0, (F + H) / 2), (0.03, W, (H - F) / 2), m["rust"], bevel=0.005, name="end"))
+    # Its sides: the -Y one whole, the +Y one stove in amidships, its plate bent in; stakes outside, rivets in rows.
+    p.append(make.box((0, -W, (F + H) / 2), (L, 0.03, (H - F) / 2), m["rust"], bevel=0.005, name="side"))
+    for xa, xb in ((-L, -1.8), (1.8, L)):
+        p.append(make.box(((xa + xb) / 2, W, (F + H) / 2), ((xb - xa) / 2, 0.03, (H - F) / 2), m["rust"], bevel=0.005, name="side"))
+    p.append(make.box((0, W - 0.3, (F + H) / 2 - 0.05), (1.85, 0.03, (H - F) / 2), m["rust"], bevel=0.005, name="stove_in",
+                      rot=Matrix.Rotation(-0.42, 4, "X")))
+    for sy in (-1, 1):
+        for k in range(13):
+            x = -L + 0.5 + k * ((2 * L - 1.0) / 12)
+            if sy > 0 and abs(x) < 1.9:
+                continue
+            p.append(make.box((x, sy * (W + 0.05), (F + H) / 2), (0.05, 0.03, (H - F) / 2 + 0.02), m["rust"], bevel=0.004, name="stake", low=False))
+        for z in (F + 0.1, H - 0.08):
+            p.append(make.box((0, sy * (W + 0.035), z), (L, 0.006, 0.012), m["steel"], bevel=0, name="rivets", low=False))
+        for x, z in ((-3.4, 1.0), (3.9, 1.3), (-0.9 * sy, 1.5)):
+            p.append(make.box((x, sy * (W + 0.04), z), (0.22, 0.01, 0.16), m["dark"], bevel=0, name="rust_hole", low=False))
+    # What's in it: ballast and scrap heaped, a wheel off something, a sheet of iron leaning.
+    p.append(make.cyl((-1.5, 0, F), (-1.5, 0, F + 0.9), 1.3, m["shale"], n=12, bevel=0.02, name="scrap_heap", r1=0.35, low=8))
+    p.append(make.cyl((2.4, -0.3, F + 0.45), (2.4, 0.0, F + 0.45), 0.42, m["rust"], n=16, bevel=0.01, name="loose_wheel", low=8))
+    p.append(make.box((3.6, 0.4, F + 0.6), (0.9, 0.02, 0.55), m["rust"], bevel=0.005, name="sheet", rot=Matrix.Rotation(0.6, 4, "X")))
+    return p, []
+
+
+def loose_truck(m):
+    """A freight truck off its car: two wheelsets in arch-bar side frames, the bolster across, its springs, all rusted
+    and seized. Its origin is on the ground under its middle, +X along the track it ran on."""
+    p = []
+    R, G = 0.42, 0.75                 # the wheels' radius, half the gauge to their treads
+    for x in (-0.85, 0.85):
+        p.append(make.cyl((x, -G - 0.1, R), (x, G + 0.1, R), 0.07, m["rust"], n=10, bevel=0, name="axle", low=6))
+        for sy in (-1, 1):
+            y = sy * G
+            p.append(make.cyl((x, y - 0.06, R), (x, y + 0.06, R), R, m["rust"], n=24, bevel=0.01, name="wheel", low=12))
+            p.append(make.cyl((x, y - sy * 0.07, R), (x, y - sy * 0.09, R), R + 0.04, m["steel"], n=24, bevel=0, name="flange", low=12))
+            p.append(make.box((x, sy * (G + 0.2), R), (0.16, 0.1, 0.13), m["rust"], bevel=0.01, name="journal"))
+    for sy in (-1, 1):
+        y = sy * (G + 0.2)
+        p.append(make.box((0, y, R - 0.18), (1.2, 0.05, 0.04), m["rust"], bevel=0.005, name="bottom_bar"))
+        p.append(make.box((0, y, R + 0.18), (1.15, 0.05, 0.04), m["rust"], bevel=0.005, name="top_bar"))
+        for sx in (-1, 1):
+            a, b = Vector((sx * 0.6, y, R + 0.18)), Vector((sx * 0.1, y, R + 0.42))
+            p.append(_beam(a, b, 0.09, m["rust"], "arch"))
+        p.append(make.box((0, y, R + 0.42), (0.12, 0.05, 0.04), m["rust"], bevel=0.005, name="arch_top"))
+        for sx in (-1, 1):
+            p.append(make.cyl((sx * 0.12, y, R - 0.05), (sx * 0.12, y, R + 0.22), 0.07, m["steel"], n=8, bevel=0, name="spring", low=6))
+    p.append(make.box((0, 0, R + 0.3), (0.16, G + 0.35, 0.1), m["rust"], bevel=0.01, name="bolster"))
+    p.append(make.cyl((0, 0, R + 0.4), (0, 0, R + 0.46), 0.22, m["steel"], n=12, bevel=0, name="centre_plate", low=8))
+    return p, []
+
+
+def yard_shed(m):
+    """The wreck yard's engine shed: two roads under corrugated iron on a steel frame, 50 m along the line and 14 deep,
+    rusted through: sheets gone from its walls (its frame showing) and roof, one bay's roof fallen in, its +X end open
+    with the doors off and the rails running in, smoke vents along its ridge. Its origin is on the ground at its middle,
+    34 m off the line."""
+    p = []
+    L, D, H, RISE = 25.0, 7.0, 7.5, 2.4
+    p.append(make.box((0, 0, 0.3), (L + 0.1, D + 0.1, 0.6), m["concrete"], bevel=0.02, name="footing"))
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * D, (0.9 + H) / 2), (L, 0.04, (H - 0.9) / 2), m["clad"], bevel=0.005, name="wall"))
+        for k in range(11):
+            x = -L + k * 5
+            p.append(make.box((x, sy * (D + 0.08), H / 2), (0.12, 0.06, H / 2), m["rust"], bevel=0.005, name="stanchion", low=False))
+        # Sheets gone: the dark between the frame's girts; rust run down from the eaves.
+        for x, z in ((-17.5, 4.6), (-6.5, 3.2), (3.8, 5.4), (13.0, 3.6), (19.5, 5.0)):
+            xx = x * sy
+            p.append(make.box((xx, sy * (D + 0.05), z), (0.55, 0.01, 1.25), m["dark"], bevel=0, name="sheet_gone", low=False))
+            p.append(make.box((xx, sy * (D + 0.07), z), (0.62, 0.012, 0.05), m["rust"], bevel=0, name="girt", low=False))
+        for k in range(14):
+            x = -L + 1.7 + k * 3.6
+            p.append(make.box((x, sy * (D + 0.05), H - 1.0 - 0.3 * (k % 3)), (0.18 + 0.06 * (k % 2), 0.01, 0.9 + 0.3 * (k % 3)), m["streak"], bevel=0,
+                              name="rust_run", low=False))
+    # The -X end closed, a small door; the +X end open on its two roads, the doors off, one lying on the ground.
+    _prism(p, [(-L, -D, H), (-L, D, H), (-L, 0, H + RISE)], [(0, 2, 1)], m["clad"], "gable")
+    p.append(make.box((-L, 0, (0.9 + H) / 2), (0.04, D, (H - 0.9) / 2), m["clad"], bevel=0.005, name="end"))
+    p.append(make.box((-L - 0.05, 3.5, 1.6), (0.01, 0.55, 1.05), m["dark"], bevel=0, name="small_door", low=False))
+    _prism(p, [(L, -D, H), (L, D, H), (L, 0, H + RISE)], [(0, 1, 2)], m["clad"], "gable")
+    for y in (-3.6, 3.6):
+        p.append(make.box((L - 0.02, y, 3.0), (0.04, 2.6, 3.0), m["dark"], bevel=0, name="road_door"))
+    p.append(make.box((L, 0, 3.2), (0.06, 0.4, 3.2), m["clad"], bevel=0.005, name="mullion"))
+    p.append(make.box((L - 0.05, 0, 6.35), (0.06, D, 0.25), m["rust"], bevel=0.005, name="lintel"))
+    p.append(make.box((L + 3.4, -4.5, 0.66), (2.6, 1.3, 0.04), m["clad"], bevel=0.005, name="door_down", rot=Matrix.Rotation(0.12, 4, "X")))
+    for y in (-3.6, 3.6):
+        for g in (-0.72, 0.72):
+            p.append(make.box((L + 2.5, y + g, 0.68), (3.0, 0.035, 0.07), m["steel"], bevel=0.005, name="rail"))
+    # The roof: corrugated, in bays, one fallen in; vents along the ridge.
+    pitch = math.atan2(RISE, D + 0.4)
+    run = (D + 0.4) / math.cos(pitch)
+    for b in range(10):
+        x = -L + 2.5 + b * 5
+        for sy in (-1, 1):
+            if b == 6 and sy > 0:
+                p.append(make.box((x, (D + 0.4) / 2, H + RISE / 2 - 1.1), (2.45, run / 2, 0.04), m["roof"], bevel=0.005, name="roof_fallen",
+                                  rot=Matrix.Rotation(-0.25, 4, "X")))
+                continue
+            p.append(make.box((x, sy * (D + 0.4) / 2, H + RISE / 2 + 0.05), (2.5, run / 2, 0.04), m["roof"], bevel=0.005, name="roof",
+                              rot=Matrix.Rotation(-sy * pitch, 4, "X")))
+            if (b * 3 + (sy > 0)) % 4 == 1:
+                p.append(make.box((x + 0.6, sy * (D + 0.4) / 2, H + RISE / 2 + 0.1), (0.7, 1.0, 0.01), m["dark"], bevel=0, name="roof_hole",
+                                  low=False, rot=Matrix.Rotation(-sy * pitch, 4, "X")))
+    for x in (-15.0, 0.0, 15.0):
+        p.append(make.box((x, 0, H + RISE + 0.4), (1.6, 0.6, 0.4), m["clad"], bevel=0.01, name="vent"))
+        p.append(make.box((x, 0, H + RISE + 0.86), (1.9, 0.9, 0.05), m["roof"], bevel=0.005, name="vent_cap"))
+        for sy in (-1, 1):
+            p.append(make.box((x, sy * 0.61, H + RISE + 0.4), (1.5, 0.01, 0.3), m["dark"], bevel=0, name="louvre", low=False))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -1381,6 +1555,10 @@ PIECES = {
     "foundry_shed": lambda: build("foundry_shed", foundry_shed, "the foundry's casting shed, its cupola and stack", size=2048, budget=4500,
                                   layer=1024),
     "coaling_tower": lambda: build("coaling_tower", coaling_tower, "the coaling stage's tower, its bunker and chute", budget=2500),
+    "dead_boxcar": lambda: build("dead_boxcar", dead_boxcar, "an old wooden boxcar dead in the wreck yard", budget=1500),
+    "dead_gondola": lambda: build("dead_gondola", dead_gondola, "an old steel gondola dead in the wreck yard", budget=1200),
+    "loose_truck": lambda: build("loose_truck", loose_truck, "a freight truck off its car", size=512, budget=900),
+    "yard_shed": lambda: build("yard_shed", yard_shed, "the wreck yard's engine shed, rusted through", size=2048, budget=2500, layer=1024),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)

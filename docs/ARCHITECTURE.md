@@ -5969,3 +5969,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - There's no furnace in the packs, so the roar is synthesised; the iron's ticks are the packs' own.
     - **Not yet:** the casting shed has no room of its own in the audio. Inside it, the furnace sounds as it does from the yard, only nearer.
     - **Pinned:** `WorldSoundTests.TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt`, on a client night with a foundry: the furnace held where the cupola stands while the ear's at the works, and gone 400 m off.
+
+427. **The wreck yard's dressing (queue #163, C1; the art checklist's `wreck-yard`; GDD §18 "derailed trains: unstable, unlit, already occupied"; note 394 made the heaps the crew work the train's own cars).** Beyond the heaps, the yard was still the structure kit's: six flat-coloured boxes for carbodies (two of them floating 2.6 m up over nothing), cylinders for wheelsets, and a rusted works box for its sheds. Now `StructureKit.Facility` lays it out from models, keeping the kit as the fallback.
+    - **The yard's older dead**, from before the train's time, so they're bespoke rather than the train's own cars as the heaps are:
+        - `dead_boxcar` (324 triangles): a wooden boxcar off its trucks, its boards gapped, charred and gone in places, a door gone and the other hanging, its roof fallen in at one end, faded marks.
+        - `dead_gondola` (164): a steel one, its plate rusted and holed, a side stove in, scrap and a loose wheel heaped in it.
+        - `loose_truck` (680): a freight truck off its car, arch-bar frames, seized.
+        - Six lie about the yard: tipped onto an edge, one on its side, one dumped half across a gondola. Four trucks lie among them.
+        - `StructureKit.Lying` places a piece long along the line, rolled about its length onto its low edge and pitched end up.
+    - **`yard_shed`** (470, a 1024 layer): the yard's two-road engine shed, corrugated iron on a steel frame, rusted through. Sheets are gone from its walls and roof, one bay's roof has fallen in, and its vents run along the ridge. Its open end has the doors off, one lying in front, with the rails running in.
+    - **Laid out round the sim, not by taste:**
+        - The heaps (facilities.json "wreck") and the winch's sled run (z −33) have fixed facility-frame z, whichever side the yard is on.
+        - The dead lie clear of both, and the shed is turned the same way on either side so its open end faces +z, away from the sleds. Its long walls are alike.
+        - The test found the shed's rails and door on the sled run on the left before that.
+    - **`dt screenshot --building m`** gains `--look h`, the height it looks up at (2: along the ground among the wrecks). With `--close`, `--aerial` comes from half as far.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheWreckYardsDeadLieOffItsHeapsAndTheWinchsRunOnEitherSide`, from frontier:1's real site: nothing stands within 4 m of a heap's centre or on the sleds' run, from either side.
+        - `dt art check`: the yard is 4,814 triangles of the facility's 90,000.
+        - The Game suite.
+        - Looked at: along the ground among the wrecks, at the shed, and from the air, before and after, and each piece on the turntable.
