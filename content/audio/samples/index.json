@@ -9424,6 +9424,32 @@
   "takes": 4,
   "sha": "70284ac84df1ed98"
  },
+ "cs-hounds/climb": {
+  "cue": "cs-hounds.climb",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound climbing out at an open door: claws scrabbling up the car's side, a heave, its weight onto the roof",
+    "key": "scrabble",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "a822434c86c487aa"
+ },
  "cs-hounds/leap": {
   "cue": "cs-hounds.leap",
   "surface": null,
@@ -9560,6 +9586,42 @@
   ],
   "takes": 4,
   "sha": "3ef3f9b37d45fb41"
+ },
+ "cs-hounds/sniff": {
+  "cue": "cs-hounds.sniff",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound stopped to sniff: quick hard sniffs in runs, a snort out, a rumble in its chest, embers in its hide",
+    "key": "nose",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "6fd0218fc04f7a0f"
+ },
+ "cs-hounds/spring": {
+  "cue": "cs-hounds.spring",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound springing off a roof: both hind feet driving off the tin, the sheet popping, a huff, its body through the air",
+    "key": "tin",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7dc6a040832a7590"
  },
  "cs-hounds/yelp": {
   "cue": "cs-hounds.yelp",
