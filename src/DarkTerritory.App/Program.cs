@@ -1163,6 +1163,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.CrewStates = GameAudio.CrewOf(session);
             sound.OwnId = session.PlayerId;
             sound.OwnIntent = intent;
+            // The crew's clips' clock, the scene's: the breach's blows land as the lock jumps (note 497).
+            sound.SceneClock = now;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
             // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.

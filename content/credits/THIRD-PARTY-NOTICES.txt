@@ -69,7 +69,7 @@ Cut, layered and processed for the game.
 - RPG Audio, by Kenney (kenney.nl)
   CC0 1.0. In 245 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 285 of the game's sounds.
+  CC0 1.0. In 287 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)
   CC0 1.0. In 6 of the game's sounds.
 

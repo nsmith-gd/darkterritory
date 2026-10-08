@@ -2644,6 +2644,11 @@
   "url": "/_blob/3d8db06c8bc340f8a66698de46abdae8",
   "sha": "c86ac8740c73a472"
  },
+ "previews/place-breach--board--torn.mp4": {
+  "id": "1dcff941a9ac638bd3bbfe0869734f58",
+  "url": "/_blob/1dcff941a9ac638bd3bbfe0869734f58",
+  "sha": "bffdb4cac7b8f11d"
+ },
  "previews/place-breach--pick--lever.mp4": {
   "id": "24a64c63361d1781fce3635d55a51ccc",
   "url": "/_blob/24a64c63361d1781fce3635d55a51ccc",
@@ -2669,15 +2674,30 @@
   "url": "/_blob/336d9d5baa671fe06866bb8c8d8c5f5b",
   "sha": "fc40355ddc66b42b"
  },
+ "previews/place-breach--pry--heave.mp4": {
+  "id": "0f35a2495b2397e6ce9f1f95a291b99e",
+  "url": "/_blob/0f35a2495b2397e6ce9f1f95a291b99e",
+  "sha": "17ce3ae28a329899"
+ },
  "previews/place-breach--pry-give--boards.mp4": {
   "id": "2d11a681da33e93b7e987e0302982ab4",
   "url": "/_blob/2d11a681da33e93b7e987e0302982ab4",
   "sha": "12d1bd17209c46a9"
  },
+ "previews/place-breach--smash--blow.mp4": {
+  "id": "825ed007dafbc9c15bff285d7f781fff",
+  "url": "/_blob/825ed007dafbc9c15bff285d7f781fff",
+  "sha": "51c9491583735f26"
+ },
  "previews/place-breach--smash--sledge.mp4": {
   "id": "a8ee77769e215b1da41aa61f2d2b663b",
   "url": "/_blob/a8ee77769e215b1da41aa61f2d2b663b",
   "sha": "fda74a5f835991d8"
+ },
+ "previews/place-breach--smash-give--tear.mp4": {
+  "id": "05280a44be32b36bf8f82ac2ffb918a2",
+  "url": "/_blob/05280a44be32b36bf8f82ac2ffb918a2",
+  "sha": "a87f6bfcdb365229"
  },
  "previews/place-chemical--drip--vat.mp4": {
   "id": "c4470f8bc0349a9a88b0433188d309bf",

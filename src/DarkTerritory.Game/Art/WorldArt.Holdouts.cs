@@ -341,7 +341,7 @@ public sealed partial class WorldArt
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
         // Which board comes off when: the chest's, then above, below, the top, the bottom (5 boards, a fifth of the breach each).
         int[] order = [2, 3, 1, 4, 0];
-        int worked = breach < 0 ? -1 : Math.Min(4, (int)(breach * 5));
+        int worked = breach < 0 ? -1 : BoardsOff(breach);
         float share = breach < 0 ? 0 : breach * 5 - worked;
         float heave = breach < 0 ? 0 : Heave(time);
         for (int i = 0; i < 5; i++)
@@ -374,8 +374,11 @@ public sealed partial class WorldArt
 
     // The breach clips' beats (tools/blender/crew_clips.py, 30 fps), so the lock and the boards answer the crew's blows: the
     // smash a 24-frame loop with the bar on the hasp at frame 9; the pry a 40-frame loop hauled back from 0 to 14, held to 22,
-    // eased off by 32.
-    const float SmashCycle = 24 / 30f, SmashBlow = 9 / 30f, PryCycle = 40 / 30f, PryOn = 14 / 30f, PryHeld = 22 / 30f, PryOff = 32 / 30f;
+    // eased off by 32. (GameAudio.BreachBeats plays the blows and the heaves on them, note 497.)
+    internal const float SmashCycle = 24 / 30f, SmashBlow = 9 / 30f, PryCycle = 40 / 30f, PryOn = 14 / 30f, PryHeld = 22 / 30f, PryOff = 32 / 30f;
+
+    /// <summary>How many of a barricade's five boards are off <paramref name="breach"/> of the way through (a fifth each; the last goes as it gives).</summary>
+    internal static int BoardsOff(double breach) => breach < 0 ? 0 : Math.Min(4, (int)(breach * 5));
 
     /// <summary>How long since the last blow of the smash landed (s).</summary>
     static float SmashSince(float time) => ((time - SmashBlow) % SmashCycle + SmashCycle) % SmashCycle;
