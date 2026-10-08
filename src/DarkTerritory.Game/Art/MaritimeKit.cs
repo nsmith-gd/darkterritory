@@ -166,6 +166,7 @@ public static class MaritimeKit
         var k = new Kit(look, 3000 + h.Id * 7 + (int)h.Design.Paint);
         var coat = CoatOf(looks, h.Design, h.Kind);
         var b = Shape(h);
+        Yard(k, h, coat);
         if (h.Kind == HouseKind.Burnt)
         {
             Burnt(k, h, b);
@@ -213,6 +214,7 @@ public static class MaritimeKit
 
     static void FarInto(Kit k, TownHouse h, Block b, Coat c, bool lit)
     {
+        FarYard(k, h);
         if (h.Kind == HouseKind.Burnt)
         {
             k.Use("wood_grey", Palette.SootBlack, 0.95f, 0, tile: 1);
@@ -890,6 +892,35 @@ public static class MaritimeKit
     }
 
     /// <summary>The chimneys: brick through the ridge in the middle, at one end or both, or a stovepipe out of the back slope.</summary>
+    /// <summary>
+    /// Where a house's chimneys (or its stovepipe) let out, in its own kit frame: where a lived-in house's wood smoke rises
+    /// from (<see cref="Effects.Chimney"/>). As <see cref="Chimneys"/> builds them.
+    /// </summary>
+    public static IEnumerable<Vector3> ChimneyTops(TownHouse h)
+    {
+        var b = Shape(h);
+        float sr = b.Profile.MaxBy(p => p.Y).X, a0 = b.A0 + 0.55f, a1 = b.A1 - 0.55f;
+        switch (h.Design.Chimney)
+        {
+            case HouseChimney.Centre:
+                yield return b.P(0, b.Ridge + 1.1f, sr);
+                break;
+            case HouseChimney.End:
+                yield return b.P(h.Id % 2 == 0 ? a1 : a0, b.Ridge + 1.1f, sr);
+                break;
+            case HouseChimney.Ends:
+                yield return b.P(a0, b.Ridge + 1.1f, sr);
+                yield return b.P(a1, b.Ridge + 1.1f, sr);
+                break;
+            default:
+                {
+                    float s = b.S1 - (b.S1 - b.S0) * 0.25f;
+                    yield return b.P((b.A1 - b.A0) * 0.2f, b.RoofY(s) + 1.55f, s);
+                    break;
+                }
+        }
+    }
+
     static void Chimneys(Kit k, TownHouse h, Block b)
     {
         var d = h.Design;
@@ -1223,6 +1254,180 @@ public static class MaritimeKit
                 k.Use("gauge_face", Palette.BoardEnamel, 0.4f, 0.2f, tile: 1);
                 k.Disc(new Vector3(x, y + 0.2f, z - 0.085f), -Vector3.UnitZ, 0.09f, 12);
                 break;
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // The yard (ARCHITECTURE §8 note 335)
+
+    /// <summary>
+    /// What stands in a house's yard (<see cref="TownHouse.Yard"/>), where the Sim stands it: the picket fence out front in
+    /// the trim's paint (grey, gapped and leaning where nobody lives), the board fence on the back line, and the yard's
+    /// things: the woodpile under its sheet of roofing, the shed, the privy, the lobster traps, the dory turned over on its
+    /// blocks, the washing, the rain barrel. In the house's own frame, so they're part of its mesh (no draws of their own).
+    /// </summary>
+    static void Yard(Kit k, TownHouse h, Coat c)
+    {
+        foreach (var y in h.Yard)
+        {
+            float xa = X(h, y.U0), xb = X(h, y.U1);
+            float x0 = MathF.Min(xa, xb), x1 = MathF.Max(xa, xb), z0 = Z(h, y.V0), z1 = Z(h, y.V1), ht = (float)y.Height;
+            var rng = new Random(h.Id * 131 + (int)(y.U0 * 17) + (int)y.Kind);
+            switch (y.Kind)
+            {
+                case YardKind.Picket:
+                    Picket(k, c, x0, x1, (z0 + z1) / 2, ht, y.Variant == 1, rng);
+                    break;
+                case YardKind.Boards:
+                    k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+                    k.Quad(new Vector3(x0, ht, (z0 + z1) / 2), new Vector3(x1, ht, (z0 + z1) / 2), new Vector3(x1, 0, (z0 + z1) / 2), new Vector3(x0, 0, (z0 + z1) / 2), twoSided: true);
+                    for (float x = x0 + 0.05f; x < x1; x += 2.4f)
+                        k.Box(new Vector3(x - 0.05f, 0, z0 - 0.05f), new Vector3(x + 0.05f, ht + 0.05f, z1 + 0.05f), Kit.Faces.Sides | Kit.Faces.PosY);
+                    break;
+                case YardKind.Woodpile:
+                    {
+                        // Split wood laid across the pile: bark on top and at the ends, the cut ends either side (the
+                        // cobbles' round stones, in the pale of fresh-cut spruce, read as the ends of the stacked sticks).
+                        float top = ht - 0.12f;
+                        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.5f);
+                        k.Box(new Vector3(x0, 0, z0), new Vector3(x1, top, z1), Kit.Faces.PosX | Kit.Faces.NegX | Kit.Faces.PosY);
+                        k.Use("cobbles", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.35f);
+                        k.Tint = new Vector3(0.95f, 0.72f, 0.5f);
+                        k.Panel(new Vector3((x0 + x1) / 2, top / 2, z0), -Vector3.UnitZ, Vector3.UnitY, x1 - x0, top);
+                        k.Panel(new Vector3((x0 + x1) / 2, top / 2, z1), Vector3.UnitZ, Vector3.UnitY, x1 - x0, top);
+                    }
+                    k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f, tile: 1);
+                    k.Quad(new Vector3(x0 - 0.15f, ht, z0 - 0.2f), new Vector3(x1 + 0.15f, ht, z0 - 0.2f), new Vector3(x1 + 0.15f, ht - 0.08f, z1 + 0.15f), new Vector3(x0 - 0.15f, ht - 0.08f, z1 + 0.15f), twoSided: true);
+                    break;
+                case YardKind.Shed:
+                    Shed(k, c, x0, x1, z0, z1, ht, gable: true);
+                    break;
+                case YardKind.Privy:
+                    Shed(k, c, x0, x1, z0, z1, ht, gable: false);
+                    break;
+                case YardKind.Traps:
+                    k.Use("wood_crate", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+                    int stacks = Math.Max(1, (int)MathF.Round(x1 - x0)), layers = Math.Max(1, (int)MathF.Round(ht / 0.5f));
+                    for (int i = 0; i < stacks; i++)
+                        for (int j = 0; j < layers; j++)
+                        {
+                            float sx = x0 + i * (x1 - x0) / stacks, jitter = (float)(rng.NextDouble() - 0.5) * 0.1f;
+                            k.Box(new Vector3(sx + 0.03f + jitter, j * 0.5f, z0), new Vector3(sx + (x1 - x0) / stacks - 0.03f + jitter, j * 0.5f + 0.47f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
+                        }
+                    break;
+                case YardKind.Dory:
+                    Dory(k, x0, x1, z0, z1, ht, y.Variant);
+                    break;
+                case YardKind.Clothesline:
+                    Washing(k, x0, x1, (z0 + z1) / 2, ht, rng);
+                    break;
+                case YardKind.Barrel:
+                    k.Use("wood_crate", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.6f);
+                    k.Shade(0.6f);
+                    k.Cylinder(new Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2), new Vector3((x0 + x1) / 2, ht, (z0 + z1) / 2), (x1 - x0) / 2, 10);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>A picket fence along x at <paramref name="z"/>: two rails, the pickets on them, a post at each end.</summary>
+    static void Picket(Kit k, Coat c, float x0, float x1, float z, float ht, bool worn, Random rng)
+    {
+        TrimPaint(k, worn ? Vector3.Lerp(c.Trim, new Vector3(0.42f, 0.42f, 0.4f), 0.65f) : c.Trim);
+        foreach (float y in new[] { 0.25f, ht - 0.3f })
+            k.Box(new Vector3(x0, y, z + 0.015f), new Vector3(x1, y + 0.07f, z + 0.045f), Kit.Faces.Sides | Kit.Faces.PosY);
+        foreach (float x in new[] { x0, x1 })
+            k.Box(new Vector3(x - 0.05f, 0, z - 0.03f), new Vector3(x + 0.05f, ht + 0.1f, z + 0.05f), Kit.Faces.Sides | Kit.Faces.PosY);
+        for (float x = x0 + 0.1f; x < x1 - 0.06f; x += 0.14f)
+        {
+            // Nobody's: pickets gone, and others short where they've split.
+            if (worn && rng.NextDouble() < 0.25)
+                continue;
+            float top = worn && rng.NextDouble() < 0.2 ? ht - 0.3f : ht;
+            k.Box(new Vector3(x - 0.035f, 0, z - 0.012f), new Vector3(x + 0.035f, top, z + 0.012f), Kit.Faces.PosZ | Kit.Faces.NegZ | Kit.Faces.PosY);
+        }
+    }
+
+    /// <summary>A shed (a gable roof along it, its door toward the house) or a privy (a lean-to roof, a narrow door).</summary>
+    static void Shed(Kit k, Coat c, float x0, float x1, float z0, float z1, float ht, bool gable)
+    {
+        float wall = gable ? ht - 0.9f : ht - 0.35f, xm = (x0 + x1) / 2;
+        k.Use(c.Shingle ? "shingle_cedar" : "wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(x0, 0, z0), new Vector3(x1, gable ? wall : ht, z1), Kit.Faces.Sides);
+        RoofPaint(k, c);
+        if (gable)
+        {
+            float zm = (z0 + z1) / 2;
+            k.Quad(new Vector3(x0 - 0.2f, ht, zm), new Vector3(x1 + 0.2f, ht, zm), new Vector3(x1 + 0.2f, wall - 0.1f, z0 - 0.25f), new Vector3(x0 - 0.2f, wall - 0.1f, z0 - 0.25f), twoSided: true);
+            k.Quad(new Vector3(x0 - 0.2f, wall - 0.1f, z1 + 0.25f), new Vector3(x1 + 0.2f, wall - 0.1f, z1 + 0.25f), new Vector3(x1 + 0.2f, ht, zm), new Vector3(x0 - 0.2f, ht, zm), twoSided: true);
+            k.Use(c.Shingle ? "shingle_cedar" : "wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+            foreach (float x in new[] { x0, x1 })
+                k.Tri(new Vector3(x, wall, z0), new Vector3(x, ht, zm), new Vector3(x, wall, z1), new(0, 0), new(0.5f, 1), new(1, 0));
+        }
+        else
+            k.Quad(new Vector3(x0 - 0.1f, ht + 0.05f, z0 - 0.2f), new Vector3(x1 + 0.1f, ht + 0.05f, z0 - 0.2f), new Vector3(x1 + 0.1f, ht - 0.35f, z1 + 0.15f), new Vector3(x0 - 0.1f, ht - 0.35f, z1 + 0.15f), twoSided: true);
+        k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
+        k.Shade(0.25f);
+        float doorW = gable ? 0.9f : 0.6f;
+        k.Panel(new Vector3(xm, 0.95f, z0 - 0.02f), -Vector3.UnitZ, Vector3.UnitY, doorW, 1.9f);
+    }
+
+    /// <summary>A dory turned over on its blocks: the hull's flat bottom up, its sides drawn in to the bow and stern.</summary>
+    static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
+    {
+        // Dory buff, a dark green or an old red (the yard's, not the house's).
+        var paint = variant switch { 0 => new Vector3(0.62f, 0.52f, 0.32f), 1 => new Vector3(0.12f, 0.24f, 0.17f), _ => new Vector3(0.42f, 0.1f, 0.08f) };
+        k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.1f, tile: 0.8f);
+        k.Tint = paint * 2.2f;
+        float zm = (z0 + z1) / 2, lift = 0.22f, body0 = x0 + 0.7f, body1 = x1 - 0.7f, half = (z1 - z0) / 2;
+        k.Box(new Vector3(body0, lift, z0), new Vector3(body1, ht, z1), Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ);
+        foreach (var (tip, root) in new[] { (x0, body0), (x1, body1) })
+        {
+            var t0 = new Vector3(tip, lift + 0.1f, zm);
+            var t1 = new Vector3(tip, ht + 0.05f, zm);
+            var a0 = new Vector3(root, lift, zm - half);
+            var a1 = new Vector3(root, ht, zm - half);
+            var b0 = new Vector3(root, lift, zm + half);
+            var b1 = new Vector3(root, ht, zm + half);
+            k.Quad(a1, t1, t0, a0, twoSided: true);
+            k.Quad(t1, b1, b0, t0, twoSided: true);
+            k.Tri(a1, b1, t1, new(0, 0), new(1, 0), new(0.5f, 1));
+        }
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        foreach (float x in new[] { body0 + 0.3f, body1 - 0.3f })
+            k.Box(new Vector3(x - 0.15f, 0, z0 + 0.1f), new Vector3(x + 0.15f, lift, z1 - 0.1f), Kit.Faces.Sides | Kit.Faces.PosY);
+    }
+
+    /// <summary>
+    /// The washing: two posts and the line between, and what's pegged out on it, sheets and shirts hanging dead still in the
+    /// night air. Nobody brings the washing in after dark.
+    /// </summary>
+    static void Washing(Kit k, float x0, float x1, float z, float ht, Random rng)
+    {
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        foreach (float x in new[] { x0, x1 })
+            k.Box(new Vector3(x - 0.04f, 0, z - 0.04f), new Vector3(x + 0.04f, ht, z + 0.04f), Kit.Faces.Sides | Kit.Faces.PosY);
+        k.Use("wool", Palette.BoardEnamel, 0.9f, 0);
+        k.Rod(new Vector3(x0, ht - 0.12f, z), new Vector3(x1, ht - 0.12f, z), 0.008f);
+        for (float x = x0 + 0.4f + (float)rng.NextDouble() * 0.5f; x < x1 - 0.5f; x += 0.4f + (float)rng.NextDouble() * 0.8f)
+        {
+            float w = 0.45f + (float)rng.NextDouble() * 0.7f, hgt = 0.5f + (float)rng.NextDouble() * 0.6f;
+            if (x + w > x1 - 0.2f)
+                break;
+            k.Tint = Vector3.One * (0.75f + 0.35f * (float)rng.NextDouble());
+            k.Panel(new Vector3(x + w / 2, ht - 0.12f - hgt / 2, z), Vector3.UnitZ, Vector3.UnitY, w, hgt, twoSided: true);
+            x += w;
+        }
+    }
+
+    /// <summary>The yard from down the street: its shed, privy, dory and woodpile as plain blocks (the fences are too fine to see).</summary>
+    static void FarYard(Kit k, TownHouse h)
+    {
+        k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+        foreach (var y in h.Yard.Where(y => y.Kind is YardKind.Shed or YardKind.Privy or YardKind.Dory or YardKind.Woodpile))
+        {
+            float xa = X(h, y.U0), xb = X(h, y.U1);
+            k.Box(new Vector3(MathF.Min(xa, xb), 0, Z(h, y.V0)), new Vector3(MathF.Max(xa, xb), (float)y.Height, Z(h, y.V1)), Kit.Faces.Sides | Kit.Faces.PosY);
         }
     }
 }
