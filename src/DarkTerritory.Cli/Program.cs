@@ -1337,14 +1337,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --shed n [--inside | --bay]: the night's nth yard shed or hero (note 387's walk-in shells), from 7 m out before its first bay
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
-    if (Opt(args, "--shed", -1) is var shedAt and >= 0 && generated is not null)
+    // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
+    // --back, from just in at its door at the back wall; --find, close to where its first find is kept.
+    bool barns = Opt(args, "--barn", -1) >= 0;
+    if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
-            .Where(x => x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
+            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building) && x.Feature.Stop!.Containers.Any(c => c.Building == x.Index)
+                    : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
+                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
         if (sheds.Count == 0)
-            return Print(new { error = $"{Str(args, "--route", "")} has no yard sheds" });
+            return Print(new { error = $"{Str(args, "--route", "")} has no {(barns ? "open barns or sheds with a find" : "yard sheds")}" });
         var (f, b, i) = sheds[(int)shedAt % sheds.Count];
         var door = DarkTerritory.Sim.Run.StopWalls.Doors(f.Stop!, i, walls).First();
         // The door's middle and the way out of it, in the building's frame (x along it, y across).
@@ -1366,6 +1371,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             double cx = (open.Lo + open.Hi) / 2, side = door.Side != 0 ? door.Side : 1;
             camera = Camera.LookAt(At(cx + 6, side * (b.Width / 2 + 9), 2.2), At(cx - 2, -side * b.Width / 2, 1.0), 72);
         }
+        else if (args.Contains("--find") && f.Stop!.Containers.FirstOrDefault(c => c.Building == i) is { } kept)
+        {
+            // --find: standing back from where the barn's or shed's first find is kept (its bench, its loft's ladder), looking at it.
+            var (kx, ky, fx, fy) = DarkTerritory.Sim.Run.StopWalls.ShedKept(b, kept.Index);
+            camera = Camera.LookAt(At(kx + fx * 3.2 + fy * 0.8, ky + fy * 3.2 - fx * 0.8, 1.8), At(kx, ky, kept.Kind == ContainerKind.Hayloft ? 2.4 : 1.2), 75);
+        }
+        else if (args.Contains("--back"))
+            // --back: from just in at the door, at the back wall across from it (an open barn's hayloft or workbench, note 417).
+            camera = Camera.LookAt(At(x - ox * 0.6, y - oy * 0.6, 2.0), At(x - ox * (deep + 0.4), y - oy * (deep + 0.4), 1.2), 80);
         else
             camera = args.Contains("--inside")
                 ? Camera.LookAt(At(x - ox * 2.5 - ax * 1.5, y - oy * 2.5 - ay * 1.5, 1.7), At(x - ox * deep * 0.5 + ax * 10, y - oy * deep * 0.5 + ay * 10, 2.6), 75)
@@ -2311,7 +2325,11 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         saves.Delete(2);
         saves.Delete(3);
     }
-    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
+    // --store-app n (note 434): the edition names the full game's store page, so the demo's title has WISHLIST ON STEAM.
+    var edition = EditionTuning.Load(content);
+    if (args.Contains("--store-app"))
+        edition = edition with { StoreAppId = (uint)Opt(args, "--store-app", 0) };
+    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
     // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
     menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
@@ -2344,6 +2362,9 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
         menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
     menu.Show(screen);
+    // --night-over: back at the title after a night, with the edition's word (the demo's end card).
+    if (args.Contains("--night-over"))
+        menu.NightOver();
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
     return (menu, screen);

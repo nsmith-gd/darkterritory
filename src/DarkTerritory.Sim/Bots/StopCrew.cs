@@ -2627,7 +2627,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // Smash and pry want a melee tool in hand (D.7; note 275): a hand put free picks the first one up again.
         if (((h.Door - at) with { Y = 0 }).Length <= hs.Tuning.BreachReach * 0.8)
             return new PlayerIntent { Buttons = PlayerButtons.Use, Select = Kit.ToolToHand(self) };
-        return WalkTo(self, train.Line, RailLine.MainPath, h.Door, null).Step;
+        return OnFoot(self, train, RailLine.MainPath, h.Door, null).Step;
     }
 
     /// <summary>
@@ -2687,9 +2687,57 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
-        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
+        var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
     }
+
+    /// <summary>
+    /// Note 406: further than this from where it's going on the ground (m), a hand goes by <see cref="FootPath"/>, round the
+    /// walls and the lineside trees, and only beside the train by <see cref="WalkTo"/>. A Holdout's door is up to
+    /// <see cref="Heed.HoldoutRange"/> off the line, and <see cref="WalkTo"/> keeps to the track's own across and along: a
+    /// driver gone to breach one 160 m from the cab walked into the spruce beside the line, slid along it the wrong way, and
+    /// stood out there till the dawn with the train on its brake (frontier:7, seed 2).
+    /// </summary>
+    const double ByFootPath = 10;
+
+    /// <summary>
+    /// To a point on the ground: by <see cref="FootPath"/> while it's far and there's a way, then round the train by
+    /// <see cref="WalkTo"/>. Beside the train the foot path's margins (a car's steps, the coupling gaps) can leave no way
+    /// between it and the trees where a crewmate fits: a lone driver back from cutting a car loose found none to the cab
+    /// from 150 m back, walked straight at the cars, and stood against them (frontier:7, seed 5). There, the track-side walk.
+    /// </summary>
+    (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
+    {
+        var here = PlayerMotor.WorldPosition(self, train);
+        if (self.Parent == PlayerState.World && (Flat(target) - Flat(here)).Length > ByFootPath && WayTo(train, here, target))
+            return (Follow(self, train, target), false);
+        return WalkTo(self, train.Line, path, target, yaw);
+    }
+
+    /// <summary>A way to <paramref name="goal"/> by <see cref="FootPath"/>, kept or planned; false when there's none, and it
+    /// isn't looked for again for <see cref="NoWayFor"/> ticks (each look is a search over the whole stretch).</summary>
+    bool WayTo(TrainOnLine train, Double3 here, Double3 goal)
+    {
+        if (_path is not null && (Flat(_pathGoal) - Flat(goal)).Length <= 1)
+            return true;
+        if (_noWayLeft > 0 && (Flat(_noWayTo) - Flat(goal)).Length <= 1)
+        {
+            _noWayLeft--;
+            return false;
+        }
+        _path = FootPath.Plan(train, here, goal);
+        _pathGoal = goal;
+        _pathAt = 0;
+        _stuckTicks = 0;
+        if (_path is not null)
+            return true;
+        (_noWayTo, _noWayLeft) = (goal, NoWayFor);
+        return false;
+    }
+
+    const int NoWayFor = SimConstants.TickRate * 3;
+    Double3 _noWayTo;
+    int _noWayLeft;
 
     /// <summary>The middle of the cab's side doorways along the engine (between the side wall and the back pillar).</summary>
     static double CabDoorZ(TrainOnLine train)
