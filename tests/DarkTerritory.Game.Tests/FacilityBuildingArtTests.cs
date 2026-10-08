@@ -7,9 +7,9 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// ARCHITECTURE §8 notes 410, 420 and 422: the mine head's, the chemical works', the foundry's and the coaling tower's
-/// buildings modelled (facility_pieces winding_house, spoil_heap, chem_works, pipe_rack, foundry_shed, coaling_tower) and
-/// laid out round what the sim does there.
+/// ARCHITECTURE §8 notes 410, 420, 422 and 427: the mine head's, the chemical works', the foundry's, the coaling tower's and
+/// the wreck yard's buildings modelled (facility_pieces winding_house, spoil_heap, chem_works, pipe_rack, foundry_shed,
+/// coaling_tower, dead_boxcar, dead_gondola, loose_truck, yard_shed) and laid out round what the sim does there.
 /// </summary>
 public class FacilityBuildingArtTests
 {
@@ -96,5 +96,32 @@ public class FacilityBuildingArtTests
         Assert.Contains(piece.Vertices, v => Math.Abs(v.Position.X * tower.Side - 0.4f) < 0.45f && v.Position.Y is > 8.3f and < 9.4f
             && Math.Abs(v.Position.Z) < 0.7f);
         Assert.DoesNotContain(piece.Vertices, v => Vector3.Distance(v.Position, leverAt) < 0.6f);
+    }
+
+    [Fact]
+    public void TheWreckYardsDeadLieOffItsHeapsAndTheWinchsRunOnEitherSide()
+    {
+        // The heaps the crew work (facilities.json "wreck") and the winch's sled run are the sim's; the yard's older dead and
+        // its loose trucks lie round them, whichever side of the spur the yard is on.
+        var site = SiteOf("frontier:1", FacilityKind.WreckYard);
+        Assert.True(site.Spur >= 0 && site.Heaps.Count > 0);
+        var foot = site.Track.Sample(site.Mid - 25);
+        var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized;
+        var origin = foot.Position + right * (site.Side * 4.0);
+        Vector2 Local(Double3 p)
+        {
+            var d = p - origin;
+            return new((float)(Double3.Dot(d, right) * site.Side), (float)-Double3.Dot(d, foot.Tangent));
+        }
+        var heaps = site.Heaps.Select(h => Local(h.Centre)).ToList();
+        var sled = Local(site.SledFrom);
+        foreach (int side in new[] { -1, 1 })
+        {
+            var piece = StructureKit.Facility(Look, FacilityKind.WreckYard, side);
+            var standing = piece.Vertices.Where(v => v.Position.Y > 0.3f).Select(v => new Vector2(v.Position.X * side, v.Position.Z)).ToList();
+            foreach (var h in heaps)
+                Assert.True(standing.All(v => Vector2.Distance(v, h) > 4), $"side {side}: something within 4 m of the heap at {h}");
+            Assert.True(standing.All(v => Math.Abs(v.Y - sled.Y) > 2.5f || v.X < 1 || v.X > sled.X + 2), $"side {side}: something on the sleds' run");
+        }
     }
 }

@@ -926,8 +926,7 @@ public static partial class Hud
         var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
         // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
         if (s.Watching >= 0)
-            rows.Add(($"WATCHING CREW {s.Watching}   NEXT : [{Controls.KeyLabel(Keys.KeyFor(Control.Fire))}] OR [{Controls.KeyLabel(Keys.KeyFor(Control.Right))}]   " +
-                $"BACK : [{Controls.KeyLabel(Keys.KeyFor(Control.Left))}]", Ink));
+            rows.Add((Bound($"WATCHING CREW {s.Watching}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
         // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
@@ -939,7 +938,7 @@ public static partial class Hud
             if (mine.Count > 0 && run.Seconds - mine[^1].Seconds < 3)
                 rows.Add(($"BOOKMARKED AT {Clock(mine[^1].Seconds)}", Green));
             else if (left > 0)
-                rows.Add(($"BOOKMARK : [{Controls.KeyLabel(Keys.KeyFor(Control.Bookmark))}] ({left} LEFT)", Dim));
+                rows.Add((Bound($"BOOKMARK : [P] ({left} LEFT)"), Dim));
         }
         // GDD App. D: the way back is a Holdout at the next halt or yard, if the crew stops for you.
         if (world.Holdouts is { } holdouts)
@@ -1607,25 +1606,32 @@ public static partial class Hud
         }
     }
 
-    /// <summary>A prompt written with the default keys ([E], [RMB], [T]) as the player has them bound.</summary>
+    /// <summary>
+    /// A prompt written with the default keys ([E], [RMB], [K]) as the player has them bound (T80's CONTROLS; note 426): every
+    /// key the HUD names is written as its control's default and said as the player's own, so a rebind can't leave one saying
+    /// the wrong key. Labels that aren't a control's default are left as written: the menus' and the vote's (they can't be
+    /// bound), [F5], the hotbar's numbers.
+    /// </summary>
     public static string Bound(string prompt) =>
         // One pass, so a key bound where another default was isn't replaced twice (Use on F, the ladder's default).
-        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[(E|RMB|T|Z|F|R|B|X|L|H|I|VENT|SPACE)\]", m => $"[{Controls.KeyLabel(Keys.KeyFor(m.Groups[1].Value switch
-        {
-            "E" => Control.Use,
-            "SPACE" => Control.Jump,
-            "X" => Control.Reverser,
-            "L" => Control.Lamp,
-            "H" => Control.Whistle,
-            "I" => Control.Supplies,
-            "VENT" => Control.Vent,
-            "RMB" => Control.Throw,
-            "T" => Control.Radio,
-            "Z" => Control.Uncouple,
-            "F" => Control.Ladder,
-            "R" => Control.RegulatorOpen,
-            _ => Control.Brake,
-        }))}]");
+        System.Text.RegularExpressions.Regex.Replace(prompt, @"\[([A-Z0-9 ]+)\]", m => m.Groups[1].Value == "WASD" ? $"[{Walk()}]"
+            : ByDefault.TryGetValue(m.Groups[1].Value, out var c) ? $"[{Controls.KeyLabel(Keys.KeyFor(c))}]" : m.Value);
+
+    /// <summary>
+    /// Each control by the label of its default key ([E] is Use, [Y] the regulator closing, [K] the car lamp), built from
+    /// <see cref="Controls.Defaults"/> so a control added there is bound here too; and the HUD's short names for the keys
+    /// whose own label is long: the mouse buttons and the vent's left Ctrl.
+    /// </summary>
+    static readonly IReadOnlyDictionary<string, Control> ByDefault = new Dictionary<string, Control>(
+        Controls.Defaults.Select(d => KeyValuePair.Create(Controls.KeyLabel(d.Value), d.Key))
+            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent)]));
+
+    /// <summary>[WASD], the four walking keys as the player has them: one keycap where each is a letter (ZQSD), else one each.</summary>
+    static string Walk()
+    {
+        var keys = new[] { Control.Forward, Control.Left, Control.Back, Control.Right }.Select(c => Controls.KeyLabel(Keys.KeyFor(c))).ToArray();
+        return keys.All(k => k.Length == 1) ? string.Concat(keys) : string.Join("/", keys);
+    }
 
     /// <summary>
     /// A healing find in your hands that you could use now (GDD App. F.1's rare healing loot; note 272): hurt, with nothing
@@ -1941,11 +1947,11 @@ public static partial class Hud
         // Note 346: a guttering lamp, in the car, trimmed with the lamp key.
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent] is { LampLit: true, Gutter: > 0 } && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
-            return $"TRIM THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
+            return "TRIM THE LAMP : [K]";
         // Note 266 (build 1121: "the lights are completely off"): in a car whose lamp is out (a Climber came in through it).
         if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
-            return $"LIGHT THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
+            return "LIGHT THE LAMP : [K]";
         // Along the conveyor's belt with nothing else to do (note 400; spec D.3: "someone has to roam"): where the jam is, or that
         // it's stalled.
         if (world.Run is { FacilityTuning.Conveyor: { } line } run && run.BeltNear(p, train) is { } beltSite)

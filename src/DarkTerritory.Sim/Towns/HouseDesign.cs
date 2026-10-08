@@ -93,6 +93,57 @@ public sealed record HouseCharacter
     public double Own { get; init; }
     /// <summary>A company town's: one design, its paint and wear each house's own.</summary>
     public bool Uniform { get; init; }
+    /// <summary>What its yards hold (note 335).</summary>
+    public YardOdds Yard { get; init; } = new();
+    /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>
+    public Dictionary<string, double> Gear { get; init; } = new() { ["respirator"] = 1 };
+}
+
+/// <summary>
+/// What a town's people breathe through out of doors (the director, 8 Oct 2026: "townsfolk models who wear some sort of
+/// respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul"; note 353). Never the crew's
+/// mask: a rubber half-mask with its two cans ("respirator"), a cup over the nose and mouth on a hose from a bottle on the
+/// back ("oxygen"), a mine-rescue set's mouthpiece and its bag on the chest ("rebreather"), or a wool wrap with a can sewn
+/// into it ("wrap"). Drawn per person from their name, so who they are decides it and nobody else's draw moves it.
+/// </summary>
+public static class TownGear
+{
+    /// <summary>The kinds, in the order a weight's drawn (not the file's).</summary>
+    public static readonly string[] Kinds = ["respirator", "oxygen", "rebreather", "wrap"];
+
+    /// <summary>The kind <paramref name="hash"/> lands on among <paramref name="weights"/> (in <see cref="Kinds"/>' order).</summary>
+    public static string Pick(IReadOnlyDictionary<string, double> weights, ulong hash)
+    {
+        double total = 0;
+        foreach (string k in Kinds)
+            total += weights.TryGetValue(k, out double w) ? Math.Max(0, w) : 0;
+        if (total <= 0)
+            return Kinds[0];
+        double at = (hash >> 11) * (1.0 / (1UL << 53)) * total;
+        foreach (string k in Kinds)
+        {
+            at -= weights.TryGetValue(k, out double w) ? Math.Max(0, w) : 0;
+            if (at < 0)
+                return k;
+        }
+        return Kinds[^1];
+    }
+}
+
+/// <summary>
+/// What a character's yards hold (houses.json <c>yard</c>; note 335): the share of houses on a street with a picket fence
+/// out front, the share of back lines with a board fence, how many things in a yard, and how often each thing is picked
+/// (by <see cref="YardKind"/> name, camel case) against the rest.
+/// </summary>
+public sealed record YardOdds
+{
+    public double Picket { get; init; } = 0.5;
+    public double Boards { get; init; } = 0.8;
+    public int[] Count { get; init; } = [1, 3];
+    public Dictionary<string, double> Things { get; init; } = new() { ["woodpile"] = 4, ["shed"] = 2, ["privy"] = 1, ["clothesline"] = 2, ["barrel"] = 2 };
+
+    /// <summary>A thing's weight, in <see cref="YardKind"/>'s order whatever order the file lists them in.</summary>
+    public double Weight(YardKind kind) => Things.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out double w) ? w : 0;
 }
 
 /// <summary>Draws a town's character and its houses' designs, each from the stream it's given.</summary>
