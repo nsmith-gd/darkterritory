@@ -282,8 +282,8 @@ public class HudTests
         AssertShort(Hud.Prompt(s));
         s.Train.Vehicles[car].ToggleLocker(bay.Index);
         AssertShort(Hud.Prompt(s));
-        var kit = s.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit);
-        (kit.Carrier, kit.Locker) = (1, -1);
+        // The wrench in hand (note 301: the kit's gone).
+        s.Player = s.Player with { Kit = s.PlayerTuning.StartingKit, HeldSlot = 1 };
         AssertShort(Hud.Prompt(s));
         Assert.All(Hud.Hints(s).Lines, AssertShort);
     }
@@ -305,9 +305,8 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        Assert.Equal("LOCKER 8: THE REPAIR KIT   OPEN : [E]", Hud.Prompt(s));
-        s.Train.Vehicles[car].ToggleLocker(bay.Index);
-        Assert.Equal("TAKE THE REPAIR KIT : [E]   SHUT : HOLD [E]", Hud.Prompt(s));
+        // Note 301: the kit's gone, so locker 8 stands empty.
+        Assert.Equal("LOCKER 8: EMPTY   OPEN : [E]", Hud.Prompt(s));
         var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
         Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
@@ -319,8 +318,8 @@ public class HudTests
         // The director's decision of 2026-10-06 (note 264): one panel, toggled on, of the supplies aboard.
         var s = new PrototypeSession(Content, "test-loop", 4);
         var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
-        Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
-        Assert.Equal("LOCKER 8, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        // Note 301: no repair kit row; the wrench everyone carries is the repair tool.
+        Assert.Equal(["COAL", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(4));
         Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
         var hud = new Overlay();
         Hud.Supplies(hud, 480, 270, s);
@@ -502,24 +501,22 @@ public class HudTests
     }
 
     [Fact]
-    public void TheKitInHandOffersToMendABrokenRadio()
+    public void TheWrenchInHandOffersToMendABrokenRadio()
     {
-        // GDD §23 "radio breaks" (note 201): the repair kit mends it, held; how far it's got from the body record.
+        // GDD §23 "radio breaks" (note 201): mended, held; how far it's got from the body record. Note 301: with the wrench in
+        // hand (the kit's gone), and there's nothing to put down.
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
         var bodies = s.World.Bodies;
         var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
-        var kit = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit);
-        (radio.Carrier, radio.Broken, kit.Carrier, kit.Locker) = (1, true, 1, -1);
-        Assert.Equal("MEND YOUR RADIO : HOLD [E]   PUT DOWN : [E]", Hud.Prompt(s));
+        (radio.Carrier, radio.Broken) = (1, true);
+        Assert.Null(Hud.Prompt(s)); // the crowbar in hand
+        s.Player = s.Player with { HeldSlot = 1 };
+        Assert.Equal("MEND YOUR RADIO : HOLD [E]", Hud.Prompt(s));
         radio.MendTicks = (int)(s.TrainTuning.Kit.RadioMendSeconds * DarkTerritory.Sim.SimConstants.TickRate / 2);
         Assert.Equal("MENDING YOUR RADIO (50%)", Hud.Prompt(s));
-        // Mended, nothing at the crosshair: the kit in your hands, and how to be rid of it, are the corner's (not what it's for).
         radio.Broken = false;
         Assert.Null(Hud.Prompt(s));
-        var (head, lines) = Hud.Hints(s);
-        Assert.Equal("THE REPAIR KIT", head);
-        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], lines);
     }
 
     [Fact]

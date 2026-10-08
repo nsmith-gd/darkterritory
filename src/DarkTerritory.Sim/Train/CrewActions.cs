@@ -100,6 +100,16 @@ public static class CrewActions
         double before = s.ActionProgress;
         var couplings = train.Dynamics.Tuning.Couplings;
         var near = NearestInteractable(s, train, hand);
+        // The smashed forward lamp from the front of the cab, the wrench in hand (note 301, slice 2): the glass goes in. It's
+        // mended from where the fire and the coal are worked (note 280's cab), so the wrench in hand there is the lamp's, not
+        // the shovel's; a ruptured boiler's fire door is still the rupture's, and the vent still vents.
+        if (Repairs.Lamp(s, train) && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null
+            && !(near?.Thing.Kind == InteractableKind.Firebox && train.Boiler.Ruptured))
+        {
+            s.ActionProgress += dt;
+            train.MendLamp?.Invoke(dt);
+            return;
+        }
         if (Hand(s, hand) && train.BoilerTuning is { } boiler && PlayerMotor.InCab(s, train)
             && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null)
         {

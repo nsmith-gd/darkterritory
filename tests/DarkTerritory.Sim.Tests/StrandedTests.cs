@@ -144,6 +144,58 @@ public class StrandedTests
     }
 
     [Fact]
+    public void WithNoWrenchLeftAboardARupturedNightIsStranded()
+    {
+        // The director, 8 Oct (§23.2, note 301): "If every crew member drops their wrench off the train then leaves them behind
+        // and then the train breaks down they could be stranded." Nobody living has one, the rack's is out, and the one on a
+        // fallen crewmate's body is in a car the Territory took.
+        var n = new Night(wrench: true);
+        int keeper = n.AddInCab();
+        int fallen = n.AddInCab();
+        n[keeper] = n[keeper] with { Kit = Kit.Of([Tool.Crowbar]) };
+        n.Train.Boiler.WrenchOut = true;
+        n.Train.Boiler.Ruptured = true;
+        // While the fallen crewmate's body (and its wrench) is aboard, on car 2's roof, it's there to be fetched.
+        n[fallen] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
+        n.Kill(fallen);
+        n.Step(0.2, speed: 3);
+        var body = n.BodyOf(fallen);
+        Assert.True(body.HasTool(Tool.Wrench));
+        n.Step(2);
+        Assert.Equal(KitPlace.Lying, n.Run.Kit.Place);
+        Assert.False(n.Run.Over);
+        // The car it lies in taken, and that was the last wrench: stranded once she's stopped.
+        int car = body.Parent;
+        Assert.True(car > 0);
+        n.Train.Uncouple(n.Train.VehicleAhead(car));
+        n.Train.Vehicles[car].Taken = true;
+        n.Step(2);
+        Assert.True(n.Run.Over);
+        var r = n.Run.Report!;
+        Assert.Equal(RunEnd.Stranded, r.End);
+        Assert.Equal(KitLoss.CarTaken, r.KitLoss);
+        Assert.Equal("THE LAST WRENCH WENT WITH THE CAR", EngineeringKit.Line(r.KitLoss, wrench: true));
+    }
+
+    [Fact]
+    public void AWrenchOnTheRackOrInAnyLivingHandKeepsARupturedNightGoing()
+    {
+        var n = new Night(wrench: true);
+        int keeper = n.AddInCab();
+        n[keeper] = n[keeper] with { Kit = Kit.Of([Tool.Crowbar]) };
+        n.Train.Boiler.Ruptured = true;
+        Assert.False(n.Train.Boiler.WrenchOut);
+        n.Step(3);
+        Assert.False(n.Run.Over);
+        Assert.Equal(KitPlace.Lying, n.Run.Kit.Place);
+        n[keeper] = n[keeper] with { Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]) };
+        n.Train.Boiler.WrenchOut = true;
+        n.Step(3);
+        Assert.False(n.Run.Over);
+        Assert.Equal(KitPlace.Carried, n.Run.Kit.Place);
+    }
+
+    [Fact]
     public void LosingTheKitWithoutARuptureEndsNothingUntilOne()
     {
         var n = new Night();
