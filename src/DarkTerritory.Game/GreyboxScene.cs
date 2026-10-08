@@ -892,10 +892,30 @@ public sealed class GreyboxScene
                 continue;
             }
             var (push, roll) = Fallen(blow, (float)age);
+            var was = body;
+            // The Car Hugger clubbed to death (note 458): its grip on the car's end gone, it's left where it was as the train
+            // runs on, down onto the track. (Its own clip is the latch's; dead, it's rolled and crumbles as anything does.)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frames.Count)
+            {
+                var dropped = Enemy.Blank(EnemyKind.CarHugger, id);
+                // Clear of the car's end it hung on (a train stood at a stop doesn't pull away from it): out past it 1.5 m.
+                var end = frames[was.Attached];
+                double off = Math.Sign(was.Local.Z) * 1.5;
+                dropped.Restore(SpinePhase.BreakOff, 0, 0, Enemy.Loose, end.ToWorld(was.Local) + end.Back * off, was.LineDistance, 0, 0, 0, 0);
+                _dying[id] = (was = dropped, tick, blow);
+            }
+            if (was.Kind == EnemyKind.CarHugger && was.Attached == Enemy.Loose)
+            {
+                double hint = was.LineDistance;
+                double ground = Sim.Player.PlayerMotor.GroundAt(was.Local, line, ref hint);
+                var falling = Enemy.Blank(EnemyKind.CarHugger, id);
+                falling.Restore(SpinePhase.BreakOff, age, 0, Enemy.Loose, was.Local with { Y = Math.Max(ground, was.Local.Y - 0.5 * 9.81 * age * age) }, was.LineDistance, 0, 0, 0, 0);
+                was = falling;
+            }
             // The Gannet has its own fall (gannet.py death: crashing across the roof, the wings crumpling): not rolled
             // over, and shot out of the air over a car, it falls to that roof first (note 340).
-            var fallen = body;
-            if (body is Sim.Enemies.Gannet g)
+            var fallen = was;
+            if (was is Sim.Enemies.Gannet g)
                 (roll, fallen) = (0, Falling(g, frames, age));
             DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
             if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
@@ -916,7 +936,7 @@ public sealed class GreyboxScene
             return;
         if (Hits is not null)
             foreach (var h in Hits)
-                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && (Falls(body.Kind) || body.Kind == EnemyKind.CarHugger))
                 {
                     _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
                     _newBeats.Add(("killed", body));
@@ -931,10 +951,11 @@ public sealed class GreyboxScene
         // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
         // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
         foreach (var (id, was) in _seen)
-            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
+            if (was.Kind is EnemyKind.CarHugger or EnemyKind.CarFire && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
                 && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
             {
-                _riding[id] = (was, (uint)Tick);
+                // A fire too (note 458): the car's cut loose burning, and burns on as it rolls away (the sim's done with it).
+                _riding[id] = (Copy(was), (uint)Tick);
                 _newBeats.Add(("cut-loose", was));
             }
         // A Cinder Hound running the line gone and not killed (note 451): scattered by a ball landing near it (note 328), driven
@@ -1064,6 +1085,15 @@ public sealed class GreyboxScene
                 _riding.Remove(id);
                 continue;
             }
+            // A fire, kept burning on its car as it rolls away: its flames here, and its car's smoke (Fires: _burns).
+            if (body is Sim.Enemies.CarFire burning)
+            {
+                var fire = new Sim.Enemies.CarFire(id);
+                fire.Restore(burning.Phase, burning.PhaseSeconds + age, burning.Health, car, burning.Local, 0, 0, 0, burning.Extra, burning.Extra2);
+                fire.RestoreHeat(burning.Heat);
+                DrawEnemy(mesh, line, frames, fire, eye, from, to, Look?.Art.Creatures);
+                continue;
+            }
             var hugger = new Sim.Enemies.CarHugger(id);
             hugger.Restore(SpinePhase.Commit, body.PhaseSeconds + age, body.Health, car, body.Local, 0, 0, 0, body.Extra, body.Extra2);
             var bite = Look is { } look
@@ -1157,6 +1187,17 @@ public sealed class GreyboxScene
     {
         double run = Math.Min(age, speed / AwaySlowing);
         return (speed * run - 0.5 * AwaySlowing * run * run, outSpeed * age);
+    }
+
+    /// <summary>A copy of <paramref name="e"/> as it is now (the sim moves its own, and a snapshot's is replaced): its phase,
+    /// place and state, and a fire's heat.</summary>
+    static Enemy Copy(Enemy e)
+    {
+        var copy = Enemy.Blank(e.Kind, e.Id, e.Extra);
+        copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        if (e is Sim.Enemies.CarFire fire && copy is Sim.Enemies.CarFire into)
+            into.RestoreHeat([.. fire.Heat]);
+        return copy;
     }
 
     /// <summary>Staged (<c>dt screenshot --retreat kind:s</c>): <paramref name="e"/> let go of at <paramref name="tick"/>, going
@@ -2366,6 +2407,13 @@ public sealed class GreyboxScene
             {
                 double peak = _burns.TryGetValue(e.Attached, out var was) ? Math.Max(was.Peak, e.Extra) : e.Extra;
                 _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish);
+            }
+        // A car cut loose burning (note 458): its fire's gone from the sim, and it burns on as it rolls away (Riding).
+        foreach (var (_, (body, _)) in _riding)
+            if (body.Kind == EnemyKind.CarFire && body.Attached >= 0 && body.Attached < cars && Adrift(body.Attached))
+            {
+                double peak = _burns.TryGetValue(body.Attached, out var was) ? Math.Max(was.Peak, body.Extra) : body.Extra;
+                _burns[body.Attached] = (peak, Time, body.Extra, body.Phase == SpinePhase.Punish);
             }
         // Clocks run backwards across a reload or a fresh run: forget what was.
         foreach (var car in _burns.Keys.Where(k => _burns[k].Last > Time + 1).ToList())

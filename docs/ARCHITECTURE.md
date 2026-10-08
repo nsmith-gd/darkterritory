@@ -6502,17 +6502,17 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         |---|---|---|---|
         | Whistler | Flank.cs:301 | found in its gap by two crew within 2.5 m: "flees" | Retreat |
         | Climber | Flank.cs:639 | outnumbered or held at the gap, last try | Retreat |
-        | Car Hugger | Enemy.cs:359 | clubbed to death from the rear platform (`Falls` excludes it) | **not yet** |
-        | Stoker | Interior.cs:112, 223 | back into the tender's coal; clubbed while boarding | **not yet** |
+        | Car Hugger | Enemy.cs:359 | clubbed to death from the rear platform (`Falls` excludes it) | dropped off the car's end (second batch) |
+        | Stoker | Interior.cs:112, 223 | back into the tender's coal; clubbed while boarding | never drawn as a model: nothing to blink |
         | Passenger | Corrupted.cs:147, 67 | unmasked, off the back; lingered among the crew | Retreat |
         | Climber | Flank.cs:557 | gave up pacing a fast train | Retreat |
         | any | World.cs:1836 | dismissed as the train rolls into a fort | Retreat (for the kinds below) |
         | Ribbit | Outside.cs:133 | the pack, having eaten | Retreat |
         | Cinder Hound aboard | Rear.cs:294, 95 | after its kill; its car cut loose | Retreat |
-        | Fire Flies | Interior.cs:421, 439 | the swarm round a lamp, the train pulling away | **not yet** |
+        | Fire Flies | Interior.cs:421, 439 | the swarm round a lamp, the train pulling away | wants an effect: listed |
         | Gaunt | Outside.cs:376 | going with its loot, 30 m out | Retreat |
         | Switchman | Corrupted.cs:341, 388 | the points thrown back by hand; 20 s after the derail | Retreat |
-        | Car Fire | Incidents.cs:196 | flames gone from a car cut loose | **not yet** |
+        | Car Fire | Incidents.cs:196 | flames gone from a car cut loose | rides its car, burning (second batch) |
         | after a kill | Flank.cs:424, 738; Interior.cs:362; Outside.cs:764; Corrupted.cs:183 | off the body, a friend arriving | Retreat |
 
         - **Not in sight:** outrun or left behind far off (Rear.cs:112, Flank.cs:544, Moose.cs:97), lingering hidden (Flank.cs:100, 264, Interior.cs:274), the Switchman's bad branch (Corrupted.cs:312, 326), the Drift and Sleepers (no body), a fire burnt out.
@@ -6523,15 +6523,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Speeds and times by kind: Climber 5 m/s for 3 s, Whistler 8 for 2, Ribbit 4 for 3, Gaunt 1.5 for 6 (on past its 30 m), Switchman 4 for 3, Tippy Toesie 5 for 2.5, Soot Child 3 for 3, Passenger 3 for 3, Follower 4 for 3, a hound aboard 6 for 3.
         - Existing clips only: each is its own break-off pose (the Climber's is its pacing scuttle). New ones for E1, if wanted: a Climber's drop and run, a Whistler's dart.
     - **Staging:** `dt screenshot --threats [--gaunt angry] --view <v> --retreat kind:s [--speed v]`. Looked at: the Ribbit pack (`--view pack --retreat ribbit:1.5`, three toads backs turned, out across the field), the Gaunt (`--gaunt angry --view gaunt --retreat gaunt:3`, walking off), a Climber at the gap (`--view gapside --retreat climber:0.35`, down on the ballast, scuttling out).
-    - **Not yet (the second batch):**
-        - The Car Hugger clubbed to death: a fall off the car's end.
-        - The Stoker: back into the coal, or out of the firebox door.
-        - The Fire Flies: a swarm scattering.
-        - A fire on a car cut loose: `Riding`'s car, burning.
-        - The three drawn as deaths when nothing died.
+    - **The second batch:**
+        - **The Car Hugger clubbed to death** (`Deaths`): `Falls` left it out, so the kill drew nothing and it vanished off the car's end 1–2 m from the crew. Now it's taken into `Deaths` like the rest: its grip gone, it's left where it was in the world, 1.5 m clear of the car's end (a train stood at a stop doesn't pull away from it), drops onto the track, rolled over and crumbling. Looked at: `--threats --view cut --killed carhugger:0.8` (the body down off the platform, on the track) and `--view swallow` (inside the guard van: nothing through the door).
+        - **A fire on a car cut loose** (`Riding`): the sim's done with the fire the tick its car's off the train, and the flames went out the moment it was cut. Now it rides its car as the Car Hugger does: its flames drawn on the car, its smoke kept going (`Fires`' `_burns`), as the car rolls away.
+        - **The Stoker** isn't drawn as a model in any phase (only its work in the firebox is seen; `CreatureArtTests`' every-phase check pins that), so it has nothing to blink out.
+        - **The Fire Flies:** a loose swarm drifting off went up through the car's roof (a car's room isn't the world's). Their going wants an effect, a swarm thinning round the lamp, not a creature walking off. Listed for the effects.
+        - **The three drawn as deaths when nothing died** ride World.Confirm's `Killed: e.Gone`. A gone creature isn't in the next snapshot, so the scene can't tell. The fix is the Sim's record (`Killed` only when it's dead), and this item stays out of the Sim; it's put to D1.
     - **Verified:**
         - `CreatureArtTests.OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone` (Climber, Whistler, hound aboard, Ribbit, Gaunt, Switchman): drawn where it was; a second on, out from the line and further from the eye; gone after its time.
         - `AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead`: gone between frames, a "retreated" beat; killed by a blow, a "killed" beat and the fall, not both.
+        - `ACarHuggerClubbedToDeathDropsOffItsCarsEndAndIsLeftThere`: lower and further from the car's middle than it hung, then gone (without the drop, it's drawn where it hung).
+        - `ACarCutLooseBurningBurnsOnAsItRollsAway`: cut loose, flames on the next frame and two seconds on; not cut, a fire gone leaves none.
+
 465. **A yard's walk-in sheds and its strongroom are rooms (B4, queue #201; note 462's "not yet"; note 387's shells; GDD §28, §31).** A yard's crate sheds and its hero stand as walls with a door (note 387) and are walked into for their crates, but the renderer took their insides for the outside: the moon and the sky on the floor among the stacks and on the clerestory panels.
     - **The room** (`GreyboxScene.HouseInteriors`, beside note 462's open sheds): each roofed length of a yard shed or the hero (`StopWalls.Roofed`, the sim's own) is a `Room` from the frame to its eaves (`WorldArt.YardShedHeight`, the height it's drawn at: a shed 6.5 m and 0.8 a variant, the hero 10 and 1 a variant). Not one a Holdout's in: that's the Holdout's shell.
     - **A gantry's cut stays the open air:** where a yard gantry works a shed's bays (note 279) the cut through it is not roofed, so it's no room; the castings there lie under the sky, lit as the yard is.
