@@ -8,7 +8,7 @@ wheel grown into his back and another strapped to his chest. A brass lamp on a c
 knuckles swollen; boots bound in iron straps. Rust-red and soot-black, everything riveted.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): his body is one
-skin (tools/blender/flesh.py): the head (the skull, the brow over sunk sockets, the cheekbones over fallen cheeks, the long
+skin (tools/blender/trainflesh.py): the head (the skull, the brow over sunk sockets, the cheekbones over fallen cheeks, the long
 nose, the jaw, the moustache's droop and the lank hair under the cap), the neck's cords, the coat over the hunched back
 and the chest with its lapels and turned-up collar, the left sleeve torn off at the forearm and the bare arm below it, the
 right arm's corrupted flesh, the palms, the trousers and the boots, the cap's crown and band; each a smooth volume both a
@@ -36,7 +36,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import flesh as fl  # noqa: E402
+import trainflesh as fl  # noqa: E402
 import rig  # noqa: E402
 from rig import Bone, Clip, Mat, Vector, hexc, mirror, noise3, over, swap  # noqa: E402
 
@@ -180,7 +180,7 @@ def head_w(p):
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The skin: one surface from the cap's crown to the boots' soles (flesh.fuse, settled on `F`).
+# The skin: one surface from the cap's crown to the boots' soles (trainflesh.fuse, settled on `F`).
 body = kit.part("body")
 F = fl.Flesh(body, "brakeman flesh")
 
@@ -787,7 +787,7 @@ death.key(42, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -
 
 CLIPS = [walk, wind, flee, jump, drop, climb, cornered, lash, hit, death]
 
-# One skin from the cap to the soles (flesh.fuse, settled on the field, then QuadriFlow); the rest over it.
+# One skin from the cap to the soles (trainflesh.fuse, settled on the field, then QuadriFlow); the rest over it.
 kit.build()
 fl.fuse(kit, "body", ["body"], voxel=0.0045, faces=SKIN_FACES, lose=0.03, settle=F.settle, relax=3)
 fl.fuse(kit, "head", ["head"], voxel=0.0022, faces=HEAD_FACES, lose=0.03, settle=HF.settle, relax=1)

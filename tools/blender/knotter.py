@@ -8,7 +8,7 @@ round into a fist, clustered with ten short thick jointed grey claws hooked in l
 end sills. Stretched across a coupling it's 5 m long and taut.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): its body is one
-skin (tools/blender/flesh.py): the three strands laid up round each other (each a term of a signed-distance field, their
+skin (tools/blender/trainflesh.py): the three strands laid up round each other (each a term of a signed-distance field, their
 grooves kept sharp where they meet), the whipping's bands swelling the lay, each end's knot (the strands swelling and
 wrung round tighter into a fist, one turned back over it) and the roots of the claws growing out of it: the union of their solids settled onto that field,
 QuadriFlowed and smooth-shaded, so the strands run into the knots and the knots into the claws with no seam. Over it: the
@@ -34,7 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rig  # noqa: E402
-import flesh as fl  # noqa: E402
+import trainflesh as fl  # noqa: E402
 import numpy as np  # noqa: E402
 from rig import Bone, Clip, Mat, Skeleton, Vector, hexc, noise3  # noqa: E402
 
@@ -153,7 +153,7 @@ def under(pts, n):
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The skin: the lay, the whipping, the knots and the claws' roots (flesh.fuse, settled on `F`).
+# The skin: the lay, the whipping, the knots and the claws' roots (trainflesh.fuse, settled on `F`).
 body = kit.part("body")
 F = fl.Flesh(body, "knotter flesh")
 

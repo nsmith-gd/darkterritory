@@ -28,9 +28,9 @@ import numpy as np  # noqa: E402
 import cook  # noqa: E402
 import make  # noqa: E402
 import overbake  # noqa: E402
-import texels  # noqa: E402
+import traintexels as texels  # noqa: E402
 from overbake import fine, smooth01  # noqa: E402
-from texels import paint, suffix  # noqa: E402
+from traintexels import paint, suffix  # noqa: E402
 
 S = 2048
 kit, g, arm, parts = overbake.hold("hotbox.py")

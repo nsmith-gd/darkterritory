@@ -1,7 +1,8 @@
-"""Organic skins for the creature scripts (tools/blender/brakeman.py, knotter.py, hotbox.py): the Ribbit's smooth-blended
-flesh (a signed-distance field whose terms are also the parts' solids) and rig.fuse with the passes the Ribbit and the
-Moose added to it (`settle` onto that field, `relax`, `quads`), kept here beside rig.py so those scripts don't depend on
-which of them has landed. Use: build the parts, `kit.build()` with no fusions, then `flesh.fuse(kit, ...)` per skin.
+"""Organic skins for the train's own creatures (tools/blender/brakeman.py, knotter.py, hotbox.py): the Ribbit's
+smooth-blended flesh (a signed-distance field whose terms are also the parts' solids) and rig.fuse with the passes the
+Ribbit and the Moose added to it (`settle` onto that field, `relax`, `quads`). It sits beside flesh.py, the outside
+creatures' own (G1.6's: the Mourners, the Freight Beetle, the Tower Jaw), whose API differs; each set of scripts imports
+its own. Use: build the parts, `kit.build()` with no fusions, then `trainflesh.fuse(kit, ...)` per skin.
 """
 import math
 

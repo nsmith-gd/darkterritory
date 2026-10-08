@@ -1,10 +1,11 @@
-"""Where each texel of a baked atlas is on the model (the Gannet's and the Ribbit's way, for the recipes that paint by
-position: tools/models/recipes/brakeman.py, knotter.py, hotbox.py): the joined game mesh's triangles rasterized from
-its unwrap, at rest, into per-texel position, normal, region (the kit material's name after its dot) and part, grown a
-few texels past every island's edge so filtering never reads the empty atlas between them. Deterministic: no render.
+"""Where each texel of a baked atlas is on the model, for the train's own creatures' recipes that paint by position
+(tools/models/recipes/knotter.py, hotbox.py; the Gannet's and the Ribbit's way): the joined game mesh's triangles
+rasterized from its unwrap, at rest, into per-texel position, normal, region (the kit material's name after its dot) and
+part, grown a few texels past every island's edge so filtering never reads the empty atlas between them. Deterministic:
+no render. It sits beside texels.py, the outside creatures' own (G1.6's), whose API differs.
 
-    t = texels.Texels(atlas, size)
-    t.P, t.N (SxSx3), t.is_("brakeman_coat", ...) (SxS bool), t.part("body"), t.noise(seed, scale), t.field(fn)
+    t = traintexels.Texels(atlas, size)
+    t.P, t.N (SxSx3), t.is_("knotter_claw", ...) (SxS bool), t.part("body"), t.noise(seed, scale), t.field(fn)
 """
 import numpy as np
 

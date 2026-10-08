@@ -11,7 +11,7 @@ machinery in its make: plates like brake shoes, joints like rivets. The carapace
 high: folded into a truck, its plates read as part of the bogie until it glows.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): the soft body is one
-skin (tools/blender/flesh.py): the abdomen's swollen segments, pinched between, the head and its mouthparts' roots, and
+skin (tools/blender/trainflesh.py): the abdomen's swollen segments, pinched between, the head and its mouthparts' roots, and
 each leg's root, smooth-blended into one surface and QuadriFlowed. Over it, hard: the carapace's plates (each a thick
 shell on one dome, its rim ragged, its back edge lipped, the front shield a horseshoe with ridges curling back over it), the
 legs (two joints each and a claw, black), the mandibles. The abdomen's glow is an emission map (tools/models/recipes/hotbox.py
@@ -37,7 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rig  # noqa: E402
-import flesh as fl  # noqa: E402
+import trainflesh as fl  # noqa: E402
 from rig import Bone, Clip, Mat, Quaternion, Skeleton, Vector, hexc, noise3  # noqa: E402
 
 rig.reset()
@@ -157,7 +157,7 @@ def abd_w(p):
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The soft body: the swollen abdomen in its segments, the head, the legs' roots (flesh.fuse, settled on `F`).
+# The soft body: the swollen abdomen in its segments, the head, the legs' roots (trainflesh.fuse, settled on `F`).
 body = kit.part("body")
 F = fl.Flesh(body, "hotbox flesh")
 # (Low and wide, filling the space under the carapace and bulging out under its rim at the sides and the back in fat
