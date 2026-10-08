@@ -77,6 +77,13 @@
     "place-conveyor.jam": "A BELT JAMMING",
     "place-conveyor.labour": "A BELT SQUEALING, AN ENGINE LABOURING",
     "place-conveyor.stall": "AN ENGINE DYING",
+    // The extinguisher on a fire (note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+    // a reader is told the jet's on the flames, a patch of them going out, and the fire out, as a hearing player is.
+    "crew-extinguisher.on-fire": "WATER HISSING ON THE FLAMES",
+    "crew-extinguisher.cell-out": "FLAMES HISSING OUT",
+    "crew-extinguisher.fire-out": "THE FIRE OUT, STEAM HISSING",
+    // A capstan winch's cranks out of rhythm (note 468; D.2's desync): the drum snatched to a stop.
+    "place-winch.stall": "A WINCH JARRING TO A STOP",
     // The tipple (note 480): a car coming off its rails in the cradle holds the train till it's put back; a reader's told it
     // happened and that it's back on, as a hearing player is.
     "place-tipple.derail": "A CAR CRASHING OFF ITS RAILS",

@@ -432,6 +432,12 @@ CUE_DEF = {
     "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
     # Note 444: a truss Dragger's fall into the ballast, heard from the train drawing away from it.
     "cs-draggers.fall": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    # The capstan winch (note 468): the drum and its stall heard across the yard from the cranks (GameAudio.WinchReach),
+    # the sled out along its 40 m haul; the stall is the crew's to put right (tier 4, as their actions are).
+    "place-winch.capstan": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.drag": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.stall": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-winch.in": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     # The conveyor line (note 466): its drive is machinery heard across the yard, started loudly (note 400); starting it,
     # its jam and the drive labouring under one, and clearing it are the crew's work (tier 4, as their actions are); the
     # engine running, the belt and the grain off its head are the yard's (tier 6), heard beside them.

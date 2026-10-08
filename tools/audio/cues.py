@@ -105,6 +105,11 @@ CUES = {
         O("stow", "Back into the hotbar", need="Not in the game yet: there's no hotbar (an extinguisher is carried or dropped) in the sim, so nothing plays this. Ready for when there is."),
         O("drop", "Dropped, or thrown and landing: a steel cylinder hitting", mats=DROP,
           cand={"wood": K("impactWood_heavy"), "grate": K("impactMetal_heavy")}),
+        # On the fire (queue #205, note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+        # where the jet meets the flames, a patch of the fire going out, and the whole fire out.
+        L("on-fire", "The jet on burning boards: the water flashing to steam, the flames beaten down"),
+        O("cell-out", "A patch of the fire put out: the flames collapsing in a hissing gasp", vars=3),
+        O("fire-out", "The fire out: a long sigh of steam, the boards dripping and ticking as they cool", vars=2),
     ],
     "crew-melee": [
         *[c for tool in ("shovel", "wrench", "crowbar") for c in (
@@ -528,6 +533,14 @@ CUES = {
         O("creak", "A derailed car creaking", vars=4),
         O("shift", "Wreckage shifting", vars=3),
         L("cargo-pull", "Cargo dragged out of a wreck"),
+    ],
+    # The capstan winch wherever it stands (spec D.2, T43; queue #204, note 468): the foundry's, the mine head's, the
+    # depot's and the wreck yard's (whose cargo dragged out of a wreck is place-wreck's).
+    "place-winch": [
+        L("capstan", "The capstan turning: the pawl over its ratchet, the cranks, the rope winding on"),
+        L("drag", "A sled of cargo hauled in over the ground"),
+        O("stall", "Out of rhythm: the drum snatched to a stop, the pawl catching", vars=3),
+        O("in", "A sled hauled in to its stop by the track", vars=2),
     ],
     "place-slaughterhouse": [
         L("inside", "Inside the slaughterhouse"),
