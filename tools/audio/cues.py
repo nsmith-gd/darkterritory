@@ -552,6 +552,12 @@ CUES = {
         L("radio", "A wireless left on in a house: static, a far station fading in and out"),
         L("murmur", "Townsfolk talking low among themselves through their masks, no words"),
         O("cough", "A townsperson coughing into their mask", vars=3),
+        # On their rounds (B2's #389; queue #182, note 446): each kind of breathing gear heard close to, and the watch's lantern.
+        L("gear-respirator", "Someone breathing through a rubber respirator, its valves"),
+        L("gear-oxygen", "Someone breathing in an oxygen cup, the gas hissing"),
+        L("gear-rebreather", "Someone breathing on a rebreather, its bag and valves"),
+        L("gear-wrap", "Someone breathing through a wool wrap with a tin can sewn in"),
+        L("lantern", "The watch's lantern swinging on its bail as they walk"),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
@@ -648,6 +654,9 @@ CUES = {
         L("scrabble", "The victim's boots scrabbling on the car side"),
         O("haul-up", "Hauled back up", vars=2),
         O("under", "Dragged under", vars=2),
+        # A truss Dragger's drop (D1's #171, note 435; queue #180, note 444): onto a roof with someone on it, or the ballast.
+        O("drop", "It drops off the truss onto the car's roof", vars=3),
+        O("fall", "It drops off the truss onto the ballast behind the train", vars=3),
     ],
     "cs-stoker": [
         L("in-fire", "Something moving in the fire"),
