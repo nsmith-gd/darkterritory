@@ -6183,3 +6183,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Water on a branch's edge isn't heard; the plan's main line carries nearly all of it.
         - The rocky coast's surf is a candidate. Every sea shore takes the shingle's, until the plan says which coast is rock.
     - **Pinned:** `WorldSoundTests.TheLinesWaterIsHeardWhereItsWaterIs` covers each kind, on a night that has it: deadLines:2's sea and river valley, frontier:7's Fundy flats and tidal river, and frontier:3's lakes. By an ear beside it, the sound is held on water the terrain says is that kind, and nothing of it is heard a kilometre up.
+
+444. **The truss Dragger's drop heard (AU1, queue #180; D1's #171, note 435).** A Dragger perched on a through-truss's top chord scrapes (`dragger-scrape`, the tell), then drops 7 m onto the roof of the car passing under with someone on it and grabs them. With nobody up there, it drops onto the ballast behind and is gone. Neither fall made a sound: the grab came out of the scrape with nothing between, and the miss was silent.
+    - **How** (`GameAudio.DraggerSounds`, `Vanished`): a client's mirrored Dragger never knows it was `Perched`. So the drop is read off its record: a Dragger in its tell with no car of its own (`Attached < 0`), its height over the line.
+        - When it has a car in the next record, that's the landing. `cs-draggers.drop` plays on that car's roof, heard clear inside the car under it and through the walls from another. The grab follows 0.3 s later (`DropToGrab`) as it reaches the edge, not on top of the landing.
+        - When it's gone while still perched in its tell, that's the fall. `cs-draggers.fall` plays under the chord, at the line.
+    - **The sounds** (`tools/audio/recipes/dragger_drop.py`, from boarders.py's Dragger pieces, so it's the creature of the grab): three candidates on the Audio Checklist's Dragger line.
+        - The landing, `slam` (installed): its whole weight on the tin, which booms and flexes (the packs' tin hit pitched far down, the sheet's modes), a body thud, a second limb a beat after, then its claws skating and joints popping as it gathers itself.
+        - The landing, `limbs`: lighter, on all its limbs, a rattle of hard tips on the tin before its body settles.
+        - The fall, `ballast` (installed): a deep thud and a heavy crunch of ballast, stones scattering, its limbs scrabbling a moment. It's heard drawing away from the train (`recede`), so it sits behind you.
+    - **Captioned:** "SOMETHING HEAVY LANDING ON THE ROOF" and "SOMETHING FALLING ONTO THE TRACK BEHIND".
+    - **Pinned:** `CreatureSoundTests.ATrussDraggerLandsOnTheRoofBeforeItsGrabOrFallsOnTheBallastBehind`, on records mirrored as a client gets them:
+        - perched, then on car 2's roof in its grab: the landing at once, and the grab once within half a second;
+        - another perched, then gone: its fall, 7.2 m under where it hung.

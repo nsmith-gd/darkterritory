@@ -8559,6 +8559,51 @@
   "takes": 5,
   "sha": "a0ce788ee38ad21b"
  },
+ "cs-draggers/drop": {
+  "cue": "cs-draggers.drop",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Dragger dropping off the truss onto the car's roof: its weight booming the tin, claws biting as it gathers",
+    "key": "slam",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9c26b45ae1d95fb5"
+ },
+ "cs-draggers/fall": {
+  "cue": "cs-draggers.fall",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Dragger dropping off the truss onto the ballast behind the train: a heavy thud and a crunch of stones",
+    "key": "ballast",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0f6ae98cae688395"
+ },
  "cs-draggers/grab": {
   "cue": "cs-draggers.grab",
   "surface": null,
@@ -8770,7 +8815,7 @@
    }
   ],
   "takes": 4,
-  "sha": "d7e45dd8519bb476"
+  "sha": "ac026eddb230d45d"
  },
  "cs-followers/clubbed-off": {
   "cue": "cs-followers.clubbed-off",
