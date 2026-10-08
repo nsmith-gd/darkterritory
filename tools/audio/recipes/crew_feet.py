@@ -51,12 +51,6 @@ def bank():
     return ck.matched(heels), ck.matched(toes)
 
 
-@functools.lru_cache(maxsize=1)
-def concrete():
-    """Kenney's concrete steps, matched: two of the five are all sub, the others all slap."""
-    return ck.matched([ck.align(ck.get(k)) for k in CONCRETE])
-
-
 def heel(rng, take):
     h, _ = bank()
     return h[(take * 3 + int(rng.integers(2))) % len(h)]
@@ -193,20 +187,34 @@ def on_mud(rng, boot, s, part, take):
     return y
 
 
+def stone(rng, boot, s, part, take, grit=1.0):
+    """A hard boot on stone (the director, 8 Oct: the town's stones were "a super weird squishy footstep sound"). The packs'
+    concrete steps are soft soles, everything under 1 kHz, a 250 Hz wobble a step that reads as a squish; so the stone is
+    built from what a hard sole on rock is: the heel's crack (leather and nails on rock, a few ms of noise from 1.5 kHz up),
+    the stone's knock (dense and dead: three broad modes at 0.4-2.3 kHz, gone in 20 ms, never a pitch), a little of the
+    boot's weight (a 25 ms thump, no ring), the boot's own sole click, and sand between the setts."""
+    toe = part == "toe"
+    n = samples(0.03)
+    t = np.arange(n) / dsp.SR
+    crack = dsp.bp(rng.standard_normal(n).astype(np.float32), 1200, 6000) * np.exp(-t / (0.002 if toe else 0.003))
+    crack = ck.norm(mix(crack, ck.tick(rng, rng.uniform(2600, 4200), q=5, length=0.01) * 0.5))
+    knock = ck.hollow(rng, [rng.uniform(400, 560), rng.uniform(900, 1200), rng.uniform(1800, 2300)], 0.05, q=3, hit=0.002)
+    knock = ck.norm(ck.choke(knock, 0.005, 0.009))
+    weight = ck.norm(ck.choke(ck.hollow(rng, [rng.uniform(140, 180)], 0.05, q=1.5, hit=0.003), 0.006, 0.008))
+    sand = ck.norm(ck.grains(rng, 4, 0.03, 3000, 9000, q=(2, 5), length=(0.002, 0.005)))
+    return mix(crack * (0.7 if toe else 0.9) * s, knock * 0.75 * s, weight * (0.22 if toe else 0.35) * s,
+               sole(boot, 2200) * 0.35 * s, sand * 0.1 * grit * s)
+
+
 def on_cobbles(rng, boot, s, part, take):
-    """Cobbles and setts, outdoors: a hard stone knock (the packs' concrete steps without their room), the hobnailed
-    sole's click on stone, and a little sand between the setts."""
-    st = ck.norm(hp(ck.one(concrete(), take + 2 * (part == "toe")), 140))
-    nail = ck.tick(rng, rng.uniform(3500, 5500), q=6, length=0.008)
-    grit = ck.grains(rng, 5, 0.04, 3000, 9000, q=(2, 5), length=(0.002, 0.006))
-    return mix(st * s, sole(boot, 1800) * 0.5 * s, ck.norm(nail) * 0.12 * s, ck.norm(grit) * 0.08 * s)
+    """Cobbles and setts, outdoors: a hard boot on stone with sand between the setts; dry (the world's reverb takes it)."""
+    return stone(rng, boot, s, part, take)
 
 
 def on_concrete(rng, boot, s, part, take):
-    """Indoor concrete (the fortress, the facilities): the packs' concrete steps and the sole's slap on them; the room is
-    added once per step."""
-    st = ck.norm(hp(ck.one(concrete(), take * 2 + (part == "toe")), 90))
-    return mix(st * s, sole(boot, 1500) * 0.55 * s)
+    """Indoor concrete (the fortress, the stations, the houses' floors): the same hard boot on smoother stone, less grit;
+    the room is added once per step."""
+    return stone(rng, boot, s, part, take, grit=0.4)
 
 
 SURF = dict(wood=on_wood, grate=on_grate, plate=on_plate, roof=on_roof, coal=on_coal, ballast=on_ballast, dirt=on_dirt,
@@ -343,8 +351,8 @@ WHAT = {
     "dirt": ("boots on packed dirt and forest floor", BOOTS + WOODSTEP),
     "grass": ("boots in grass and heath", BOOTS + GRASS),
     "mud": ("boots in mud and bog", BOOTS + WET),
-    "cobbles": ("boots on cobbles and stone setts, outdoors", BOOTS + CONCRETE),
-    "concrete": ("boots on an indoor concrete floor", BOOTS + CONCRETE),
+    "cobbles": ("boots on cobbles and stone setts, outdoors", BOOTS),
+    "concrete": ("boots on an indoor concrete floor", BOOTS),
 }
 
 HOW = {
@@ -371,9 +379,11 @@ HOW = {
         the boot lowpassed as the soft ground under it.""",
     "mud": """The packs' wet steps darkened and cut to their squelch, a lower synthesised suction squelch and a dull heavy
         pad as the boot sinks, and on the toe the suck of the sole pulling out.""",
-    "cobbles": """Kenney's concrete steps with their room taken out (outdoors), the boot's sole click and a hobnail tick on
-        stone, and a little sand between the setts.""",
-    "concrete": """Kenney's concrete steps, heel and toe, with the boot's sole slap, in a short hard indoor room.""",
+    "cobbles": """Hard boots on stone, rebuilt after the director's "super weird squishy footstep" (8 Oct; the packs' concrete
+        steps were soft soles, a low wobble): each heel and toe the sole's crack on rock (a few ms of noise from 1.5 kHz
+        up), the stone's dead knock (broad modes at 0.4-2.3 kHz, gone in 20 ms), a short thump of weight, the boot's sole
+        click, and sand between the setts. Outdoors, dry.""",
+    "concrete": """The same hard boot on smoother stone (less sand), in a short hard indoor room.""",
 }
 
 

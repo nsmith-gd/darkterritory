@@ -684,6 +684,23 @@ public class CrewAudioTests
         Assert.All(new[] { "ballast", "concrete", "cobbles", biome.Ground }, t => Assert.NotEqual("ground", Footing.OfTexture(t)));
     }
 
+    [Theory]
+    [InlineData("crew-footsteps.walk.cobbles")]
+    [InlineData("crew-footsteps.run.cobbles")]
+    [InlineData("crew-footsteps.land.cobbles")]
+    [InlineData("crew-footsteps.walk.concrete")]
+    [InlineData("crew-footsteps.run.concrete")]
+    public void BootsOnStoneCrackRatherThanSquish(string sound)
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"):
+        // the stones' steps were the packs' soft-soled concrete steps, all of it under 1 kHz, a 250 Hz wobble a step. A hard
+        // boot on stone cracks: there's as much of it over 1 kHz as in its low mids (the soft ones were 7 to 17 dB under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double crack = Meter.BandDb(mix, 1000, 8000), body = Meter.BandDb(mix, 100, 500);
+        Assert.True(crack > body - 3, $"{sound}: {crack:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
+    }
+
     [Fact]
     public void ABotCrewIsHeardOverTheNetworkAsTheAppHearsIt()
     {
