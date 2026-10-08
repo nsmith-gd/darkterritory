@@ -36,6 +36,15 @@ public sealed class FakeOnline
         return user;
     }
 
+    readonly HashSet<(UserId, UserId)> _friends = new();
+
+    /// <summary>Makes two accounts friends, both ways, as accepting a friend request does.</summary>
+    public void Befriend(IOnlineBackend a, IOnlineBackend b)
+    {
+        _friends.Add((a.Me, b.Me));
+        _friends.Add((b.Me, a.Me));
+    }
+
     sealed class Room(UserId owner, int max, LobbyVisibility visibility)
     {
         public readonly LobbyVisibility Visibility = visibility;
@@ -64,6 +73,7 @@ public sealed class FakeOnline
         public UserId Me => me;
         public string NameOf(UserId user) => cloud._users.TryGetValue(user, out var u) ? u.Name : "someone";
         public string Name => name;
+        public bool IsFriend(UserId user) => cloud._friends.Contains((me, user));
         public IDatagramCarrier<UserId> Carrier => this;
 
         public void Poll(List<OnlineEvent> into)

@@ -30,6 +30,8 @@ public sealed class FrontEndTests : IDisposable
     {
         int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
+        // The keys pass over a greyed row, so waiting to land on one would never end.
+        Assert.True(m.Items[i].Enabled, $"'{label}' is greyed on {m.Screen}");
         while (m.Selected != i)
             m.Down();
     }
@@ -308,14 +310,17 @@ public sealed class FrontEndTests : IDisposable
     [Fact]
     public void TheHostChoosesPublicOrPrivateAndItsRemembered()
     {
-        // The user's playtest: "I can join it if its public. If it's a private lobby its not listed."
+        // The user's playtest: "I can join it if its public." Note 450: a private run is listed with a lock, behind its password.
         var m = Menu();
         Choose(m, "HOST");
         Assert.Contains("VISIBILITY: PUBLIC", m.Items.Select(i => i.Label));
         Pick(m, "VISIBILITY");
         m.Right();
         Assert.Equal("VISIBILITY: PRIVATE", m.Items[m.Selected].Label);
-        Assert.False(Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Public);
+        Choose(m, "PASSWORD");
+        m.Type("owls");
+        m.Select();
+        Assert.Equal("OWLS", Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY")).Password);
         // Saved: the next start of the game has it so.
         var again = Menu();
         Choose(again, "HOST");
@@ -527,13 +532,14 @@ public sealed class FrontEndTests : IDisposable
         var rows = m.Items.Select(i => i.Label).ToList();
         Assert.StartsWith("LOBBY", rows[0]);
         Assert.Equal(["OLD'S RUN", "NICK'S RUN", "PACKED'S RUN", "PRIYA'S RUN"], rows.Skip(1).Take(4).Select(r => r[..25].TrimEnd()));
-        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +3 MS$", rows[2]);
-        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +41 MS$", rows[4]);
-        // Greyed, with the reason on the row: another version, a full crew.
+        // Every row says its ping (note 450), and who the run's for ("-": the host said either).
+        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +3 MS$", rows[2]);
+        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +41 MS$", rows[4]);
+        // Greyed, with the reason on the row where the tier would be: another version, a full crew.
         Assert.False(m.Items[1].Enabled);
-        Assert.EndsWith("OTHER VERSION", rows[1]);
+        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +2 MS$", rows[1]);
         Assert.False(m.Items[3].Enabled);
-        Assert.EndsWith("FULL", rows[3]);
+        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +5 MS$", rows[3]);
         // The first you can join is chosen; a network game joins by address, a Steam one by its lobby.
         Assert.Equal(2, m.Selected);
         Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
@@ -744,5 +750,82 @@ public sealed class FrontEndTests : IDisposable
         Assert.Equal(Controls.Defaults.Count, Controls.Defaults.Values.Distinct().Count());
         Assert.All(Controls.Defaults.Values, k => Assert.True(Enum.TryParse<Ballast.Platform.Key>(k, out _), k));
         Assert.DoesNotContain(Controls.Defaults.Values, Controls.Reserved.Contains);
+    }
+
+    [Fact]
+    public void TheJoinListPutsRunsOfYourMoodFirstAndALockedRunAsksItsPassword()
+    {
+        // Note 450 (the director, 8 Oct 2026): "a setting called 'Here for Laughs' ... that will automatically sort lowest
+        // ping, here for laughs servers"; "Private matches should be password gated", listed with a lock.
+        var m = Menu();
+        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked) =>
+            new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "host", "FRONTIER:7, 6 CARS, IN THE YARD", 1, m.Protocol, "darkterritory")
+            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked };
+        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false),
+            Lan("10.0.0.3", "FRIENDS ONLY", 10, "", true)], [], "Steam");
+        Choose(m, "JOIN");
+        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..26].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
+        // Looking for either: nearest first.
+        Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
+        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +5 MS$", m.Items[1].Label);
+        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +30 MS$", m.Items[3].Label);
+        // The private run's row starts with the lock, and says why on its detail line.
+        Assert.StartsWith($"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY", m.Items[2].Label);
+        Assert.StartsWith("Private:", m.Items[2].Detail);
+        // HERE FOR LAUGHS: the laughing run first, however far; then the rest, nearest first. One setting, kept.
+        Assert.Equal("MOOD: EITHER", m.Items.First(i => i.Label.StartsWith("MOOD", StringComparison.Ordinal)).Label);
+        Choose(m, "MOOD");
+        Assert.Equal(RunMood.Laughs, m.Settings.Mood);
+        Assert.Equal(["GIGGLES", "LONG HAUL", "FRIENDS ONLY"], Names());
+        Pick(m, "MOOD");
+        m.Right();
+        Assert.Equal(RunMood.Competitive, m.Settings.Mood);
+        Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
+        Assert.Equal(RunMood.Competitive, Settings.Load(SettingsPath).Mood);
+
+        // Picking the locked run asks for its password, typing at once; Enter joins with it.
+        Assert.Null(Choose(m, $"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY"));
+        Assert.Equal(Screen.Password, m.Screen);
+        Assert.Equal(TextField.JoinPassword, m.Editing);
+        Assert.False(m.Items[1].Enabled);
+        m.Type("lantern");
+        Assert.Equal("PASSWORD: *******_", m.Items[0].Label);
+        Assert.Equal(new Launch.Join("10.0.0.3:27450") { Password = "LANTERN" }, m.Select());
+        // Turned away, WRONG PASSWORD: asked again, saying so; Esc and BACK go back to the list.
+        m.AskPassword(new Launch.Join("10.0.0.3:27450") { Password = "LANTERN" }, "FRIENDS ONLY", "WRONG PASSWORD");
+        Assert.Equal("WRONG PASSWORD", m.Message);
+        Assert.Equal("LANTERN", m.JoinPassword);
+        m.Back();
+        m.Back();
+        Assert.Equal(Screen.Join, m.Screen);
+        // An open run joins straight away.
+        Assert.Equal(new Launch.Join("10.0.0.1:27450"), Choose(m, "GIGGLES"));
+    }
+
+    [Fact]
+    public void APrivateRunNeedsAPasswordToOpen()
+    {
+        var m = Menu();
+        Choose(m, "HOST");
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("PASSWORD", StringComparison.Ordinal));
+        Assert.Equal(new Launch.Night("frontier:7", 6, Host: true) { LobbyName = m.LobbyName }, Choose(m, "OPEN THE LOBBY"));
+        Choose(m, "VISIBILITY");
+        Assert.Contains("Listed with a lock", m.Items[m.Selected].Detail);
+        // No password yet: it can't be opened, and says why.
+        var open = m.Items.First(i => i.Label == "OPEN THE LOBBY");
+        Assert.False(open.Enabled);
+        Assert.StartsWith("Type a password first", open.Detail);
+        Choose(m, "PASSWORD");
+        Assert.Equal(TextField.LobbyPassword, m.Editing);
+        m.Type("Night Owls");
+        m.Select();
+        Assert.Equal("PASSWORD: NIGHT OWLS", m.Items[m.Selected].Label);
+        Choose(m, "MOOD");
+        Choose(m, "MOOD");
+        var night = Assert.IsType<Launch.Night>(Choose(m, "OPEN THE LOBBY"));
+        Assert.Equal(("NIGHT OWLS", RunMood.Competitive, true), (night.Password, night.Mood, night.Public));
+        // Kept for next time, and not in the console's log.
+        Assert.Equal("NIGHT OWLS", Settings.Load(SettingsPath).LobbyPassword);
+        Assert.DoesNotContain("NIGHT OWLS", night.Redacted().ToString());
     }
 }
