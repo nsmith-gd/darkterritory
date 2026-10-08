@@ -252,9 +252,9 @@ public sealed partial class WorldArt
             _ => Piece($"spruce-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.3f, form)),
         };
 
-        // The trees and boulders are the sim's (note 371): it deals them from the night's seed, alike on every machine, and
-        // stands them as walls, so what's drawn here is what's walked into. What's only seen of each (its tint, a ghost or a
-        // dead spruce) is drawn from its own seed.
+        // The trees, boulders and the rest beside the line are the sim's (notes 371, 389): it deals them from the night's
+        // seed, alike on every machine, and stands them as walls, so what's drawn here is what's walked into. What's only
+        // seen of each (its tint, a ghost or a dead spruce) is drawn from its own seed.
         var lineside = Sim.Run.LinesideProps.Of(route, line);
         var forts = Forts(line);
         foreach (var prop in lineside?.Props(from, to) ?? [])
@@ -265,12 +265,56 @@ public sealed partial class WorldArt
             double along = prop.Along, offset = prop.Lateral;
             float yaw = (float)prop.Yaw;
             int variant = prop.Variant;
+            if (prop.Kind == Sim.Run.LinesideKind.Piece)
+            {
+                // A homestead and its barn, woodpile and fence; a road's pole, a car; a fish shed, a wharf, a lighthouse; a
+                // biome's buildings and stone walls (LinesideFootprints: the piece by the sim's name).
+                if (!LinesideFootprints.ByName.TryGetValue(prop.Species, out var made))
+                    continue;
+                var built = Piece(made.Cached(variant), () => made.Make(_look, variant));
+                var at = Place(along, offset, yaw, (float)prop.Size, (float)prop.Sink).M;
+                if (made.Instanced)
+                    mesh.Instances.Add(new MeshInstance(built, at));
+                else
+                    mesh.Append(built, at);
+                continue;
+            }
             if (prop.Kind == Sim.Run.LinesideKind.Rock)
             {
-                mesh.Append(Piece($"rock-{variant}", () => WorldKit.Rock(_look, variant, 1)), Place(along, offset, yaw, (float)prop.Size, (float)prop.Sink).M);
+                // The woods' boulders; an erratic, paler than the ledge; an outcrop's slab; the Atlantic's granite ledges and
+                // its weed-black rocks at the tide line; boulders along an edge, granite or Fundy's red sandstone.
+                var rock = Piece($"rock-{variant}", () => WorldKit.Rock(_look, variant, 1));
+                var stretch = Sim.Run.LinesideProps.RockStretch(prop.Species);
+                float size = (float)prop.Size, sink = (float)prop.Sink;
+                var laid = stretch.X == 1 && stretch.Z == 1 ? Place(along, offset, yaw, size, sink).M
+                    : Place(along, offset, yaw, 1, sink, new Vector3((float)stretch.X, (float)stretch.Y, (float)stretch.Z) * size).M;
+                var shade = prop.Species switch
+                {
+                    "erratic" => new Vector3(1.35f, 1.35f, 1.3f),
+                    "outcrop" => new Vector3(1.2f, 1.2f, 1.15f),
+                    "ledge" => new Vector3(1.3f, 1.28f, 1.22f),
+                    "weed" => new Vector3(0.28f, 0.25f, 0.18f),
+                    "redBoulder" => new Vector3(1.2f, 0.75f, 0.6f),
+                    _ => Vector3.One,
+                };
+                mesh.Append(rock, laid, shade);
                 continue;
             }
             float height = (float)prop.Height;
+            if (prop.Species == "fieldSpruce")
+            {
+                // Pasture spruce (maritime-rules.md §5): an old field grown in solid, all of an age and a height.
+                mesh.Append(Piece($"spruce-{variant}", () => NovaKit.Conifer(_look, variant, 12, 0.3f)), Place(along, offset, yaw, height / 12, (float)prop.Sink).M,
+                    new Vector3(0.85f, 0.95f, 0.9f));
+                continue;
+            }
+            if (prop.Species == "apple")
+            {
+                // An orchard gone to ruin: small, gnarled dead apple trees in their rows.
+                mesh.Append(Piece($"dead-{variant}", () => WorldKit.DeadTree(_look, variant, 10)), Place(along, offset, yaw, height / 10, (float)prop.Sink).M,
+                    new Vector3(0.9f, 0.85f, 0.8f));
+                continue;
+            }
             bool dead = prop.Dead, corrupted = prop.Corrupted;
             string kind = prop.Species;
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
@@ -457,233 +501,38 @@ public sealed partial class WorldArt
                         Place(at, Lat(at) + side * (rr.HalfWidthM + 1.2), side > 0 ? MathF.PI / 2 : -MathF.PI / 2, 1, 0.2f).M));
                 }
             }
-            // Homesteads and poles, hashed on the road and the stretch so a cell's always the same.
-            for (double at = Math.Ceiling(a0 / 45) * 45; at < a1; at += 45)
-            {
-                double l = Lat(at);
-                if (Math.Abs(l) < 10 || !Clear(at))
-                    continue;
-                int away = Math.Sign(l);
-                var rng = new Random(unchecked(road.Id.Aggregate(17, (h, ch) => h * 31 + ch) * 31 ^ (int)(at / 45) * 7919));
-                // The road's poles, leaning, on its far side.
-                if (Free(at, l + away * (rr.HalfWidthM + 2.5)))
-                    mesh.Instances.Add(new MeshInstance(Piece($"pole-{(int)(at / 45) % 3}", () => WorldKit.Pole(_look, (int)(at / 45) % 3)),
-                        Place(at, l + away * (rr.HalfWidthM + 2.5), (float)(rng.NextDouble() - 0.5) * 0.3f, 0.85f, 0.2f).M));
-                if (rng.NextDouble() < 0.22)
-                {
-                    // A homestead: the house facing the road, a barn behind now and then, the woodpile, a fence along the front.
-                    double back = l + away * (rr.HalfWidthM + 12 + rng.NextDouble() * 10);
-                    float face = away > 0 ? -MathF.PI / 2 : MathF.PI / 2;
-                    int v = rng.Next(8);
-                    if (Free(at, back) && Free(at + 8, back) && Free(at - 8, back))
-                    {
-                        mesh.Instances.Add(new MeshInstance(Piece($"saltbox-{v}", () => NovaKit.Saltbox(_look, v)), Place(at, back, face + (float)(rng.NextDouble() - 0.5) * 0.2f, 1, 0.3f).M));
-                        int wv = rng.Next(3);
-                        if (Free(at + 11, back))
-                            mesh.Append(Piece($"woodpile-{wv}", () => NovaKit.Woodpile(_look, wv)), Place(at + 11, back - away * 2, 0, 1, 0.05f).M);
-                        if (rng.NextDouble() < 0.45 && Free(at - 4, back + away * 22))
-                        {
-                            int bv = rng.Next(2);
-                            mesh.Instances.Add(new MeshInstance(Piece($"barn-{bv}", () => NovaKit.Barn(_look, bv)), Place(at - 4, back + away * 22, face, 1, 0.3f).M));
-                        }
-                        for (double f = at - 14; f < at + 14; f += 2.4)
-                            if (rng.NextDouble() > 0.15 && Free(f, l + away * (rr.HalfWidthM + 4.5)))
-                                mesh.Append(Piece("fencepost-0", () => WorldKit.FencePost(_look, 0)), Place(f, l + away * (rr.HalfWidthM + 4.5), (float)(rng.NextDouble() - 0.5) * 0.4f, 1, 0.1f).M);
-                    }
-                }
-                else if (rng.NextDouble() < 0.05)
-                {
-                    int cv = rng.Next(4);
-                    mesh.Instances.Add(new MeshInstance(Piece($"car-{cv}", () => NovaKit.Car(_look, cv)),
-                        Place(at, l + away * (rr.HalfWidthM + 0.5), (float)(rng.NextDouble() - 0.5) * 0.6f, 1, 0.12f).M));
-                }
-            }
+            // Its homesteads, poles and cars are the sim's (note 389): drawn with the rest of the lineside, above.
         }
-        // The shore's own (maritime-rules.md §6): fish sheds on their stilts at the head of a cove, a crib wharf run out
-        // from them, and a lighthouse out on a headland; all at the water's edge, wherever it wanders.
-        foreach (var sh in p.Plan.Shores.Where(x => x.Kind != ShoreKind.Dyke && x.S1 > from && x.S0 < to))
+        // The shore's surf (maritime-rules.md §3): a broken pale line where the swell breaks on the Atlantic's rocks. Its
+        // sheds, wharves, lighthouses, ledges and boulders are the sim's (note 389), drawn with the rest of the lineside.
+        foreach (var sh in p.Plan.Shores.Where(x => x.Kind == ShoreKind.Sea && x.S1 > from && x.S0 < to))
         {
             for (double s = Math.Max(sh.S0 + 60, Math.Ceiling(from / 20) * 20); s < Math.Min(sh.S1 - 60, to); s += 20)
             {
                 if (!Clear(s))
                     continue;
-                double e0 = p.Terrain.ShoreEdge(sh, s - 40), e = p.Terrain.ShoreEdge(sh, s), e1 = p.Terrain.ShoreEdge(sh, s + 40);
-                var rng = new Random(unchecked(seed * 7919 ^ (int)(s / 20) * 104729 ^ sh.Id.Length));
-                float seaward = sh.Side > 0 ? MathF.PI / 2 : -MathF.PI / 2;
-                if (e > e0 && e >= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.7)
+                var foam = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
+                foam.Use("plaster_ruin", new Vector3(0.8f), 0.9f, 0.3f, tile: 2);
+                foam.Tint = new Vector3(1.5f, 1.55f, 1.6f);
+                for (double f = s; f < s + 20; f += 2.5)
                 {
-                    // A cove's head: two or three sheds along the waterline, a wharf out from the first.
-                    int sheds = 2 + rng.Next(2);
-                    for (int i = 0; i < sheds; i++)
-                    {
-                        double along = s + (i - sheds / 2.0) * 9, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) - 2);
-                        if (Free(along, lateral * 0.85))
-                            mesh.Instances.Add(new MeshInstance(Piece($"fishshed-{i % 3}", () => NovaKit.FishShed(_look, i % 3)),
-                                Place(along, lateral, seaward + (float)(rng.NextDouble() - 0.5) * 0.4f, 1, 0.9f).M));
-                    }
-                    int wv = rng.Next(2);
-                    mesh.Instances.Add(new MeshInstance(Piece($"wharf-{wv}", () => NovaKit.Wharf(_look, wv)),
-                        Place(s + 4, sh.Side * (e + 1), seaward + MathF.PI, 1, 0).M));
-                }
-                else if (e < e0 && e <= e1 && sh.Kind == ShoreKind.Sea && rng.NextDouble() < 0.18)
-                {
-                    int lv = rng.Next(2);
-                    double lateral = sh.Side * Math.Max(12, e - 10);
-                    if (Free(s, lateral))
-                        mesh.Instances.Add(new MeshInstance(Piece($"lighthouse-{lv}", () => NovaKit.Lighthouse(_look, lv)), Place(s, lateral, seaward, 1, 0.3f).M));
-                }
-                // The Atlantic's edge (maritime-rules.md §3): granite ledges, broad pale whalebacks the ice smoothed,
-                // running down into the water; weed-black rocks at the tide line; and the surf, a broken pale line where
-                // the swell breaks on them.
-                if (sh.Kind == ShoreKind.Sea)
-                {
-                    for (int i = 0; i < 2; i++)
-                    {
-                        double along = s + rng.NextDouble() * 20, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) - 3 + rng.NextDouble() * 7);
-                        float size = 3 + (float)rng.NextDouble() * 5;
-                        int v = rng.Next(3);
-                        mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)),
-                            Place(along, lateral, (float)rng.NextDouble() * 6.28f, 1, size * 0.2f, new Vector3(size * 1.6f, size * 0.35f, size * 1.1f)).M, new Vector3(1.3f, 1.28f, 1.22f));
-                    }
-                    for (int i = 0; i < 3; i++)
-                    {
-                        double along = s + rng.NextDouble() * 20, lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) + 1 + rng.NextDouble() * 6);
-                        int v = rng.Next(3);
-                        float size = 0.6f + (float)rng.NextDouble();
-                        mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(along, lateral, (float)rng.NextDouble() * 6.28f, size, size * 0.5f).M, new Vector3(0.28f, 0.25f, 0.18f));
-                    }
-                    var foam = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-                    foam.Use("plaster_ruin", new Vector3(0.8f), 0.9f, 0.3f, tile: 2);
-                    foam.Tint = new Vector3(1.5f, 1.55f, 1.6f);
-                    for (double f = s; f < s + 20; f += 2.5)
-                    {
-                        if (Noise((float)(f * 0.11), sh.Side * 3.1f) < 0.45f)
-                            continue;
-                        Vector3 Surf(double at, double out_)
-                        {
-                            var t = line.Sample(Math.Clamp(at, 0, line.Length));
-                            var r = Double3.Cross(t.Tangent, Double3.Up).Normalized * sh.Side;
-                            return (new Double3(t.Position.X, sh.LevelM + 0.06, t.Position.Z) + r * (p.Terrain.ShoreEdge(sh, at) + out_)).RelativeTo(eye);
-                        }
-                        var q0 = Surf(f, 0.5);
-                        var q1 = Surf(f, 2.2);
-                        var q2 = Surf(f + 2.3, 2.4);
-                        var q3 = Surf(f + 2.3, 0.4);
-                        foam.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
-                    }
-                }
-                // Boulders along the tide line, granite or sandstone; in a river, across its bed (the rapids).
-                for (int i = 0; i < (sh.Kind == ShoreKind.River ? 4 : 2); i++)
-                {
-                    double along = s + rng.NextDouble() * 20;
-                    double lateral = sh.Side * (p.Terrain.ShoreEdge(sh, along) + (sh.Kind == ShoreKind.River ? rng.NextDouble() * sh.FlatM : (rng.NextDouble() - 0.6) * 10));
-                    int v = rng.Next(3);
-                    float size = 0.7f + (float)rng.NextDouble() * 1.6f;
-                    mesh.Append(Piece($"rock-{v}", () => WorldKit.Rock(_look, v, 1)), Place(along, lateral, (float)rng.NextDouble() * 6.28f, size, size * 0.4f).M,
-                        sh.Kind == ShoreKind.Fundy ? new Vector3(1.2f, 0.75f, 0.6f) : Vector3.One);
-                }
-            }
-        }
-        // What people left, and what the ice left: by the block, each piece as the biome has it (biomes.json props).
-        const double block = 150;
-        for (double b = Math.Floor(from / block) * block; b < to; b += block)
-        {
-            if (b < from || !Clear(b) || p.Biome(b) is not { } def)
-                continue;
-            var rng = new Random(unchecked(seed * 486187739 ^ (int)(b / block) * 6700417));
-            foreach (var (name, rule) in def.Props.OrderBy(kv => kv.Key, StringComparer.Ordinal))
-                for (int n = 0; n < rule.Count; n++)
-                {
-                    if (rng.NextDouble() > rule.Chance)
+                    if (Noise((float)(f * 0.11), sh.Side * 3.1f) < 0.45f)
                         continue;
-                    double lateral = (rng.Next(2) == 0 ? -1 : 1) * (rule.OutM[0] + rng.NextDouble() * (rule.OutM[1] - rule.OutM[0]));
-                    double along = b + rng.NextDouble() * block;
-                    int v = rng.Next(12);
-                    Prop(name, along, lateral, v, rng);
+                    Vector3 Surf(double at, double out_)
+                    {
+                        var t = line.Sample(Math.Clamp(at, 0, line.Length));
+                        var r = Double3.Cross(t.Tangent, Double3.Up).Normalized * sh.Side;
+                        return (new Double3(t.Position.X, sh.LevelM + 0.06, t.Position.Z) + r * (p.Terrain.ShoreEdge(sh, at) + out_)).RelativeTo(eye);
+                    }
+                    var q0 = Surf(f, 0.5);
+                    var q1 = Surf(f, 2.2);
+                    var q2 = Surf(f + 2.3, 2.4);
+                    var q3 = Surf(f + 2.3, 0.4);
+                    foam.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
                 }
-        }
-
-        void Prop(string name, double along, double lateral, int v, Random rng)
-        {
-            float face = lateral > 0 ? MathF.PI / 2 : -MathF.PI / 2, jitter = (float)(rng.NextDouble() - 0.5);
-            void Put(MeshAsset piece, float yaw, float sink = 0.3f, Vector3? stretch = null)
-            {
-                if (Free(along, lateral) && Free(along, lateral * 0.8) && Free(along + 8, lateral) && Free(along - 8, lateral))
-                    mesh.Instances.Add(new MeshInstance(piece, Place(along, lateral, yaw, 1, sink, stretch).M));
-            }
-            switch (name)
-            {
-                case "saltbox": Put(Piece($"saltbox-{v % 8}", () => NovaKit.Saltbox(_look, v % 8)), face + jitter * 0.6f); break;
-                case "barn": Put(Piece($"barn-{v % 2}", () => NovaKit.Barn(_look, v % 2)), face + jitter * 0.5f); break;
-                case "church": Put(Piece("nova-church", () => NovaKit.Church(_look)), face + jitter * 0.2f); break;
-                case "buryingGround": Put(Piece($"burying-{v % 3}", () => NovaKit.BuryingGround(_look, v % 3)), face + jitter * 0.3f, 0.1f); break;
-                case "fishShed": Put(Piece($"fishshed-{v % 3}", () => NovaKit.FishShed(_look, v % 3)), face + jitter * 0.8f, 0.2f); break;
-                case "ruin": Put(Piece($"ruin-{v % 3}", () => SettingKit.RuinWall(_look, v % 3)), face + jitter, 0.2f); break;
-                case "chimney": Put(Piece($"chimney-{v % 3}", () => SettingKit.Chimney(_look, v % 3)), jitter); break;
-                case "tank": Put(Piece($"tank-{v % 3}", () => SettingKit.Tank(_look, v % 3)), jitter * 6); break;
-                case "headframe": Put(Piece("headframe", () => SettingKit.Headframe(_look)), face + jitter * 0.4f); break;
-                case "erratic":
-                    {
-                        // A granite erratic: a house-sized boulder the ice left sitting in the open, paler than the ledge.
-                        float size = 2.2f + (float)rng.NextDouble() * 3;
-                        if (Free(along, lateral))
-                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)), Place(along, lateral, jitter * 6, size, size * 0.25f).M, new Vector3(1.35f, 1.35f, 1.3f));
-                        break;
-                    }
-                case "outcrop":
-                    {
-                        // Granite ledge breaking through the thin soil: a broad, low slab.
-                        float size = 2 + (float)rng.NextDouble() * 4;
-                        if (Free(along, lateral))
-                            mesh.Append(Piece($"rock-{v % 3}", () => WorldKit.Rock(_look, v % 3, 1)),
-                                Place(along, lateral, jitter * 6, 1, size * 0.18f, new Vector3(size * 1.8f, size * 0.45f, size * 1.3f)).M, new Vector3(1.2f, 1.2f, 1.15f));
-                        break;
-                    }
-                case "stoneWall":
-                    {
-                        // A field's wall, run along the line for a stretch, gaps where it's fallen.
-                        int lengths = 6 + rng.Next(12);
-                        for (int i = 0; i < lengths; i++)
-                        {
-                            double s = along + i * 8;
-                            if (s > line.Length || !Clear(s) || !Free(s, lateral) || rng.NextDouble() < 0.12)
-                                continue;
-                            mesh.Instances.Add(new MeshInstance(Piece($"stonewall-{i % 3}", () => NovaKit.StoneWall(_look, i % 3)), Place(s + 8, lateral, 0, 1, 0.1f).M));
-                        }
-                        break;
-                    }
-                case "oldField":
-                    {
-                        // Pasture spruce (maritime-rules.md §5): a farm field given up, grown in solid with white spruce all of
-                        // an age and a height, a dark block with a hard edge where the field's edge was.
-                        float h = 4 + (float)rng.NextDouble() * 4;
-                        for (int i = 0; i < 30; i++)
-                        {
-                            double s = along + (rng.NextDouble() - 0.5) * 36, l = lateral + (rng.NextDouble() - 0.5) * 24;
-                            if (!Free(s, l))
-                                continue;
-                            int tv = rng.Next(4);
-                            mesh.Append(Piece($"spruce-{tv}", () => NovaKit.Conifer(_look, tv, 12, 0.3f)),
-                                Place(s, l, (float)rng.NextDouble() * 6.28f, h * (0.85f + 0.3f * (float)rng.NextDouble()) / 12, 0.1f).M, new Vector3(0.85f, 0.95f, 0.9f));
-                        }
-                        break;
-                    }
-                case "orchard":
-                    {
-                        // An orchard gone to ruin: rows of small, gnarled dead apple trees.
-                        for (int row = 0; row < 4; row++)
-                            for (int i = 0; i < 6; i++)
-                            {
-                                double s = along + i * 6, l = lateral + Math.Sign(lateral) * row * 6;
-                                if (!Free(s, l) || rng.NextDouble() < 0.15)
-                                    continue;
-                                mesh.Append(Piece($"dead-{(i + row) % 2}", () => WorldKit.DeadTree(_look, (i + row) % 2, 10)),
-                                    Place(s, l, (float)rng.NextDouble() * 6.28f, 0.42f + 0.1f * (float)rng.NextDouble(), 0.1f).M, new Vector3(0.9f, 0.85f, 0.8f));
-                            }
-                        break;
-                    }
             }
         }
+        // What people left, and what the ice left (biomes.json props): the sim's too (note 389), drawn with the rest above.
     }
 
     /// <summary>Whether the track's bed and rails are there at <paramref name="s"/> on the main line (not across a washout).</summary>

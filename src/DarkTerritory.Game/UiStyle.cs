@@ -63,6 +63,27 @@ public static class UiStyle
         return w;
     }
 
+    /// <summary>
+    /// TEXT BACKING (note 404) set aside while a plate's drawn: what's written on a plate, a card or a strip has its own ground,
+    /// and a band a line on it would only patch it. <c>using var plate = UiStyle.OnPlate(o);</c> puts it back at the scope's end.
+    /// </summary>
+    public static PlateScope OnPlate(Overlay o) => new(o);
+
+    /// <summary><see cref="OnPlate"/>'s scope.</summary>
+    public readonly struct PlateScope : IDisposable
+    {
+        readonly Overlay _o;
+        readonly Vector4 _was;
+
+        public PlateScope(Overlay o)
+        {
+            (_o, _was) = (o, o.Backing);
+            o.Backing = default;
+        }
+
+        public void Dispose() => _o.Backing = _was;
+    }
+
     /// <summary>Rounds to the font's pixel at this scale (half a canvas pixel in fine print), so glyphs stay crisp.</summary>
     static float Snap(float v, float scale) => MathF.Round(v / MathF.Min(1, scale)) * MathF.Min(1, scale);
 
@@ -72,9 +93,14 @@ public static class UiStyle
     /// </summary>
     public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour, float scale = 1)
     {
+        // TEXT BACKING (note 404): one band behind the whole line, keycaps and all, rather than one a piece of text.
+        var backing = o.Backing;
+        o.Back(x, y, MeasureKeyed(o, text, scale) - scale, scale);
+        o.Backing = default;
         float at = x;
         foreach (var (part, key) in Parts(text))
             at += key ? Keycap(o, at, y - 2 * scale, part, scale) + 3 * scale : o.Text(at, y, part, colour, scale) + scale;
+        o.Backing = backing;
         return at - x;
     }
 
@@ -178,22 +204,44 @@ public static class UiStyle
         return h;
     }
 
-    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
+    /// <summary>
+    /// <paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words. A word wider than the
+    /// line on its own (a crash report's path, note 411) is broken too, after a slash where one fits, so nothing runs off.
+    /// </summary>
     public static IEnumerable<string> Wrap(Overlay o, string text, float width)
     {
         string line = "";
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var whole in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
-            string wider = line.Length == 0 ? word : line + " " + word;
-            if (line.Length > 0 && o.Font.Measure(wider) > width)
+            foreach (var word in Pieces(o, whole, width))
             {
-                yield return line;
-                line = word;
+                string wider = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && o.Font.Measure(wider) > width)
+                {
+                    yield return line;
+                    line = word;
+                }
+                else
+                    line = wider;
             }
-            else
-                line = wider;
         }
         if (line.Length > 0)
             yield return line;
+    }
+
+    /// <summary>A word in pieces that each fit <paramref name="width"/>: after the last slash that fits, or where it has to.</summary>
+    static IEnumerable<string> Pieces(Overlay o, string word, float width)
+    {
+        while (word.Length > 1 && o.Font.Measure(word) > width)
+        {
+            int fit = 1;
+            while (fit < word.Length && o.Font.Measure(word[..(fit + 1)]) <= width)
+                fit++;
+            int slash = word.LastIndexOfAny(['/', '\\'], fit - 1);
+            int cut = slash > 0 ? slash + 1 : fit;
+            yield return word[..cut];
+            word = word[cut..];
+        }
+        yield return word;
     }
 }

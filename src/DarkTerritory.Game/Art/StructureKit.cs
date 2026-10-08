@@ -554,7 +554,14 @@ public static class StructureKit
         {
             case FacilityKind.CoalingTower:
                 {
-                    // A concrete bunker up on timber stilts, its chute arm reaching over the track.
+                    // A concrete bunker up on timber stilts, its chute arm reaching over the track. The modelled tower where
+                    // it's built (facility_pieces coaling_tower, note 422): its braced trestle, the bunker, the hopper and the
+                    // chute hung from its jib, its mouth where GreyboxScene.Chute pours, the stop's lamp on its chain.
+                    if (k.Look is { } built && PropArt.Of(built).Get("coaling_tower") is not null)
+                    {
+                        Piece(k, "coaling_tower", s * 7, 0, Facing(s));
+                        break;
+                    }
                     float x = s * 7;
                     k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
                     foreach (float dx in new[] { -3.5f, 3.5f })
@@ -601,7 +608,15 @@ public static class StructureKit
                 {
                     // Long brick sheds with sawtooth roofs, a tall stack, and the dim glow of a furnace nobody tends. Where the
                     // greybox's block was, 14-30 m out: the yard between it and the spur is the gantry crane's (its far leg
-                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane").
+                    // and the castings' stack stand at 7.5-9 m, facilities.json "crane"). The modelled casting shed where it's
+                    // built (facility_pieces foundry_shed, note 420): its north lights, the furnace's light in its windows
+                    // (an emissive layer), a great doorway at each end of its front so one faces the crane's yard from either
+                    // side of the spur, the cupola through its roof and the stack behind.
+                    if (k.Look is { } built && PropArt.Of(built).Get("foundry_shed") is not null)
+                    {
+                        Piece(k, "foundry_shed", s * 22, 0, Facing(s));
+                        break;
+                    }
                     float x0 = s * 22 - 8, x1 = s * 22 + 8;
                     var (a, b) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
@@ -619,24 +634,44 @@ public static class StructureKit
                 }
             case FacilityKind.MineHead:
                 {
-                    // The headframe over the shaft, its back-stays raking away from the line to the winding house; the
-                    // house's chimney; the spoil heap behind (GDD §18: the mine head's winch hauls from it).
-                    // Up by half again: the prop is modelled to a small colliery's frame, and next to the winding house it
-                    // should be the tallest thing on the site.
+                    // The headframe over the shaft (the sim's lift frame, facilities.json "lift"), its back-stays raking
+                    // away from the line to the winding house. Up by half again: the prop is modelled to a small colliery's
+                    // frame, and it should be the tallest thing on the site.
                     Piece(k, "headframe", s * 12, 0, Facing(s), 1.5f);
-                    WorksHouse(k, s * 25, 0, 10, 14, 8, "brick_soot");
+                    // The winding house 38 m out, its gable to the headframe, the ropes off the sheaves coming in high on it to
+                    // the drum; its boiler house and chimney behind. The tip off its +Z end, where the winch's sleds don't
+                    // run (they come in at -33), its incline climbing away from the house whichever side the house is on.
+                    // The modelled ones where they're built (facility_pieces winding_house, spoil_heap, note 410); else the
+                    // kit's works box, chimney and cone of slag where they stand.
+                    if (k.Look is { } built && PropArt.Of(built).Get("winding_house") is not null)
+                    {
+                        Piece(k, "winding_house", s * 38, 0, Facing(s));
+                        Piece(k, "spoil_heap", s * 36, 33, Facing(-1));
+                        break;
+                    }
+                    WorksHouse(k, s * 38, 0, 12, 15, 9.5f, "brick_soot");
                     k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
-                    k.Cylinder(new Vector3(s * 29, -0.5f, -5), new Vector3(s * 29, 26, -5), 1.4f, 10, radiusB: 1.0f);
+                    k.Cylinder(new Vector3(s * 54.8f, -0.5f, s * 2.5f), new Vector3(s * 54.8f, 30, s * 2.5f), 1.3f, 10, radiusB: 0.85f);
                     k.Use("slag", Palette.Charcoal, 0.9f, 0, tile: 2);
-                    k.Cylinder(new Vector3(s * 34, -1, 26), new Vector3(s * 34, 11, 26), 16, 12, radiusB: 1.5f);
+                    k.Cylinder(new Vector3(s * 36, -1, 33), new Vector3(s * 36, 11, 33), 16, 12, radiusB: 1.5f);
                     break;
                 }
             case FacilityKind.ChemicalWorks:
                 {
                     // Storage tanks in a row, a pipe rack along the front on its trestles, the works behind with two
-                    // tall thin stacks.
+                    // tall thin stacks. The modelled works and rack where they're built (facility_pieces chem_works,
+                    // pipe_rack, note 410): the process house, its stacks and acid tower, its pipe bridges out over the
+                    // tanks onto the rack; the rack in 12 m bays, its last one's pipes turned down into the ground.
                     foreach (float z in new[] { -16f, 0, 16 })
                         Piece(k, "chem_tank", s * 13, z, Facing(s));
+                    if (k.Look is { } built && PropArt.Of(built).Get("chem_works") is not null)
+                    {
+                        Piece(k, "chem_works", s * 26, 0, Facing(s));
+                        foreach (float z in new[] { -18f, -6, 6 })
+                            Piece(k, "pipe_rack", s * 7, s * z, Facing(s));
+                        Piece(k, "pipe_rack_end", s * 7, s * 18, Facing(s));
+                        break;
+                    }
                     k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
                     for (float z = -24; z <= 24; z += 6)
                     {

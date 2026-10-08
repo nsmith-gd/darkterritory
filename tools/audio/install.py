@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -101,13 +102,61 @@ SEQUENCES = {"audio/cs-ribbits--hops.mp3": (0.06, -26), "audio/cs-passenger--boo
              "audio/cs-climbers--roof.mp3": (0.08, -30)}
 
 
-def encode(x, path):
-    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    raw = np.clip(x, -1, 1).astype(np.float32).tobytes()
+# Note 421 (queue #157): the engine decodes a take to 16-bit (Ballast.Audio.OggOpus), and a take levelled with its peaks at
+# full scale can overshoot through the codec (up to ~2 dB), so its transients were clipped. A take that would is put through
+# the codec HEADROOM_DB under full scale instead, and the Opus header's output gain (which the engine applies, in float,
+# after decoding) puts its level back: nothing clips, nothing's quieter. Every other take is encoded as it always was.
+HEADROOM_DB = -3.0
+# How near full scale a decoded take may come (16-bit saturates at 1.0).
+DECODED_PEAK = 0.995
+
+
+def _ogg_crc_table():
+    table = []
+    for i in range(256):
+        r = i << 24
+        for _ in range(8):
+            r = ((r << 1) ^ 0x04C11DB7) if r & 0x80000000 else r << 1
+        table.append(r & 0xFFFFFFFF)
+    return table
+
+
+OGG_CRC = _ogg_crc_table()
+
+
+def set_output_gain(path, gain_db):
+    """Write an Ogg Opus file's header output gain (OpusHead's Q7.8 dB at byte 16) and its first page's CRC again."""
+    b = bytearray(open(path, "rb").read())
+    segments = b[26]
+    head = 27 + segments
+    assert b[:4] == b"OggS" and b[head:head + 8] == b"OpusHead", path
+    struct.pack_into("<h", b, head + 16, int(round(gain_db * 256)))
+    b[22:26] = bytes(4)
+    crc = 0
+    for byte in bytes(b[:head + sum(b[27:head])]):
+        crc = ((crc << 8) ^ OGG_CRC[((crc >> 24) ^ byte) & 0xFF]) & 0xFFFFFFFF
+    struct.pack_into("<I", b, 22, crc)
+    open(path, "wb").write(bytes(b))
+
+
+def _opus(x, path):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(dsp.SR), "-ac", "1", "-i", "-",
                     "-c:a", "libopus", "-b:a", f"{OPUS_KBPS}k", "-application", "audio", "-map_metadata", "-1",
-                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=raw, check=True)
+                    "-fflags", "+bitexact", "-flags:a", "+bitexact", path], input=x.astype(np.float32).tobytes(), check=True)
+
+
+def encode(x, path):
+    """A take as Ogg Opus. Byte-identical for identical audio, so rebuilds don't churn the repo. One that would clip once
+    decoded goes through with headroom and its level put back in the header (HEADROOM_DB)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    x = np.clip(x, -1, 1).astype(np.float32)
+    _opus(x, path)
+    if len(x) == 0 or float(np.max(np.abs(dsp.load(path)))) < DECODED_PEAK:
+        return
+    peak = float(np.max(np.abs(x)))
+    under = 10 ** (HEADROOM_DB / 20)
+    _opus(x * (under / peak), path)
+    set_output_gain(path, 20 * np.log10(peak / under))
 
 
 def split_events(x, n, gap=0.12, db=-38):
@@ -189,7 +238,8 @@ def candidates(line, cue, stored):
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
-FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
+FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
                 "state-starved.labour": "drag",
@@ -197,7 +247,15 @@ FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": 
                 "cs-gannet-strike.hit": "squawk",
                 # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
                 # the headframe's rope, whose tones can read as a whine.
-                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
+                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine",
+                # Note 409: the shut's the Choir's rule, so the one that bangs home and drops its latch last; the open's long creak.
+                "crew-house-door.shut": "sag", "crew-house-door.open": "creak"}
+
+
+# A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
+# floor's rebuild is a candidate only: the director likes the car's boards as they are (build 1121, App. F.1: "on wood and
+# grates they're good").
+SURFACE_CHOICE = {f"crew-footsteps.{cue}.roof": "tin" for cue in ("walk", "run", "jump", "land", "scuff")}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -209,7 +267,7 @@ def pick(cands, mat, line_level, cue_name=None):
     # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
     # (A cue with no first choice leaves the order alone: a library candidate has no key, and None isn't a choice.)
-    want = FIRST_CHOICE.get(cue_name)
+    want = SURFACE_CHOICE.get(f"{cue_name}.{mat}") or FIRST_CHOICE.get(cue_name)
     ok.sort(key=lambda k: (want is not None and k.get("key") != want, not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
 
@@ -336,6 +394,8 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
+    "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
     "crew-mishaps.startle-cattle": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
@@ -343,6 +403,14 @@ CUE_DEF = {
     "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
     # A loose coupling's knock is heard where D1's synth was (note 356): from the gap, its ladders and the ground beside.
     "state-coupling-loose.knock": {"minDistance": 3, "maxDistance": 60},
+    # The walled town (note 415): a fire barrel warms a few metres of the square, a range and a clock a room; the townsfolk
+    # are heard across a street or two.
+    "place-town.fire": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "place-town.range": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.clock": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "place-town.radio": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.murmur": {"minDistance": 3, "maxDistance": 35, "rolloff": 1.0},
+    "place-town.cough": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
 }
 
 

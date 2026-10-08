@@ -252,6 +252,8 @@ public sealed partial class CrewCalls
             || site.Has(ModuleKind.Spout) && site.Bin > 0 && Has(StopJob.Shunter)
             // The steam lift's lever too (note 368), while the driver walks the cars under its chute and vents into it.
             || site.Has(ModuleKind.Lift) && site.Ore > 0 && Has(StopJob.Shunter)
+            // And the conveyor line's drive house and belt (note 400), while the driver walks the cars under its head.
+            || site.Has(ModuleKind.Conveyor) && site.Grain > 0 && Has(StopJob.Shunter)
             || site.Has(ModuleKind.Ramp) && site.Head > 0 && PairWithPeople
             // The hose wants one (D.2 fluid gantry "1–2"): its own hand, or a spare one (note 261).
             || site.Has(ModuleKind.Hose) && HoseHand
@@ -494,6 +496,31 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         return best;
     }
 
+    /// <summary>
+    /// The conveyor line's next car (note 400): as the spout's, the car with room that comes under its head with the engine
+    /// furthest up the spur, and where the engine's front stands for that. Null when there's no grain for it, no car left with
+    /// room that it reaches, or the engine's not down the spur.
+    /// </summary>
+    public (int Car, double Front)? ConveyorTarget(World world)
+    {
+        var rake = world.Train.Dynamics;
+        if (!Site.Has(ModuleKind.Conveyor) || Site.Grain <= 1e-6 || rake.Path != Spur.Index)
+            return null;
+        double head = Spur.Toe + Site.ConveyorAlong;
+        (int Car, double Front)? best = null;
+        var vehicles = rake.Consist.Vehicles;
+        for (int i = 0; i < vehicles.Count; i++)
+        {
+            var v = vehicles[i];
+            if (v.Kind != VehicleKind.Cargo || v.Load >= 1 - 1e-6)
+                continue;
+            double front = head + rake.Consist.OffsetOf(i) + v.Length(rake.Consist.Tuning) / 2;
+            if (front <= Spur.End - 1 && (best is null || front > best.Value.Front))
+                best = (v.Id, front);
+        }
+        return best;
+    }
+
     /// <summary>The herd still to go up the ramp, with a car at its top to take them, while the engine's at the end.</summary>
     public bool HerdLeft(World world) => Site.Has(ModuleKind.Ramp) && Site.Head > 0 && AtTheEnd(world.Train)
         && world.Run?.CarAtRamp(world.Train, Site) is not null;
@@ -678,7 +705,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting, Conveying }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
     // loading's was 300; cab forward, note 276, the warm a cold hand goes back to is 10 m further from the cars, and a lone
@@ -686,6 +713,8 @@ public sealed class StopDriver(CrewCalls calls)
     const double HeldGiveUp = 240, LoadingGiveUp = 360, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
     /// <summary>The steam lift's give-up (note 368): it goes at the fire's pace once the boiler's emptied, slower than the spout.</summary>
     const double LiftGiveUp = 480;
+    // The conveyor's three car-loads at 25 s a car, a jam every 30-60 s of it, and the walk to each and back to the drive house.
+    const double ConveyGiveUp = 420;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
@@ -982,8 +1011,16 @@ public sealed class StopDriver(CrewCalls calls)
                     bool late = Late(world, p);
                     // A pick-up's loading is the coupling, done once it's run up to the end (note 187).
                     bool loaded = p.PickUp || Loaded(world, p) || Waited > LoadingGiveUp || late;
-                    // The rest in, the grain elevator's spout next (GDD §18): walked under it a car at a time, the shunter on
-                    // its lever, the rest of the crew aboard.
+                    // The rest in, the grain elevator's conveyor first (note 400): walked under its head a car at a time, the
+                    // shunter starting it at its drive house and roaming its belt for the jams. It reaches the cars ahead of the
+                    // spout's, so the spout takes the rest after it.
+                    if (loaded && !late && Waited <= LoadingGiveUp && calls.Has(StopJob.Shunter) && p.ConveyorTarget(world) is not null)
+                    {
+                        Begin(Leg.Conveying);
+                        return Hold(world);
+                    }
+                    // Then its spout (GDD §18): walked under it a car at a time, the shunter on its lever, the rest of the crew
+                    // aboard.
                     if (loaded && !late && Waited <= LoadingGiveUp && calls.Has(StopJob.Shunter) && p.SpoutTarget(world) is not null)
                     {
                         Begin(Leg.Spouting);
@@ -1020,6 +1057,34 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     // Nobody moves the train with a hand still climbing aboard, or while the grain's coming down.
                     if (!calls.RidingBut(OnTheTrain(train), StopJob.Shunter) && Waited < AboardGiveUp || world.Run?.Sites[p.Facility]?.Pouring == true)
+                        return Hold(world);
+                    double front = target.Value.Front;
+                    if (Math.Abs(engine.Distance - front) < 0.5)
+                        return Hold(world);
+                    return Toward(world, front, engine.Distance > front ? -1 : 1, 1.5);
+                }
+            case Leg.Conveying:
+                {
+                    var p = Plan!;
+                    bool late = world.Run is { } cr && cr.DawnIn < Home(world, cr, p.Hold) + LateSpare + AboardGiveUp;
+                    var target = p.ConveyorTarget(world);
+                    calls.Leave(false);
+                    if (target is null || late || !calls.Has(StopJob.Shunter) || Waited > ConveyGiveUp)
+                    {
+                        // Done (or given up): the spout next if it has a car to fill, else all aboard and back out.
+                        if (!late && calls.Has(StopJob.Shunter) && p.SpoutTarget(world) is not null)
+                        {
+                            Begin(Leg.Spouting);
+                            return Hold(world);
+                        }
+                        calls.Leave(true);
+                        if (calls.Riding(OnTheTrain(train)) || Waited > ConveyGiveUp + AboardGiveUp)
+                            Begin(Leg.BackOut);
+                        return Hold(world);
+                    }
+                    // Nobody moves the train with a hand still climbing aboard, or while the belt's carrying into a car; jammed
+                    // or stopped, the car under the head waits for it.
+                    if (!calls.RidingBut(OnTheTrain(train), StopJob.Shunter) && Waited < AboardGiveUp || world.Run?.Sites[p.Facility]?.Carrying == true)
                         return Hold(world);
                     double front = target.Value.Front;
                     if (Math.Abs(engine.Distance - front) < 0.5)
@@ -1438,6 +1503,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var part = Part(p, world);
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
+        // The Choir gathering (note 413): behind a house's door, or aboard (the walker's way), before any of the work.
+        if (job != StopJob.Driver && (_hiding != Hiding.Off || self.Surface == Surface.Ground) && Shelter(self, world, p) is var hiding
+            && (hiding is not null || _hiding != Hiding.Off))
+            return hiding;
         if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0 && !(part == StopJob.Crates && _reachedEnd))
             return null;
         // Too cold to keep at it: into the cab if it's near (the walker's way into a car if not), until properly warm again.
@@ -1739,6 +1808,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // In the cab while the empties are down the spur, until the whole train's back together short of the points. At the
         // grain elevator, down on the spout's lever first while there's a car to fill under it (GDD §18; note 185).
         bool back = train.TrainRakes == 1 && train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance <= p.Hold + 3;
+        // The conveyor's drive house and belt first (note 400), while there's a car to fill that comes under its head.
+        if (!back && _reachedEnd && p.ConveyorTarget(world) is not null && !calls.Leaving)
+            return Convey(self, world, p);
         if (!back && _reachedEnd && p.SpoutTarget(world) is not null && !calls.Leaving)
             return Spout(self, world, p);
         // Or on the steam lift's (note 368), while there's a car to fill under its chute in the engine's reach.
@@ -1795,6 +1867,32 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         bool fill = car is not null && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05;
         Doing = fill ? "pouring" : "at the spout";
         return fill ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// The conveyor line (note 400; spec D.2 "1 + 1 roaming", done by one): stopped, to its drive house and holding the starter
+    /// till it runs; jammed, to the ground beside the jam and holding Use there till it's clear (a jam comes first: a stalled
+    /// belt that's still jammed only jams again); running, beside the middle of its low run, where every jam is a short walk.
+    /// </summary>
+    PlayerIntent? Convey(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.ConveyorStarter, self.LineHint));
+        var (goal, beyond, going, doing, use) = site.Jam >= 0 ? (site.JamAt, -0.8, "to the jam", "clearing the jam", true)
+            : !site.Running ? (site.ConveyorStarter, 0.5, "to the drive house", "starting the belt", true)
+            : (Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.5), -1.0, "along the belt", "minding the belt", false);
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, goal, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + beyond));
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = going;
+            return step;
+        }
+        Doing = doing;
+        return use ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
     }
 
     /// <summary>
@@ -2048,6 +2146,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return home;
         // Nothing more to carry: the village's houses, if there's time and a share of hands for it (note 326); else the doors
         // shut behind us (an open car is a cold one), and aboard.
+        // The site's crates in: the rest of the yard's, on foot (note 403); then the village.
+        // (On with one we've set out for, whoever else has a crate in their arms: that's a crate to load too.)
+        if (!heavy && _setDown is null && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
+            return fetch;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
             return errand;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
@@ -2129,6 +2231,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         }
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, side);
+        // A crate from elsewhere in the yard in our arms (note 403): back round the sheds, and round the train if it was
+        // across it, to these steps first.
+        if (mine is { Kind: Physics.BodyKind.Cargo }
+            && CrateHome(self, world, p, mine, frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 })) is { } back)
+            return back;
         // On the far side of the train from the steps there's no way round on foot: put it down, over the train (the
         // walker climbs the nearest car; off it, we get down on this side), and back to it.
         var (_, across) = TrackCoords(train.Line, p.Spur.Index, self.Position, self.LineHint);

@@ -48,8 +48,24 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
-// A crash leaves a report (the exception, and the last things the game said) in the user's app data.
-CrashReports.Install();
+// A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
+// elsewhere), and the next launch opens on a notice that says where it is (note 411).
+int crashesAt = Array.IndexOf(args, "--crashes");
+var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+
+// The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to.
+void OpenFolder(string path)
+{
+    try
+    {
+        System.IO.Directory.CreateDirectory(path);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+    }
+    catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
+    {
+        Console.WriteLine($"couldn't open {path}: {e.Message}");
+    }
+}
 
 string Arg(string name, string fallback)
 {
@@ -107,7 +123,11 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     // The PROFILE page (note 293): the commendations kept in the profile, and where the nights' stills go (note 203).
     Profile = profile.Load(),
     StillsFolder = BookmarkAlbum.DefaultDirectory,
+    // Note 411: the game stopped last time, and the console that said where its report is was never seen.
+    Crash = CrashReports.Unseen(crashes.Directory),
 };
+if (frontEnd.Crash is not null)
+    frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -403,6 +423,12 @@ Launch? MenuLoop()
         }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
+        // Note 411: OPEN THE REPORTS shows their folder in the system's file browser, and the menu stays up under it.
+        if (chosen is Launch.OpenFolder folder)
+        {
+            OpenFolder(folder.Path);
+            chosen = null;
+        }
         if (chosen is not null)
         {
             // The key that chose it isn't also the night's first press.
