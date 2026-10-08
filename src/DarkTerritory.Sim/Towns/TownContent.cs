@@ -107,6 +107,19 @@ public sealed record WalledTuning
     /// <summary>The wall's distance past the last row's backs, and the rear wall's place along the line (m; behind the yard's start).</summary>
     public double Margin { get; init; } = 7;
     public double Rear { get; init; } = -8;
+    /// <summary>
+    /// How the streets bend (note 353's natural layout): each street a side swings out and back on one wave of
+    /// <see cref="BendWavelength"/> m, the first by <see cref="BendBase"/> m and each further out by <see cref="BendStep"/>
+    /// m more (so the rows between them keep their room), at most <see cref="BendMax"/>,
+    /// straight within <see cref="BendClear"/> m of the square's ends (the square and the green keep their lines).
+    /// </summary>
+    public double BendBase { get; init; }
+    public double BendStep { get; init; }
+    public double BendMax { get; init; }
+    public double[] BendWavelength { get; init; } = [220, 320];
+    public double BendClear { get; init; } = 30;
+    /// <summary>How much further back a house may stand than the setback, or nearer (m): the row steps in and out.</summary>
+    public double[] SetbackJitter { get; init; } = [0, 0];
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
 }

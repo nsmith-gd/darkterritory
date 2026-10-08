@@ -161,7 +161,7 @@ public static partial class TownGenerator
             // The day, painted on the inside of the back wall at the ends of the first streets, where you see it down them.
             var murals = Take(w.Civic.GetValueOrDefault("mural") ?? [], 2, Rng("civic.murals"));
             for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
-                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].D, 1, 0);
+                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].At(walls.Rear), 1, 0);
         }
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out

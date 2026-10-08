@@ -385,21 +385,23 @@ public sealed partial class WorldArt
             for (double s = st.S0; s < st.S1; s += chunk)
             {
                 double mid = Math.Min(s + chunk / 2, st.S1 - chunk / 2);
-                var at = town.World(mid, st.D);
+                var at = town.World(mid, st.At(mid));
                 if ((at - eye).Length > 320)
                     continue;
-                mesh.Instances.Add(new MeshInstance(piece, Place(line, eye, at, mid, 1, 0)));
+                // Turned along the street where it bends (note 353), a little longer so the pieces meet.
+                double slope = (st.At(mid + 1) - st.At(mid - 1)) / 2;
+                mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(1, 1, (float)Math.Sqrt(1 + slope * slope) * 1.04f) * Place(line, eye, at, mid, 1, slope)));
             }
             // A lamp post every 45 m, the street's side away from the line, alternating.
             int n = 0;
             for (double s = st.S0 + 12; s < st.S1; s += 45, n++)
             {
-                double d = st.D + Math.Sign(st.D) * (n % 2 == 0 ? 1 : -1) * (st.Width / 2 + 0.6);
+                double d = st.At(s) + Math.Sign(st.D) * (n % 2 == 0 ? 1 : -1) * (st.Width / 2 + 0.6);
                 var at = town.World(s, d);
                 double far = (at - eye).Length;
                 if (far > 260)
                     continue;
-                var m = Place(line, eye, at, s, 0, -Math.Sign(d - st.D));
+                var m = Place(line, eye, at, s, 0, -Math.Sign(d - st.At(s)));
                 mesh.Instances.Add(new MeshInstance(post, m));
                 if (far > 120)
                     continue;

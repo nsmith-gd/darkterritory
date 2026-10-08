@@ -69,7 +69,7 @@ public static class Staging
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
@@ -80,6 +80,9 @@ public static class Staging
                 "watch" when Art.WorldArt.Watch(town, wall.Gate, 0.37).Select(g => g.Feet).OrderBy(f => (f - town.World(mid, wall.Right)).Length).ToList() is { Count: > 0 } guards
                     => guards[0] is var g && town.Direction(mid, 1, 0) is var along && town.Direction(mid, 0, 1) is var across
                         ? Ballast.Render.Camera.LookAt(g - Double3.Up * (Sim.Run.Fortresses.WallWalk - 1.7) - across * (Math.Sign(across.X * (g - town.World(mid, 0)).X + across.Z * (g - town.World(mid, 0)).Z) * 6) + along * 34, g + Double3.Up * 1.1, 40) : default,
+                // Down the second street, far from the square, where it bends (note 353).
+                "bend" when wall.Streets.Where(x => Math.Sign(x.D) == side).OrderBy(x => Math.Abs(x.D)).Skip(1).FirstOrDefault() is { } far
+                    => Ballast.Render.Camera.LookAt(town.World(sq.S0 - 160, far.At(sq.S0 - 160), 2.2), town.World(sq.S0 - 260, far.At(sq.S0 - 260), 1.4), 70),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
         }

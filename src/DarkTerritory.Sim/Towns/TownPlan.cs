@@ -1,3 +1,4 @@
+using Ballast;
 namespace DarkTerritory.Sim.Towns;
 
 /// <summary>
@@ -49,8 +50,30 @@ public sealed record TownBounds(double Rear, double Gate, double Left, double Ri
     public bool Holds(double s, double d, double pad = 0) => s >= Rear - pad && s <= Gate + pad && d >= -Left - pad && d <= Right + pad;
 }
 
-/// <summary>A street beside the line: its middle (D), from <see cref="S0"/> to <see cref="S1"/> along it, its width.</summary>
-public sealed record TownStreet(double D, double S0, double S1, double Width);
+/// <summary>
+/// A street beside the line: its middle (D) where it runs straight, from <see cref="S0"/> to <see cref="S1"/> along it, its
+/// width; and how it bends (note 353): out from the line by <see cref="Bend"/> times its side's <see cref="Wave"/>.
+/// </summary>
+public sealed record TownStreet(double D, double S0, double S1, double Width, double Bend = 0, TownWave? Wave = null)
+{
+    /// <summary>Its middle at <paramref name="s"/> along the line.</summary>
+    public double At(double s) => D + Math.Sign(D) * Bend * (Wave?.At(s) ?? 0);
+}
+
+/// <summary>
+/// The wave a side's streets bend on (note 353), −1 to 1: a sine of <see cref="Length"/> m from <see cref="Phase"/>, eased
+/// to nothing within <see cref="Ease"/> m of the stretch from <see cref="Quiet0"/> to <see cref="Quiet1"/> (the square
+/// and its green), where it's straight.
+/// </summary>
+public sealed record TownWave(double Phase, double Length, double Quiet0, double Quiet1, double Ease)
+{
+    public double At(double s)
+    {
+        double off = s < Quiet0 ? Quiet0 - s : s > Quiet1 ? s - Quiet1 : 0;
+        double t = Math.Clamp(off / Math.Max(1, Ease), 0, 1);
+        return DMath.Sin((s - Phase) / Length * 2 * Math.PI) * t * t * (3 - 2 * t);
+    }
+}
 
 /// <summary>A lane across the streets at <see cref="S"/>, from <see cref="D0"/> to <see cref="D1"/>, its width.</summary>
 public sealed record TownLane(double S, double D0, double D1, double Width);

@@ -72,7 +72,11 @@ public class WalledTownTests
                 Assert.True(b.Holds(x.S0, x.D0) && b.Holds(x.S1, x.D1), $"house {x.Id} at ({x.S0:0}..{x.S1:0}, {x.D0:0}..{x.D1:0}) outside the wall");
             Assert.True(x.D0 > 3 || x.D1 < -3, $"house {x.Id} on the line");
             foreach (var st in b?.Streets ?? [])
-                Assert.False(x.D1 > st.D - st.Width / 2 && x.D0 < st.D + st.Width / 2 && x.S1 > st.S0 && x.S0 < st.S1, $"house {x.Id} in the street at {st.D:0}");
+            {
+                // Where the street is along the house (it bends: note 353).
+                double near = Math.Min(Math.Min(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2)), far = Math.Max(Math.Max(st.At(x.S0), st.At(x.S1)), st.At((x.S0 + x.S1) / 2));
+                Assert.False(x.D1 > near - st.Width / 2 && x.D0 < far + st.Width / 2 && x.S1 > st.S0 && x.S0 < st.S1, $"house {x.Id} in the street at {st.D:0}");
+            }
             foreach (var lane in b?.Lanes ?? [])
                 Assert.False(x.S1 > lane.S - lane.Width / 2 && x.S0 < lane.S + lane.Width / 2, $"house {x.Id} in the lane at {lane.S:0}");
             Assert.False(Math.Sign(x.D0) == sq.Side && x.S1 > sq.S0 && x.S0 < sq.S1 && Math.Min(Math.Abs(x.D0), Math.Abs(x.D1)) < Math.Abs(sq.WallD),

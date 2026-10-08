@@ -39,8 +39,13 @@
   // gate. The wall stands "margin" past the last row's backs, down both sides, across the front from the gatehouse and
   // across the back "rear" m along from the yard's start (behind it). Linegen levels the ground for it (tiers.json
   // fortress padM). A town whose houses fit the line's street keeps the yard's walls (note 274).
+  // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
+  // side's swing out and back on one wave "bendWavelength" m long, the first street "bendBase" m and each further out
+  // "bendStep" m more (the rows between them keep their room) up to "bendMax",
+  // straight within "bendClear" m of the square's ends; a house stands "setbackJitter" m further back than the setback.
   "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8,
-    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5 },
+    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5,
+    "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2] },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs

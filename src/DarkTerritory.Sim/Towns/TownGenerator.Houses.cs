@@ -55,6 +55,9 @@ public static partial class TownGenerator
         };
     }
 
+    /// <summary>The least room between a house's front and its picket fence (m): a step and a path.</summary>
+    const double FenceOffStep = 2.6;
+
     /// <summary>How far in from the square's ends the green across the street from it starts (m).</summary>
     const double GreenIn = 4;
 
@@ -114,6 +117,18 @@ public static partial class TownGenerator
             }
             lots.RemoveAll(l => laneAt.Any(a => Math.Abs(a - l.S) < l.Frontage / 2 + wt.LaneWidth / 2));
         }
+        // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
+        // side's on one wave, more for each street out, so the rows between them keep their room; straight by the square
+        // and its green. And a house stands back from its street by a little more or less than the next.
+        var brng = rngFor("houses.bends");
+        var waves = new Dictionary<int, TownWave>();
+        foreach (int sd in new[] { side, -side })
+            waves[sd] = new TownWave(brng.Range(0, 400), brng.Range(wt.BendWavelength[0], wt.BendWavelength[1]),
+                square.S0 - wt.BendClear, square.S1 + wt.BendClear, 40);
+        double Amp(int k) => k <= 0 ? 0 : Math.Min(wt.BendMax, wt.BendBase + wt.BendStep * (k - 1));
+        // How far out from straight the k-th street (and its rows) is at s, on side sd (0 for the line's own row).
+        double Swing(int sd, int k, double s) => k <= 0 ? 0 : Amp(k) * waves[sd].At(s);
+        var jrng = rngFor("houses.setbacks");
         int count = 0;
         while (lots.Count < needed && count < wt.MaxStreets)
         {
@@ -121,7 +136,7 @@ public static partial class TownGenerator
             double c = wt.First + (count - 1) * wt.Every, off = wt.Width / 2 + wt.Setback + depthMax / 2;
             foreach (int sd in new[] { side, -side })
             {
-                streets.Add(new TownStreet(sd * c, s0, s1, wt.Width));
+                streets.Add(new TownStreet(sd * c, s0, s1, wt.Width, Amp(count), waves[sd]));
                 // Its line-side row faces out from the line, its far row faces back toward it: both front the street.
                 foreach (var (d, facing, row) in new[] { (sd * (c - off), -sd, 2 * count - 1), (sd * (c + off), sd, 2 * count) })
                     for (double s = s0; ;)
@@ -134,8 +149,9 @@ public static partial class TownGenerator
                         bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
                         // The green (note 353): the first street's far row and the next street's near one, across from the square.
                         bool onGreen = sd == side && row is 2 or 3 && mid + lot / 2 > square.S0 + GreenIn && mid - lot / 2 < square.S1 - GreenIn;
+                        double back = jrng.Range(wt.SetbackJitter[0], wt.SetbackJitter[1]);
                         if (!lane && !inSquare && !onGreen)
-                            lots.Add((Math.Round(mid, 3), d, facing, lot, row));
+                            lots.Add((Math.Round(mid, 3), d + sd * Swing(sd, count, mid) + facing * back, facing, lot, row));
                         s += lot;
                     }
             }
@@ -143,7 +159,7 @@ public static partial class TownGenerator
         // Nearest the square first: the town grows out from its heart, its lost at its edges, nothing past them.
         double heartS = (square.S0 + square.S1) / 2, heartD = side * 15;
         lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
-        double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin;
+        double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin + wt.SetbackJitter[1] + Amp(count);
         if (count > 0)
             homes.Green = new TownGreen(square.S0 + GreenIn, square.S1 - GreenIn, wt.First + wt.Width / 2,
                 count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, side);
@@ -154,15 +170,31 @@ public static partial class TownGenerator
         // yards run to: halfway to the row behind, or short of the wall. The line-side rows fence the back line between them
         // and the row behind (one fence, not two). Distances out from the line.
         double offRow = wt.Width / 2 + wt.Setback + depthMax / 2;
-        (double? Edge, double Back, bool Fenced) RowYards(int row)
+        // Where the streets bend, the edges and back lines go with them (a back line halfway between its two rows' swings),
+        // each taken the cautious way over the lot's whole frontage (from s - half to s + half): a yard never reaches past
+        // the nearest its back line comes, nor a fence into its street, so the rows either side can't meet (note 353).
+        (double? Edge, double Back, bool Fenced) RowYards(int row, int sd, double s, double half)
         {
+            (double Lo, double Hi) Over(Func<double, double> f)
+            {
+                double lo = double.MaxValue, hi = double.MinValue;
+                for (int i = 0; i <= 4; i++)
+                {
+                    double v = f(s - half + half * i / 2);
+                    (lo, hi) = (Math.Min(lo, v), Math.Max(hi, v));
+                }
+                return (lo, hi);
+            }
             if (row == 0)
-                return (null, count > 0 ? (st.Out + wt.First - offRow) / 2 : Run.Fortresses.WallOut - Run.Fortresses.WallHalf - 0.3, false);
+                return (null, count > 0 ? Over(x => (st.Out + wt.First - offRow) / 2 + Swing(sd, 1, x) / 2).Lo : Run.Fortresses.WallOut - Run.Fortresses.WallHalf - 0.3, false);
             int k = (row + 1) / 2;
             double c = wt.First + (k - 1) * wt.Every;
+            // The line-side row: its street's edge out from it, its yard back toward the line. The far row: the other way.
             return row % 2 == 1
-                ? (c - wt.Width / 2, k == 1 ? (st.Out + c - offRow) / 2 : c - wt.Every / 2, true)
-                : (c + wt.Width / 2, k < count ? c + wt.Every / 2 : reach - 1.5, false);
+                ? (Over(x => c - wt.Width / 2 + Swing(sd, k, x)).Lo,
+                    Over(x => k == 1 ? (st.Out + c - offRow + Swing(sd, k, x)) / 2 : c - wt.Every / 2 + (Swing(sd, k - 1, x) + Swing(sd, k, x)) / 2).Hi, true)
+                : (Over(x => c + wt.Width / 2 + Swing(sd, k, x)).Hi,
+                    k < count ? Over(x => c + wt.Every / 2 + (Swing(sd, k, x) + Swing(sd, k + 1, x)) / 2).Lo : reach - 1.5, false);
         }
 
         // More to a house where there aren't houses enough.
@@ -220,7 +252,7 @@ public static partial class TownGenerator
             if (character.Uniform)
                 model ??= design;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout);
-            var (edge, back, fenced) = RowYards(row);
+            var (edge, back, fenced) = RowYards(row, Math.Sign(d0), s, frontage / 2);
             var yard = Yard(house, character.Yard, frontage, edge * Math.Sign(d0), back * Math.Sign(d0), fenced, ref yrng);
             // A lot beside the square can reach past its end (the lots keep out of it by their middles): nothing of its yard
             // stands in the square.
@@ -286,7 +318,8 @@ public static partial class TownGenerator
         var things = new List<YardThing>();
         bool lived = h.Kind is HouseKind.Lived or HouseKind.Open;
         double half = frontage / 2;
-        if (edgeD is { } edge && rng.Chance(lived ? odds.Picket : odds.Picket / 2))
+        // (Where a bending street comes close, there's no room for one off the step: note 353.)
+        if (edgeD is { } edge && rng.Chance(lived ? odds.Picket : odds.Picket / 2) && h.Side * (edge - h.FrontD) + 0.25 < -FenceOffStep)
         {
             double v = h.Side * (edge - h.FrontD) + 0.25, gate = h.Design.DoorU;
             int worn = lived ? 0 : 1;
