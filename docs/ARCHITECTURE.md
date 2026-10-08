@@ -6280,3 +6280,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **How:** its neck and head turned that way over whatever clip it's on (`CreatureArt.DrawTurned`: the turn shared 0.4, 0.25, 0.35 down neck_01, neck_02 and head, clamped at 1.3 rad, as far as a sheep turns standing; the head tipped up to a face, 0.5 rad, or down 0.35), by `CreatureArt.Bend` on the clip's pose. `SceneArt.SheepAim` is the turn and tip from its own facing.
     - **Each at its own pace:** eased toward who it's looking at at 2 to 5 per second, from its own hash, so the pen comes round one after another, not all at once; first seen (a still, a car coming into reach), already there.
     - **Verified:** `LivestockArtTests` (ahead, left, right and behind from either facing; the tip clamped; the turned head's forward where it was asked to look). `dt screenshot --cargo livestock --view penclose [--unseen]` (crouched at the pen's rail; `--unseen` for them not looking, GreyboxScene.Onlook).
+
+430. **The conveyor line's art (queue #166, C1; A1's #136, note 400: "the conveyor's greybox only, its art left to C1"; spec D.2, D.3).** The grain elevator's conveyor was the greybox's rods and boxes. Now it is modelled in facility_pieces.py and drawn by `SceneArt.Conveyor` where the sim lays it (`Site.ConveyorTail`, `Knee`, `Head`, `Starter`). The greybox is kept as the fallback (`GreyboxScene.SetPieces`' `conveyorDrawn`).
+    - **The pieces:**
+        - The low run from the tail to the knee is `belt_section`s (380 triangles each): 3 m of troughed belt on its idlers and stringers, its return under, on a timber trestle. They're stretched a little so a whole number fills the run.
+        - `belt_riser` (768): a covered truss gallery from the knee up into the head's hood, tipped up the slope and stretched to the sim's knee and head (`Inclined`).
+        - `belt_head` (452): the gantry astride the track, its deck and rail, the head pulley's hood and the chute down to over a car's roof.
+        - `drive_house` (174): the corrugated hut past the tail, its exhaust, the tail drum at the belt's end and the drive's guard.
+        - `drive_flywheel` (220).
+    - **What moves, from the sim:**
+        - The flywheel turns, and splices crawl along the belt at the grain's speed, while it runs and isn't jammed (`Running`, `Jam`).
+        - The lamp by the drive house's door is green while it runs and red stopped or jammed. The starter (`lever_handle`) is down while it runs.
+        - Grain rides the belt while it carries and falls from the head into the car under it.
+        - A jam is a heap fouled on the belt where the sim has it (`JamAt`), the grain behind it stood still and some spilled off the side.
+    - **The frame's per-layer tables, 256 to 512 (`GreyboxRenderer.LayerTable`):** the conveyor's five atlases took the library's and the models' layers past 256. The frame's per-layer tables (`HeroOf`, `MotionOf`; frame.glsl's `heroOf`, `motionOf`) covered only the first 256. A layer past them was still drawn, but never at its hero size and never moving: the Weight's atlas lost its hero slot (`LookTests.TheBakedAtlasesKeepTheirResolution` caught it). They cover 512 now, and the uniform grows 2 KB, to about 6.5 KB of the 16 KB every device allows. `LookTests.EveryLayerHasItsPlaceInTheFramesTables` fails before the next model passes them again.
+    - **`dt screenshot --site --facility grainElevator --belt [head | drive] [--conveying | --jam f]`:** A1's camera along the run, and two new ones. `head` looks from the riser's side up at the gantry; across the track a stop's sheds stand. `drive` is at the drive house from the track's side.
+    - **Verified:**
+        - `SetPieceArtTests.TheConveyorIsTheArtsWhereTheSimLaysItAndTurnsOnlyWhileItRuns` covers the layout and the motion. The head's gantry stands on the track under the sim's head, and the sections fill the run. The flywheel is still while stopped and turns while running. The lamp is red, then green.
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - The Game suite.
+        - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
+
