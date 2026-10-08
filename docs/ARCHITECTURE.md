@@ -5745,6 +5745,43 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pinned:**
         - `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp`. A door shut from the street is heard once, at `DoorSound`, clear. Opened and shut again from inside, the ear is in the house's space, the space is "room", and nothing stands between the ear and the door. Shut up in the house while the Choir besieges, 2–5 beats in 3 s on its door, with nothing between.
         - `CaptionsTests`' theory names the three captions.
+412. **Searching the open houses heard (AU1, queue #148; note 326's hiding spots).** A crewmate going through an open house's cupboard, cabinet, cellar or boards (`Run.SearchAct`: Use held for loot.json `search.seconds`) did it in silence, and the find came out in silence. A crewmate across the street had no way of knowing a house was being gone through, and a searcher heard nothing of their own hands.
+    - **How:** `GameAudio.HouseSearch` holds each kind's sound where the spot keeps its things (`HidingSpot.Kept`). Cupboards and cabinets play at shelf and drawer height; a cellar's hatch and the boards play at the floor.
+        - The sound plays while the spot's replicated search is under way (`Run.SearchProgress`: the host's furthest hand on it, or the progress a client was sent). Every crewmate hears it, and it's cut when the hands come off.
+        - Each kind's sound runs about as long as its search: a cupboard 2.5 s, a cabinet 2, a cellar 4, the boards 5. A held one-shot that ends early starts again.
+        - `crew-search.found` plays once as the spot is gone through, when it turns `Searched`.
+    - **Occlusion:** a sound in a village house is in that house's space while the house is shut up (`StopWalls.ShutIn`, note 401). An ear shut in there with it hears it clear; an ear shut in a car or another house hears it through the walls.
+    - **The sounds** (`tools/audio/recipes/house_search.py`): eight candidates on the Audio Checklist's new `crew-search` line, built from the packs' real handling.
+        - The cupboard, `crockery` (installed): its door pulled open, then jars and crockery knocked about, a tin, cloth, a box shoved along.
+        - The cupboard, `pantry`: the same door, with no glass.
+        - The cabinet: drawers pulled on dry wooden runners and their oddments rattled. There's no drawer in the packs, so the runner is stick-slip friction.
+        - The cellar: the hatch heaved up and laid back, two steps creaking down, and crates shifted and a bottle knocked in the stone hole below, which has its own small, dark stone room.
+        - The boards: a bar's bite into the wood, the deal groaning, the nails squealing out (iron stick-slip, since there's no nail drawn in the packs), the board cracking free and laid aside, board after board.
+        - The find: set down on the boards.
+        - A barn's hayloft (up its ladder, hay shoved about, a tin knocked) and a shed's workbench (tools rattled, a drawer of nails, the vice). These are ready for B4's #153 (note 417), which makes them searchable; they play once loot.json's `search.seconds` has their kinds.
+    - **Not yet:**
+        - Heard from the street, a search inside a house that isn't shut up comes through no walls (note 396's not-yet).
+        - The search isn't captioned. It's a crewmate's work, not a threat or a call, like the car doors.
+    - **Pinned:** `WorldSoundTests.AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough`, on a client night's spots of each kind (at least 3): held where the spot keeps its things while under way, cut when the hands come off, and the find heard once when the spot's gone through.
+
+420. **The foundry's buildings modelled (queue #156, C1; the art checklist's `foundry`; GDD §18 "overhead crane run from a gantry", §30 "oversized, partially abandoned, barely operable, dimly lit"; notes 381, 393 and 410 did the other facilities).** The foundry was the last facility whose buildings were all the structure kit's: a long brick box, flat sawtooth quads for a roof, glowing window panels and a cone of a stack. Now it is `foundry_shed` (928 triangles, a 1024 layer), set by `StructureKit.Facility` where the kit's sheds stood, 22 m out. The kit is kept as the fallback.
+    - **The shed:**
+        - 80 m of soot-black brick on a stone plinth, pilastered every 8 m.
+        - Its roof is ten north-light teeth, each a slate slope rising to an iron-glazed face. Panes are out and the furnace's light shows in some. One tooth's slope has fallen in.
+        - Tall arched windows run down both sides, most of the front's lit orange. Their glazing bars are thicker than the other buildings' (`_arched`'s `bar`), since 13 cm texels lose 3 cm bars.
+        - A great doorway stands at each end of its front, its iron leaf slid half across one, the furnace's glow low on the floor inside. With one at each end, one faces the crane's yard whichever side of the spur the shed is turned to.
+        - The cupola furnace rises through its roof on a charging stage, its door glowing, and the 40 m stack stands behind.
+    - **The glow:**
+        - A modelled piece's windows had no light of their own. The baked game mesh has no emission, so a "lit" window was only a bright colour, dark at night.
+        - Now a recipe can hand `build` a third thing, a `_Glow`: the regions of its windows the furnace lights, brightest at their foot.
+        - `cook.bake_down` bakes it as a mask, and `_emission` links an image of the glow's colour there to the low mesh's Emission Color. `cook.bake_layers` writes that as the layer's emissive (spec B) and flags it (`dt_glow`), as the Gannet's sacs were done.
+        - The shed's windows glow in the dark as the kit's panels did, and `Kit.Append` keeps the layer when the piece is merged into the facility.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheFoundrysCastingShedIsTheModelAndAFurnaceLightsItsWindows`: the model's material glows, and from either side it stands there with its stack.
+        - `LookTests.AFacilitysBuildingsLeaveItsYardToItsModules` still holds: it starts 13.9 m out, past the crane's 9.
+        - `dt art check`: 928 of the large prop's 8,000.
+        - The Game suite.
+        - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
 415. **The walled town heard (AU1, queue #151; the towns since note 335, B2's notes 353 and 335; the director's notes of 8 Oct, towns that are lived in).** The departure town was silent apart from the fortress's loop and the night: fire barrels and braziers burning in its square, ranges lit in its lived-in houses, a clock or a wireless kept by a household for the town's custom, its people standing about. None of them made a sound.
     - **How:** `GameAudio.TownSounds` (`GameAudio.Town.cs`) reads `World.Town`'s plan, which is the same on every machine. Every quarter second it looks round for what's near the ear (`TownLook`). It holds each thing where it is:
         - The square's fire barrels and braziers within 40 m (`place-town.fire`, the nearest 4), at the fire's mouth.

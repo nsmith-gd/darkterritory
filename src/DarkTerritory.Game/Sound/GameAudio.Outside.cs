@@ -119,6 +119,7 @@ public sealed partial class GameAudio
         HouseDoors(world, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
+        HouseSearch(world, primed);
         _engineFrontWas = engine.Distance;
         _engineSpeedWas = engine.Speed;
         _outsidePrimed = true;
@@ -683,6 +684,47 @@ public sealed partial class GameAudio
         if (Sometimes(0.04, dt))
             Cue("place-wreck.shift", wreck + new Double3((OutsideOdds() * 2 - 1) * 8, 1, (OutsideOdds() * 2 - 1) * 8), outside, (float)(0.5 + 0.5 * OutsideOdds()));
     }
+
+    /// <summary>
+    /// Searching the open houses (note 326; queue #148, note 412): a hiding spot under way heard where it's kept, held off the
+    /// replicated search (<see cref="Run.SearchProgress"/>: the host's furthest hand on it, a client's as the host has it), so
+    /// every crewmate hears a cupboard gone through, and cut when the hands come off. Each kind's sound runs about its search.
+    /// The find coming out, once, as the spot's gone through. What's searched on the first update is old news.
+    /// </summary>
+    void HouseSearch(World world, bool primed)
+    {
+        if (world.Run is not { HidingSpots.Count: > 0 } run)
+            return;
+        foreach (var spot in run.HidingSpots)
+        {
+            bool searched = run.Searched(spot.Stop, spot.Container.Index);
+            if (Flipped("crew-search.found", spot.Key, searched, primed) > 0)
+                Cue("crew-search.found", spot.At + Double3.Up * 0.3, OccludedInHouse(world, spot.At));
+            if (searched || run.SearchProgress(spot) <= 0)
+                continue;
+            // Kept high (a cupboard's shelves, a cabinet's drawers) or low (a cellar's hatch, the boards).
+            var (cue, up) = spot.Container.Kind switch
+            {
+                ContainerKind.Cupboard => ("crew-search.cupboard", 1.2),
+                ContainerKind.Cabinet => ("crew-search.cabinet", 0.8),
+                ContainerKind.Cellar => ("crew-search.cellar", 0.2),
+                ContainerKind.UnderFloor => ("crew-search.boards", 0.2),
+                // A barn's hayloft (up its ladder) and a shed's workbench, once they're searched (B4's #153, note 417).
+                ContainerKind.Hayloft => ("crew-search.hayloft", 2.5),
+                ContainerKind.Bench => ("crew-search.bench", 1.0),
+                _ => (null, 0.0),
+            };
+            if (cue is not null)
+                Hold(cue, spot.Key, spot.Kept + Double3.Up * up, OccludedInHouse(world, spot.Kept));
+        }
+    }
+
+    /// <summary>
+    /// A sound in a village house (note 412): in the house's own space when it's shut up (note 401), so an ear shut in there
+    /// with it hears it clear and one shut in anywhere else through the walls; else the outside's.
+    /// </summary>
+    float OccludedInHouse(World world, Double3 at) =>
+        Occlusion(world.Train.Walls?.ShutIn(at) is >= 0 and var house ? PlayerMotor.HouseSpace(house) : PlayerMotor.Outside);
 
     /// <summary>
     /// The village houses' doors (B4's note 401; queue #145, note 409): a door shut or opened where it hangs, from the sim's
