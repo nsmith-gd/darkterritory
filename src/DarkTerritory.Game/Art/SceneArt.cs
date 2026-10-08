@@ -446,7 +446,8 @@ public sealed partial class SceneArt(Look look)
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
             return true;
-        var up = onCar ? frames[b.Parent].Up : Double3.Up;
+        // (A load in the wreck film tumbles: its own up, note 370.)
+        var up = b.Tilt.Length > 0.5 ? b.Tilt : onCar ? frames[b.Parent].Up : Double3.Up;
         double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
         var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
         var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
@@ -697,20 +698,15 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
             return;
         var m = FrameMatrix(engine, eye);
-        // The gauge lamp under the cab roof (T101): the backhead and its dials lit enough to read whatever the fire's doing;
-        // cab forward (note 276), at the back wall (the map at the front has the cab lamp).
+        // The gauge lamp under the cab roof (T101): the dials lit enough to read whatever the fire's doing; at the cab's
+        // front over the work (note 280).
         var cab = engine.Shape.Cab!.Value;
-        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Max.Z - 0.9)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
-        // Everything on the backhead is placed in its frame (it faces forward from the back wall).
-        var bh = TrainKit.BackheadFrame(engine.Shape) * m;
+        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Min.Z + 1.3)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
         var needle = Piece("needle", () => TrainKit.Needle(Look));
-        // Two sets (note 276): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
-        // back into the cab as the engine's frame does.
+        // The one set (note 280: the firebox is at the front, so whoever's firing reads the same dials the driver does), over
+        // the right-hand front window, facing back into the cab as the engine's frame does.
         for (int i = 0; i < 4 && i < fractions.Length; i++)
-        {
-            Dial(mesh, needle, TrainKit.GaugeLocal(engine.Shape, i), TrainKit.GaugeRadius, bh, i, fractions[i]);
             Dial(mesh, needle, TrainKit.DriverGauge(engine.Shape, i), TrainKit.DriverGaugeRadius, m, i, fractions[i]);
-        }
     }
 
     /// <summary>One dial's reading: its needle, or (the tender's, <paramref name="index"/> 2) the coal's level in its glass.</summary>

@@ -16,6 +16,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public RampTuning Ramp { get; init; } = new();
     public HoseTuning Hose { get; init; } = new();
     public KegTuning Kegs { get; init; } = new();
+    /// <summary>The mine head's steam lift (spec D.2; queue #105, note 368).</summary>
+    public LiftTuning Lift { get; init; } = new();
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
     public DerelictsTuning Derelicts { get; init; } = new();
@@ -127,6 +129,26 @@ public sealed record SpoutTuning
     public double Tolerance { get; init; } = 1.5;
     public double PourPerSecond { get; init; } = 0.05;
     public double Bin { get; init; } = 3;
+    public double OverfillDamagePerLoad { get; init; } = 0.6;
+}
+
+/// <summary>
+/// The mine head's steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it"; queue #105,
+/// note 368). Field docs in facilities.json.
+/// </summary>
+public sealed record LiftTuning
+{
+    public double Along { get; init; } = -25;
+    public double ChuteHeight { get; init; } = 4.6;
+    public double FrameLateral { get; init; } = 16;
+    public double LeverAlong { get; init; } = -3;
+    public double LeverLateral { get; init; } = 3.4;
+    public double LeverReach { get; init; } = 1.2;
+    public double SteamReach { get; init; } = 56;
+    public double SteamPerSkip { get; init; } = 20;
+    public double PerSkip { get; init; } = 0.25;
+    public double Tolerance { get; init; } = 1.5;
+    public double Ore { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
 }
 
@@ -267,10 +289,14 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public int HoseCar { get; init; } = -1;
     public double Pressure { get; init; }
     public double Leak { get; init; }
+    /// <summary>The steam lift's (note 368): the ore left down the shaft, how far the skip's wound up (0..1), and whether it's winding.</summary>
+    public double Ore { get; init; }
+    public double Wind { get; init; }
+    public bool Winding { get; init; }
 }
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -337,6 +363,18 @@ public sealed class Site
             SpoutLever = At(SpoutAlong - mid + sp.LeverAlong, sp.LeverLateral, 0.9);
             Bin = sp.Bin;
         }
+        if (Has(ModuleKind.Lift))
+        {
+            // The headframe stands over its shaft out on the site's side, where the facility's buildings put it (the art's
+            // headframe), its chute reaching over the track: the train's walked under it a car at a time, as under the spout. The
+            // lever's on the near side, back along from it, where whoever's on it sees the car under the chute and the engine.
+            var l = t.Lift;
+            LiftAlong = Math.Clamp(mid + l.Along, 0, track.Length);
+            LiftChute = At(LiftAlong - mid, 0, l.ChuteHeight);
+            Headframe = At(LiftAlong - mid, l.FrameLateral);
+            LiftLever = At(LiftAlong - mid + l.LeverAlong, l.LeverLateral, 0.9);
+            Ore = l.Ore;
+        }
         if (Has(ModuleKind.Ramp))
         {
             var r = t.Ramp;
@@ -387,6 +425,23 @@ public sealed class Site
     /// <summary>Who's on the spout's lever this tick (−1 for nobody). Host only.</summary>
     internal int Pourer = -1;
 
+    /// <summary>
+    /// The steam lift (note 368): its chute's mouth over the track and how far along the track it is, the headframe over the
+    /// shaft, the lever beside the track; the car-loads of ore left down the shaft, how far the skip's wound up (0..1), and
+    /// whether it's winding (someone on the lever, and the engine's steam coming).
+    /// </summary>
+    public Double3 LiftChute { get; }
+    public double LiftAlong { get; }
+    public Double3 Headframe { get; }
+    public Double3 LiftLever { get; }
+    public double Ore { get; internal set; }
+    public double Wind { get; internal set; }
+    public bool Winding { get; internal set; }
+    /// <summary>Who's on the lift's lever this tick (−1 for nobody). Host only.</summary>
+    internal int Winder = -1;
+    /// <summary>Someone was on the lift's lever last tick, steam or none (host only): what the driver's told to vent for ("steam!").</summary>
+    public bool LeverHeld { get; internal set; }
+
     /// <summary>The ramp's top by the cars, the pen out beyond it, the head penned at the start and left.</summary>
     public Double3 RampTop { get; }
     public Double3 Pen { get; }
@@ -421,6 +476,53 @@ public sealed class Site
 
     /// <summary>Every crane here: the facility's own first.</summary>
     public IReadOnlyList<Crane> Cranes => Crane is null ? YardCranes : [Crane, .. YardCranes];
+
+    /// <summary>
+    /// Where the crew work this site's modules (note 279): each crane's stand, legs and castings, the spout and its lever, the
+    /// ramp and the pen, the hose stand, the capstan and the sled's run, the crate and heavy-crate stacks. The modules are laid
+    /// from the spur, not round the stop's buildings, so a stop's walls give way where they stand (<see cref="StopWalls.Clear"/>).
+    /// </summary>
+    public IEnumerable<Double3> WorkPoints()
+    {
+        foreach (var c in Cranes)
+        {
+            yield return c.Controls;
+            for (int end = 0; end < 2; end++)
+                for (int side = 0; side < 2; side++)
+                    yield return c.Corner(end, side);
+            foreach (var k in c.Castings)
+                yield return k.At;
+        }
+        if (Has(ModuleKind.Spout))
+        {
+            yield return Spout;
+            yield return SpoutLever;
+        }
+        if (Has(ModuleKind.Ramp))
+        {
+            yield return RampTop;
+            yield return Pen;
+        }
+        if (Has(ModuleKind.Hose))
+            yield return HoseStand;
+        if (Has(ModuleKind.Lift))
+        {
+            yield return LiftChute;
+            yield return Headframe;
+            yield return LiftLever;
+        }
+        if (Has(ModuleKind.Winch))
+        {
+            yield return Capstan;
+            double run = (SledTo - SledFrom).Length;
+            for (double x = 0; x <= run; x += 2)
+                yield return SledFrom + (SledTo - SledFrom) * (run > 0 ? x / run : 0);
+        }
+        foreach (var p in CrateStack ?? [])
+            yield return p;
+        foreach (var p in HeavyStack ?? [])
+            yield return p;
+    }
 
     /// <summary>The crane someone at <paramref name="at"/> is working: the one whose controls or hook are nearest (for the HUD and the cab's view).</summary>
     public Crane? CraneNear(Double3 at) => Cranes.Count == 0 ? null
@@ -519,6 +621,9 @@ public sealed class Site
         HoseCar = HoseCar,
         Pressure = Pressure,
         Leak = Leak,
+        Ore = Ore,
+        Wind = Wind,
+        Winding = Winding,
     };
 
     /// <summary>Client side: adopts the host's state.</summary>
@@ -540,5 +645,8 @@ public sealed class Site
         HoseCar = s.HoseCar;
         Pressure = s.Pressure;
         Leak = s.Leak;
+        Ore = s.Ore;
+        Wind = s.Wind;
+        Winding = s.Winding;
     }
 }

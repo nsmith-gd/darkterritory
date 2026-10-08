@@ -9,12 +9,37 @@ public enum HouseKind : byte { Lived, Open, Boarded, Burnt, Empty }
 
 /// <summary>
 /// A house down the yard's street (note 281): where it stands (its middle, S along the line and D out to the
-/// <see cref="Side"/>), how big, what it is now, its look (<see cref="Style"/>, <see cref="Paint"/>), whose it is, what a
-/// knock or a look at it tells you, and for an open one the rooms inside. It fronts the line.
+/// <see cref="Side"/>), how big its main block is, what it is now, its <see cref="Design"/>, whose it is, what a knock or a
+/// look at it tells you, and for an open one the rooms inside. It fronts the line.
 /// </summary>
-public sealed record TownHouse(int Id, double S, double D, int Side, double Width, double Depth, HouseKind Kind, int Style, int Paint,
+public sealed record TownHouse(int Id, double S, double D, int Side, double Width, double Depth, HouseKind Kind, HouseDesign Design,
     string Family, string Text, HouseLayout? Layout)
 {
+    /// <summary>
+    /// What stands of it, in its own frame (u along its front from its middle, v in from the front): its main block (an
+    /// open house's is its own walls, <see cref="Towns.Town"/>), a side wing, an enclosed porch out in front of the door.
+    /// A burnt house stands knee-high, and its wing and porch went with it.
+    /// </summary>
+    public IEnumerable<(double U0, double U1, double V0, double V1, double Height)> Parts()
+    {
+        var d = Design;
+        bool burnt = Kind == HouseKind.Burnt;
+        if (Layout is null)
+            yield return (-Width / 2, Width / 2, 0, Depth, burnt ? 1.0 : 9);
+        if (burnt)
+            yield break;
+        if (d.Ell != 0)
+        {
+            double inner = d.Ell * Width / 2, outer = d.Ell * (Width / 2 + d.EllWidth);
+            yield return (Math.Min(inner, outer), Math.Max(inner, outer), d.EllSetback, d.EllSetback + d.EllDepth, 6);
+        }
+        if (d.Porch == HousePorch.Vestibule)
+            yield return (d.DoorU - HouseDesign.VestibuleHalf, d.DoorU + HouseDesign.VestibuleHalf, -HouseDesign.VestibuleDepth, 0, 3.5);
+    }
+
+    /// <summary>How far its front door is out from its front wall: an enclosed porch's door, else the front's.</summary>
+    public double DoorV => Design.Porch == HousePorch.Vestibule ? -HouseDesign.VestibuleDepth : 0;
+
     /// <summary>The front wall's line, out from the line: the side's offset less half the depth.</summary>
     public double FrontD => D - Side * Depth / 2;
 

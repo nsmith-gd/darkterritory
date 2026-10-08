@@ -154,11 +154,23 @@ sealed partial class LineBuilder
                 }
             case HShape.Reverse:
                 {
-                    double d = item.Deflection * toward;
+                    // A hard S-bend (note 359): its first turn away from a branch where one's near, as a hard bend's is, and the
+                    // way the world band has room for; its straight between as the piece says.
+                    bool hard = item.Params.TryGetValue("gapM", out var between);
+                    bool away = hard && item.Params.TryGetValue("turn", out var forced) && forced != 0;
+                    double d = item.Deflection * (away ? Math.Sign(item.Params["turn"]) : toward);
+                    if (hard)
+                    {
+                        d = Math.Sign(d) * Math.Min(Math.Abs(d), Geometry.MaxDeflection(c, (len - between - 20) / 2, item.Radius, speed));
+                        if (away)
+                            d = Math.Clamp(pose.Heading + d, -band, band) - pose.Heading;
+                        else if (Math.Abs(pose.Heading + d) > band)
+                            d = -d;
+                    }
                     var out1 = Geometry.Turn(c, d, item.Radius, speed);
                     var back = Geometry.Turn(c, -d, item.Radius, speed);
                     double gap = Math.Max(0, len - out1.Sum(p => p.Length) - back.Sum(p => p.Length) - 20);
-                    turn = [.. out1, HPrim.Tangent(Math.Min(gap, 60)), .. back];
+                    turn = [.. out1, HPrim.Tangent(hard ? between : Math.Min(gap, 60)), .. back];
                     before = Math.Max(0, (len - turn.Sum(p => p.Length)) / 2);
                     break;
                 }

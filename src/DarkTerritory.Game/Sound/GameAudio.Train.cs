@@ -134,6 +134,7 @@ public sealed partial class GameAudio
 
         BedRoar(train, engine);
         BedExhaust(train, engine, rake, dt, derailed);
+        BedStarved(train, engine, rake, derailed);
         BedWheels(world, train, dt, derailed);
         BedBrakes(train, rake, primed, derailed);
         BedAirflow(world, train, rake, dt, derailed);
@@ -230,6 +231,21 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
+    /// state-starved: an engine short of steam holding its train back (note 319: past the speed its steam makes, the drag of
+    /// a boiler under its working band). The chuff's beat already thins with the effort; this is the struggle under it, as
+    /// loud as the drag is near its worst (note 322).
+    /// </summary>
+    void BedStarved(TrainOnLine train, CarFrame engine, TrainDynamics rake, bool derailed)
+    {
+        if (derailed || train.BoilerTuning is not { StarvedDecel: > 0 } bt)
+            return;
+        double drag = bt.StarvedDrag(train.Boiler, rake.Speed, rake.Tuning.MaxSpeed) / bt.StarvedDecel;
+        if (drag > 0.05 && rake.Speed > 0.5)
+            HoldLevel("state-starved.labour", 0, engine.ToWorld(new Double3(0, 2.0, -engine.Shape.HalfLength * 0.5)), Occlusion(0),
+                Math.Clamp(drag, 0.3, 1));
+    }
+
+    /// <summary>
     /// bed-wheel-rail under the cars nearest the listener: the roll (slow crossing to fast), a click at every rail joint each
     /// axle runs over, and the flanges squealing on a curve; past what the curve will take, state-derail's flange scream,
     /// the derailment's own warning (GDD §23), from every car that's over.
@@ -270,6 +286,14 @@ public sealed partial class GameAudio
                 if (!near.Contains(v.Id))
                     continue;
                 var under = frame.ToWorld(new Double3(0, 0.5, 0));
+                // A derelict off a blocked siding (note 294), shunted out on its seized axles: its own grind and thump (note 322).
+                if (v.Derelict && speed > 0.3)
+                {
+                    HoldLevel("place-derelict.roll", v.Id, under, Occlusion(PlayerMotor.Outside), Math.Clamp(speed / 4, 0.35, 1));
+                    // Its flats thump once a turn, so the loop runs with the car (install.py's rate on "speed").
+                    if (_held.TryGetValue(("place-derelict.roll", v.Id), out var seized))
+                        seized.Params.Set("speed", speed);
+                }
                 if (rolling)
                     // Louder all the way up to full speed (was full by 12 m/s), so speed is heard as well as felt (note 265).
                     HoldCrossfade("bed-wheel-rail.roll-slow", "bed-wheel-rail.roll-fast", v.Id, (speed - 8) / 10, under, 0,

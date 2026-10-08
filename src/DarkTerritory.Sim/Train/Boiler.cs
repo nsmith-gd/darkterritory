@@ -79,6 +79,11 @@ public struct Boiler
     public bool Venting;
     /// <summary>The vent was open on the last step (T101): what the blow-off's steam and roar show, on every machine.</summary>
     public bool Vented;
+    /// <summary>
+    /// The pressure the vent actually let go on the last step: its full rate while there's steam to vent, and only what the fire
+    /// made with the gauge at nothing. What a steam lift a vented engine stands by is wound with (note 368).
+    /// </summary>
+    public double VentedSteam;
     /// <summary>Extra pressure per second from outside the model: the Stoker (GDD App. A.5).</summary>
     public double ExternalHeat;
     /// <summary>Deep cold multiplies boiler efficiency (GDD §22 hazards). 1 is a normal night.</summary>
@@ -168,6 +173,7 @@ public struct Boiler
         if (Ruptured)
         {
             Venting = Vented = false;
+            VentedSteam = 0;
             return false;
         }
 
@@ -176,8 +182,11 @@ public struct Boiler
         double burn = Math.Min(BurnRate(t, draw) * dt, Firebox);
         Firebox -= burn;
         double gain = burn * t.SteamPerUnit * Efficiency + ExternalHeat * dt;
-        double loss = SteamDemand(t, throttle, cars, speedFraction) * dt + (Venting ? t.VentRate * dt : 0);
+        double vent = Venting ? t.VentRate * dt : 0;
+        double loss = SteamDemand(t, throttle, cars, speedFraction) * dt + vent;
         double next = Pressure + gain - loss;
+        // The engine's own demand is served first; with the gauge run down, the vent gets what's left of what the fire made.
+        VentedSteam = Math.Clamp(vent + Math.Min(0, next), 0, vent);
         double shed = SafetyValveJammed ? 0 : Math.Clamp(next - t.SafetyValveLift, 0, t.SafetyValveCapacity * dt);
         SafetyValveLifting = shed > 0;
         Pressure = Math.Clamp(next - shed, 0, t.PressureMax);

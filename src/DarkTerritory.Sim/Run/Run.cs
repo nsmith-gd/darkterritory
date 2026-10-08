@@ -23,6 +23,7 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
 
     /// <summary>The forts are safe from creatures all night (GDD §9, T128; ARCHITECTURE §8 note 273): run.json <c>forts</c>.</summary>
     public FortTuning Forts { get; init; } = new();
+    public WallTuning Walls { get; init; } = new();
 
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
@@ -65,6 +66,9 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 /// to <paramref name="HalfWidthM"/> either side of the line. Field docs live in run.json <c>forts</c>.
 /// </summary>
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
+
+/// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
+public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
@@ -228,7 +232,7 @@ public sealed partial class Run
     /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
     public double StopSeconds { get; private set; }
     /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
-    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding);
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>
@@ -358,21 +362,33 @@ public sealed partial class Run
 
     readonly Dictionary<int, double> _loadSeen = new();
 
+    /// <summary>A facility's crates and heavy crates out on its platform, as its cargo (spec D; note 352 for when).</summary>
+    static void StockSite(World world, FacilityTuning t, Site site)
+    {
+        site.Stocked = true;
+        var cargo = site.Feature.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
+        foreach (var at in site.CrateStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
+        foreach (var at in site.HeavyStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
+    }
+
     void StepLoading(World world, FacilityTuning t, double dt)
     {
         var train = world.Train;
         world.Bodies.HeavySpan = t.Crates.Heavy.Span;
+        // The facility's crates come out with its stop's loot, before the train's near enough to see them (note 352).
+        if (_loot is { StockAhead: > 0 } loot)
+        {
+            var engine = EngineRake(train);
+            foreach (var s in _sites)
+                if (s is { Stocked: false } && Due(s.Feature, train, engine, loot.StockAhead))
+                    StockSite(world, t, s);
+        }
         if (CurrentSite is { } site)
         {
             if (!site.Stocked && Phase == RunPhase.AtFacility)
-            {
-                site.Stocked = true;
-                var cargo = FacilityFeature?.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
-                foreach (var at in site.CrateStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
-                foreach (var at in site.HeavyStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
-            }
+                StockSite(world, t, site);
             Crank(site, t.Winch, dt);
             Restart(world, site, t.Power, dt);
             _drop = null;
