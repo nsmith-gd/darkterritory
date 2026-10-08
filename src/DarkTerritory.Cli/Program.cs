@@ -901,6 +901,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // At the grain elevator, its first car under the spout (the engine short of the buffer stop).
             if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout) && site.Spur >= 0)
                 at = line.Branches[site.Spur].Toe + site.SpoutAlong + consist.OffsetOf(1) + t.Geometry.CarLength / 2;
+            // At the mine head, its first car under the steam lift's chute (note 368), the skip part-way up (--lifting).
+            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && site.Spur >= 0 && !args.Contains("--crank"))
+                at = line.Branches[site.Spur].Toe + site.LiftAlong + consist.OffsetOf(1) + t.Geometry.CarLength / 2;
             bool leak = args.Contains("--leak");
             run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
                 [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0)
@@ -908,6 +911,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Bin = x?.Bin ?? 0, Head = x?.Head ?? 0, Pouring = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Spout),
                     Herding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp), Herd = x == site ? 0.5 : 0,
                     Pressure = x == site ? leak ? 1 : 0.6 : 0, Leak = x == site && leak ? 10 : 0,
+                    Ore = x?.Ore ?? 0, Winding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && args.Contains("--lifting"),
+                    Wind = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) ? Opt(args, "--wind", 0.6) : 0,
                 })]);
         }
     }
@@ -1121,6 +1126,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp))
                 camera = Camera.LookAt(site.Pen + Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6, (site.Pen + site.RampTop) * 0.5, 65);
+            // The steam lift (note 368): from across the track, along the line toward the engine, back over the car at the bin
+            // over it, the trough and the skip on the headframe beyond.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && !args.Contains("--crank"))
+            {
+                var out_ = ((site.Headframe - site.LiftChute) with { Y = 0 }).Normalized;
+                camera = Camera.LookAt(site.LiftChute - out_ * 15 + Along() * 9 + Double3.Up * 3.5, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
+            }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose))
             {
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;

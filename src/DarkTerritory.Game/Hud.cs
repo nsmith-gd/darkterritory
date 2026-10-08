@@ -1578,7 +1578,7 @@ public static partial class Hud
                 : "THE COUPLING : LOOK DOWN";
         // Note 267: the vent's feedback while it's held open (its key, or Use at the valve), from the cab: it's working.
         if (PlayerMotor.InCab(p, train) && train.BoilerTuning is not null && train.Boiler.Vented && !train.Boiler.Ruptured)
-            return "VENTING";
+            return world.Run?.CurrentSite is { Winding: true } ? "STEAM TO THE LIFT" : "VENTING";
         switch (near)
         {
             // GDD §12's whistle cord (note 264), looked at (the director, 7 Oct: "PULL CORD : [E]").
@@ -1651,6 +1651,13 @@ public static partial class Hud
             var under = world.Run.CarUnderSpout(train, spout);
             return spout.Pouring ? under is { } filling ? $"POURING   CAR {filling.Load * 100:0}% FULL" : "POURING"
                 : under is { } car ? $"SPOUT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE SPOUT";
+        }
+        // The mine head's steam lift (note 368): the car under its chute, and the skip coming up while the engine's steam winds it.
+        if (world.Run?.LiftLeverInReach(p, train, hand) is { } lift)
+        {
+            var under = world.Run.CarUnderChute(train, lift);
+            return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
+                : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"

@@ -305,7 +305,8 @@ public sealed class GreyboxScene
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
-                    if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose))
+                    if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
+                        || site.Has(Sim.Run.ModuleKind.Lift))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         SetPieces(mesh, site, frames, eye, Time);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go.
@@ -2348,6 +2349,46 @@ public sealed class GreyboxScene
                     double fall = (time * 6 + i * 0.31) % 2.6;
                     var p = mouth - Double3.Up * fall + a * (0.18 * Math.Sin(i * 2.3)) + x * (0.18 * Math.Cos(i * 1.7));
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
+                }
+        }
+        if (site.Has(Sim.Run.ModuleKind.Lift))
+        {
+            // The mine head's steam lift (note 368): the ore bin on its legs astride the track, fed down a sloping trough from the
+            // headframe (the art's, where it has one), the skip riding up the frame's track-side face as far as it's wound, ore
+            // down the chute as a skip tips, and the lever, its handle down while it winds.
+            var mouth = site.LiftChute;
+            var ground = mouth with { Y = mouth.Y - 4.6 };
+            var frame = site.Headframe;
+            var (along, across) = Axes(mouth, frame);
+            var a = ToD(along);
+            var x = ToD(across);
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(ground + a * (i * 1.9) + x * (j * 2.6) - Double3.Up * 0.3, mouth + Double3.Up * 1.6 + a * (i * 1.4) + x * (j * 2.0), 0.11f, Palette.DeepBrown);
+            mesh.Box(V(mouth + Double3.Up * 2.4, eye), along, Vector3.UnitY, across, new Vector3(1.6f, 0.9f, 2.2f), Palette.IronGrey);
+            Rod(mouth + Double3.Up * 1.5, mouth, 0.3f, Palette.RustRed);
+            // The trough, from the frame's tipping point well up the headframe down onto the bin.
+            var tip = frame + x * -2.2 + Double3.Up * 11;
+            Rod(tip, mouth + Double3.Up * 3.3 + x * 1.6, 0.35f, Palette.RustRed * 0.9f);
+            // The skip on its guides up the frame's track-side face.
+            var guide = frame + x * -2.4;
+            foreach (int i in new[] { -1, 1 })
+                Rod(guide + a * (i * 0.8), guide + a * (i * 0.8) + Double3.Up * 12, 0.07f, Palette.IronGrey);
+            var skip = guide + Double3.Up * (0.9 + 9.8 * Math.Clamp(site.Wind, 0, 1));
+            mesh.Box(V(skip, eye), along, Vector3.UnitY, across, new Vector3(0.7f, 0.8f, 0.6f), Palette.SootBlack * 1.5f);
+            // Ore left down the shaft, in a gauge on the bin's track side.
+            float left = (float)Math.Clamp(site.Ore / 3.0, 0, 1);
+            mesh.Box(V(mouth + Double3.Up * (1.6 + 1.6 * left) + x * -2.22, eye), along, Vector3.UnitY, across, new Vector3(0.25f, 1.6f * left + 0.02f, 0.02f), Palette.Charcoal);
+            var lever = site.LiftLever;
+            Rod(lever - Double3.Up * 0.9, lever, 0.06f, Palette.IronGrey);
+            Rod(lever, lever + Double3.Up * (site.Winding ? -0.15 : 0.35) - x * 0.45, 0.04f, Palette.HazardYellow);
+            // Ore down the chute just after a skip tips (the wind's back near nothing).
+            if (site.Winding && site.Wind < 0.15)
+                for (int i = 0; i < 16; i++)
+                {
+                    double fall = (time * 6 + i * 0.29) % 2.2;
+                    var p = mouth - Double3.Up * fall + a * (0.2 * Math.Sin(i * 2.3)) + x * (0.2 * Math.Cos(i * 1.7));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
         if (site.Has(Sim.Run.ModuleKind.Ramp))
