@@ -135,10 +135,13 @@ public class CrewAudioTests
         Assert.Equal(0, b.Count("crew-footsteps.run.roof"));
         Assert.All(b.Heard.Where(h => h.Name == "crew-footsteps.walk.roof"), h => Assert.True((h.At - at[h.Tick - 1]).Length < 0.01));
 
-        // Standing still: nothing.
+        // Standing still: nothing. Nor turning on the spot (App. F.1, build 1121; note 355): a full turn in a second.
         int before = b.Heard.Count;
         for (int i = 0; i < 30; i++)
+        {
+            s.Yaw += 2 * Math.PI / 30;
             b.Step((1, s));
+        }
         Assert.Equal(before, b.Heard.Count);
 
         // Off the train beside it, running on the ballast; stopping short scuffs.

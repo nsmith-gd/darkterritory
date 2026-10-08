@@ -57,8 +57,11 @@ public sealed partial class GameAudio
     // Presentation, not design: how long a footstep is at a speed (a brisk walk's 0.9 m, a run's 1.6 m), and below what speed
     // someone's standing.
     const double StrideBase = 0.45, StridePerSpeed = 0.2, StrideMin = 0.6, StrideMax = 1.7, Standing = 0.4;
-    /// <summary>Turning on the spot this far (rad) shuffles the feet; not more often than <see cref="ScuffGap"/>.</summary>
-    const double ScuffTurn = 1.2, ScuffGap = 0.6;
+    /// <summary>
+    /// Stopping short from a run scuffs the feet, not more often than this (s). Turning on the spot makes no sound (App. F.1,
+    /// build 1121: "turning on the spot shouldn't make a sound; only walking should"; note 355).
+    /// </summary>
+    const double ScuffGap = 0.6;
     /// <summary>A handbrake wheel clicks this often while it's wound.</summary>
     const double RatchetEvery = 0.2;
     /// <summary>A sliding door rolls this long before it hits its stop; it latches this long after it's slammed.</summary>
@@ -86,7 +89,7 @@ public sealed partial class GameAudio
         public int Parent;
         public Double3 Position;
         public Surface Surface;
-        public double Yaw, Action, Cold, Stride, Turn, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath;
+        public double Yaw, Action, Cold, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath;
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
@@ -345,20 +348,17 @@ public sealed partial class GameAudio
                             c.Stride = Math.Min(c.Stride - stride, stride * 0.5);
                             Cue(Running(s.Surface, speed) ? "crew-footsteps.run" : "crew-footsteps.walk", Footing.Under(s, world) ?? "ground", feet, occlusion);
                         }
-                        c.Turn = 0;
                     }
                     else
                     {
-                        // Stopping short from a run, or turning on the spot.
+                        // Stopping short from a run (turning on the spot is silent: note 355).
                         bool stopped = c.Moving && c.MovingFor > 0.3 && Running(s.Surface, c.Speed);
                         c.Moving = false;
                         c.MovingFor = c.Stride = 0;
-                        c.Turn += Math.Abs(Math.IEEERemainder(s.Yaw - c.Yaw, 2 * Math.PI));
-                        if ((stopped || c.Turn > ScuffTurn) && _time - c.LastScuff > ScuffGap)
+                        if (stopped && _time - c.LastScuff > ScuffGap)
                         {
                             Cue("crew-footsteps.scuff", Footing.Under(s, world) ?? "ground", feet, occlusion);
                             c.LastScuff = _time;
-                            c.Turn = 0;
                         }
                     }
                 }
