@@ -2706,7 +2706,7 @@ public static class Heed
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
             || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
-            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null || world.Switches?.InReach(self, world.Train, world.Hand) is not null)
             return intent;
         return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
     }
@@ -2900,6 +2900,22 @@ public static class Heed
             return intent;
         int car = self.Parent;
         if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && tick % 2 == 0)
+            intent.Actions |= PlayerActions.CarLamp;
+        return intent;
+    }
+
+    /// <summary>
+    /// A lamp guttering (note 346): a bot in the car trims it with the lamp key. A press every half second while it's guttering
+    /// and nothing else is: the host's trim reaches this client a snapshot later, and a second press on a lamp burning steady
+    /// would put it out.
+    /// </summary>
+    public static PlayerIntent Gutter(PlayerIntent intent, in PlayerState self, World world, uint tick)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= world.Train.Vehicles.Count
+            || world.Train.Vehicles[self.Parent] is not { LampLit: true, Gutter: > 0 } || !PlayerMotor.Indoors(self, world.Train)
+            || intent.Has(PlayerActions.CarLamp))
+            return intent;
+        if (tick % (SimConstants.TickRate / 2) == 0)
             intent.Actions |= PlayerActions.CarLamp;
         return intent;
     }

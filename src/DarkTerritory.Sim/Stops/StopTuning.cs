@@ -238,6 +238,11 @@ public sealed record StopTier
     public required double Crane { get; init; }
     public required double[] Runway { get; init; }
     public required double[] Stock { get; init; }
+    /// <summary>
+    /// Note 352 (the director, 8 Oct 2026: "loot should spawn in all yard lines in early game and mid game"): every yard
+    /// track has something to load beside its loading face. Unset, the stock lies where the dice put it, and a siding can be bare.
+    /// </summary>
+    public bool EveryTrack { get; init; }
     public required IReadOnlyList<Choice> Villages { get; init; }
     public required IReadOnlyList<Choice> Arrangements { get; init; }
     public required double[] VillageOffset { get; init; }
