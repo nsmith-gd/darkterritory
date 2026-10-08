@@ -754,6 +754,16 @@ public class WorldSoundTests
         Assert.Equal(0, shut.Occlusion);
         Assert.Equal(0, shut.Walls);
 
+        // And from along the street, off to the door's side (note 428's walls round a house): still the door itself, clear.
+        heard.Clear();
+        walls.MirrorShut([]);
+        var along = street + Double3.Cross(door.Out, Double3.Up).Normalized * 4;
+        Tick(along, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(along, 2);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
+
         // Opened again and shut from inside: in the room with the ear, nothing between them.
         heard.Clear();
         walls.MirrorShut([]);

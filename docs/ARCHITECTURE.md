@@ -6030,6 +6030,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - "In it" is in its footprint and between 3 m under the rail (a cellar) and 8 m over it (`EarRoom.ShutsIn`). It must also still be in the footprint 0.5 m (`roomEdge`) nearer the ear. A sound that close to the face on the ear's side is at the door or a window and is heard out of it: a door shut in a house's doorway, a crewmate at a window.
         - An ear in one building, hearing a sound in another, hears it through the greater of the two walls.
         - The train's bed (tier 5) is never in a building. A sound its caller has already put part-way behind something (a prisoner's call through a Holdout's door, a town house's range) keeps its caller's judgement, as before.
+        - A house's door is heard at the doorway as the house and the street both (note 409): its shutting and opening, and the Choir beating on it, pass no building's walls. Fixed since: the door's sound sits 0.5 m inside the house's footprint (so an ear inside hears it clear), and from along the street, off to the door's side, the 0.5 m `roomEdge` didn't reach the face, so the door came through a whole room's wall (0.8). `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp` hears it from there too.
     - **The night's air, walled:** `world-night.night`, the gale, its gusts and a dead town's quiet are played at the ear. Now they're behind the walls of the room or shed the ear is in (`GameAudio.AirWalls`). The rain already moved onto the roof indoors (note 392). The far cries and the thunder, placed out in the night, were already walled by note 396.
     - **No new sounds and no new mix numbers:** `roomEdge` is the one new tuning value.
     - **Pinned:** `WorldSoundTests.AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt`, on a client night with a Holdout's room and a shed:
@@ -6140,7 +6141,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Drawn** (`WorldArt.OpenShed`): the yard sheds' walk-in shell (C1's `ShedShell`, note 387; no chain hoists here), 6.5 m high for a barn, 7 m for a goods shed, 4.6 m for an outbuilding (its bay door needs the height). Boards over the shell's concrete, 0.06 m up plus however far the ground climbs under the footprint (the terrain's mesh rode up through the concrete in a wide shed set back from the line). The loft: boards, its edge beam on posts (none where a ladder leans), hay heaped against the wall, a little fallen below. The bench: top, legs, a shelf, a vice, tools left on it and a tool rack on the wall. Searched: the bench's drawer pulled out and a tin knocked to the floor, or an armful of hay pulled down by the ladder's foot. The yard's piles of leavings aren't laid round an open barn or shed: a gable's length of rail laid along it reached in through the wall.
     - **`dt screenshot --barn n [--inside | --back | --find] [--searched]`:** the night's nth open barn, outbuilding or goods shed with a find, as `--shed` frames a yard shed; `--back` from just in at its door at the back wall, `--find` standing back from where its first find is kept.
     - **Verified:** `OpenHouseTests.TheBarnsAndShedsStandOpenWithTheirFindsInside` (four routes): each stands as its walls with one door that looks toward the line, walked into there and nowhere else; each find is inside, got to, and a bench is solid. `StopShellArtTests.AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall`: the art's bench and loft are where the sim keeps the find, and nothing stands at the bench's height by the door's wall; its door test now covers these shells too. `SearchTests` holds the bench and the hayloft to what's kept facing the room, its find in front. Seen by lantern on frontier:7 and deadLines:2: benches, a loft with its ladder, searched and not. They're heard being searched as AU1 laid them in note 412 (`crew-search.hayloft`, `crew-search.bench`).
-    - **Not yet:** no light of their own (dark as the yard's sheds; an open house has its candle), and not a Room the sky is kept out of as a house's parts are. The station, the derelicts and the powerhouse stay shut.
+    - **Not yet:** no light of their own (dark as the yard's sheds; an open house has its candle), ~~and not a Room the sky is kept out of as a house's parts are~~ (a Room since note 462). The station, the derelicts and the powerhouse stay shut.
 
 439. **The bots in a car shut it up when the Choir comes (B4, queue #175; note 413's "not yet"; GDD §21, App. A.7).** A crate hand loading a cargo car stands in it with the side door open, and a car with a door open is the outside (`PlayerMotor.Space`): the Choir comes in through it. Note 413 sheltered the hands on the ground; one on a car's floor went on loading through it.
     - **The rule** (`StopHand.ShutIn`, `StopCrew.ShutIn.cs`; the same facilities.json `crew.shelterAt` and `shelterOutAt`). With the Choir gathered or here, a stop hand (not the driver) on the floor of a car with a side door that way:
@@ -6165,6 +6166,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+467. **The extinguisher puts a cell out in a second (queue #203, D1; the director, 8 Oct 2026, on the test build: "Holding fire extinguisher on fire still doesnt feel like its doing anything. should be 1s per grid to put out."; note 267's grid).** The cell aimed at cooled at `carFire.sprayPerSecond` 0.35 heat a second against its own growth, so a cell at full blaze took three seconds and more to go out, the cells round it a third of that: held on a fire, nothing seemed to happen.
+   - **Now** `sprayPerSecond` is 1.0: a cell at full blaze aimed at is out after a second of spray (under `outBelow`, and wet for `dampSeconds` so it doesn't catch again from round it), and the cells round it cool at `sprayShare` (0.4) of that. Its charge (`chargeSeconds`, 15 s) is about fifteen cells, so a fire caught early is one extinguisher and a car well alight is still more than one.
+   - **Test.** `CarFireTests.ASecondOfSprayPutsOutTheCellItsAimedAt`: the car ablaze at 0.97, a floor cell aimed at for a second is out, the rest still alight. At 0.35 it fails. The other fire classes (CarFire, PackFire, Fireman) 29/29.
+
 454. **The bots and the Gannet (queue #190, D1; note 340's "not yet": "the bots don't stop on a fold, or keep from hitting it").** The Gannet hangs over someone walking a roof, then folds onto where they'll be 1.6 s on; its rule is "when it folds, break your stride". The bots walked on through the hang and the fold and were stabbed.
    - **Stopped dead** (`Heed.Gannet`, in every crew bot's heed chain, `BotCrew`). A bot on a roof that a Gannet is hanging or folding over (its mode and its prey, as every client has them) drops its movement, run and jump. Whoever stops walking is let be (`Gannet.Hang`: a second still and it climbs away), so the fold never comes; it walks on once it's gone.
    - **Holding fire** on a Gannet nobody's pinned is the gunner's half (`GunnerBot`, D1.3's #183, PR #501): a ball makes the gunner its mark, and the seat is out in the open.
@@ -6312,6 +6317,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The Game suite.
         - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
 
+
 452. **Reports to the studio (F1, UI/UX 3; queue #188; the director, 8 Oct: "You can point reports, crashes, logs, etc. into a nicely formatted reporting structure that is dev friendly for debugging to nsmith@squidostudio.com"; roadmap M6, note 626's not-yet "a crash reporter that sends reports").** A crash wrote a plain dump to app data: a line of version, the exception, the last lines. That was all a player could send, and nothing helped them send it.
     - **A report a developer reads at a glance** (`Report`, written by `CrashReports`).
         - It's titled DARK TERRITORY CRASH REPORT, or PROBLEM REPORT for a player's own.
@@ -6381,6 +6387,101 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - followed a pace off through four seconds of walking, a walker's steps fall on their own way, one about each 0.7 m they cover;
         - a pace from somebody out of doors, their own gear's breathing;
         - near the watch, their lantern, at their hand.
+
+461. **The switchyard's goods shed and the military depot's huts, wire and magazine modelled (queue #197, C1; the art checklist's `switchyard` and `military-depot`; GDD §18 "the switchyard: six sidings of scattered cars", "the military depot: gunpowder and shot. Best payout, worst cargo", §30 "oversized, partially abandoned, barely operable, dimly lit").** The switchyard's goods shed was the structure kit's flat works box. The depot's huts were flat half-round prisms behind a line of rods for wire. They are now modelled in facility_pieces.py and placed by `StructureKit.Facility` where the kit's stood; the kit is kept as the fallback.
+    - **`goods_shed`** (690 triangles, a 1024 layer like the other big buildings):
+        - 30 m of weatherboarded shed on a brick plinth under slate;
+        - its loading dock along the front at a car's floor, under a corrugated canopy on iron brackets;
+        - three sliding doors: one open on the dark, one half across, one shut and barred;
+        - a hand crane at the dock's end, crates and sacks left on it, GOODS on a board over the middle door;
+        - the office at its end, its lamp still lit (`_Glow`, the foundry's mask).
+    - **`nissen_hut`** (158):
+        - a corrugated half-round 9 m across, its sheets lapped in rings, rusting, a few gone;
+        - boarded end walls, the door behind a sandbag blast wall, windows (one boarded), the stovepipe.
+        - Three stand where the kit's did, along the line.
+    - **`wire_fence`** (128): a 6 m panel of angle-iron pickets cranked toward the line, barbed wire between them, one strand let go and hanging.
+        - The panels run 60 m along the depot's front.
+        - The gate by the watchtower is 12 m wide, where the sim stacks the depot's crates (facilities.json "crates": the stack 3 m out at −10 to −13, the heavy ones at −4). The kit's rods had stood on the stack.
+    - **`powder_magazine`** (196): a squat brick house under a concrete vault, half buried behind its earth traverse on three sides.
+        - Its red steel door is stencilled DANGER EXPLOSIVES, behind a blast wall; vents low in its walls, the lightning conductor's mast and the red flag.
+        - It stands behind the huts, 31 m out.
+    - **Two recipe helpers:**
+        - `_vault`, a barrel vault's shell (the hut, the magazine's roof);
+        - `_solid`, a convex piece from its own faces, each turned outward (the traverse's banks).
+    - **Pinned:**
+        - `FacilityBuildingArtTests.TheMilitaryDepotsHutsWireAndMagazineStandOffItsCratesAndTheWinchsRun`, from either side of the spur:
+            - nothing within 0.9 m of a crate, and nothing on the sleds' run;
+            - the wire there and open at the gate.
+        - `TheSwitchyardsGoodsShedIsTheModelClearOfItsTracksAndItsOfficeLampIsLit`:
+            - the lamp is the bake's emissive mask;
+            - nothing above 0.3 m within 2.5 m of a yard track or the spur, on four nights' switchyards.
+    - **Verified:**
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - `dt credits --write`: unchanged.
+        - Looked at before and after:
+            - the depot from the air, along its wire, at a hut, and its magazine from the air;
+            - the switchyard from the air, at its shed in dawn light and at night;
+            - each piece on the turntable.
+        - Two bake faults caught by looking: the vault wound inward (the hut had no shell), and the blast wall's game mesh around its bags (the bake missed them: a black box at the gate).
+
+432. **The branches' pines are solid (queue #168, B1; GDD App. F.1 "the world is solid"; the last of notes 371's and 389's lineside the art dealt alone).** After note 389 everything beside a generated main line was the sim's, but out along an alternate or a dead line, past the main line's own land, the stand of pines on each 100 m cell of its land was still dealt in `PlanArt.BranchCell` from `System.Random`, seeded by the branch and the cell: seen, never stood. A crew walking a dead line out to its site, or a bot crew sent up one, went through the woods either side of it.
+    - **The sim deals them** (`LinesideProps.BranchTrees`, `LinesideProps.Branches.cs`): the art's rule, ported. Ten tries a 100 m cell, 12–67 m out either side of the branch's track, 7–17 m tall, one of the pine's four meshes, turned anywhere. Each cell has its own stream off the night's seed (`Streams.Rng(seed, "lineside-branch", edge, cell)`), and every try's draws are made before it's tested, so a stretch asked in pieces deals as the whole. None in water (`TerrainField.WaterAt`), within 9 m of any track, or where the main line's own land runs (290 m out, the art's `Covered`): its woods are its own (note 371).
+    - **Stood as walls** (`LinesideProps.BranchWalls`, added with the main line's in `World.LinesideToo`): a trunk as the box round its radius (0.015 of its height, the pine's), from 3 m under its foot to its top, those out to `walls.linesideReachM` (40 m) from their own track. Cached by reach, as the main line's are.
+    - **The art draws from it** (`PlanArt.BranchCell`): each pine where the sim stands it, of its mesh, height and turn. The land under them is the art's as it was.
+    - **Same on every machine:** `dt linegen prints`' `lineside` checksum (T116's cross-play prints, on Windows and Linux in CI) carries every branch's pines too.
+    - **Headless:** `dt linegen lineside --route r` reports `branchPines` by edge, `branchSolids` at the reach, and what dealing them costs (`branchMs`). frontier:7 deals 218, 191 and 183 pines on its dead1, alt1 and dead2, 286 of them walls, in 25 ms; deadLines:3 330 walls; deepTerritory:2's four branches 1,498 pines and 763 walls in 50 ms; local:1 152 walls. The main line's walls take 280–375 ms.
+    - **Verified:** `LinesidePropsTests.TheBranchesPinesAreDealtAsTheMainLinesWoodsAre` (frontier:7, deadLines:3, deepTerritory:2): the same from a second generation of the night and asked in 137 m pieces across the cells, none in water, near a track or on the main line's land, each on its ground. `ACrewmateWalksRoundABranchsPineNotThroughIt`: every pine in reach is a wall in the run's walls (`World.EnableRun`), and a crewmate walked at one stops at its trunk. `LinesideFootprintTests.TheArtDrawsEachBranchsPineWhereTheSimStandsIt`: on each of frontier:7's branches, every pine within 100 m of the eye is drawn where the sim stands it, of its mesh and height, and no pine is drawn that the sim didn't deal.
+    - **Not yet:** a spur's land (a stop's siding) is the stop's, and has none; the branches' land is still the art's alone (no boulders or poles out there, and no homesteads by a branch's road).
+462. **The open barns and sheds are rooms (B4, queue #198; note 417's "not yet"; GDD §28 "inside = warm, human, temporary safety", §31).** Since note 417 a village's barns and outbuildings and a dead town's goods shed stand open, walked into by a wide door. The renderer took them for the outside: the moon and the sky lit their floor, loft and bench as they light the yard, a pale blue wash on every board inside.
+    - **The room** (`GreyboxScene.HouseInteriors`, `OpenHouse.Height`): each open shed near the eye (not one a Holdout's in: that's the Holdout's shell) is a `Room`, as an open house's parts are, from its frame (0.15 m under the ground at its middle) up to its eaves (`WorldArt.OpenShedHeight`: a barn 6.5 m, a goods shed 7, an outbuilding 4.6, the heights its art stands at). Inside it no moon, no sky, no rain; only the practical lights and a crewmate's lamp. Outside, its walls and roof keep their moonlight, and its wide door is a black mouth.
+    - **Still no light of its own**, by design (the Wiki's "no candle, bring a lamp"): a barn's dark is the difference from a house's guttering candle. The renderer's 16 rooms nearest the eye are kept (`FrameData.MaxRooms`), so a shed beside a village of houses still has its own.
+    - **Verified:** `HouseInteriorArtTests.AnOpenBarnOrShedIsARoomWithNoLightOfItsOwn` (frontier:7: standing in each open barn or shed, a Room holds the eye and no light stands inside its walls; it fails without the change). `dt screenshot --route frontier:7 --barn 0` from the door, `--back` and `--back --lantern` before and after: the moonlit blue wash inside is gone, the lantern's warm pool on the boards is the only light, the outside is unchanged. HouseInteriorArtTests, StopShellArtTests, StopArtTests, PerfBudgetTests and ScreenshotTests pass.
+    - **Not yet:** a yard's walk-in sheds and its hero (note 387) are still outside to the renderer, though they're walls with a door too.
+
+458. **Nothing blinks out in sight of the crew (D1.2 for D1, queue #194; D1's #187, note 451: a scattered Cinder Hound was Gone the tick it broke off and vanished where it stood).** Every path to `SpinePhase.Gone` was audited, and the ones a crewmate could be watching are fixed in the scene, never in the Sim. The sim keeps letting go of a creature the tick it's done with it; the scene that saw it last frame draws it going.
+    - **How the scene already covered some:**
+        - `Deaths`: a `HitConfirm` with `Killed` (World.Confirm's `Killed: e.Gone`, after a melee `Struck` or a cannon `Hit`), for the kinds that `Falls`.
+        - `Leaving`: the Choir.
+        - `Vanishing`: the Track Doll.
+        - `Riding`: the Car Hugger whose car is adrift.
+        - `Fleeing`: a Cinder Hound on the line (note 451).
+        - Nearly every `BreakOff` → `Gone` pair runs in one tick (0 s). Only the Passenger (2.5 s, then a walk), the Stoker (8 s back to the tender) and the Gaunt (a walk out to 30 m) have a BreakOff the client sees.
+    - **The audit.** In sight and not covered, worst first. "Retreat" marks the ones this change covers:
+
+        | Who | Site (`Sim/Enemies`) | What | Now |
+        |---|---|---|---|
+        | Whistler | Flank.cs:301 | found in its gap by two crew within 2.5 m: "flees" | Retreat |
+        | Climber | Flank.cs:639 | outnumbered or held at the gap, last try | Retreat |
+        | Car Hugger | Enemy.cs:359 | clubbed to death from the rear platform (`Falls` excludes it) | **not yet** |
+        | Stoker | Interior.cs:112, 223 | back into the tender's coal; clubbed while boarding | **not yet** |
+        | Passenger | Corrupted.cs:147, 67 | unmasked, off the back; lingered among the crew | Retreat |
+        | Climber | Flank.cs:557 | gave up pacing a fast train | Retreat |
+        | any | World.cs:1836 | dismissed as the train rolls into a fort | Retreat (for the kinds below) |
+        | Ribbit | Outside.cs:133 | the pack, having eaten | Retreat |
+        | Cinder Hound aboard | Rear.cs:294, 95 | after its kill; its car cut loose | Retreat |
+        | Fire Flies | Interior.cs:421, 439 | the swarm round a lamp, the train pulling away | **not yet** |
+        | Gaunt | Outside.cs:376 | going with its loot, 30 m out | Retreat |
+        | Switchman | Corrupted.cs:341, 388 | the points thrown back by hand; 20 s after the derail | Retreat |
+        | Car Fire | Incidents.cs:196 | flames gone from a car cut loose | **not yet** |
+        | after a kill | Flank.cs:424, 738; Interior.cs:362; Outside.cs:764; Corrupted.cs:183 | off the body, a friend arriving | Retreat |
+
+        - **Not in sight:** outrun or left behind far off (Rear.cs:112, Flank.cs:544, Moose.cs:97), lingering hidden (Flank.cs:100, 264, Interior.cs:274), the Switchman's bad branch (Corrupted.cs:312, 326), the Drift and Sleepers (no body), a fire burnt out.
+        - **Drawn wrongly (a death fall when nothing died):** the Gannet giving up (Gannet.cs:347), a Whistler rescued by a blow (Flank.cs:431), a Climber's last try knocked off by a ball (Flank.cs:772). Each rides the "killed" `HitConfirm`. Left with the second batch.
+    - **Retreating** (`GreyboxScene.Retreating`, `Art.CreatureArt.Retreat`). Gone from the sim between frames, not killed, of a kind with a retreat:
+        - The scene keeps a copy (`Enemy.Blank`, the snapshot's factory, now public).
+        - It's drawn loose where it was last seen, in its break-off: down off the train under gravity, falling behind as the train it was going with runs on, and out from the line on its own side at the kind's speed, turned away. Then it's lost in the dark.
+        - Speeds and times by kind: Climber 5 m/s for 3 s, Whistler 8 for 2, Ribbit 4 for 3, Gaunt 1.5 for 6 (on past its 30 m), Switchman 4 for 3, Tippy Toesie 5 for 2.5, Soot Child 3 for 3, Passenger 3 for 3, Follower 4 for 3, a hound aboard 6 for 3.
+        - Existing clips only: each is its own break-off pose (the Climber's is its pacing scuttle). New ones for E1, if wanted: a Climber's drop and run, a Whistler's dart.
+    - **Staging:** `dt screenshot --threats [--gaunt angry] --view <v> --retreat kind:s [--speed v]`. Looked at: the Ribbit pack (`--view pack --retreat ribbit:1.5`, three toads backs turned, out across the field), the Gaunt (`--gaunt angry --view gaunt --retreat gaunt:3`, walking off), a Climber at the gap (`--view gapside --retreat climber:0.35`, down on the ballast, scuttling out).
+    - **Not yet (the second batch):**
+        - The Car Hugger clubbed to death: a fall off the car's end.
+        - The Stoker: back into the coal, or out of the firebox door.
+        - The Fire Flies: a swarm scattering.
+        - A fire on a car cut loose: `Riding`'s car, burning.
+        - The three drawn as deaths when nothing died.
+    - **Verified:**
+        - `CreatureArtTests.OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone` (Climber, Whistler, hound aboard, Ribbit, Gaunt, Switchman): drawn where it was; a second on, out from the line and further from the eye; gone after its time.
+        - `AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead`: gone between frames, a "retreated" beat; killed by a blow, a "killed" beat and the fall, not both.
 
 460. **The Follower's nest built up over its 60 s (queue #196, E1; the art checklist's `follower-nest` "next", "the nest building up over its 60 s rather than at its swell's size"; GDD App. A.6).** The nest was drawn whole from its first second, scaled from a quarter of its size up with the Follower's swell: a small finished heap growing.
     - **Built from its own pieces:** the follower_nest model (tools/models/recipes/follower_nest.py) keeps each of its parts a piece of its own in the baked mesh, welded to no other. `NestBuild` finds them (triangles that share a corner) and tells them by their shape: the loot it's built on (the spill and the sack low down, the crates' boxes), ten strands (thin twelve-triangle cylinders), the crust's six lobes, and the hollow (the highest).
