@@ -81,6 +81,34 @@ public class GutterTests
     }
 
     [Fact]
+    public void AWalkerGoesInToAGutteringLampNobodysWithAndTrimsIt()
+    {
+        // A crew of three out on the line (the driver, the gunner, one walker), and car 3's lamp starts to gutter 20 s in:
+        // nobody's in there, so the walker goes along the roofs, in at its door, and trims it before it goes out.
+        double? cameAt = null, trimmedAt = null;
+        bool wentOut = false;
+        var report = CrewOfTwoTests.Night("frontier:7", 6, 100, null, start: 2500, bots: 3,
+            upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = G with { FirstAfterMetres = 1e9 }, Coupling = new() { Enabled = false } },
+            each: w =>
+            {
+                var lamp = w.Train.Vehicles[3];
+                if (cameAt is null && w.ElapsedSeconds >= 20 && lamp.LampLit)
+                {
+                    lamp.Gutter = SimConstants.TickSeconds;
+                    cameAt = w.ElapsedSeconds;
+                }
+                else if (cameAt is not null && trimmedAt is null && lamp.Gutter == 0)
+                {
+                    wentOut |= !lamp.LampLit;
+                    trimmedAt = w.ElapsedSeconds;
+                }
+            });
+        Assert.NotNull(cameAt);
+        Assert.True(trimmedAt is { } at && at - cameAt < G.OutAfter && !wentOut,
+            $"came at {cameAt:0} s, done at {trimmedAt?.ToString("0") ?? "never"}, out {wentOut} ({report.Deaths} died)");
+    }
+
+    [Fact]
     public void ABotInTheCarTrimsItWithAPressEveryHalfSecond()
     {
         var w = Night(12);
