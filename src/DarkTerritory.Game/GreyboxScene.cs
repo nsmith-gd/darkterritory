@@ -2342,11 +2342,14 @@ public sealed class GreyboxScene
     /// <param name="gear">A town's person (note 353): what they breathe through (<see cref="Sim.Towns.TownGear"/>), worn on the
     /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
+    /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
-        string? gear = null, bool home = false, int who = 0)
+        string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
         drab += variant % 3 * 0.05f;
-        string clip = pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" };
+        string clip = gear is null
+            ? pose switch { "seated" => "gunner", "crouch" => "crouch_idle", "lantern" => "lantern", "walk" => "lantern_walk", _ => "idle" }
+            : Art.TownsfolkKit.Clip(pose, lamp, who);
         var creatures = Look!.Art.Creatures;
         string figure = "crew";
         Matrix4x4 m;
@@ -2364,7 +2367,7 @@ public sealed class GreyboxScene
                 return;
         }
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if (pose is "lantern" or "walk" && Art.PropArt.Of(Look).Get("hand_lantern") is { } lamp && creatures.Hang(mesh, lamp, m, figure))
+        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern && creatures.Hang(mesh, lantern, m, figure))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -2391,19 +2394,23 @@ public sealed class GreyboxScene
                     Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
-                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant);
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
                 foreach (var p in town.Plan.People)
                 {
-                    var feet = town.Feet(p);
+                    // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.
+                    var now = town.Now(p);
+                    var feet = now.Feet;
                     if ((feet - eye).Length > 160)
                         continue;
                     bool talking = TownFacing is { } f && f.Person == p.Id;
                     // Whoever sits or crouches at their work stays put when you talk to them: turned to you, they'd swing
                     // off their chair or out from the range (the director, 8 Oct: "some of the animation positions are off").
-                    bool settled = p.Pose is "seated" or "crouch";
+                    bool settled = now.Act is "seated" or "crouch" or "mend";
                     var facing = talking && !settled && new Double3(TownFacing!.Value.Toward.X - feet.X, 0, TownFacing.Value.Toward.Z - feet.Z) is { Length: > 0.1 } toward
-                        ? toward.Normalized : town.Direction(p.S, p.FaceS, p.FaceD);
-                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, p.Pose, p.Gear, home: p.House >= 0, who: p.Id);
+                        ? toward.Normalized : now.Facing;
+                    // Held to talk mid-stride, they stand.
+                    string act = talking && now.Walking ? "idle" : now.Act;
+                    Folk(mesh, eye, feet, facing, p.Look % 7 + 1, drab: 0.72f, act, p.Gear, home: p.House >= 0, who: p.Id, lamp: p.Pose == "lantern");
                     // Whoever you're talking to has the lamplight on their face, so you can see who it is (most stand with
                     // a lit door or a fire at their back).
                     if (talking)

@@ -1516,6 +1516,9 @@ public sealed class World
             StepEnemies(ctx);
         Pace();
         Tick++;
+        // The town's people go about their rounds on the night's clock (note 353).
+        if (Town is { } town)
+            town.Clock = Tick * SimConstants.TickSeconds;
         if (Authority)
             RefreshTargets();
     }

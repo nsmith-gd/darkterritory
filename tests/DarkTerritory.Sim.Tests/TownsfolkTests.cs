@@ -8,9 +8,12 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// A town's people (the director, 8 Oct 2026: "We need townsfolk models who wear some sort of respirator mask or oxygen
-/// mask or other breathing apparatuses to indicate the air is foul"; queue #90, ARCHITECTURE §8 note 353): each breathes
-/// through gear of the kinds their town's character keeps (houses.json <c>gear</c>), drawn from who they are.
+/// A town's people (queue #90, ARCHITECTURE §8 note 353). The director, 8 Oct 2026: "We need townsfolk models who wear some
+/// sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul": each breathes
+/// through gear of the kinds their town's character keeps (houses.json <c>gear</c>), drawn from who they are. And "There
+/// needs to be a behaviour loop for all the NPCs, its weird that so many of them are just standing around doing nothing":
+/// each goes about a round on the night's clock, clear of what's solid, never two in one place, stopping for whoever
+/// talks to them.
 /// </summary>
 public class TownsfolkTests
 {
@@ -18,7 +21,9 @@ public class TownsfolkTests
     static readonly TownContent Towns = TownContent.Load(Content)!;
 
     /// <summary>The town on <paramref name="spec"/>'s departure fortress, of <paramref name="people"/>, its character <paramref name="character"/> (any when null).</summary>
-    static Town Plan(string spec, int people, string? character = null)
+    static Town Plan(string spec, int people, string? character = null) => Night(spec, people, character).Town;
+
+    static (World World, Town Town) Night(string spec, int people, string? character = null)
     {
         var looks = character is null ? Towns.Looks
             : Towns.Looks with { Characters = [.. Towns.Looks.Characters.Where(c => c.Id == character)], ByTrade = [] };
@@ -28,7 +33,7 @@ public class TownsfolkTests
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), route.Build(), gate - 8), Tuning.Combat);
         world.EnableRun(Tuning.Run, route, gate, authority: true);
         world.EnableTown(content, route, gate, []);
-        return world.Town!;
+        return (world, world.Town!);
     }
 
     [Fact]
@@ -64,5 +69,98 @@ public class TownsfolkTests
             Assert.Equal(TownGear.Pick(weights, h), TownGear.Pick(flipped, h));
         }
         Assert.Equal("respirator", TownGear.Pick(new Dictionary<string, double>(), 12345));
+    }
+
+    [Theory]
+    [InlineData("frontier:7", 300)]
+    [InlineData("local:3", 2000)]
+    public void EverybodyGoesAboutARoundAndIsBackAtTheirPostWhenItComesRound(string spec, int people)
+    {
+        var town = Plan(spec, people);
+        var plan = town.Plan;
+        Assert.All(plan.People, p => Assert.NotNull(town.Rounds[p.Id]));
+        town.Clock = 0;
+        // Out of doors, everyone starts the night at their post.
+        foreach (var p in plan.People.Where(p => p.House < 0))
+            Assert.True((town.Feet(p) - town.World(p.S, p.D, p.Up)).Length < 1e-6, $"{p.Title} isn't at their post at the start");
+        // Most go somewhere: nobody's just standing around all night.
+        int moved = plan.People.Count(p => town.Rounds[p.Id]!.Stops.Select(x => (Math.Round(x.S, 1), Math.Round(x.D, 1))).Distinct().Count() > 1);
+        Assert.True(moved >= plan.People.Count * 0.8, $"only {moved} of {plan.People.Count} go anywhere");
+        // Round again, back where they began.
+        foreach (var p in plan.People)
+        {
+            var r = town.Rounds[p.Id]!;
+            town.Clock = 0;
+            var start = town.Feet(p);
+            town.Clock = r.Period;
+            Assert.True((town.Feet(p) - start).Length < 1e-6, $"{p.Title}'s round doesn't come round");
+        }
+    }
+
+    [Theory]
+    [InlineData("frontier:7", 300)]
+    [InlineData("local:3", 2000)]
+    [InlineData("deadLines:3", 900)]
+    public void ARoundKeepsClearOfWhatsSolidAndNeverPutsTwoInOnePlace(string spec, int people)
+    {
+        var town = Plan(spec, people);
+        var plan = town.Plan;
+        double longest = town.Rounds.Max(r => r?.Period ?? 0);
+        for (double clock = 0; clock < longest * 2; clock += 0.5)
+        {
+            town.Clock = clock;
+            var stood = new List<(Townsperson P, Double3 Feet)>();
+            foreach (var p in plan.People)
+            {
+                var now = town.Now(p);
+                // Sat on a bench is sat in its box, and getting up out of it a step: everywhere else, in no wall of the town's.
+                bool bench = p.House < 0 && town.Rounds[p.Id]!.Stops.Any(x => x.Act == "seated" && (town.World(x.S, x.D, p.Up) - now.Feet).Length < 0.45);
+                if (!bench)
+                {
+                    var inside = town.Walls.Where(w =>
+                    {
+                        var l = w.ToLocal(now.Feet + Double3.Up * 0.6);
+                        return Math.Abs(l.X) < w.HalfLength - 0.02 && Math.Abs(l.Z) < w.HalfWidth - 0.02 && l.Y > w.Bottom && l.Y < w.Top;
+                    }).ToList();
+                    Assert.True(inside.Count == 0, $"{p.Title} ({now.Act}) at {clock:0.0} s is inside a wall");
+                }
+                if (!now.Walking)
+                    stood.Add((p, now.Feet));
+            }
+            for (int i = 0; i < stood.Count; i++)
+                for (int j = i + 1; j < stood.Count; j++)
+                    Assert.True((stood[i].Feet - stood[j].Feet).Length > 0.5,
+                        $"{stood[i].P.Title} and {stood[j].P.Title} stand in one place at {clock:0.0} s");
+        }
+    }
+
+    [Fact]
+    public void WhoeverYoureTalkingToStopsForYouAndGoesOnAfter()
+    {
+        var (world, town) = Night("frontier:7", 300);
+        // The night's clock runs the rounds.
+        world.Step(default);
+        Assert.Equal(world.Tick * SimConstants.TickSeconds, town.Clock, 9);
+        // Somebody out walking.
+        double clock = 0;
+        var walker = town.Plan.People.First(p =>
+        {
+            for (clock = 0; clock < town.Rounds[p.Id]!.Period; clock += 1)
+            {
+                town.Clock = clock;
+                if (town.Now(p).Walking)
+                    return true;
+            }
+            return false;
+        });
+        town.Clock = clock;
+        var held = town.Feet(walker);
+        town.Hold(walker.Id);
+        town.Clock = clock + 20;
+        Assert.True((town.Feet(walker) - held).Length < 1e-9, "walked on while being talked to");
+        town.Hold(-1);
+        town.Clock = clock + 21;
+        double on = (town.Feet(walker) - held).Length;
+        Assert.InRange(on, 0.5 * town.Tuning.Rounds.Walk, 1.05 * town.Tuning.Rounds.Walk);
     }
 }

@@ -959,6 +959,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
         town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
             towns.Tuning, line, towns.Looks);
+        // --clock s: that far into the night, the town's people on their rounds (note 353).
+        town.Clock = Opt(args, "--clock", 0);
     }
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })

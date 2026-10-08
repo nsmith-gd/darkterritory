@@ -96,8 +96,8 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         {
             // The kitchen: the range against the side wall at the back, the table, the dresser against the back wall.
             new("stove", k * (w - 0.55), depth - 1.1, 0.42, 0.35, 0.9, true),
-            new("table", k * width / 4, depth * 0.6, 0.7, 0.45, 0.75, true),
-            new("chair", k * width / 4, depth * 0.6 + 0.75, 0.22, 0.22, 0.9, false),
+            new("table", k * width / 4, TableV(depth), 0.7, 0.45, 0.75, true),
+            new("chair", k * width / 4, TableV(depth) + 0.75, 0.22, 0.22, 0.9, false),
             new("dresser", k * 0.85, depth - 0.3, 0.6, 0.22, 1.9, true),
             // The parlour: the stair boxed in its back corner (its door toward the partition), a cabinet against the back
             // wall, a chair with the parlour's lamp on a stand beside it, a photograph on the partition.
@@ -110,7 +110,7 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         var spots = new List<HouseSpot>
         {
             new("stove", k * (w - 1.35), depth - 1.1, k, 0, "crouch"),
-            new("table", k * width / 4, depth * 0.6 + 0.75, 0, -1, "seated"),
+            new("table", k * width / 4, TableV(depth) + 0.75, 0, -1, "seated"),
             new("chair", -k * width / 4, depth * 0.4, 0, -1, "seated"),
             new("window", -k * (width / 4 + 0.4), 0.8, 0, -1, "idle"),
             new("stairs", -k * (w - 1.55), depth - 1.4, -k, 0, "idle"),
@@ -119,13 +119,20 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         return new HouseLayout(kitchen, k * width / 4, depth * 0.35, things, spots);
     }
 
+    /// <summary>
+    /// How far in the kitchen table stands: three fifths of the way back, but in a short house forward of that, so its chair
+    /// (behind it) leaves room for whoever's crouched at the range (the director's 8 Oct shots: in a 5 m house the range's
+    /// place was on the table's chair, the one at the table sat beside it; note 353).
+    /// </summary>
+    public static double TableV(double depth) => Math.Min(depth * 0.6, depth - 2.5);
+
     /// <summary>Where the household's own thing goes, by its kind: on the table, by the stairs, on the cabinet, by the door.</summary>
     public (double U, double V, double H) Place(string kind, double width, double depth)
     {
         double w = width / 2, k = Kitchen;
         return kind switch
         {
-            "table" or "letters" => (k * width / 4 + 0.2, depth * 0.6, 0.8),
+            "table" or "letters" => (k * width / 4 + 0.2, TableV(depth), 0.8),
             "anklebell" => (-k * (w - 1.2), depth - 0.5, 0.9),
             "timetable" => (-k * width / 4, Wall + 0.03, 1.6),
             "boots" => (DoorU + k * 0.75, 0.45, 0.1),

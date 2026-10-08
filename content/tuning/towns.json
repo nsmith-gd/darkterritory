@@ -68,5 +68,12 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
-  "lingerSeconds": 6
+  "lingerSeconds": 6,
+
+  // Their rounds (ARCHITECTURE §8 note 353; the director, 8 Oct 2026: "There needs to be a behaviour loop for all the
+  // NPCs, its weird that so many of them are just standing around doing nothing"): out of doors, everyone's day is
+  // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
+  // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
+  // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] }
 }

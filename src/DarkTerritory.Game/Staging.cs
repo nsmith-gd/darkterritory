@@ -117,7 +117,7 @@ public static class Staging
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
                 // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind
                 // their shoulder, in the parlour's chair from the partition.
-                "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, home.Depth * 0.6 + 0.6, 1.25), At(k * w / 4, home.Depth * 0.6 + 0.6, 0.65), 70),
+                "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 1.25), At(k * w / 4, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 0.65), 70),
                 "range" => Ballast.Render.Camera.LookAt(At(k * (w / 2 - 0.35), home.Depth - 3.2, 1.3), At(k * (w / 2 - 1.0), home.Depth - 1.1, 0.45), 70),
                 "armchair" => Ballast.Render.Camera.LookAt(At(-k * 0.35, home.Depth * 0.4 - 0.4, 1.25), At(-k * w / 4, home.Depth * 0.4, 0.65), 70),
                 _ => Ballast.Render.Camera.LookAt(At(k * 1.0, pv - 0.4, 1.65), At(-k * w / 2, pv + 0.9, 1.1), 75),

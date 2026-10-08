@@ -117,6 +117,24 @@ public sealed class TownsfolkKit(Look? look)
         }
     }
 
+    /// <summary>
+    /// The crew clip a townsperson's act plays (<see cref="Sim.Towns.RoundStop.Act"/>; note 353): sat at a table or on a
+    /// bench, crouched at the range, kneeling to mend at a crate, hands out to a fire barrel, hands on a stall's counter, a
+    /// lamp held up, walking (with the lamp when they carry one), and in a word with somebody now and then pointing the way.
+    /// </summary>
+    public static string Clip(string act, bool lamp, int who) => act switch
+    {
+        "seated" => "gunner",
+        "crouch" => "crouch_idle",
+        "mend" => "mend",
+        "warm" => "carry",
+        "work" => "push",
+        "lantern" => "lantern",
+        "walk" => lamp ? "lantern_walk" : "walk",
+        "talk" when who % 3 == 0 => "point",
+        _ => "idle",
+    };
+
     /// <summary>The figure a townsperson is drawn as: the survivors' bare-headed one, the wildlander's patched coat on one in three.</summary>
     public static string Figure(int variant, int who) => (variant + who) % 3 == 0 ? "survivor_wildlander" : "survivor_prisoner";
 

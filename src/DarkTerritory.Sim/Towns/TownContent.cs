@@ -33,6 +33,23 @@ public sealed record TownTuning
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
     public double LingerSeconds { get; init; } = 6;
+    /// <summary>Their rounds (note 353).</summary>
+    public RoundTuning Rounds { get; init; } = new();
+}
+
+/// <summary>
+/// Townspeople's rounds (towns.json <c>rounds</c>; note 353): out of doors a day of <see cref="Slots"/> slots of
+/// <see cref="Slot"/> seconds, at home <see cref="HomeSlot"/> seconds at each of the rooms' places, walked between at
+/// <see cref="Walk"/>; a pacer goes <see cref="Pace"/> either way of their post, a lamp-carrier on a street this far along it.
+/// </summary>
+public sealed record RoundTuning
+{
+    public double Slot { get; init; } = 45;
+    public int Slots { get; init; } = 4;
+    public double HomeSlot { get; init; } = 38;
+    public double Walk { get; init; } = 1.2;
+    public double Pace { get; init; } = 3.5;
+    public double[] Street { get; init; } = [10, 24];
 }
 
 public sealed record SquareTuning

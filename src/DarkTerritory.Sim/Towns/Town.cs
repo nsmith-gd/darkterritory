@@ -29,6 +29,154 @@ public sealed class Town
         Looks = looks ?? new HouseLooks();
         _line = line;
         Walls = [.. BuildWalls()];
+        Index();
+        _behind = new double[plan.People.Count];
+        Rounds = TownRounds.Plan(this);
+    }
+
+    /// <summary>
+    /// The night's clock the townspeople's rounds run on (seconds; note 353): <see cref="DarkTerritory.Sim.World"/> sets
+    /// it from its tick every step, so every machine has them in the same places.
+    /// </summary>
+    public double Clock { get; set; }
+
+    /// <summary>Each person's round (by id), or null for somebody who keeps to their place.</summary>
+    public IReadOnlyList<TownRound?> Rounds { get; }
+
+    // Who's held on this machine (talked to: they stop for you), since when, and how far behind the clock each one's round
+    // has fallen for it. Talking changes nothing in the night, so this is this machine's alone.
+    readonly double[] _behind;
+    int _held = -1;
+    double _heldAt;
+
+    /// <summary>Holds <paramref name="person"/> where they are (whoever's being talked to; −1 for nobody): their round
+    /// waits for you and goes on from there after.</summary>
+    public void Hold(int person)
+    {
+        if (person == _held)
+            return;
+        if (_held >= 0)
+            _behind[_held] += Clock - _heldAt;
+        _held = person;
+        _heldAt = Clock;
+    }
+
+    /// <summary>How far into their own round somebody is (the clock, less the times they stopped to talk).</summary>
+    double Own(int id) => (id == _held ? _heldAt : Clock) - _behind[id];
+
+    /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
+    public TownPose Now(Townsperson p)
+    {
+        var at = World(p.S, p.D, p.Up);
+        if (Rounds[p.Id] is not { Stops.Count: > 0 } r)
+            return new TownPose(at, Direction(p.S, p.FaceS, p.FaceD), p.Pose, false);
+        int n = r.Stops.Count;
+        double t = (Own(p.Id) + r.Offset) % r.Period;
+        if (t < 0)
+            t += r.Period;
+        int k = Math.Min(n - 1, (int)(t / r.Slot));
+        var stop = r.Stops[k];
+        var next = r.Stops[(k + 1) % n];
+        // At the stop for the slot, then the walk on to the next by its via points, timed to arrive as the slot ends.
+        var here = World(stop.S, stop.D, p.Up);
+        var path = next.Via.Select(v => World(v.S, v.D, p.Up)).Append(World(next.S, next.D, p.Up)).ToList();
+        double length = 0;
+        var from = here;
+        foreach (var b in path)
+        {
+            length += (b - from).Length;
+            from = b;
+        }
+        double walked = (t - k * r.Slot - Math.Max(0, r.Slot - length / Tuning.Rounds.Walk)) * Tuning.Rounds.Walk;
+        if (walked <= 0 || length < 1e-6)
+            return new TownPose(here, Direction(stop.S, stop.FaceS, stop.FaceD), stop.Act, false);
+        from = here;
+        foreach (var b in path)
+        {
+            double len = (b - from).Length;
+            if (walked < len && len > 1e-6)
+                return new TownPose(from + (b - from) * (walked / len), ((b - from) with { Y = 0 }).Normalized, "walk", true);
+            walked -= len;
+            from = b;
+        }
+        return new TownPose(World(next.S, next.D, p.Up), Direction(next.S, next.FaceS, next.FaceD), next.Act, false);
+    }
+
+    // The walls by where they stand: an 8 m grid on the level, each wall in every cell it reaches, so a way across the
+    // town looks only at the walls beside it (a big town has thousands).
+    const double Cell = 8;
+    readonly Dictionary<(int X, int Z), List<int>> _cells = [];
+    int[] _seen = [];
+    int _stamp;
+
+    void Index()
+    {
+        _seen = new int[Walls.Count];
+        for (int i = 0; i < Walls.Count; i++)
+        {
+            var w = Walls[i];
+            double r = w.HalfLength + w.HalfWidth;
+            for (int x = (int)Math.Floor((w.Centre.X - r) / Cell); x <= (int)Math.Floor((w.Centre.X + r) / Cell); x++)
+                for (int z = (int)Math.Floor((w.Centre.Z - r) / Cell); z <= (int)Math.Floor((w.Centre.Z + r) / Cell); z++)
+                {
+                    if (!_cells.TryGetValue((x, z), out var list))
+                        _cells[(x, z)] = list = [];
+                    list.Add(i);
+                }
+        }
+    }
+
+    /// <summary>The walls in the cells round the level box from <paramref name="a"/> to <paramref name="b"/>, <paramref name="pad"/> wider, each once.</summary>
+    List<Wall> Around(Double3 a, Double3 b, double pad)
+    {
+        var found = new List<Wall>();
+        _stamp++;
+        for (int x = (int)Math.Floor((Math.Min(a.X, b.X) - pad) / Cell); x <= (int)Math.Floor((Math.Max(a.X, b.X) + pad) / Cell); x++)
+            for (int z = (int)Math.Floor((Math.Min(a.Z, b.Z) - pad) / Cell); z <= (int)Math.Floor((Math.Max(a.Z, b.Z) + pad) / Cell); z++)
+                if (_cells.TryGetValue((x, z), out var list))
+                    foreach (int i in list)
+                        if (_seen[i] != _stamp)
+                        {
+                            _seen[i] = _stamp;
+                            found.Add(Walls[i]);
+                        }
+        return found;
+    }
+
+    /// <summary>Whether a body can stand at <paramref name="feet"/>: no wall of the town's within a shoulder of it, knees to
+    /// chest (<paramref name="indoors"/>: a narrower body, between the furniture).</summary>
+    public bool Free(Double3 feet, bool indoors = false)
+    {
+        foreach (var w in Around(feet, feet, 0.5))
+            foreach (double up in (double[])[0.4, 1.2])
+                if (Holds(w, feet + Double3.Up * up, indoors ? 0.15 : 0.3))
+                    return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a body walks clear from <paramref name="a"/> to <paramref name="b"/>: nothing solid of the town's across the
+    /// way at the knees or the chest, a shoulder's width either side (<paramref name="indoors"/>: a narrower body, between
+    /// the furniture), the walls that hold either end aside.
+    /// </summary>
+    public bool Clear(Double3 a, Double3 b, bool indoors = false)
+    {
+        var way = (b - a) with { Y = 0 };
+        double len = way.Length;
+        if (len < 1e-6)
+            return true;
+        var across = Double3.Cross(way * (1 / len), Double3.Up) * (indoors ? 0.15 : 0.3);
+        var near = Around(a, b, 0.5);
+        foreach (double up in (double[])[0.4, 1.2])
+            foreach (double off in (double[])[-1, 0, 1])
+            {
+                var from = a + across * off + Double3.Up * up;
+                var to = b + across * off + Double3.Up * up;
+                foreach (var w in near)
+                    if (!Holds(w, a + Double3.Up * up, 0.05) && !Holds(w, b + Double3.Up * up, 0.05) && Crosses(w, from, to))
+                        return false;
+            }
+        return true;
     }
 
     public TownPlan Plan { get; }
@@ -57,7 +205,8 @@ public sealed class Town
 
     static Double3 Right(TrackSample t) => Double3.Cross(t.Tangent, Double3.Up).Normalized;
 
-    public Double3 Feet(Townsperson p) => World(p.S, p.D, p.Up);
+    /// <summary>Where somebody's feet are now (on their round).</summary>
+    public Double3 Feet(Townsperson p) => Now(p).Feet;
 
     /// <summary>The front of a building, at the middle of its face and a door's height.</summary>
     public Double3 Door(TownBuilding b)
@@ -202,9 +351,8 @@ public sealed class Town
                 bool turned = Math.Abs(f.FaceS) > Math.Abs(f.FaceD);
                 yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
             }
-        // The people: a body's width, so a crewmate walks round them, not through.
-        foreach (var p in Plan.People)
-            yield return Box(p.S, p.D, 0.25, 0.25, 1.8, p.Up);
+        // Not the people: they go about their rounds (note 353), so a wall of their own would be in a different place on
+        // every machine that's stopped somebody to talk.
         foreach (var h in Plan.Houses)
             foreach (var w in HouseWalls(h))
                 yield return w;
