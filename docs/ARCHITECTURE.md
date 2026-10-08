@@ -6722,3 +6722,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - two seconds' walk along it, a walk's paws on the tin;
         - over the gap to the next car, one leap and two paws landing on its roof;
         - down in at its door, one leap and two paws on the boards, and walking there, the boards (never the ballast's).
+
+
+477. **The hounds' patrol clips (queue #213, E1; for D1's #208, note 472; the director, 8 Oct: "It matters that they dont just stand there and howl, they should either patrol between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump"; the art checklist's `cinder-hounds-anim`).** Five new clips in tools/blender/cinder_hound.py, which D1 wires in CreatureArt's hound case:
+    - **`patrol`** (64 frames, loop): the hunting walk along the roofs. The prowl's slink without its stop and stare: nose down at the boards, the head swept slowly side to side over two strides, the ears pricked forward.
+    - **`leap`** (27 frames, once): over a coupling gap. In place along the line: the gather, the arc up off the roof (0.62 m), the landing on the forelegs and on into the walk; the Sim carries it the 2-3 m across between 0.25 s and 0.65 s.
+    - **`drop`** (36 frames, once): from a roof's edge down in at an open door. Like `board`, it ends at the Sim's position (on the car's floor 0.7 m in, facing in) and starts 2.9 m up over the doorway facing out: it looks down over the edge, springs out, turns in the air and swoops in through the doorway onto the sill.
+    - **`climb`** (40 frames, once): the drop backwards. From the Sim's position on the floor facing out: to the sill, out and up turning in the air, hooked over the roof's lip scrabbling as it does boarding, heaved up; it ends 2.9 m up and 0.5 m out, turned round, facing back in over the car.
+    - **`sniff`** (120 frames, loop): the idle beat, not a howl: nose down along the boards in quick pops, a forepaw scraping at them three times, a long still look out over the side, and back to the boards.
+    - **Verified:** `dt art clip cinder_hound patrol|leap|drop|climb|sniff`; `dt art clearance --only cinder_hound` (no failures); `CreatureArtTests` pins the clips.

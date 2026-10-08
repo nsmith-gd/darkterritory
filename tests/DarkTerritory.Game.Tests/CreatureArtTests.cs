@@ -44,7 +44,7 @@ public class CreatureArtTests
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "board", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite", "patrol", "sniff"], ["lunge", "board", "hit", "leap", "drop", "climb"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
