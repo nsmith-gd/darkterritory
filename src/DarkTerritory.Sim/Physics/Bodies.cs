@@ -68,6 +68,11 @@ public sealed class Body
     public bool DroppedOut { get; set; }
     /// <summary>Facing, for drawing single-point bodies (crates, lamps); tumbles in flight.</summary>
     public double Yaw { get; set; }
+    /// <summary>
+    /// Drawn only: its up (world) when it isn't its parent frame's, as a load thrown into the wreck film tumbles (note 370);
+    /// zero for upright. <see cref="Yaw"/> turns it about this.
+    /// </summary>
+    public Double3 Tilt { get; set; }
     public double Spin { get; set; }
     /// <summary>An extinguisher's charge, 0..1 (App. C.5: limited, and it recharges slowly on its mount).</summary>
     public double Charge { get; set; } = 1;
