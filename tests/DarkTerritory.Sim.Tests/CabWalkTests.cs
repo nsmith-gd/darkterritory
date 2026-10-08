@@ -46,12 +46,13 @@ public class CabWalkTests
         var plan = EnginePlan.Of(g);
         double walk = side * (g.Engine.BoilerHalfWidth + (shape.HalfWidth - 0.1 - g.Engine.BoilerHalfWidth) / 2);
         var s = PlayerMotor.SpawnInCab(train, Tuning.Player, side * 0.3);
-        s = s with { Position = new Double3(walk, s.Position.Y, plan.CabBack + 3) };
+        // (From the deck behind the smokebox, in at the hood's back end and along the corridor beside the boiler.)
+        s = s with { Position = new Double3(walk, s.Position.Y, shape.HalfLength - 0.2) };
         for (int i = 0; i < 1.5 * SimConstants.TickRate; i++)
             PlayerMotor.Step(ref s, default, train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
         Assert.Equal(Surface.Deck, s.Surface);
         // Forward along the walkway, through the back wall, into the cab.
-        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+        for (int i = 0; i < 9 * SimConstants.TickRate; i++)
             PlayerMotor.Step(ref s, Toward(s, new Double3(walk, 0, plan.CabBack - 1.2)), train, Tuning.Player, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
         Assert.True(PlayerMotor.InCab(s, train), $"stuck at {s.Position} (the cab's back is {plan.CabBack:0.00})");
         // Through the wall and in (on the left the bunker stands a pace inside: in, and up against the coal).

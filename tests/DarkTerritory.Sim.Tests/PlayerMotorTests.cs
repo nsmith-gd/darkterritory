@@ -220,20 +220,22 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void UpTheCabsBackLadderFromTheBoilerToTheCabRoofAndItsGun()
+    public void AlongTheHoodsRoofYouWalkOntoTheCabRoofAndItsGun()
     {
-        // Walking into a ladder's foot takes hold (no Use), climbing carries you over its top onto the cab roof: cab
-        // forward (note 276), from the boiler's top up the cab's back wall.
+        // The hood (note 338): the engine's roof is one level from its back to the cab's front, so from the top of the train
+        // (up the engine's back ladder) you walk forward onto the cab roof and its gun, no ladder up the cab's back.
         var rig = OnRoof(3, 14, car: 1);
         var engine = rig.Train.Frames[0];
-        var ladder = engine.Shape.Ladders.Single(x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
-        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, ladder.Foot.Z + 0.6, P, ladder.Foot.X);
+        var plan = EnginePlan.Of(T.Geometry);
+        Assert.DoesNotContain(engine.Shape.Ladders, x => x.Foot.Y > T.Geometry.Engine.DeckHeight + 1);
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 0, plan.CabBack + 3, P, 0);
         Assert.Equal(Surface.Roof, rig.Player.Surface);
-        rig.Run(4, r => r.Player.Surface == Surface.Roof && r.Player.Position.Y > ladder.Foot.Y + 0.5 ? default : Move(0, 1));
+        Assert.Equal(T.Geometry.EngineHeight, rig.Player.Position.Y, 3);
+        rig.Run(3, _ => Move(0, 1));
         Assert.Equal(0, rig.Player.Parent);
         Assert.Equal(Surface.Roof, rig.Player.Surface);
         Assert.Equal(T.Geometry.EngineHeight, rig.Player.Position.Y, 3);
-        Assert.True(rig.Player.Position.Z < ladder.Foot.Z - 0.3, "over the top onto the cab roof");
+        Assert.True(rig.Player.Position.Z < plan.CabBack - 1, $"onto the cab roof: at {rig.Player.Position}");
     }
 
     [Fact]
