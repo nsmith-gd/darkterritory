@@ -4,13 +4,14 @@ using Ballast.Render;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// A tunnel isn't seen through (ARCHITECTURE §8 note 433; the director, 8 Oct, GDD App. F.4: "see through or missing"):
-/// above a portal's face the ground closes from its coping up onto the hill, and the bore's lining is whole at every
-/// joint on a curve. `dt holes` found both, the sky showing through them.
+/// The land isn't seen through (ARCHITECTURE §8 note 433; the director, 8 Oct, GDD App. F.4: "see through or missing"):
+/// above a portal's face the ground closes from its coping up onto the hill, the bore's lining is whole at every joint on a
+/// curve, and the far land tucks under the corridor's edge. `dt holes` found all three, the sky showing through them.
 /// </summary>
 public class TunnelArtTests
 {
@@ -132,5 +133,39 @@ public class TunnelArtTests
             joints++;
         }
         Assert.True(joints > 10, $"only {joints} joints");
+    }
+
+    [Fact]
+    public void TheFarLandTucksUnderTheCorridorsEdge()
+    {
+        // Where `dt holes` found it: frontier:3 at 12.2 km, out across the land on its left, up a hillside to where the
+        // corridor's ground ends 300 m out and the far land carries on. Every sight line through the seam lands on one or the
+        // other. The far land's 40 m rows rode a chord over a hollow, its edge over the corridor's: 32 of these were open.
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:3", 6);
+        var line = route.Build();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File)), 6, 1)), line, 11_500);
+        const double s = 12_200;
+        var eye = line.Sample(s).Position + Double3.Cross(line.Sample(s).Tangent, Double3.Up).Normalized * -2 + Double3.Up * 3;
+        var at = line.Sample(s + 12).Position + Double3.Cross(line.Sample(s + 12).Tangent, Double3.Up).Normalized * -200 + Double3.Up * -12;
+        var mesh = new MeshBuilder();
+        new GreyboxScene { DrawDistance = 400, Look = Look, Route = route, Time = 0.37 }.Build(mesh, train, eye);
+        var tris = Triangles(mesh);
+        // The camera `dt holes` stood there (65 degrees, 640 by 360), and the window of its frame the seam crossed.
+        var d = at - eye;
+        var forward = Vector3.Normalize(new Vector3((float)d.X, (float)d.Y, (float)d.Z));
+        var right = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitY));
+        var up = Vector3.Cross(right, forward);
+        float tan = MathF.Tan(65 * MathF.PI / 360), aspect = 640f / 360;
+        int open = 0, rays = 0;
+        for (int py = 186; py <= 210; py++)
+            for (int px = 280; px <= 310; px++)
+            {
+                float x = (px + 0.5f) / 640 * 2 - 1, y = 1 - (py + 0.5f) / 360 * 2;
+                var ray = Vector3.Normalize(forward + right * x * tan * aspect + up * y * tan);
+                rays++;
+                if (!Hits(tris, Vector3.Zero, ray * 800))
+                    open++;
+            }
+        Assert.True(open == 0, $"{open} of {rays} sight lines through the corridor's edge open to the sky");
     }
 }

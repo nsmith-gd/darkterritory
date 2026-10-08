@@ -295,6 +295,20 @@ public sealed partial class WorldArt(Look look)
                     if (o0.Y > coping + 0.01f || o1.Y > coping + 0.01f)
                         Quad(mesh, o0 with { Y = coping }, o1 with { Y = coping }, o1, o0, Face(l0, s), Face(l1, s), Face(l1, s), Face(l0, s), origin,
                             _look.Layer("ground_forest"), rock, rockTile);
+                    // Past the face's edge, where the cutting beside it is lower than the coping: a flank from the cutting's
+                    // own ground up to the cap's edge, or the face's top corner is open at its side.
+                    float in0 = MathF.Abs(l0), in1 = MathF.Abs(l1);
+                    if ((in0 < StructureKit.PortalHalf) != (in1 < StructureKit.PortalHalf))
+                    {
+                        float t = (StructureKit.PortalHalf - in0) / (in1 - in0);
+                        var groundAt = Vector3.Lerp(outside[c], outside[c + 1], t);
+                        var capAt = Vector3.Lerp(o0, o1, t);
+                        var (gOut, cOut) = in1 > in0 ? (outside[c + 1], o1) : (outside[c], o0);
+                        float lOut = in1 > in0 ? l1 : l0;
+                        if (cOut.Y > gOut.Y + 0.01f || capAt.Y > groundAt.Y + 0.01f)
+                            Quad(mesh, groundAt, gOut, cOut, capAt, Face(lOut, s), Face(lOut, s), Face(lOut, s), Face(lOut, s), origin,
+                                _look.Layer("ground_forest"), rock, rockTile);
+                    }
                     continue;
                 }
                 var (a, b, band) = GroundLayers(lat);

@@ -1091,9 +1091,13 @@ public sealed partial class WorldArt
     // across a bay or a tidal river its far shore, so the water has a far side and the sky's band of distant highland
     // stands on land, not on haze. Laterals out from the line, and the hills' heights over the plan's own land there (m:
     // the first tucked under the corridor ground's edge); the far shore's distance for each kind of water (null: the
-    // open sea, no far side), and its heights over the water.
+    // open sea, no far side), and its heights over the water. The first is well under the corridor's edge, 3 m: the far
+    // land's rows are straight between FarStep's, and in a hollow along the line that chord rode over the corridor's own
+    // ground at its edge, open under it to the sky (`dt holes`, note 433: frontier:3 at 12.2 km).
     static readonly double[] FarLateral = [292, 340, 420, 560, 800, 1150, 1700];
-    static readonly double[] FarRise = [-0.6, 3, 8, 16, 26, 38, 50];
+    static readonly double[] FarRise = [-3, 3, 8, 16, 26, 38, 50];
+    /// <summary>The far land's rows along the line (m): 40 left a chord a few metres over a hollow.</summary>
+    const double FarStep = 20;
     static double? FarShore(ShoreKind kind) => kind switch { ShoreKind.Fundy => 1100, ShoreKind.Dyke => 520, _ => null };
     static readonly double[] ShoreLateral = [-30, 0, 40, 140, 380, 900];
     static readonly double[] ShoreRise = [-2, 1.2, 4, 14, 32, 46];
@@ -1105,7 +1109,7 @@ public sealed partial class WorldArt
         k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
         var terrain = p.Terrain;
         double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
-        const double step = 40, reach = 900;
+        const double step = FarStep, reach = 900;
         double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
         // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
         PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side
