@@ -72,9 +72,15 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         if (((bot as GunnerBot)?.Job ?? (bot as RoofWalkerBot)?.Job) is { } part)
             part.PlayerId = session.PlayerId;
         if (bot is RoofWalkerBot rw)
+        {
             rw.Me = session.PlayerId ?? -1;
+            rw.Calls = calls; // the powder's carrier (note 377), the relief driver's claim (note 399)
+        }
         else if (bot is GunnerBot gb)
+        {
             gb.Me = session.PlayerId ?? -1;
+            gb.Calls = calls;
+        }
         // Note 258: it says it's a bot, so the driver can tell the crew playing from the bots.
         if (session.PlayerId is { } bid)
             calls?.Bot(bid);

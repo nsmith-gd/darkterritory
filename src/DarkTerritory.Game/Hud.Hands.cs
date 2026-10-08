@@ -23,7 +23,7 @@ public static partial class Hud
     public static HudTuning Tuning { get; set; } = new();
 
     /// <summary>Fine print: the HUD's own text at half size where that's still crisp (<see cref="PromptScaleAt"/>).</summary>
-    static float Fine => _promptScale;
+    static float Fine => _promptScale > 0 ? _promptScale : 0.5f;
 
     /// <summary>
     /// What the HUD remembers from frame to frame, to show a thing for a while after it changes: a change of hands, a place
@@ -134,6 +134,8 @@ public static partial class Hud
     /// <summary>One slot: a dark square, its edge lit for the one in hand, the picture, and its key small in the corner.</summary>
     static void Slot(Overlay o, float x, float y, string[] picture, string key, bool lit, float alpha, Vector4? tint = null)
     {
+        // The slot's its own dark square: its key needs no band (TEXT BACKING, note 404).
+        using var plate = UiStyle.OnPlate(o);
         o.Rect(x, y, SlotSize, SlotSize, UiStyle.Iron with { W = (lit ? 0.6f : 0.4f) * alpha });
         o.Outline(x, y, SlotSize, SlotSize, (lit ? UiStyle.Lit : Dim) with { W = (lit ? 0.95f : 0.3f) * alpha });
         var ink = (tint ?? (lit ? Ink : Dim)) with { W = alpha };

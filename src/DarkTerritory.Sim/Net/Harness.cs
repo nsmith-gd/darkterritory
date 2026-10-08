@@ -189,8 +189,11 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
 /// <summary>A crewmate's slack over the night (note 345): the most, and the seconds at or past slackPress.</summary>
 public sealed record SlackReport(double Max, double Over);
 
-/// <summary>A hound run (note 328): when (s into the night, km along), its size, the crew alive, and its runners scattered by a ball, killed, and aboard.</summary>
-public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded);
+/// <summary>
+/// A hound run (note 328): when (s into the night, km along), its size, the crew alive, and its runners scattered by a ball,
+/// killed, and aboard; and how many of them came from ahead, for the forward gun (note 405).
+/// </summary>
+public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded, int Ahead = 0);
 
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
     IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
@@ -227,7 +230,15 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
 /// The night's upkeep (orchestrator.md §5.1): hot boxes come and caught (note 331), lamps guttering and gone out (note 346),
 /// couplings come loose and parted (note 356), and the guns' racks filled from the powder locker (note 374).
 /// </summary>
-public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentOut, int Couplings, int Parted, int RacksFilled);
+public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentOut, int Couplings, int Parted, int RacksFilled)
+{
+    /// <summary>Rounds the guns fired (note 377).</summary>
+    public int Rounds { get; init; }
+    /// <summary>Who carried each charge up to fill a rack, by bot (note 377: the gunner's own, or a walker's).</summary>
+    public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
+    /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
+    public double DrySeconds { get; init; }
+}
 
 /// <summary>
 /// The crew afoot off the train (note 327): crew-seconds out, the signs shown them (and how many from a site at the stop), by
@@ -371,7 +382,7 @@ public static class Harness
         var pressureTrace = new List<PressureSample>();
         var per5Min = new List<int>();
         int logged = 0, outSeconds = 0;
-        int rounds = 0;
+        int rounds = 0, dryTicks = 0;
         var quiet = new List<double>();
         var beatKinds = new Dictionary<string, int>();
         int beats = 0, outTicks = 0, quietTicks = 0;
@@ -426,6 +437,11 @@ public static class Harness
                 }
             }
             rounds += host.World.Shots.Count;
+            // A gun that's been in action stood dry with powder below (note 377): nothing in the rack, whether its gunner's
+            // waiting in the seat or gone for powder.
+            if (host.World.Combat?.Guns is { Rack: > 0 } rg && Combat.Guns.Stowed(host.Train, rg) > 0
+                && host.Train.Dynamics.Consist.Vehicles.Any(v => v.HasGun && !v.Taken && v.Gun.LastShotTick > 0 && Combat.Guns.Ready(v.Gun, rg) <= 0))
+                dryTicks++;
             beats += host.World.Beats.Count;
             foreach (var b in host.World.Beats)
                 beatKinds[b] = beatKinds.GetValueOrDefault(b) + 1;
@@ -561,7 +577,7 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
-                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded))],
+                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack)))],
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
@@ -584,7 +600,13 @@ public static class Harness
         var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
         pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
         var upkeep = host.World.Upkeep is null ? null : new UpkeepReport(host.World.HotBoxCount.Came, host.World.HotBoxCount.Caught,
-            host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled);
+            host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled)
+        {
+            Rounds = rounds,
+            FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
+                .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
+            DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
+        };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,

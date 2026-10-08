@@ -61,6 +61,9 @@ public sealed class GreyboxScene
     static readonly System.Numerics.Vector3 EmergencyRed = new(0.5f, 0.06f, 0.04f);
     /// <summary>Tunnels, bridges, facilities and hazards to draw along the line, when it's a generated route.</summary>
     public Route? Route { get; set; }
+
+    /// <summary>The stops' walls, for the village houses' doors (note 401): which are shut. The train's own when built from it.</summary>
+    public Sim.Run.StopWalls? Walls { get; set; }
     /// <summary>The engine's lamp is lit (it's what makes the boards shine back, sight.json).</summary>
     public bool LampLit { get; set; } = true;
     /// <summary>GDD v1.4 App. E.9: this many of the cars' lamps are out, from the last car forward (all of them: the engine's too).</summary>
@@ -249,6 +252,7 @@ public sealed class GreyboxScene
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
     {
         Vehicles ??= train.Vehicles;
+        Walls = train.Walls ?? Walls;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
@@ -308,7 +312,8 @@ public sealed class GreyboxScene
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
                         || site.Has(Sim.Run.ModuleKind.Lift))
-                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
+                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120
+                        && Look?.Art.SetPieces(mesh, site, frames, eye, Time) != true)
                         SetPieces(mesh, site, frames, eye, Time);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
@@ -336,6 +341,9 @@ public sealed class GreyboxScene
             // An open house's hiding spots once searched (note 326): opened up, so a crew sees what's been gone through.
             if (Run is not null)
                 SearchedSpots(mesh, line, Run, eye);
+            // The houses' doors (note 401): hanging open into the room, or shut in the doorway.
+            if (Walls is { HouseDoors.Count: > 0 } doored)
+                HouseDoors(mesh, line, Route, doored, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
@@ -2701,6 +2709,45 @@ public sealed class GreyboxScene
     /// cellar's hatch up on its hinge over a black hole, the boards lifted out and laid by the gap. From the sim's spots and
     /// what's searched, so a client sees what the host has.
     /// </summary>
+    /// <summary>
+    /// Each open house's door (note 401), by the sim's state so a client sees what the host has: a plank door hung on the
+    /// doorway's side, swung in against the room and left hanging as the ransack left it, or shut in the doorway. Ledged
+    /// on its inside, the same weathered deal as an opened cupboard's doors.
+    /// </summary>
+    void HouseDoors(MeshBuilder mesh, RailLine line, Route route, Sim.Run.StopWalls walls, Double3 eye)
+    {
+        var wood = new Vector3(0.13f, 0.1f, 0.07f);
+        var up = Vector3.UnitY;
+        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = 0.025f;
+        foreach (var d in walls.HouseDoors)
+        {
+            if ((d.At - eye).Length > 60)
+                continue;
+            int code = d.Key - 1, feature = code >> 12, building = code >> 2 & 1023;
+            if (feature >= route.Features.Count || route.Features[feature] is not { Stop: { } stop } f || building >= stop.Buildings.Count)
+                continue;
+            // The floor, as the art stands it (SearchedSpots): the frame 0.15 m under the ground at the house's middle, the boards 0.17 over.
+            var b = stop.Buildings[building];
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y);
+            var outward = new Vector3((float)d.Out.X, 0, (float)d.Out.Z);
+            var side = Vector3.Cross(up, outward);
+            // Hung on one side of the doorway, just inside the wall's outer face; shut, it runs across the doorway to the other
+            // side, and open, it's swung in about its hinge into the room, a little past square.
+            double t = Sim.Run.StopWalls.WallThickness;
+            var hingeAt = new Double3(d.At.X, floor, d.At.Z) + ToD(side * (Half - 0.03f) - outward * (float)(t * 0.35));
+            float swing = walls.Shut(d.Key) ? 0 : 100 * MathF.PI / 180;
+            var along = Vector3.Normalize(-side * MathF.Cos(swing) - outward * MathF.Sin(swing));
+            var face = Vector3.Cross(up, along);
+            float width = Half * 2 - 0.08f, height = Lintel - 0.04f;
+            Vector3 On(float a, float h, float off = 0) => V(hingeAt + ToD(along * a + face * off) + new Double3(0, h, 0), eye);
+            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), wood);
+            // Its ledges, top and bottom, and the brace between, on the room's side.
+            float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
+            foreach (float h in new[] { 0.3f, height - 0.3f })
+                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), wood * 0.8f);
+        }
+    }
+
     void SearchedSpots(MeshBuilder mesh, RailLine line, Sim.Run.Run run, Double3 eye)
     {
         // Weathered deal, paler than the furniture's faces so an opened door or a lifted board reads by a lamp.

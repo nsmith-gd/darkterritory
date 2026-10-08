@@ -122,6 +122,8 @@ public sealed record StopCrewTuning
     public double VillageReach { get; init; } = 150;
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
+    /// <summary>Note 403: how far from where it stands a crate lying loose elsewhere in the yard may be for a hand to fetch it (m; 0: none).</summary>
+    public double YardReach { get; init; }
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>
