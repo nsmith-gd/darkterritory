@@ -1525,7 +1525,7 @@ public static class TrainKit
     }
 
     /// <summary>How tall the run map's plate over the front windows is (m).</summary>
-    const float MapHeight = 0.42f;
+    const float MapHeight = 0.32f;
 
     /// <summary>
     /// The band over the front windows (m), from the window tops to the roof: the run map in the middle and the driver's
@@ -1544,18 +1544,35 @@ public static class TrainKit
     /// </summary>
     public static Vector3 DriverGauge(CarShape shape, int index)
     {
-        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        // In one row of four now, under the ceiling as it comes down in the roof's chamfer over the front (the director, 8
+        // Oct: "the map and gauges are still covered": in two rows under the roof's full height, the top row was up in it).
+        float z = (float)shape.Cab!.Value.Min.Z + 0.1f;
         float pitch = 2 * (DriverGaugeRadius + 0.035f);
-        float x = (float)shape.HalfWidth - 0.32f - (1 - index % 2) * pitch, top = (float)roof.Min.Y - 0.03f - DriverGaugeRadius - 0.025f;
-        return new Vector3(x, top - index / 2 * pitch, (float)shape.Cab!.Value.Min.Z + 0.1f);
+        float x = (float)shape.HalfWidth - 0.32f - (3 - index) * pitch, y = CeilingAt(shape, z) - 0.03f - DriverGaugeRadius - 0.025f;
+        return new Vector3(x, y, z);
+    }
+
+    /// <summary>
+    /// The cab's ceiling (the roof's underside) at <paramref name="z"/> (engine frame): its full height back from the front,
+    /// coming down by <see cref="CabChamfer"/> over the front windows where the roof's front corner is cut back (Roof's
+    /// first two rings).
+    /// </summary>
+    public static float CeilingAt(CarShape shape, float z)
+    {
+        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        float front = (float)shape.Cab!.Value.Min.Z - 0.02f;
+        float back = Math.Clamp((z - front) / (CabChamfer + 0.02f), 0, 1);
+        return (float)roof.Min.Y - 0.02f - CabChamfer * (1 - back);
     }
 
     /// <summary>The run map's chart on the plate over the front windows (T101), in the engine's frame: its lower left corner and size.</summary>
     public static (Vector3 Corner, float Width, float Height) MapPlate(CarShape shape)
     {
         var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
-        const float half = 0.58f;
-        return (new Vector3(-half - 0.1f, (float)roof.Min.Y - MapHeight - 0.03f, (float)shape.Cab!.Value.Min.Z + 0.1f), 2 * half, MapHeight - 0.02f);
+        // (Over the left-hand window and the post, clear of the driver's row of gauges; under the ceiling as it comes down.)
+        const float half = 0.5f;
+        float z = (float)shape.Cab!.Value.Min.Z + 0.1f;
+        return (new Vector3(-half - 0.42f, CeilingAt(shape, z) - MapHeight - 0.03f, z), 2 * half, MapHeight - 0.02f);
     }
 
 
