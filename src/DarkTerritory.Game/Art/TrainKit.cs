@@ -953,46 +953,34 @@ public static class TrainKit
         k.Emissive = 1;
         k.Disc(lens, -Vector3.UnitZ, 0.34f, 12);
         k.Emissive = 0;
-        // The cage is a star (the director, 8 Oct 2026: "a cool symbol for the maritimes in this world, a world dominated by
-        // monsters, in the headlamp of the train"): the Stella Maris, the Acadian flag's gold star, the star of the sea that
-        // sailors steered home by, wrought in brass across the lens on a ring, so the lamp coming out of the fog carries it
-        // dark against its own glow.
-        Stella(k, lens - new Vector3(0, 0, 0.05f), 0.3f);
+        // The cage is a saltire (the director, 8 Oct 2026: "a cool symbol for the maritimes in this world, a world dominated
+        // by monsters, in the headlamp of the train ... something more anglo maritimes"): St Andrew's cross, Nova Scotia's
+        // flag (New Scotland's blue saltire on white), in broad bars of plate painted blue across the lens on a ring, so the
+        // lamp coming out of the fog carries the flag in its own white light.
+        Saltire(k, lens - new Vector3(0, 0, 0.05f), 0.32f);
     }
 
     /// <summary>
-    /// The Stella Maris over a lamp's lens (note 338): a five-pointed brass star, point up, its outline doubled in a raised
-    /// rim, on a ring the size of the lens, the ring held by three short stays; facing −Z from <paramref name="at"/>.
+    /// St Andrew's saltire over a lamp's lens (note 338): two broad bars of plate crossed corner to corner, a fifth of the
+    /// lens across as the flag's are, painted Nova Scotia's blue and bolted at the crossing, on an iron ring the size of
+    /// the lens; facing −Z from <paramref name="at"/>.
     /// </summary>
-    static void Stella(Kit k, Vector3 at, float radius)
+    static void Saltire(Kit k, Vector3 at, float radius)
     {
-        var points = new Vector3[10];
-        for (int i = 0; i < 10; i++)
-        {
-            float a = MathF.PI / 2 + i * MathF.PI / 5, r = i % 2 == 0 ? radius * 0.92f : radius * 0.37f;
-            points[i] = at + new Vector3(MathF.Cos(a) * r, MathF.Sin(a) * r, 0);
-        }
-        k.Use("brass", Palette.TarnishedBrass, 0.55f, 0.7f);
-        k.Tint *= new Vector3(1.15f, 0.95f, 0.6f);
-        // Its face, toward the line, and its back (seen through the lens's glow from in the cab's light).
-        for (int i = 0; i < 10; i++)
-        {
-            k.Tri(at, points[(i + 1) % 10], points[i]);
-            k.Tri(at, points[i], points[(i + 1) % 10]);
-        }
-        // The raised rim round the star, and the ring.
-        k.Shade(0.7f);
-        for (int i = 0; i < 10; i++)
-            k.Rod(points[i] + new Vector3(0, 0, -0.01f), points[(i + 1) % 10] + new Vector3(0, 0, -0.01f), 0.012f);
+        k.Use("paint_black", Palette.SootBlack, 0.6f, 0.35f);
+        k.Tint = new Vector3(0.3f, 0.55f, 1.25f);
+        float half = radius * 1.02f, bar = radius * 0.2f;
+        foreach (float turn in new[] { MathF.PI / 4, -MathF.PI / 4 })
+            k.With(Matrix4x4.CreateRotationZ(turn) * Matrix4x4.CreateTranslation(at), () =>
+                k.Box(new Vector3(-half, -bar, -0.012f), new Vector3(half, bar, 0.012f)));
+        // The boss at the crossing, and the ring.
+        k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
+        k.Tint *= 0.6f;
+        k.Cylinder(at - new Vector3(0, 0, 0.02f), at + new Vector3(0, 0, 0.012f), 0.04f, 8);
         for (int i = 0; i < 16; i++)
         {
             float a0 = i * MathF.Tau / 16, a1 = (i + 1) * MathF.Tau / 16;
-            k.Rod(at + new Vector3(MathF.Cos(a0), MathF.Sin(a0), 0) * radius * 1.08f, at + new Vector3(MathF.Cos(a1), MathF.Sin(a1), 0) * radius * 1.08f, 0.014f);
-        }
-        for (int i = 0; i < 3; i++)
-        {
-            float a = MathF.PI / 2 + MathF.PI / 5 + i * MathF.Tau / 3;
-            k.Rod(at + new Vector3(MathF.Cos(a), MathF.Sin(a), 0) * radius * 0.38f, at + new Vector3(MathF.Cos(a), MathF.Sin(a), 0) * radius * 1.06f, 0.01f);
+            k.Rod(at + new Vector3(MathF.Cos(a0), MathF.Sin(a0), 0) * radius * 1.06f, at + new Vector3(MathF.Cos(a1), MathF.Sin(a1), 0) * radius * 1.06f, 0.016f);
         }
     }
 
