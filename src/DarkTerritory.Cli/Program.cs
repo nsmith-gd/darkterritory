@@ -2592,6 +2592,16 @@ static object FilmStill(string content, string[] args)
     var hostWorld = session.Host!.World;
     hostWorld.Train.Dynamics.Velocity = Opt(args, "--speed", 20);
     hostWorld.Train.RefreshFrames();
+    // --extras: one of the crew already dead, lying on car 2's roof, and three crates in car 2, for the film's extras (App.
+    // E.3; note 373). The guard van's stores (World.Stock) go into the wreck anyway.
+    if (args.Contains("--extras") && hostWorld.Train.Frames.Count > 2)
+    {
+        var htrain = hostWorld.Train;
+        hostWorld.Bodies.SpawnRagdoll(htrain, 99, PlayerMotor.SpawnOnRoof(htrain, 2, 1.5, session.PlayerTuning));
+        double floor = htrain.Frames[2].Shape.Interior?.Min.Y ?? 1;
+        foreach (double z in new[] { -3.0, 0, 3 })
+            hostWorld.Bodies.SpawnCrate(htrain, 2, new Double3(0, floor, z));
+    }
     hostWorld.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
     // The cut starts after this player's own first person, which is as long as the film says (App. E.2 step 1).
     double Want() => session.SequenceTuning.FirstPersonSeconds + session.SequenceTuning.ReplaySeconds + filmAt;
@@ -2610,6 +2620,12 @@ static object FilmStill(string content, string[] args)
     double recorded = at.Shot.At(at.Into);
     var frames = DerailSequence.FilmFrames(film, recorded, session.InterpolatedFrames(1));
     var camera = DerailSequence.FilmCamera(at.Shot, at.Into, film);
+    // --at-extra: off to the side of the film's first stowed body (note 373), at that moment, looking at it.
+    if (args.Contains("--at-extra") && film.At(recorded).A.Dead is { Count: > 0 } deadNow)
+    {
+        var mid = deadNow[0].Aggregate(Double3.Zero, (a, j) => a + j) * (1.0 / deadNow[0].Length);
+        camera = Camera.LookAt(mid + new Double3(5, 3.5, 5), mid, 55);
+    }
     int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/film.png");
     using var gpu = new GpuContext("dt screenshot --film");

@@ -280,6 +280,58 @@ public sealed class DerailSequence
                     Tilt = up.Length > 1e-6 ? up.Normalized : Double3.Up,
                 });
             }
+        // The extras (App. E.3; note 373): the stowed dead, each in its owner's look, and the loose things aboard, tumbling.
+        var extras = film.Start.Extras ?? [];
+        if (a.Dead is { } dead && b.Dead is { } deadNext)
+        {
+            var bodiesOf = extras.Where(x => x.Kind == Sim.Physics.BodyKind.Ragdoll && x.Joints.Count > 2 && !x.Rides).ToList();
+            for (int d = 0; d < dead.Count && d < deadNext.Count && d < bodiesOf.Count; d++)
+            {
+                var joints = dead[d].Select((p, j) => new Ballast.Physics.Particle(Double3.Lerp(p, deadNext[d][j], u), 1, 0.1)).ToArray();
+                bodies.Add(new Sim.Physics.Body(-200 - d, Sim.Physics.BodyKind.Ragdoll, Sim.Player.PlayerState.World, new Ballast.Physics.PbdBody(joints))
+                {
+                    Owner = bodiesOf[d].Owner,
+                });
+            }
+        }
+        if (a.Items is { } items && b.Items is { } itemsNext)
+            foreach (var item in items)
+            {
+                if (item.Doll < 0 || item.Doll >= extras.Count)
+                    continue;
+                var x = extras[item.Doll];
+                var to = itemsNext.FirstOrDefault(l => l.Doll == item.Doll, item);
+                var at = Double3.Lerp(item.At, to.At, u);
+                var up = Double3.Lerp(item.Up, to.Up, u);
+                double turn = Math.IEEERemainder(to.Yaw - item.Yaw, Math.Tau);
+                bodies.Add(new Sim.Physics.Body(-1000 - item.Doll, x.Kind, Sim.Player.PlayerState.World,
+                    new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at, 1, 0.3)]))
+                {
+                    Owner = x.Owner,
+                    Cargo = x.Cargo,
+                    Yaw = item.Yaw + turn * u,
+                    Tilt = up.Length > 1e-6 ? up.Normalized : Double3.Up,
+                });
+            }
+        // Past the budget (E.3: "freeze in place"; note 373): where it was in its car, wherever the car goes.
+        for (int e = 0; e < extras.Count; e++)
+        {
+            if (!extras[e].Rides)
+                continue;
+            var x = extras[e];
+            var from = WreckFilm.Riding(film.Start, a, x);
+            var to = WreckFilm.Riding(film.Start, b, x);
+            var joints = from.Select((p, j) => new Ballast.Physics.Particle(Double3.Lerp(p, to[j], u), 1, from.Length > 1 ? 0.1 : 0.3)).ToArray();
+            int car = film.Start.Cars.ToList().FindIndex(c => c.Vehicle == x.Inside);
+            var (_, _, carUp, back) = car >= 0 && car < a.Cars.Count ? a.Cars[car] : (default, default, Double3.Up, new Double3(0, 0, 1));
+            bodies.Add(new Sim.Physics.Body(-3000 - e, x.Kind, Sim.Player.PlayerState.World, new Ballast.Physics.PbdBody(joints))
+            {
+                Owner = x.Owner,
+                Cargo = x.Cargo,
+                Yaw = Math.Atan2(-back.X, -back.Z),
+                Tilt = carUp.Length > 1e-6 ? carUp.Normalized : Double3.Up,
+            });
+        }
         return bodies;
     }
 
