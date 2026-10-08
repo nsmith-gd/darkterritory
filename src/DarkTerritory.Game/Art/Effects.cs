@@ -37,8 +37,9 @@ public sealed partial class Effects(Look look)
     /// stack gives a last thin grey wisp and nothing else does.</param>
     /// <param name="lamp">The headlamp's lit (World.LampShining): out, no halo and no beam (the tail lamp's its own).</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
+    /// <param name="reach">The headlamp's reach (train.json <c>headlampReach</c>, note 506): the beam drawn that much longer.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true)
+        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true, float reach = 1)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -179,7 +180,7 @@ public sealed partial class Effects(Look look)
             return;
         // The headlamp: a halo round the lens, and the beam through the fog (the one light that reaches out; §28's
         // "headlamp and lantern cones"). Additive and faint, strongest at the lamp.
-        var head = Views.Lighting(engine, look);
+        var head = Views.Lighting(engine, look, reach: reach);
         var at0 = head.LampPosition.RelativeTo(eye);
         // The halo is glare seen from afar; close to, it would hide the lamp it's round, so it fades in with distance.
         float glare = Math.Clamp((at0.Length() - 4) / 16, 0, 1);
@@ -187,7 +188,7 @@ public sealed partial class Effects(Look look)
         {
             mesh.Billboard(at0 - head.LampDirection * 0.2f, 2.6f, 0, new Vector4(head.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
             mesh.Billboard(at0 - head.LampDirection * 0.25f, 0.9f, 0, new Vector4(head.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
-            Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40, head.LampColour * 0.07f);
+            Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40 * reach, head.LampColour * 0.07f);
         }
         // The tail lamp's glow at the back of the train.
         var last = frames[^1];

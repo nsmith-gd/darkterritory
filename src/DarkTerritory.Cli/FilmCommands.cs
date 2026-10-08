@@ -120,7 +120,8 @@ static class FilmCommands
             Look = look,
             Route = session.Route,
             Signs = session.World.Lineside?.Signs,
-            SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
+            SignRange = session.World.Lineside?.SignRange(true, session.Train.Dynamics.Tuning.HeadlampReach) ?? 350,
+            LampReach = session.Train.Dynamics.Tuning.HeadlampReach,
             Enemies = session.World.ActiveEnemies,
             Hits = session.World.Hits,
             Swings = session.World.Swings,
@@ -329,7 +330,7 @@ static class FilmCommands
     /// <summary>The app's lighting for the frame: the engine's lamp, the night's weather, dawn if it's coming.</summary>
     static FrameLighting Lighting(NetPlaySession session, Look look, IReadOnlyList<CarFrame> frames)
     {
-        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0);
+        var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0, session.Train.Dynamics.Tuning.HeadlampReach);
         lighting.Time = session.Tick * SimConstants.TickSeconds;
         if (!session.World.LampShining)
         {

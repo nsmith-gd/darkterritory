@@ -191,8 +191,8 @@ public sealed class Lineside
     /// <summary>Boards first read this tick (the HUD's cue, the pacing log).</summary>
     public List<Sign> ReadThisTick { get; } = new();
 
-    /// <summary>How far a board can be read from, lamp lit or not.</summary>
-    public double SignRange(bool lamp) => lamp ? Tuning.LampSignRange : Tuning.DarkSignRange;
+    /// <summary>How far a board can be read from, lamp lit or not; lit, as far as this train's headlamp reaches (note 506).</summary>
+    public double SignRange(bool lamp, double reach = 1) => lamp ? Tuning.LampSignRange * reach : Tuning.DarkSignRange;
 
     /// <summary>Every board on a route: before each sharp curve and weak bridge, a speed; before each tunnel, the clearance.</summary>
     public static IEnumerable<Sign> Boards(SightTuning t, Route route) => Boards(t, route, [.. Drops(t, route)]);
@@ -249,7 +249,7 @@ public sealed class Lineside
     {
         ReadThisTick.Clear();
         var engine = train.Dynamics;
-        double front = engine.Distance, range = SignRange(lamp);
+        double front = engine.Distance, range = SignRange(lamp, engine.Tuning.HeadlampReach);
         bool main = engine.Path == RailLine.MainPath;
         for (int i = 0; i < _signs.Count; i++)
             if (!_read[i] && main && (lamp ? _signs[i].Board : _signs[i].Start) - front <= range && _signs[i].End > front)
@@ -358,7 +358,7 @@ public sealed class Lineside
     /// <summary>Grease on the rail ahead that the lamp (or the eye, lamps down) can make out: its start, if any.</summary>
     public double? GreaseAhead(TrainOnLine train, bool lamp)
     {
-        double front = train.Dynamics.Distance, range = lamp ? Tuning.LampGreaseRange : Tuning.DarkGreaseRange;
+        double front = train.Dynamics.Distance, range = lamp ? Tuning.LampGreaseRange * train.Dynamics.Tuning.HeadlampReach : Tuning.DarkGreaseRange;
         return _route.Features.Where(f => f.Kind == FeatureKind.Grease && f.End > front && f.Start - front <= range)
             .Select(f => (double?)f.Start).Min();
     }

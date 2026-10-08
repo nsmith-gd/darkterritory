@@ -41,7 +41,7 @@
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
-  // ammo (rounds per gun), lamp (how far the headlamp finds Sleepers), brakes (braking), burn (coal per unit of steam),
+  // ammo (rounds per gun), lamp (how far the headlamp reaches: train.json headlampReach, note 506), brakes (braking), burn (coal per unit of steam),
   // insulation (how fast the cold comes on in an unheated car: player.json cold.indoorsRate), contactSafe (the closing
   // speed a coupling takes before the ends are damaged: train.json couplings.safeContactSpeed), underLoad (how long cutting
   // a working train's coupling takes: couplings.uncoupleUnderLoadSeconds), unhook (how long the Passenger takes to unhook

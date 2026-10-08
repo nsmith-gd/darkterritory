@@ -357,7 +357,8 @@ public static class Campaign
                     "burn" => l with { Boiler = l.Boiler with { FireTimeConstant = l.Boiler.FireTimeConstant / k, SteamPerUnit = l.Boiler.SteamPerUnit / k } },
                     "ammo" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { Ammo = (int)Math.Round(l.Combat.Guns.Ammo * k) } } },
                     "brakes" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Brake = r.Brake * k })] } },
-                    "lamp" when l.Enemies is { } e => l with { Enemies = e with { Sleepers = e.Sleepers with { LampRevealDistance = e.Sleepers.LampRevealDistance * k } } },
+                    // Spec F.3's lamp brightness (queue #243, note 506): everything the headlamp reaches, not the retired Sleepers alone.
+                    "lamp" => l with { Train = l.Train with { HeadlampReach = l.Train.HeadlampReach * k } },
                     // The consist (GDD §10, §26, spec F.3; note 184).
                     "utilityCars" => Fit(l, c => c with { UtilityCars = c.UtilityCars + (int)Math.Round(k) }),
                     "guardCars" => Fit(l, c => c with { GuardCars = c.GuardCars + (int)Math.Round(k) }),

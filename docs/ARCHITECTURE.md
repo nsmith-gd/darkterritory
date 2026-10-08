@@ -7061,3 +7061,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - all six alive, and no lamp left behind.
       - With the cars part full (no `--empty`), the cars fill either way.
     - Protocol unchanged (bots act through intent). Tests: `StopCrewTests.AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard` (stocked: away whole, every heap found, a lamp put back inside a car and none left in the yard, salvage aboard, nobody under a shift); `AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans` unchanged (unstocked, no lamp aboard: the headlamp's heaps only).
+
+506. **The lamp brightness upgrade lights the line (A1, queue #243; spec F.3 "Lamp brightness"; note 196: "a purchase that does nothing is a bug").**
+    - **What was wrong:** campaign.json's `lampBrightness` (`effect: { lamp: 1.25 }`) scaled only the Sleepers' `lampRevealDistance`. The Sleepers have been retired since note 265, so the upgrade bought nothing. Note 196's check that every upgrade does something (`UpgradeTests.EachUpgradeChangesItsTuning`) only compares the loadouts, so it passed.
+    - **The headlamp's reach** (train.json `headlampReach`, `TrainTuning.HeadlampReach`, 1 as the fortress issues it) multiplies everything the lit headlamp shows:
+      - the boards read (sight.json `lampSignRange`, `Lineside.SignRange`, `See`);
+      - the grease and the debris on the rail (`lampGreaseRange`, `GreaseAhead`);
+      - the Track Doll's face (enemies.json `trackDoll.lampRevealDistance`), and the retired Sleepers' too;
+      - the wreck yard's beam (facilities.json `wreck.beamLength`, `Run.Lit`);
+      - the drawn beam: `Views.Lighting`'s `LampRange` and `LampIntensity`, and the beam mesh `Effects.Train` draws, longer by it.
+    - **The upgrade** (`Campaign.Apply`'s `lamp`) multiplies the reach, so lamp brightness makes it 1.25. Lamps down, it's no help: the dark ranges are as they were.
+    - **The same on every machine:** the train's tuning is built from the host's upgrades on host and clients alike (`SessionSetup.Upgrades`), so the board a client reads and the doll it sees are the host's.
+    - **Readings:** one knob, not each range on its own, so the lamp's story stays one thing ("it reaches further"). The line's generation (the Sleepers' reveal in `LineBuilder.Authority`) keeps the stock reach: a night's line can't depend on what the crew bought.
+    - **Headless:** `dt screenshot --upgrades lampBrightness` draws the brighter beam (the cab and ahead views, against the same shot without).
+    - Tests: `UpgradeTests.TheBrighterLampReadsTheBoardsAndSeesTheGreaseFurtherOff`:
+      - a tunnel's board 40 m past the stock lamp's reach is read only with the upgrade;
+      - grease 20 m past it is seen only with it;
+      - lamps down, the dark range is unchanged.
+    - `CampaignTests` pins the reach at 1.25.
+

@@ -5,6 +5,11 @@
   "maxSpeed": 22.0,
   "playerRunSpeed": 5.5,
   "gravity": 9.81,
+  // How far the engine's headlamp reaches, over the night's own ranges (queue #243, note 506): the boards read
+  // (sight.json lampSignRange), the grease and debris on the rail (lampGreaseRange), the Track Doll's face (enemies.json
+  // lampRevealDistance), the wreck yard's beam (facilities.json wreck.beamLength) and the drawn beam. 1 as the fortress
+  // issues it; spec F.3's lamp brightness upgrade (campaign.json lampBrightness) raises it.
+  "headlampReach": 1.0,
 
   "geometry": {
     "carLength": 14.0,

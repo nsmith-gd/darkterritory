@@ -43,6 +43,36 @@ public class UpgradeTests
     }
 
     [Fact]
+    public void TheBrighterLampReadsTheBoardsAndSeesTheGreaseFurtherOff()
+    {
+        // Queue #243, note 506: spec F.3's lamp brightness scaled only the retired Sleepers' reveal, and so did nothing. It's
+        // the headlamp's reach now (train.json headlampReach), everything it shows: here a tunnel's board and grease on the rail.
+        var sight = DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File));
+        var bright = With("lampBrightness").Train;
+        Assert.Equal(1, Tuning.Train.HeadlampReach);
+        Assert.Equal(1.25, bright.HeadlampReach, 6);
+        var route = new Route.Route("t", RouteTier.Frontier, 1, new LineDefinition("t", [new TrackSegment(4000)]),
+            [new RouteFeature(FeatureKind.Tunnel, 1500, 1700), new RouteFeature(FeatureKind.Grease, 2400, 2500)], new RouteWeather(0.01, false, 0, 0), 3600);
+        var board = Lineside.Boards(sight, route).Single(b => b.Kind == SignKind.LowClearance);
+        TrainOnLine At(TrainTuning t, double front) => new(new TrainDynamics(Consist.Uniform(t, 3, 1)), route.Build(), front);
+        bool Read(TrainTuning t, double front)
+        {
+            var lineside = new Lineside(sight, route);
+            lineside.See(At(t, front), lamp: true);
+            return lineside.Read(board.Id);
+        }
+        // Past the stock lamp's reach, inside the brighter one's.
+        double past = board.Board - sight.LampSignRange - 40;
+        Assert.False(Read(Tuning.Train, past));
+        Assert.True(Read(bright, past));
+        double grease = 2400 - sight.LampGreaseRange - 20;
+        Assert.Null(new Lineside(sight, route).GreaseAhead(At(Tuning.Train, grease), lamp: true));
+        Assert.Equal(2400, new Lineside(sight, route).GreaseAhead(At(bright, grease), lamp: true));
+        // Lamps down, the brighter lamp's no help.
+        Assert.Equal(sight.DarkSignRange, new Lineside(sight, route).SignRange(false, bright.HeadlampReach));
+    }
+
+    [Fact]
     public void ArmouredTheSmashedLampIsMendedSooner()
     {
         // Note 301, slice 2: the glass goes in with the wrench, worked from the cab's front windows; armour halves the work.

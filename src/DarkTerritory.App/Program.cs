@@ -774,7 +774,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Look = look,
         Route = session.Route,
         Signs = session.World.Lineside?.Signs,
-        SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
+        SignRange = session.World.Lineside?.SignRange(true, session.Train.Dynamics.Tuning.HeadlampReach) ?? 350,
+        LampReach = session.Train.Dynamics.Tuning.HeadlampReach,
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
@@ -1290,7 +1291,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             townTalk.Step(here, eye, now);
             scene.TownFacing = townTalk.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } talking ? (talking.Index, eye) : null;
         }
-        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
+        lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0,
+            session.Train.Dynamics.Tuning.HeadlampReach);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)

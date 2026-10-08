@@ -29,6 +29,13 @@ public sealed record TrainTuning
     public PickTuning Pick { get; init; } = new();
     /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
     public OverspeedTuning Overspeed { get; init; } = new();
+    /// <summary>
+    /// How far the engine's headlamp reaches, over the night's own ranges (train.json <c>headlampReach</c>; queue #243, note
+    /// 506): the boards read (sight.json <c>lampSignRange</c>), the grease and the debris on the rail (<c>lampGreaseRange</c>),
+    /// the Track Doll's face (enemies.json <c>lampRevealDistance</c>), the wreck yard's beam (facilities.json
+    /// <c>wreck.beamLength</c>) and the drawn beam. 1 as the fortress issues it; spec F.3's lamp brightness raises it.
+    /// </summary>
+    public double HeadlampReach { get; init; } = 1;
 
     public const string File = "tuning/train.json";
 }
