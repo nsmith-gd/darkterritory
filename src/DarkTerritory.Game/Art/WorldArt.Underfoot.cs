@@ -158,7 +158,7 @@ public sealed partial class WorldArt
     /// (its footprint), and whether it can be walked into (note 279's shells: a yard's shed, its hero, a Holdout; note 326's
     /// open houses); null outside them all.
     /// </summary>
-    public static (StopLayout Stop, int Index, bool Open)? BuildingAt(Route route, double s, double lateral)
+    public static (RouteFeature Feature, StopLayout Stop, int Index, bool Open)? BuildingAt(Route route, double s, double lateral)
     {
         foreach (var f in route.Features)
         {
@@ -167,12 +167,13 @@ public sealed partial class WorldArt
             var p = new Pt(s - f.Start, lateral);
             for (int i = 0; i < stop.Buildings.Count; i++)
                 if (Inside(stop.Buildings[i], p))
-                    return (stop, i, Sim.Run.StopWalls.Shelled(stop, i) || stop.Buildings[i].Open && Sim.Run.StopWalls.Walled(stop, i));
+                    return (f, stop, i, Sim.Run.StopWalls.Shelled(stop, i) || stop.Buildings[i].Open && Sim.Run.StopWalls.Walled(stop, i));
         }
         return null;
     }
 
-    static bool Inside(StopBuilding b, Pt p)
+    /// <summary>Whether a point in the stop's (S, D) is in a building's footprint (its parts, where it has them).</summary>
+    internal static bool Inside(StopBuilding b, Pt p)
     {
         double ds = p.S - b.S, dd = p.D - b.D, c = Math.Cos(b.Yaw), n = Math.Sin(b.Yaw);
         double x = ds * c + dd * n, y = -ds * n + dd * c;
