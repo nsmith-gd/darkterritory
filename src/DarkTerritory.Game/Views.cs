@@ -113,8 +113,8 @@ public static class Views
             "cab" => CabCamera(engine),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
-            // The fireman's end of the cab (note 276): from the driver's side, back across the footplate at the fire door in the
-            // back wall and the coal bunker beside it, the gauges over the door.
+            // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,
+            // the fire door, the console and the dials on the right, and the line through the windows over them.
             "fireman" => FiremanCamera(engine),
             // T109: across the cab from the driver's place to the vent on its left side, and from the fireman's to the
             // engineering kit's rack on the right.
@@ -206,7 +206,7 @@ public static class Views
 
     static Camera FireboxCamera(in CarFrame engine)
     {
-        // Out from the door into the cab, in the backhead's frame (it faces forward from the back wall: note 276).
+        // Out from the door into the cab, in the firebox's frame (it faces back into the cab from the front wall: note 280).
         var frame = Art.TrainKit.BackheadFrame(engine.Shape);
         var door = Art.TrainKit.FireDoorLocal(engine.Shape);
         var eye = System.Numerics.Vector3.Transform(door + new System.Numerics.Vector3(0.12f, 0.22f, 0.8f), frame);
@@ -214,13 +214,13 @@ public static class Views
         return Camera.LookAt(engine.ToWorld(new Double3(eye.X, eye.Y, eye.Z)), engine.ToWorld(new Double3(at.X, at.Y, at.Z)), 60);
     }
 
-    /// <summary>From the driver's side of the cab, back across the footplate at the fire door and the coal bunker (note 276).</summary>
+    /// <summary>From behind the cab's work (note 280), forward at the coal, the fire door, the console and the line beyond.</summary>
     static Camera FiremanCamera(in CarFrame engine)
     {
         var cab = engine.Shape.Cab!.Value;
         var fire = engine.Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        var eye = new Double3(engine.Shape.HalfWidth - 0.45, cab.Min.Y + 1.75, fire.Z - 2.3);
-        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(new Double3(-0.45, cab.Min.Y + 1.0, fire.Z - 0.3)), 70);
+        var eye = new Double3(0.25, cab.Min.Y + 1.8, fire.Z + 1.7);
+        return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(new Double3(0.05, cab.Min.Y + 0.95, fire.Z - 0.7)), 75);
     }
 
     /// <summary>The coal bunker's middle along the engine (its frame's Z).</summary>

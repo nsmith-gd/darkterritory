@@ -922,6 +922,25 @@
   "takes": 2,
   "sha": "d2f318bb0cfb835c"
  },
+ "crew-cannon-impact/flesh": {
+  "cue": "crew-cannon-impact.flesh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball into a large creature, modelled: a dense low whump, the hide slapping, the body's fluid gulping round it",
+    "key": "mass",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "df518088a8f960c4"
+ },
  "crew-cannon-impact/ground": {
   "cue": "crew-cannon-impact.ground",
   "surface": null,
@@ -943,6 +962,61 @@
   ],
   "takes": 3,
   "sha": "8fd046e608da6a8b"
+ },
+ "crew-cannon-impact/structure": {
+  "cue": "crew-cannon-impact.structure",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball striking a fort's stone wall: a hard crack over the wall's dead thud, the crack slapping back, rubble falling",
+    "key": "masonry",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "b79bdb990f51761e"
+ },
+ "crew-cannon-impact/train": {
+  "cue": "crew-cannon-impact.train",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball striking the train's own iron: a deep clang through a big plate, rivets ringing, scale and a rivet falling",
+    "key": "iron",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "823c17f1a017e608"
  },
  "crew-cannon-impact/water": {
   "cue": "crew-cannon-impact.water",
@@ -2698,6 +2772,103 @@
   ],
   "takes": 3,
   "sha": "1c09e3bd5a75fcdc"
+ },
+ "crew-emotes/dance": {
+  "cue": "crew-emotes.dance",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A jig on the spot on the car's boards: boots stamping and tapping in 6/8, hands clapping on the beat",
+    "key": "jig",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_rpg-audio:knifeSlice2",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_rpg-audio:beltHandle1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "fe10481d1ed67185"
+ },
+ "crew-emotes/outfit": {
+  "cue": "crew-emotes.outfit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy coat shrugged on: swung round the shoulders, both arms down the sleeves, settled, buttons done up",
+    "key": "coat",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:click5",
+     "kenney_ui-audio:click3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "90133368e535d4e0"
+ },
+ "crew-emotes/point": {
+  "cue": "crew-emotes.point",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "An arm thrown out to point: a quick swish and the coat sleeve snapping taut, the coat following",
+    "key": "sleeve",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3b441fe6674b9646"
+ },
+ "crew-emotes/wave": {
+  "cue": "crew-emotes.wave",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "An arm raised and waved in a heavy coat: the sleeve's rustle going up, then two or three swishes side to side",
+    "key": "sleeve",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d93dced829c8d138"
  },
  "crew-extinguisher/drop/concrete": {
   "cue": "crew-extinguisher.drop",
@@ -4784,6 +4955,87 @@
   "takes": 6,
   "sha": "8fb9265172c88a3d"
  },
+ "crew-heal/apply/bandages": {
+  "cue": "crew-heal.apply",
+  "surface": "bandages",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A linen bandage torn and wound tight round an arm: the strip ripped, the turns brushed on and pulled taut",
+    "key": "linen",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "87fa98777f60f481"
+ },
+ "crew-heal/apply/medicine": {
+  "cue": "crew-heal.apply",
+  "surface": "medicine",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A small medicine bottle uncorked, a swallow or two, the cork squeaked back in: modelled cork, real glass",
+    "key": "cork",
+    "sources": [
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "sfx_100_v2:loop_water_02",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7ff9d21f0f4589da"
+ },
+ "crew-heal/apply/morphine": {
+  "cue": "crew-heal.apply",
+  "surface": "morphine",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A morphine syrette: the little cap off, a sharp breath through the teeth, the tin tube squeezed flat",
+    "key": "syrette",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5920615479b54ef7"
+ },
+ "crew-heal/done": {
+  "cue": "crew-heal.done",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stand-in: a long breath let out through the mouth, unvoiced or barely, the hurt eased",
+    "key": "exhale",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "37b374b91b382f98"
+ },
  "crew-hurt/body-fall/concrete": {
   "cue": "crew-hurt.body-fall",
   "surface": "concrete",
@@ -5987,6 +6239,68 @@
   ],
   "takes": 4,
   "sha": "871caf75f6c48adc"
+ },
+ "crew-melee/shovel-rack-off": {
+  "cue": "crew-melee.shovel-rack-off",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The coal shovel lifted off its iron rack: a glove on the shaft, the blade scraping up the bracket, a clack free",
+    "key": "hooks",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "4253de4dd382eda2"
+ },
+ "crew-melee/shovel-rack-on": {
+  "cue": "crew-melee.shovel-rack-on",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The coal shovel hung back on its rack: the blade clacked onto the iron hooks, a short scrape down, settled",
+    "key": "hooks",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "617543b18558a38c"
  },
  "crew-melee/shovel-stow": {
   "cue": "crew-melee.shovel-stow",
@@ -7362,6 +7676,43 @@
   "takes": 4,
   "sha": "edf20250027f5bd3"
  },
+ "cs-car-hugger/spit-out": {
+  "cue": "cs-car-hugger.spit-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The guard van's timbers groaning as its lips are levered off, a gush of slime and the crewmate in it, landing",
+    "key": "gush",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:loop_water_02",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_08",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5074818aa2b697de"
+ },
  "cs-car-hugger/swallow": {
   "cue": "cs-car-hugger.swallow",
   "surface": null,
@@ -7869,6 +8220,21 @@
   "takes": 3,
   "sha": "29b96541c2b411eb"
  },
+ "cs-followers/hit": {
+  "cue": "cs-followers.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Struck: its hard shield knocked, the sac sloshing, and its beak's chatter running together into a squeal",
+    "key": "beak",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "70cd2d84c334c0ba"
+ },
  "cs-followers/nest-burst": {
   "cue": "cs-followers.nest-burst",
   "surface": null,
@@ -7973,6 +8339,27 @@
   "takes": 3,
   "sha": "de1d90e4fce062ea"
  },
+ "cs-gaunt/hit": {
+  "cue": "cs-gaunt.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Struck: a dry, hollow grunt knocked out of its chest up the long neck, its ribs knocking like dry staves",
+    "key": "chest",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e56cd399d15eeb02"
+ },
  "cs-grumbler/eat": {
   "cue": "cs-grumbler.eat",
   "surface": null,
@@ -8046,6 +8433,24 @@
   ],
   "takes": 2,
   "sha": "e138a2ed8dee80a6"
+ },
+ "cs-grumbler/hit": {
+  "cue": "cs-grumbler.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Struck: his skin smacked and an affronted man's bark through split cheeks, then indignant muttering",
+    "key": "bark",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f84e60f1be98f6a0"
  },
  "cs-grumbler/scuttle": {
   "cue": "cs-grumbler.scuttle",
@@ -8440,6 +8845,26 @@
   "takes": 1,
   "sha": "268b6fb3c48582fc"
  },
+ "cs-soot-children/hit": {
+  "cue": "cs-soot-children.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Struck: a puff of soot knocked out of it, and a long dry hiss through a child's teeth from a mouth that grows",
+    "key": "puff",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0e82f67447f5da7a"
+ },
  "cs-soot-children/lunge": {
   "cue": "cs-soot-children.lunge",
   "surface": null,
@@ -8575,6 +9000,39 @@
   ],
   "takes": 2,
   "sha": "030c1ea9d4eede84"
+ },
+ "cs-switchman/hit": {
+  "cue": "cs-switchman.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Struck: its lamp jerking and rattling on its chain, and its thin reed of a throat shrieking through cracked glass",
+    "key": "chimney",
+    "sources": [
+     "sfx_100_v2:misc_09",
+     "sfx_100_v2:wood_03",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d380766a9ed0a5f1"
  },
  "cs-switchman/throw": {
   "cue": "cs-switchman.throw",
@@ -9373,6 +9831,49 @@
   ],
   "takes": 2,
   "sha": "1e3f8ecfac1086a0"
+ },
+ "place-derelict/roll": {
+  "cue": "place-derelict.roll",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The derelict from real recordings: a scrape slowed into the dry axles' grind, door creaks for the body",
+    "key": "rust",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:loop_ambient_04",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e3626829eecd6f88"
  },
  "place-grain/grain-pour": {
   "cue": "place-grain.grain-pour",
@@ -10475,6 +10976,32 @@
   "takes": 1,
   "sha": "69cfea6f0b665320"
  },
+ "state-starved/labour": {
+  "cue": "state-starved.labour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Short of steam, with no beat of its own: steam sighing in slow surges, wheezing leaks, the motion grinding",
+    "key": "drag",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1f340fcca8671cef"
+ },
  "state-strain/groan": {
   "cue": "state-strain.groan",
   "surface": null,
@@ -10946,6 +11473,24 @@
   "takes": 2,
   "sha": "a982c4a8bdb12c2f"
  },
+ "ui-film/skip": {
+  "cue": "ui-film.skip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The film skipped: the shutter snaps shut and the film's loose tail slaps round the spinning reel to a stop",
+    "key": "run-out",
+    "sources": [
+     "sfx_100_v2:misc_17",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f3626262f82323ed"
+ },
  "ui-menus/back": {
   "cue": "ui-menus.back",
   "surface": null,
@@ -10963,6 +11508,21 @@
   ],
   "takes": 2,
   "sha": "a5dca5d3218e8c5d"
+ },
+ "ui-menus/delete": {
+  "cue": "ui-menus.delete",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A crew deleted for good: the modelled rubber stamp peeled off its pad and thumped down hard on a wooden desk",
+    "key": "desk",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "826cd55008b67680"
  },
  "ui-menus/end-card": {
   "cue": "ui-menus.end-card",
@@ -11037,6 +11597,21 @@
   "takes": 1,
   "sha": "dea8da18d3d5afb8"
  },
+ "ui-menus/type": {
+  "cue": "ui-menus.type",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A letter typed into a name: the report's modelled typewriter, one light key",
+    "key": "machine",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "6095a76fd0979b47"
+ },
  "ui-music/drone": {
   "cue": "ui-music.drone",
   "surface": null,
@@ -11051,6 +11626,60 @@
   ],
   "takes": 1,
   "sha": "2ed00e0378c331d2"
+ },
+ "ui-panels/close": {
+  "cue": "ui-panels.close",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A panel put away: a card slid back into its sleeve and squared with a tap",
+    "key": "card",
+    "sources": [
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9b42ceb69db00a53"
+ },
+ "ui-panels/open": {
+  "cue": "ui-panels.open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A panel opened: a card drawn out of its sleeve, ending in a flick",
+    "key": "card",
+    "sources": [
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bad5bcfb89e80bc8"
+ },
+ "ui-panels/page": {
+  "cue": "ui-panels.page",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A page turned: a ledger's leaf lifted, swept over and laid down",
+    "key": "leaf",
+    "sources": [
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "404c744600cc3b70"
  },
  "ui-prompts/cancel": {
   "cue": "ui-prompts.cancel",

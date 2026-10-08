@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -82,7 +83,7 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            // On the cab's side of it (cab forward, note 276: the firebox is in the back wall, the cab ahead of it).
+            // On the cab's side of it (note 280: the firebox at the front, the cab behind it).
             double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
             p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
@@ -120,13 +121,13 @@ public class HudTests
         // [E]", and not that it's loud: that's learned); the vent's one key is in the corner with the brake's, and held, the
         // prompt says it's venting.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
+        // (Note 280: the cord in the driver's front corner, the firebox at the front beside it; each read where it's worked.)
         var shape = s.Train.Frames[0].Shape;
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);
         s.Player = LookingAt(s, cord.Position + new Double3(-0.3, 0, 0.4), InteractableKind.Whistle);
         Assert.Equal("PULL CORD : [E]", Hud.Prompt(s));
-        s.Player = LookingAt(s, firebox.Position + new Double3(0.35, 0, -0.45), InteractableKind.Firebox);
+        s.Player = LookingAt(s, firebox.Position + new Double3(0.15, 0, 0.45), InteractableKind.Firebox);
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
@@ -229,12 +230,12 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        Assert.Equal("THE FITTER'S LOCKER: THE REPAIR KIT   OPEN : [E]", Hud.Prompt(s));
+        Assert.Equal("LOCKER 8: THE REPAIR KIT   OPEN : [E]", Hud.Prompt(s));
         s.Train.Vehicles[car].ToggleLocker(bay.Index);
         Assert.Equal("TAKE THE REPAIR KIT : [E]   SHUT : HOLD [E]", Hud.Prompt(s));
-        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
-        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
     }
 
     [Fact]
@@ -244,7 +245,7 @@ public class HudTests
         var s = new PrototypeSession(Content, "test-loop", 4);
         var rows = Hud.SuppliesLines(s.World, ((IPlaySession)s).PlayerId);
         Assert.Equal(["COAL", "REPAIR KIT", "EXTINGUISHERS", "CARGO", "STORES"], rows.Select(r => r.Item).Take(5));
-        Assert.Equal("THE FITTER'S LOCKER, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
+        Assert.Equal("LOCKER 8, CAR 1", rows.Single(r => r.Item == "REPAIR KIT").Value);
         Assert.Contains("TOYS", rows.Single(r => r.Item == "STORES").Value);
         var hud = new Overlay();
         Hud.Supplies(hud, 480, 270, s);
@@ -272,6 +273,38 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAStandThePromptIsTheLeversWhateversInYourHandsOrLyingByIt()
+    {
+        // Queue #94 (note 357): Use is the lever's at a stand, so the prompt was wrong to offer the crate lying by it, and
+        // to say nothing while a lamp was in hand.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        int me = ((IPlaySession)s).PlayerId;
+        var feet = PlayerMotor.WorldPosition(s.Player, s.Train);
+
+        var crate = s.World.Bodies.SpawnCargo(feet + new Double3(0, 0, -0.6), line.Branches[0].Toe);
+        Assert.Same(crate, s.World.Bodies.InReach(s.Player, s.Train));
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+
+        crate.Pbd.Particles[0].Position = feet + right * 40;
+        var lamp = s.World.Bodies.SpawnItem(feet, line.Branches[0].Toe, BodyKind.Lamp);
+        lamp.Carrier = me;
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+        for (int i = 0; i < (stands.Tuning.ThrowSeconds + 0.2) * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(s.Train.Diverging(0));
+        Assert.Equal(me, lamp.Carrier);
     }
 
     [Fact]
