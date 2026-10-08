@@ -121,14 +121,15 @@ public class DeadPhaseTests
         }
     }
 
+    public static TheoryData<double, int> SizesAndScreens() =>
+        [.. Settings.TextSizes.SelectMany(size => new[] { 540, 720, 1080 }.Select(screen => (size, screen)))];
+
     [Theory]
-    [InlineData(1.0, 1080)]
-    [InlineData(1.0, 720)]
-    [InlineData(1.5, 720)]
-    [InlineData(1.5, 1080)]
+    [MemberData(nameof(SizesAndScreens))]
     public void TheCardFitsTheFrameAtEveryTextSize(double size, int screen)
     {
-        // Everything on offer at once, in the default keys (Throw reads [RIGHT MOUSE]): each row inside the canvas.
+        // Everything on offer at once, in the default keys (Throw reads [RIGHT MOUSE]): each row inside the canvas, for every
+        // way to have died (F1 on #417: MAULED and PECKED ran off a 540p window at 150%).
         var world = Night();
         world.Names[3] = "Bartholomew";
         world.Names[5] = "Anastasia";
@@ -144,6 +145,12 @@ public class DeadPhaseTests
             var (w, hgt) = Hud.Keys.Canvas;
             float k = Hud.PromptScaleAt((float)screen / hgt);
             var o = new Overlay();
+            foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c != DeathCause.None))
+            {
+                var any = Hud.DeadCardDrawn(o, new Seat(world, 3, Dead(cause), [(2, StandingAt(h.Inside))]), w, k);
+                Assert.All(any, line => Assert.True(UiStyle.MeasureKeyed(o, line, k) <= w - 12,
+                    $"{cause}: '{line}' is {UiStyle.MeasureKeyed(o, line, k)} wide on a {w} canvas at {screen}p"));
+            }
             var seat = new Seat(world, 3, Dead(DeathCause.Mauled), [(2, StandingAt(h.Inside))]);
             var drawn = Hud.DeadCardDrawn(o, seat, w, k);
             foreach (var line in drawn)
