@@ -71,6 +71,11 @@ public interface IOnlineBackend : IDisposable
     string Platform { get; }
     UserId Me { get; }
     string NameOf(UserId user);
+    /// <summary>
+    /// The user is on this account's friends list (Steam's immediate friends): a private run lets them in without its
+    /// password, as it would an invite (note 450).
+    /// </summary>
+    bool IsFriend(UserId user);
 
     /// <summary>
     /// Datagrams to and from other users, relayed by the platform: no ports to open and no IP addresses shown.

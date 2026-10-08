@@ -157,6 +157,8 @@ public readonly record struct LinkInfo(string Role, double? PingMs, int Aboard, 
     public bool Full => Cap > 0 && Places >= Cap;
     /// <summary>Lost, and turned away on the way back (note 254): what the host said, "CREW FULL (8/8)".</summary>
     public string? Refused { get; init; }
+    /// <summary>Hosting a private run (note 450): listed with a lock, joined with its password.</summary>
+    public bool Locked { get; init; }
 }
 
 /// <summary>First-person eye from a player's state, interpolated in their own frame so riding a car at speed is smooth.</summary>

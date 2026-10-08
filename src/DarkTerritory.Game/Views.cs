@@ -161,6 +161,11 @@ public static class Views
             // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
             "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
                 engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
+            // (Not one of Names.) A breath from the driver's window, looking out through it (note 485): the frost in from its
+            // frame, and with --breathe the eye's own breath fogging it.
+            "glass" => Art.TrainKit.CabPanes(engine.Shape).Skip(1).FirstOrDefault() is { U.X: > 0 } pane
+                ? Camera.LookAt(engine.ToWorld(D(pane.Centre + pane.In * 0.45f - new Vector3(0.12f, 0.05f, 0))), engine.ToWorld(D(pane.Centre - pane.In * 6 - new Vector3(0.1f, 0.25f, 0))), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // (Not one of Names.) In the cab's front corner on the driver's side, back at the driver, the brake and the reverser
             // (dt screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
             "driverside" => engine.Shape.Levers is { } driverLevers
@@ -181,6 +186,9 @@ public static class Views
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
             // awkward step"): the landing outside the door and the treads up to it from the front.
             "sidedoor" => SideDoorCamera(train, car),
+            // (Not one of Names.) Off a car's right side at a crewman's eye on the ballast, a few metres out, its side door
+            // ahead (the comet's green out of its seams, note 482).
+            "carside" => CarSideCamera(train, car),
             // (Not one of Names.) Coming down the engine's rear ladder to the coupler plate onto car 1, looking down at it.
             "rearstep" => RearStepCamera(train),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
@@ -324,6 +332,13 @@ public static class Views
         var foot = engine.Shape.Ladders.Where(x => x.Foot.Z > 0 && Math.Abs(x.Inward.Z) > 0).Select(x => x.Foot).DefaultIfEmpty(new Double3(0.6, 0, l)).MinBy(f => f.Y);
         // Up the ladder at a hand's height over the deck, looking down and across at the footplate and the plate.
         return Camera.LookAt(engine.ToWorld(new Double3(foot.X + 0.1, 2.9, l + 0.3)), engine.ToWorld(new Double3(foot.X - 1.6, 1.1, l + gap * 0.4)), 75);
+    }
+
+    static Camera CarSideCamera(TrainOnLine train, int car)
+    {
+        var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 1)];
+        double w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(w + 5.5, 1.7, 3.5)), at.ToWorld(new Double3(w, 1.9, -0.5)), 60);
     }
 
     static Camera SideDoorCamera(TrainOnLine train, int car)
@@ -637,4 +652,6 @@ public static class Views
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
         return light;
     }
+
+    static Double3 D(Vector3 v) => new(v.X, v.Y, v.Z);
 }

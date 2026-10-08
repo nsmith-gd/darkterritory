@@ -1408,16 +1408,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --shed n [--inside | --bay]: the night's nth yard shed or hero (note 387's walk-in shells), from 7 m out before its first bay
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
     // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
-    // --back, from just in at its door at the back wall; --find, close to where its first find is kept.
+    // --back, from just in at its door at the back wall; --find, close to where its first find is kept. --roost: of the open
+    // barns or sheds (with a find or not) or the yard sheds, the ones the Gaunt sleeps in (note 488), dark.
     bool barns = Opt(args, "--barn", -1) >= 0;
     if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
-            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building) && x.Feature.Stop!.Containers.Any(c => c.Building == x.Index)
+            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building)
+                    && (args.Contains("--roost") || x.Feature.Stop!.Containers.Any(c => c.Building == x.Index))
                     : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
-                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
+                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()
+                && (!args.Contains("--roost") || DarkTerritory.Sim.Run.StopWalls.Nest(x.Feature.Stop!, x.Index) is not null)).ToList();
         if (sheds.Count == 0)
             return Print(new { error = $"{Str(args, "--route", "")} has no {(barns ? "open barns or sheds with a find" : "yard sheds")}" });
         var (f, b, i) = sheds[(int)shedAt % sheds.Count];
@@ -1529,6 +1532,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+        StagedHealing = Str(args, "--grumbler", "") == "heal", // a Grumbler healing a lone crewmate's blows (note 487)
+        EyeBreathes = args.Contains("--breathe"), // the eye breathes on the glass it's near (note 485)
         // --utility i[,j]: those cars drawn as utility cars, fitted out for the crew (the sim has no utility kind yet).
         Utility = Str(args, "--utility", "") is { Length: > 0 } utilities && utilities.Split(',').Select(int.Parse).ToHashSet() is var utilitySet
             ? i => utilitySet.Contains(i) : null,
@@ -2452,6 +2457,15 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     var edition = EditionTuning.Load(content);
     if (args.Contains("--store-app"))
         edition = edition with { StoreAppId = (uint)Opt(args, "--store-app", 0) };
+    // Note 450: --mood laughs|competitive, the player's mood (the join list sorted by it); --private, the host screen's
+    // private run with its password.
+    if (args.Contains("--mood") || args.Contains("--private"))
+        new DarkTerritory.Game.Settings
+        {
+            Mood = DarkTerritory.Game.Moods.Parse(Str(args, "--mood", "")),
+            PublicLobby = !args.Contains("--private"),
+            LobbyPassword = args.Contains("--private") ? "NIGHT OWLS" : "",
+        }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
     // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
@@ -2496,29 +2510,36 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // --night-over: back at the title after a night, with the edition's word (the demo's end card).
     if (args.Contains("--night-over"))
         menu.NightOver();
+    // --menu password (note 450): a private run's password asked for, half typed (--wrong: after the host said no).
+    if (screen == DarkTerritory.Game.Screen.Password)
+    {
+        menu.AskPassword(new DarkTerritory.Game.Launch.Join("192.168.1.20:27450"), "THE NIGHT SHIFT", args.Contains("--wrong") ? "WRONG PASSWORD" : null);
+        menu.Type("lant");
+    }
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
     return (menu, screen);
 }
 
 /// <summary>
-/// A join screen's worth of public games: three on the network (one at the crew cap, shown FULL), and off a (fake) Steam
-/// search two open lobbies; a third at the cap is shut, so the search doesn't find it (note 254), and a private one isn't listed.
+/// A join screen's worth of games: three on the network (one at the crew cap, shown FULL; one private, locked), and off a
+/// (fake) Steam search two open lobbies; a third at the cap is shut, so the search doesn't find it (note 254), and a
+/// friends-only one isn't listed. Their moods vary (note 450), so --mood laughs|competitive shows the list sorted by one.
 /// </summary>
 static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, int cap)
 {
-    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol) =>
+    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false) =>
         new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
             DarkTerritory.Game.NetPlaySession.Game)
-        { Name = name, Max = cap, Tier = tier, PingMs = ping };
+        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked };
     var cloud = new Ballast.Online.FakeOnline();
     var me = cloud.SignIn("me");
-    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew)[]
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood)[]
     {
-        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3),
-        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap),
-        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5),
-        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2),
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive"),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive"),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs"),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, ""),
     };
     var lobbies = new List<Ballast.Online.Lobby>();
     foreach (var h in hosts)
@@ -2529,6 +2550,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
                 [DarkTerritory.Game.NetPlaySession.NameKey] = h.Run,
                 [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
                 [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
+                [DarkTerritory.Game.NetPlaySession.MoodKey] = h.Mood,
             });
         lobby.Poll();
         DarkTerritory.Game.NetPlaySession.Advertise(lobby, h.Crew, cap);
@@ -2539,8 +2561,8 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
     browser.Poll(0, events, search: true);
     me.Poll(events);
     browser.Poll(0, events, search: false);
-    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol),
-        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol)];
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs")];
     var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
     foreach (var l in lobbies)
         l.Dispose();

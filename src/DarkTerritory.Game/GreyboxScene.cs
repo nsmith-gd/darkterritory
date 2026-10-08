@@ -168,6 +168,8 @@ public sealed class GreyboxScene
     /// <summary>You as your own eyes see you (X3): your forearms and hands, and the tool in them; null for none (a chase
     /// camera, a headset's own hands, the dead).</summary>
     public OwnView? Own { get; set; }
+    /// <summary>The eye breathes on the glass it's near (note 485): first person, as <see cref="Own"/> is; a still frame's staging.</summary>
+    public bool EyeBreathes { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
 
@@ -609,6 +611,12 @@ public sealed class GreyboxScene
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds);
+                    // A Grumbler healing (App. A.8, note 487): what a lone crewmate's blow knocked out of it drawn back in.
+                    if (e.Kind == EnemyKind.Grumbler && Healing(e) is > 0 and var healing && Look?.Art.Effects is { } knit)
+                    {
+                        var feet = EnemyWorld(e, frames);
+                        knit.Knit(mesh, V(feet, eye) + Vector3.UnitY * GrumblerMiddle, V(feet, eye), healing, Time, e.Id);
+                    }
                 }
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
@@ -655,6 +663,14 @@ public sealed class GreyboxScene
             }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
+        // The cab's glass in the cold (note 485): its frost, and the fog breathed onto it, after the crew whose mouths it
+        // reads (and the eye's own, first person).
+        if (Look is not null)
+        {
+            float frost = MathF.Max(Look.Tuning.Atmosphere.Cold.Frost(Cold), (Look.Tuning.Atmosphere.ChoirCold?.Rime ?? 0) * ChoirCold(ChoirGathering));
+            foreach (var frame in frames.Where(f => f.Shape.Cab is not null))
+                Look.Art.CabGlass(mesh, frame, eye, frost, Time, Own is not null || EyeBreathes);
+        }
         Lap(mesh, "bodies and crew");
     }
 
@@ -1299,6 +1315,43 @@ public sealed class GreyboxScene
         return (flat * (0.25f * over) - Vector3.UnitY * (0.45f * sink), 1.35f * over + 1e-4f);
     }
 
+    // Each Grumbler's health as last seen, the most it's been, and when it last rose (note 487).
+    readonly Dictionary<int, (double Health, double Top, double RoseAt)> _healing = new();
+
+    /// <summary>How high over its feet the middle of a Grumbler is, down on all fours (m).</summary>
+    const float GrumblerMiddle = 0.45f;
+
+    /// <summary>How long after its health last rose a Grumbler's still seen healing (s): a snapshot's gap and more.</summary>
+    const double HealingFor = 0.35;
+
+    /// <summary>Staged (<c>dt screenshot --grumbler heal</c>): every Grumbler short of its health seen healing, in a still.</summary>
+    public bool StagedHealing { get; set; }
+
+    /// <summary>
+    /// How hard <paramref name="e"/> is healing now (0..1; note 487): while its health is rising (it's replicated, so a client
+    /// sees it climb as the host does), more the further it's down from the most it's been. A Grumbler heals unless two or
+    /// more of the crew have hit it lately (App. A.8): this is that, seen.
+    /// </summary>
+    float Healing(Enemy e)
+    {
+        if (StagedHealing)
+            return e.Health < StagedHealingFull ? (float)Math.Clamp(0.35 + 1.3 * (1 - e.Health / StagedHealingFull), 0, 1) : 0;
+        var (health, top, roseAt) = _healing.TryGetValue(e.Id, out var m) && Valid(m.RoseAt) ? m : (e.Health, e.Health, double.NegativeInfinity);
+        top = Math.Max(top, e.Health);
+        if (e.Health > health + 1e-4)
+            roseAt = Time;
+        _healing[e.Id] = (e.Health, top, roseAt);
+        double since = Time - roseAt;
+        return since < 0 || since > HealingFor || top <= 0 ? 0
+            : (float)(Math.Clamp(0.35 + 1.3 * (1 - e.Health / top), 0, 1) * (1 - since / HealingFor * 0.5));
+
+        // (A clock that's gone back is a new scene: start again.)
+        bool Valid(double at) => at <= Time;
+    }
+
+    /// <summary>A staged Grumbler's full health (enemies.json grumbler.health), for how far down it's drawn healing.</summary>
+    public double StagedHealingFull { get; set; } = 6;
+
     /// <summary>Seconds since a blow or a ball last landed on <paramref name="e"/>, or −1 when none has in the last second.</summary>
     double HitAge(Enemy e)
     {
@@ -1864,6 +1917,14 @@ public sealed class GreyboxScene
             }
             origin = f.ToWorld(local);
             (right, up, back) = (f.Right, f.Up, f.Back);
+            // A hound aboard faces the way the sim has it in its car (note 472): up or down the car, or to a side door. Its
+            // stand-in's head is at −Z, so turned as the art turns its model (CreatureArt), a player's yaw in the car's frame.
+            if (e is Sim.Enemies.CinderHound hound)
+            {
+                double yaw = hound.Facing switch { 1 => Math.PI, 2 => -Math.PI / 2, 3 => Math.PI / 2, _ => 0 };
+                back = f.Right * Math.Sin(yaw) + f.Back * Math.Cos(yaw);
+                right = f.Right * Math.Cos(yaw) - f.Back * Math.Sin(yaw);
+            }
         }
         else if (e.Attached == Enemy.Loose)
         {
@@ -3064,9 +3125,10 @@ public sealed class GreyboxScene
 
     /// <summary>
     /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
-    /// stand over that floor (an open barn's or shed's eaves, note 462).
+    /// stand over that floor (an open barn's or shed's eaves, note 462). Dark: a barn or shed the Gaunt roosts in, its lanterns
+    /// out (note 488).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false);
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -3108,8 +3170,11 @@ public sealed class GreyboxScene
                             : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
                         if (lengths.Count == 0)
                             continue;
+                        // The Gaunt's roost has no lantern lit, as its house would have no candle (TownKit.HouseLight): a dark
+                        // barn among lit ones is the tell (note 488).
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
-                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true));
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true,
+                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -3151,8 +3216,8 @@ public sealed class GreyboxScene
                 mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
-                // A long yard shed has one each shedLanternSpacing along it.
-                if (h.Shed && lit.ShedLantern > 0)
+                // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
+                if (h.Shed && !h.Dark && lit.ShedLantern > 0)
                 {
                     int lanterns = Math.Max(1, (int)Math.Round(part.Length / Math.Max(1, lit.ShedLanternSpacing)));
                     for (int k = 0; k < lanterns; k++)
