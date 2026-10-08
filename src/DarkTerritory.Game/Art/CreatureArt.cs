@@ -1121,6 +1121,9 @@ public sealed class CreatureArt
             Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
         }, seed: seed);
 
+    /// <summary>The Follower's nest built up as it builds it (note 460): the follower_nest model's own pieces, grown in turn.</summary>
+    readonly NestBuild Nest = new();
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1601,11 +1604,13 @@ public sealed class CreatureArt
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
+                    // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the
+                    // lobes swelling up out of the heap one after another, the hollow last.)
                     if (nesting && PropArt.Of(Look).Get("follower_nest") is { } heap)
                     {
-                        float grown = 0.25f + 0.75f * swell;
-                        mesh.Append(heap, Matrix4x4.CreateScale(grown, grown * (0.6f + 0.4f * swell), grown) * model);
-                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * grown * (0.6f + 0.4f * swell), 0) * at;
+                        var (built, top) = Nest.At(heap, swell);
+                        mesh.Append(built, model);
+                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * at;
                     }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
