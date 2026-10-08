@@ -105,8 +105,9 @@ public class LinesidePropsTests
         Assert.True(trees > (spec.StartsWith("local") ? 500 : 2000), $"{spec}: only {trees} trees");
         // Inside the forts, nothing wild: the sim stands the poles there and nothing else.
         var all = side.Props(0, train.Line.Length).ToList();
-        int inside = all.Count(p => p.Kind != LinesideKind.Pole && LinesideProps.InsideAFort(forts, p.Along, p.Lateral));
-        Assert.Equal(all.Count - inside, side.Walls(forts, double.MaxValue).Count());
+        Assert.Contains(all, p => p.Kind != LinesideKind.Pole && LinesideProps.InsideAFort(forts, p.Along, p.Lateral));
+        Assert.Equal(all.Count(p => p.Height - p.Sink > 0.05 && (p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral))),
+            side.Walls(forts, double.MaxValue).Count());
     }
 
     [Fact]
@@ -150,9 +151,17 @@ public class LinesidePropsTests
         var ribbit = Ribbit.At(1, 1, Foot(train, tree) + Double3.Up * 0.5, Tuning.Enemies.Ribbits);
         Solidity.Settle([ribbit], train, Tuning.Enemies);
         Assert.False(InAnyWall(train.Walls!, ribbit.Local + Double3.Up * 0.2, 0.25), $"a Ribbit in a trunk at {ribbit.Local}");
-        // A boulder sunk to under a step stands no higher than a crewmate steps up, so it's walked over (PlayerMotor's stepUp).
-        var low = props.Where(p => p.Kind == LinesideKind.Rock).Select(p => (p, Top: p.Height - p.Sink)).Where(x => x.Top < P.StepUp).ToList();
-        Assert.All(low, x => Assert.True(x.Top < P.StepUp));
+        // A boulder sunk to under a step stands no higher than a crewmate steps up, so it's walked over (PlayerMotor's stepUp);
+        // one sunk wholly into a steep slope is under the ground and no wall at all. Every wall stands up from its foot (a
+        // box upside down threw in the bodies' contact: D1.2's express night found one).
+        foreach (var spec in new[] { "deepTerritory:2", "deadLines:3", "frontier:7", "deepTerritory:4" })
+        {
+            var (_, t, s, forts) = Night(spec);
+            var all = s.Props(0, t.Line.Length, Tuning.Run.Walls.LinesideReachM).ToList();
+            var walls = s.Walls(forts, Tuning.Run.Walls.LinesideReachM).ToList();
+            Assert.All(walls, w => Assert.True(w.Top > w.Bottom && w.Top > w.Bottom + 3, $"{spec}: a wall from {w.Bottom:0.0} to {w.Top:0.0} at {w.Centre}"));
+            Assert.Equal(all.Count(p => p.Height - p.Sink > 0.05 && (p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral))), walls.Count);
+        }
     }
 
     [Fact]

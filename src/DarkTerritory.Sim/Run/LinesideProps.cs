@@ -342,7 +342,7 @@ public sealed class LinesideProps
         List<(LinesideProp Prop, Wall Wall)> solids;
         lock (_solids)
             if (!_solids.TryGetValue(reach, out solids!))
-                _solids[reach] = solids = [.. Props(0, _line.Length, reach).Select(p => (p, WallOf(p)))];
+                _solids[reach] = solids = [.. Props(0, _line.Length, reach).Where(Stands).Select(p => (p, WallOf(p)))];
         // Nothing wild grows inside a fort; the poles run on through it.
         foreach (var (p, w) in solids)
             if (p.Kind == LinesideKind.Pole || !InsideAFort(forts, p.Along, p.Lateral))
@@ -350,6 +350,9 @@ public sealed class LinesideProps
     }
 
     readonly Dictionary<double, List<(LinesideProp, Wall)>> _solids = [];
+
+    /// <summary>Whether something of it stands above the ground: a boulder sunk wholly into a steep slope is under it, and nothing to walk into.</summary>
+    static bool Stands(LinesideProp p) => p.Height - p.Sink > 0.05;
 
     Wall WallOf(LinesideProp p)
     {
