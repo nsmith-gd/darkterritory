@@ -1084,7 +1084,9 @@ public sealed class Director
             return;
         if (!_dropSeeded)
         {
-            _dropRng = new Pcg32(_seed, 0xD209);
+            // The seed scrambled first: a PCG stream's first draw barely moves between neighbouring seeds (frontier:7's seeds
+            // 1-3 all rolled 0.73 for its truss), and this one makes a single draw a crossing.
+            _dropRng = new Pcg32(unchecked(_seed * 0x9E3779B97F4A7C15UL + 0xD209), 0xD209);
             _dropSeeded = true;
         }
         var train = world.Train;
