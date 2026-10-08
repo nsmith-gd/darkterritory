@@ -39,6 +39,17 @@ public sealed class PlanConditions : ITrackConditions
 
     public double Ground(Double3 world) => Terrain.Ground(world);
 
+    public Double3 Confine(Double3 world, double radius) => Terrain.Confine(world, radius);
+
+    public double LateralRoom(int path, double distance)
+    {
+        var (edge, s) = Locate(path, distance);
+        int index = Terrain.EdgeIndex(edge);
+        return index < 0 ? double.PositiveInfinity : Terrain.LateralRoom(index, s);
+    }
+
+    public double FormationM => Terrain.ShoulderM;
+
     public double Adhesion(int path, double distance)
     {
         if (_wet.Length == 0)

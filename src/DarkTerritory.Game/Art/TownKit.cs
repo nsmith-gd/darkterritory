@@ -222,8 +222,13 @@ public static class TownKit
     /// oil lamp turned right down, hung from the middle of the ceiling. Its flame's height over the floor. The scene lights
     /// it; the art stands it there.
     /// </summary>
-    public static (double X, double Y, float Height, bool Lamp) HouseLight(Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept)
+    /// <param name="clutter">Its ransacked furniture (StopWalls.ClutterOf): a candle stands clear of the heavy pieces.</param>
+    /// <param name="nest">Where the Gaunt nests in it, if it does: then there's no light at all (null), and the dark is the tell.</param>
+    public static (double X, double Y, float Height, bool Lamp)? HouseLight(Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept,
+        IReadOnlyList<Sim.Run.Clutter>? clutter = null, (double X, double Y)? nest = null)
     {
+        if (nest is not null)
+            return null;
         var o = Sim.Run.StopWalls.Outline(b);
         if (b.Variant % 3 == 0)
         {
@@ -258,7 +263,8 @@ public static class TownKit
         for (int i = 0; i < corners.Count; i++)
         {
             var (x, y) = corners[(i + b.Variant) % corners.Count];
-            if (taken.All(p => Math.Abs(p.Item1 - x) + Math.Abs(p.Item2 - y) > 1.4))
+            if (taken.All(p => Math.Abs(p.Item1 - x) + Math.Abs(p.Item2 - y) > 1.4)
+                && (clutter ?? []).All(c => !c.Solid || Math.Abs(c.X - x) > c.Box.HalfX + 0.15 || Math.Abs(c.Y - y) > c.Box.HalfY + 0.15))
                 return (x, y, 0.16f, false);
         }
         var c0 = o.Cells[0];
@@ -292,7 +298,10 @@ public static class TownKit
         k.Quad(M(0, ridge + 0.05f, z0), M(0, ridge + 0.05f, z1), M(w / 2 + over, eaves - over * 0.9f, z1), M(w / 2 + over, eaves - over * 0.9f, z0), twoSided: true);
     }
 
-    public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept)
+    /// <param name="clutter">What a ransack left about it (StopWalls.ClutterOf).</param>
+    /// <param name="nest">Where the Gaunt nests in it, if it does (StopWalls.Nest).</param>
+    public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept,
+        IReadOnlyList<Sim.Run.Clutter>? clutter = null, (double X, double Y)? nest = null)
     {
         static Vector3 K(double x, double y, float h) => new((float)y, h, (float)-x);
         // A box in the building's frame: (x, y) its middle, (hx, hy) half its size, from y0 to y1 up.
@@ -342,10 +351,25 @@ public static class TownKit
             foreach (var part in b.Parts)
                 Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
 
+        // What a ransack left (the director, 8 Oct): each piece where the sim has it, turned its way (its x along the house's
+        // yaw from x toward y; the kit's frame has the house's x on −Z and its y on +X).
+        foreach (var c in clutter ?? [])
+        {
+            float yaw = (float)c.Yaw;
+            var along = new Vector3(MathF.Sin(yaw), 0, -MathF.Cos(yaw));
+            var front = new Vector3(MathF.Cos(yaw), 0, MathF.Sin(yaw));
+            var at = K(c.X, c.Y, Floor);
+            var m = new Matrix4x4(along.X, along.Y, along.Z, 0, 0, 1, 0, 0, front.X, front.Y, front.Z, 0, at.X, at.Y, at.Z, 1);
+            k.With(m, () => RansackKit.Piece(k, c));
+        }
+        // The Gaunt's nest, if it roosts here: in the dark, nothing lit.
+        if (nest is { } n)
+            k.With(Matrix4x4.CreateTranslation(K(n.X, n.Y, Floor)), () => RansackKit.Nest(k, b.Variant));
+
         // Its light (HouseLight): a candle stub on a saucer, the wax run down it, its flame; or a tin lamp on a chain, its
         // glass barely lit.
+        if (HouseLight(b, kept, clutter, nest) is var (lx, ly, height, lamp))
         {
-            var (lx, ly, height, lamp) = HouseLight(b, kept);
             var at = K(lx, ly, Floor);
             if (lamp)
             {
