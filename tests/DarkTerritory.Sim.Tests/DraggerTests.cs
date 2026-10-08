@@ -238,4 +238,101 @@ public class DraggerTests
         Assert.Equal((SpinePhase.Telegraph, id, 1, Car), (seen.Phase, seen.Target, seen.Side, seen.Attached));
         Assert.Equal(dragger.Local.Z, seen.Local.Z, 2);
     }
+
+    // ---- Off a truss (note 435, orchestrator.md §5.2 S4) ----
+
+    /// <summary>A Dragger perched on a truss's top chord this far ahead of the engine, on a side.</summary>
+    static Dragger OnTruss(Night n, double ahead, int side = 1) =>
+        n.World.AddEnemy(id => Dragger.OnTruss(id, n.Train.Dynamics.Distance + ahead, side, D.Drop));
+
+    [Fact]
+    public void ADraggerOnATrussScrapesThenDropsOnWhoeverIsOnTheRoofPassingUnder()
+    {
+        // At 20 m/s, a Dragger on the chord 150 m ahead; a crewmate on car 2's roof, on the centreline (out of any Dragger's
+        // reach from under the edge: it's the drop from above that takes them).
+        var n = new Night(speed: 20);
+        int id = n.OnRoof(0);
+        var dragger = OnTruss(n, 150);
+        Assert.True(dragger.Perched);
+        double scraping = -1, dropped = -1;
+        for (int i = 0; i < 20 * SimConstants.TickRate && dropped < 0; i++)
+        {
+            n.Run(SimConstants.TickSeconds);
+            double now = i * SimConstants.TickSeconds;
+            if (scraping < 0 && dragger.Phase == SpinePhase.Telegraph)
+                scraping = now;
+            if (!dragger.Perched)
+                dropped = now;
+        }
+        Assert.True(scraping >= 0 && dropped > scraping, $"scraping at {scraping}, dropped at {dropped}");
+        // The tell: the scrape on the steel from about tellSeconds before the engine's under it, never under the reaction window.
+        Assert.True(dropped - scraping >= Tuning.Enemies.MinReactionSeconds, $"{dropped - scraping:0.00} s of scraping");
+        Assert.Equal(Car, dragger.Attached);
+        Assert.Equal(SpinePhase.Grab, dragger.Phase);
+        Assert.Equal(id, dragger.Target);
+        Assert.True(n.Crew[id - 1].Has(PlayerFlags.Held));
+        // At the car's edge, on its chord's side: hanging them over the side as a Dragger does (App. A.4).
+        Assert.True(Math.Abs(dragger.Local.X) > n.Shape.HalfWidth);
+    }
+
+    [Fact]
+    public void AWalkerHearsTheScrapeAndIsOffTheRoofBeforeItDrops()
+    {
+        // Note 442 (note 435's "not yet"): a bot walker on car 2's roof at 20 m/s, a Dragger on the chord 150 m ahead. The scrape
+        // is a roof warning, as a tunnel's mouth is: off the roof (into the gap or a car) before the car's under it, so it
+        // drops on nobody (on its own, it's into car 1 and the door shut); and back up on the roofs after.
+        var n = new Night(speed: 20);
+        int id = n.OnRoof(0, z: 3);
+        var walker = new Bots.RoofWalkerBot(5, Tuning.Player.Cold, new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), 1, Tuning.Player.Cold)) { Me = id };
+        var dragger = OnTruss(n, 150);
+        bool grabbed = false, off = false, backUp = false;
+        double through = 150 / 20.0 + n.Train.Dynamics.Consist.LengthMetres / 20 + 2;
+        for (int i = 0; i < (through + 20) * SimConstants.TickRate; i++)
+        {
+            walker.Crew = [(id, n.Crew[id - 1])];
+            n.Intents[id - 1] = walker.Decide(n.Crew[id - 1], n.World, (uint)i, out _);
+            n.Run(SimConstants.TickSeconds);
+            grabbed |= dragger.Target == id || n.Crew[id - 1].Has(PlayerFlags.Held);
+            off |= dragger.Phase == SpinePhase.Telegraph && n.Crew[id - 1].Surface != Surface.Roof;
+            backUp |= dragger.Gone && n.Crew[id - 1] is { Surface: Surface.Roof, Parent: > 0 };
+        }
+        var s = n.Crew[id - 1];
+        Assert.False(grabbed, "the Dragger dropped on the walker");
+        Assert.True(off, "never off the roof while it scraped");
+        Assert.True(dragger.Gone);
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.True(backUp, $"not back up on the roofs after: {s.Surface} on {s.Parent}");
+    }
+
+    [Fact]
+    public void NobodyOnTheRoofsAndItDropsOnTheBallastAndIsGone()
+    {
+        var n = new Night(speed: 20);
+        var dragger = OnTruss(n, 150);
+        n.Run(150 / 20.0 + n.Train.Dynamics.Consist.LengthMetres / 20 + 2);
+        Assert.True(dragger.Gone);
+        Assert.True(dragger.Attached < 0);
+    }
+
+    [Fact]
+    public void ARunFastTrainFindsADraggerOnFrontier7sTruss()
+    {
+        // The director puts one on the chord of a through-truss coming up within `ahead` of a train at fromSpeed or more.
+        var content = DataFile.FindContentRoot();
+        var route = LineGen.Routes.Generate(content, "frontier:7", 10);
+        var truss = route.Plan!.Structures.First(st => st.Type == LineGen.StructureType.Truss && st.Edge == "main");
+        var e = Tuning.Enemies with
+        {
+            Director = HoundRunTests.Quiet.Director with { Run = HoundRunTests.Quiet.Director.Run with { On = false } },
+            Draggers = D with { Drop = D.Drop with { Chance = 1 } },
+        };
+        var n = new global::DarkTerritory.Sim.Tests.Night(4, 21, route, enemies: e);
+        var d = n.World.Director!;
+        for (int s = 0; s < 900 && d.TrussDraggers == 0 && n.Train.Dynamics.Distance < truss.S0; s++)
+            n.Run(1);
+        Assert.Equal(1, d.TrussDraggers);
+        var perched = Assert.Single(n.World.ActiveEnemies.OfType<Dragger>(), x => x.Perched);
+        Assert.InRange(perched.LineDistance, truss.S0, truss.S1);
+        Assert.InRange(truss.S0 - n.Train.Dynamics.Distance, 0, D.Drop.Ahead);
+    }
 }

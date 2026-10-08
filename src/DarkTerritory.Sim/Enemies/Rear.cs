@@ -37,6 +37,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// leaps aboard the first car behind the engine. The forward gun's.
     /// </summary>
     public bool Ahead { get; init; }
+    /// <summary>A runner of a flank lane (note 418): put down out in the open abeam the train, it runs in to the car alongside.</summary>
+    public bool Flank { get; init; }
     public override bool StaysAboard => _stays && Attached >= 0;
 
     protected override void Tick(EnemyContext ctx)
@@ -98,6 +100,10 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             case SpinePhase.Commit when Ahead:
                 Meet(ctx);
                 break;
+            case SpinePhase.Commit when Flank:
+                Run(ctx, t, closing: 0);
+                RunIn(ctx);
+                break;
             case SpinePhase.Commit:
                 double gap = train.RearDistance - LineDistance;
                 if (gap > 250)
@@ -156,6 +162,40 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double across = -_from * run.AheadCross;
         Lateral += (across - Lateral) * Math.Min(1, SimConstants.TickSeconds / meet);
         LineDistance -= run.AheadSpeed * SimConstants.TickSeconds;
+    }
+
+    /// <summary>
+    /// A flank lane (note 418): in across the open ground, keeping pace, and aboard the car it comes alongside (not the
+    /// engine's hood: note 338), on its side, once it's at the car's edge.
+    /// </summary>
+    void RunIn(EnemyContext ctx)
+    {
+        var run = ctx.World.Director?.Tuning.Run ?? new HoundRunTuning();
+        var train = ctx.Train;
+        double edge = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id].Shape.HalfWidth + 0.6;
+        if (Math.Abs(Lateral) > edge)
+        {
+            Lateral -= Math.Sign(Lateral) * Math.Min(Math.Abs(Lateral) - edge, run.FlankSpeed * SimConstants.TickSeconds);
+            return;
+        }
+        var at = WorldPosition(train);
+        int best = -1;
+        double nearest = double.MaxValue, z = 0;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.IsEngine)
+                continue;
+            var f = train.Frames[v.Id];
+            double local = f.ToLocal(at).Z, off = Math.Max(0, Math.Abs(local) - f.Shape.HalfLength);
+            if (off < nearest)
+                (best, nearest, z) = (v.Id, off, Math.Clamp(local, -f.Shape.HalfLength + 1, f.Shape.HalfLength - 1));
+        }
+        if (best < 0)
+            return;
+        ctx.World.Director?.RunnerEnded(Pack, 2);
+        var shape = train.Frames[best].Shape;
+        Attached = best;
+        Local = new Double3(Lateral > 0 ? 0.6 : -0.6, shape.RoofHeight, z);
     }
 
     void Board(EnemyContext ctx)

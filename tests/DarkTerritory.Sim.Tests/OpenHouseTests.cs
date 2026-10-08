@@ -36,8 +36,8 @@ public class OpenHouseTests
             for (int i = 0; i < stop.Buildings.Count; i++)
             {
                 var b = stop.Buildings[i];
-                // Every village house stands open, whatever its shape.
-                Assert.Equal(b.Kind == BuildingKind.House, b.Open);
+                // Every village house stands open, whatever its shape; and the barns, outbuildings and goods sheds (note 417).
+                Assert.Equal(b.Kind is BuildingKind.House or BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed, b.Open);
                 if (!b.Open || !StopWalls.Walled(stop, i))
                     continue;
                 open++;
@@ -176,6 +176,57 @@ public class OpenHouseTests
     }
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:2")]
+    [InlineData("local:3")]
+    [InlineData("deepTerritory:2")]
+    public void TheBarnsAndShedsStandOpenWithTheirFindsInside(string spec)
+    {
+        // Note 417: a barn, an outbuilding and a dead town's goods shed stand as their walls with one wide door toward the
+        // line; you walk in by it and nowhere else, and a hayloft's or a workbench's find is inside against the back wall,
+        // got to round the bench (which is solid).
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var walls = StopWalls.Of(route, line);
+        int sheds = 0, finds = 0, benches = 0;
+        foreach (var f in route.Features.Where(f => f.Stop is not null))
+        {
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                var b = stop.Buildings[i];
+                if (!StopWalls.OpenShed(b) || stop.Holdouts.Any(h => h.Building == i))
+                    continue;
+                sheds++;
+                Assert.True(StopWalls.Shelled(stop, i) && !StopWalls.Walled(stop, i));
+                var door = Assert.Single(StopWalls.Doors(stop, i, new Run.WallTuning()));
+                // Its door looks toward the line.
+                var outward = StopWalls.InHouse(b, 0, door.Side) - StopWalls.InHouse(b, 0, 0);
+                Assert.True(Math.Sign(b.D) * outward.D <= 1e-9, $"{spec} at {f.Start:0}: {b.Kind} {i}'s door faces away from the line");
+                var walk = Reach(walls, line, f, b);
+                double y = door.Side * b.Width / 2;
+                Assert.True(walk.Reached(0, y + door.Side * 0.6) && walk.Reached(0, y - door.Side * 0.6), $"{spec} at {f.Start:0}: {b.Kind} {i}'s door is shut");
+                foreach (var (x, cy) in walk.Crossings)
+                    Assert.True(Math.Abs(x) < door.Width / 2 + 0.5 && Math.Abs(cy - y) < 1.5, $"{spec} at {f.Start:0}: {b.Kind} {i} has a way in at ({x:0.0}, {cy:0.0})");
+                foreach (var c in stop.Containers.Where(c => c.Building == i))
+                {
+                    finds++;
+                    var (ix, iy) = StopWalls.InsideLocal(b, c.Kind, c.Index);
+                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
+                    Assert.True(StopWalls.InParts(b, ix, iy) && StopWalls.InParts(b, kx, ky), $"{spec} at {f.Start:0}: a {c.Kind} outside its {b.Kind} {i}");
+                    Assert.True(walk.Reached(ix, iy), $"{spec} at {f.Start:0}: a {c.Kind} in {b.Kind} {i} can't be got to");
+                    if (c.Kind == ContainerKind.Bench)
+                    {
+                        benches++;
+                        Assert.False(walk.Reached(kx, ky), $"{spec} at {f.Start:0}: walked through a bench");
+                    }
+                }
+            }
+        }
+        Assert.True(sheds > 0 && finds > 0, $"{spec}: {sheds} open sheds, {finds} finds in them, {benches} benches");
+    }
+
     sealed record Walk(double X0, double Y0, bool[,] Grid, List<(double X, double Y)> Crossings)
     {
         const double Step = 0.1;

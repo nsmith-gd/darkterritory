@@ -70,6 +70,27 @@ public sealed class GreyboxScene
     public int LampsOut { get; set; }
 
     /// <summary>Car <paramref name="index"/>'s lamps are out (its vehicle's LampLit), so it's drawn dark inside and out.</summary>
+    /// <summary>
+    /// A hand lamp's light (GDD §31), lying or carried. With the art pass it's a flame: it flickers and shivers a little in
+    /// its glass (Art.SceneArt.Flicker, FlameDrift), as its glow does; the greybox's is steady. The one nearest the eye
+    /// casts shadows, which swing as it swings (MeshBuilder.ShadowLight); the rest light unshadowed.
+    /// </summary>
+    void HandLamp(MeshBuilder mesh, Double3 at, Double3 eye, int id)
+    {
+        if ((at - eye).Length >= 60)
+            return;
+        var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
+        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * 1.8f * flicker, 7f);
+        if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
+            mesh.PointLights.Add(light);
+        else
+        {
+            if (mesh.ShadowLight is { } farther)
+                mesh.PointLights.Add(farther);
+            mesh.ShadowLight = light;
+        }
+    }
+
     bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && (!fleet[index].LampLit || Sputtered(fleet[index], index));
 
     /// <summary>
@@ -376,11 +397,16 @@ public sealed class GreyboxScene
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
+        // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
         if (Bodies is not null)
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp))
-                // (Carried, where it swings in the carrier's fist: Art.SceneArt.LampInHand.)
-                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at && (at - eye).Length < 60)
-                    mesh.PointLights.Add(new PointLight(V(at, eye), Palette.LampAmber * 1.8f, 7f));
+                if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
+                    HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
+        // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
+        if (Crew is not null && Look is not null)
+            foreach (var c in Crew.Where(c => c.Lamp && Bodies?.Any(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier == c.Id) != true))
+                if (Look.Art.LampInHand(c.Id, Time) is { } at)
+                    HandLamp(mesh, at, eye, c.Id);
         if (Lights is not null)
             foreach (var (at, colour, radius) in Lights)
                 mesh.PointLights.Add(new PointLight(V(at, eye), colour, radius));
@@ -2879,9 +2905,11 @@ public sealed class GreyboxScene
             stops ??= run.Stops;
             if (stops[spot.Stop] is not { Stop: { } stop } f)
                 continue;
-            // The house's floor, as the art stands it: its frame 0.15 m under the ground at its middle, the boards 0.17 over that.
+            // The house's floor, as the art stands it: its frame 0.15 m under the ground at its middle, the boards 0.17 over that
+            // (an open barn's or shed's, 0.21: WorldArt.OpenShed's boards over the shell's concrete).
             var b = stop.Buildings[spot.Container.Building];
-            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y);
+            double boards = Sim.Run.StopWalls.OpenShed(b) ? 0.21 : 0.17;
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards).Y);
             var into = new Vector3((float)spot.Facing.X, 0, (float)spot.Facing.Z);
             var up = Vector3.UnitY;
             var side = Vector3.Cross(up, into);
@@ -2919,6 +2947,18 @@ public sealed class GreyboxScene
                     mesh.Box(At(0, 0.004f), side, up, into, new Vector3(0.3f, 0.004f, 0.55f), dark);
                     for (int i = 0; i < 3; i++)
                         mesh.Box(At(-0.15f + i * 0.17f, 0.02f + i * 0.004f, 0.75f + (i % 2) * 0.05f), side, up, into, new Vector3(0.08f, 0.015f, 0.55f), wood);
+                    break;
+                case Sim.Stops.ContainerKind.Bench:
+                    // An open shed's workbench (note 417): its drawer pulled out under the top, the slot dark, a tin knocked to the floor.
+                    mesh.Box(At((float)Sim.Run.StopWalls.BenchDepth + 0.005f, 0.72f), side, up, into, new Vector3(0.3f, 0.06f, 0.005f), dark);
+                    mesh.Box(At((float)Sim.Run.StopWalls.BenchDepth + 0.15f, 0.72f), side, up, into, new Vector3(0.3f, 0.055f, 0.17f), wood);
+                    mesh.Box(At((float)Sim.Run.StopWalls.BenchDepth + 0.45f, 0.06f, -0.4f), side, up, into, new Vector3(0.08f, 0.06f, 0.08f), Palette.IronGrey);
+                    break;
+                case Sim.Stops.ContainerKind.Hayloft:
+                    // A barn's hayloft: an armful of hay pulled down off the loft into a heap beside the ladder's foot.
+                    float foot = (float)(Sim.Run.StopWalls.LoftDepth + Sim.Run.StopWalls.LadderLean - Sim.Run.StopWalls.BenchDepth);
+                    mesh.Box(At(foot - 0.2f, 0.14f, 0.75f), side, up, into, new Vector3(0.55f, 0.14f, 0.45f), Palette.HazardYellow * 0.45f);
+                    mesh.Box(At(foot + 0.25f, 0.05f, 0.6f), side, up, into, new Vector3(0.4f, 0.05f, 0.3f), Palette.HazardYellow * 0.4f);
                     break;
             }
         }

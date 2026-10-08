@@ -44,6 +44,11 @@ public abstract record Launch
     public sealed record Leave : Launch;
     /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
     public sealed record OpenFolder(string Path) : Launch;
+    /// <summary>
+    /// The demo's WISHLIST ON STEAM (note 434): the full game's store page, over the game in the Steam overlay or in the
+    /// browser at <paramref name="Url"/>. The menu stays up.
+    /// </summary>
+    public sealed record Wishlist(uint App, string Url) : Launch;
 }
 
 /// <summary>
@@ -630,9 +635,11 @@ public sealed class FrontEnd
     {
         Show(Screen.Title);
         Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
-        // The demo's end card (T79): its wishlist line coming up.
+        // The demo's end card (T79): its wishlist line coming up, and (note 434) WISHLIST ON STEAM lit under it.
         if (Message is not null)
             Cue?.Invoke(UiCue.EndCard);
+        if (Items.ToList().FindIndex(i => i.Label == "WISHLIST ON STEAM") is >= 0 and int wishlist)
+            Selected = wishlist;
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -801,6 +808,9 @@ public sealed class FrontEnd
         [
             .. _edition.Campaign ? [new Entry(new("CAMPAIGN", "Three slots. Take contracts, buy cars, go farther out."), () => { Show(Screen.Slots); return null; })] : (Entry[])[],
             new(new("QUICK NIGHT", _tiers.Length > 1 ? "Any tier, any seed, alone or with bots." : "Any seed, alone or with bots."), () => { Show(Screen.QuickNight); return null; }),
+            // Note 434: the demo's end card has something to press; hidden until the edition names the store's app.
+            .. _edition.StoreUrl is { } store ? [new Entry(new("WISHLIST ON STEAM", "The full game's page on Steam, where it can be wishlisted."),
+                () => new Launch.Wishlist(_edition.StoreAppId, store))] : (Entry[])[],
             // T116 (the co-op games' way, Lethal Company's ship): the host opens a lobby, the yard, and waits there; friends
             // join it from the list, by invite or by address; the host drives out of the yard when everyone's in.
             // The user's playtest: "You should be able to host a run, not a night. The button should just say HOST."
