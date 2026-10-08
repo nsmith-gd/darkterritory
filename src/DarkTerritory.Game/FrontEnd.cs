@@ -846,6 +846,11 @@ public sealed class FrontEnd
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
+            // Note 348: the HUD's colours that mean something, told apart without red against green.
+            new(new($"COLOURS: {(Settings.Colours == HudColours.Colourblind ? "COLOURBLIND" : "STANDARD")}",
+                Settings.Colours == HudColours.Colourblind ? "The HUD's good in blue, warnings in yellow, danger in red." : "The HUD's good in green, warnings in amber, danger in red."),
+                Toggle(s => s with { Colours = s.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind }),
+                _ => Change(Settings with { Colours = Settings.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind })),
             // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
             new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
                 "Left and right to change: the HUD's print and the menus', bigger."),

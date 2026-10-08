@@ -23,4 +23,27 @@ public sealed record HudTuning
     public double PingWarnMs { get; init; } = 150;
     /// <summary>The crew's loudness, as a share of the Choir's threshold, at which the noise meter shows.</summary>
     public double NoiseShowAt { get; init; } = 0.5;
+    /// <summary>The HUD's colours that mean something (note 348), as the game was drawn.</summary>
+    public HudPalette Standard { get; init; } = new([0.55, 0.82, 0.45], [1.00, 0.70, 0.30], [0.95, 0.26, 0.18]);
+    /// <summary>COLOURS: COLOURBLIND (note 348): the same meanings told apart under protanopia, deuteranopia and tritanopia.</summary>
+    public HudPalette Colourblind { get; init; } = new([0.40, 0.75, 1.00], [0.98, 0.85, 0.25], [0.80, 0.25, 0.15]);
+}
+
+/// <summary>
+/// The colours on the HUD that mean something (note 348), sRGB 0..1: good (heard, a good ping, a rescue), a warning (a
+/// heading, a ping going bad, a bend to slow for) and danger (dead, a grab, an alarm).
+/// </summary>
+public sealed record HudPalette(double[] Good, double[] Warn, double[] Danger)
+{
+    public System.Numerics.Vector4 GoodColour => Colour(Good);
+    public System.Numerics.Vector4 WarnColour => Colour(Warn);
+    public System.Numerics.Vector4 DangerColour => Colour(Danger);
+
+    static System.Numerics.Vector4 Colour(double[] c) => new((float)c[0], (float)c[1], (float)c[2], 1);
+
+    /// <summary>Palettes are the same when their colours are (a record compares arrays by reference).</summary>
+    public bool Equals(HudPalette? other) => other is not null && Good.SequenceEqual(other.Good) && Warn.SequenceEqual(other.Warn)
+        && Danger.SequenceEqual(other.Danger);
+
+    public override int GetHashCode() => HashCode.Combine(GoodColour, WarnColour, DangerColour);
 }

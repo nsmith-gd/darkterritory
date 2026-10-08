@@ -651,6 +651,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Town = session.World.Town,
         Vehicles = session.Train.Vehicles,
         HotBoxTuning = session.Train.HotBoxTuning,
+        Gutter = session.Train.Gutter,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
