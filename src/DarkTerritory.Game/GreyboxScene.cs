@@ -373,7 +373,7 @@ public sealed class GreyboxScene
                 HouseDoors(mesh, line, Route, doored, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
-                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
+                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);
             // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
             if (Holdouts is not null)
                 foreach (var h in Holdouts.All)
