@@ -105,6 +105,11 @@ CUES = {
         O("stow", "Back into the hotbar", need="Not in the game yet: there's no hotbar (an extinguisher is carried or dropped) in the sim, so nothing plays this. Ready for when there is."),
         O("drop", "Dropped, or thrown and landing: a steel cylinder hitting", mats=DROP,
           cand={"wood": K("impactWood_heavy"), "grate": K("impactMetal_heavy")}),
+        # On the fire (queue #205, note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+        # where the jet meets the flames, a patch of the fire going out, and the whole fire out.
+        L("on-fire", "The jet on burning boards: the water flashing to steam, the flames beaten down"),
+        O("cell-out", "A patch of the fire put out: the flames collapsing in a hissing gasp", vars=3),
+        O("fire-out", "The fire out: a long sigh of steam, the boards dripping and ticking as they cool", vars=2),
     ],
     "crew-melee": [
         *[c for tool in ("shovel", "wrench", "crowbar") for c in (
@@ -577,6 +582,20 @@ CUES = {
     "place-mine-lift": [
         L("winding", "The winding engine on the engine's steam: a small engine's quick beat, the drum turning, the rope"),
         O("tip", "A skip tipped: ore roaring down the steel chute into the car", vars=3),
+    ],
+    # The grain elevator's conveyor line (A1's #446, note 400; queue #202, note 466): started at its drive house (an oil engine
+    # off the yard's power), the belt carrying grain into the car under its head, jamming, cleared by hand, stalling.
+    "place-conveyor": [
+        L("cranking", "The starter held: its motor whining against the engine's compression"),
+        O("catch", "The engine catching, the clutch in and the belt taking up", vars=3),
+        L("engine", "The belt's drive running: a big single-cylinder oil engine's slow beat, the flywheel"),
+        L("labour", "Jammed: the belt slipping on the drive drum, squealing, the engine bogged down"),
+        O("stall", "The drive stalling under a jam: the engine dragged down, the flywheel coasting", vars=2),
+        L("belt", "The belt running on its idlers, grain riding it"),
+        L("pour", "Grain off the belt's head down its chute into the car"),
+        O("jam", "The belt jamming: grain heaping, the belt bunching onto the stringer", vars=3),
+        L("clearing", "Clearing a jam by hand: grain dug out, the belt hauled at"),
+        O("free", "The jam cleared: the belt jerking free and running on", vars=3),
     ],
     "place-chemical": [
         L("leak", "A leak hissing in the works"),

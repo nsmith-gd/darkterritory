@@ -438,6 +438,19 @@ CUE_DEF = {
     "place-winch.drag": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "place-winch.stall": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "place-winch.in": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # The conveyor line (note 466): its drive is machinery heard across the yard, started loudly (note 400); starting it,
+    # its jam and the drive labouring under one, and clearing it are the crew's work (tier 4, as their actions are); the
+    # engine running, the belt and the grain off its head are the yard's (tier 6), heard beside them.
+    "place-conveyor.cranking": {"tier": 4, "minDistance": 2, "maxDistance": 80, "rolloff": 0.9},
+    "place-conveyor.catch": {"tier": 4, "minDistance": 4, "maxDistance": 250, "rolloff": 0.7},
+    "place-conveyor.engine": {"tier": 6, "minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-conveyor.labour": {"tier": 4, "minDistance": 4, "maxDistance": 180, "rolloff": 0.8},
+    "place-conveyor.stall": {"tier": 4, "minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
+    "place-conveyor.belt": {"tier": 6, "minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "place-conveyor.pour": {"tier": 6, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-conveyor.jam": {"tier": 4, "minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "place-conveyor.clearing": {"tier": 4, "minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    "place-conveyor.free": {"tier": 4, "minDistance": 2, "maxDistance": 50, "rolloff": 1.0},
 }
 
 
