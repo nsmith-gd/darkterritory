@@ -194,8 +194,12 @@ walkers and riders, which is what gives everyone something to answer at once.
    whole wave off: that was the old pack's rule and stays with the director's packs.
 5. **Missed.** A runner that reaches the train boards the rear car and is the pack fight (App. A.3), staying aboard
    (note 269). The wave's tell is the howls; the boarding's is the leap.
-6. **Later waves** (not built): lanes ahead (runners crossing the line in the lamp, for the forward gun), lanes on the
-   flanks from the open country's sides, and other runners than hounds, each by its own rule.
+6. **Later waves.** **The lane ahead is built (note 405, queue #141):** of a run's pairs, every `aheadEvery`-th (3) from
+   the second on comes from in front, to a train with a gun laid forward on the engine. Put down `aheadMetres` (330 m)
+   ahead and 12-16 m out to a flank, the pair howls in the lamp, then runs in to meet the train, across the line to its
+   far side, and leaps aboard the first car behind the engine as it comes alongside. The forward gun has about seven
+   seconds on them at 21 m/s (its range, 220 m, in to the stack's mask). A crew of four or more meets one pair ahead in
+   each run. Not built: lanes on the flanks from the open country's sides, and other runners than hounds, each by its own rule.
 
 ## 6. The first piece, and what's next
 
@@ -222,6 +226,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
+7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).**
 
 ## 7. What changes in the existing director
 

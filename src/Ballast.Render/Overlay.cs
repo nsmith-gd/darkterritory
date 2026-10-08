@@ -21,6 +21,19 @@ public sealed class Overlay
     public BitmapFont Font { get; init; } = BitmapFont.Default;
     public int Count => Vertices.Count;
 
+    /// <summary>
+    /// A band drawn behind each piece of shadowed text while this is set (alpha 0: none), a line at a time, as a subtitle's
+    /// background: the HUD sets it for its build when the player asks for it, and the plates it draws text on unset it.
+    /// </summary>
+    public Vector4 Backing { get; set; }
+
+    /// <summary>The band <see cref="Backing"/> puts behind a line of text <paramref name="w"/> wide at (x, y), at that scale.</summary>
+    public void Back(float x, float y, float w, float scale)
+    {
+        if (Backing.W > 0 && w > 0)
+            Rect(x - 2 * scale, y - 2 * scale, w + 5 * scale, (Font.Height + 5) * scale, Backing);
+    }
+
     public void Clear() => Vertices.Clear();
 
     public void Rect(float x, float y, float w, float h, Vector4 colour)
@@ -140,7 +153,10 @@ public sealed class Overlay
     public float Text(float x, float y, string text, Vector4 colour, float scale, bool shadow = true)
     {
         if (shadow)
+        {
+            Back(x, y, Measure(text, scale), scale);
             Glyphs(x + scale, y + scale, text, new Vector4(0, 0, 0, colour.W * 0.8f), scale);
+        }
         Glyphs(x, y, text, colour, scale);
         return Measure(text, scale);
     }

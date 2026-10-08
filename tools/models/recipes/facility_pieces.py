@@ -16,6 +16,16 @@ so each kind reads by its shape from the line:
     tallest thing for miles, with its own lit window; at the foot the receiving shed and its dark doorway; and the
     loading spout swung down from the gallery to 2.5 m off the track, its sock hanging. Its origin is on the ground at
     the silos' middle, 15 m off the line (StructureKit.Facility).
+  * the set pieces, the facilities' working modules (note 398), each at the origin the sim's module is placed from,
+    +X along the track and +Y across it the way GreyboxScene.SetPieces turns them:
+      - spout_bin (the grain elevator's loading bin): a riveted steel hopper on a braced timber trestle astride the
+        track, its roof, a ladder, its sight glass and the spout down to just over a car's roof (the ground under the
+        spout's mouth at the origin, +Y toward the lever);
+      - hose_stand (the chemical works'): a riser on a concrete plinth, its valve wheel and gauge, the gooseneck the
+        hose couples to, a drip tray and an ACID plate (its foot at the origin, -Y toward the track);
+      - lift_works (the mine head's steam lift): the ore bin on its legs over the track and its chute, the trough down
+        from the headframe and its trestles, the skip's guides up the headframe's face (the ground under the chute at
+        the origin, +Y toward the headframe); ore_skip, the skip; lever_handle, a set piece's hand lever.
   * slaughterhouse (note 393): the killing hall, 44 m along the line and 14 deep, soot-black brick on a stone plinth,
     piers every 4.4 m, its windows small and high and barred (one lit: something lives here), a clerestory along its
     slate ridge; two cattle doors at the front either side of the high door the dressing rail comes out of, the rail
@@ -56,6 +66,8 @@ def materials():
         "slate": make.lib("roof_slate", 0.6, tint=(0.8, 0.8, 0.82), rough=0.6),
         "dark": make.flat("dark", (0.012, 0.011, 0.01), rough=0.9),
         "gore": make.flat("gore", (0.09, 0.025, 0.018), rough=0.35),
+        "brass": make.lib("brass", 0.5, tint=(0.95, 0.85, 0.65), rough=0.35, metal=0.7),
+        "grip": make.flat("grip", (0.55, 0.42, 0.06), rough=0.6),
     }
 
 
@@ -443,6 +455,151 @@ def slaughterhouse(m):
     return p, []
 
 
+def _ladder(p, m, x, y, z0, z1, width=0.45, name="ladder"):
+    """A ladder up the +Y face at (x, y): two stiles and its rungs every 0.3 m (kept: nothing behind them to bake onto)."""
+    for dx in (-width / 2, width / 2):
+        p.append(make.cyl((x + dx, y, z0), (x + dx, y, z1), 0.03, m["rust"], n=6, bevel=0, name=name + "_stile", low=4))
+    z = z0 + 0.3
+    while z < z1 - 0.1:
+        p.append(make.cyl((x - width / 2, y, z), (x + width / 2, y, z), 0.016, m["rust"], n=5, bevel=0, name=name + "_rung", low=3))
+        z += 0.3
+
+
+def spout_bin(m):
+    p = []
+    MOUTH = 5.2
+    top = MOUTH + 3.2
+    # The trestle: four timber legs astride the track, braced along each side (never across: the train goes under).
+    feet = [(sx * 2.4, sy * 2.8) for sx in (-1, 1) for sy in (-1, 1)]
+    heads = [(sx * 1.8, sy * 2.2) for sx in (-1, 1) for sy in (-1, 1)]
+    for (fx, fy), (hx, hy) in zip(feet, heads):
+        p.append(_beam(Vector((fx, fy, -0.3)), Vector((hx, hy, top)), 0.3, m["timber"], "leg"))
+    for sy in (-1, 1):
+        for z0, z1 in ((0.6, 4.2), (4.2, 7.6)):
+            f0 = (z0 + 0.3) / (top + 0.3)
+            f1 = (z1 + 0.3) / (top + 0.3)
+            xa = 2.4 - 0.6 * f0
+            xb = 2.4 - 0.6 * f1
+            ya = sy * (2.8 - 0.6 * f0)
+            yb = sy * (2.8 - 0.6 * f1)
+            p.append(_beam(Vector((-xa, ya, z0)), Vector((xb, yb, z1)), 0.16, m["timber"], "brace"))
+            p.append(_beam(Vector((xa, ya, z0)), Vector((-xb, yb, z1)), 0.16, m["timber"], "brace"))
+        p.append(_beam(Vector((-2.0, sy * 2.35, 6.6)), Vector((2.0, sy * 2.35, 6.6)), 0.18, m["timber"], "girt"))
+    for sx in (-1, 1):
+        p.append(_beam(Vector((sx * 1.85, -2.25, top - 0.3)), Vector((sx * 1.85, 2.25, top - 0.3)), 0.22, m["timber"], "cap"))
+    # The deck, the hopper on it, its roof.
+    p.append(make.box((0, 0, top + 0.07), (2.3, 2.7, 0.07), m["timber"], bevel=0.01, name="deck"))
+    H0, H1 = top + 0.14, top + 2.6
+    p.append(make.box((0, 0, (H0 + H1) / 2), (2.0, 2.4, (H1 - H0) / 2), m["steel"], bevel=0.02, name="hopper"))
+    for z in (H0 + 0.6, H0 + 1.3, H0 + 2.0):
+        p.append(make.box((0, 0, z), (2.03, 2.43, 0.04), m["rust"], bevel=0.005, name="band", low=False))
+    p.append(make.cyl((0, 0, top), (0, 0, top - 0.8), 1.9, m["steel"], n=4, bevel=0, name="cone", r1=0.35, low=4))
+    rise = 0.7
+    for sy in (-1, 1):
+        R = Matrix.Rotation(-sy * math.atan2(rise, 2.7), 4, "X")
+        p.append(make.box((0, sy * 1.35, H1 + rise / 2 + 0.05), (2.35, 1.48, 0.05), m["roof"], bevel=0.01, name="roof", rot=R))
+    # The spout: the slide gate under the hopper, the pipe down to the mouth, its canvas sock.
+    p.append(make.box((0, 0, top - 0.95), (0.45, 0.45, 0.12), m["rust"], bevel=0.01, name="gate"))
+    p.append(make.cyl((0, 0, top - 1.0), (0, 0, MOUTH + 0.35), 0.26, m["steel"], n=12, bevel=0.01, name="spout", low=8))
+    p.append(make.cyl((0, 0, MOUTH + 0.4), (0, 0, MOUTH), 0.3, m["sack"], n=12, bevel=0, name="sock", r1=0.24, low=8))
+    # The sight glass on the lever's side (the scene draws the grain in it), and the ladder up to the deck beside it.
+    p.append(make.box((0.9, 2.42, (H0 + H1) / 2), (0.18, 0.02, (H1 - H0) / 2 - 0.15), m["glass"], bevel=0, name="glass", low=False))
+    p.append(make.box((0.9, 2.44, (H0 + H1) / 2), (0.24, 0.03, (H1 - H0) / 2 - 0.08), m["rust"], bevel=0.005, name="glass_frame"))
+    _ladder(p, m, -1.0, 2.55, 0.0, top + 0.1)
+    # Grain spilt and rotted under the spout, and the rust run down the hopper from its bands.
+    p.append(make.box((0, 0, 0.02), (1.6, 1.2, 0.02), m["stain"], bevel=0, name="spill"))
+    for k, x in enumerate((-1.4, -0.3, 0.8, 1.6)):
+        p.append(make.box((x, -2.41, H0 + 0.9), (0.1, 0.01, 0.8 - 0.15 * (k % 2)), m["streak"], bevel=0, name="streak", low=False))
+    return p, []
+
+
+def hose_stand(m):
+    p = []
+    p.append(make.box((0, 0, 0.12), (0.45, 0.45, 0.14), m["concrete"], bevel=0.02, name="plinth"))
+    p.append(make.box((0, -0.55, 0.03), (0.55, 0.35, 0.03), m["rust"], bevel=0.01, name="tray"))
+    p.append(make.box((0, -0.55, 0.065), (0.5, 0.3, 0.004), m["stain"], bevel=0, name="residue", low=False))
+    # The riser, its flanges, and the gooseneck at the top the hose couples to (the sim's outlet, 3.4 m up).
+    p.append(make.cyl((0, 0, 0.25), (0, 0, 3.2), 0.12, m["steel"], n=12, bevel=0.005, name="riser", low=8))
+    for z in (0.3, 1.0, 2.2, 3.15):
+        p.append(make.cyl((0, 0, z - 0.03), (0, 0, z + 0.03), 0.18, m["rust"], n=12, bevel=0, name="flange", low=8))
+    p += make.pipe([(0, 0, 3.2), (0, 0, 3.45), (0, -0.35, 3.55), (0, -0.55, 3.4)], 0.12, m["steel"], name="neck", n=12, low=8)
+    p.append(make.cyl((0, -0.55, 3.4), (0, -0.62, 3.25), 0.16, m["paint"], n=12, bevel=0, name="coupling", low=8))
+    # The valve and its wheel on the track side, the gauge's brass housing over it (the scene shows its needle colour).
+    p.append(make.cyl((0, -0.1, 1.2), (0, -0.32, 1.2), 0.09, m["steel"], n=10, bevel=0, name="valve", low=6))
+    p += make.handwheel((0, -0.35, 1.2), (0, -1, 0), 0.24, m["paint"], spokes=4, name="wheel")
+    p.append(make.cyl((0, -0.1, 1.75), (0, -0.2, 1.75), 0.15, m["brass"], n=16, bevel=0.005, name="gauge", low=10))
+    p.append(make.box((0, -0.17, 2.3), (0.2, 0.01, 0.13), m["paint"], bevel=0.003, name="plate"))
+    p.append(make.stencil("ACID", (0, -0.18, 2.3), (0, -1, 0), (0, 0, 1), 0.12, m["stain"], name="acid"))
+    return p, []
+
+
+def lift_works(m):
+    p = []
+    MOUTH = 4.6
+    top = MOUTH + 1.6
+    feet = [(sx * 1.9, sy * 2.6) for sx in (-1, 1) for sy in (-1, 1)]
+    heads = [(sx * 1.4, sy * 2.0) for sx in (-1, 1) for sy in (-1, 1)]
+    for (fx, fy), (hx, hy) in zip(feet, heads):
+        p.append(_beam(Vector((fx, fy, -0.3)), Vector((hx, hy, top)), 0.26, m["timber"], "leg"))
+    for sy in (-1, 1):
+        f0, f1 = 0.9 / (top + 0.3), 5.2 / (top + 0.3)
+        p.append(_beam(Vector((-(1.9 - 0.5 * f0), sy * (2.6 - 0.6 * f0), 0.6)), Vector((1.9 - 0.5 * f1, sy * (2.6 - 0.6 * f1), 4.9)), 0.14, m["timber"], "brace"))
+        p.append(_beam(Vector((1.9 - 0.5 * f0, sy * (2.6 - 0.6 * f0), 0.6)), Vector((-(1.9 - 0.5 * f1), sy * (2.6 - 0.6 * f1), 4.9)), 0.14, m["timber"], "brace"))
+    p.append(make.box((0, 0, top + 0.06), (1.75, 2.3, 0.06), m["timber"], bevel=0.01, name="deck"))
+    B1 = top + 1.8
+    p.append(make.box((0, 0, (top + 0.12 + B1) / 2), (1.6, 2.2, (B1 - top - 0.12) / 2), m["steel"], bevel=0.02, name="bin"))
+    for z in (top + 0.6, top + 1.2):
+        p.append(make.box((0, 0, z), (1.63, 2.23, 0.04), m["rust"], bevel=0.005, name="band", low=False))
+    p.append(make.cyl((0, 0, top), (0, 0, top - 0.6), 1.5, m["steel"], n=4, bevel=0, name="cone", r1=0.35, low=4))
+    p.append(make.cyl((0, 0, top - 0.6), (0, 0, MOUTH), 0.3, m["rust"], n=12, bevel=0.01, name="chute", low=8))
+    p.append(make.box((0, 0, top - 0.75), (0.42, 0.42, 0.1), m["steel"], bevel=0.01, name="gate"))
+    # The ore gauge on the track side (the scene draws what's left in it).
+    p.append(make.box((0, -2.22, (top + B1) / 2), (0.3, 0.02, (B1 - top) / 2 - 0.1), m["glass"], bevel=0, name="glass", low=False))
+    p.append(make.box((0, -2.24, (top + B1) / 2), (0.36, 0.03, (B1 - top) / 2 - 0.05), m["rust"], bevel=0.005, name="glass_frame"))
+    # The trough from the headframe's tip down onto the bin, an open iron channel on two trestles.
+    a, b = Vector((0, 13.8, 11.0)), Vector((0, 1.6, B1 + 0.1))
+    d = b - a
+    rot = Vector((0, 1, 0)).rotation_difference(d.normalized()).to_matrix().to_4x4()
+    mid = (a + b) / 2
+    p.append(make.box(mid, (0.35, d.length / 2, 0.04), m["rust"], bevel=0.005, name="trough_floor", rot=rot))
+    for sx in (-1, 1):
+        side = mid + (rot.to_3x3() @ Vector((sx * 0.35, 0, 0.18)))
+        p.append(make.box(side, (0.03, d.length / 2, 0.2), m["rust"], bevel=0.005, name="trough_side", rot=rot))
+    for t in (0.3, 0.65):
+        q = a.lerp(b, t)
+        for sx in (-1, 1):
+            p.append(_beam(Vector((sx * 0.7, q.y, 0)), Vector((sx * 0.35, q.y, q.z - 0.1)), 0.16, m["timber"], "trestle"))
+        p.append(_beam(Vector((-0.5, q.y, q.z - 0.15)), Vector((0.5, q.y, q.z - 0.15)), 0.14, m["timber"], "trestle_cap"))
+    # The skip's guides up the headframe's face toward the track.
+    for sx in (-1, 1):
+        p.append(_beam(Vector((sx * 0.8, 13.6, 0)), Vector((sx * 0.8, 13.6, 12.2)), 0.12, m["steel"], "guide"))
+    for z in (2.0, 6.0, 10.0):
+        p.append(_beam(Vector((-0.9, 13.65, z)), Vector((0.9, 13.65, z)), 0.1, m["steel"], "guide_tie"))
+    p.append(make.box((0, 0, 0.02), (1.4, 1.1, 0.02), m["stain"], bevel=0, name="spill"))
+    return p, []
+
+
+def ore_skip(m):
+    p = []
+    p.append(make.box((0, 0, 0), (0.7, 0.6, 0.8), m["steel"], bevel=0.03, name="skip"))
+    for z in (-0.5, 0.0, 0.5):
+        p.append(make.box((0, 0, z), (0.72, 0.62, 0.035), m["rust"], bevel=0.005, name="band", low=False))
+    p.append(make.box((0, 0, 0.79), (0.62, 0.52, 0.02), m["stain"], bevel=0, name="ore", low=False))
+    for sx in (-1, 1):
+        p.append(make.cyl((sx * 0.72, 0, 0.3), (sx * 0.72, 0, 1.2), 0.03, m["rust"], n=6, bevel=0, name="bail", low=4))
+    p.append(make.cyl((-0.72, 0, 1.2), (0.72, 0, 1.2), 0.03, m["rust"], n=6, bevel=0, name="bail_top", low=4))
+    return p, []
+
+
+def lever_handle(m):
+    """A set piece's hand lever along +X from its pivot: a flat iron bar, its end a worn yellow grip."""
+    p = []
+    p.append(make.box((0.25, 0, 0), (0.25, 0.025, 0.012), m["rust"], bevel=0.004, name="bar"))
+    p.append(make.cyl((0.5, 0, 0), (0.62, 0, 0), 0.035, m["grip"], n=10, bevel=0.005, name="grip", low=6))
+    p.append(make.cyl((0, -0.05, 0), (0, 0.05, 0), 0.05, m["steel"], n=10, bevel=0, name="pivot", low=6))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -455,6 +612,11 @@ PIECES = {
     # (Its layer at 1024, a hero's: some 4500 m² of concrete and iron would get 13 cm a texel at the props' 512.)
     "grain_elevator": lambda: build("grain_elevator", grain_elevator, "the grain elevator", size=2048, budget=3000, layer=1024),
     # (Its layer at 1024 too: some 2,000 m² of brick, slate and iron.)
+    "spout_bin": lambda: build("spout_bin", spout_bin, "the grain elevator's loading bin and spout", budget=2500),
+    "hose_stand": lambda: build("hose_stand", hose_stand, "the chemical works' hose stand", size=512, budget=1200),
+    "lift_works": lambda: build("lift_works", lift_works, "the steam lift's ore bin, trough and guides", budget=2500),
+    "ore_skip": lambda: build("ore_skip", ore_skip, "the steam lift's skip", size=512, budget=300),
+    "lever_handle": lambda: build("lever_handle", lever_handle, "a set piece's hand lever", size=256, budget=120),
     "slaughterhouse": lambda: build("slaughterhouse", slaughterhouse, "the slaughterhouse's killing hall", size=2048, budget=3000, layer=1024),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
