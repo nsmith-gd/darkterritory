@@ -67,7 +67,8 @@ public class HoundRunTests
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id, first = n.Train.Dynamics.Consist.Vehicles[1].Id;
         Assert.Equal(2, runners.Count(h => h.Ahead));
         n.Run((R.SpawnBehind + 10) / R.Closing + E.CinderHounds.HowlSeconds + 2);
-        Assert.All(runners, h => Assert.Equal(h.Ahead ? first : rear, h.Attached));
+        Assert.All(runners, h => Assert.Equal(h.Ahead ? first : rear, h.Home));
+        Assert.All(runners, h => Assert.True(h.Attached >= 0, "not aboard"));
         Assert.Equal((0, 0, run.Size), d.RunOutcome(run.Pack));
         n.AssertFair();
         // One run at a time: with its runners still aboard, no second run, however far the train goes.
