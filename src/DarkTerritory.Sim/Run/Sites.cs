@@ -422,6 +422,47 @@ public sealed class Site
     /// <summary>Every crane here: the facility's own first.</summary>
     public IReadOnlyList<Crane> Cranes => Crane is null ? YardCranes : [Crane, .. YardCranes];
 
+    /// <summary>
+    /// Where the crew work this site's modules (note 279): each crane's stand, legs and castings, the spout and its lever, the
+    /// ramp and the pen, the hose stand, the capstan and the sled's run, the crate and heavy-crate stacks. The modules are laid
+    /// from the spur, not round the stop's buildings, so a stop's walls give way where they stand (<see cref="StopWalls.Clear"/>).
+    /// </summary>
+    public IEnumerable<Double3> WorkPoints()
+    {
+        foreach (var c in Cranes)
+        {
+            yield return c.Controls;
+            for (int end = 0; end < 2; end++)
+                for (int side = 0; side < 2; side++)
+                    yield return c.Corner(end, side);
+            foreach (var k in c.Castings)
+                yield return k.At;
+        }
+        if (Has(ModuleKind.Spout))
+        {
+            yield return Spout;
+            yield return SpoutLever;
+        }
+        if (Has(ModuleKind.Ramp))
+        {
+            yield return RampTop;
+            yield return Pen;
+        }
+        if (Has(ModuleKind.Hose))
+            yield return HoseStand;
+        if (Has(ModuleKind.Winch))
+        {
+            yield return Capstan;
+            double run = (SledTo - SledFrom).Length;
+            for (double x = 0; x <= run; x += 2)
+                yield return SledFrom + (SledTo - SledFrom) * (run > 0 ? x / run : 0);
+        }
+        foreach (var p in CrateStack ?? [])
+            yield return p;
+        foreach (var p in HeavyStack ?? [])
+            yield return p;
+    }
+
     /// <summary>The crane someone at <paramref name="at"/> is working: the one whose controls or hook are nearest (for the HUD and the cab's view).</summary>
     public Crane? CraneNear(Double3 at) => Cranes.Count == 0 ? null
         : Cranes.MinBy(c => Math.Min(((c.Controls - at) with { Y = 0 }).Length, ((c.HookAt - at) with { Y = 0 }).Length));

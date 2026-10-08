@@ -38,6 +38,9 @@ public sealed class HazardConditions(RailLine line, ITrackConditions? inner, Haz
     public double Drag(int path, double distance, double speed) => Inner?.Drag(path, distance, speed) ?? 0;
     public int ColdStep(int path, double distance) => (Inner?.ColdStep(path, distance) ?? 0) + Set.ColdStep;
     public double Wind(int path, double distance) => Math.Max(Inner?.Wind(path, distance) ?? 0, Set.Wind);
+    public Double3 Confine(Double3 world, double radius) => Inner?.Confine(world, radius) ?? world;
+    public double LateralRoom(int path, double distance) => Inner?.LateralRoom(path, distance) ?? double.PositiveInfinity;
+    public double FormationM => Inner?.FormationM ?? double.PositiveInfinity;
 
     /// <summary>Lays the set over the line (once: the host and every client share the harness's line).</summary>
     public static void Apply(RailLine line, HazardSet set)
