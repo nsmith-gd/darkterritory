@@ -261,8 +261,11 @@ public sealed partial class StopWalls
     /// <summary>The side of a shed its doors face: the track it serves (its first), or the main line.</summary>
     static int DoorSide(StopLayout stop, StopBuilding b) => (b.Tracks.Count > 0 ? stop.Tracks[b.Tracks[0]].FaceStart.D : 0) >= b.D ? 1 : -1;
 
-    /// <summary>A shed's roofed lengths along its axis: the whole of it, or either side of a gantry's cut (3 m or more).</summary>
-    static IEnumerable<(double Lo, double Hi)> Roofed(StopLayout stop, int building)
+    /// <summary>
+    /// A shed's roofed lengths along its axis: the whole of it, or either side of a gantry's cut (3 m or more). The art roofs
+    /// these (WorldArt.ShedShell, note 387).
+    /// </summary>
+    public static IEnumerable<(double Lo, double Hi)> Roofed(StopLayout stop, int building)
     {
         var b = stop.Buildings[building];
         double half = b.Length / 2;
