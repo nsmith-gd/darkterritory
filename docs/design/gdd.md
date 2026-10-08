@@ -2289,7 +2289,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - They shouldn't just stand there and howl: patrol between cars with their doors open, or along the roofs, jumping between them when they can make the jump; and an animation for it. *In progress: the patrol (queue #208, note 472, D1); its clips (queue #213, note 477, E1: patrol, leap, drop, climb, sniff).*
 
 **The jump**
-- The base jump is too weak. *In progress (queue #209, note 473).*
+- The base jump is too weak. *Done (queue #209, ARCHITECTURE §8 note 473): `jumpHeight` 0.8 m to 1.2 m, about a fifth longer in the air, so a jump at a roof run carries about 3.4 m (2.8 m before).*
 
 **Derailment**
 - Turning into a yard, derailment is way too easy. Don't allow derailments when turning into and leaving a yard. *Done (queue #206, ARCHITECTURE §8 note 470): no bend on a yard's track (its turnout off the main line included) derails the train or warns of it, in or out, at any speed; the main line's bends as before.*
