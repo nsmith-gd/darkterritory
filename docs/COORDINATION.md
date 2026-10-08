@@ -248,7 +248,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
-| The driver left on the ground: it went to a far Holdout (a facility's lockup, up to 186 m off) by the track-side walk and got lost in the lineside trees; now by FootPath there and back to the cab, the track-side walk where FootPath finds no way (queue #142) | #PR | 406 |
+| The driver left on the ground: it went to a far Holdout (a facility's lockup, up to 186 m off) by the track-side walk and got lost in the lineside trees; now by FootPath there and back to the cab, the track-side walk where FootPath finds no way (queue #142) | [#430](https://github.com/nsmith-gd/darkterritory/pull/430) | 406 |
 | TEXT BACKING: a dark band behind the HUD's print in play, a line at a time, as a subtitle's background (queue #140) | [#411](https://github.com/nsmith-gd/darkterritory/pull/411) | 404 |
 | Bots bring the powder: a walker keeps a gun in action fed from the guard van's locker, the engine's forward gun too, so the gunner keeps firing (queue #114) | [#404](https://github.com/nsmith-gd/darkterritory/pull/404) | 377 |
 | The relief driver: a walker takes the controls from a dead driver, and comes forward into the cab to club a Climber with the driver (queue #134) | [#397](https://github.com/nsmith-gd/darkterritory/pull/397) | 399 |
