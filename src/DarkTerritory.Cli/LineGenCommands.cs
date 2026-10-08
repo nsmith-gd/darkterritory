@@ -42,20 +42,21 @@ static class LineGenCommands
     /// <summary>The night's lineside (note 371) as every machine stands it.</summary>
     static DarkTerritory.Sim.Run.LinesideProps? LinesideOf(Route route, DarkTerritory.Sim.Rail.RailLine line) => DarkTerritory.Sim.Run.LinesideProps.Of(route, line);
 
-    /// <summary>A checksum of the lineside's trees, boulders and poles (note 371): they're walls, so a machine that stood them differently would predict wrong.</summary>
+    /// <summary>A checksum of the lineside (notes 371, 389): its trees, boulders, poles and pieces are walls, so a machine that stood them differently would predict wrong.</summary>
     static string LinesidePrint(string content, Route route, DarkTerritory.Sim.Rail.RailLine line)
     {
         if (LinesideOf(route, line) is not { } side)
             return "";
         var text = new System.Text.StringBuilder();
         foreach (var p in side.Props(0, line.Length))
-            text.Append(CultureInfo.InvariantCulture, $"{(int)p.Kind} {p.Along:R} {p.Lateral:R} {p.Height:R} {p.Size:R} {p.Sink:R} {p.Species} {p.Dead} {p.Seed};");
+            text.Append(CultureInfo.InvariantCulture, $"{(int)p.Kind} {p.Along:R} {p.Lateral:R} {p.Yaw:R} {p.Height:R} {p.Size:R} {p.Sink:R} {p.Species} {p.Variant} {p.Dead} {p.Seed};");
         return Streams.Hash(text.ToString()).ToString("x16");
     }
 
     /// <summary>
-    /// `dt linegen lineside --route r`: what the Sim stands beside a generated line (note 371), by kind and biome, how many
-    /// are within reach of the track, and what building them and their walls costs a machine at the run's start.
+    /// `dt linegen lineside --route r`: what the Sim stands beside a generated line (notes 371, 389), by kind and biome, its
+    /// pieces by name, how many are within reach of the track, and what building them and their walls costs a machine at the
+    /// run's start.
     /// </summary>
     static object LinesideReport(string content, string[] args)
     {
@@ -96,7 +97,16 @@ static class LineGenCommands
             withinTwentyM = props.GroupBy(p => p.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count(p => Math.Abs(p.Lateral) <= 20)),
             treesPerKmByBiome = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => DarkTerritory.Game.Art.WorldArt.BiomeAt(route, p.Along) ?? "?")
                 .ToDictionary(g => g.Key, g => g.Count()),
-            species = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => p.Dead ? "dead" : p.Species).ToDictionary(g => g.Key, g => g.Count()),
+            species = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => p.Dead && p.Species != "apple" ? "dead" : p.Species).ToDictionary(g => g.Key, g => g.Count()),
+            rocks = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Rock).GroupBy(p => p.Species).ToDictionary(g => g.Key, g => g.Count()),
+            pieces = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Piece).GroupBy(p => p.Species).OrderBy(g => g.Key, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    all = g.Count(),
+                    solid = g.Count(p => side.Within(p, solidReach) && side.WallsOf(p).Any() && !DarkTerritory.Sim.Run.LinesideProps.InsideAFort(forts, p.Along, p.Lateral)),
+                    // Where the nearest few stand (along, out), to point a camera at: `dt screenshot --route r --cam s,l,h --target s,l,h`.
+                    nearest = g.OrderBy(p => Math.Abs(p.Lateral)).Take(3).Select(p => new[] { Math.Round(p.Along, 1), Math.Round(p.Lateral, 1) }),
+                }),
         };
     }
 
