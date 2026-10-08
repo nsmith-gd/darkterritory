@@ -2249,6 +2249,187 @@
     ]
   },
   {
+    "name": "coaling_tower_0",
+    "diffuse": "models/coaling_tower_0.png",
+    "spec": "models/coaling_tower_0_s.png",
+    "normal": "models/coaling_tower_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/facility_pieces.py",
+        "what": "the coaling stage's tower, its bunker and chute",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brick_soot"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brick_soot"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_ao.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brick_soot"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Bricks105_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brick_soot"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's coal"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's concrete_stain"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Concrete034_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's concrete_stain"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/concrete_wall_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's concrete_stain"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's ground_red_clay"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's ground_red_clay"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/dirt_ground_ao.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's ground_red_clay"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's roof_slate"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's slag"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's wool"
+      }
+    ]
+  },
+  {
     "name": "coupler_head_open_0",
     "diffuse": "models/coupler_head_open_0.png",
     "spec": "models/coupler_head_open_0_s.png",
