@@ -190,13 +190,13 @@ def shell_w(y):
 
 # Five bands from the tail to the shoulders, each lapped over the one behind it (a woodlouse's way); the hood over them
 # at the front.
-BANDS = [(-1.2, -0.9), (-0.94, -0.56), (-0.6, -0.16), (-0.2, 0.14), (0.1, 0.36)]
+BANDS = [(-1.2, -0.9), (-0.94, -0.56), (-0.6, -0.16), (-0.2, 0.14), (0.1, 0.4)]
 for i, (y0, y1) in enumerate(BANDS):
-    plate(shell, y0, y1, math.radians(97 - 3 * abs(i - 2)), 0.04, SHELL, shell_w(y0), 0.04 + 0.01 * i, 0.075 + 0.01 * i, 401 + i,
+    plate(shell, y0, y1, math.radians(97 - 3 * abs(i - 2)), 0.04, SHELL, shell_w(y0), 0.04, 0.1, 401 + i,
           droop=0.04, bulge=0.035, keel=0.02, along=7)
 # The hood: a helmet over the head and the neck, its front edge curled down and out over the face (the shovel under it).
 HOOD_C, HOOD_R = Vector((0, 0.25, 0.52)), Vector((0.68, 0.6, 0.82))
-plate(shell, 0.26, 0.72, math.radians(98), 0.05, HOOD, lambda p: mix({"thorax": 1.0}, {"head": 1.0}, smooth01(0.6, 0.8, p[1]) * 0.5),
+plate(shell, 0.34, 0.72, math.radians(98), 0.05, HOOD, lambda p: mix({"thorax": 1.0}, {"head": 1.0}, smooth01(0.6, 0.8, p[1]) * 0.5),
       0.0, 0.06, 409, c=HOOD_C, r=HOOD_R, steps=28, along=7, droop=0.03)
 # The shovel: a flat wedge of plate out of the head's front, broad, thick at its root and sharp at its edge, sloped down
 # forward to it; its edge's corners worn round.

@@ -200,7 +200,8 @@ base = np.clip(base, 0, 1)
 rough = np.clip(rough, 0.03, 0.95)
 
 ao = atlas.maps["AO"][..., 0]
-ao = np.where(eye | blade, ao ** 0.4, ao)
+# (The plates gently: where one laps the next the bake's occlusion is a hard dark band.)
+ao = np.where(eye | blade, ao ** 0.4, np.where(shell | hood, ao ** 0.5, ao))
 base = base * (0.32 + 0.68 * ao)[..., None]
 k = np.clip((1 - ao) * 2.0, 0, 1) * 0.4
 base = base * (1 - k)[..., None] + np.array((0.02, 0.017, 0.015), np.float32) * k[..., None]
