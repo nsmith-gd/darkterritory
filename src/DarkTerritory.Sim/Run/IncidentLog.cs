@@ -219,7 +219,7 @@ public static class IncidentLog
                     break;
                 }
             case DeathCause.Dave:
-                // Their own doing (note 486): the five blows were theirs.
+                // Their own doing (note 487): the five blows were theirs.
                 actor = victim;
                 action = "Struck him five times: {actor}.";
                 break;

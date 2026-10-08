@@ -30,7 +30,7 @@ public sealed record EnemyTuning(
     public ChoirSwarmV11 Choir { get; init; } = new();
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
-    /// <summary>Dave, the wandering painter (note 486).</summary>
+    /// <summary>Dave, the wandering painter (note 487).</summary>
     public DaveTuning Dave { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();

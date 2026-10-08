@@ -2069,7 +2069,7 @@ public sealed class CreatureArt
                 }
             case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
                 {
-                    // DAVE (note 486): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
+                    // DAVE (note 487): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
                     // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
                     _dave ??= new DaveKit(Look);
                     var (hat, vest) = DaveKit.Outfit(extra2 * 1000);

@@ -56,7 +56,7 @@ public static class Protocol
     // 41: the run record's sites carry the conveyor line's grain, its drive and jam, and its start and clear held (note 400).
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
-    // 43: Dave (note 486): an enemy kind of his own, and a death cause.
+    // 43: Dave (note 487): an enemy kind of his own, and a death cause.
     public const int Version = 43;
 }
 
