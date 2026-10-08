@@ -2313,7 +2313,11 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         saves.Delete(2);
         saves.Delete(3);
     }
-    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, EditionTuning.Load(content));
+    // --store-app n (note 434): the edition names the full game's store page, so the demo's title has WISHLIST ON STEAM.
+    var edition = EditionTuning.Load(content);
+    if (args.Contains("--store-app"))
+        edition = edition with { StoreAppId = (uint)Opt(args, "--store-app", 0) };
+    var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
     // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
     menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
@@ -2346,6 +2350,9 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
         menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
     menu.Show(screen);
+    // --night-over: back at the title after a night, with the edition's word (the demo's end card).
+    if (args.Contains("--night-over"))
+        menu.NightOver();
     for (int i = 0; i < (int)Opt(args, "--down", 0); i++)
         menu.Down();
     return (menu, screen);

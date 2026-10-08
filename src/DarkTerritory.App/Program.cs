@@ -53,12 +53,14 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 int crashesAt = Array.IndexOf(args, "--crashes");
 var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
 
-// The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to.
-void OpenFolder(string path)
+// The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
+// (note 434's store page), the browser.
+void ShellOpen(string path)
 {
     try
     {
-        System.IO.Directory.CreateDirectory(path);
+        if (!path.StartsWith("https://", StringComparison.Ordinal))
+            System.IO.Directory.CreateDirectory(path);
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
     }
     catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -426,7 +428,14 @@ Launch? MenuLoop()
         // Note 411: OPEN THE REPORTS shows their folder in the system's file browser, and the menu stays up under it.
         if (chosen is Launch.OpenFolder folder)
         {
-            OpenFolder(folder.Path);
+            ShellOpen(folder.Path);
+            chosen = null;
+        }
+        // Note 434: WISHLIST ON STEAM, the store page in the overlay over the menu, or the browser when the overlay's off.
+        if (chosen is Launch.Wishlist wishlist)
+        {
+            if (steam?.ShowStorePage(wishlist.App) != true)
+                ShellOpen(wishlist.Url);
             chosen = null;
         }
         if (chosen is not null)

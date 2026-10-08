@@ -166,6 +166,14 @@ public sealed class FakeOnline
         public int InviteDialogsShown { get; private set; }
         public void ShowInviteDialog(LobbyId lobby) => InviteDialogsShown++;
 
+        /// <summary>The store pages shown over the game, in order.</summary>
+        public List<uint> StorePagesShown { get; } = [];
+        public bool ShowStorePage(uint app)
+        {
+            StorePagesShown.Add(app);
+            return true;
+        }
+
         /// <summary>The fake's friend accepts at once: they see what Steam shows after they click the invite.</summary>
         public void Invite(LobbyId lobby, UserId user)
         {
