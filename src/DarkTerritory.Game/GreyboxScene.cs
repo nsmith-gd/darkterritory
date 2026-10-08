@@ -2359,7 +2359,7 @@ public sealed class GreyboxScene
     }
 
     /// <summary>An open house in the world: its frame's origin on its floor, its axes, its parts, and its light.</summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3 Light, bool Lamp, int Id);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id);
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
@@ -2388,10 +2388,11 @@ public sealed class GreyboxScene
                     Double3 At(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = floor };
                     var o = At(0, 0);
                     int index = i;
-                    var (lx, ly, height, lamp) = Art.TownKit.HouseLight(b, stop.Containers.Where(c => c.Building == index));
+                    var light = Art.TownKit.HouseLight(b, stop.Containers.Where(c => c.Building == index),
+                        Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index));
                     var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
-                    houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts, At(lx, ly) + Double3.Up * height, lamp,
-                        (int)(f.Start * 7 + i)));
+                    houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
+                        light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i)));
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -2412,12 +2413,15 @@ public sealed class GreyboxScene
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (WallHeight / 2);
                 mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, WallHeight / 2, (float)part.Width / 2)));
             }
+            // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
+            if (h.Light is not { } light)
+                continue;
             // Dim and warm, a candle's guttering more than a lamp's.
             double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
             float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
-            mesh.PointLights.Add(new PointLight(V(h.Light, eye), Palette.LampAmber * (h.Lamp ? 0.8f : 0.9f) * gutter, h.Lamp ? 6.5f : 5.5f));
+            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? 0.8f : 0.9f) * gutter, h.Lamp ? 6.5f : 5.5f));
             // The flame's own small halo, so the light reads as coming from it.
-            mesh.Billboard(V(h.Light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(V(light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
         }
     }
 
