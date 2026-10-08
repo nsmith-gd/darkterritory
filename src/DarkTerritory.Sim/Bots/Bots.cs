@@ -1665,11 +1665,20 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train = world.Train;
         if (!self.Alive || self.Parent == PlayerState.World || self.Health < Heed.PackFightHealth)
             return null;
+        var consist = train.Dynamics.Consist;
         foreach (var e in world.ActiveEnemies)
             if (e is CarHugger { Latched: true } hugger && hugger.Attached is var car && car > 0 && train.VehicleAhead(car) > 0
-                && world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached == car)
+                && world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached >= 0 && hound.Home == car)
                 && !Crew.Any(c => c.State.Alive && c.State.Parent == car))
-                return car;
+            {
+                // Cut ahead of the front of the pack's ground (note 472: they patrol a car ahead of the one they boarded).
+                int cut = car;
+                foreach (var h in world.ActiveEnemies.OfType<CinderHound>())
+                    if (!h.Gone && h.Attached >= 0 && h.Home == car && h.FrontCar(train, world.Enemies!.CinderHounds) is var hf
+                        && consist.IndexOf(hf) is var i && i > 1 && i < consist.IndexOf(cut))
+                        cut = hf;
+                return cut;
+            }
         return null;
     }
 
@@ -1940,15 +1949,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         var consist = train.Dynamics.Consist;
         int front = -1;
+        // Ahead of the front of the pack's ground, not of where its patrol has it now (note 472): the cut holds as they roam.
         foreach (var h in world.ActiveEnemies.OfType<CinderHound>())
-            if (!h.Gone && h.Attached > 0 && consist.IndexOf(h.Attached) is var i && i > 1 && (front < 0 || i < consist.IndexOf(front)))
-                front = h.Attached;
+            if (!h.Gone && h.Attached > 0 && h.FrontCar(train, world.Enemies.CinderHounds) is var hf && consist.IndexOf(hf) is var i && i > 1
+                && (front < 0 || i < consist.IndexOf(front)))
+                front = hf;
         var hold = new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         _aloneHand ??= new StopHand(StopJob.None, calls, member);
         if (_outToCut)
         {
             // Still on the train with the hounds aboard: on to the cut. Done (or they're gone): back up into the cab.
-            if (_cutCar >= 0 && consist.IndexOf(_cutCar) > 1 && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == _cutCar)
+            if (_cutCar >= 0 && consist.IndexOf(_cutCar) > 1 && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached > 0
+                    && consist.IndexOf(h.Attached) >= consist.IndexOf(_cutCar))
                 && _aloneHand.CutLoose(self, world, train.VehicleAhead(_cutCar)) is { } cutting)
                 return cutting with { Buttons = cutting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
             if (_aloneHand.SetBackAlone(self, world, null) is { } back)
