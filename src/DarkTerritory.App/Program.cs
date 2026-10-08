@@ -1063,11 +1063,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (Held(Control.Use) && !useKept) buttons |= PlayerButtons.Use;
             if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
             if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
-            if (proto is null)
-            {
-                if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
-                if (pendingReverser) buttons |= PlayerButtons.Reverser;
-            }
+            // The brake key is the crane's hook down as well (Crane.Drive), so it's in the intent alone too: there the
+            // session's cab also takes it straight off the key (BrakeHeld), and the cab's own brake is the same either way.
+            if (Held(Control.Brake)) buttons |= PlayerButtons.Brake;
+            if (proto is null && pendingReverser) buttons |= PlayerButtons.Reverser;
             var intent = new PlayerIntent
             {
                 MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),

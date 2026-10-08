@@ -382,6 +382,41 @@ public class HudTests
     }
 
     [Fact]
+    public void AtTheCranesControlsTheCornerNamesTheHookBothWaysAndTheBrakeKeyLowersIt()
+    {
+        // The director, 8 Oct: "Crane hooks only go up with space, no obvious way for them to go down". The brake key lowers
+        // the hook (Crane.Drive); the corner said only "HOOK : [SPACE]", and the solo session's brake key never reached the
+        // crane (the app took it off to the cab alone).
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.Foundry)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var crane = site.Crane!;
+        // Stood down the foundry's spur, the engine up at the buffer stop: the stop the crane works at.
+        var spur = s.Train.Line.Branches[site.Spur];
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.End - 0.5, Velocity = 0 }] });
+        s.Train.RefreshFrames();
+        s.Player = PlayerMotor.SpawnOnGround(crane.Controls, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
+        for (int i = 0; i < 10; i++)
+            s.Step(use);
+        Assert.Same(site, s.World.Run.CurrentSite);
+        Assert.True(s.Player.Has(PlayerFlags.Operating));
+        var lines = Hud.Hints(s).Lines;
+        Assert.Contains("HOOK UP : [SPACE]", lines);
+        Assert.Contains("HOOK DOWN : [B]", lines);
+        // Held, the brake key brings the hook down, as the app now sends it in a solo session too.
+        double hook = crane.Hook;
+        for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(use with { Buttons = PlayerButtons.Use | PlayerButtons.Brake });
+        Assert.True(crane.Hook < hook - 0.5, $"the hook went from {hook:0.00} to {crane.Hook:0.00}");
+        hook = crane.Hook;
+        for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(use with { Buttons = PlayerButtons.Use | PlayerButtons.Jump });
+        Assert.True(crane.Hook > hook + 0.5, $"the hook went from {hook:0.00} to {crane.Hook:0.00}");
+    }
+
+    [Fact]
     public void AtTheSteamLiftsLeverThePromptSaysTheCarUnderTheChuteAndTheCabSaysWhereTheSteamsGoing()
     {
         // Queue #105 (note 368): the lever, the car under the chute, the skip winding while the engine vents into it.
