@@ -414,6 +414,12 @@ CUE_DEF = {
     "place-town.radio": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
     "place-town.murmur": {"minDistance": 3, "maxDistance": 35, "rolloff": 1.0},
     "place-town.cough": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # Note 446: a townsperson's breathing gear is heard close to, a step or two off; the watch's lantern across a street.
+    "place-town.gear-respirator": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-oxygen": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-rebreather": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.gear-wrap": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
+    "place-town.lantern": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
     # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
     # surf a long way inland, the tide's flats across their width.
     "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},
