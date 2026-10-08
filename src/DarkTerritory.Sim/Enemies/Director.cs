@@ -967,6 +967,8 @@ public sealed class Director
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
         // A Gannet that's peeled off (note 340) isn't there to answer.
         && e is not Gannet { Mode: GannetMode.Away }
+        // The Mourners (note 362) hunt nobody: they come for the dead, and cost the caps nothing.
+        && e.Kind != EnemyKind.Mourners
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
             || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
@@ -1023,6 +1025,7 @@ public sealed class Director
                 EnemyKind.Grumbler => new Grumbler(0),
                 EnemyKind.Moose => new Moose(0),
                 EnemyKind.Gannet => new Gannet(0),
+                EnemyKind.Mourners => new Mourner(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

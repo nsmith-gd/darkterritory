@@ -30,6 +30,7 @@ public sealed record EnemyTuning(
     public ChoirSwarmV11 Choir { get; init; } = new();
     public MooseTuning Moose { get; init; } = new();
     public GannetTuning Gannet { get; init; } = new();
+    public MournersTuning Mourners { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -920,4 +921,34 @@ public sealed record GannetTuning
     public double PerRoofWeight { get; init; } = 1;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
     public Dictionary<string, double> BiomeWeights { get; init; } = new();
+}
+
+/// <summary>The Mourners (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 362). Field docs live in enemies.json.</summary>
+public sealed record MournersTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double After { get; init; } = 15;
+    public Dictionary<string, int> Count { get; init; } = new() { ["local"] = 3, ["frontier"] = 4, ["deadLines"] = 5, ["deepTerritory"] = 6 };
+    public double ArriveAt { get; init; } = 40;
+    public double ComeSeconds { get; init; } = 6;
+    public double WaitAt { get; init; } = 10;
+    public double Shy { get; init; } = 6;
+    public double StartleTo { get; init; } = 12;
+    public double DropWithin { get; init; } = 3;
+    public double TakeReach { get; init; } = 0.9;
+    public double Creep { get; init; } = 1.4;
+    public double Approach { get; init; } = 3;
+    public double Drag { get; init; } = 1.6;
+    public double Scatter { get; init; } = 4;
+    public double HoldAt { get; init; } = 0.7;
+    public double HoldHeight { get; init; } = 0.5;
+    public double ReturnAfter { get; init; } = 4;
+    public double ScatterOnDeath { get; init; } = 6;
+    public double LostAt { get; init; } = 120;
+    public double LeaveSeconds { get; init; } = 30;
+    public double Health { get; init; } = 1;
+
+    /// <summary>How many come, by tier (3 where the tier isn't listed).</summary>
+    public int CountFor(Route.RouteTier tier) =>
+        Count.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 3);
 }

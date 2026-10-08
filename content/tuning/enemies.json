@@ -127,7 +127,9 @@
     // The barrel and the hump (note 339); its rack stops nothing, a round in it is a miss.
     "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]],
     // Its breast and sacs, and the head over them (note 340): standing on a roof 2.3 m tall; in the air, about where it flies.
-    "gannet": [[1.0, 0.7], [0.6, 1.6]]
+    "gannet": [[1.0, 0.7], [0.6, 1.6]],
+    // Child-high, hunched over (note 362).
+    "mourners": [[0.35, 0.45], [0.3, 0.9]]
   },
   "gauntAsleep": 0.35,
 
@@ -204,7 +206,8 @@
   // Whistler's run is laid clear of walls, above, a Follower crawls along the cars, the Soot Children answer a voice).
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
-    "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none" }
+    "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
+      "mourners": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -339,6 +342,26 @@
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
     "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
       "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
+  },
+
+  // THE MOURNERS · absence · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 362;
+  // docs/design/creatures/mourners.md). Small ash-pale scavengers that come only after a crewmate dies: a body lying off
+  // the train (not carried, not in a car the engine pulls) for "after" s brings a group, "count" of them by tier, arriveAt m
+  // off it on the side away from the line, edging in over comeSeconds and waiting waitAt m off. They never touch the
+  // living. Anyone within shy m of one starts it back to startleTo m off them (at scatter m/s), and it edges in again after
+  // returnAfter s. Nobody within shy m of the body, the two nearest it creep in (creep m/s; from far off they come at approach m/s) and take it (within takeReach):
+  // one hauls it straight away from the nearest track at drag m/s, held holdAt m in front of it holdHeight m up, the other
+  // beside. A crewmate within dropWithin m of the body, or a blow on any of them, and it's dropped; a blow kills one (health
+  // in blows) and the rest scatter for scatterOnDeath s. A body carried is followed, never touched; one brought home (in a
+  // car the engine pulls) sends them off; one hauled lostAt m from the track is gone (its refund and its kit), and they go.
+  // Leaving, they're gone once well off or after leaveSeconds. Not the director's: they cost it nothing and come for every
+  // body ("enabled" off: never).
+  "mourners": {
+    "enabled": true, "after": 15,
+    "count": { "local": 3, "frontier": 4, "deadLines": 5, "deepTerritory": 6 },
+    "arriveAt": 40, "comeSeconds": 6, "waitAt": 10, "shy": 6, "startleTo": 12, "dropWithin": 3, "takeReach": 0.9,
+    "creep": 1.4, "approach": 3, "drag": 1.6, "scatter": 4, "holdAt": 0.7, "holdHeight": 0.5,
+    "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws

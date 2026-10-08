@@ -15,7 +15,9 @@ public enum EnemyKind : byte
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
     Moose = 31,
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
-    Gannet = 32
+    Gannet = 32,
+    // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
+    Mourners = 33
 }
 
 /// <summary>
