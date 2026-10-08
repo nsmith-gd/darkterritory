@@ -374,7 +374,16 @@
     // Boarding-first (GDD App. F.1, note 286): they get under a car only with the train under boardBelow (m/s, 50 km/h: a
     // stop, a slow bend), with or without anyone up top, and wait there lingerSeconds for someone to walk its roof; a train
     // at speed never takes one on. bendWeight: as often again on a tight bend (climbers.tightBendRadius).
-    "boardBelow": 14, "bendWeight": 2
+    "boardBelow": 14, "bendWeight": 2,
+    // Off a truss (note 435; orchestrator.md §5.2 S4, "dropping onto the roofs from an overbridge or a tunnel mouth"): a train
+    // run at fromSpeed m/s or more coming up on a through-truss (its top chord is 7 m over the rail) finds a Dragger perched
+    // on the chord, chance in each such crossing, put there ahead m before the train reaches it. From tellSeconds before
+    // the train's under it, a scraping on the steel above (the tell, never under minReactionSeconds); as each car passes
+    // under, it drops on whoever's on that car's roof (the nearest the chord's side) and hangs them over the side, the
+    // Dragger's grab (App. A.4: haul them back up, or they're dragged under). Nobody up there as the train passes and it
+    // drops onto the ballast behind and is gone. The counter: off the roofs over a truss. Not tunnel mouths: a mouth already
+    // takes anyone standing on a roof (the low-clearance board, Lineside). Not from the budget, not on the caps, as the run.
+    "drop": { "on": true, "chance": 0.6, "fromSpeed": 14, "ahead": 500, "tellSeconds": 3, "height": 7.2, "lateral": 2.7 }
   },
 
   // STOKER · heat · interior (App. A.5, B.5; the Hollow merged in). The director's decision of 6 Oct 2026 (build 1121
@@ -739,7 +748,10 @@
       // its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun reaches) and keeping
       // pace with the train, it howls, then runs in at flankSpeed m/s across the open ground and leaps onto the car it comes
       // alongside. The guard van's gun has it for about fifteen seconds from the howl.
-      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6,
+      // Of the night's flank pairs, every flankEngineEvery-th (the second of each two; note 443) comes abeam the engine's gun
+      // instead, to a train with a gun laid forward (with none laid back, every one does): the forward gun's flank, as abeam
+      // the guard van is the guard gun's. It runs in falling back along the engine, and leaps onto the first car behind it.
+      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6, "flankEngineEvery": 2,
       "flankBiomes": ["farmland", "plains", "hills", "mountain", "coast", "marsh", "dykeland", "contaminatedMarsh", "slag",
         "deadTown", "industrialRuin"]
     },

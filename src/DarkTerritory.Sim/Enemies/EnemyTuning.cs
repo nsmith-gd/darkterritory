@@ -503,6 +503,24 @@ public sealed record StokerTuning
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
+/// <summary>
+/// Draggers off a truss (note 435, orchestrator.md §5.2 S4): a Dragger perched on a through-truss's top chord, put there
+/// <see cref="Ahead"/> m before the train comes to it with a chance of <see cref="Chance"/>, and only to a train at
+/// <see cref="FromSpeed"/> or more (at speed is when the director's never put one under a car: note 286). It scrapes on the
+/// steel from <see cref="TellSeconds"/> before the train's under it, at <see cref="Height"/> m, and drops on whoever's on the
+/// roof of the car passing under it.
+/// </summary>
+public sealed record DraggerDropTuning
+{
+    public bool On { get; init; } = true;
+    public double Chance { get; init; } = 0.6;
+    public double FromSpeed { get; init; } = 14;
+    public double Ahead { get; init; } = 500;
+    public double TellSeconds { get; init; } = 3;
+    public double Height { get; init; } = 7.2;
+    public double Lateral { get; init; } = 2.7;
+}
+
 public sealed record DraggerTuning
 {
     public double GrabRange { get; init; } = 1.0;
@@ -530,6 +548,8 @@ public sealed record DraggerTuning
     public double BoardBelow { get; init; } = double.MaxValue;
     /// <summary>Note 286: their weight on a tight bend (<see cref="ClimberTuning.TightBendRadius"/>), slow.</summary>
     public double BendWeight { get; init; } = 1;
+    /// <summary>Off a truss (note 435, orchestrator.md §5.2 S4): one perched on a through-truss's top chord, dropping at speed.</summary>
+    public DraggerDropTuning Drop { get; init; } = new();
 
     /// <summary>The grab range at a train speed (spec B.3: +50% at max).</summary>
     public double GrabAt(double speed) => GrabRange * (1 + (FastGrabScale - 1) * Math.Clamp((speed - FastFrom) / Math.Max(1e-6, FastAt - FastFrom), 0, 1));
@@ -836,6 +856,11 @@ public sealed record HoundRunTuning
     public double FlankOut { get; init; } = 70;
     public double FlankAbeam { get; init; } = 4;
     public double FlankSpeed { get; init; } = 6;
+    /// <summary>
+    /// Of the night's flank pairs, every this many (the last of each) comes abeam the engine's gun instead, for the forward
+    /// gun (note 443; 0: never, 1: every one). To a train with a gun laid forward; with no gun laid back, all of them.
+    /// </summary>
+    public int FlankEngineEvery { get; init; } = 2;
     /// <summary>The open country (linegen biomes.json's few-treed ones).</summary>
     public string[] FlankBiomes { get; init; } = [];
 }

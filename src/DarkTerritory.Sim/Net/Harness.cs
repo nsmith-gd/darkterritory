@@ -191,9 +191,11 @@ public sealed record SlackReport(double Max, double Over);
 
 /// <summary>
 /// A hound run (note 328): when (s into the night, km along), its size, the crew alive, and its runners scattered by a ball,
-/// killed, and aboard; and how many of them came from ahead, for the forward gun (note 405), and in from the flanks (note 418).
+/// killed, and aboard; and how many of them came from ahead, for the forward gun (note 405), and in from the flanks (note 418),
+/// of those abeam the engine (note 443).
 /// </summary>
-public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded, int Ahead = 0, int Flank = 0);
+public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded, int Ahead = 0, int Flank = 0,
+    int FlankEngine = 0);
 
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
     IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
@@ -224,6 +226,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<int, SlackReport> Slack { get; init; } = new Dictionary<int, SlackReport>();
     /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
+    /// <summary>Draggers put on a truss's top chord ahead of the fast train (note 435).</summary>
+    public int TrussDraggers { get; init; }
 }
 
 /// <summary>
@@ -577,7 +581,9 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
-                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack)))],
+                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
+                    d.FlankEngineRunners(r.Pack)))],
+                TrussDraggers = d.TrussDraggers,
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),

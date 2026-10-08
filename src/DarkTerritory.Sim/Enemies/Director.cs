@@ -912,6 +912,12 @@ public sealed class Director
     readonly SortedDictionary<int, int> _flankRunners = [];
     public int FlankRunners(int pack) => _flankRunners.GetValueOrDefault(pack);
 
+    /// <summary>How many of tonight's flank pairs came in abeam the engine's gun, for the forward gun (note 443).</summary>
+    public int FlankEnginePairs => _flankEngineSent;
+    int _flankEngineSent;
+    readonly SortedDictionary<int, int> _flankEngineRunners = [];
+    public int FlankEngineRunners(int pack) => _flankEngineRunners.GetValueOrDefault(pack);
+
     /// <summary>
     /// Whether the country's open abeam the train at <paramref name="along"/> (note 418): the line's biome one of the flank
     /// lanes' (any, with no plan), and room that far out (no tunnel's bore or bridge's deck).
@@ -933,6 +939,20 @@ public sealed class Director
     /// <summary>Whether the engine's rake carries a gun laid forward (the engine's own): the lane ahead's (note 405).</summary>
     static bool ForwardGun(TrainOnLine train) =>
         train.Dynamics.Consist.Vehicles.Any(v => train.Vehicles[v.Id].Gun is { Mounted: true, Facing: < 0 });
+
+    /// <summary>
+    /// Where along the line the engine's rake's gun laid forward stands (note 443): abeam it is the flank the forward gun has.
+    /// Null without one.
+    /// </summary>
+    public static double? ForwardGunAlong(TrainOnLine train)
+    {
+        var consist = train.Dynamics.Consist;
+        for (int i = 0; i < consist.Vehicles.Count; i++)
+            if (train.Vehicles[consist.Vehicles[i].Id].Gun is { Mounted: true, Facing: < 0 } g)
+                // The car's centre, then its gun's place on it (local −Z is forward, up the line).
+                return train.Dynamics.Distance - consist.OffsetOf(i) - train.Frames[consist.Vehicles[i].Id].Shape.HalfLength - g.Z;
+        return null;
+    }
 
     /// <summary>Every hound run sent tonight (note 328).</summary>
     public List<HoundRun> HoundRuns { get; } = new();
@@ -1024,8 +1044,14 @@ public sealed class Director
             bool ahead = rt.AheadEvery > 0 && _pairsSent % rt.AheadEvery == Math.Min(1, rt.AheadEvery - 1) && ForwardGun(w.Train);
             // The flank lanes (note 418): every flankEvery-th pair (the last of each), from the open country abeam the guard van's
             // gun: a gun traverses only so far round from its facing (traverseDegrees), so abeam its own car is the flank it has.
-            double abeam = w.Train.Dynamics.RearDistance + rt.FlankAbeam;
-            bool flank = !ahead && rt.FlankEvery > 0 && _pairsSent % rt.FlankEvery == rt.FlankEvery - 1 && RearGun(w.Train) && Open(w, rt, abeam);
+            // Every flankEngineEvery-th flank pair of the night (the second of each two) comes abeam the engine's gun instead
+            // (note 443): the forward gun traverses as far round from ahead as the guard van's does from astern, so abeam the
+            // engine is its flank, as abeam the guard van is the guard gun's. A train with no gun laid back has only that one.
+            double? forward = rt.FlankEngineEvery > 0 ? ForwardGunAlong(w.Train) : null;
+            bool rearGun = RearGun(w.Train);
+            bool toEngine = forward is not null && (!rearGun || _flankSent % rt.FlankEngineEvery == rt.FlankEngineEvery - 1);
+            double abeam = toEngine ? forward!.Value : w.Train.Dynamics.RearDistance + rt.FlankAbeam;
+            bool flank = !ahead && rt.FlankEvery > 0 && _pairsSent % rt.FlankEvery == rt.FlankEvery - 1 && (toEngine || rearGun) && Open(w, rt, abeam);
             for (int i = 0; i < n; i++)
             {
                 int k = i;
@@ -1055,11 +1081,59 @@ public sealed class Director
             {
                 _flankSent++;
                 _flankRunners[_runPack] = FlankRunners(_runPack) + n;
+                if (toEngine)
+                {
+                    _flankEngineSent++;
+                    _flankEngineRunners[_runPack] = FlankEngineRunners(_runPack) + n;
+                }
             }
             _runnersLeft -= n;
             _pairsSent++;
             _pairsLeft--;
             _nextPair = elapsed + rt.Spacing;
+        }
+    }
+
+    readonly HashSet<string> _trussesSeen = [];
+    Pcg32 _dropRng;
+    bool _dropSeeded;
+
+    /// <summary>How many Draggers have been put on a truss tonight (note 435).</summary>
+    public int TrussDraggers { get; private set; }
+
+    /// <summary>
+    /// Draggers off a truss (note 435, orchestrator.md §5.2 S4): once a second, each through-truss on the main line coming up
+    /// within <see cref="DraggerDropTuning.Ahead"/> m of a train at <see cref="DraggerDropTuning.FromSpeed"/> or more is
+    /// rolled for once (<see cref="DraggerDropTuning.Chance"/>), and a Dragger perched on its top chord, mid-span, on a side.
+    /// Not from the budget or on the caps (the line's, as the run is the fast train's); never in the grace, a fort or the
+    /// final approach. Its own dice.
+    /// </summary>
+    public void Drops(World world, double elapsed, double noSpawnFinal)
+    {
+        var t = world.Enemies?.Draggers.Drop;
+        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || _route?.Plan is not { } plan)
+            return;
+        if (!_dropSeeded)
+        {
+            // The seed scrambled first: a PCG stream's first draw barely moves between neighbouring seeds (frontier:7's seeds
+            // 1-3 all rolled 0.73 for its truss), and this one makes a single draw a crossing.
+            _dropRng = new Pcg32(unchecked(_seed * 0x9E3779B97F4A7C15UL + 0xD209), 0xD209);
+            _dropSeeded = true;
+        }
+        var train = world.Train;
+        double front = train.Dynamics.Distance;
+        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.Length - noSpawnFinal
+            || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
+            return;
+        foreach (var st in plan.Structures)
+        {
+            if (st.Type != LineGen.StructureType.Truss || st.Edge != "main" || st.S0 - front > t.Ahead || st.S0 < front || !_trussesSeen.Add(st.Id))
+                continue;
+            if (_dropRng.NextDouble() >= t.Chance)
+                continue;
+            int side = _dropRng.NextDouble() < 0.5 ? -1 : 1;
+            world.AddEnemy(id => Dragger.OnTruss(id, (st.S0 + st.S1) / 2, side, t));
+            TrussDraggers++;
         }
     }
 

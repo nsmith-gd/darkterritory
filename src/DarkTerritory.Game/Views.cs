@@ -122,6 +122,9 @@ public static class Views
             // In the middle car, under its forward lantern, up at what's round it (the staged Fire Flies).
             "flies" => FliesCamera(train),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
+            // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
+            // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
+            "lampshadow" => Camera.LookAt(target.ToWorld(new Double3(2.2, roof + 2.3, -2.2)), target.ToWorld(new Double3(-0.2, roof + 0.3, -5.6)), 60),
             "cab" => CabCamera(engine),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
@@ -178,6 +181,9 @@ public static class Views
             // (Not one of Names.) From the engine's forward gun's seat, down the line ahead in the headlamp: the lane ahead
             // (note 405; dt screenshot --run-ahead --view lane).
             "lane" => LaneCamera(train),
+            // (Not one of Names.) From the forward gun's seat, out abeam the engine: its flank lane (note 443; dt screenshot
+            // --run-flank --view laneside).
+            "laneside" => LaneCamera(train, side: true),
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
@@ -435,7 +441,7 @@ public static class Views
         return Camera.LookAt(At(48, -9, 3.2), At(4, 1, 1.6), 60);
     }
 
-    static Camera LaneCamera(TrainOnLine train)
+    static Camera LaneCamera(TrainOnLine train, bool side = false)
     {
         int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Gun is { Mounted: true, Facing: < 0 }, -1);
         if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
@@ -444,6 +450,13 @@ public static class Views
         var p = mount.Position;
         var seat = Art.TrainKit.CannonSeat;
         var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z + seat.Z);
+        if (side)
+        {
+            // Abeam, a little back toward the first car, where the lane runs in.
+            var from = f.ToWorld(eye + new Double3(0, 0.9, 0));
+            var t = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance - 14);
+            return Camera.LookAt(from, t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * 30 + Double3.Up * 0.4, 70);
+        }
         var ahead = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance + 95).Position;
         return Camera.LookAt(f.ToWorld(eye + new Double3(0, 0.9, 0)), ahead + Double3.Up * 0.6, 20);
     }

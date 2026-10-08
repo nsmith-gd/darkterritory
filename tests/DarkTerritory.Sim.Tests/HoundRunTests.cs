@@ -334,6 +334,105 @@ public class HoundRunTests
         n.AssertFair();
     }
 
+    /// <summary>Every pair of a run from the flanks, every one abeam the engine (note 443).</summary>
+    static readonly EnemyTuning AllEngineFlank = Quiet with { Director = Quiet.Director with { Run = AllFlank.Director.Run with { FlankEngineEvery = 1 } } };
+
+    [Fact]
+    public void AFlankPairAbeamTheEngineFallsBackAlongItAndLeapsOntoTheFirstCar()
+    {
+        // Note 443: abeam the engine's gun, flankOut m out, keeping pace through the howl (the forward gun's flank, inside its
+        // traverse); in across the open ground, falling back along the hooded engine, and aboard the first car behind it.
+        var n = new Night(4, 21, enemies: AllEngineFlank);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1);
+        var pair = Runners(n);
+        Assert.Equal(2, pair.Count);
+        Assert.All(pair, h => Assert.True(h.Flank && !h.Ahead));
+        int engine = n.Train.Dynamics.Consist.Vehicles[0].Id, first = n.Train.Dynamics.Consist.Vehicles[1].Id;
+        var mount = Guns.Mount(n.Train, engine)!.Value;
+        var frame = n.Train.Frames[engine];
+        // Abeam the engine's gun, and inside its traverse all the way in until it's at the car's side.
+        Assert.All(pair, h => Assert.InRange(frame.ToLocal(h.WorldPosition(n.Train)).Z - mount.Position.Z, -4, 8));
+        int side = Math.Sign(pair[0].Lateral);
+        bool inArc = true;
+        for (int i = 0; i < 40 * SimConstants.TickRate && pair.Any(h => h.Attached < 0); i++)
+        {
+            n.Run(SimConstants.TickSeconds);
+            var h = pair[0];
+            if (h.Attached < 0 && h.Phase == SpinePhase.Telegraph || Math.Abs(h.Lateral) > R.FlankOut / 2)
+            {
+                var aim = frame.DirToLocal(h.AimPoint(n.Train, n.World.Enemies!) - frame.ToWorld(mount.Position)).Normalized;
+                inArc &= Guns.CheckAim(mount, aim, Tuning.Combat.Guns) == AimResult.Ok;
+            }
+        }
+        Assert.True(inArc, "out of the forward gun's traverse while out in the open");
+        Assert.All(pair, h => Assert.Equal(first, h.Attached));
+        Assert.All(pair, h => Assert.Equal(side, Math.Sign(h.Local.X)));
+        Assert.All(pair, h => Assert.True(h.Local.Z < 0, "at the car's front end"));
+        Assert.Equal((0, 0, 2), d.RunOutcome(pair[0].Pack));
+        Assert.Equal(1, d.FlankEnginePairs);
+        n.AssertFair();
+    }
+
+    [Fact]
+    public void TheFlankPairsTakeTurnsAbeamTheGuardVanAndTheEngine()
+    {
+        // flankEngineEvery 2: of a run of two flank pairs, the first abeam the guard van's gun, the second the engine's.
+        var e = Quiet with { Director = Quiet.Director with { Run = AllFlank.Director.Run with { Size = [4, 4] } } };
+        var n = new Night(4, 21, enemies: e);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1);
+        n.Run(R.Spacing + 1);
+        var runners = Runners(n);
+        Assert.Equal(4, runners.Count);
+        Assert.All(runners, h => Assert.True(h.Flank));
+        Assert.Equal(2, d.FlankPairs);
+        Assert.Equal(1, d.FlankEnginePairs);
+        double rear = n.Train.Dynamics.RearDistance, mid = rear + n.Train.Dynamics.Consist.LengthMetres / 2;
+        Assert.Equal(2, runners.Count(h => h.LineDistance < mid));
+        Assert.Equal(2, runners.Count(h => h.LineDistance > mid));
+    }
+
+    [Fact]
+    public void WithNoGunLaidBackEveryFlankPairComesAbeamTheEngine()
+    {
+        var n = new Night(4, 21, enemies: AllFlank);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        foreach (var v in n.Train.Vehicles)
+            if (v.Gun.Facing > 0)
+                v.Gun = default;
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1);
+        Assert.Single(d.HoundRuns);
+        Assert.Equal(1, d.FlankPairs);
+        Assert.Equal(1, d.FlankEnginePairs);
+    }
+
+    [Fact]
+    public void TheForwardGunnerAnswersAFlankPairAbeamTheEngine()
+    {
+        var e = AllEngineFlank with { Director = AllEngineFlank.Director with { Run = AllEngineFlank.Director.Run with { AfterMetres = 200 } } };
+        var n = new Night(4, 21, enemies: e);
+        int engine = n.Train.Dynamics.Consist.Vehicles[0].Id;
+        var mount = Guns.Mount(n.Train, engine)!.Value;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, engine, mount.Position.Z + 0.7, P) with { Yaw = 0 };
+        var gunner = new GunnerBot(Tuning.Combat.Guns) { Forward = true };
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var run = Assert.Single(d.HoundRuns);
+        n.Run(R.FlankOut / R.FlankSpeed + E.CinderHounds.HowlSeconds + 4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var (scattered, killed, boarded) = d.RunOutcome(run.Pack);
+        Assert.True(n.Shots.Count > 0, $"seated {n.Crew[1].Has(PlayerFlags.Seated)} manned {Guns.MannedGun(n.Crew[1], n.Train, Tuning.Combat.Guns)}");
+        Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
+        n.AssertFair();
+    }
+
     [Fact]
     public void ABigCrewsRunHasAPairBehindOneAheadAndOneFromTheFlank()
     {

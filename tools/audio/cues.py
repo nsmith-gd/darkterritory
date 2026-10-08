@@ -464,6 +464,14 @@ CUES = {
         L("inside", "Inside the tunnel (the bed itself gets the tunnel reverb)"),
         O("drip", "Water dripping in the tunnel", vars=4),
     ],
+    # The line plan's water (maritime-rules.md §2-5; queue #165, note 429): a river under its span and up its valley, a
+    # lake beside the line, the Atlantic's surf on its rock and shingle, Fundy's tide over the red mud.
+    "world-water": [
+        L("river", "A river running: its wash over the stones, gurgling where it folds, the fizz of its surface"),
+        L("lake", "A lake lapping at its stony shore"),
+        L("surf", "The sea's surf breaking on the shore, the shingle dragged back"),
+        L("tide", "Fundy's tide far out over the mud, the flats seeping and trickling"),
+    ],
     "world-bridges": [
         L("iron-drum", "Wheels drumming on an iron bridge"),
         L("timber", "A timber trestle under the train"),
