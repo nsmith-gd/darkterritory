@@ -47,8 +47,11 @@ public sealed class FrontEndTests : IDisposable
         m.Music = music;
         Choose(m, "CREDITS");
         Assert.Equal(Screen.Credits, m.Screen);
-        Assert.Equal(music.Length + 1, m.Items.Count);
-        foreach (var (t, item) in music.Zip(m.Items))
+        // Under the opera's heading (greyed: the selection starts on the first track), then BACK; no other credits loaded.
+        Assert.Equal(music.Length + 2, m.Items.Count);
+        Assert.False(m.Items[0].Enabled);
+        Assert.Equal(1, m.Selected);
+        foreach (var (t, item) in music.Zip(m.Items.Skip(1)))
         {
             Assert.Contains(t.Work, item.Label);
             Assert.Contains(t.Composer, item.Label);
