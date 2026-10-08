@@ -7,6 +7,7 @@ using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
@@ -674,5 +675,32 @@ public class WorldSoundTests
         ears.Tick(ear, SimConstants.TickRate / 2);
         Assert.False(Playing(audio, "heap-groan"));
         Assert.Single(ears.Started, v => v.Name == "place-wreck.shift");
+    }
+
+    [Fact]
+    public void TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt()
+    {
+        // C1's casting shed (note 420), heard (queue #161, note 425): the cupola banked and roaring under its own draught,
+        // held at the works while the ear's near them, gone when it's well away.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Held(audio, "place-foundry.furnace");
+        Stand(audio, "place-foundry.slump");
+        var line = world.Train.Line;
+        // Where the sound places the works: the yard's sheds of a laid-out stop, or off the line's side mid-zone.
+        Double3 works;
+        if (foundry.Stop?.Buildings.FirstOrDefault(b => b.Zone == StopZone.Yard && b.Kind is BuildingKind.Shed or BuildingKind.Hero) is { } shed)
+            works = DarkTerritory.Sim.Run.Run.StopWorld(line, foundry, shed.Centre);
+        else
+        {
+            var t = line.Sample((foundry.Start + foundry.End) / 2);
+            works = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * ((foundry.Side == 0 ? 1 : foundry.Side) * 25);
+        }
+        var ears = new Ears(audio, world);
+        ears.Tick(works + new Double3(6, 1.6, 0), SimConstants.TickRate);
+        var furnace = audio.Mixer.Voices.Single(v => v.Name == "place-foundry.furnace" && !v.Finished);
+        Assert.True((furnace.Position - (works + Double3.Up * 6)).Length < 1);
+        ears.Tick(works + new Double3(400, 1.6, 0), SimConstants.TickRate);
+        Assert.False(Playing(audio, "place-foundry.furnace"));
     }
 }

@@ -533,6 +533,11 @@ CUES = {
         L("inside", "Inside the slaughterhouse"),
         O("hook-chain", "Hooks and chains moving", vars=3),
     ],
+    # The foundry's cupola, banked and burning in the casting shed with nobody to tend it (C1's note 420; queue #161, note 425).
+    "place-foundry": [
+        L("furnace", "The foundry's furnace burning on its own: the stack's draught roaring, coke, hot iron ticking"),
+        O("slump", "The charge slumping in the cupola: a heavy rumble, sparks up the stack", vars=3),
+    ],
     "place-villages": [
         L("dead-town", "A dead town at night"),
         O("shutter", "A shutter banging", vars=3),
