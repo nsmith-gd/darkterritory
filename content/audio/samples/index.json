@@ -10948,6 +10948,47 @@
   "takes": 1,
   "sha": "e3626829eecd6f88"
  },
+ "place-foundry/furnace": {
+  "cue": "place-foundry.furnace",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The foundry's cupola banked and burning on its own: the stack's draught roaring, coke, hot iron ticking",
+    "key": "cupola",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "eb0ac727ee7f2a99"
+ },
+ "place-foundry/slump": {
+  "cue": "place-foundry.slump",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The charge slumping in the cupola: a dull heavy rumble through the iron, sparks up the stack",
+    "key": "charge",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "169af25cd6f8a5e8"
+ },
  "place-grain/grain-pour": {
   "cue": "place-grain.grain-pour",
   "surface": null,
