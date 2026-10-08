@@ -200,7 +200,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     // GPU skinning (MeshBuilder.Skinned): the skinned pieces drawn after the rest, by pipelines that pose them from the
     // frame's bone palettes (scene set binding 10).
     readonly VkPipeline _sceneSkinPipeline, _shadowSkinPipeline, _moonShadowSkinPipeline;
-    readonly List<(GpuMesh Mesh, DrawConstants Draw)> _skinDraws = new();
+    readonly List<(GpuMesh Mesh, DrawConstants Draw, Vector4 Sphere)> _skinDraws = new();
     VkBuffer _bones;
     VkDeviceMemory _bonesMemory;
     Matrix4x4* _bonesMapped;
@@ -685,16 +685,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 Skin = new Vector4(instance.SurfaceOffset, instance.Bones),
                 Bite = instance.Bite,
             };
+            var (centre, radius) = instance.Asset.Bounds;
+            var m = instance.Model;
+            float scale = MathF.Sqrt(MathF.Max(new Vector3(m.M11, m.M12, m.M13).LengthSquared(),
+                MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
+            var sphere = new Vector4(Vector3.Transform(centre, m), radius * scale);
             if (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull)
-                _skinDraws.Add((gpuMesh, draw));
+                // (Its bind pose's sphere; posed, a limb can reach past it: the hand lamp's cube culls it loosely, SkinSlack.)
+                _skinDraws.Add((gpuMesh, draw, sphere));
             else
-            {
-                var (centre, radius) = instance.Asset.Bounds;
-                var m = instance.Model;
-                float scale = MathF.Sqrt(MathF.Max(new Vector3(m.M11, m.M12, m.M13).LengthSquared(),
-                    MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
-                _draws.Add((gpuMesh, draw, new Vector4(Vector3.Transform(centre, m), radius * scale), instance.Shadowless));
-            }
+                _draws.Add((gpuMesh, draw, sphere, instance.Shadowless));
         }
         CopyStaged();
         _lights.Clear();
@@ -1068,7 +1068,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _handShadowPipeline);
-                    handDrawn = DrawGeometry(cmd, _handShadowSkinPipeline, _handFaces, shadow: true);
+                    handDrawn = DrawGeometry(cmd, _handShadowSkinPipeline, _handFaces, shadow: true, reach: _hand!.Value.Range);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -1192,7 +1192,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <paramref name="skinned"/>, the same pass's skinning twin (it stays bound after). Returns what it drew.
     /// </summary>
     /// <param name="views">The pass's views (one, or both eyes'): instances wholly outside all of them aren't drawn.</param>
-    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views, bool shadow = false)
+    /// <param name="reach">A point light's reach (the hand lamp's cube): the land's cells aren't drawn, and the skinned pieces
+    /// are culled too, loosely (0: neither).</param>
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views, bool shadow = false, float reach = 0)
     {
         Span<Vector4> planes = stackalloc Vector4[6 * views.Length];
         for (int v = 0; v < views.Length; v++)
@@ -1211,10 +1213,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             if (shadow && shadowless)
                 continue;
-            bool seen = false;
-            for (int v = 0; v < views.Length && !seen; v++)
-                seen = Visible(planes.Slice(v * 6, 6), sphere);
-            if (!seen)
+            // A piece far bigger than a light's reach (a cell of the land, hundreds of metres across) always overlaps it, and
+            // would cost the hand lamp's cube everything in it for ground that hardly shades itself so close.
+            if (reach > 0 && sphere.W > reach * 4)
+                continue;
+            if (!Seen(sphere, planes, views.Length))
                 continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
@@ -1229,8 +1232,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, skinned);
         var buffers = stackalloc VkBuffer[2];
         var offsets = stackalloc ulong[2] { 0, 0 };
-        foreach (var (mesh, draw) in _skinDraws)
+        foreach (var (mesh, draw, sphere) in _skinDraws)
         {
+            if (reach > 0 && !Seen(sphere with { W = sphere.W * SkinSlack + 0.5f }, planes, views.Length))
+                continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
             (buffers[0], buffers[1]) = (mesh.Buffer, mesh.Skin);
@@ -1263,6 +1268,17 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             float len = new Vector3(planes[i].X, planes[i].Y, planes[i].Z).Length();
             planes[i] = len > 0 ? planes[i] / len : new Vector4(0, 0, 0, 1);
         }
+    }
+
+    // How far past its bind pose's sphere a skinned piece's pose may reach (an arm out, a Whistler's legs), for culling it.
+    const float SkinSlack = 2;
+
+    static bool Seen(Vector4 sphere, ReadOnlySpan<Vector4> planes, int views)
+    {
+        for (int v = 0; v < views; v++)
+            if (Visible(planes.Slice(v * 6, 6), sphere))
+                return true;
+        return false;
     }
 
     /// <summary>Whether a sphere (xyz centre, w radius) is at least partly inside the planes.</summary>
