@@ -809,7 +809,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     static PlayerIntent InTheDoorway(in PlayerState self, TrainOnLine train, PlayerIntent intent)
     {
-        if (self.Parent < 0 || self.Parent >= train.Frames.Count || intent.MoveX == 0 && intent.MoveZ == 0
+        // A car's, not the engine's: out of the cab's side is onto its running boards (note 382's way to the roofs).
+        if (self.Parent <= 0 || self.Parent >= train.Frames.Count || intent.MoveX == 0 && intent.MoveZ == 0
             || SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed))
             return intent;
         double side = train.Frames[self.Parent].Shape.HalfWidth - Doorway;
@@ -817,7 +818,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return intent;
         // Across the car (+X right), as the motor turns the stick by the look (PlayerMotor's wish direction).
         double yaw = intent.LookYaw != 0 ? self.Yaw + intent.LookYaw : self.Yaw;
-        double across = Math.Clamp(intent.MoveX, -1, 1) * Math.Cos(yaw) - Math.Clamp(intent.MoveZ, -1, 1) * Math.Sin(yaw);
+        double across = Math.Clamp(intent.MoveX, -1, 1) * DMath.Cos(yaw) - Math.Clamp(intent.MoveZ, -1, 1) * DMath.Sin(yaw);
         return across * Math.Sign(self.Position.X) > 0.05 ? intent with { MoveX = 0, MoveZ = 0 } : intent;
     }
 
