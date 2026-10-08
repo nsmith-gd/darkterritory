@@ -427,6 +427,33 @@ public static partial class Hud
         };
     }
 
+    /// <summary>
+    /// A switch's lever in reach, the cab's powered thrower's (note 196) or a stand's: which way it'll throw, and when it
+    /// won't. Use is the lever's there whatever's in your hands (queue #94, note 357), so it's said before what you carry
+    /// and what's lying by it, as the sim decides it.
+    /// </summary>
+    static string? SwitchPrompt(Sim.World world, in PlayerState p, TrainOnLine train, HandTuning? hand)
+    {
+        if (world.Switches is not { } stands)
+            return null;
+        // Spec F.3's powered switch thrower: the next points ahead, from the cab, slowed for them.
+        if (SwitchStands.CabLever(p, train, hand) is { } lever)
+        {
+            var thrower = train.Dynamics.Tuning.Composition.Thrower;
+            if (lever.Branch is not { } ahead)
+                return "NO POINTS AHEAD";
+            double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
+            // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
+            return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
+                : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
+                : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
+        }
+        // Which way it'll go, and when it won't: the points don't move with a wheel on them.
+        return stands.InReach(p, train, hand) is not { } branch ? null
+            : train.PointsOccupied(branch, stands.Tuning.PointsLength) ? "POINTS HELD"
+            : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
+    }
+
     /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
     static string? CardName(Sim.World world, int branch)
     {
@@ -1511,7 +1538,7 @@ public static partial class Hud
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return HealPrompt(s, inHands);
+            return SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -1586,19 +1613,13 @@ public static partial class Hud
                 return "SAND THE RAIL : HOLD [E]";
             case InteractableKind.Door:
                 return "DOOR : [E]";
-            // Spec F.3's powered switch thrower (note 196): the next points ahead, from the cab, slowed for them.
-            case InteractableKind.Points when world.Switches is { } stands && SwitchStands.CabLever(p, train, hand) is { } lever:
-                {
-                    var thrower = train.Dynamics.Tuning.Composition.Thrower;
-                    if (lever.Branch is not { } ahead)
-                        return "NO POINTS AHEAD";
-                    double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
-                    // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
-                    return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
-                        : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
-                        : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
-                }
+            // Spec F.3's powered switch thrower (note 196).
+            case InteractableKind.Points when SwitchPrompt(world, p, train, hand) is { } cabLever:
+                return cabLever;
         }
+        // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
+        if (SwitchPrompt(world, p, train, hand) is { } atStand)
+            return atStand;
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
@@ -1643,12 +1664,6 @@ public static partial class Hud
         // The wreck yard (note 187): a heap in the dark is a heap you can't see into. Its groan is heard, not read.
         if (world.Run?.HeapNear(p, train) is { Found: false, Salvage: > 0, Groan: <= 0 })
             return "TOO DARK TO SEE";
-        if (world.Switches?.InReach(p, train, hand) is { } branch)
-        {
-            // Which way it'll go, and when it won't: the points don't move with a wheel on them.
-            return train.PointsOccupied(branch, world.Switches.Tuning.PointsLength) ? "POINTS HELD"
-                : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
-        }
         // A yard whose power's down (level-design D.2): restart it at the powerhouse.
         if (world.Run is { } powered && powered.PowerhouseInReach(p, train) && powered.CurrentSite is { } ps)
             return ps.Restart > 0 ? $"RESTARTING THE GENERATOR ({ps.Restart / powered.PowerTuning.RestartSeconds * 100:0}%)"
