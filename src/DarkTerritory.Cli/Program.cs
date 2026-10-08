@@ -1127,6 +1127,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
             Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
+            // --close: the set pieces' cameras (the spout, the pen, the lift, the hose) half as far out (note 398).
+            double near = args.Contains("--close") ? 0.5 : 1;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
             var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
             // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
@@ -1165,21 +1167,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
                 var side = ((site.SpoutLever - site.Spout) with { Y = 0 }).Normalized;
-                camera = Camera.LookAt(site.Spout + side * 10 + Along() * 8 + Double3.Up * 3.5, site.Spout - Double3.Up * 1.5, 62);
+                camera = Camera.LookAt(site.Spout + (side * 10 + Along() * 8 + Double3.Up * 3.5) * near, site.Spout - Double3.Up * 1.5, 62);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp))
-                camera = Camera.LookAt(site.Pen + Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6, (site.Pen + site.RampTop) * 0.5, 65);
+                camera = Camera.LookAt(site.Pen + (Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6) * near, (site.Pen + site.RampTop) * 0.5, 65);
             // The steam lift (note 368): from across the track, along the line toward the engine, back over the car at the bin
             // over it, the trough and the skip on the headframe beyond.
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && !args.Contains("--crank"))
             {
                 var out_ = ((site.Headframe - site.LiftChute) with { Y = 0 }).Normalized;
-                camera = Camera.LookAt(site.LiftChute - out_ * 15 + Along() * 9 + Double3.Up * 3.5, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
+                camera = Camera.LookAt(site.LiftChute + (Along() * 9 + Double3.Up * 3.5 - out_ * 15) * near, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose))
             {
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
-                camera = Camera.LookAt(site.HoseStand + side * 8 + Along() * 7 + Double3.Up * 5, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
+                camera = Camera.LookAt(site.HoseStand + (side * 8 + Along() * 7 + Double3.Up * 5) * near, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
             }
             else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
