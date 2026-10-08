@@ -470,6 +470,22 @@ public static class Staging
         return crew;
     }
 
+    /// <summary>
+    /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
+    /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
+    /// </summary>
+    public static Crewmate Driver(TrainOnLine train, bool whistling)
+    {
+        var cab = train.Frames[0];
+        var levers = cab.Shape.Levers!.Value;
+        double floor = cab.Shape.Interactables.First(i => i.Kind == InteractableKind.Whistle).Position.Y;
+        var local = new Double3((levers.Regulator.X + levers.Brake.X) / 2, floor, levers.Brake.Z + 0.35);
+        var feet = cab.ToWorld(local);
+        var controls = new Sim.Train.TrainControls { Reverser = 1 };
+        return new Crewmate(30, feet, cab.Heading, true, Act: whistling ? Art.CrewPose.Whistle : Art.CrewPose.Drive,
+            Reach: Art.CrewActs.AtTheControls(controls, train.Frames, feet, cab.Heading, whistling), Car: 0, Local: local);
+    }
+
     public static List<Crewmate> Working(TrainOnLine train, string content)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
