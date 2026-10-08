@@ -220,6 +220,13 @@ TELL_SOUNDS = {
     "tell-choir": ("choir-voice", [("voices", {"rate": {"param": "pitch", "points": [[0.75, 0.985], [1.25, 1.015]]}})]),
     "tell-car-fire": ("car-fire", [("smoulder", {"gain": {"param": "progress", "points": [[0, 1], [0.5, 0.7], [1, 0]]}}),
                                    ("alight", {"gain": {"param": "progress", "points": [[0, 0], [0.4, 0.25], [1, 1]]}})]),
+    # The upkeep's faults (queue #95, note 358), for D1's synths (notes 331, 346), their params kept: the hot box's squeal
+    # rising in pitch and level as it heats and its smoke from halfway; the lamp's sputter and flame worse as it gutters.
+    "state-hotbox": ("hotbox", [("squeal", {"rate": {"param": "heat", "points": [[0, 0.94], [1, 1.08]]},
+                                            "gain": {"param": "heat", "points": [[0, 0.45], [0.5, 0.75], [1, 1]]}}),
+                                ("smoke", {"gain": {"param": "heat", "points": [[0, 0], [0.45, 0], [1, 1]]}})]),
+    "state-gutter": ("lamp-gutter", [("sputter", {"gain": {"param": "gutter", "points": [[0, 0.35], [1, 1]]}}),
+                                     ("flutter", {"gain": {"param": "gutter", "points": [[0, 0.5], [1, 1]]}})]),
     # T118: the game plays the giggle now and then, each at its own "pitch" (0.92-1.10), so the take follows it.
     # A presence lift on the porcelain's ring: the kept giggle has less in its 3-6 kHz tell band than T118's synth, and the
     # cab's din buries it there (AudioTests); lifting the band, not the whole giggle, keeps it from being loud and crazy (T115).
@@ -283,7 +290,7 @@ SWAPS = {
 # director heard (note 329), so the low, slow ones wait for a Keep, on main's low, slow synth.
 HELD = {"crew-gun-lay.lay"}
 
-SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "lamp-out": -14,
+SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "doll-shatter": 0, "hotbox": 4, "lamp-gutter": -16, "lamp-out": -14,
                 "powder-blast": -3, "toy-drummer": -10, "toy-musicbox": 11, "toy-squeaker": 5, "warn-curve": -6,
                 "warn-low-clearance": 2, "warn-overspeed": 5}
 

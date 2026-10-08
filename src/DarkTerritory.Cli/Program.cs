@@ -1435,7 +1435,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 new Ballast.Physics.PbdBody(joints))
             { Owner = k + 1 };
         });
-        scene.Bodies = [.. scene.Bodies ?? [], .. posed];
+        // ... and what the carrier has in their arms (note 370): a crate, as the film starts it.
+        var arms = WreckFilm.TaskPose(FilmTask.Carrying).Select(j => by.ToWorld(new Double3(2.6, 0, -by.Shape.HalfLength * 0.6 + 3 * 1.3) + j)).ToArray();
+        var (load, loadUp, across) = WreckFilm.InArms(arms);
+        var forward = Double3.Cross(across, loadUp) * -1;
+        var crate = new DarkTerritory.Sim.Physics.Body(-10, DarkTerritory.Sim.Physics.BodyKind.Crate, DarkTerritory.Sim.Player.PlayerState.World,
+            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(load, 1, 0.3)]))
+        { Tilt = loadUp, Yaw = Math.Atan2(forward.X, forward.Z) };
+        scene.Bodies = [.. scene.Bodies ?? [], .. posed, crate];
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
@@ -1526,12 +1533,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
-    scene.Build(mesh, train, camera.Position);
+    // --strain x leans the cars out too, about their right-hand rail, as far as that strain leans them (note 370).
+    IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
+        ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
+        : null;
+    scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
     int builds = (int)Opt(args, "--builds", 5);
     for (int b = 0; b < builds; b++)
-        scene.Build(mesh, train, camera.Position);
+        scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
@@ -2254,6 +2265,10 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
             && double.TryParse(args[hu + 1], System.Globalization.CultureInfo.InvariantCulture, out double hurt) ? hurt : 0.6;
+    // --commend-pick [name]: the run end's commendation picker on that crewmate (note 369), as a networked night shows it.
+    if (args.Contains("--commend-pick"))
+        Hud.StagedCommendPick = (Str(args, "--commend-pick", "Okafor") is { Length: > 0 } to && !to.StartsWith("--") ? to.ToUpperInvariant() : "OKAFOR",
+            UiStyle.Name(UiStyle.Commendation.CameBackForMe), false);
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
@@ -2679,7 +2694,8 @@ static int Usage()
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
-                     night with night.txt (note 203)
+                     night with night.txt (note 203); --commend: the night's commendations under it; --commend-pick
+                     [name]: the commendation picker on name (note 369)
           screenshot --film s [--crew n --speed v --route r] [--stills dir]   a frame of the derailment film s seconds into
                      its cut (note 177); --stills dir: each crewmate's bookmark, their peak in the film (E.5), kept as the app keeps them
                      --hazards clear|wet|cold|dark: a balance.json hazard set over the line; --mend t: the repair kit in hand,

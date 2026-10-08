@@ -69,8 +69,11 @@ public sealed record FilmCar(int Vehicle, Double3 Origin, Double3 Right, Double3
 /// <param name="Role">For the name card: "on the throttle", "at the firebox", "on the roof".</param>
 /// <param name="Seated">In the gun's seat (T112): thrown out of it (<see cref="FilmTuning.SeatKick"/>).</param>
 /// <param name="Task">What they were at (App. F.2 take 4: "people mid-task"): their body starts the film in its pose.</param>
+/// <param name="Carried">What was in their arms, carrying (a crate, a case of freight, a lamp): it goes into the wreck with them,
+/// held till they let go of their work, then thrown free (note 370). Null for nothing, or for someone carried (not a load).</param>
+/// <param name="CarriedCargo">A case of freight's cargo, for its model.</param>
 public sealed record FilmPlayer(int Id, string Name, string Role, Double3 Position, Double3 Velocity, double Yaw, int Inside, bool Seated = false,
-    FilmTask Task = FilmTask.None);
+    FilmTask Task = FilmTask.None, BodyKind? Carried = null, CargoKind CarriedCargo = CargoKind.None);
 
 /// <summary>
 /// What a crewmate was doing as the train came off (App. F.2, take 4: the third-person poses read "arms-up and awkward, not
@@ -89,9 +92,18 @@ public sealed record FilmLink(int A, int B, double Length);
 public sealed record FilmStart(ulong Seed, IReadOnlyList<FilmCar> Cars, IReadOnlyList<FilmLink> Links,
     IReadOnlyList<FilmPlayer> Players, string Cause, double Speed, double Along = 0);
 
-/// <summary>One recorded instant: every car's pose, every ragdoll's 11 joints, the cars' hits and the bodies' landings that made a sound.</summary>
+/// <summary>
+/// One recorded instant: every car's pose, every ragdoll's 11 joints, the cars' hits and the bodies' landings that made a
+/// sound, and what anyone was carrying (note 370).
+/// </summary>
 public sealed record FilmFrame(IReadOnlyList<(Double3 Origin, Double3 Right, Double3 Up, Double3 Back)> Cars, IReadOnlyList<Double3[]> Ragdolls,
-    IReadOnlyList<WreckImpact> Impacts, IReadOnlyList<FilmLanding> Landings);
+    IReadOnlyList<WreckImpact> Impacts, IReadOnlyList<FilmLanding> Landings, IReadOnlyList<FilmLoad>? Loads = null);
+
+/// <summary>
+/// What someone was carrying, in one recorded instant (note 370): whose it was (their doll), where its middle is, and how
+/// it's turned (its up, and its heading about that: the way a loose body's drawn).
+/// </summary>
+public readonly record struct FilmLoad(int Doll, Double3 At, Double3 Up, double Yaw);
 
 /// <summary>
 /// A body hitting something in the recording (the ground, a car, or a car hitting it): which ragdoll, where (its middle),
@@ -326,8 +338,13 @@ public sealed class WreckFilm
         var rng = new Pcg32(start.Seed, 0xF11);
         var engine = cars.Count > 0 ? cars[0].Centre : Double3.Zero;
         var dolls = start.Players.Select(p => Ragdoll(p, cars, start.Cars, rng, t, start.Speed)).ToList();
+        // What anyone was carrying (note 370): its own seeded spin, so nothing of the dolls' film changes for it.
+        var loads = new List<Load>();
+        for (int k = 0; k < dolls.Count; k++)
+            if (start.Players[k] is { Carried: { } kind, Seated: false, Task: FilmTask.Carrying })
+                loads.Add(Load.Of(k, dolls[k], kind, new Pcg32(start.Seed, 0x10AD + (ulong)k)));
         var stage = new Stage(cars, start.Cars, ground);
-        var frames = new List<FilmFrame> { Frame(cars, dolls, [], []) };
+        var frames = new List<FilmFrame> { Frame(cars, dolls, [], [], loads) };
         var deaths = new Dictionary<int, FilmDeath>();
         var gravity = new Double3(0, -wt.Gravity, 0);
         double still = 0;
@@ -367,6 +384,8 @@ public sealed class WreckFilm
                     d.Whole += (Middle(ps) - middle) * (1 / h) - gravity * h;
                 }
                 Pile(dolls);
+                foreach (var load in loads)
+                    load.Step(h, gravity, stage);
             }
             double now = i * Dt;
             var landings = new List<FilmLanding>();
@@ -414,7 +433,9 @@ public sealed class WreckFilm
             foreach (var d in dolls)
                 if ((d.Body.Centre - engine).Length > t.SimRadius)
                     d.Body.Sleep();
-            frames.Add(Frame(cars, dolls, impacts, landings));
+            foreach (var load in loads)
+                load.Turn(Dt);
+            frames.Add(Frame(cars, dolls, impacts, landings, loads));
             bool resting = wreck.Settled && dolls.All(d => d.Body.Asleep || d.Body.Particles.All(p => (p.Position - p.Previous).Length < 0.05 * h));
             still = resting ? still + Dt : 0;
             if (still >= 0.5)
@@ -847,8 +868,117 @@ public sealed class WreckFilm
             }
     }
 
-    static FilmFrame Frame(List<WreckBody> cars, List<Doll> dolls, List<WreckImpact> impacts, List<FilmLanding> landings) =>
-        new([.. cars.Select(c => (c.Origin, c.Right, c.Up, c.Back))], [.. dolls.Select(d => d.Body.Particles.Select(p => p.Position).ToArray())], impacts, landings);
+    static FilmFrame Frame(List<WreckBody> cars, List<Doll> dolls, List<WreckImpact> impacts, List<FilmLanding> landings, List<Load> loads) =>
+        new([.. cars.Select(c => (c.Origin, c.Right, c.Up, c.Back))], [.. dolls.Select(d => d.Body.Particles.Select(p => p.Position).ToArray())], impacts, landings,
+            loads.Count == 0 ? null : [.. loads.Select(l => l.Recorded)]);
+
+    /// <summary>
+    /// Where a load sits in a body's arms (note 370), from its 11 joints (<see cref="Bodies.Skeleton"/>'s order): between
+    /// the hands, a little up from them (the forearms are under it), its up the chest's and across between the hands.
+    /// </summary>
+    public static (Double3 At, Double3 Up, Double3 Across) InArms(IReadOnlyList<Double3> joints)
+    {
+        var up = joints[1] - joints[2];
+        up = up.Length > 1e-6 ? up.Normalized : Double3.Up;
+        var across = joints[6] - joints[4];
+        across -= up * Double3.Dot(across, up);
+        return ((joints[4] + joints[6]) * 0.5 + up * 0.12, up, across.Length > 1e-6 ? across.Normalized : Double3.Zero);
+    }
+
+    /// <summary>
+    /// What someone was carrying into the wreck (note 370; the checklist's "a carried crate isn't in the ragdoll's hands"):
+    /// held between their hands while they're still at their work (FilmTuning.TaskHold), carried along with them; then let
+    /// go, with the hands' own way, a ball of its size that falls, strikes the cars and the ground as a body does, and
+    /// tumbles on its own seeded spin till it comes to rest, settling flat. Nothing in it touches the dolls.
+    /// </summary>
+    sealed class Load
+    {
+        public int DollIndex;
+        public Doll Holder = null!;
+        /// <summary>Its own ball, as a doll so the stage treats it as one (the car it's inside a room, the rest solids).</summary>
+        public Doll Ball = null!;
+        public Double3 Up = Double3.Up, Right = new(1, 0, 0), Axis = Double3.Up;
+        public double Rate;
+        public bool Held = true;
+        Double3 _last;
+        Pcg32 _rng;
+
+        public static Load Of(int index, Doll holder, BodyKind kind, Pcg32 rng)
+        {
+            double radius = kind switch { BodyKind.Crate or BodyKind.Heavy or BodyKind.Cargo => 0.3, _ => 0.15 };
+            var at = Hands(holder);
+            var pbd = new PbdBody([new Particle(at, 1, radius)]) { Friction = 0.45, Bounce = 0.15, Iterations = 4 };
+            var load = new Load { DollIndex = index, Holder = holder, Ball = new Doll(pbd, holder.Inside, 0), _last = at, _rng = rng };
+            load.Orient();
+            return load;
+        }
+
+        static Double3 Hands(Doll d) => InArms([.. d.Body.Particles.Select(p => p.Position)]).At;
+
+        void Orient()
+        {
+            var (_, up, across) = InArms([.. Holder.Body.Particles.Select(p => p.Position)]);
+            if (across.Length > 1e-6)
+                (Up, Right) = (up, across);
+        }
+
+        public void Step(double h, Double3 gravity, Stage stage)
+        {
+            var p = Ball.Body.Particles;
+            if (Held && Holder.Alive && Holder.TaskUntil > 0)
+            {
+                // Carried along: where the hands are, with their way (so let go, it goes on as they were going).
+                var at = Hands(Holder);
+                p[0].Position = at;
+                p[0].Previous = _last;
+                _last = at;
+                Ball.Inside = Holder.Inside;
+                Orient();
+                return;
+            }
+            if (Held)
+            {
+                Held = false;
+                var axis = new Double3(_rng.Range(-1, 1), _rng.Range(-1, 1), _rng.Range(-1, 1));
+                Axis = axis.Length > 1e-6 ? axis.Normalized : Right;
+                Rate = _rng.Range(4, 9);
+            }
+            if (!Ball.Body.Asleep)
+                Ball.Body.Step(h, gravity, (q, r) => stage.Touch(q, r, Ball));
+        }
+
+        /// <summary>A frame's turn: the tumble, slowed on each touch; once it's stopped turning, settling flat.</summary>
+        public void Turn(double dt)
+        {
+            if (Held)
+                return;
+            if (Ball.Body.Particles[0].Contact)
+                Rate *= 0.55;
+            if (Rate > 0.4)
+            {
+                (Up, Right) = (Rotate(Up, Axis, Rate * dt), Rotate(Right, Axis, Rate * dt));
+                return;
+            }
+            Rate = 0;
+            // Down on a face: up eased to the world's, its across kept square to it.
+            var up = (Up + (Double3.Up - Up) * 0.25).Normalized;
+            var right = Right - up * Double3.Dot(Right, up);
+            (Up, Right) = (up, right.Length > 1e-6 ? right.Normalized : Right);
+        }
+
+        static Double3 Rotate(Double3 v, Double3 k, double a) =>
+            v * DMath.Cos(a) + Double3.Cross(k, v) * DMath.Sin(a) + k * (Double3.Dot(k, v) * (1 - DMath.Cos(a)));
+
+        public FilmLoad Recorded
+        {
+            get
+            {
+                // Its heading about its up, as a loose body's yaw is drawn: the way its front faces, flattened.
+                var forward = Double3.Cross(Right, Up) * -1;
+                return new FilmLoad(DollIndex, Ball.Body.Particles[0].Position, Up, DMath.Atan2(forward.X, forward.Z));
+            }
+        }
+    }
     /// <summary>
     /// E.5: a player's peak moment: the highest apex, the longest airtime or the hardest landing, whichever scores highest.
     /// Returns when (recorded seconds) and the score. "In the air" is off whatever's under them (<see cref="Clearance"/>):

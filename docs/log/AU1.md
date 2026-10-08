@@ -46,3 +46,5 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - 2026-10-08 02:21 UTC · AU1 · #271 green on bd8c45c4 (both platforms, package, crossplay); main moved under it again (#302, #304-#310), merged in: COORDINATION.md main's with #61 and #72 done.
 - 2026-10-08 02:51 UTC · AU1 · Opened [#318](https://github.com/nsmith-gd/darkterritory/pull/318) for queue #79 (note 342); moved to Done in it.
 - 2026-10-08 02:58 UTC · AU1 · #271 green on 0e9cc95 (both platforms; its check-runs were slow to show it). Main moved again (#312-#316): merged in, COORDINATION.md's Done table both sides; local checks, then merged.
+- 2026-10-08 03:13 UTC · AU1 · Queue #95 (note 358): the hot box and the guttering lamp on the Audio Checklist (state-hotbox, state-gutter: 5 candidates) swapped in for D1's synths through TELL_SOUNDS, levelled to them; crew-upkeep (grease, greased, trim: 3 candidates) hooked off the hold at a hot box and the faults' own state; UpkeepSoundTests; all three lines L1.
+- 2026-10-08 03:14 UTC · AU1 · Opened [#322](https://github.com/nsmith-gd/darkterritory/pull/322) for queue #95 (note 358); moved to Done in it (not yet: #93's coupling).

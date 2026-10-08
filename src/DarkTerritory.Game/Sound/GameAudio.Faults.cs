@@ -34,7 +34,11 @@ public sealed partial class GameAudio
     {
         public bool Breached;
         public Double3 At;
+        public double HotBox;
     }
+
+    /// <summary>A hot box that goes cool this near its catching (or nearer) caught: its car's fire is the sound, not a greasing.</summary>
+    const double CaughtWithin = 1.0;
 
     sealed class Boarder
     {
@@ -130,7 +134,7 @@ public sealed partial class GameAudio
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {
-                _faultCars[v.Id] = new FaultCar { Breached = v.Breached, At = hole };
+                _faultCars[v.Id] = new FaultCar { Breached = v.Breached, At = hole, HotBox = v.HotBox };
                 continue;
             }
             if (v.Breached && !c.Breached)
@@ -140,9 +144,19 @@ public sealed partial class GameAudio
                 Cue("crew-repair.done", hole, Occlusion(v.Id));
             c.Breached = v.Breached;
             c.At = hole;
+            // Greased (note 358): the box gone cool before it could catch, the last of the grease hissing off the iron.
+            if (c.HotBox > 0 && v.HotBox <= 0 && train.HotBoxTuning is { } cooled && c.HotBox < cooled.FireAfter - CaughtWithin)
+                Cue("crew-upkeep.greased", train.Frames[v.Id].ToWorld(HotBoxes.Box(train.Frames[v.Id].Shape, cooled)), outside);
+            c.HotBox = v.HotBox;
         }
         if (BreachedAround(world, Mixer.Listener.Position) is { } car)
             Hold("state-breach.open-to-outside", car, train.Frames[car].ToWorld(train.Vehicles[car].BreachAt));
+
+        // Greasing a hot box (note 358): the grease gun worked at it while a crewmate's hold there goes on.
+        if (train.HotBoxTuning is { } hbt)
+            foreach (var (id, s) in CrewStates)
+                if (s.ActionProgress > 0 && HotBoxes.Within(s, train, hbt) is { } box && train.Vehicles[box].HotBox > 0)
+                    Hold("crew-upkeep.grease", id, train.Frames[box].ToWorld(HotBoxes.Box(train.Frames[box].Shape, hbt)), outside);
 
         foreach (var (id, s) in CrewStates)
         {
