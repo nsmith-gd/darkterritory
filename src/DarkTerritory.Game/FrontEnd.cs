@@ -819,6 +819,11 @@ public sealed class FrontEnd
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
+            // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
+            new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
+                "Left and right to change: the HUD's print and the menus', bigger."),
+                Toggle(s => s with { TextSize = Settings.Cycle(Settings.TextSizes, s.TextSize, 1) }),
+                by => Change(Settings with { TextSize = Settings.Cycle(Settings.TextSizes, Settings.TextSize, by) })),
             // The headset's comfort is set as a night starts: not in a night's menu (note 292), which is the window's.
             .. Night is not null ? (Entry[])[] :
             [
@@ -1076,8 +1081,13 @@ public sealed class FrontEnd
     /// </summary>
     void DrawCredits(Overlay o, float x, float y, int width, int height)
     {
-        o.Text(x, y, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", Faint);
-        y += 16;
+        // Wrapped at a bigger TEXT SIZE (note 347).
+        foreach (var row in Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
+        {
+            o.Text(x, y, row, Faint);
+            y += 10;
+        }
+        y += 6;
         var items = Items;
         // Room under the list for the selected track's line in full, over two rows.
         int rows = Math.Max(1, (int)((height - y - 44) / 20));
@@ -1123,21 +1133,33 @@ public sealed class FrontEnd
     /// on death; the tally survives"): the five badges, a row each, with how many times a crew has given it; those not yet
     /// given are drawn faint. Then where the nights' stills are kept. Returns where the list goes under it.
     /// </summary>
-    float DrawProfile(Overlay o, float x, float y, int width)
+    float DrawProfile(Overlay o, float x, float y, int width, int height)
     {
         var tally = Tally;
-        o.Text(x, y, TallyLine, Faint);
-        y += 17;
-        const float row = 22;
+        // Wrapped at a bigger TEXT SIZE (note 347).
+        foreach (var line in Wrap(o, TallyLine, width - x - 8))
+        {
+            o.Text(x, y, line, Faint);
+            y += 10;
+        }
+        y += 7;
+        // A badge a row; where the canvas is too short for them (TEXT SIZE, note 347), the names and counts as print alone.
+        bool compact = y + tally.Count * 22 + 8 + 22 + 50 > height;
+        float row = compact ? 10 : 22;
         UiStyle.Plate(o, x - 8, y - 6, Math.Min(width - x, 220), tally.Count * row + 8);
         foreach (var (c, n) in tally)
         {
-            // Not given yet: the badge greyed under a veil, its name faint.
-            float w = UiStyle.Badge(o, x, y, c, ribbon: n > 0 ? null : new Vector4(0.3f, 0.3f, 0.3f, 1));
-            if (n == 0)
-                o.Rect(x, y, w, w, new Vector4(0.08f, 0.08f, 0.09f, 0.6f));
-            o.Text(x + w + 8, y + 4, UiStyle.Name(c), n > 0 ? Ink : Faint);
-            o.Text(x + 178, y + 4, n > 0 ? $"x{n}" : "-", n > 0 ? Amber : Faint);
+            float w = 0;
+            if (!compact)
+            {
+                // Not given yet: the badge greyed under a veil, its name faint.
+                w = UiStyle.Badge(o, x, y, c, ribbon: n > 0 ? null : new Vector4(0.3f, 0.3f, 0.3f, 1)) + 8;
+                if (n == 0)
+                    o.Rect(x, y, w - 8, w - 8, new Vector4(0.08f, 0.08f, 0.09f, 0.6f));
+            }
+            float ty = compact ? y : y + 4;
+            o.Text(x + w, ty, UiStyle.Name(c), n > 0 ? Ink : Faint);
+            o.Text(x + 178, ty, n > 0 ? $"x{n}" : "-", n > 0 ? Amber : Faint);
             y += row;
         }
         y += 6;
@@ -1210,11 +1232,15 @@ public sealed class FrontEnd
             Screen.Profile => $"PROFILE: {(Settings.PlayerName is { Length: > 0 } me ? me : DefaultPlayerName).ToUpperInvariant()}",
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
-        o.Text(x, y, heading!, Dim);
-        y += 10;
+        // At a bigger TEXT SIZE (note 347) a long heading wraps rather than run off the frame.
+        foreach (var row in Wrap(o, heading!, width - x - 8))
+        {
+            o.Text(x, y, row, Dim);
+            y += 10;
+        }
         if (Screen == Screen.Fortress && Open?.History.LastOrDefault() is { } last)
         {
-            o.Text(x, y, $"LAST NIGHT: {last.Route.ToUpperInvariant()}, {last.End.ToString().ToUpperInvariant()}, {(last.Net >= 0 ? "+" : "")}{last.Net:0} SCRIP", Faint);
+            o.Text(x, y, Clip(o, $"LAST NIGHT: {last.Route.ToUpperInvariant()}, {last.End.ToString().ToUpperInvariant()}, {(last.Net >= 0 ? "+" : "")}{last.Net:0} SCRIP", width - x - 8), Faint);
             y += 10;
         }
         if (Screen == Screen.Upgrades)
@@ -1235,7 +1261,7 @@ public sealed class FrontEnd
             return;
         }
         if (Screen == Screen.Profile)
-            y = DrawProfile(o, x, y, width);
+            y = DrawProfile(o, x, y, width, height);
         var entries = Entries();
         var items = entries.Select(e => e.Item).ToList();
         float widest = items.Select(i => o.Font.Measure(i.Label)).DefaultIfEmpty(0).Max() + 20;
@@ -1256,7 +1282,9 @@ public sealed class FrontEnd
                 o.Rect(x - 4, y - 1, plate - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
             string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
-            o.Text(x, y, (on ? "> " : "  ") + items[i].Label + more, colour);
+            // A label wider than the frame (a long contract at 150%, note 347) is cut short; the detail under the list says it whole.
+            string label = Clip(o, (on ? "> " : "  ") + items[i].Label, plate - 8 - (arrows ? 28 : 0) - o.Font.Measure(more));
+            o.Text(x, y, label + more, colour);
             if (entries[i].Adjust is not null && items[i].Enabled && Editing is null)
             {
                 float ax = x - 8 + plate - 26;
@@ -1285,6 +1313,20 @@ public sealed class FrontEnd
             // LEFT/RIGHT only where there's a value to change (note 293).
             : Headset ? arrows ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK" : "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [B] BACK"
             : arrows ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] BACK" : "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] BACK";
+        // Too wide for a small canvas (TEXT SIZE, note 347): the mouse's words go first; the keys stay.
+        if (UiStyle.MeasureKeyed(o, hints) > width - 16)
+            hints = hints.Replace(" OR MOUSE", "").Replace(" OR CLICK", "");
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
+    }
+
+    /// <summary><paramref name="text"/> cut short with "..." to fit <paramref name="width"/>, or as it is if it fits.</summary>
+    static string Clip(Overlay o, string text, float width)
+    {
+        if (o.Font.Measure(text) <= width)
+            return text;
+        int n = text.Length;
+        while (n > 1 && o.Font.Measure(text[..n].TrimEnd(' ', ',') + "...") > width)
+            n--;
+        return text[..n].TrimEnd(' ', ',') + "...";
     }
 }
