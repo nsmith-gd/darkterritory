@@ -36,6 +36,9 @@ return args switch
     // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
     // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
     ["credits", ..] => CreditsCommands.Run(baseContent, args),
+    // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
+    // twin, and the mail to the studio it opens.
+    ["report", ..] => ReportCommands.Run(content, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -2382,10 +2385,18 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
-    // --menu crashed (note 411): the notice the game opens on after it stopped, two reports since it was last put away.
+    // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
+    var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
+    menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
+    menu.ProblemReport = () => reports.WriteProblem();
+    // --menu crashed (note 411): the notice the game opens on after it stopped, a real report behind it (note 452's SEND).
     if (screen == DarkTerritory.Game.Screen.Crashed)
-        menu.Crash = new DarkTerritory.Game.CrashNotice("C:/Users/Nick/AppData/Local/DarkTerritory/crashes",
-            "C:/Users/Nick/AppData/Local/DarkTerritory/crashes/crash-20261008-031522.txt", 2);
+    {
+        if (Directory.Exists(reports.Directory))
+            Directory.Delete(reports.Directory, recursive: true);
+        reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
+        menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
+    }
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with

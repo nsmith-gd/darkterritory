@@ -9,8 +9,8 @@ namespace DarkTerritory.Sim.Bots;
 /// A stop hand on foot when the Choir comes (queue #149, ARCHITECTURE §8 note 413; GDD §21: it takes "anyone ... not behind a
 /// closed door", App. A.7). The walkers shelter from a roof (<see cref="RoofWalkerBot.Look"/>, <see cref="WarmUp"/>), and a hand
 /// down at a stop worked on through it in the open. Now, with the Choir gathering (facilities.json <c>crew.shelterAt</c>) or
-/// here, a hand on the ground nearer an open house than the train goes into the nearest one with a single door that nobody
-/// else has taken and no Gaunt in it, by its way round the walls (<see cref="FootPath"/>), puts down what it carries, shuts
+/// here, a hand on the ground nearer an open house than the train goes into the nearest one (a pair's cottages are one each,
+/// note 453) that nobody else has taken and no Gaunt in it, by its way round the walls (<see cref="FootPath"/>), puts down what it carries, shuts
 /// the door behind it (Use held, as anyone does: note 401) and waits, still out (the driver waits for it). Quiet again
 /// (<c>crew.shelterOutAt</c>), it opens the door, takes up what it put down and goes back to what it was doing. Nearer the
 /// train, it puts down what it carries and leaves the stop to the walker, who gets aboard and into a shut car.
@@ -279,8 +279,8 @@ public sealed partial class StopHand
     }
 
     /// <summary>
-    /// The nearest open house to get into from <paramref name="here"/>: a single door (one to shut, and it's shut in), not shut
-    /// (someone's in it), not taken by another of us, no Gaunt in it; its door no further than <c>crew.shelterOverTrain</c> times
+    /// The nearest open house to get into from <paramref name="here"/> (each has the one door to shut, a pair's cottages one each:
+    /// note 453), not shut (someone's in it), not taken by another of us, no Gaunt in it; its door no further than <c>crew.shelterOverTrain</c> times
     /// the train (a car's a climb, the roofs and an end door away), and walkable to within <c>crew.shelterReach</c>.
     /// </summary>
     HouseDoor? House(World world, StopWalls walls, Double3 here, StopCrewTuning t)
@@ -288,8 +288,7 @@ public sealed partial class StopHand
         var train = world.Train;
         double toTrain = FromTrain(train, here);
         var gaunts = world.ActiveEnemies.Where(e => e is Enemies.Gaunt && !e.Gone).Select(e => walls.HouseAt(e.WorldPosition(train))).ToHashSet();
-        foreach (var door in walls.HouseDoors.GroupBy(d => d.House).Where(g => g.Count() == 1).Select(g => g.First())
-            .Where(d => !walls.Shut(d.Key) && !_noHouse.Contains(d.House) && !calls.SpotClaimed(HouseKey(d.House), member) && !gaunts.Contains(d.House))
+        foreach (var door in walls.HouseDoors.Where(d => !walls.Shut(d.Key) && !_noHouse.Contains(d.House) && !calls.SpotClaimed(HouseKey(d.House), member) && !gaunts.Contains(d.House))
             .Select(d => (Door: d, Far: (Flat(d.At) - Flat(here)).Length)).Where(d => d.Far <= t.ShelterReach && d.Far < toTrain * t.ShelterOverTrain)
             .OrderBy(d => d.Far).ThenBy(d => d.Door.Key).Select(d => d.Door).Take(3))
         {
