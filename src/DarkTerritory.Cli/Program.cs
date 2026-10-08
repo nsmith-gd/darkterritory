@@ -2254,6 +2254,10 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
             && double.TryParse(args[hu + 1], System.Globalization.CultureInfo.InvariantCulture, out double hurt) ? hurt : 0.6;
+    // --commend-pick [name]: the run end's commendation picker on that crewmate (note 369), as a networked night shows it.
+    if (args.Contains("--commend-pick"))
+        Hud.StagedCommendPick = (Str(args, "--commend-pick", "Okafor") is { Length: > 0 } to && !to.StartsWith("--") ? to.ToUpperInvariant() : "OKAFOR",
+            UiStyle.Name(UiStyle.Commendation.CameBackForMe), false);
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
@@ -2679,7 +2683,8 @@ static int Usage()
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
-                     night with night.txt (note 203)
+                     night with night.txt (note 203); --commend: the night's commendations under it; --commend-pick
+                     [name]: the commendation picker on name (note 369)
           screenshot --film s [--crew n --speed v --route r] [--stills dir]   a frame of the derailment film s seconds into
                      its cut (note 177); --stills dir: each crewmate's bookmark, their peak in the film (E.5), kept as the app keeps them
                      --hazards clear|wet|cold|dark: a balance.json hazard set over the line; --mend t: the repair kit in hand,
