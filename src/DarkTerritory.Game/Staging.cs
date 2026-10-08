@@ -436,6 +436,22 @@ public static class Staging
         return crew;
     }
 
+    /// <summary>
+    /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
+    /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
+    /// </summary>
+    public static Crewmate Driver(TrainOnLine train, bool whistling)
+    {
+        var cab = train.Frames[0];
+        var levers = cab.Shape.Levers!.Value;
+        double floor = cab.Shape.Interactables.First(i => i.Kind == InteractableKind.Whistle).Position.Y;
+        var local = new Double3((levers.Regulator.X + levers.Brake.X) / 2, floor, levers.Brake.Z + 0.35);
+        var feet = cab.ToWorld(local);
+        var controls = new Sim.Train.TrainControls { Reverser = 1 };
+        return new Crewmate(30, feet, cab.Heading, true, Act: whistling ? Art.CrewPose.Whistle : Art.CrewPose.Drive,
+            Reach: Art.CrewActs.AtTheControls(controls, train.Frames, feet, cab.Heading, whistling), Car: 0, Local: local);
+    }
+
     public static List<Crewmate> Working(TrainOnLine train, string content)
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
@@ -1340,10 +1356,13 @@ public static class Staging
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
         // The flank lanes (note 418; dt screenshot --run-flank --view run): three pairs coming in from the open country abeam
-        // the guard van, the furthest still howling out there, the nearest at the car's side.
+        // the guard van, the furthest still howling out there, the nearest at the car's side. And on the other side (note 443;
+        // --view lane), three abeam the engine's gun, falling back along the engine to the first car behind it as they come in.
         if (flank)
         {
             (double Out, SpinePhase Phase)[] lane = [(9, SpinePhase.Commit), (30, SpinePhase.Commit), (62, SpinePhase.Telegraph)];
+            double gun = Director.ForwardGunAlong(train) ?? train.Dynamics.Distance - 8;
+            double first = train.Dynamics.Distance - train.Dynamics.Consist.OffsetOf(Math.Min(1, train.Dynamics.Consist.Vehicles.Count - 1)) - 1;
             int f = 60;
             foreach (var (o, phase) in lane)
                 for (int k = 0; k < 2; k++)
@@ -1351,6 +1370,11 @@ public static class Staging
                     var hound = new CinderHound(f, 60) { Runner = true, Flank = true };
                     hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear + 4 - k * 3, -(o + k * 3), 0.6, 60, 0);
                     runners.Add(hound);
+                    f++;
+                    double fell = phase == SpinePhase.Telegraph ? 0 : 1 - (o - 2) / 68;
+                    var forward = new CinderHound(f, 60) { Runner = true, Flank = true };
+                    forward.Restore(phase, 1.5 + k * 0.4, 3, -1, default, gun + (first - gun) * fell - k * 3, o + k * 3, 0.6, 60, 0);
+                    runners.Add(forward);
                     f++;
                 }
             return runners;
