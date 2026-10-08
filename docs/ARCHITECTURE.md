@@ -6246,6 +6246,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified** (`GunPowderTests`):
         - `AnIdleGunnerKeepsTheGunLaidOnItsLane` and `AGunnerKeepsItsGunWhileARunIsStillComingInWithAHoundAboard` both fail on main.
         - `TheForwardGunnerDoesntTakeTheGuardGun`.
+        - `AGunnerHoldsFireOnTheGannetRidingTheSmoke` (note 340's "not yet", raised by D1): a Gannet soaring over the guard van inside its gun's arc is shot at without the Grab filter, and the ball makes the gunner its mark.
         - Every other gun and powder test passes. Sim 1330/1330; ClerkVoice, CrewAudio, Hud, LobbyBrowser and NetPlay all pass.
     - **The sweep** (the command above, seeds 1–3; per run: km, scattered/killed/aboard):
 

@@ -172,6 +172,24 @@ public class GunPowderTests
     }
 
     [Fact]
+    public void AGunnerHoldsFireOnTheGannetRidingTheSmoke()
+    {
+        // Note 447 (note 340's "not yet"): a ball makes the gunner the Gannet's mark, and it comes down on them on the seat.
+        // Fighting it is the crew's choice; a bot gunner lays on it only while it pins someone.
+        var n = new Night(4, 20);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1 };
+        n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        // Soaring over the guard van, inside its gun's arc and pitch.
+        var gannet = n.World.AddEnemy(id => Enemies.Gannet.Arriving(id, n.Train, Tuning.Enemies.Gannet, 6));
+        gannet.Attached = Rear(n);
+        gannet.Local = new Double3(Tuning.Enemies.Gannet.SoarRadius, 8, 20);
+        n.Run(6, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.Empty(n.Shots);
+        Assert.True(gannet.GunAnswers && n.Crew[1].Has(PlayerFlags.Seated));
+    }
+
+    [Fact]
     public void TheForwardGunnerDoesntTakeTheGuardGun()
     {
         // Note 447: warmed up in the guard van, the forward gunner sat down at the guard gun beside its own gunner, and the
