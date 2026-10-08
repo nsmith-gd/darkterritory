@@ -1430,6 +1430,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
             run.Stock(searched, k, searched: true);
     }
+    if (look is not null && args.Contains("--reverser"))
+        look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1468,6 +1470,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).
+            // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
+            // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
+            : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]

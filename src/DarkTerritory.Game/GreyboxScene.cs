@@ -3637,7 +3637,7 @@ public sealed class GreyboxScene
                 fx.Furnace(mesh, bed, across, ToF(frame.Up), toCab, FireGlow, FireColour(1), Time, SinceShovel);
             }
             // The vent valve and the driver's levers: modelled by the art pass where it has them (SceneArt.CabControls).
-            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked) == true;
+            bool modelled = Look?.Art.CabControls(mesh, frame, eye, Controls, WrenchRacked, CordPulled, ShovelRacked, Time) == true;
             foreach (var i in shape.Interactables.Where(i => i.Kind == InteractableKind.Vent && !modelled))
                 draw(Box.FromCentre(i.Position + new Double3(0, 1.1, 0), new Double3(0.12, 0.12, 0.04)), Palette.TarnishedBrass);
             // The driver's levers, their handles where the controls have them (T29): a headset player takes hold of
