@@ -19,7 +19,7 @@ public class TunnelArtTests
     static readonly Look Look = Look.Load(Content);
 
     /// <summary>Everything a mesh draws (its own triangles and its instances'), relative to the eye it was built for.</summary>
-    static List<(Vector3, Vector3, Vector3)> Triangles(MeshBuilder mesh)
+    internal static List<(Vector3, Vector3, Vector3)> Triangles(MeshBuilder mesh)
     {
         var tris = new List<(Vector3, Vector3, Vector3)>();
         var v = mesh.Vertices.ToArray();
@@ -35,7 +35,7 @@ public class TunnelArtTests
     }
 
     /// <summary>Whether a segment passes through any of the triangles (Möller–Trumbore, either face).</summary>
-    static bool Hits(List<(Vector3 A, Vector3 B, Vector3 C)> tris, Vector3 from, Vector3 to)
+    internal static bool Hits(List<(Vector3 A, Vector3 B, Vector3 C)> tris, Vector3 from, Vector3 to)
     {
         var d = to - from;
         foreach (var (a, b, c) in tris)

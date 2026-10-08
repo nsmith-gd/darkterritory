@@ -1,0 +1,78 @@
+using System.Numerics;
+using Ballast;
+using Ballast.Render;
+using DarkTerritory.Sim.LineGen;
+using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Train;
+
+namespace DarkTerritory.Game.Tests;
+
+/// <summary>
+/// An alternate's or a dead line's land isn't seen through (ARCHITECTURE §8 note 498; the director, 8 Oct, GDD App. F.4:
+/// "see through or missing"): out on the main line's own land, the branch has its bed beside its ballast and the sky
+/// over it. `dt holes --edges branches` found every alternate on frontier:7 running under a roof of the main line's land,
+/// the ground beside its ballast open.
+/// </summary>
+public class BranchLandTests
+{
+    static readonly string Content = DataFile.FindContentRoot();
+    static readonly Look Look = Look.Load(Content);
+
+    [Theory]
+    [InlineData("frontier:7")]
+    public void OutOnTheMainLinesLandABranchHasItsGroundBesideItAndTheSkyOverIt(string spec)
+    {
+        // Along each alternate and dead line, every 250 m where it runs 40-280 m off the main line (on the main line's land,
+        // whose columns out there are 22-50 m apart), an eye 2.5 m over its rail looking on down it, the scene built round
+        // it as the game builds it. Before note 498 the main line's land spanned the branch's cutting from column to column
+        // overhead, and the branch's own land was left out under it, so the ground beside the ballast was open.
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var plan = route.Plan!;
+        var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var scene = new GreyboxScene { DrawDistance = 400, Look = Look, Route = route, Time = 0.37 };
+        var problems = new List<string>();
+        int places = 0;
+        foreach (var b in line.Branches.Where(b => b.Kind is BranchKind.Alternate or BranchKind.DeadLine))
+        {
+            string edge = plan.Alignment.First(a => a.Branch == b.Index && a.Role is EdgeRole.Alternate or EdgeRole.DeadLine).Edge;
+            for (double s = 150; s < b.Local.Length - 150; s += 250)
+            {
+                // Not on or under its own bridge or through its own bore: those have their own ground.
+                if (plan.Structures.Any(st => st.Edge == edge && st.S0 < s + 80 && st.S1 > s - 10))
+                    continue;
+                var at = b.Local.Sample(s);
+                double hint = b.Toe + s;
+                line.Nearest(at.Position, ref hint);
+                var off = line.Sample(hint).Position - at.Position;
+                double fromMain = Math.Sqrt(off.X * off.X + off.Z * off.Z);
+                if (fromMain is < 40 or > 280)
+                    continue;
+                var eye = at.Position + Double3.Up * 2.5;
+                var mesh = new MeshBuilder();
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning, 6, 1)), line, Math.Clamp(hint - 700, 60, line.Length - 60));
+                scene.Build(mesh, train, eye);
+                var tris = TunnelArtTests.Triangles(mesh);
+                Vector3 At(double ahead, double lateral, double up)
+                {
+                    var q = b.Local.Sample(s + ahead);
+                    return (q.Position + Double3.Cross(q.Tangent, Double3.Up).Normalized * lateral + Double3.Up * up).RelativeTo(eye);
+                }
+                foreach (double ahead in new[] { 20.0, 40, 60 })
+                {
+                    // The air over the track is open: nothing spans it, low or high.
+                    foreach (double up in new[] { 1.5, 8, 20 })
+                        if (TunnelArtTests.Hits(tris, Vector3.Zero, At(ahead, 0, up)))
+                            problems.Add($"{edge} at {s:0} ({fromMain:0} m off the main line): a roof over the track {ahead} m on, {up} m up");
+                    // The ground right beside the ballast (its foot at 2.6 m): a sight line to just over it lands on it.
+                    foreach (int side in new[] { -1, 1 })
+                        if (!TunnelArtTests.Hits(tris, Vector3.Zero, At(ahead, side * 3.1, -0.3) * 1.1f))
+                            problems.Add($"{edge} at {s:0} ({fromMain:0} m off the main line): no ground {(side > 0 ? "right" : "left")} of the ballast {ahead} m on");
+                }
+                places++;
+            }
+        }
+        Assert.True(places >= 4, $"{spec}: only {places} places out on the main line's land");
+        Assert.True(problems.Count == 0, $"{spec}, {problems.Count} of {places * 15} sight lines:\n" + string.Join("\n", problems.Take(20)));
+    }
+}

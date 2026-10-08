@@ -91,6 +91,8 @@ public sealed partial class WorldArt(Look look)
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100, 130, 170, 220, 280, 360];
     /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
     static readonly float[] PlanLateral = [.. Lateral[..15], 130, 165, 205, 250, 300];
+    /// <summary>A generated line's own columns across it, left to right (<see cref="PlanLateral"/> both sides): its land's grid (note 498).</summary>
+    static readonly float[] OwnColumns = [.. PlanLateral.Skip(1).Reverse().Select(l => -l), .. PlanLateral];
     static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
@@ -200,7 +202,7 @@ public sealed partial class WorldArt(Look look)
     {
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
-        const double step = 5;
+        const double step = RowM;
         var plan = Scene(route);
         // Across the line: from the far left to the far right, both sides of one profile, finer where a lake wants it.
         var (lats, real, before, after) = Columns(plan, from, to);
@@ -314,6 +316,9 @@ public sealed partial class WorldArt(Look look)
                     }
                     continue;
                 }
+                // Where an alternate or a dead line runs out on this land, its own land is drawn instead (note 498).
+                if (plan is not null && BranchTakes(plan, (long)Math.Floor((s + s1) / 2 / RowM), OwnColumn(lat)))
+                    continue;
                 var (a, b, band) = GroundLayers(lat);
                 bool bridge = (gorgeLeft > 0.5f || gorgeRight > 0.5f) && MathF.Abs(lat) < 3.7f;
                 if (hill && MathF.Abs(lat) < 12)
