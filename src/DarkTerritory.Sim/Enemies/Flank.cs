@@ -30,6 +30,21 @@ public sealed class Dragger(int id) : Enemy(id)
     public int Side => Local.X >= 0 ? 1 : -1;
     public int? Target => Extra >= 0 ? (int)Extra : null;
 
+    /// <summary>On a through-truss's top chord (note 435), waiting for the train to pass under it.</summary>
+    public bool Perched { get; private set; }
+    /// <summary>A truss is on the main line (note 435).</summary>
+    public override bool OnMainLine => Perched;
+
+    /// <summary>Perched on a truss's top chord at <paramref name="along"/> on the main line, on a side (note 435).</summary>
+    public static Dragger OnTruss(int id, double along, int side, DraggerDropTuning t) => new(id)
+    {
+        Perched = true,
+        LineDistance = along,
+        Lateral = side * t.Lateral,
+        Height = t.Height,
+        Extra = -1,
+    };
+
     public static Dragger Under(int id, TrainOnLine train, int car, int side, double along)
     {
         var shape = train.Frames[car].Shape;
@@ -58,6 +73,11 @@ public sealed class Dragger(int id) : Enemy(id)
     {
         var t = ctx.Tuning.Draggers;
         var train = ctx.Train;
+        if (Perched)
+        {
+            OnTheChord(ctx, t);
+            return;
+        }
         if (Attached < 0 || Attached >= train.Frames.Count)
         {
             Enter(ctx, SpinePhase.Gone);
@@ -109,6 +129,59 @@ public sealed class Dragger(int id) : Enemy(id)
             default:
                 Rearm(ctx);
                 return;
+        }
+    }
+
+    /// <summary>
+    /// Perched on the truss (note 435): the scrape from tellSeconds before the train's under it, then onto the roof of each
+    /// car passing under in turn until one has someone on it: down on them, at that car's edge, hanging them over the side.
+    /// The train gone by with nobody up there, onto the ballast and gone.
+    /// </summary>
+    void OnTheChord(EnemyContext ctx, DraggerTuning t)
+    {
+        var train = ctx.Train;
+        var d = train.Dynamics;
+        double speed = Math.Max(0.1, d.Speed);
+        if (Phase == SpinePhase.Dormant)
+        {
+            if (LineDistance - d.Distance <= speed * t.Drop.TellSeconds && d.Distance > LineDistance - 400)
+                Enter(ctx, SpinePhase.Telegraph); // the scrape on the steel above
+            else if (PhaseSeconds >= t.LingerSeconds)
+                Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (Phase != SpinePhase.Telegraph)
+            return;
+        if (d.RearDistance > LineDistance + 2 || PhaseSeconds >= t.LingerSeconds)
+        {
+            Enter(ctx, SpinePhase.BreakOff); // nobody up there: onto the ballast behind, and gone
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        if (PhaseSeconds < ctx.Tuning.MinReactionSeconds)
+            return;
+        var chord = WorldPosition(train);
+        foreach (var v in d.Consist.Vehicles)
+        {
+            var f = train.Frames[v.Id];
+            if (Math.Abs(f.ToLocal(chord).Z) > f.Shape.HalfLength)
+                continue;
+            // The car passing under: whoever's on its roof, the nearest the chord's side.
+            int side = Lateral >= 0 ? 1 : -1;
+            var under = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == v.Id && !s.Has(PlayerFlags.Held))
+                .OrderBy(c => Math.Abs(c.Player.State.Position.X - side * f.Shape.HalfWidth)).ToList();
+            if (under.Count == 0)
+                return;
+            var victim = under[0].Player;
+            int toward = Math.Sign(victim.State.Position.X + side * 1e-9);
+            Perched = false;
+            Attached = v.Id;
+            Local = new Double3(toward * (f.Shape.HalfWidth + 0.1), f.Shape.RoofHeight - 0.35,
+                Math.Clamp(victim.State.Position.Z, -f.Shape.HalfLength + 0.5, f.Shape.HalfLength - 0.5));
+            Extra = victim.Id;
+            if (Enter(ctx, SpinePhase.Commit))
+                Grab(ctx, victim.Id, t.HangSeconds * Rails(train, r => r.DraggerHang));
+            return;
         }
     }
 

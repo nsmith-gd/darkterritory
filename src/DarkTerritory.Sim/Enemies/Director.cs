@@ -1063,6 +1063,47 @@ public sealed class Director
         }
     }
 
+    readonly HashSet<string> _trussesSeen = [];
+    Pcg32 _dropRng;
+    bool _dropSeeded;
+
+    /// <summary>How many Draggers have been put on a truss tonight (note 435).</summary>
+    public int TrussDraggers { get; private set; }
+
+    /// <summary>
+    /// Draggers off a truss (note 435, orchestrator.md §5.2 S4): once a second, each through-truss on the main line coming up
+    /// within <see cref="DraggerDropTuning.Ahead"/> m of a train at <see cref="DraggerDropTuning.FromSpeed"/> or more is
+    /// rolled for once (<see cref="DraggerDropTuning.Chance"/>), and a Dragger perched on its top chord, mid-span, on a side.
+    /// Not from the budget or on the caps (the line's, as the run is the fast train's); never in the grace, a fort or the
+    /// final approach. Its own dice.
+    /// </summary>
+    public void Drops(World world, double elapsed, double noSpawnFinal)
+    {
+        var t = world.Enemies?.Draggers.Drop;
+        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || _route?.Plan is not { } plan)
+            return;
+        if (!_dropSeeded)
+        {
+            _dropRng = new Pcg32(_seed, 0xD209);
+            _dropSeeded = true;
+        }
+        var train = world.Train;
+        double front = train.Dynamics.Distance;
+        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.Length - noSpawnFinal
+            || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
+            return;
+        foreach (var st in plan.Structures)
+        {
+            if (st.Type != LineGen.StructureType.Truss || st.Edge != "main" || st.S0 - front > t.Ahead || st.S0 < front || !_trussesSeen.Add(st.Id))
+                continue;
+            if (_dropRng.NextDouble() >= t.Chance)
+                continue;
+            int side = _dropRng.NextDouble() < 0.5 ? -1 : 1;
+            world.AddEnemy(id => Dragger.OnTruss(id, (st.S0 + st.S1) / 2, side, t));
+            TrussDraggers++;
+        }
+    }
+
     /// <summary>Where a hunt is put down: <paramref name="distance"/> from them, off the line's side they're on, on the ground, out of the forts.</summary>
     Double3? HuntSpot(World world, Double3 at, double along, double distance)
     {
