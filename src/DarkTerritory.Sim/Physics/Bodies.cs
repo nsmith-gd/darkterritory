@@ -959,6 +959,13 @@ public sealed class Bodies
                 bestDepth = depth;
                 touchedCar = -2; // the world's, as the ground is
             }
+        // Note 279: down in a tunnel, its lining.
+        if (train.Line.Conditions is { } land && land.Confine(world, r) is var held && (held - world).Length is var into and > 1e-9 && into > bestDepth)
+        {
+            best = new Contact(held, (held - world) * (1 / into));
+            bestDepth = into;
+            touchedCar = -2;
+        }
         double hint = b.LineHint;
         double ground = PlayerMotor.GroundAt(world, train.Line, ref hint) + r;
         b.LineHint = hint;

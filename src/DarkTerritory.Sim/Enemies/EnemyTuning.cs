@@ -35,6 +35,8 @@ public sealed record EnemyTuning(
     /// creatures driven off by its rules only with this many crewmates on it at once.
     /// </summary>
     public CoordinatedKillTuning CoordinatedKill { get; init; } = new();
+    /// <summary>Note 279: what holds a creature loose in the world (enemies.json <c>solidity</c>).</summary>
+    public SolidityTuning Solidity { get; init; } = new();
     /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
@@ -826,4 +828,23 @@ public sealed record CreatureSitesTuning
     public double RoostReach { get; init; } = 400;
     public double CallReach { get; init; } = 160;
     public double GroundMargin { get; init; } = 4;
+}
+
+/// <summary>How a creature loose in the world is held by it (note 279): on the land, in the air over it, or its own way.</summary>
+public enum Solid : byte { None, Ground, Air }
+
+/// <summary>The world is solid for the creatures (note 279). Field docs live in enemies.json <c>solidity</c>.</summary>
+public sealed record SolidityTuning
+{
+    public double ClimbM { get; init; } = 2.5;
+    public double AirClearM { get; init; } = 0.2;
+    public Dictionary<string, string> Kinds { get; init; } = new();
+
+    Dictionary<EnemyKind, Solid>? _kinds;
+
+    public Solid Of(EnemyKind kind)
+    {
+        _kinds ??= Kinds.ToDictionary(k => Enum.Parse<EnemyKind>(k.Key, ignoreCase: true), k => Enum.Parse<Solid>(k.Value, ignoreCase: true));
+        return _kinds.TryGetValue(kind, out var s) ? s : Solid.None;
+    }
 }

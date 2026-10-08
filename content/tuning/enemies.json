@@ -192,6 +192,17 @@
     "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
   },
 
+  // The world is solid (the director, 6 Oct 2026: "creatures, carries and players must respect the terrain and geometry";
+  // ARCHITECTURE §8 note 279). Once the creatures have stepped, what's loose in the world is held out of the stops' and the
+  // fortresses' buildings and inside a tunnel's lining, by the widest sphere of its body (bodies, above). By kind: "ground"
+  // walks on the land (a Ribbit's hop, a Gaunt walking up after its waker, a feral Grumbler), but within climbM of a car it
+  // may be up its side; "air" flies, never lower than airClearM over the land (the Choir); "none" goes its own way (the
+  // Whistler's run is laid clear of walls, above, a Follower crawls along the cars, the Soot Children answer a voice).
+  "solidity": {
+    "climbM": 2.5, "airClearM": 0.2,
+    "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none" }
+  },
+
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
   // nobody within aloneRadius; starts startBehind m behind them and creeps at approachSpeed (slower at a crew of two).
   // Looked at (within seenDegrees of their view) it flees, up to maxFlees times, and waits waitAfterSeen s. At reach it
