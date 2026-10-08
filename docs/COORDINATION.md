@@ -100,6 +100,19 @@ based on notes. When work is assigned to an agent, the agent should mark it in t
   world-building change updates its piece: `status` (`landed`, `review`, `next`), `pr`, `built`, `next`, and fresh shots
   (render with `dt screenshot`, upload with the Artifact tool's `asset: true` publish, put the `/_blob/` url in `images`).
   A new piece is a new document with the next `order`.
+- **Cultures** (the director, 8 Oct: "a section on cultures so I can start writing weird worldbuilding stuff that the
+  agents can turn into content for the towns"). The board's Cultures tab is its store's `lore` collection: `title`,
+  `text`, `kind` (`custom`, `habit`, `belief`, `story`, `place`, `trade`, `other`), `forTowns` (free text: "coves", "pit
+  towns", "any"), `author`, `createdAt`, `status` (`open` waiting, `taken` being made, `done` in the game, `wontfix` set
+  aside). The town agents (B2 first; anyone whose work it fits) take an entry as they take a note: `status: "taken"`,
+  `assignee`, `assignedAt`, `queue`, a one-line `reply`, pinned with `if_version`. Turn it into the game's content, in
+  the director's words where they work: a custom (world/towns.json `cultures`: its law, hall, centrepiece, lines and
+  notes), a habit (`quirks`), a household (`households`), a thread, a notice, a building, a works piece, or houses.json
+  for how a town looks and breathes. Never reduce it to a rule the player is told; the towns hint (note 281). When it
+  merges: `status: "done"`, `pr`, and `became` (one line: what it became and where it shows). Keep the tab's "In the
+  game now" list current: its `canon` collection (editors only; agents write as the user), one document per custom,
+  habit, character, trade, thread, household and civic piece (`group`, `order`, `title`, `summary`, `line`), changed in
+  the same pass as the content.
 
 ## The queue
 
