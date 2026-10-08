@@ -128,12 +128,64 @@ public class HouseInteriorArtTests
             }
         }
         Assert.True(seen > 0, "frontier:7 has no open barn or shed");
+    }
 
-        static bool Inside(Room r, Vector3 p)
+    static bool Inside(Room r, Vector3 p)
+    {
+        var d = p - r.Centre;
+        return Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Right))) <= r.Half.X && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Up))) <= r.Half.Y
+            && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Back))) <= r.Half.Z;
+    }
+
+    [Fact]
+    public void AYardsShedsAndItsStrongroomAreRoomsAlongTheirRoofedLengthsAndAGantrysCutIsOpenAir()
+    {
+        // Note 465 (note 462's "not yet"): a yard's walk-in sheds and its hero (note 387) keep the moon and sky out along each
+        // roofed length; a gantry's cut through a shed (the castings under the hook) is the open air.
+        int lengths = 0, cuts = 0;
+        foreach (var spec in new[] { "frontier:7", "deadLines:2", "deepTerritory:2", "frontier:3" })
+            Yard(spec, ref lengths, ref cuts);
+        Assert.True(lengths > 0 && cuts > 0, $"{lengths} roofed lengths, {cuts} cuts");
+    }
+
+    static void Yard(string spec, ref int lengths, ref int cuts)
+    {
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var trains = DataFile.Load<DarkTerritory.Sim.Train.TrainTuning>(Path.Combine(Content, DarkTerritory.Sim.Train.TrainTuning.File));
+        var look = Look.Load(Content);
+        foreach (var f in route.Features.Where(f => f.Stop is not null))
         {
-            var d = p - r.Centre;
-            return Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Right))) <= r.Half.X && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Up))) <= r.Half.Y
-                && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Back))) <= r.Half.Z;
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                var b = stop.Buildings[i];
+                if (b.Kind is not (BuildingKind.Shed or BuildingKind.Hero) || stop.Holdouts.Any(h => h.Building == i))
+                    continue;
+                var roofed = StopWalls.Roofed(stop, i).ToList();
+                double ground = WorldArt.Ground(route, f.Start + b.S, (float)b.D, 18);
+                var train = new DarkTerritory.Sim.Train.TrainOnLine(new DarkTerritory.Sim.Train.TrainDynamics(DarkTerritory.Sim.Train.Consist.Uniform(trains, 4, 1)), line, f.Start);
+                MeshBuilder At(double x)
+                {
+                    var mesh = new MeshBuilder();
+                    new GreyboxScene { Look = look, Route = route, Time = 0.37 }.Build(mesh, train, Run.StopWorld(line, f, StopWalls.InHouse(b, x, 0), ground + 1.6));
+                    return mesh;
+                }
+                // Stood in the middle of each roofed length, a crewman's eye: a Room holds it.
+                foreach (var (lo, hi) in roofed)
+                {
+                    Assert.Contains(At((lo + hi) / 2).Rooms, r => Inside(r, Vector3.Zero));
+                    lengths++;
+                }
+                // Stood in a cut (its length's stretches not roofed, between two or off an end): none does.
+                var edges = roofed.SelectMany(r => new[] { r.Lo, r.Hi }).Prepend(-b.Length / 2).Append(b.Length / 2).ToList();
+                for (int k = 0; k + 1 < edges.Count; k += 2)
+                    if (edges[k + 1] - edges[k] > 2)
+                    {
+                        Assert.DoesNotContain(At((edges[k] + edges[k + 1]) / 2).Rooms, r => Inside(r, Vector3.Zero));
+                        cuts++;
+                    }
+            }
         }
     }
 }
