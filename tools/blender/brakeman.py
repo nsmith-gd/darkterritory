@@ -51,7 +51,7 @@ for _k in range(4):
     LASH.append((0.8, 0.0, 1.47 - 0.165 * (_k + 1)))
 EXTRA = [Bone(f"chain_{k + 1:02d}", "hand_r" if k == 0 else f"chain_{k:02d}", LASH[k], LASH[k + 1]) for k in range(4)]
 # The lamp on its chain at his right hip, hung from the belt.
-LAMP_TOP = Vector((0.15, 0.13, 0.99))
+LAMP_TOP = Vector((0.12, 0.12, 1.07))
 EXTRA.append(Bone("lamp", "pelvis", tuple(LAMP_TOP), tuple(LAMP_TOP + Vector((0, 0, -0.2)))))
 sk = rig.human(HEIGHT, arm=1.12, width=0.95, fingers=True, sockets=False, extra=EXTRA)
 sk.build()
@@ -287,7 +287,7 @@ for s, sx in (("r", 1), ("l", -1)):
             L = 0.04 + 0.04 * h01(k, 5)
             F.blob(o + Vector((sx * (0.012 + L * 0.5), 0, -0.012)), (L * 0.6, 0.016, 0.006), 0.012, COAT, ARM[s], rot=R(rx=math.degrees(a)),
                    around=8, rings=4)
-        F.limb([el.lerp(wr, 0.3), el.lerp(wr, 0.7), wr], [0.034, 0.028, 0.024], 0.02, SKIN, ARM[s], sides=12, ref=(0, 0, 1))
+        F.limb([el.lerp(wr, 0.3), el.lerp(wr, 0.7), wr], [0.042, 0.037, 0.033], 0.02, SKIN, ARM[s], sides=12, ref=(0, 0, 1))
         for k, (dy, dz) in enumerate(((0.016, 0.014), (-0.014, 0.012))):
             F.limb([el.lerp(wr, 0.45) + Vector((0, dy, dz)), wr + Vector((sx * -0.02, dy * 0.6, dz * 0.6))], [0.008, 0.006], 0.012, SKIN, ARM[s],
                    sides=6)
@@ -297,7 +297,7 @@ for s, sx in (("r", 1), ("l", -1)):
                RUST, ARM[s], sides=14, ref=(0, 0, 1))
         skin = RUST
     # The palm: long and bony, the knuckles swollen (the fingers are their own, `fingers`).
-    F.blob(wr.lerp(kn, 0.5) + Vector((sx * 0.006, 0, 0)), (0.06, 0.045, 0.017), 0.016, skin, f"hand_{s}", around=14, rings=8)
+    F.blob(wr.lerp(kn, 0.5) + Vector((sx * 0.006, 0, 0)), (0.066, 0.05, 0.021), 0.016, skin, f"hand_{s}", around=14, rings=8)
     for f in range(4):
         F.blob(kn + Vector((0, (f - 1.5) * 0.022, 0.006)), (0.013, 0.012, 0.012), 0.008, skin, f"hand_{s}", around=8, rings=5)
     F.blob(wr + Vector((sx * 0.004, 0, 0)), (0.02, 0.028, 0.02), 0.012, skin, ARM[s], around=10, rings=6)
@@ -317,10 +317,10 @@ for s, sx in (("r", 1), ("l", -1)):
     F.blob(kn + Vector((0, 0.03, 0)), (0.05, 0.04, 0.05), 0.03, TROUSER, LEG[s], fmat=leg_mat)                 # the knee
     # The boot: its shaft to mid-calf, the foot, the toe cap, the heel, the sole.
     F.limb([an + Vector((0, -0.01, 0.2)), an + Vector((0, -0.006, 0.05))], [0.06, 0.058], 0.02, BOOT, LEG[s], sides=14, ref=(0, 1, 0))
-    F.blob(an.lerp(bl, 0.45) + Vector((0, 0, -0.025)), (0.056, 0.11, 0.05), 0.03, BOOT, LEG[s], around=16, rings=8)
-    F.blob(bl.lerp(toe, 0.35) + Vector((0, 0, -0.008)), (0.054, 0.06, 0.034), 0.025, BOOT, LEG[s], around=14, rings=8)
+    F.blob(an.lerp(bl, 0.45) + Vector((0, 0, -0.008)), (0.06, 0.115, 0.05), 0.03, BOOT, LEG[s], around=16, rings=8)
+    F.blob(bl.lerp(toe, 0.35) + Vector((0, 0, 0.008)), (0.058, 0.064, 0.036), 0.025, BOOT, LEG[s], around=14, rings=8)
     F.blob(an + Vector((0, -0.05, -0.04)), (0.046, 0.04, 0.04), 0.02, BOOT, LEG[s], around=12, rings=6)
-    F.blob(an.lerp(toe, 0.5) + Vector((0, -0.01, -0.07)), (0.064, 0.17, 0.016), 0.012, PEAK, LEG[s], around=18, rings=4)
+    F.blob(an.lerp(toe, 0.5) + Vector((0, -0.01, -0.062)), (0.066, 0.175, 0.016), 0.012, PEAK, LEG[s], around=18, rings=4)
 
 # The roots of the iron: the brake wheel's hub sunk into his back, the flesh rucked up round it.
 WHEEL_BACK = Vector((0.11, -0.135, CHEST + 0.0))
@@ -346,7 +346,7 @@ def skirt_w(p):
 
 SK_RINGS = [(WAIST - 0.02, 0.162, 0.118), (HIP + 0.02, 0.18, 0.13), (HIP - 0.12, 0.2, 0.15), (KNEE + 0.16, 0.22, 0.166),
             (KNEE + 0.02, 0.232, 0.176), (HEM + 0.04, 0.24, 0.182)]
-N_AROUND = 32
+N_AROUND = 36
 OPEN = math.radians(26)                   # half the front's opening, at the hem (it closes to the waist)
 
 
@@ -361,8 +361,11 @@ def skirt_ring(z, rx, ry, i, inner):
         p = Vector((math.sin(a) * rx * r, -0.004 + math.cos(a) * ry * r, z))
         if last:
             # Tongues of rot: the hem torn up between them, some long, some short.
-            tongue = abs(math.sin(j * math.pi / 2.0)) * (0.05 + 0.07 * h01(j, 7))
-            p.z -= tongue - 0.03 * h01(j, 8)
+            # Rotted into long ragged tongues of different lengths, notches torn up between them, some tongues hanging out.
+            tongue = (0.06 + 0.24 * h01(j, 7) ** 1.4) if j % 2 else -(0.02 + 0.1 * h01(j, 9))
+            p.z -= tongue
+            if j % 2:
+                p += Vector((p.x, p.y + 0.004, 0)).normalized() * 0.03 * h01(j, 8)
         ring.append(p)
     return ring
 
@@ -392,23 +395,29 @@ for s, sx in (("r", 1), ("l", -1)):
             n, r0 = 0.085, 0.012
             bone = f"thumb_{s}"
         else:
-            spread = (f - 1.5) * 0.022
-            base = kn + Vector((0, spread, 0.002))
-            d = Vector((sx, spread * 0.9, -0.08)).normalized()
-            n = 0.125 * (0.86 + 0.14 * (1 - abs(f - 1.3) / 1.7))
-            r0 = 0.0115
+            # Splayed in a fan, long, each joint bent further down toward the palm: a claw of a hand.
+            fan = (f - 1.5) * 0.3
+            base = kn + Vector((0, (f - 1.5) * 0.024, 0.002))
+            d = Vector((sx * math.cos(fan), math.sin(fan), -0.05)).normalized()
+            n = 0.14 * (0.86 + 0.14 * (1 - abs(f - 1.3) / 1.7))
+            r0 = 0.015
             bone = f"fingers_{s}"
-        pts = [base - d * 0.012, base + d * n * 0.36 + Vector((0, 0, 0.004)), base + d * n * 0.68 + Vector((0, 0, 0.002)), base + d * n]
-        # Knotted at the joints: wider at each knuckle than between.
-        fingers.tube(pts, [r0 * 1.05, r0 * 1.0, r0 * 0.86, r0 * 0.7], 5, skin,
+        down = Vector((0, 0, -1))
+        pts = [base - d * 0.014, base]
+        for frac, bend in ((0.4, 12), (0.33, 30), (0.27, 50)):
+            dk = (d * math.cos(math.radians(bend)) + down * math.sin(math.radians(bend))).normalized()
+            pts.append(pts[-1] + dk * n * frac)
+        d = (pts[-1] - pts[-2]).normalized()
+        # Knotted at the joints: swollen knuckles, thinner between, tapering to the nail.
+        fingers.tube(pts, [r0 * 1.05, r0 * 1.1, r0 * 0.9, r0 * 0.8, r0 * 0.62], 5, skin,
                      (lambda p, base=base, n=n, s=s, bone=bone: {f"hand_{s}": 1.0} if (Vector(p) - base).length < n * 0.12 and bone != f"thumb_{s}" else {bone: 1.0}),
                      ref=(0, 0, 1), cap0=True)
-        for k in (1, 2):
-            fingers.blob(pts[k], (r0 * 1.14, r0 * 1.14, r0 * 1.02), 5, 3, skin, bone)
-        # The claw: horn, hooked down toward the palm, as long again as the last joint.
+        for k in (1, 2, 3):
+            fingers.blob(pts[k], (r0 * 1.32, r0 * 1.32, r0 * 1.22), 5, 3, skin, bone)
+        # The claw: horn, hooked on down past the fingertip, long.
         tip = pts[-1]
-        c1 = tip + d * 0.03 + Vector((0, 0, -0.008))
-        c2 = tip + d * 0.05 + Vector((0, 0, -0.026))
+        c1 = tip + d * 0.035 + Vector((0, 0, -0.006))
+        c2 = tip + d * 0.055 + Vector((0, 0, -0.03))
         TIPS.append(c2)
         fingers.tube([tip - d * 0.008, c1, c2], [(r0 * 0.68, r0 * 0.6), (r0 * 0.42, r0 * 0.36), 0.0012], 5, CLAW, bone, ref=(0, 0, 1), cap0=True,
                      cap1="point", smooth=False)
@@ -491,14 +500,14 @@ for dz in (0.1, -0.1):
 # The boots' iron straps: three bands round each shaft and one over the instep, a buckle on each.
 for s, sx in (("r", 1), ("l", -1)):
     an, bl = H(f"foot_{s}"), H(f"ball_{s}")
-    for k, (dz, r) in enumerate(((0.19, 0.064), (0.12, 0.062), (0.05, 0.062))):
+    for k, (dz, r) in enumerate(((0.19, 0.069), (0.12, 0.067), (0.05, 0.068))):
         c = an + Vector((0, -0.008, dz))
         ring = [c + Vector((math.sin(a) * r, math.cos(a) * r, 0)) for a in [2 * math.pi * j / 9 for j in range(9)]]
-        iron.tube(ring, [(0.004, 0.012)] * 9, 3, IRON, LEG[s], ref=[(0, 0, 1)] * 9, loop=True)
+        iron.tube(ring, [(0.007, 0.018)] * 9, 3, IRON, LEG[s], ref=[(0, 0, 1)] * 9, loop=True)
         iron.box(c + Vector((sx * r, 0.0, 0)), (0.008, 0.018, 0.016), IRON, LEG[s])
     c = an.lerp(bl, 0.5) + Vector((0, 0, -0.01))
     arch = [c + Vector((math.sin(a) * 0.062, 0, math.cos(a) * 0.05 + 0.002)) for a in [math.radians(d) for d in range(-90, 91, 30)]]
-    iron.tube(arch, [(0.004, 0.012)] * len(arch), 4, IRON, LEG[s], ref=[(0, 1, 0)] * len(arch))
+    iron.tube(arch, [(0.007, 0.018)] * len(arch), 4, IRON, LEG[s], ref=[(0, 1, 0)] * len(arch))
 # The cap's peak, stiff out over the eyes, and its brass badge (a wheel's spokes struck in it).
 peak = [Vector((math.sin(a) * 0.084, HC.y + 0.02 + math.cos(a) * 0.105, CAP_Z - 0.012 - 0.01 * math.cos(a))) for a in
         [math.radians(d) for d in range(-80, 81, 20)]]
@@ -563,7 +572,10 @@ chains.tube([end + Vector((0, 0, 0.01)), end + Vector((0, 0, -0.05)), end + Vect
 # ----------------------------------------------------------------------------------------------------------------
 # The lamp: a railwayman's hand lamp, brass gone brown, on a short chain off the belt at his right hip; its glass lit low.
 lamp = kit.part("lamp", smooth=False)
-L0 = LAMP_TOP + Vector((0, 0, -0.075))
+L0 = LAMP_TOP + Vector((0, 0, -0.2))
+# The hook off the belt it hangs from, and its chain: four links down to the bail.
+lamp.tube([LAMP_TOP + Vector((0, -0.02, 0.02)), LAMP_TOP + Vector((0, 0.01, 0.01)), LAMP_TOP + Vector((0, 0.008, -0.012))], [0.006, 0.006, 0.005], 4,
+          IRON, "pelvis", ref=(1, 0, 0))
 lamp.tube([L0 + Vector((0, 0, -0.14)), L0 + Vector((0, 0, -0.13)), L0 + Vector((0, 0, -0.02)), L0], [0.05, 0.054, 0.054, 0.046], 10, BRASS, "lamp",
           ref=(0, 1, 0), cap0=True)
 lamp.tube([L0, L0 + Vector((0, 0, 0.03)), L0 + Vector((0, 0, 0.045))], [0.046, 0.03, 0.012], 10, BRASS, "lamp", ref=(0, 1, 0), cap1=True)
@@ -571,10 +583,10 @@ lamp.blob(L0 + Vector((0, 0.05, -0.075)), (0.03, 0.012, 0.03), 10, 4, GLASS, "la
 lamp.tube([L0 + Vector((0, 0.044, -0.075)), L0 + Vector((0, 0.058, -0.075))], [0.036, 0.036], 10, BRASS, "lamp", ref=(0, 0, 1))
 bail = [L0 + Vector((-0.04, 0, 0.0)), L0 + Vector((-0.03, 0, 0.05)), L0 + Vector((0, 0, 0.068)), L0 + Vector((0.03, 0, 0.05)), L0 + Vector((0.04, 0, 0.0))]
 lamp.tube(bail, [0.004] * 5, 4, BRASS, "lamp", ref=(0, 1, 0))
-for k in range(2):
-    c = LAMP_TOP + Vector((0, 0, -0.02 - 0.03 * k))
-    lamp.tube([c + Vector((0, 0, 0.018)) + Vector((0, 0, 0)), c + Vector((0.008, 0.008 * (k % 2), 0)), c + Vector((0, 0, -0.018)),
-               c + Vector((-0.008, -0.008 * (k % 2), 0))], [0.004] * 4, 3, CHAIN, "lamp", ref=(0, 1, 0), loop=True)
+for k in range(4):
+    c = LAMP_TOP + Vector((0, 0, -0.03 - 0.03 * k))
+    w = Vector((0.012, 0, 0)) if k % 2 else Vector((0, 0.012, 0))
+    lamp.tube([c + Vector((0, 0, 0.02)), c + w, c + Vector((0, 0, -0.02)), c - w], [0.0045] * 4, 3, CHAIN, "lamp", ref=(0, 0, 1), loop=True)
 
 # ----------------------------------------------------------------------------------------------------------------
 # Clips. Axes as tools/blender/passenger.py: an arm lowered from the T-pose by +Y (the right; mirror() the left) and swung
@@ -770,8 +782,8 @@ death = Clip("death", loop=False)
 death.key(0, STOOP, "CONSTANT")
 death.key(4, hang_chain(over(STOOP, spine_02=(10, 0, 20), neck=(10, 0, 30), head=(16, 0, 20), pelvis__loc=(0, -0.08, 0))), "LINEAR")
 death.key(14, hang_chain(at(over(CROUCH, upperarm_l=(0, -20, 0), upperarm_r=(0, 30, 0)), 0.5, -0.1, 0.0, tip=30)), "LINEAR")
-death.key(26, hang_chain(at(over(STOOP, upperarm_r=(0, 10, 0), upperarm_l=(0, -10, 0)), 1.4, -0.2, -0.6, tip=85, turn=10)), "LINEAR")
-death.key(42, hang_chain(at(over(STOOP, upperarm_r=(0, 10, 0), upperarm_l=(0, -10, 0)), 1.9, -0.25, -2.4, tip=120, turn=15)), "LINEAR")
+death.key(26, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -10, 0)), 1.4, -0.2, -0.6, tip=85, turn=10)), "LINEAR")
+death.key(42, hang_chain(at(over(STOOP, upperarm_r=(50, 30, 0), upperarm_l=(0, -10, 0)), 1.9, -0.25, -2.4, tip=120, turn=15)), "LINEAR")
 
 CLIPS = [walk, wind, flee, jump, drop, climb, cornered, lash, hit, death]
 
