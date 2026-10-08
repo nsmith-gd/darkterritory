@@ -1714,6 +1714,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--scattered", 1) * SimConstants.TickRate);
     }
+    // --retreat kind:s (with a view that stages that kind): the staged ones let go of s seconds ago, going with the train at
+    // --speed (0), down off it and away into the dark (note 458, GreyboxScene.Retreating).
+    if (Str(args, "--retreat", "") is { Length: > 0 } retreat && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> letGo)
+    {
+        var parts = retreat.Split(':');
+        var going = Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(parts[0], ignoreCase: true);
+        foreach (var e in letGo.Where(e => e.Kind == going && !e.Gone).ToList())
+        {
+            letGo.Remove(e);
+            scene.Retreated(e, Staging.StrikeTick, Opt(args, "--speed", 0));
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round((parts.Length > 1 ? double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) : 1) * SimConstants.TickRate);
+    }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
     {

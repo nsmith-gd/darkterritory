@@ -510,7 +510,7 @@
   // the GDD's numbers: the kill radius is the powder car's own length and its neighbours' near ends.
   "carFire": {
     "startIntensity": 0.1, "growPerSecond": 0.006, "growWithSize": 0.02, "burnFrom": 0.35, "sprayReach": 3.5,
-    "sprayPerSecond": 0.35, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
+    "sprayPerSecond": 1.0, "chargeSeconds": 15, "rechargeSeconds": 90, "burnReach": 1.6,
     // App. C.5: it burns "whoever's in it", and says no more. The director's decision of 6 Oct 2026 (note 263: "if I stay in
     // the fire too long, then yeah, I die, but I just barely touched it"): it burns by the second, not in lumps. Within
     // burnReach of it you take burnPerSecond x its intensity, at burnBrushShare of that the moment you're in it, rising to the
@@ -526,7 +526,9 @@
     // growWithSize x its heat (the floor's cells x the cargo's growth: it's the cargo that's burning there), and burns up
     // charPerSecond x its heat of itself, charring; burnt out, it dies down at burnOutPerSecond. A cell at catchFrom or more
     // heats each cell sharing an edge with it at catchPerSecond x its heat, climb x that upward (up the walls, onto the roof).
-    // The extinguisher (sprayReach from the eye, along the look) cools the cell it's aimed at by sprayPerSecond, and the cells
+    // The extinguisher (sprayReach from the eye, along the look) cools the cell it's aimed at by sprayPerSecond (1: a cell at
+    // full blaze is out after a second of it, the director, 8 Oct 2026: "should be 1s per grid to put out"; note 467; it was
+    // 0.35, three seconds and more a cell, and holding it on a fire didn't feel like it did anything), and the cells
     // round it by sprayShare of that, and wets it for dampSeconds: it won't catch again from round it until it dries. It's
     // alight (the commit) when a cell's at burnFrom; the car's fire, for the explosion, damage and the sound, is the mean of
     // its cells (explodeAt: more than half the powder car well alight). It jumps the coupling from a cell against an end

@@ -70,4 +70,46 @@ public class LinesideFootprintTests
         }
         Assert.Equal(5, drawn);
     }
+
+    [Fact]
+    public void TheArtDrawsEachBranchsPineWhereTheSimStandsIt()
+    {
+        // Note 432: an alternate's or a dead line's pines are the sim's (LinesideProps.BranchTrees), so the art draws each
+        // one, of its mesh and height, where the sim stands it as a wall, and no other.
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        var side = LinesideProps.Of(route, line)!;
+        var art = new WorldArt(Look.Load(Content));
+        int checkedOn = 0;
+        foreach (var a in route.Plan!.Alignment.Where(a => a.Role is EdgeRole.Alternate or EdgeRole.DeadLine))
+        {
+            var local = line.Branches[a.Branch].Local;
+            var trees = side.BranchTrees(a.Branch, 0, local.Length).ToList();
+            if (trees.Count == 0)
+                continue;
+            // From the middle of its pines, everything within 150 m of the eye.
+            var mid = trees[trees.Count / 2];
+            var eye = local.Sample(mid.Along).Position;
+            var mesh = new MeshBuilder();
+            art.Plan(mesh, line, route, eye, 0, 150, 0);
+            var pines = mesh.Instances.Where(i => i.Asset.Name.StartsWith("pine-", StringComparison.Ordinal)).ToList();
+            foreach (var tree in trees)
+            {
+                var t = local.Sample(tree.Along);
+                var at = ((t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * tree.Lateral) with { Y = tree.Ground }).RelativeTo(eye);
+                if (double.Hypot(at.X, at.Z) > 100)
+                    continue;
+                Assert.Contains(pines, i => i.Asset.Name == $"pine-{tree.Variant}-12" && double.Hypot(i.Model.M41 - at.X, i.Model.M43 - at.Z) < 0.05
+                    && Math.Abs(i.Model.M42 - at.Y) < 0.05 && Math.Abs(new System.Numerics.Vector3(i.Model.M21, i.Model.M22, i.Model.M23).Length() * 12 - tree.Height) < 0.01);
+                checkedOn++;
+            }
+            // And no pine but the sim's: every one drawn stands on one of the branches' trees.
+            var all = route.Plan.Alignment.Where(b => b.Role is EdgeRole.Alternate or EdgeRole.DeadLine)
+                .SelectMany(b => side.BranchTrees(b.Branch, 0, line.Branches[b.Branch].Local.Length)
+                    .Select(x => (line.Branches[b.Branch].Local.Sample(x.Along) is var q ? q.Position + Double3.Cross(q.Tangent, Double3.Up).Normalized * x.Lateral : default).RelativeTo(eye)))
+                .ToList();
+            Assert.All(pines, i => Assert.Contains(all, w => double.Hypot(i.Model.M41 - w.X, i.Model.M43 - w.Z) < 0.05));
+        }
+        Assert.True(checkedOn > 20, $"only {checkedOn} pines checked");
+    }
 }
