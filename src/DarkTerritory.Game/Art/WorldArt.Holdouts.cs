@@ -32,36 +32,45 @@ public sealed partial class WorldArt
     }
 
     /// <param name="facing">Its door's side, in the kit's frame (the building's axis along −Z).</param>
-    void Holdout(Kit k, StopBuilding b, Vector3 facing)
+    void Holdout(Kit k, StopLayout stop, int index, Vector3 facing)
     {
+        var b = stop.Buildings[index];
         float length = (float)b.Length, width = (float)b.Width;
-        // The modelled pieces face +Z: turned so their front is the door's side.
-        float yaw = MathF.Atan2(facing.X, facing.Z);
         switch (b.Kind)
         {
             case BuildingKind.PrisonCar:
                 PrisonCar(k, length, facing.X >= 0 ? 1 : -1);
                 break;
-            case BuildingKind.SignalBox when _props.Get("signal_box") is { } box:
-                k.Append(box, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
+            case BuildingKind.Lockup:
+                Lockup(k, length, width, facing, (float)_look.Walls.PersonDoorM);
+                break;
+            case BuildingKind.SignalBox:
+                // Its locking room is the shelter (note 387): the sim's walls, its door where it's broken into, and over it
+                // the box with its windows all round, a hipped roof and the stair up the side away from the door.
+                ShelterRoom(k, stop, index, 2.6f, "brick_soot", Palette.RustRed, 1.2f, out _);
+                SignalCabin(k, b, facing);
                 break;
             case BuildingKind.WaterTower when _props.Get("water_tower") is { } tower:
-                k.Append(tower, Matrix4x4.CreateRotationY(yaw) * Kit.At(0, -0.2f, 0));
-                // Someone's boarded themselves into the pump house under the tank.
-                k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
-                k.Box(new Vector3(-1.4f, -0.3f, -1.4f), new Vector3(1.4f, 2.4f, 1.4f), Kit.Faces.All & ~Kit.Faces.NegY);
-                break;
-            case BuildingKind.Lockup:
-                Lockup(k, length, width);
-                break;
+                {
+                    // Someone's boarded themselves into the pump house under the tank: the sim's walls, the tower's legs
+                    // standing in it, the pump in the middle and its pipe up through the roof to the tank.
+                    ShelterRoom(k, stop, index, 2.4f, "brick_soot", Palette.RustRed, 1.2f, out _);
+                    k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0, tile: 1.3f);
+                    k.Box(new Vector3(-width / 2 - 0.15f, 2.4f, -length / 2 - 0.15f), new Vector3(width / 2 + 0.15f, 2.6f, length / 2 + 0.15f));
+                    k.Append(tower, Matrix4x4.CreateRotationY(MathF.Atan2(facing.X, facing.Z)) * Kit.At(0, -0.2f, 0));
+                    Pump(k);
+                    break;
+                }
             default:
-                // A lamp room (or a signal box or water tower without its model): a squat brick hut, a slate roof, the
-                // door planked over from inside.
-                k.Use("brick_soot", Palette.RustRed, 0.9f, 0.1f, tile: 1.2f);
-                k.Box(new Vector3(-width / 2, -0.3f, -length / 2), new Vector3(width / 2, 2.8f, length / 2), Kit.Faces.All & ~Kit.Faces.NegY);
-                k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
-                k.Box(new Vector3(-width / 2 - 0.3f, 2.8f, -length / 2 - 0.3f), new Vector3(width / 2 + 0.3f, 3.1f, length / 2 + 0.3f), Kit.Faces.All);
-                break;
+                {
+                    // A lamp room (or a water tower without its model): a squat brick hut, a slate roof, the door planked
+                    // over from inside; within, the shelf of lamps and oil it was for.
+                    ShelterRoom(k, stop, index, 2.8f, "brick_soot", Palette.RustRed, 1.2f, out var back);
+                    k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+                    k.Box(new Vector3(-width / 2 - 0.3f, 2.8f, -length / 2 - 0.3f), new Vector3(width / 2 + 0.3f, 3.1f, length / 2 + 0.3f), Kit.Faces.All);
+                    LampShelf(k, back);
+                    break;
+                }
         }
     }
 
@@ -85,13 +94,7 @@ public sealed partial class WorldArt
                     // The leaf hangs on its hinges at the van's −Z edge of the doorway: swung out wide, it stands off the side.
                     var hinge = Matrix4x4.CreateRotationY(open ? door * 1.75f : 0) * Matrix4x4.CreateTranslation(x, 0, -1.0f);
                     k.With(hinge, () => k.Box(new Vector3(-0.04f, floor + 0.1f, 0), new Vector3(0.04f, floor + 0.1f + h, 2.0f)));
-                    if (open)
-                    {
-                        // The doorway dark behind it.
-                        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
-                        k.Shade(0.3f);
-                        k.Panel(new Vector3(door * (w + 0.005f), floor + 0.1f + h / 2, 0), new Vector3(door, 0, 0), Vector3.UnitY, 2.0f, h);
-                    }
+                    // (Open, the doorway shows the van's inside: PrisonCar draws it hollow, note 387.)
                     k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
                     if (!open)
                         k.BoxAt(new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(0.05f, 0.12f, 0.09f));
@@ -108,7 +111,7 @@ public sealed partial class WorldArt
                 {
                     // The gate: an iron frame of bars across the cage's end (or side) the crew comes to, padlocked shut.
                     bool end = MathF.Abs(facing.Z) > 0;
-                    float halfSpan = 0.5f, at = end ? length / 2 + 0.03f : width / 2 + 0.03f;
+                    float halfSpan = (float)_look.Walls.PersonDoorM / 2, at = end ? length / 2 + 0.03f : width / 2 + 0.03f;
                     var place = end ? Matrix4x4.CreateRotationY(facing.Z > 0 ? 0 : MathF.PI) : Matrix4x4.CreateRotationY(facing.X > 0 ? MathF.PI / 2 : -MathF.PI / 2);
                     k.With(place, () =>
                     {
@@ -131,15 +134,13 @@ public sealed partial class WorldArt
                 }
             default:
                 {
-                    // A shelter: the barricade across its doorway, where the building's own model has the door.
-                    var (centre, half) = b.Kind switch
-                    {
-                        BuildingKind.SignalBox => (facing * (width / 2 + 0.05f), 1.1f),
-                        BuildingKind.WaterTower => (facing * 1.45f, 1.0f),
-                        _ => (facing * ((MathF.Abs(facing.X) > 0 ? width / 2 : length / 2) + 0.05f), 1.0f),
-                    };
+                    // A shelter: the barricade across its doorway, the sim's in the middle of the face it's broken into at
+                    // (every shelter is the sim's walls now, note 387).
+                    var centre = facing * ((MathF.Abs(facing.X) > 0 ? width / 2 : length / 2) + 0.05f);
+                    float half = (float)_look.Walls.PersonDoorM / 2 + 0.25f;
+                    // (Its sill's the room's boards, a step up: ShelterRoom.)
                     if (!open)
-                        Barricade(k, centre + Doorway(k), facing, half, k.DoorHeight());
+                        Barricade(k, centre + Doorway(k) + Vector3.UnitY * 0.25f, facing, half, k.DoorHeight());
                     else
                         PriedOff(k, centre, facing, half, k.DoorHeight());
                     break;
@@ -147,13 +148,11 @@ public sealed partial class WorldArt
         }
     }
 
-    /// <summary>A barricade pried off (D.7): two boards hanging by a nail at one end, the rest down on the ground before the doorway, which stands open and dark.</summary>
+    /// <summary>A barricade pried off (D.7): two boards hanging by a nail at one end, the rest down on the ground before the doorway, which stands open on the room (note 387).</summary>
     static void PriedOff(Kit k, Vector3 sill, Vector3 outward, float halfWidth, float height)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));
-        k.Use("paint_black", Palette.SootBlack, 0.95f, 0);
         k.Shade(0.3f);
-        k.Panel(sill + outward * 0.02f + Vector3.UnitY * (0.05f + height / 2), outward, Vector3.UnitY, 0.9f, height);
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
         foreach (int i in new[] { 0, 3 })
         {
@@ -215,13 +214,51 @@ public sealed partial class WorldArt
                 foreach (int side in new[] { -1, 1 })
                     k.Cylinder(new Vector3(side * TrainKit.HalfGauge - 0.06f, 0.5f, z + dz), new Vector3(side * TrainKit.HalfGauge + 0.06f, 0.5f, z + dz), 0.45f, 10);
         }
+        // Its body hollow (note 387): plate walls, floor and roof, so its door broken open shows the cell inside. The door's
+        // opening is where Entrance hangs its leaf: 2 m along the middle of the crew's side, the standard door's height.
+        const float plate = 0.08f, d0 = -1.0f, d1 = 1.0f;
+        float lintel = floor + 0.1f + k.DoorHeight();
         k.Use("paint_oxide", Palette.BlueGrey * 0.7f, 0.95f, 0.2f, tile: 1.5f);
-        k.Box(new Vector3(-w, floor, -half), new Vector3(w, top, half), Kit.Faces.All & ~Kit.Faces.NegY);
-        // Barred slits high along both sides, dark behind.
+        k.Box(new Vector3(-w, floor, -half), new Vector3(w, floor + 0.1f, half), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Box(new Vector3(-w, top - plate, -half), new Vector3(w, top, half), Kit.Faces.All);
+        foreach (float z in new[] { -half, half - plate })
+            k.Box(new Vector3(-w, floor + 0.1f, z), new Vector3(w, top - plate, z + plate), Kit.Faces.Sides);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side > 0 ? w - plate : -w, x1 = side > 0 ? w : -w + plate;
+            if (side != door)
+            {
+                k.Box(new Vector3(x0, floor + 0.1f, -half + plate), new Vector3(x1, top - plate, half - plate), Kit.Faces.Sides);
+                continue;
+            }
+            k.Box(new Vector3(x0, floor + 0.1f, -half + plate), new Vector3(x1, top - plate, d0), Kit.Faces.Sides);
+            k.Box(new Vector3(x0, floor + 0.1f, d1), new Vector3(x1, top - plate, half - plate), Kit.Faces.Sides);
+            k.Box(new Vector3(x0, lintel, d0), new Vector3(x1, top - plate, d1), Kit.Faces.Sides | Kit.Faces.NegY);
+        }
+        // Barred slits high along both sides, dark behind, outside and in.
         k.Shade(0.15f);
         for (float z = -5.5f; z <= 5.6f; z += 2.2f)
             foreach (int side in new[] { -1, 1 })
+            {
                 k.Panel(new Vector3(side * (w + 0.01f), 2.9f, z), new Vector3(side, 0, 0), Vector3.UnitY, 0.9f, 0.35f);
+                k.Panel(new Vector3(side * (w - plate - 0.01f), 2.9f, z), new Vector3(-side, 0, 0), Vector3.UnitY, 0.9f, 0.35f);
+            }
+        // The cell: a plank bench down each side (the door's either side of it), and the slop bucket at the far end.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side * (w - plate - 0.42f), x1 = side * (w - plate);
+            (float, float)[] runs = side == door ? [(-half + 0.5f, d0 - 0.2f), (d1 + 0.2f, half - 0.5f)] : [(-half + 0.5f, half - 0.5f)];
+            foreach (var (z0, z1) in runs)
+            {
+                k.Box(new Vector3(MathF.Min(x0, x1), floor + 0.52f, z0), new Vector3(MathF.Max(x0, x1), floor + 0.57f, z1));
+                foreach (float z in new[] { z0 + 0.2f, z1 - 0.2f })
+                    k.Box(new Vector3(MathF.Min(x0, x1) + 0.1f, floor + 0.1f, z - 0.04f), new Vector3(MathF.Max(x0, x1) - 0.1f, floor + 0.52f, z + 0.04f));
+            }
+        }
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+        k.Cylinder(new Vector3(-door * 0.6f, floor + 0.1f, half - 0.6f), new Vector3(-door * 0.6f, floor + 0.42f, half - 0.6f), 0.16f, 10);
+        k.Use("paint_oxide", Palette.BlueGrey * 0.7f, 0.95f, 0.2f, tile: 1.5f);
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
         for (float z = -5.5f; z <= 5.6f; z += 2.2f)
             foreach (int side in new[] { -1, 1 })
@@ -230,19 +267,26 @@ public sealed partial class WorldArt
         // (The door on the crew's side, its leaf and padlock, are drawn by its state: Entrance.)
     }
 
-    /// <summary>A halt's lockup (D.4): a parcel cage of iron bars on a plinth, a tin roof, a padlocked gate.</summary>
-    static void Lockup(Kit k, float length, float width)
+    /// <summary>
+    /// A halt's lockup (D.4): a parcel cage of iron bars on a plinth, a tin roof, a padlocked gate. No bars where its gate
+    /// is, the sim's door in the middle of the face it's broken into at (<paramref name="facing"/>, the gate's
+    /// <paramref name="gate"/> wide): Entrance hangs the gate there, and swung open you walk in (note 387).
+    /// </summary>
+    static void Lockup(Kit k, float length, float width, Vector3 facing, float gate)
     {
         k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
         k.Box(new Vector3(-width / 2, -0.3f, -length / 2), new Vector3(width / 2, 0.25f, length / 2), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
         const float h = 2.6f;
+        bool Gate(Vector3 at) => Vector3.Dot(at, facing) > 0.01f && MathF.Abs(Vector3.Dot(at, new Vector3(facing.Z, 0, facing.X))) < gate / 2;
         for (float z = -length / 2; z <= length / 2 + 0.01f; z += 0.2f)
             foreach (float x in new[] { -width / 2, width / 2 })
-                k.Rod(new Vector3(x, 0.25f, z), new Vector3(x, h, z), 0.012f);
+                if (!Gate(new Vector3(x, 0, z)) || MathF.Abs(facing.X) < 0.5f)
+                    k.Rod(new Vector3(x, 0.25f, z), new Vector3(x, h, z), 0.012f);
         for (float x = -width / 2; x <= width / 2 + 0.01f; x += 0.2f)
             foreach (float z in new[] { -length / 2, length / 2 })
-                k.Rod(new Vector3(x, 0.25f, z), new Vector3(x, h, z), 0.012f);
+                if (!Gate(new Vector3(x, 0, z)) || MathF.Abs(facing.Z) < 0.5f)
+                    k.Rod(new Vector3(x, 0.25f, z), new Vector3(x, h, z), 0.012f);
         foreach (float y in new[] { 0.3f, 1.4f, h })
         {
             k.Rod(new Vector3(-width / 2, y, -length / 2), new Vector3(-width / 2, y, length / 2), 0.03f);
