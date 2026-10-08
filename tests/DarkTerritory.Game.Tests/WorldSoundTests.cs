@@ -407,6 +407,117 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void TheWalledTownIsHeardItsFiresItsRoomsAndItsPeople()
+    {
+        // Note 415: the departure town's fires held where they burn, a lived-in house's range clear inside it and through its
+        // walls from the street, its people out of doors heard talking low where they are, and coughing now and then; and
+        // nothing of it away from the town. A town of 3000, as World.EnableTown stands it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.fire", "place-town.range", "place-town.clock", "place-town.radio", "place-town.murmur");
+        Stand(audio, "place-town.cough");
+        bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
+        SoundInstance VoiceAt(string name, Double3 at) =>
+            audio.Mixer.Voices.Where(v => v.Name == name && !v.Finished && !v.Stopped).MinBy(v => (v.Position - at).Length)!;
+        var ears = new Ears(audio, world);
+
+        // The town is looked round every quarter second (GameAudio.TownLook): half a second at each place.
+        // Beside a fire barrel in the square: it burns there, nothing between.
+        var barrel = town.Plan.Fixtures.First(f => f.Kind == "barrel");
+        var fire = town.World(barrel.S, barrel.D, Sim.Towns.TownFixtures.Size("barrel").Height);
+        var street = town.World(barrel.S + 2.5, barrel.D, 1.6);
+        Assert.Equal(-1, GameAudio.TownHouseAt(town, street));
+        ears.Tick(street, SimConstants.TickRate / 2);
+        Assert.True(Sounding("place-town.fire"));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == "place-town.fire" && !v.Stopped && (v.Position - fire).Length < 1e-6 && v.Occlusion == 0);
+
+        // A lived-in house's range: clear in its kitchen, through its walls from out in front.
+        var stove = town.Plan.Fixtures.First(f => f.Kind == "stove" && f.House >= 0);
+        var house = town.Plan.Houses.First(h => h.Id == stove.House);
+        var kitchen = town.World(stove.S, stove.D, 1.6) + (town.World(house.S, house.D) - town.World(stove.S, stove.D)) * 0.3;
+        Assert.Equal(house.Id, GameAudio.TownHouseAt(town, kitchen));
+        ears.Tick(kitchen, SimConstants.TickRate / 2);
+        var hob = town.World(stove.S, stove.D, Math.Max(0.5, stove.Height));
+        Assert.True(Sounding("place-town.range"));
+        Assert.True((VoiceAt("place-town.range", hob).Position - hob).Length < 1e-6);
+        Assert.Equal(0, VoiceAt("place-town.range", hob).Occlusion);
+        var front = house.Rail(0, -2.5);
+        var outside = town.World(front.S, front.D, 1.6);
+        Assert.Equal(-1, GameAudio.TownHouseAt(town, outside));
+        ears.Tick(outside, SimConstants.TickRate / 2);
+        Assert.True(Sounding("place-town.range"));
+        Assert.True(VoiceAt("place-town.range", hob).Occlusion > 0.5f);
+
+        // Where the townsfolk stand: their murmur, and in a minute or so a cough.
+        var person = town.Plan.People.First(p => p.House < 0);
+        var among = town.Feet(person) + new Double3(1.5, 1.6, 0);
+        int coughs = ears.Started.Count(v => v.Name == "place-town.cough");
+        ears.Tick(among, SimConstants.TickRate * 90);
+        Assert.True(Sounding("place-town.murmur"));
+        Assert.True(ears.Started.Count(v => v.Name == "place-town.cough") > coughs);
+
+        // Away from the town: none of it.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped);
+    }
+
+    [Fact]
+    public void AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough()
+    {
+        // Note 412 (note 326): each kind of hiding spot its own sound, held where it's kept while the search is under way as
+        // the host has it (a client's view: Run.MirrorSearch), cut when the hands come off; the find once, as it's gone through.
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 1);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), 900, Boilers);
+        var world = new World(train);
+        world.EnableRun(Runs, route, 600, authority: false, loot: DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(Content, Sim.Stops.LootTuning.File)));
+        var run = world.Run!;
+        Assert.NotEmpty(run.HidingSpots);
+        var audio = new GameAudio(Content);
+        static string CueOf(Sim.Stops.ContainerKind kind) => kind switch
+        {
+            Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
+            Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
+            Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            _ => "crew-search.boards",
+        };
+        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards");
+        Stand(audio, "crew-search.found");
+        bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
+        var ears = new Ears(audio, world);
+        var kinds = run.HidingSpots.GroupBy(h => h.Container.Kind).Select(g => g.First()).ToList();
+        Assert.True(kinds.Count >= 3, $"only {kinds.Count} kinds of hiding spot on the night");
+        foreach (var spot in kinds)
+        {
+            string cue = CueOf(spot.Container.Kind);
+            var ear = spot.Kept + spot.Facing * 1.5 + Double3.Up * 1.6;
+            ears.Tick(ear);
+            Assert.False(Sounding(cue));
+            // Under way: held where it's kept.
+            run.MirrorSearch(spot.Stop, [], [(spot.Container.Index, 0.3)]);
+            ears.Tick(ear, 5);
+            Assert.True(Sounding(cue), cue);
+            Assert.True((audio.Mixer.Voices.First(v => v.Name == cue && !v.Stopped).Position - spot.Kept).Length < 1.5);
+            // Hands off: cut.
+            run.MirrorSearch(spot.Stop, [], []);
+            ears.Tick(ear, 2);
+            Assert.False(Sounding(cue));
+            // Gone through: the find, once.
+            int found = ears.Started.Count(v => v.Name == "crew-search.found");
+            run.MirrorSearch(spot.Stop, [spot.Container.Index], []);
+            ears.Tick(ear, SimConstants.TickRate);
+            Assert.Equal(found + 1, ears.Started.Count(v => v.Name == "crew-search.found"));
+            Assert.False(Sounding(cue));
+        }
+    }
+
+    [Fact]
     public void AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp()
     {
         // Note 409 (B4's note 401): a house door shut or opened, off the replicated state, once a change, in its doorway: in

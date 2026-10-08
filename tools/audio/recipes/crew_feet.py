@@ -204,6 +204,46 @@ def on_mud(rng, boot, s, part, take):
     return hp(y, 80, 4)
 
 
+DEAL = [520, 980, 1650]                              # a deal floorboard's knock: broad, woody, never a pitch
+
+
+def on_planks(rng, boot, s, part, take):
+    """A car's plank floor, rebuilt after AU1's audit (note 419): the boot recordings on boards were centred near 300 Hz, a
+    slow 100-250 Hz wobble a step, the cobbles' old squish. A hard boot on deal is the heel's crack (leather and nails on
+    wood, the sole's click from 1.4 kHz up), the board's dry knock (broad woody modes at 0.5-1.7 kHz, gone in 30 ms), the
+    joists' short thump under it (a 130 Hz knock, 15 ms, no boom), the boot recording itself kept above its wobble, and now
+    and then a board's creak as the weight rolls off the toe."""
+    toe = part == "toe"
+    knock = ck.hollow(rng, [f * rng.uniform(0.9, 1.12) for f in DEAL], 0.06, q=3.5, hit=0.002)
+    knock = ck.norm(ck.choke(knock, 0.006, 0.016 if toe else 0.022))
+    joist = ck.norm(ck.choke(ck.hollow(rng, [rng.uniform(115, 150)], 0.06, q=1.5, hit=0.003), 0.008, 0.012))
+    body = ck.norm(hp(boot, 260, 2))
+    y = mix(sole(boot, 1400) * 0.65 * s, knock * 0.65 * s, joist * (0.12 if toe else 0.22) * s, body * 0.2 * s)
+    if toe and rng.random() < 0.3:
+        L_ = rng.uniform(0.05, 0.09)
+        creak = synth.creak(L_, rng.uniform(45, 90), rng, body=[f * 1.3 for f in DEAL], q=9, jitter=0.4)
+        y = mix(y, ck.place([(0.02, ck.norm(hp(creak, 300)) * env([(0, 0), (0.01, 1), (L_, 0)], L_), -18)], 0.12)[:len(y)] * s)
+    return y
+
+
+def on_tin(rng, boot, s, part, take):
+    """A car's tin roof, rebuilt after the same audit (note 419): the old roof was the panel's boom over everything (a
+    300 Hz centre). Boots on a nailed tin sheet are the sheet first: its bright buckle under the heel (a short oil-can pop
+    and the thin plate's crash, Kenney's light plate barely pitched), the loose sheet rattling against its nails, the tin's
+    ring kept short, and the car's hollow under it, quieter and shorter than the sheet."""
+    toe = part == "toe"
+    sheet = ck.get(ck.one(PLATE_L, take + 2 * toe))
+    sheet = ck.choke(ck.align(dsp.vari(sheet, rng.uniform(-0.6, 0.6))), 0.015, 0.03)
+    sheet = ck.norm(hp(sheet, 300))
+    pop = ck.norm(ck.tick(rng, rng.uniform(1500, 2600), q=4, length=0.012))
+    rattle = ck.grains(rng, int(rng.integers(3, 7)), 0.05, 1800, 5500, q=(12, 25), length=(0.008, 0.02))
+    tin = ck.choke(ck.align(dsp.vari(ck.get(ck.one(TIN, take + toe)), -3 + rng.uniform(-0.5, 0.5))), 0.008, 0.025)
+    drum = ck.choke(ck.hollow(rng, [84, 132, 205, 310], 0.15, q=5), 0.02, 0.05)
+    y = mix(sheet * 0.6 * s, pop * (0.25 if toe else 0.35) * s, ck.norm(rattle) * 0.15 * s, ck.norm(tin) * 0.2 * s,
+            drum * 0.35 * s, sole(boot, 1800) * 0.4 * s)
+    return y
+
+
 def stone(rng, boot, s, part, take, grit=1.0):
     """A hard boot on stone (the director, 8 Oct: the town's stones were "a super weird squishy footstep sound"). The packs'
     concrete steps are soft soles, everything under 1 kHz, a 250 Hz wobble a step that reads as a squish; so the stone is
@@ -235,8 +275,9 @@ def on_concrete(rng, boot, s, part, take):
 
 
 SURF = dict(wood=on_wood, grate=on_grate, plate=on_plate, roof=on_roof, coal=on_coal, ballast=on_ballast, dirt=on_dirt,
-            grass=on_grass, mud=on_mud, cobbles=on_cobbles, concrete=on_concrete)
+            grass=on_grass, mud=on_mud, cobbles=on_cobbles, concrete=on_concrete, planks=on_planks, tin=on_tin)
 ROOM = dict(wood=lambda y: dsp.room(y, "car", wet=0.14, rng=np.random.default_rng(11)),
+            planks=lambda y: dsp.room(y, "car", wet=0.08, rng=np.random.default_rng(11)),
             plate=lambda y: dsp.room(y, "cab", wet=0.12, rng=np.random.default_rng(11)),
             concrete=lambda y: ck.space(y, 0.45, 0.14, 5000, ((0.006, 0.5), (0.013, 0.35), (0.021, 0.2))))
 
@@ -300,6 +341,9 @@ def _land(rng, take, mat):
               (settle, scrape(rng, mat, 0.1, 0.4), -6)]
     if mat in ("wood", "roof", "plate"):
         parts.append((0.0, ck.hollow(rng, [62, 98, 150], 0.25, q=3) * 0.3, -4 if mat != "roof" else 0))
+    elif mat in ("planks", "tin"):
+        # The weight of a landing on a hollow deck, kept short (note 419): a thump, not a boom.
+        parts.append((0.0, ck.choke(ck.hollow(rng, [70, 110, 165], 0.12, q=2.5), 0.02, 0.04) * 0.3, -8))
     return finish(mat, ck.place(parts), rng)
 
 
@@ -320,6 +364,8 @@ SCRAPE = {
     "grate": ((800, 5000), 220, 0.5, (0, 0, 0)),
     "plate": ((600, 5000), 260, 0.5, (90, 2500, 8000)),
     "roof": ((400, 4000), 170, 0.6, (0, 0, 0)),
+    "planks": ((500, 4500), 170, 0.6, (40, 2500, 7000)),
+    "tin": ((800, 5500), 200, 0.55, (0, 0, 0)),
     "coal": ((400, 4000), 110, 0.8, (260, 1300, 6500)),
     "ballast": ((300, 3000), 80, 0.8, (220, 700, 4000)),
     "dirt": ((400, 4000), 210, 0.7, (160, 2500, 9000)),
@@ -353,6 +399,10 @@ def scrape(rng, mat, L, s):
                 y[a:a + len(c)] += c[:len(y) - a] * 0.4 * shape[min(a, len(shape) - 1)]
         if mat == "roof":
             y = mix(y, ck.hollow(rng, [88, 140, 215], L, q=8, hit=L * 0.5) * 0.15)
+        if mat == "tin":
+            # the sheet flexing under the sole: a soft buckle and its rattle, the hollow barely there
+            y = mix(y, ck.grains(rng, 6, L, 1800, 5000, q=(12, 25), length=(0.008, 0.02)) * 0.4,
+                    ck.hollow(rng, [88, 140, 215], L, q=6, hit=L * 0.5) * 0.05)
     return ck.norm(y) * s
 
 
@@ -370,6 +420,8 @@ WHAT = {
     "mud": ("boots in mud and bog", BOOTS + WET),
     "cobbles": ("boots on cobbles and stone setts, outdoors", BOOTS),
     "concrete": ("boots on an indoor concrete floor", BOOTS),
+    "planks": ("boots on a car's plank floor: a hard boot on deal", BOOTS),
+    "tin": ("boots on a car's tin roof: the sheet buckling and rattling", BOOTS + PLATE_L + TIN),
 }
 
 HOW = {
@@ -401,6 +453,13 @@ HOW = {
         up), the stone's dead knock (broad modes at 0.4-2.3 kHz, gone in 20 ms), a short thump of weight, the boot's sole
         click, and sand between the setts. Outdoors, dry.""",
     "concrete": """The same hard boot on smoother stone (less sand), in a short hard indoor room.""",
+    "planks": """Rebuilt after AU1's audit (note 419; the boot recordings on boards sat near 300 Hz, the cobbles' old squish):
+        each heel and toe the sole's crack (the boot recording above 1.4 kHz), the board's dry knock (broad woody modes at
+        0.5-1.7 kHz, gone in 30 ms), the joists' short thump (130 Hz, 15 ms, no boom) and the boot recording itself kept
+        above its wobble, a board creaking now and then off the toe; the car's small wooden room.""",
+    "tin": """Rebuilt after the same audit (note 419; the old roof was the panel's boom over all of it): the sheet first,
+        Kenney's light plate barely pitched and choked under the boot, a short oil-can pop as it buckles, the loose sheet
+        rattling on its nails, the tin's ring short, and the car's hollow under it, quieter and shorter. Outdoors, dry.""",
 }
 
 
@@ -436,6 +495,36 @@ def _register():
                preview=lambda t, r, m=mat: _context(t, r, m, "scuff"))(lambda rng, k, m=mat: scuff(rng, k, m))
 
 
+# The alternates (note 419): a new candidate on an existing surface's cues, built as its own surface, so the director can
+# hear the old and the new side by side and keep one.
+ALTERNATES = {"planks": "wood", "tin": "roof"}
+
+
+def _register_alternates():
+    for alt, mat in ALTERNATES.items():
+        what, srcs = WHAT[alt]
+        srcs = sorted(set(srcs))
+        how = " ".join(HOW[alt].split())
+        recipe("crew-footsteps", "walk", alt, f"Walking: {what}", how + " Six takes, walked in a steady gait in the preview.",
+               sources=srcs, takes=6, mat=mat, lufs=-20,
+               preview=lambda t, r: ck.gait(t, r, 0.56, 16))(lambda rng, k, m=alt: step(rng, k, m, "walk"))
+        recipe("crew-footsteps", "run", alt, f"Running: {what}",
+               how + " Running lands on the forefoot, the surface driven harder. Six takes, run in a steady stride.",
+               sources=srcs, takes=6, mat=mat, lufs=-17,
+               preview=lambda t, r: ck.gait(t, r, 0.34, 20))(lambda rng, k, m=alt: step(rng, k, m, "run"))
+        recipe("crew-footsteps", "jump", alt, f"Push-off into a jump: {what}", "Both forefeet driven down, the soles scraping.",
+               sources=srcs, takes=3, mat=mat, lufs=-19,
+               preview=lambda t, r, m=alt: _context(t, r, m, "jump"))(lambda rng, k, m=alt: jump(rng, k, m))
+        recipe("crew-footsteps", "land", alt, f"Landing from a jump or drop: {what}",
+               "Both feet flat down, driven hard, the weight's short thump on the hollow deck, a foot shuffling to settle.",
+               sources=srcs, takes=3, mat=mat, lufs=-15,
+               preview=lambda t, r, m=alt: _context(t, r, m, "land"))(lambda rng, k, m=alt: land(rng, k, m))
+        recipe("crew-footsteps", "scuff", alt, f"Turning or stopping short: {what}",
+               "The forefoot planted and the sole dragged over the surface.",
+               sources=srcs, takes=3, mat=mat, lufs=-21,
+               preview=lambda t, r, m=alt: _context(t, r, m, "scuff"))(lambda rng, k, m=alt: scuff(rng, k, m))
+
+
 def _context(takes, rng, mat, cue):
     """Each take where it happens: run into a jump and land, or walk into a stop."""
     run = [ck.leveled(step(np.random.default_rng(i), i, mat, "run"), -17) for i in range(4)]
@@ -468,3 +557,4 @@ def _context(takes, rng, mat, cue):
 
 
 _register()
+_register_alternates()
