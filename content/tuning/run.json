@@ -25,6 +25,15 @@
   // is put down inside one, and a creature that comes into one is driven off (it lets go of whoever it holds, and is gone).
   // A crewmate left behind near the gate can run back inside.
   "forts": { "safe": true, "halfWidthM": 80 },
+  // The world is solid (the director, 6 Oct 2026; ARCHITECTURE §8 note 279): a stop's buildings stand as walls nobody walks
+  // through and a ball stops at. The houses, barns and outbuildings (T114), and now the powerhouse, signal box, lamp room,
+  // water tower, lockup, prison car and well: shut, each its footprint, topM over its ground (a well's kerb wellTopM). A
+  // shed and the hero stand as their four walls, wallM thick, with the bay door the art draws (bayDoorM wide, in the middle
+  // of each roofed length, to the track it serves), so the crates inside are fetched through the door; where a gantry
+  // works the shed, its cut is open to the track with the back shell's wall cutShellM high, as StructureKit draws it. A
+  // Holdout stands as its walls with a door personDoorM wide where the crew breaches it: its occupant comes back inside it
+  // (GDD App. D.14) and walks out of the door.
+  "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "cutShellM": 4.5, "wellTopM": 0.85, "topM": 9 },
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
   // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
   // bored pace), never less than lineSeconds.
