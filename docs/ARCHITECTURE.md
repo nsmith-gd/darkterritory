@@ -6363,3 +6363,20 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pinned:** `CreatureSoundTests.ATrussDraggerLandsOnTheRoofBeforeItsGrabOrFallsOnTheBallastBehind`, on records mirrored as a client gets them:
         - perched, then on car 2's roof in its grab: the landing at once, and the grab once within half a second;
         - another perched, then gone: its fall, 7.2 m under where it hung.
+446. **The townsfolk heard on their rounds (AU1, queue #182; B2's #389, note 353: towns that are lived in; AU1's note 415 heard the town standing still).** Since #389 everyone in a walled town has a round: from their post to a bench, a fire, the board, a vigil and back, a household round its rooms, the watch along the wall with their lanterns. Each of them breathes through their gear (a respirator, an oxygen cup, a rebreather, a wrapped can). None of it was heard but the murmur: nobody's feet, nobody's breath.
+    - **How** (`GameAudio.FolkOnTheirRounds`): with the rest of the town, every 0.25 s, each person's feet are found once (`Town.Feet`). The lookup keeps the nearest four within 20 m, the nearest out of doors within 4 m and the nearest two of the watch (`Pose` "lantern") within 25 m. Then, every tick, off `Town.Now`:
+        - **Steps:** a walker's step each 0.7 m they cover (`TownPose.Walking`), on what's under them. That's the street's cobbles or dirt as `Footing.Ground` has the town, a house's boards indoors, or the wall-walk's planks up on it. It's the crew's own `crew-footsteps.walk` set, a little softer (0.6).
+        - **Gear:** the breath of whoever's close enough, out of doors, by the gear they wear (`Townsperson.Gear`: `place-town.gear-respirator`, `-oxygen`, `-rebreather`, `-wrap`), at their head.
+        - **The watch's lanterns:** `place-town.lantern` at the hand, swinging as they walk and quieter hanging still as they stand.
+        - Indoors and out are walled as the rest of the town is (note 415's `TownWall`).
+    - **The sounds** (`tools/audio/recipes/townsfolk.py`): five loops on the Audio Checklist's `place-town` line, all installed. Each gear loop is two slow breaths of heard_foley's modelled breath, the stand-in until recorded ones, with a smooth swell on each.
+        - The respirator, `valves`: drawn muffled through its filters, the valves ticking, the exhalation flap buzzing and clapping shut.
+        - The oxygen cup, `cup`: a thin steady hiss of gas, and the breath hollow in the cup.
+        - The rebreather, `bag`: the mouthpiece's valves clicking, the rubber bag crinkling as it fills and empties.
+        - The wrap, `can`: thick through the wool, the can ringing faintly hollow.
+        - The lantern, `bail`: the wire bail squeaking each swing, the glass chimney ticking, the flame behind.
+    - **Not yet:** the townsfolk's voices in a word with you are the talk's (B2's lines, not heard). A townsperson indoors with the mask down breathes unheard.
+    - **Pinned:** `WorldSoundTests.TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns`, in a town of 3000 with its clock run:
+        - followed a pace off through four seconds of walking, a walker's steps fall on their own way, one about each 0.7 m they cover;
+        - a pace from somebody out of doors, their own gear's breathing;
+        - near the watch, their lantern, at their hand.
