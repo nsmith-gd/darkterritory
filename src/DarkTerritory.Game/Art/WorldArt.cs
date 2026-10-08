@@ -376,6 +376,14 @@ public sealed partial class WorldArt(Look look)
     /// <summary>The departure town's square (note 281), where the walls step back: nothing wild grows in it either.</summary>
     public Sim.Towns.TownSquare? TownSquare { get; set; }
 
+    /// <summary>
+    /// The fortresses as the sim stands them (<see cref="Sim.Run.Fortresses.Of"/>: the home yard to its gate, the terminus
+    /// from its gate, the town's square), for the lineside the sim deals (note 371): nothing of it stands inside.
+    /// </summary>
+    IReadOnlyList<Sim.Run.Fort> Forts(RailLine line) => Walls is { } w
+        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare), new Sim.Run.Fort(w.HomeGate, line.Length, w.HomeGate, false, true)]
+        : [];
+
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out), with a little room.</summary>
     bool InsideWalls(double along, double offset) =>
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
@@ -404,19 +412,22 @@ public sealed partial class WorldArt(Look look)
             return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateRotationY(yaw) * m;
         }
 
-        // Telegraph poles and their wires, sagging between them.
+        // Telegraph poles and their wires, sagging between them. On a generated line where the sim stands them (note 371):
+        // off a stop's sidings and roads, a branch's ground and the water, as they're solid.
+        var lineside = route is null ? null : Sim.Run.Lineside.Of(route, line);
+        bool Poled(double s) => lineside?.Pole(s) ?? Clear(s);
         var wire = new Kit(_look, mesh);
         wire.Use("rust_heavy", Palette.SootBlack, 0.2f, 0.2f, tile: 1);
         wire.Shade(0.35f);
         wire.Baked = 0;
         // The wires come in from the last pole before this stretch, if there is one.
         double first = Math.Ceiling(from / 50) * 50;
-        Vector3[]? lastTops = first - 50 >= 0 && Clear(first - 50)
+        Vector3[]? lastTops = first - 50 >= 0 && Poled(first - 50)
             ? WorldKit.Insulators.Select(i => Vector3.Transform(i, Place(first - 50, 4.5, 0, 1))).ToArray()
             : null;
         for (double s = first; s < to; s += 50)
         {
-            if (!Clear(s))
+            if (!Poled(s))
             {
                 lastTops = null;
                 continue;
