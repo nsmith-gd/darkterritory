@@ -1293,6 +1293,11 @@ public sealed class FrontEnd
         int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
+        // More above or below (note 351): a small arrow on the plate's edge, where "..." on a row read as part of its label.
+        if (first > 0)
+            Chevron(o, x - 8 + plate / 2, y - 7, down: false, Ink);
+        if (first + shown < items.Count)
+            Chevron(o, x - 8 + plate / 2, y + shown * 10 + 1, down: true, Ink);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
@@ -1301,10 +1306,9 @@ public sealed class FrontEnd
             if (on)
                 o.Rect(x - 4, y - 1, plate - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
-            string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             // A label wider than the frame (a long contract at 150%, note 347) is cut short; the detail under the list says it whole.
-            string label = Clip(o, (on ? "> " : "  ") + items[i].Label, plate - 8 - (arrows ? 28 : 0) - o.Font.Measure(more));
-            o.Text(x, y, label + more, colour);
+            string label = Clip(o, (on ? "> " : "  ") + items[i].Label, plate - 8 - (arrows ? 28 : 0));
+            o.Text(x, y, label, colour);
             if (entries[i].Adjust is not null && items[i].Enabled && Editing is null)
             {
                 float ax = x - 8 + plate - 26;
@@ -1337,6 +1341,16 @@ public sealed class FrontEnd
         if (UiStyle.MeasureKeyed(o, hints) > width - 16)
             hints = hints.Replace(" OR MOUSE", "").Replace(" OR CLICK", "");
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
+    }
+
+    /// <summary>A four-pixel arrow centred on <paramref name="cx"/>, from <paramref name="y"/> down, pointing up or down.</summary>
+    static void Chevron(Overlay o, float cx, float y, bool down, Vector4 colour)
+    {
+        for (int r = 0; r < 4; r++)
+        {
+            float half = down ? 3 - r : r;
+            o.Rect(MathF.Round(cx - half), y + r, half * 2 + 1, 1, colour);
+        }
     }
 
     /// <summary><paramref name="text"/> cut short with "..." to fit <paramref name="width"/>, or as it is if it fits.</summary>

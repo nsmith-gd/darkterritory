@@ -315,6 +315,7 @@ LobbyId? Invited(NetPlaySession? net)
     return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
 }
 
+bool menuOpened = false;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
@@ -356,6 +357,18 @@ Launch? MenuLoop()
     // The public games (T116; the user's playtest: "Join should work like Lethal Company"), for the join screen: the local
     // network's, and Steam's lobby search when Steam's up.
     using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), steam);
+    // Note 351 (the polish pass, headless with --capture): --screen name opens a menu screen from the first frame (fortress
+    // is slot 1's), and --select n moves n rows down it.
+    if (Arg("--screen", "") is { Length: > 0 } opened && !menuOpened)
+    {
+        menuOpened = true;
+        if (opened.Equals("fortress", StringComparison.OrdinalIgnoreCase))
+            frontEnd.ShowFortress(1);
+        else if (Enum.TryParse<Screen>(opened, ignoreCase: true, out var screen))
+            frontEnd.Show(screen);
+        for (int i = 0; i < int.Parse(Arg("--select", "0")); i++)
+            frontEnd.Down();
+    }
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
@@ -410,6 +423,16 @@ Launch? MenuLoop()
         FeedSpeaker();
         input.EndFrame();
         frameCount++;
+    }
+    // --capture with no night (note 351): the menu as it was last drawn, over its yard.
+    if (capture is not null && vr is null && QuitNow())
+    {
+        var camera = view;
+        camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
+        frontEnd.Draw(overlay, UiWidth, UiHeight);
+        var pixels = renderer.Render(mesh, camera, light, light.FogColor, overlay);
+        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
+        Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }
     return null;
 }
@@ -695,6 +718,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Note 350: one of this player's first nights shows the core controls in the yard.
     bool firstNight = Onboarding.FirstNight(onboarding, settings, nightsOver);
     captions.Clear();
+    // The canvas TEXT SIZE asks for from the night's first frame (note 351: a night from the command line drew its first on
+    // the default canvas, there being no menu frame before it to take the setting).
+    ApplyDisplay();
     // In a headset the ballot and the commendations are the stick's (note 202), and say so.
     Hud.Headset = vr is not null;
     var nightKeys = new VrMenuInput();
@@ -1240,7 +1266,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (showHud)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
-                firstNight: firstNight, captions: frontEnd.Settings.Captions ? captions.Lines() : null);
+                // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
+                firstNight: firstNight && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
+                captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))

@@ -321,9 +321,13 @@ public static partial class Hud
         var lines = SuppliesLines(s.World, s.PlayerId);
         const string title = "SUPPLIES ABOARD";
         string close = Bound("CLOSE : [I]");
-        float k = Fine, pad = PanelPad * k;
-        float col = lines.Max(l => o.Measure(l.Item, k)) + 12 * k;
-        float content = Math.Max(o.Measure(title, k) + 12 * k + UiStyle.MeasureKeyed(o, close, k), col + lines.Max(l => o.Measure(l.Value, k)));
+        float k = Fine;
+        float Col(float k) => lines.Max(l => o.Measure(l.Item, k)) + 12 * k;
+        float Content(float k) => Math.Max(o.Measure(title, k) + 12 * k + UiStyle.MeasureKeyed(o, close, k), Col(k) + lines.Max(l => o.Measure(l.Value, k)));
+        // Too wide for the frame at the whole step up (TEXT SIZE on a small window, note 351): the half step, as at 1080p.
+        if (k > 0.5f && Content(k) + 2 * PanelPad * k > width - 8)
+            k = 0.5f;
+        float pad = PanelPad * k, col = Col(k), content = Content(k);
         var (x, y, w) = Panel(o, width, height, title, content, lines.Count, Amber, k);
         UiStyle.Keyed(o, Overlay.Snap(x + w - pad - UiStyle.MeasureKeyed(o, close, k), k), y - (o.Font.LineHeight + 4) * k, close, Dim, k);
         foreach (var (item, value, warn) in lines)
@@ -1483,9 +1487,14 @@ public static partial class Hud
     /// The prompt's print (App. F.1 on the prompts, "they're good but they are too big ... so they take up less space"):
     /// fine print a hand's breadth under the crosshair, where the eye already is, on a thin strip of iron rather than a
     /// riveted plate. Half the HUD's own wherever that still gives each of the font's pixels two of the screen's (1080p and
-    /// up); in half steps bigger below that, so it's never mush.
+    /// up); in half steps bigger below that, so it's never mush. TEXT SIZE asks as many more of the screen's (note 351: on a
+    /// 720p window 150%'s smaller canvas had dropped it the half step, smaller than at 100%).
     /// </summary>
-    public static float PromptScaleAt(float pixels) => Math.Clamp(MathF.Ceiling(2 * 2 / MathF.Max(1, pixels)) / 2, 0.5f, 1);
+    public static float PromptScaleAt(float pixels) => PromptScaleAt(pixels, (float)Keys.TextScale);
+
+    /// <summary><see cref="PromptScaleAt(float)"/> at a TEXT SIZE's scale.</summary>
+    public static float PromptScaleAt(float pixels, float textScale) =>
+        Math.Clamp(MathF.Ceiling(2 * 2 * textScale / MathF.Max(1, pixels)) / 2, 0.5f, 1);
 
     static float _promptScale = 0.5f;
 
