@@ -433,6 +433,8 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | **Mine head** | Ore | The spur descends underground. Radio blackout in and out. Its steam lift runs off the engine's own boiler: the engine stands by the headframe and vents into it while someone holds the lever, and loading empties the gauge (spec D.2; note 368). |
 | **Military depot** | Gunpowder and shot | Best payout, worst cargo to be carrying when something boards. |
 
+Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
+
 **Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
