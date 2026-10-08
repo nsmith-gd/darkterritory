@@ -1316,9 +1316,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             camera = Camera.LookAt(At(cx + 6, side * (b.Width / 2 + 9), 2.2), At(cx - 2, -side * b.Width / 2, 1.0), 72);
         }
         else
-        camera = args.Contains("--inside")
-            ? Camera.LookAt(At(x - ox * 2.5 - ax * 1.5, y - oy * 2.5 - ay * 1.5, 1.7), At(x - ox * deep * 0.5 + ax * 10, y - oy * deep * 0.5 + ay * 10, 2.6), 75)
-            : Camera.LookAt(At(x + ox * 7 + oy * 2.5, y + oy * 7 - ox * 2.5, 1.7), At(x - ox * deep * 0.6, y - oy * deep * 0.6, 2.2), 70);
+            camera = args.Contains("--inside")
+                ? Camera.LookAt(At(x - ox * 2.5 - ax * 1.5, y - oy * 2.5 - ay * 1.5, 1.7), At(x - ox * deep * 0.5 + ax * 10, y - oy * deep * 0.5 + ay * 10, 2.6), 75)
+                : Camera.LookAt(At(x + ox * 7 + oy * 2.5, y + oy * 7 - ox * 2.5, 1.7), At(x - ox * deep * 0.6, y - oy * deep * 0.6, 2.2), 70);
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
