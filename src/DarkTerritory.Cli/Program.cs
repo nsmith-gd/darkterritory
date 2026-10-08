@@ -998,6 +998,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose)
         && train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).MinBy(v => (train.Frames[v.Id].Origin - site.HoseStand).Length) is { } hosed)
         site.Mirror(site.State with { HoseCar = hosed.Id });
+    // The mine head's tipple (note 423): --tip r, the car in its cradle (the one behind the car under the lift's chute)
+    // clamped and rolled r of the way over (--tipping: at the top, the ore coming down the chute); --offrails, that car off
+    // its rails.
+    if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Tipple) && run?.CarInCradle(train, site) is { } cradled)
+    {
+        if (args.Contains("--tip"))
+            site.Mirror(site.State with { Clamped = cradled.Id, GoodClamp = true, Roll = Opt(args, "--tip", 0.5), RollingBack = args.Contains("--tipping") });
+        if (args.Contains("--offrails"))
+            cradled.OffRails = true;
+    }
     if (junction >= 0 && junction < line.Branches.Count)
     {
         var branch = line.Branches[junction];
@@ -1194,6 +1204,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     var across = Double3.Cross(toward, Double3.Up);
                     camera = Camera.LookAt(heap + toward * 9 + across * 4 + Double3.Up * 1.7, heap + Double3.Up * 1.2, 70);
                 }
+            }
+            // --tipple: the mine head's tipple (note 423), from across the track off the cradle's end, the bin and its chute beyond.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Tipple) && args.Contains("--tipple"))
+            {
+                var toBin = ((site.TippleBin - site.Cradle) with { Y = 0 }).Normalized;
+                var along = Double3.Cross(toBin, Double3.Up);
+                camera = Camera.LookAt(site.Cradle - toBin * 10 + along * 13 + Double3.Up * 4, site.Cradle + toBin * 2.5 + Double3.Up * 2.5, 70);
             }
             // --belt: the grain elevator's conveyor line (note 400), from behind its drive house down the belt's low run to the knee,
             // the riser and its head over the car.
@@ -1721,6 +1738,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
         ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
         : null;
+    // And a car in the mine head's tipple rolled over, or off its rails (note 423; --tip, --offrails), as the sessions draw it.
+    if (run is not null && (args.Contains("--tip") || args.Contains("--offrails")))
+    {
+        var tilted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
+        leaned = tilted;
+    }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();

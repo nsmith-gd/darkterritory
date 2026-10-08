@@ -190,6 +190,8 @@ public sealed class PrototypeSession : IPlaySession
     {
         Train.FramesAt(alpha, _renderFrames);
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
+        // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
+        TippleTilt.Apply(_renderFrames, Train, World.Run);
         return _renderFrames;
     }
 

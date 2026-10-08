@@ -122,7 +122,8 @@
   // back by itself over "backSeconds" and lets go. A bad clamp gives "badAt" of the way over: the car comes off its rails in the
   // cradle, spilling "spill" of a car-load and taking "derailDamage" off its integrity, and it holds its rake fast (nothing pulls
   // it) until someone with a wrench in hand holds Use within "rerailReach" of it for "rerailSeconds" (two at it, twice as fast).
-  // The train moving with a car clamped is a bad clamp at once. The roll is machinery, and loud.
+  // The train moving with a car clamped is a bad clamp at once. The roll is machinery, and loud. Drawn, the cradle turns the car
+  // "rollDegrees" over at the top of its roll (presentation only: the sim's car never turns).
   "tipple": {
     "back": 84,
     "behindLift": 15.5,
@@ -142,7 +143,8 @@
     "spill": 0.5,
     "derailDamage": 0.2,
     "rerailSeconds": 20,
-    "rerailReach": 2.5
+    "rerailReach": 2.5,
+    "rollDegrees": 150
   },
   // The mine head's steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it. 2 crew. Ties
   // loading directly to the boiler; you're at zero pressure while it runs"; the Wiki's Loading table; ARCHITECTURE §8 note 368).

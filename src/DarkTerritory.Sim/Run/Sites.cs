@@ -227,6 +227,7 @@ public sealed record TippleTuning
     public double DerailDamage { get; init; } = 0.2;
     public double RerailSeconds { get; init; } = 20;
     public double RerailReach { get; init; } = 2.5;
+    public double RollDegrees { get; init; } = 150;
 }
 
 /// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
