@@ -87,13 +87,18 @@ public sealed class TownTalk
     /// <summary>Closes the card once you've walked off from it, or a person's line has been said and left long enough.</summary>
     public void Step(Town town, Double3 eye, double now)
     {
+        // Whoever you're talking to stops on their round for you (note 353), on this machine.
+        town.Hold(Open is { Kind: TownTargetKind.Person } held ? held.Index : -1);
         if (Open is not { } t)
             return;
         var tuning = town.Tuning;
         bool gone = (town.Where(t) - eye).Length > tuning.Reach.CloseBeyond;
         bool said = t.Kind == TownTargetKind.Person && now - Since > Line(town).Length / Math.Max(1, tuning.TypePerSecond) + tuning.LingerSeconds;
         if (gone || said)
+        {
             Open = null;
+            town.Hold(-1);
+        }
     }
 
     string Line(Town town) => Open is { Kind: TownTargetKind.Person } t && town.Plan.People[t.Index].Lines is { Count: > 0 } lines

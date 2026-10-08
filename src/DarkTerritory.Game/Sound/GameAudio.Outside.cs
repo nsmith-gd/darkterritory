@@ -104,6 +104,7 @@ public sealed partial class GameAudio
             || run is not null && run.Underground(earState, train, reach);
         RadioDevice(ear, radioDead, primed);
         RoofGust(train);
+        TownSounds(world, ear, dt);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
@@ -115,8 +116,10 @@ public sealed partial class GameAudio
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
         }
         HoldoutCalls(world, _places, primed);
+        HouseDoors(world, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
+        HouseSearch(world, primed);
         _engineFrontWas = engine.Distance;
         _engineSpeedWas = engine.Speed;
         _outsidePrimed = true;
@@ -568,8 +571,10 @@ public sealed partial class GameAudio
             }
         }
 
-        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping.
-        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks).OrderBy(w => (w.At - ear).Length).Take(1))
+        // Near their buildings: the slaughterhouse inside (and its hooks and chains), the chemical works leaking and dripping,
+        // the foundry's furnace burning in its casting shed with nobody to tend it (note 425).
+        foreach (var (kind, at) in places.Works.Where(w => w.Kind is FacilityKind.Slaughterhouse or FacilityKind.ChemicalWorks or FacilityKind.Foundry)
+            .OrderBy(w => (w.At - ear).Length).Take(1))
         {
             double far = (at - ear).Length;
             if (kind == FacilityKind.Slaughterhouse && far < 70)
@@ -577,6 +582,13 @@ public sealed partial class GameAudio
                 HoldLevel("place-slaughterhouse.inside", 0, at + Double3.Up * 2, 0.5f, 1);
                 if (Sometimes(0.15, dt))
                     Cue("place-slaughterhouse.hook-chain", at + Double3.Up * 3, 0.5f, (float)(0.5 + 0.5 * OutsideOdds()));
+            }
+            if (kind == FacilityKind.Foundry && far < 90)
+            {
+                // The cupola up through the shed's roof (C1's note 420), and now and then its charge slumping in the shaft.
+                HoldLevel("place-foundry.furnace", 0, at + Double3.Up * 6, outside, 1);
+                if (Sometimes(1 / 40.0, dt))
+                    Cue("place-foundry.slump", at + Double3.Up * 9, outside, (float)(0.7 + 0.3 * OutsideOdds()));
             }
             if (kind == FacilityKind.ChemicalWorks && far < 90)
             {
@@ -681,6 +693,73 @@ public sealed partial class GameAudio
         if (Sometimes(0.04, dt))
             Cue("place-wreck.shift", wreck + new Double3((OutsideOdds() * 2 - 1) * 8, 1, (OutsideOdds() * 2 - 1) * 8), outside, (float)(0.5 + 0.5 * OutsideOdds()));
     }
+
+    /// <summary>
+    /// Searching the open houses (note 326; queue #148, note 412): a hiding spot under way heard where it's kept, held off the
+    /// replicated search (<see cref="Run.SearchProgress"/>: the host's furthest hand on it, a client's as the host has it), so
+    /// every crewmate hears a cupboard gone through, and cut when the hands come off. Each kind's sound runs about its search.
+    /// The find coming out, once, as the spot's gone through. What's searched on the first update is old news.
+    /// </summary>
+    void HouseSearch(World world, bool primed)
+    {
+        if (world.Run is not { HidingSpots.Count: > 0 } run)
+            return;
+        foreach (var spot in run.HidingSpots)
+        {
+            bool searched = run.Searched(spot.Stop, spot.Container.Index);
+            if (Flipped("crew-search.found", spot.Key, searched, primed) > 0)
+                Cue("crew-search.found", spot.At + Double3.Up * 0.3, OccludedInHouse(world, spot.At));
+            if (searched || run.SearchProgress(spot) <= 0)
+                continue;
+            // Kept high (a cupboard's shelves, a cabinet's drawers) or low (a cellar's hatch, the boards).
+            var (cue, up) = spot.Container.Kind switch
+            {
+                ContainerKind.Cupboard => ("crew-search.cupboard", 1.2),
+                ContainerKind.Cabinet => ("crew-search.cabinet", 0.8),
+                ContainerKind.Cellar => ("crew-search.cellar", 0.2),
+                ContainerKind.UnderFloor => ("crew-search.boards", 0.2),
+                // A barn's hayloft (up its ladder) and a shed's workbench, once they're searched (B4's #153, note 417).
+                ContainerKind.Hayloft => ("crew-search.hayloft", 2.5),
+                ContainerKind.Bench => ("crew-search.bench", 1.0),
+                _ => (null, 0.0),
+            };
+            if (cue is not null)
+                Hold(cue, spot.Key, spot.Kept + Double3.Up * up, OccludedInHouse(world, spot.Kept));
+        }
+    }
+
+    /// <summary>
+    /// A sound in a village house (note 412): in the house's own space when it's shut up (note 401), so an ear shut in there
+    /// with it hears it clear and one shut in anywhere else through the walls; else the outside's.
+    /// </summary>
+    float OccludedInHouse(World world, Double3 at) =>
+        Occlusion(world.Train.Walls?.ShutIn(at) is >= 0 and var house ? PlayerMotor.HouseSpace(house) : PlayerMotor.Outside);
+
+    /// <summary>
+    /// The village houses' doors (B4's note 401; queue #145, note 409): a door shut or opened where it hangs, from the sim's
+    /// state (host and client alike: the doors shut replicate), so everyone hears a crewmate work one. Played just inside
+    /// the doorway (<see cref="DoorSound"/>): from inside the house it's in the room with the ear, from the street it's at
+    /// the door, never behind its own walls; from a shut car or another house shut up, through those. What's shut on the
+    /// first update is old news.
+    /// </summary>
+    void HouseDoors(World world, bool primed)
+    {
+        if (world.Train.Walls is not { HouseDoors.Count: > 0 } walls)
+            return;
+        foreach (var d in walls.HouseDoors)
+            if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
+                Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d));
+    }
+
+    /// <summary>
+    /// Where a house door is heard (note 409): its leaf, a hand's height up, half a metre in from the doorway's outside edge
+    /// (<see cref="HouseDoor.At"/>), so the door is in the house's footprint (<see cref="EarRoom.Holds"/>) and a room's
+    /// walls don't stand between it and an ear inside.
+    /// </summary>
+    public static Double3 DoorSound(HouseDoor d) => d.At - d.Out * 0.5 + Double3.Up * 1.1;
+
+    /// <summary>A house door is part of its house's space and of the outside both: muffled only to an ear shut in somewhere else.</summary>
+    float DoorOcclusion(HouseDoor d) => _space == PlayerMotor.HouseSpace(d.House) ? 0 : Occlusion(PlayerMotor.Outside);
 
     /// <summary>
     /// The Holdouts (GDD App. D.7): a lock smashed again and again while it's breached, or a barricade pried and giving

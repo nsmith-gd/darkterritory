@@ -66,7 +66,12 @@
     "gunnerWaits": 30,
     // A gun that's fired in the last this many seconds is in action: any round short of a full rack sends the walker for a
     // charge, to stand by at the gun with it (a ten-car train's walk to the guard van is about a minute; a wave isn't).
-    "feedWhileFiring": 20
+    "feedWhileFiring": 20,
+    // A bot crew of this many or more has a second gunner, on the engine's forward gun (note 414): the last place in the crew
+    // goes forward over the cars onto the engine's hood (the relief driver's way, note 399) and takes that gun's seat, for
+    // the hound run's lane ahead (note 405), the Track Doll and the Switchman. Below it, a crew's one gunner is the guard
+    // van's and the lane ahead boards. Six: the driver, the guard van's gunner, the winch pair and the shunter come first.
+    "forwardGunnerFrom": 6
   },
   // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the

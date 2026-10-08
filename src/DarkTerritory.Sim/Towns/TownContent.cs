@@ -33,6 +33,23 @@ public sealed record TownTuning
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
     public double LingerSeconds { get; init; } = 6;
+    /// <summary>Their rounds (note 353).</summary>
+    public RoundTuning Rounds { get; init; } = new();
+}
+
+/// <summary>
+/// Townspeople's rounds (towns.json <c>rounds</c>; note 353): out of doors a day of <see cref="Slots"/> slots of
+/// <see cref="Slot"/> seconds, at home <see cref="HomeSlot"/> seconds at each of the rooms' places, walked between at
+/// <see cref="Walk"/>; a pacer goes <see cref="Pace"/> either way of their post, a lamp-carrier on a street this far along it.
+/// </summary>
+public sealed record RoundTuning
+{
+    public double Slot { get; init; } = 45;
+    public int Slots { get; init; } = 4;
+    public double HomeSlot { get; init; } = 38;
+    public double Walk { get; init; } = 1.2;
+    public double Pace { get; init; } = 3.5;
+    public double[] Street { get; init; } = [10, 24];
 }
 
 public sealed record SquareTuning
@@ -90,6 +107,19 @@ public sealed record WalledTuning
     /// <summary>The wall's distance past the last row's backs, and the rear wall's place along the line (m; behind the yard's start).</summary>
     public double Margin { get; init; } = 7;
     public double Rear { get; init; } = -8;
+    /// <summary>
+    /// How the streets bend (note 353's natural layout): each street a side swings out and back on one wave of
+    /// <see cref="BendWavelength"/> m, the first by <see cref="BendBase"/> m and each further out by <see cref="BendStep"/>
+    /// m more (so the rows between them keep their room), at most <see cref="BendMax"/>,
+    /// straight within <see cref="BendClear"/> m of the square's ends (the square and the green keep their lines).
+    /// </summary>
+    public double BendBase { get; init; }
+    public double BendStep { get; init; }
+    public double BendMax { get; init; }
+    public double[] BendWavelength { get; init; } = [220, 320];
+    public double BendClear { get; init; } = 30;
+    /// <summary>How much further back a house may stand than the setback, or nearer (m): the row steps in and out.</summary>
+    public double[] SetbackJitter { get; init; } = [0, 0];
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
 }
@@ -133,6 +163,12 @@ public sealed record TownWriting
     public Dictionary<string, string[]> EmptyHouses { get; init; } = [];
     /// <summary>What else there is to look at in an open house, by thing ("stairs", "stove", "photo").</summary>
     public Dictionary<string, string[]> Rooms { get; init; } = [];
+    /// <summary>The council's ordinances (note 353): a town posts some of them by the clerk's door.</summary>
+    public string[] Laws { get; init; } = [];
+    /// <summary>The green's and the walls' pieces by kind (statue, memorial, bandstand, garden, tree, flag, mural): what each is called and what looking at it tells you.</summary>
+    public Dictionary<string, TownText[]> Civic { get; init; } = [];
+    /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
+    public string[] Walled { get; init; } = [];
 }
 
 /// <summary>
