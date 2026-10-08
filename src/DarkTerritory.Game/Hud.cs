@@ -1872,6 +1872,16 @@ public static partial class Hud
             return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
                 : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
         }
+        // The grain elevator's conveyor line (note 400): a jam beside you, and its drive house's starter.
+        if (world.Run is { FacilityTuning.Conveyor: { } belt } conveyors)
+        {
+            if (conveyors.JamInReach(p, train) is { } jammed)
+                return jammed.Clear > 0 ? $"CLEARING THE JAM ({Math.Min(1, jammed.Clear / belt.ClearSeconds) * 100:0}%)" : "BELT JAMMED : HOLD [E]";
+            if (conveyors.StarterInReach(p, train, hand) is { } drive)
+                return drive.Power == Sim.Stops.PowerState.Dead ? "NO POWER : RESTART THE GENERATOR"
+                    : drive.Start > 0 ? $"STARTING THE BELT ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
+                    : drive.Jam >= 0 ? "START THE BELT : HOLD [E]   IT'S JAMMED" : "START THE BELT : HOLD [E]";
+        }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
                 : world.Run.CarAtRamp(train, pen) is null ? "NO CAR AT THE RAMP" : "DRIVE THE HERD : HOLD [E]";
@@ -1916,6 +1926,16 @@ public static partial class Hud
         if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
             return "LIGHT THE LAMP : [K]";
+        // Along the conveyor's belt with nothing else to do (note 400; spec D.3: "someone has to roam"): where the jam is, or that
+        // it's stalled.
+        if (world.Run is { FacilityTuning.Conveyor: { } line } run && run.BeltNear(p, train) is { } beltSite)
+        {
+            var at = PlayerMotor.WorldPosition(p, train);
+            if (beltSite.Jam >= 0)
+                return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+            if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
+                return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
+        }
         return null;
     }
 
