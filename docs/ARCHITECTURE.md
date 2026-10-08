@@ -6102,7 +6102,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Before: 10.2, 9.6 and 12.0 km; 6, 2 and 4 deaths; 4, 0 and 4 cars lost; 5, 3 and 0 runners aboard a night.
      - After: 9.6, 10.2 and 9.6 km; 1, 6 and 0 deaths; 0, 5 and 0 cars lost; 5, 8 and 10 runners aboard a night.
      - The guard van's one gunner now has the lane behind and the flank at once, so more of a big crew's run gets aboard. That is the walkers' fight, and the tower defence's pressure on a crew of eight.
-   - **Not yet.** Other runners than hounds. A flank pair abeam the engine for the forward gun (the lane ahead is its).
+   - **Not yet.** Other runners than hounds. A flank pair abeam the engine for the forward gun (the lane ahead is its): built, note 443.
 
 380. **Walkers who live through a hot run (D1.2 for D1, queue #117; found on note 376's first express night: 3 of 4 dead).** The bots play speed as a crew would. Only the bots changed, not the creatures' rules. Measured with `dt harness --bots 4 --enemies --upkeep --express --seconds 900` on ten nights (frontier:1–7, deadLines:2–3; frontier:7 also without upkeep), today's main against this branch.
     - **What killed them, night by night** (the traces, `--trace`):
@@ -6164,6 +6164,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+443. **A flank pair abeam the engine, for the forward gun (queue #179, D1; note 418's "not yet"; [orchestrator.md](design/orchestrator.md) §5.3 6).** The flank lanes (note 418) came in abeam the guard van's gun only, so the forward gun's one lane was the one ahead.
+   - **What comes.** Of the night's flank pairs, every `run.flankEngineEvery`-th (2: the second of each two) comes abeam the engine's gun instead, to a train with a gun laid forward. A train with no gun laid back sends all its flank pairs there (`0` turns it off). Everything else is note 418's: the open-country biomes, `flankOut` (70 m) out, keeping pace through the howl, in at `flankSpeed`.
+   - **Where.** Abeam the forward gun's place on the engine (`Director.ForwardGunAlong`: the car's centre along the line, then its gun's `Z`). The forward gun traverses 100° either side of ahead, so abeam it is inside its arc, as abeam the guard van is the guard gun's flank.
+   - **How it boards.** The engine is hooded (note 338), so a pair that came in abeam it falls back along it as it comes in (`CinderHound.RunIn`: the way along to the nearest car it can leap onto, made in step with the way in) and leaps onto the first car behind the engine, at its front end, on its side. It stays in the forward gun's arc until the last few metres. A pair abeam the guard van is already alongside its car, so nothing changes there.
+   - **Counted.** `Director.FlankEnginePairs`, `FlankEngineRunners(pack)`, and `dt harness`'s `houndRuns[].flankEngine`. Seen: `dt screenshot --run-flank --view laneside` (new: from the forward gun's seat, out abeam the engine). Three pairs out in the field, the nearest falling back toward the first car. Looked at.
+   - **Tests.** `HoundRunTests`:
+     - On its own (`flankEngineEvery` 1), the pair is put down abeam the engine's gun, inside its traverse while out in the open, and aboard the first car's front end on its side.
+     - Two flank pairs in a run take turns: the guard van's, then the engine's.
+     - With no gun laid back, the flank pair comes abeam the engine.
+     - The forward gunner scatters or kills an engine flank pair before it boards.
+   - **Bot nights.** `dt harness --route frontier:7 --bots 8 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, main (a2a0b766) against this. Each night has two runs of 6; the second run's flank pair is now the engine's.
+     - Main: 9.6, 11.2 and 9.6 km; 4, 0 and 1 deaths; 7, 6 and 10 runners aboard; 8, 8 and 3 rounds fired.
+     - After: 9.6, 10.3 and 9.6 km; 3, 6 and 1 deaths; 7, 8 and 10 runners aboard; 7, 7 and 3 rounds.
+     - The guns fire a handful of rounds a night on both. Seed 2's trace: the guard gunner was Devoured at 459 s, before the second run, and the forward gunner sat on the engine all through it without firing (its rack most likely dry: one rack filled all night). With both gunners answering, the lanes would split the run between the guns; as it is, the bots' gunnery decides, and that is D1.3's next item.
+   - **Not yet.** The bots keeping their guns fed and manned through a night (D1.3). Other runners than hounds.
 429. **The water heard (AU1, queue #165; the line plan's water, maritime-rules.md §2-5; B1's #160 makes it move on screen).** No water anywhere made a sound. A river ran under its span and beside the line up its valley, a lake lay beside the line, the Atlantic's surf broke on its rock and shingle and Fundy's tide came in over the red mud, all in silence.
     - **How** (`GameAudio.Water`): every 0.25 s the nearest water of each kind to the ear is looked up from the plan and the line's terrain (`PlanConditions.Terrain`), the same on every machine, and each is held where its water is:
         - **A river** (`world-water.river`): one under its span (`LinePlan.Water`, a river or a tidal one, on the main line) where its course crosses the line, as near the ear as 25 m either side of the line. Or one up its valley beside the line (a `River` shore), mid-stream at its level under the rail. Heard within 120 m.
