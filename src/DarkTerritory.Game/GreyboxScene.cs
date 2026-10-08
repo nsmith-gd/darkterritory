@@ -1972,6 +1972,14 @@ public sealed partial class GreyboxScene
             }
             origin = f.ToWorld(local);
             (right, up, back) = (f.Right, f.Up, f.Back);
+            // A hound aboard faces the way the sim has it in its car (note 472): up or down the car, or to a side door. Its
+            // stand-in's head is at −Z, so turned as the art turns its model (CreatureArt), a player's yaw in the car's frame.
+            if (e is Sim.Enemies.CinderHound hound)
+            {
+                double yaw = hound.Facing switch { 1 => Math.PI, 2 => -Math.PI / 2, 3 => Math.PI / 2, _ => 0 };
+                back = f.Right * Math.Sin(yaw) + f.Back * Math.Cos(yaw);
+                right = f.Right * Math.Cos(yaw) - f.Back * Math.Sin(yaw);
+            }
         }
         else if (e.Attached == Enemy.Loose)
         {
