@@ -2709,5 +2709,180 @@
       }
     ],
     "license": "CC0-1.0"
+  },
+  {
+    "name": "finds_atlas",
+    "diffuse": "finds_atlas.png",
+    "spec": "finds_atlas_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "paper",
+    "alphaTest": false,
+    "cells": [
+      {
+        "name": "tinnedFood",
+        "cell": [
+          0,
+          0,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "treats",
+        "cell": [
+          128,
+          0,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "candles",
+        "cell": [
+          256,
+          0,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "medicine",
+        "cell": [
+          384,
+          0,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "bandages",
+        "cell": [
+          0,
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "morphine",
+        "cell": [
+          128,
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "preserves",
+        "cell": [
+          256,
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "lampOil",
+        "cell": [
+          384,
+          128,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "tools",
+        "cell": [
+          0,
+          256,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "valuableTools",
+        "cell": [
+          128,
+          256,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "pocketWatch",
+        "cell": [
+          256,
+          256,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "lampParts",
+        "cell": [
+          384,
+          256,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "rope",
+        "cell": [
+          0,
+          384,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "supplies",
+        "cell": [
+          128,
+          384,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "brass",
+        "cell": [
+          256,
+          384,
+          128,
+          128
+        ]
+      },
+      {
+        "name": "cream",
+        "cell": [
+          384,
+          384,
+          128,
+          128
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "font": "DejaVuSansMono.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "font": "FreeSansOblique.ttf",
+        "license": "Bitstream Vera / DejaVu (free) or GNU FreeFont (GPL+font exception)",
+        "note": "rendered glyphs only; no font file is redistributed"
+      },
+      {
+        "generator": "tools/art/textures.py",
+        "what": "printed labels, wrappers, enamel, gingham, baize and polished brass for the village finds",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
   }
 ]

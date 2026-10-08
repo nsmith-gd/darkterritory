@@ -29,8 +29,8 @@ public class CrewOfTwoTests
 
     /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
     /// <param name="cranes">The mail cranes up (false: none, every other board as it is).</param>
-    internal static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind insist, double? start = null,
-        Action<World>? each = null, int bots = 2, int seed = 1, bool cranes = true)
+    internal static HarnessReport Night(string routeName, int cars, double seconds, EnemyKind? insist, double? start = null,
+        Action<World>? each = null, int bots = 2, int seed = 1, bool cranes = true, Train.UpkeepTuning? upkeep = null)
     {
         var route = LineGen.Routes.Generate(Content, routeName, cars);
         double gate = route.GateOr(Tuning.Route.YardLength);
@@ -53,8 +53,9 @@ public class CrewOfTwoTests
             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
                 ? sight with { DropFrom = double.MaxValue } : sight,
             YardLength = gate,
+            Upkeep = upkeep,
             Holdouts = Tuning.Holdouts,
-            Insist = [insist],
+            Insist = insist is { } k ? [k] : null,
             Look = DataFile.Load<BalanceTuning>(Path.Combine(Content, BalanceTuning.File)).Combinations.Look,
         }, Tuning.Boiler);
     }

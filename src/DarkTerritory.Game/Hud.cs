@@ -1436,6 +1436,13 @@ public static partial class Hud
             : null;
 
     /// <summary>
+    /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
+    /// and the generator's say it. A mend kept half done with Use let go (note 301) still shows how far it got.
+    /// </summary>
+    static string Hold(string verb, double done) =>
+        done > 1e-6 ? $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)" : $"{verb} : HOLD [E]";
+
+    /// <summary>
     /// The break in reach and what mends it (note 301): with the wrench in hand, the hold and how far it's got; without, the
     /// break and the key that puts the wrench in hand. Null with no break in reach.
     /// </summary>
@@ -1454,7 +1461,7 @@ public static partial class Hud
             _ => p.Parent > 0 && p.Parent < train.Vehicles.Count ? train.Vehicles[p.Parent].Integrity / Math.Max(1e-6, Repairs.Mendable(train.Vehicles[p.Parent])) : 0,
         };
         string verb = at switch { BreakKind.Breach => "BOARD IT UP", BreakKind.Rupture => "MEND THE BOILER", _ => "MEND THE CAR" };
-        return $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)";
+        return Hold(verb, done);
     }
 
     public static string? Prompt(IPlaySession s)
@@ -1481,7 +1488,7 @@ public static partial class Hud
             if (HoldoutPrompt(world, p, train, kit: true) is { } opening)
                 return opening;
             if (!Repairs.ByWrench(train) && CrewActions.AtTheRupture(p, train, world.Hand) && train.BoilerTuning is { } rt)
-                return $"MEND THE BOILER : HOLD [E] ({p.ActionProgress / rt.RepairSeconds * 100:0}%)";
+                return Hold("MEND THE BOILER", p.ActionProgress / rt.RepairSeconds);
         }
         // A crew locker in front of you (note 173): its door, and its shelves.
         if (LockerPrompt(world, p, s.PlayerId) is { } locker)
@@ -1506,7 +1513,7 @@ public static partial class Hud
             // Sat at it, fire and getting up are the corner's (Hints); here, only what's wrong with it.
             bool seated = p.Has(PlayerFlags.Seated);
             // GDD §23 (note 183): a shot's fouled it, and it's cleared by hand before anything else.
-            return gun.Jammed ? $"CLEAR THE GUN : HOLD [E] ({Math.Min(1, gun.ReloadProgress / combat.Guns.ClearSeconds) * 100:0}%)"
+            return gun.Jammed ? Hold("CLEAR THE GUN", gun.ReloadProgress / combat.Guns.ClearSeconds)
                 : gun.ReloadNeeded > 0 ? $"{LoadStep(gun, combat.Guns)} : HOLD [E]"
                 : gun.Ammo <= 0 ? "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
@@ -1520,10 +1527,10 @@ public static partial class Hud
             return mending;
         // A breach in the car's shell (decided 1 Oct): boarded up from inside, at the hole, before anything else there.
         if (Breaches.Within(p, train, hand) is not null)
-            return $"BOARD IT UP : HOLD [E] ({Math.Min(1, p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds) * 100:0}%)";
+            return Hold("BOARD IT UP", p.ActionProgress / train.Dynamics.Tuning.Breach.BoardSeconds);
         // A hot axle box (note 331): greased from the gap behind its car or the ground beside it.
         if (train.HotBoxTuning is { Enabled: true } hb && HotBoxes.Within(p, train, hb) is not null)
-            return $"GREASE THE HOT BOX : HOLD [E] ({Math.Min(1, p.ActionProgress / hb.GreaseSeconds) * 100:0}%)";
+            return Hold("GREASE THE HOT BOX", p.ActionProgress / hb.GreaseSeconds);
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
         var near = CrewActions.Nearest(p, train, hand);

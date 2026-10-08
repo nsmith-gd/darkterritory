@@ -16,6 +16,9 @@ public sealed partial class SceneArt(Look look)
 
     public Look Look { get; } = look;
 
+    /// <summary>What a village find is (loot.json's item key), from the run: its model (FindKit). Null, the plain bundle.</summary>
+    public Func<Sim.Physics.Body, string?>? FindItem { get; set; }
+
     /// <summary>The line and its lineside.</summary>
     public WorldArt World { get; } = new(look);
 
@@ -490,6 +493,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
             // The engineer's toolbox (train_stores' repair_kit, GDD §12), lying where it was put down or dropped.
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
+            Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
@@ -1011,6 +1016,16 @@ public sealed partial class SceneArt(Look look)
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, lamps, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The engine's dressing (note 338: its plough, housings, pipes and grilles), over it and casting no shadow.
+        if (engine)
+        {
+            mesh.Instances.Add(new MeshInstance(Piece($"engine-dress:{ShapeKey(shape)}", () => TrainKit.EngineDress(Look, shape)), m, lamps, Tint: soot,
+                Scar: scar, Shadowless: true));
+            // A lamp in each corridor under the hood (note 338), lit with the train's lamps, close enough to matter.
+            if ((frame.Origin - eye).Length < 60 && lamps > 0.5f)
+                foreach (var lamp in TrainKit.CorridorLamps(shape))
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.62f, 0.32f) * 0.55f, 4.5f));
+        }
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {
@@ -1158,6 +1173,8 @@ public sealed partial class SceneArt(Look look)
                 barrelM = Matrix4x4.CreateRotationX(elevation) * carriageM;
                 mesh.Instances.Add(new MeshInstance(cannon.Mount, gunM));
                 mesh.Instances.Add(new MeshInstance(cannon.Carriage, carriageM));
+                // Its shield, turning with it (note 338).
+                mesh.Instances.Add(new MeshInstance(Piece("gun-shield", () => TrainKit.GunShield(Look)), carriageM, Shadowless: true));
                 mesh.Instances.Add(new MeshInstance(cannon.Barrel, barrelM));
                 if (vehicle is null || vehicle.Gun.ReloadNeeded <= 0)
                     mesh.Instances.Add(new MeshInstance(cannon.Chamber, Matrix4x4.CreateTranslation(TrainKit.CannonChamber) * barrelM));
