@@ -4927,3 +4927,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:** along the roofs the driver drops into each gap and climbs the next car's ladder (the stops' cut does too), about 4.5 s a car. A pack on the first car behind the engine stays.
     - **Verified:** `BoardedPackTests`: a lone driver at 12 m/s with three hounds on its rear car stands, cuts the car loose, keeps the other three, and is back in the cab and away; with a crewmate aboard the driver leaves the pack to them and doesn't stop. Sim 1141/1141.
 
+344. **Hold prompts in one form (F1, UI/UX 3; queue #81; GDD §32 "the action and its key ... and a hold's progress"; note 285).** Two forms had grown up. The search, the generator and the rigging said the action and its key ("SEARCH THE CUPBOARD : HOLD [E]") and their progress only once under way; the repairs (note 301), the boiler, the fouled gun, the breach and the hot box (note 331) said "(0%)" before anyone had touched them.
+    - **One form** (`Hud.Hold`): the action and its key, and the percentage only once there's progress. A mend kept half done with Use let go (note 301, "a few presses") still says how far it got, and a battered car still says how whole its shell is.
+    - **Verified:** `HudTests.AFouledGunAndABreachedCarSayHowToPutThemRight` (nothing done: no percentage; a quarter done: 25%; the battered car's 50% unchanged).
+
