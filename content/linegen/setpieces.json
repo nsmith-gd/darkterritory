@@ -3,6 +3,10 @@
 // (length / 4 km); a tunnel cost per 300 m, +1 on a grade, +1 curved; a weak trestle +costScale. crunch: a piece
 // the sawtooth builds up to (§7.1). minD / fullD: the difficulty it's allowed from, and where it reaches its full
 // form. weight: how often it's picked among what fits, before the biome's bias (biomes.json "pieces").
+// hardBend (ARCHITECTURE §8 note 278): a bend that derails the train under its top speed, laid only by the tier's
+// count (tiers.json "bends"), so weight 0; its radius comes from the tier's bendDerail. Straight track either side
+// (tangentM, halved where room is short), the hill it goes round on the inside (spurM high) and a fall on the outside
+// (fallM). Not a crunch: like brass it's a demand, kept a braking distance from the next by the lethal spacing check.
 {
   "pieces": [
     { "id": "straight", "kind": "straight", "minD": 0, "fullD": 0, "lengthM": [200, 2500], "cost": 0, "costScale": 0, "crunch": false,
@@ -39,6 +43,8 @@
       "tags": ["brass"], "params": {}, "weight": 0 },
     { "id": "momentumBank", "kind": "momentum", "minD": 1.3, "fullD": 1.3, "lengthM": [900, 2200], "cost": 4, "costScale": 0, "crunch": true,
       "tags": ["climb", "momentum"], "params": { "runUpM": [600, 1200], "carryShare": [0.7], "gradeOverMain": [0.25, 1.0] }, "weight": 0 },
+    { "id": "hardBend", "kind": "bend", "minD": 0, "fullD": 0, "lengthM": [300, 1200], "cost": 2, "costScale": 0, "crunch": false,
+      "tags": ["pre_curve"], "params": { "deflectionDeg": [40, 90], "tangentM": [120, 260], "spurM": [8, 20], "fallM": [2, 6] }, "weight": 0 },
     { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
       "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [600, 900], "everyKm": [4, 8] }, "weight": 0 }
   ],

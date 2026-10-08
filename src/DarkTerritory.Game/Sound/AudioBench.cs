@@ -23,6 +23,14 @@ public sealed record AudioSweep(string Scenario, int Cars, double Speed, IReadOn
 public sealed record AudioBenchReport(string Scenario, int Cars, double Speed, string Listener, double Seconds, double MixDb, int PeakVoices,
     IReadOnlyList<TellLevel> Tells, IReadOnlyDictionary<string, double> StemsDb, string Space = "outside", double MixMsPerSecond = 0, MusicReport? Music = null);
 
+/// <summary>One second of a bend render: how hard the bend pulls, whether the cab's warning is up, each stress sound's level.</summary>
+/// <param name="Stress">The most the bend pulled in this second (note 265: 0 at its board's speed, 1 at its derailing speed).</param>
+/// <param name="StemsDb">Each of <see cref="AudioBench.StressSounds"/> that sounded this second, by its level.</param>
+public sealed record BendSecond(double At, double SpeedKmh, double Stress, bool Warning, IReadOnlyDictionary<string, double> StemsDb, double MixDb);
+
+/// <summary>A bend taken too fast (<see cref="AudioBench.RenderBend"/>), second by second, and when the train came off.</summary>
+public sealed record BendRender(string Route, int Cars, string Listener, double BoardKmh, double DerailKmh, double? DerailedAt, IReadOnlyList<BendSecond> Seconds);
+
 /// <summary>One sound played alone: how long it ran (a one-shot's end), the takes it picked, how loud it was.</summary>
 /// <param name="DecodedBytes">Sample PCM held after the render: what this sound's takes cost in memory.</param>
 /// <param name="Error">The sound bank's last problem (a sample that isn't there, a take that wouldn't decode), if any.</param>
@@ -288,6 +296,90 @@ public static class AudioBench
         }
         return (new AudioBenchReport(scenario, cars, speed, where, seconds, Math.Round(Meter.Db(mix.AsSpan(skip)), 1), peak, levels, stems, audio.Space,
             Math.Round(mixing / Math.Max(1e-9, blocks * blockSeconds), 2), music), mix);
+    }
+
+    /// <summary>The bend's telegraph (note 265), in the order it builds: the sounds <see cref="RenderBend"/> follows.</summary>
+    public static readonly string[] StressSounds =
+        ["bed-wheel-rail.flange", "bed-groan.creak", "bed-slack.run-in", "state-derail.flange-scream", "warn-overspeed"];
+
+    /// <summary>
+    /// A bend taken too fast, by ear (note 265; `dt audio render --scenario bend`): the train run onto the first bend of
+    /// <paramref name="route"/> that can derail it at the bend's board, then its speed taken up steadily to a tenth over what
+    /// derails it and held there till it comes off. The telegraph plays out in its order (the flanges squealing, the frames
+    /// creaking faster, the slack's lurch down the train, the scream, the cab's bell), then the derailment. Heard from the cab
+    /// (<paramref name="listenerCar"/> 0) or a roof; each stress sound's level a second at a time.
+    /// </summary>
+    public static (BendRender Report, float[] Mix) RenderBend(string content, string route = "deepTerritory:2", int cars = 6, int listenerCar = 0,
+        double seconds = 16, double rampSeconds = 8)
+    {
+        var session = Staging.BendWarning(content, Sim.LineGen.Routes.Generate(content, route, cars), cars, seconds: 2);
+        var train = session.Train;
+        var world = session.World;
+        var rules = world.TrackPlan!.Rules;
+        var overspeed = train.Dynamics.Tuning.Overspeed;
+        // The bend: the sharpest curvature in the next 400 m.
+        double k = 0;
+        for (double x = 0; x < 400; x += 5)
+            k = Math.Max(k, Math.Abs(train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance + x).Curvature));
+        double board = Math.Sqrt(rules.APost / k), derail = Math.Sqrt(rules.ADerail / k), top = 1.1 * derail;
+        if (listenerCar != 0)
+            session.Respawn(Math.Clamp(listenerCar, 1, train.Frames.Count - 1));
+        var audio = new GameAudio(content);
+        audio.Bank.Samples.InlineBytes = long.MaxValue;
+
+        int blocks = (int)Math.Ceiling(seconds * Audio.SampleRate / Audio.Block);
+        var mix = new float[blocks * Audio.Block * 2];
+        var tap = new MeterTap(blocks * Audio.Block);
+        audio.Mixer.Tap = tap;
+        double blockSeconds = (double)Audio.Block / Audio.SampleRate, simClock = 0, speed = board, rampFrom = double.NaN;
+        double? derailedAt = null;
+        var stress = new double[(int)Math.Ceiling(seconds)];
+        var warned = new bool[stress.Length];
+        var speeds = new double[stress.Length];
+        for (int b = 0; b < blocks; b++)
+        {
+            double now = b * blockSeconds;
+            while (simClock <= now)
+            {
+                simClock += SimConstants.TickSeconds;
+                // At the board's speed until the engine is on the bend, then up steadily to a tenth over its derailing speed.
+                if (double.IsNaN(rampFrom) && Math.Abs(train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance).Curvature) > 0.5 * k)
+                    rampFrom = simClock;
+                if (!double.IsNaN(rampFrom))
+                    speed = board + (top - board) * Math.Clamp((simClock - rampFrom) / rampSeconds, 0, 1);
+                if (train.Wreck is null)
+                    train.Dynamics.Velocity = speed;
+                session.Step(default);
+                if (train.Wreck is not null)
+                    derailedAt ??= simClock;
+                var bend = Sim.LineGen.TrackRules.Assess(train, rules, overspeed);
+                int second = Math.Min(stress.Length - 1, (int)simClock);
+                stress[second] = Math.Max(stress[second], bend.Stress);
+                warned[second] |= bend.Warning;
+                speeds[second] = train.Dynamics.Speed;
+                var player = session.Player;
+                var frame = train.Frames[player.Parent];
+                audio.Update(world, session.Controls, Listener.At(frame.ToWorld(player.Position + Double3.Up * 1.65), frame.Heading + player.Yaw),
+                    exposed: player.Parent != 0, SimConstants.TickSeconds);
+            }
+            audio.Mixer.Render(mix.AsSpan(b * Audio.Block * 2, Audio.Block * 2));
+        }
+
+        int perSecond = Audio.SampleRate * 2;
+        var rows = new List<BendSecond>();
+        for (int i = 0; i < stress.Length; i++)
+        {
+            int from = i * perSecond, length = Math.Min(perSecond, mix.Length - from);
+            if (length <= 0)
+                break;
+            var stems = new Dictionary<string, double>();
+            foreach (var name in StressSounds)
+                if (TellStem(tap, name) is { } stem && Meter.Db(stem.AsSpan(from, length)) is var db && db > -90)
+                    stems[name] = Math.Round(db, 1);
+            rows.Add(new BendSecond(i, Math.Round(speeds[i] * 3.6, 1), Math.Round(stress[i], 2), warned[i], stems, Math.Round(Meter.Db(mix.AsSpan(from, length)), 1)));
+        }
+        string where = session.Player.Parent == 0 ? "cab" : $"roof of car {session.Player.Parent}";
+        return (new BendRender(route, cars, where, Math.Round(board * 3.6, 1), Math.Round(derail * 3.6, 1), derailedAt is { } d ? Math.Round(d, 2) : null, rows), mix);
     }
 
     /// <summary>A tell's stem: its sound and the sound's per-surface variants (<c>tippy-tiptoe.roof</c>) summed; null if silent.</summary>

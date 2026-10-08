@@ -52,14 +52,25 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
         Assert.Equal("SIT : [E]   PUSH ALONG : [E] + WALK", Hud.Prompt(s));
         train.Vehicles[0].Gun.Jammed = true;
-        Assert.Equal("CLEAR THE GUN : HOLD [E] (0%)", Hud.Prompt(s));
+        // Note 344: nothing done yet, no percentage; part done, how far.
+        Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
+        train.Vehicles[0].Gun.ReloadProgress = s.World.Combat!.Guns.ClearSeconds / 4;
+        Assert.Equal("CLEAR THE GUN : HOLD [E] (25%)", Hud.Prompt(s));
         // Decided 1 Oct: in a breached car, board up the hole; at it, hold Use.
         var room = train.Frames[2].Shape.Interior!.Value;
         train.Vehicles[2].Breach(Breaches.EndWall(train.Frames[2].Shape)!.Value);
-        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1) };
+        s.Player = new PlayerState { Parent = 2, Surface = Surface.Deck, Health = 100, Position = new Double3(-0.45, room.Min.Y, room.Min.Z + 1), Kit = s.PlayerTuning.StartingKit };
         Assert.Equal("THE CAR'S BREACHED", Hud.Prompt(s));
+        // At it with the crowbar in hand: the key that puts the wrench in hand (note 301); with the wrench, hold Use.
         s.Player = s.Player with { Position = Breaches.StandAt(train, 2) };
-        Assert.Equal("BOARD IT UP : HOLD [E] (0%)", Hud.Prompt(s));
+        Assert.Equal("THE CAR'S BREACHED   WRENCH : [2]", Hud.Prompt(s));
+        s.Player = s.Player with { HeldSlot = 1 };
+        Assert.Equal("BOARD IT UP : HOLD [E]", Hud.Prompt(s));
+        // A battered car: mended at its dent (note 301).
+        train.Vehicles[3].Integrity = 0.5;
+        var dent = Repairs.DentAt(train.Frames[3].Shape)!.Value;
+        s.Player = s.Player with { Parent = 3, Position = new Double3(-0.45, room.Min.Y, dent.Z) };
+        Assert.Equal("MEND THE CAR : HOLD [E] (50%)", Hud.Prompt(s));
     }
 
     [Fact]
@@ -261,6 +272,24 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAnAlternatesStandThePromptNamesTheRouteCardsLineNotADeadLine()
+    {
+        // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead
+        // line", so the crew choosing the route card's high line at its junction was told it was throwing the train away.
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:7", 4);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var line = s.Train.Line;
+        var alt = line.Branches.First(b => b.Kind == DarkTerritory.Sim.Rail.BranchKind.Alternate);
+        var lever = s.World.Switches!.LeverAt(line, alt.Index);
+        var toe = line.Sample(alt.Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (alt.Side * 0.8), line, alt.Toe, s.PlayerTuning);
+        string name = route.Plan!.RouteCard.KnownGrades.Single(k => k.Route.EndsWith(")", StringComparison.Ordinal) && k.Route != "main line").Route;
+        name = name[..name.LastIndexOf(" (", StringComparison.Ordinal)].ToUpperInvariant();
+        Assert.Equal($"THROW TO THE {name} : HOLD [E]", Hud.Prompt(s));
     }
 
     [Fact]
@@ -506,7 +535,7 @@ public class HudTests
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var run = s.World.Run!;
         for (int k = 0; k < run.Stops.Count; k++)
-            run.Stock(s.World.Bodies, k);
+            run.Stock(s.World.Bodies, k, searched: true);
         var crate = s.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo);
         crate.Carrier = ((IPlaySession)s).PlayerId;
         int car = Enumerable.Range(1, s.Train.Vehicles.Count - 1).First(i => s.Train.Vehicles[i].Kind == VehicleKind.Cargo);
@@ -532,7 +561,7 @@ public class HudTests
         var s = new PrototypeSession(Content, route, 4, enemies: false);
         var run = s.World.Run!;
         for (int k = 0; k < run.Stops.Count; k++)
-            run.Stock(s.World.Bodies, k);
+            run.Stock(s.World.Bodies, k, searched: true);
         var find = s.World.Bodies.All.First(b => run.HealOf(b) > 0);
         find.Carrier = ((IPlaySession)s).PlayerId;
         // Whole: a find like any other.
@@ -555,4 +584,37 @@ public class HudTests
         Assert.Null(Hud.HealPrompt(s, s.World.Bodies.All.First(b => run.HealOf(b) == 0)));
     }
 
+    [Fact]
+    public void AnOpenHousesCupboardSaysSearchItAndHowFarThrough()
+    {
+        // Note 326: at a hiding spot empty-handed, the prompt is the search; under way, how far through; searched, nothing.
+        var route = DarkTerritory.Sim.Route.RouteGenerator.Generate(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.RouteTier.Frontier, 1);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var run = s.World.Run!;
+        var spot = run.HidingSpots[0];
+        run.Stock(s.World.Bodies, spot.Stop);
+        double hint = run.Stops[spot.Stop].Start;
+        s.Player = PlayerMotor.SpawnOnGround(spot.At with { Y = PlayerMotor.GroundAt(spot.At, s.Train.Line, ref hint) }, s.Train.Line, hint, s.PlayerTuning);
+        string name = spot.Container.Kind switch
+        {
+            DarkTerritory.Sim.Stops.ContainerKind.Cupboard => "CUPBOARD",
+            DarkTerritory.Sim.Stops.ContainerKind.Cabinet => "CABINET",
+            DarkTerritory.Sim.Stops.ContainerKind.Cellar => "CELLAR",
+            _ => "LOOSE BOARDS",
+        };
+        Assert.Equal($"SEARCH THE {name} : HOLD [E]", Hud.Prompt(s));
+        var use = new DarkTerritory.Sim.Player.PlayerIntent { Buttons = DarkTerritory.Sim.Player.PlayerButtons.Use };
+        var me = s.Player;
+        for (int i = 0; i < Math.Round(spot.Seconds / 2 * DarkTerritory.Sim.SimConstants.TickRate); i++)
+        {
+            s.World.BeginTick();
+            s.World.CrewAct(ref me, use, ((IPlaySession)s).PlayerId);
+        }
+        s.Player = me;
+        Assert.Equal($"SEARCHING THE {name} (50%)", Hud.Prompt(s));
+        // Something in hand: not a search.
+        var toy = s.World.Bodies.SpawnItem(spot.At, hint, DarkTerritory.Sim.Physics.BodyKind.Toy);
+        toy.Carrier = ((IPlaySession)s).PlayerId;
+        Assert.DoesNotContain("SEARCH", Hud.Prompt(s) ?? "");
+    }
 }

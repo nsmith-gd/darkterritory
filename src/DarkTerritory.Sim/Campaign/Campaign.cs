@@ -121,6 +121,8 @@ public sealed record CampaignState
     public IReadOnlyDictionary<string, string> Identities { get; init; } = new Dictionary<string, string>();
     /// <summary>The stores bought for the coming night (GDD §9; note 182): spent by it, whatever comes home.</summary>
     public Stores Stores { get; init; } = new();
+    /// <summary>The custom of the last night's departure town (note 281): the next one won't share it. Null before the first.</summary>
+    public string? LastTown { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>

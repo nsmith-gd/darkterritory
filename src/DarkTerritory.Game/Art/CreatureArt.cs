@@ -54,7 +54,7 @@ public sealed class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -108,9 +108,8 @@ public sealed class CreatureArt
     // Set by Enemy(e, prey) for the one draw it makes, as _biteGrip.
     Prey? _prey;
 
-    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high, this thick at the
-    // root (m), sagging this much of its length.
-    const float RibbitTongueAt = 1.15f, RibbitTongueThick = 0.035f, RibbitTongueSag = 0.06f;
+    // A Ribbit's tongue goes to its catch's chest (a crewmate's 1.8 m, tools/blender/crew.py), this high (m).
+    const float RibbitTongueAt = 1.15f;
 
     // The cold about a Choir ghost: a faint light, the colour of its skin, so they're seen at night but never glow (§26).
     const float ChoirCold = 0.25f;
@@ -136,24 +135,55 @@ public sealed class CreatureArt
     const float RibbitScale = 1.4f;
 
     /// <summary>
-    /// The tongue, out from the mouth <paramref name="a"/> to its catch at <paramref name="b"/> (camera-relative): wet,
-    /// dark red, thinning to its tip, sagging a little, and twitching taut as it reels (GDD App. A.6 TONGUE).
+    /// The Ribbit's own tongue (tools/blender/ribbit.py: <c>tongue_01</c> its length, <c>tongue_02</c> the club at its end),
+    /// out of its mouth to its catch's chest at <paramref name="target"/> (model space; GDD App. A.6 TONGUE): turned on its
+    /// root to point at them, then stretched along itself until the club's on them, the club carried out unstretched. With
+    /// nobody to reach (<paramref name="target"/> null), it's drawn back in to the length it lies in the mouth.
     /// </summary>
-    void Tongue(MeshBuilder mesh, Vector3 a, Vector3 b, float t)
+    static void Lash(Entry e, Vector3? target)
     {
-        var k = new Kit(Look, mesh);
-        k.Use("flesh", new Vector3(0.22f, 0.05f, 0.05f), 0.2f, 0.85f);
-        const int n = 8;
-        float len = Vector3.Distance(a, b);
-        float sag = RibbitTongueSag * len * (0.7f + 0.3f * MathF.Sin(t * 9));
-        Vector3 At(float u) => Vector3.Lerp(a, b, u) - Vector3.UnitY * (sag * 4 * u * (1 - u));
-        for (int i = 0; i < n; i++)
+        var sk = e.Model.Skeleton;
+        int root = sk.IndexOf("tongue_01"), club = sk.IndexOf("tongue_02");
+        if (root < 0 || club < 0)
+            return;
+        var pose = e.Pose;
+        if (target is { } aim)
+            Skinner.Aim(e.Model, pose, root, club, aim);
+        var head = pose.World[root].Translation;
+        var along = pose.World[club].Translation - head;
+        float now = along.Length();
+        if (now < 1e-5f)
+            return;
+        var d = along / now;
+        // Its length at rest: the club's head from the root's in the bind pose.
+        float rest = Vector3.Distance(Inverse(sk.InverseBind[club]).Translation, Inverse(sk.InverseBind[root]).Translation);
+        float want = target is { } t ? Vector3.Distance(head, t) : rest;
+        float k = want / now;
+        // Stretch along d about the root: x -> x + (k-1)(x-head).d d (row vectors, so x * M).
+        float s = k - 1;
+        var outer = Matrix4x4.Identity + new Matrix4x4(s * d.X * d.X, s * d.X * d.Y, s * d.X * d.Z, 0, s * d.Y * d.X, s * d.Y * d.Y,
+            s * d.Y * d.Z, 0, s * d.Z * d.X, s * d.Z * d.Y, s * d.Z * d.Z, 0, 0, 0, 0, 0);
+        var stretch = Matrix4x4.CreateTranslation(-head) * outer * Matrix4x4.CreateTranslation(head);
+        var carry = Matrix4x4.CreateTranslation(along * (k - 1));
+        for (int b = 0; b < sk.Count; b++)
         {
-            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
-            k.Cylinder(At(u0), At(u1), RibbitTongueThick * (1 - 0.55f * u0), 8, caps: false, radiusB: RibbitTongueThick * (1 - 0.55f * u1));
+            if (b == root)
+                pose.World[b] *= stretch;
+            else if (Below(sk, b, club))
+                pose.World[b] *= carry;
+            else
+                continue;
+            pose.Skin[b] = sk.InverseBind[b] * pose.World[b];
         }
-        // Its tip spread over them, a pad.
-        k.Cylinder(b - Vector3.Normalize(b - a) * 0.02f, b + Vector3.Normalize(b - a) * 0.02f, RibbitTongueThick * 1.4f, 8);
+
+        static Matrix4x4 Inverse(Matrix4x4 m) => Matrix4x4.Invert(m, out var i) ? i : Matrix4x4.Identity;
+        static bool Below(Skeleton sk, int b, int ancestor)
+        {
+            for (; b >= 0; b = sk.Parents[b])
+                if (b == ancestor)
+                    return true;
+            return false;
+        }
     }
     Room _room;
 
@@ -179,6 +209,9 @@ public sealed class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    // A Cinder Hound's own light (note 337): its cracks' ember, redder than a firebox, and how far it reaches.
+    static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
+    const float HoundLightRange = 4.2f;
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
 
@@ -694,15 +727,32 @@ public sealed class CreatureArt
         if (inHand is not null && OneHanded(pose))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         if (hanging is not null)
-        {
-            var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
-            var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
-            var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
-            hung.Translation = fist - up * LanternRing;
-            mesh.Append(hanging, hung);
-            LastHanging = fist - up * (LanternRing - LanternFlame);
-        }
+            Hung(mesh, m, hanging, model);
         return true;
+    }
+
+    /// <summary>
+    /// Hangs <paramref name="hanging"/> from the right fist of the figure last drawn as <paramref name="figure"/> by
+    /// <see cref="Draw(MeshBuilder, string, string, double, bool, in Matrix4x4, int, float, float, Func{ModelMaterial, MaterialLook, MaterialLook}?)"/>
+    /// at <paramref name="model"/>, as <see cref="Crewmate"/>'s hanging does (a town's lamp-carriers, note 281); its flame
+    /// is then <see cref="LastHanging"/>. False when that figure isn't built.
+    /// </summary>
+    public bool Hang(MeshBuilder mesh, MeshAsset hanging, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        Hung(mesh, m, hanging, model);
+        return true;
+    }
+
+    void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
+    {
+        var fist = Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        hung.Translation = fist - up * LanternRing;
+        mesh.Append(hanging, hung);
+        LastHanging = fist - up * (LanternRing - LanternFlame);
     }
 
     /// <summary>The hand lamp's ring and flame over its foot (tools/models/recipes/hand_lantern.py's sockets, 0.36 m tall).</summary>
@@ -1289,7 +1339,16 @@ public sealed class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
-                    return Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra);
+                    if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
+                        return false;
+                    // A light of its own (note 209's "not yet", note 337): its cracks' heat, under the keel, lighting its legs
+                    // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
+                    // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
+                    // inside its hide's normals, so its char stays black and its cracks are what glow on it.)
+                    float flick = 0.85f + 0.15f * (float)Math.Sin(t * 13.0 + extra * 2.1 + Math.Sin(t * 4.7) * 1.5);
+                    var keel = BoneAt("cinder_hound", "belly", model) - Basis(model).Up * 0.16f;
+                    mesh.PointLights.Add(new PointLight(keel, HoundEmber * (glow * flick), HoundLightRange));
+                    return true;
                 }
             case EnemyKind.Sleepers:
                 {
@@ -1769,22 +1828,20 @@ public sealed class CreatureArt
                         case SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish:
                             {
                                 // With its catch frozen (GRAB), the leader creeps in on them low, the tongue still out (the sim's
-                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, not drawn).
+                                // quarter-speed hop), and close to, it's on them, devouring (the tongue's in them, its own clip's).
+                                // The tongue is the model's own, aimed at their chest and stretched to it (Lash).
                                 float near = prey is { } q ? new Vector2(q.Feet.X - model.Translation.X, q.Feet.Z - model.Translation.Z).Length() : float.MaxValue;
                                 string clip = RibbitClip(phase, near);
-                                Vector3? mouth = null;
-                                var at = model;
-                                void Mouth(Entry e)
+                                Vector3? chest = null;
+                                if (prey is { } p && Matrix4x4.Invert(model, out var toModel))
+                                    chest = Vector3.Transform(p.Feet + Vector3.UnitY * RibbitTongueAt, toModel);
+                                void Reach(Entry e)
                                 {
-                                    int jaw = e.Model.Skeleton.IndexOf("tongue_02");
-                                    if (jaw >= 0)
-                                        mouth = Vector3.Transform(e.Pose.World[jaw].Translation, at);
+                                    if (clip != "devour")
+                                        Lash(e, chest);
                                 }
-                                bool drawn = Draw(mesh, "ribbit", clip, t, true, at, Mouth, seed: (float)extra2)
-                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, at, Mouth, seed: (float)extra2);
-                                if (drawn && clip != "devour" && mouth is { } a && prey is { } p)
-                                    Tongue(mesh, a, p.Feet + Vector3.UnitY * RibbitTongueAt, (float)t);
-                                return drawn;
+                                return Draw(mesh, "ribbit", clip, t, true, model, Reach, seed: (float)extra2)
+                                    || (clip = "tongue") == "tongue" && Draw(mesh, "ribbit", "tongue", t, true, model, Reach, seed: (float)extra2);
                             }
                         default:
                             return Draw(mesh, "ribbit", hunting && phase == SpinePhase.Dormant ? "hop" : "sit", t, true, model, seed: (float)extra2);
@@ -1869,6 +1926,23 @@ public sealed class CreatureArt
                             _fx.ChoirCold(mesh, Vector3.Transform(new Vector3(0, 1.15f, 0), at), t, clip == "swoop", 71 + (float)extra2 * 13);
                     }
                     return drawn;
+                }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // THE MOOSE (note 339; tools/blender/moose.py; docs/design/creatures/moose.md §3, §5). Its meter is its
+                    // ears and its posture, never the HUD: grazing, head down; listening (aggro over listenAt), the head up and
+                    // the ears forward; warning (over warnAt), the ears pinned flat and the sac ridge stood up, a hoof dragged.
+                    // Riled it trots after them, squares up (the rack levelled at them, two stamps), charges, skids and wheels
+                    // round, jams its rack in what it can't get through, searches where it lost them, rams the car they're
+                    // in, and pins whoever it ran down under the rack. Its mode is the sim's (Moose.Mode); how long it's
+                    // been at it, GreyboxScene's (its clips start with it).
+                    var mode = _mooseMode ?? MooseModeOf(phase);
+                    double since = _mooseSince >= 0 ? _mooseSince : t;
+                    float pace = _pace;
+                    (_mooseMode, _mooseSince, _pace) = (null, -1, 0);
+                    var (clip, at, loop) = MooseClip(mode, extra2, pace, t, since, MooseTuning, TrainPassing);
+                    TrainPassing = false;
+                    return Draw(mesh, "moose", clip, at, loop, model, seed: 311);
                 }
             case EnemyKind.Choir:
                 {
@@ -1977,11 +2051,14 @@ public sealed class CreatureArt
     /// checklist's hit reacts), except while it has hold of someone.
     /// </summary>
     /// <param name="dying">Killed (GreyboxScene.Deaths): held in its hit pose at the end of it (or, with no hit clip, still).</param>
+    /// <param name="modeSeconds">How long a Moose has been in its <see cref="Sim.Enemies.MooseMode"/> (GreyboxScene keeps it;
+    /// −1: its phase's time): its square-up, its skid and wheel play from when they began.</param>
     public bool Enemy(MeshBuilder mesh, in Matrix4x4 model, Enemy e, Bite bite = default, Prey? prey = null, Room? room = null, float pace = 0,
-        double hitAge = -1, bool dying = false)
+        double hitAge = -1, bool dying = false, double modeSeconds = -1)
     {
         _hit = !dying && e.Phase is SpinePhase.Grab or SpinePhase.Punish ? -1 : hitAge;
         _dying = dying;
+        _mooseSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -1990,8 +2067,74 @@ public sealed class CreatureArt
         {
             _hit = -1;
             _dying = false;
+            (_mooseMode, _mooseSince) = (null, -1);
         }
     }
+
+    // Set by Enemy(e) for a Moose's one draw, as _pace: what it's doing and how long it's been at it (s, or −1).
+    Sim.Enemies.MooseMode? _mooseMode;
+    double _mooseSince = -1;
+    Sim.Enemies.MooseTuning? _moose;
+
+    /// <summary>The train's going by the Moose about to be drawn, within its trainPassAt (GreyboxScene sets it for each one):
+    /// grazing, it takes the train for a rival, tossing its head and bellowing after it (moose.py trainPass). Used once.</summary>
+    public bool TrainPassing { get; set; }
+
+    /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
+    public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
+
+    /// <summary>A Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's): grazing, after
+    /// someone, squaring up, charging, pinning, going home.</summary>
+    public static Sim.Enemies.MooseMode MooseModeOf(SpinePhase phase) => phase switch
+    {
+        SpinePhase.Alert => Sim.Enemies.MooseMode.Hunt,
+        SpinePhase.Telegraph => Sim.Enemies.MooseMode.SquareUp,
+        SpinePhase.Commit => Sim.Enemies.MooseMode.Charge,
+        SpinePhase.Grab or SpinePhase.Punish => Sim.Enemies.MooseMode.Pin,
+        SpinePhase.BreakOff => Sim.Enemies.MooseMode.Home,
+        _ => Sim.Enemies.MooseMode.Graze,
+    };
+
+    /// <summary>
+    /// The clip a Moose plays (tools/blender/moose.py), and how far into it: by its mode, its aggro (grazing: <c>graze</c>,
+    /// then <c>listen</c> over listenAt, <c>warn</c> over warnAt) and how fast it's going (<paramref name="pace"/>, m/s: a
+    /// walk, a trot over halfway from its search pace to its hunting one; stood, it glares or listens); grazing with the train
+    /// going by (<paramref name="trainPassing"/>), short of warning, <c>trainPass</c>. The square-up, the
+    /// skid and the wheel play once from when its mode began (<paramref name="modeSeconds"/>); grazing keeps its phase's time.
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) MooseClip(Sim.Enemies.MooseMode mode, double aggro, float pace, double phaseSeconds,
+        double modeSeconds, Sim.Enemies.MooseTuning t, bool trainPassing = false)
+    {
+        double trotFrom = (t.SearchSpeed + t.HuntSpeed) / 2;
+        string Moving(string stood) => pace > trotFrom ? "trot" : pace > Going ? "walk" : stood;
+        return mode switch
+        {
+            Sim.Enemies.MooseMode.Graze => (trainPassing && aggro < t.WarnAt ? "trainPass" : aggro >= t.WarnAt ? "warn" : aggro >= t.ListenAt ? "listen" : "graze",
+                phaseSeconds, true),
+            Sim.Enemies.MooseMode.Home => (pace > Going ? "strut" : "graze", modeSeconds, true),
+            Sim.Enemies.MooseMode.Hunt => (Moving("warn"), modeSeconds, true),
+            Sim.Enemies.MooseMode.Search => (pace > Going ? "search" : "listen", modeSeconds, true),
+            // Ramming the car they're in: a ram each ramEvery seconds (the clip's length) once it's stood at its side.
+            Sim.Enemies.MooseMode.Ram => (Moving("ram"), modeSeconds, true),
+            Sim.Enemies.MooseMode.SquareUp => ("squareUp", modeSeconds, false),
+            Sim.Enemies.MooseMode.Charge => ("charge", modeSeconds, true),
+            Sim.Enemies.MooseMode.Wheel => ("overrun", modeSeconds, false),
+            Sim.Enemies.MooseMode.Snag => ("snag", modeSeconds, true),
+            _ => ("pin", modeSeconds, true),
+        };
+    }
+
+    /// <summary>How far in front of a pinning Moose the one under its rack has their feet (m, along its heading): on their
+    /// back, their head toward it, the muzzle over their face and the palms either side of their chest (moose.py's pin, its
+    /// muzzle down at the ground 1.4 m out, its knees a metre out; crew_clips.py held_pinned, the head 1.6 m behind the feet).</summary>
+    public const float MoosePinReach = 2.0f;
+
+    /// <summary>
+    /// Who each Moose drawn this frame has pinned (the player's id): where their feet are (camera-relative) and the way
+    /// they're laid (their facing: away from it, so they lie with their head under its rack). GreyboxScene turns them so, and
+    /// clears it each frame with <see cref="Clutches"/>.
+    /// </summary>
+    public Dictionary<int, (Vector3 Feet, Vector3 Forward)> Pins { get; } = new();
 
     // Drawing the dead: no clip runs on (Draw holds the hit clip's last frame, or the clip's first).
     bool _dying;
@@ -2103,6 +2246,25 @@ public sealed class CreatureArt
                     var f = carrier.Forward;
                     var o = carrier.At(0, FollowerUp, FollowerBack);
                     m = new Matrix4x4(r.X, r.Y, r.Z, 0, -f.X, -f.Y, -f.Z, 0, 0, -1, 0, 0, o.X, o.Y, o.Z, 1);
+                    break;
+                }
+            case EnemyKind.Moose when _models.ContainsKey("moose"):
+                {
+                    // It faces its heading (GreyboxScene turns its basis to the sim's Moose.Yaw), going as fast as it's been
+                    // going. Pinning someone (App. A.6 GRAB), it's stood over them: turned to them where the sim has them, its
+                    // rack on them, and they're laid on their back under it with their head toward it (Pins).
+                    _mooseMode = (e as Sim.Enemies.Moose)?.Mode;
+                    _pace = pace;
+                    if (e.Phase is SpinePhase.Grab or SpinePhase.Punish && e.Holding >= 0 && prey is { } held)
+                    {
+                        var (_, up, _) = Basis(model);
+                        var to = (held.Feet - model.Translation) with { Y = 0 };
+                        var f = to.LengthSquared() > 1e-6f ? Vector3.Normalize(to) : Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, model) with { Y = 0 });
+                        var right = Vector3.Normalize(Vector3.Cross(up, -f));
+                        var stood = held.Feet - f * MoosePinReach;
+                        m = Basis(stood with { Y = model.Translation.Y }, right, up, -f);
+                        Pins[e.Holding] = (held.Feet, f);
+                    }
                     break;
                 }
             case EnemyKind.Grumbler when _models.ContainsKey("grumbler"):

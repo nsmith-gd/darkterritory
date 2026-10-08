@@ -373,9 +373,13 @@ public sealed partial class WorldArt(Look look)
     /// </summary>
     public (double YardEnd, double HomeGate)? Walls { get; set; }
 
+    /// <summary>The departure town's square (note 281), where the walls step back: nothing wild grows in it either.</summary>
+    public Sim.Towns.TownSquare? TownSquare { get; set; }
+
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out), with a little room.</summary>
     bool InsideWalls(double along, double offset) =>
-        Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2);
+        Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
+        || TownSquare is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2;
 
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {
@@ -432,6 +436,7 @@ public sealed partial class WorldArt(Look look)
         {
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
             Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
+            Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
             Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }
@@ -505,6 +510,7 @@ public sealed partial class WorldArt(Look look)
             mesh.Append(Piece($"fence-{index % 3}", () => WorldKit.FencePost(_look, index % 3)), Place(s, -14, 0, 1, 0.05f));
         }
         Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
+        Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
         // A generated line has its own towns and dead signals (PlanArt), where the plan put them.
         if (Scene(route) is not null)
             return;

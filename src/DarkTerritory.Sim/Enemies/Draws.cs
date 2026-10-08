@@ -34,6 +34,19 @@ public readonly record struct DrawAnswer(double Seconds, DrawCause Cause, Double
 }
 
 /// <summary>
+/// A sign shown a crewmate afoot off the train (note 327, GDD App. F.3), replicated on the world record like the draw's
+/// answer: a pair of eyes at the lamp's edge toward where a creature that lives at the stop is (<see cref="At"/>, at its eye
+/// height), and its sound from there, while <see cref="Seconds"/> runs down. Presentation only: nothing's there to meet.
+/// </summary>
+public readonly record struct Watcher(double Seconds, EnemyKind Kind, Double3 At, int Player)
+{
+    public bool Showing => Seconds > 0;
+}
+
+/// <summary>A sign shown tonight (note 327): when, to whom, what, whether from a site at the stop, and how far out.</summary>
+public readonly record struct SignShown(uint Tick, int Player, EnemyKind Kind, bool FromSite, double Out);
+
+/// <summary>
 /// The draw ledger (note 287): each crewmate's draws by cause, decaying with <see cref="DrawTuning.HalfLifeSeconds"/>, so what
 /// stands highest is what drew most, lately. Host-side, kept in key order (cause, then player id), so every read of it is
 /// deterministic.

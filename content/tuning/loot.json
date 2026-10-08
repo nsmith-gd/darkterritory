@@ -11,6 +11,13 @@
     "strongroom": { "heavy": 1 }
   },
 
+  // When a stop's loot comes out (ARCHITECTURE §8 note 352). The director, 8 Oct 2026: "[I] watched the loot spawn in the
+  // yard after I'd already stopped the train." It's out once the engine is on the main line within this many metres of the
+  // stop's zone, whatever its speed: further than enemies.json interestRadius (520), the furthest a client is sent a body
+  // from, and the lamp and the fog, so nobody sees it appear. A facility's own crates (facilities.json) come out with it.
+  // 0: when the train first stops there (the old rule). Stops passed at speed keep theirs lying out, asleep and unsent.
+  "stockAhead": 800,
+
   // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
   // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
   // between them, split by each container's weight; an outlier's weigh this much more (P11).
@@ -33,6 +40,19 @@
     "chance": 0.4,
     "kinds": ["cupboard", "cellar", "hayloft", "underFloor"],
     "noises": ["none", "none", "squeaker", "musicBox", "drummer"]
+  },
+
+  // Searching an open house (GDD App. F.3, "searchable for finds"; level-design P14 "hiding spots ... that take time to
+  // search"; ARCHITECTURE §8 note 326): what a plain village house keeps in a cupboard, a cabinet, its cellar or under its
+  // boards (and a toy with it) isn't there to see until a crewmate on foot, empty-handed and within `reach` of the spot,
+  // holds Use there for that kind's `seconds`; let go and it starts again. A shut house's finds stay out on its step, and a
+  // barn's hayloft and a shed's bench are as they were. Not in the spec's numbers: a cupboard or a cabinet is opened and
+  // gone through, a cellar's hatch lifted and the steps gone down, boards prised up one by one; a house's few spots take a
+  // crewmate about ten seconds, a village a few minutes alone, which is what splitting up buys back. Unset, no search:
+  // the finds lie out.
+  "search": {
+    "reach": 1.0,
+    "seconds": { "cupboard": 2.5, "cabinet": 2, "cellar": 4, "underFloor": 5 }
   },
 
   // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Healing items are

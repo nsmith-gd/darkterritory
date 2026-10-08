@@ -37,16 +37,21 @@ def ribbit_skeleton():
         Bone("neck", "chest", (0, 0.26, 0.55), (0, 0.36, 0.62)),
         Bone("head", "neck", (0, 0.36, 0.62), (0, 0.66, 0.66)),
         Bone("jaw", "head", (0, 0.38, 0.6), (0, 0.65, 0.58)),
-        # (Its head at the top of the sac, under the jaw: scaled, the sac swells down over the chest and out, not up.)
-        Bone("throat", "jaw", (0, 0.45, 0.57), (0, 0.45, 0.47)),
-        Bone("tongue_01", "jaw", (0, 0.44, 0.6), (0, 0.53, 0.6)),
-        Bone("tongue_02", "tongue_01", (0, 0.53, 0.6), (0, 0.62, 0.6)),
+        # (Its head at the top of the sac, just under the jaw: scaled, the sac balloons down and out under the chin, bigger
+        # than the head, not up into it.)
+        Bone("throat", "jaw", (0, 0.45, 0.58), (0, 0.45, 0.48)),
+        # The tongue: tongue_01 is all of its length (scaled along itself it shoots out, as thin as it was: the engine
+        # stretches it to its catch, CreatureArt), tongue_02 the sticky club at its end (scaled back, it stays round).
+        Bone("tongue_01", "jaw", (0, 0.41, 0.588), (0, 0.575, 0.588)),
+        Bone("tongue_02", "tongue_01", (0, 0.575, 0.588), (0, 0.625, 0.588)),
     ]
     for side, sx in (("l", -1), ("r", 1)):
         b += [
             # Long, and limp: back off the skull and hanging down its back and sides.
-            Bone(f"ear_{side}_01", "head", (sx * 0.07, 0.42, 0.73), (sx * 0.13, 0.26, 0.76)),
-            Bone(f"ear_{side}_02", f"ear_{side}_01", (sx * 0.13, 0.26, 0.76), (sx * 0.24, 0.14, 0.42)),
+            # (Lop: off the back of the skull out over the side, then hanging down past the neck, never stood up off the
+            # head like a board: the Look Review.)
+            Bone(f"ear_{side}_01", "head", (sx * 0.1, 0.42, 0.715), (sx * 0.19, 0.33, 0.69)),
+            Bone(f"ear_{side}_02", f"ear_{side}_01", (sx * 0.19, 0.33, 0.69), (sx * 0.26, 0.2, 0.43)),
             # The front legs a crawling man's arms: the elbows out, the hands flat on the ground, the fingers spread.
             Bone(f"upperarm_{side}", "chest", (sx * 0.14, 0.22, 0.44), (sx * 0.27, 0.27, 0.27)),
             Bone(f"lowerarm_{side}", f"upperarm_{side}", (sx * 0.27, 0.27, 0.27), (sx * 0.22, 0.37, 0.04)),
@@ -78,6 +83,7 @@ EAR = Mat("skin.ribbit_ear", hexc("#a69088"), shine=0.4)
 EYE = Mat("glass_dirty.ribbit_eye", hexc("#c8c6bc"), shine=0.95)
 GUM = Mat("flesh.ribbit_gum", hexc("#5a3434"), shine=0.5)
 TEETH = Mat("skin.ribbit_teeth", hexc("#c2b89c"), shine=0.4)
+TONGUE = Mat("flesh.ribbit_tongue", hexc("#8a4a4c"), shine=0.9)
 MOUTH = Mat("tar.ribbit_mouth", hexc("#1a0a0a"), shine=0.8)
 
 
@@ -169,7 +175,7 @@ def lip_path(scale=1.0, inset=0.0, z=0.614):
 
 # The upper lip, rolled and heavy, overhanging the gums.
 LIP = lip_path(0.985, 0.0, 0.613)
-skull.tube(LIP, [0.012] * len(LIP), 8, SKIN, "head", ref=(0, 0, 1))
+skull.tube(LIP, [(0.016, 0.013)] * len(LIP), 8, SKIN, "head", ref=(0, 0, 1))
 # The eyes' mounds, the glands behind them (a toad's paratoids, swollen and pitted), the nostrils.
 EYES = {}
 for s, sx in (("r", 1), ("l", -1)):
@@ -182,12 +188,18 @@ for s, sx in (("r", 1), ("l", -1)):
     head.blob(e, (0.036, 0.036, 0.033), 16, 10, EYE, "head")
     # A heavy lid over the top and back of it: the eye's never all there.
     skull.blob(e + Vector((sx * -0.004, -0.012, 0.017)), (0.041, 0.037, 0.02), 12, 6, SKIN, "head")
-# The lower jaw: a wide scoop under the head, hinged at the back, the chin a little deeper.
-JAW = [(0.37, 0.14, 0.607, 0.566), (0.44, 0.17, 0.604, 0.553), (0.52, 0.173, 0.602, 0.548), (0.59, 0.156, 0.602, 0.552),
-       (0.64, 0.121, 0.603, 0.563), (0.665, 0.07, 0.604, 0.582), (0.674, 0.02, 0.605, 0.598)]
-head.sections(JAW, 20, BELLY, "jaw", sq=0.8, cap0=True, cap1=True)
+# The lower jaw: a wide heavy scoop under the head, hinged at the back, the chin deeper, as broad as the lip over it
+# and rolled at its rim (a Look Review ask: the old one was a thin tray under a ring of lip). Its own skin (`jaw`,
+# fused): it opens.
+jaw = kit.part("jaw")
+JAW = [(0.37, 0.15, 0.607, 0.55), (0.44, 0.18, 0.605, 0.535), (0.52, 0.182, 0.603, 0.528), (0.59, 0.166, 0.603, 0.533),
+       (0.64, 0.13, 0.604, 0.546), (0.665, 0.08, 0.605, 0.568), (0.676, 0.025, 0.606, 0.592)]
+jaw.sections(JAW, 22, BELLY, "jaw", sq=0.78, cap0=True, cap1=True,
+             fmat=lambda pts, n: SKIN if sum(q.x * q.x for q in pts) / len(pts) > 0.012 else BELLY)
+LOWLIP = lip_path(0.97, 0.006, 0.596)
+jaw.tube(LOWLIP, [(0.012, 0.008)] * len(LOWLIP), 8, SKIN, "jaw", ref=(0, 0, 1))
 # The gums just inside the lip, the mouth's dark line under them; the teeth: flat, square, human, a row round the jaw.
-GUMLINE = lip_path(0.95, 0.006, 0.606)
+GUMLINE = lip_path(0.93, 0.012, 0.606)
 head.tube(GUMLINE, [0.008] * len(GUMLINE), 6, GUM, "head", ref=(0, 0, 1))
 head.tube(lip_path(0.92, 0.01, 0.6), [0.007] * len(GUMLINE), 5, MOUTH, "jaw", ref=(0, 0, 1))
 TEETH_AT = []
@@ -207,19 +219,41 @@ for k in range(18):
     long_ = 0.013 + 0.006 * (0.5 + 0.5 * math.sin(k * 3.1))
     head.tube([c + Vector((0, 0, 0.009)), c - Vector((0, 0, long_)) + tilt], [(w, 0.006), (w * 0.85, 0.005)], 4, TEETH, "head",
               ref=(out.x, out.y, 0))
-# The throat's sac, under the jaw: loose skin, folded, that swells (the throat bone's scale).
-THROAT = Vector((0, 0.46, 0.535))
-head.blob(THROAT, (0.12, 0.11, 0.05), 16, 9, BELLY, "throat",
-          shape=lambda i, j, a, th, p: Vector(p) + Vector((0, 0, 0.006 * math.sin(Vector(p).x * 60))))
-# The tongue, curled in the mouth's floor: the engine draws it out.
-head.tube([H("tongue_01"), H("tongue_02"), T("tongue_02")], [(0.04, 0.012), (0.035, 0.011), (0.02, 0.008)], 8, GUM,
-          lambda p: {"tongue_01": 1.0} if p.y < H("tongue_02").y else {"tongue_02": 1.0}, ref=(0, 0, 1), cap1=True)
-# The ears: a rabbit's, long and bare, pinched at the root and cupped along their length, hanging down its back.
+# The throat's sac, under the jaw: loose skin hanging in folds that swells (the throat bone's scale, about its top
+# under the chin) into a pale veined balloon bigger than the head (the Look Review: "the swell needs to be much bigger").
+THROAT = Vector((0, 0.47, 0.535))
+
+
+def sac_folds(i, j, a, th, p):
+    p = Vector(p)
+    # Slack: creased across, sagging lowest at the front; stretched, the folds open out.
+    p.z += 0.007 * math.sin(p.y * 90 + 1.5 * math.sin(p.x * 30)) * smooth01(0.56, 0.5, p.z)
+    p.z -= 0.012 * smooth01(0.42, 0.56, p.y) * smooth01(0.55, 0.49, p.z)
+    return p
+
+
+head.blob(THROAT, (0.105, 0.1, 0.058), 18, 10, BELLY, "throat", shape=sac_folds)
+# The tongue: a toad's, broad and flat and wet, a groove down its middle, lying in the mouth's floor; at its end the
+# sticky club it catches with, swollen and puckered. Out, tongue_01 is scaled along its length (the club scaled back):
+# the tongue shoots out as thick as it lay (clips `tongue`, `creep`; in the game CreatureArt stretches it to its catch).
+t0, t1 = H("tongue_01"), T("tongue_01")
+TPTS = [t0 + Vector((0, 0.004, -0.004))] + [t0.lerp(t1, k / 7) for k in range(1, 8)]
+head.tube(TPTS, [(0.03, 0.011), (0.036, 0.012), (0.038, 0.012), (0.036, 0.011), (0.033, 0.01), (0.03, 0.009), (0.027, 0.009),
+                 (0.026, 0.009)], 10, TONGUE, "tongue_01", ref=(0, 0, 1),
+          shape=lambda i, j, a, p, fr: Vector(p) - fr[1] * (0.004 * bell(math.sin(a) / 0.25) * (math.cos(a) > 0)))
+head.blob(T("tongue_01") + Vector((0, 0.022, 0.002)), (0.04, 0.034, 0.022), 12, 8, TONGUE, "tongue_02",
+          shape=lambda i, j, a, th, p: Vector(p) * 1.0 + Vector((0, 0, 0.003 * math.sin(a * 5) * math.sin(th * 4))))
+# The ears: a rabbit's, long and bare, cupped along their length, hanging down its back. Sheets too thin for the skin's
+# remesh (`ears`, their own part), their roots sunk deep in the skull's.
+ears = kit.part("ears")
 for s, sx in (("r", 1), ("l", -1)):
     e0, e1, e2 = H(f"ear_{s}_01"), H(f"ear_{s}_02"), T(f"ear_{s}_02")
-    pts = [e0 + Vector((0, 0.02, -0.02)), e0, e0.lerp(e1, 0.5), e1, e1.lerp(e2, 0.35), e1.lerp(e2, 0.7), e2]
-    cup = [0.0, 0.006, 0.016, 0.022, 0.02, 0.014, 0.0]
-    skull.tube(pts, [(0.024, 0.016), (0.03, 0.01), (0.052, 0.008), (0.064, 0.008), (0.062, 0.008), (0.046, 0.007), (0.012, 0.005)],
+    # (The root sunk in the skull behind the gland and thick there, so the ear grows out of the head (Look Review: "geometry
+    # that doesn't seem attached"); then the thin blade.)
+    pts = [e0 + Vector((-sx * 0.02, 0.05, -0.035)), e0 + Vector((0, 0.015, -0.012)), e0.lerp(e1, 0.5), e1, e1.lerp(e2, 0.35),
+           e1.lerp(e2, 0.7), e2]
+    cup = [0.0, 0.004, 0.014, 0.022, 0.02, 0.014, 0.0]
+    ears.tube(pts, [(0.045, 0.034), (0.04, 0.02), (0.046, 0.01), (0.054, 0.008), (0.052, 0.008), (0.04, 0.007), (0.012, 0.005)],
                12, EAR, lambda p, s=s, e1=e1: {f"ear_{s}_01": 1.0} if p.y > e1.y + 0.02 else {f"ear_{s}_02": 1.0},
                ref=(sx, 0, 0.3), cap1="point",
                shape=lambda i, j, a, p, fr, cup=cup: Vector(p) + fr[1] * (cup[i] * math.sin(a) ** 2))
@@ -231,22 +265,35 @@ legs = kit.part("legs")
 paws = kit.part("paws")    # the hands and the long feet: fine, kept out of the fused skin
 for s, sx in (("r", 1), ("l", -1)):
     sh, el, wr, tip = H(f"upperarm_{s}"), H(f"lowerarm_{s}"), H(f"hand_{s}"), T(f"hand_{s}")
-    legs.tube([sh, sh.lerp(el, 0.5), el, el.lerp(wr, 0.5), wr], [0.062, 0.05, 0.04, 0.034, 0.026], 10, SKIN,
-              lambda p, el=el, s=s: {f"upperarm_{s}": 1.0} if p.z > el.z + 0.02 else {f"lowerarm_{s}": 1.0}, ref=(1, 0, 0))
-    paws.blob(wr.lerp(tip, 0.3), (0.034, 0.046, 0.014), 8, 4, BELLY, f"hand_{s}")
-    for f in range(4):
-        a = math.radians((f - 1.5) * 16)
-        base = wr.lerp(tip, 0.55) + Vector((math.sin(a) * 0.02, 0, -0.006))
-        d = Vector((math.sin(a), math.cos(a), -0.15)).normalized()
-        n = 0.06 * (0.8 + 0.2 * (1 - abs(f - 1.5) / 1.5))
-        paws.tube([base, base + d * n * 0.55, base + d * n - Vector((0, 0, 0.01))], [0.007, 0.006, 0.004], 5, BELLY, f"hand_{s}",
-                  ref=(0, 0, 1), cap1="point")
+    # (The forearm runs on into the hand's heel and the wrist is thick, so the hand is grown on, not a disc stuck on a
+    # stick: the Look Review.)
+    legs.tube([sh, sh.lerp(el, 0.5), el, el.lerp(wr, 0.5), wr, wr.lerp(tip, 0.3)], [0.064, 0.052, 0.042, 0.036, 0.032, 0.028],
+              10, SKIN, lambda p, el=el, wr=wr, s=s: {f"upperarm_{s}": 1.0} if p.z > el.z + 0.02
+              else {f"lowerarm_{s}": 1.0} if p.z > wr.z + 0.012 else {f"hand_{s}": 1.0}, ref=(1, 0, 0))
+    # A small human hand, flat on the ground: the palm, four long fingers with their knuckles, the thumb turned in.
+    paws.blob(wr.lerp(tip, 0.42) + Vector((0, 0, 0.004)), (0.036, 0.044, 0.017), 10, 6, BELLY, f"hand_{s}")
+    for f in range(5):
+        thumb = f == 4
+        a = math.radians(-sx * 62 if thumb else (f - 1.5) * 15)
+        base = wr.lerp(tip, 0.36 if thumb else 0.66) + Vector((math.sin(a) * (0.03 if thumb else 0.022), 0, 0.002))
+        d = Vector((math.sin(a), math.cos(a), -0.05)).normalized()
+        n = (0.04 if thumb else 0.062) * (1 if thumb else 0.82 + 0.18 * (1 - abs(f - 1.5) / 1.5))
+        kn = base + d * n * 0.45 + Vector((0, 0, 0.006))
+        paws.tube([base - d * 0.012, base, kn, base + d * n - Vector((0, 0, 0.012))], [0.011, 0.0095, 0.0085, 0.0055], 6, BELLY,
+                  f"hand_{s}", ref=(0, 0, 1), cap1="point")
     hp, kn, an, bl, toe = H(f"thigh_{s}"), H(f"calf_{s}"), H(f"foot_{s}"), H(f"toe_{s}"), T(f"toe_{s}")
     # The haunch: a rabbit's thigh folded along its flank, heavy, the hop's spring in it.
     legs.tube([hp + Vector((0, -0.04, 0.03)), hp.lerp(kn, 0.45), kn], [(0.1, 0.12), (0.09, 0.1), 0.055], 12, SKIN, f"thigh_{s}", ref=(1, 0, 0))
-    legs.tube([kn, kn.lerp(an, 0.5), an], [0.055, 0.044, 0.032], 8, SKIN, f"calf_{s}", ref=(1, 0, 0))
-    paws.tube([an, an.lerp(bl, 0.5), bl, toe], [(0.035, 0.022), (0.035, 0.016), (0.03, 0.012), (0.02, 0.008)], 8, BELLY,
-              lambda p, bl=bl, s=s: {f"foot_{s}": 1.0} if p.y < bl.y - 0.02 else {f"toe_{s}": 1.0}, ref=(0, 0, 1), cap1="point")
+    legs.tube([kn, kn.lerp(an, 0.5), an], [0.058, 0.048, 0.042], 8, SKIN, f"calf_{s}", ref=(1, 0, 0))
+    # The long foot, a hare's: a heel that's a lump of bone, thick through the sole, and toes, grown into the leg (the
+    # skin's): no more a ski laid by the leg (the Look Review). Under the haunch, the toes out in front of it.
+    legs.tube([an + Vector((0, -0.03, 0.01)), an, an.lerp(bl, 0.45), bl], [(0.044, 0.042), (0.046, 0.036), (0.042, 0.026), (0.038, 0.02)],
+              10, SKIN, lambda p, bl=bl, s=s: {f"foot_{s}": 1.0} if p.y < bl.y - 0.03 else {f"toe_{s}": 1.0}, ref=(0, 0, 1))
+    for k in range(4):
+        dx = (k - 1.5) * 0.017
+        a0 = bl + Vector((dx, -0.01, -0.002))
+        legs.tube([a0, a0 + Vector((dx * 0.4, 0.06, -0.003)), a0 + Vector((dx * 0.6, 0.1 - 0.012 * abs(k - 1.5), -0.012))],
+                  [0.017, 0.015, 0.011], 6, BELLY, f"toe_{s}", ref=(0, 0, 1), cap1=True)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -289,18 +336,32 @@ hop.close(30)
 TALL = {"pelvis": (14, 0, 0), "spine_01": (10, 0, 0), "chest": (8, 0, 0), "neck": (10, 0, 0), "head": (10, 0, 0),
         "upperarm_r": (16, 0, 0), "upperarm_l": (16, 0, 0), "ear_r_01": (-10, 0, 0), "ear_l_01": (-10, 0, 0),
         "root@loc": (0, 0, 0.05)}
+# (The sac about its top under the chin, in the throat bone's axes: x across, y down, z fore and aft. Blown up it's a
+# pale ball bigger than the head, out in front of the chest; each pulse a croak, the jaw lifting off it.)
+SAC_FULL, SAC_PULSE = (2.6, 3.2, 2.1), (0.25, 0.4, 0.2)
 swell = Clip("swell")
-for f, k in ((0, 0.6), (8, 1.0), (16, 0.7), (24, 1.0), (40, 0.6)):
-    swell.key(f, {**TALL, "throat@scale": (1.35 + 0.2 * k, 1.6 + 0.35 * k, 1.45 + 0.25 * k), "jaw": (-3 * k, 0, 0)}, "BEZIER")
+for f, k in ((0, 0.4), (6, 1.0), (14, 0.55), (22, 1.0), (30, 0.4), (36, 0.85), (46, 0.5), (54, 1.0)):
+    swell.key(f, {**TALL, "throat@scale": tuple(a + b * (k - 1) for a, b in zip(SAC_FULL, SAC_PULSE)), "jaw": (-2 - 4 * k, 0, 0),
+                  "neck": (-12 + 2 * k, 0, 0), "head": (-8, 0, 0)}, "BEZIER")
 swell.close(60)
 
 # Tongue (1 s, loop): the mouth gaping right open, the body braced back on its haunches, jerking as it reels its
 # catch in; the sac pumping. (The tongue itself, out to its catch, is the engine's.)
 BRACE = {"pelvis": (-6, 0, 0), "chest": (6, 0, 0), "head": (6, 0, 0), "upperarm_r": (24, 0, 0), "upperarm_l": (24, 0, 0),
          "ear_r_01": (20, 0, 0), "ear_l_01": (20, 0, 0)}
+# The tongue out at full stretch (TONGUE_OUT its length over its 0.165 m at rest, ~1.2 m out of the mouth, sagging),
+# jerking as it reels; the club scaled back by as much, so it stays a club. In the game CreatureArt aims it at its
+# catch and stretches it the rest of the way, so what the reel shows is what the player's hit by.
+TONGUE_OUT = 7.0
+
+
+def lash(out, droop=0.0):
+    return {"tongue_01@scale": (1, out, 1), "tongue_02@scale": (1, 1 / out, 1), "tongue_01": (36 - droop, 0, 0)}
+
+
 tongue = Clip("tongue")
 for f, k in ((0, 0.0), (5, 1.0), (10, 0.3), (18, 1.0), (24, 0.0)):
-    tongue.key(f, {**BRACE, "jaw": (-34 - 6 * k, 0, 0), "tongue_01": (8, 0, 0), "chest": (6 + 4 * k, 0, 0),
+    tongue.key(f, {**BRACE, "jaw": (-34 - 6 * k, 0, 0), "chest": (6 + 4 * k, 0, 0), **lash(TONGUE_OUT - 0.5 * k, 3 * k),
                    "throat@scale": (1.2 + 0.4 * k, 1.2, 1.3 + 0.5 * k)}, "BEZIER" if f % 2 == 0 else "CONSTANT")
 tongue.close(30)
 
@@ -308,7 +369,7 @@ tongue.close(30)
 # in to eat"): down low on its belly, the mouth still gaping and the tongue out to them, the little hands placed one and
 # then the other, the haunches pushing it on after them; the sac pumping, the ears laid back.
 LOW = {"root@loc": (0, 0, -0.07), "pelvis": (-4, 0, 0), "spine_01": (-6, 0, 0), "chest": (-8, 0, 0), "neck": (4, 0, 0), "head": (2, 0, 0),
-       "ear_r_01": (-12, 0, 0), "ear_l_01": (-12, 0, 0), "tongue_01": (8, 0, 0)}
+       "ear_r_01": (-12, 0, 0), "ear_l_01": (-12, 0, 0), **lash(4.0, 6)}
 creep = Clip("creep")
 for f, k in ((0, 1), (12, -1), (24, 1), (36, -1)):
     creep.key(f, {**LOW, "jaw": (-30 - 4 * (k > 0), 0, 0), "root@loc": (0, 0.03 * k, -0.07),
@@ -345,8 +406,10 @@ hit.key(12, {}, "CONSTANT")
 
 # One skin, the haunches and the legs grown out of the body rather than pushed into it (rig.fuse); then up toward
 # GDD §27's budget (a beast's, 2-8k): rig.densify rounds the head's forms out (Look Review asks).
-kit.fuse("body", ["body", "legs"], voxel=0.003, faces=1800)
-kit.fuse("skull", ["skull"], voxel=0.0025, faces=1000)
+# (The skull fused into the body too, the Look Review: the head sat on the neck with a crease all round it.)
+# (QuadriFlow smooths the groove under the upper lip over at this density, ~2% of the union: kept, for its even quads.)
+kit.fuse("body", ["body", "legs", "skull"], voxel=0.003, faces=2450, lose=0.03)
+kit.fuse("jaw", ["jaw"], voxel=0.0025, faces=550)
 kit.target_tris = 7600
 kit.build()
 rig.bake(sk, [sit, hop, swell, tongue, creep, devour, hit])

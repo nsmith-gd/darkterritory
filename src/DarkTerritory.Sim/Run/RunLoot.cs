@@ -48,6 +48,7 @@ public sealed partial class Run
                 _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, perCar), StopLoot.Kits(t, stop, _route.Seed, i),
                     StopLoot.Toys(t, stop, _route.Seed, i)));
         _stocked = new bool[_stopLoot.Count];
+        FindHidingSpots();
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
     }
@@ -120,13 +121,9 @@ public sealed partial class Run
             return;
         var train = world.Train;
         var engine = EngineRake(train);
-        if (engine.Speed < Tuning.StopBelowSpeed)
-            for (int k = 0; k < _stopLoot.Count; k++)
-            {
-                var f = _stopLoot[k].Feature;
-                if (!_stocked[k] && engine.Distance >= f.Start && engine.Distance <= f.End + 100)
-                    Stock(world.Bodies, line, t, k);
-            }
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (!_stocked[k] && Due(_stopLoot[k].Feature, train, engine, t.StockAhead))
+                Stock(world.Bodies, line, t, k);
 
         // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
         // the Gaunt and the Followers go for, stays a body.)
@@ -150,13 +147,30 @@ public sealed partial class Run
     }
 
     /// <summary>
-    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does when the train
-    /// first stops there (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// Whether a stop's loot is due out. Note 352 (the director, 8 Oct 2026: "[I] watched the loot spawn in the yard after I'd
+    /// already stopped the train"): with the engine on the main line within <paramref name="ahead"/> m of the stop's zone,
+    /// whatever its speed, before anyone's near enough to be sent it (enemies.json interestRadius). With no look-ahead, once
+    /// the train first stops there.
     /// </summary>
-    public void Stock(Physics.Bodies bodies, int stop)
+    bool Due(RouteFeature f, TrainOnLine train, TrainDynamics engine, double ahead) => ahead > 0
+        ? train.OnMain && engine.Distance >= f.Start - ahead && engine.Distance <= f.End + ahead
+        : engine.Speed < Tuning.StopBelowSpeed && engine.Distance >= f.Start && engine.Distance <= f.End + 100;
+
+    /// <summary>
+    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does as the train comes
+    /// up to it (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// </summary>
+    /// <param name="searched">Its open houses searched too (note 326), every find out where it was kept (and only that, if its
+    /// loot's already out).</param>
+    public void Stock(Physics.Bodies bodies, int stop, bool searched = false)
     {
-        if (_loot is { } t && _lootLine is { } line && stop >= 0 && stop < _stopLoot.Count)
+        if (_loot is not { } t || _lootLine is not { } line || stop < 0 || stop >= _stopLoot.Count)
+            return;
+        if (!searched || !_stocked[stop])
             Stock(bodies, line, t, stop);
+        if (searched)
+            foreach (var spot in _spots.Where(x => x.Stop == stop).ToList())
+                Reveal(bodies, stop, spot.Container);
     }
 
     /// <summary>The containers at stop <paramref name="stop"/> with a repair kit in them (E.12 question 4), for tools and tests.</summary>
@@ -194,6 +208,9 @@ public sealed partial class Run
                 case ContainerKind.CraneBay:
                     break;
                 default:
+                    // In an open house's cupboard, cabinet, cellar or floor, it's there to be searched for (note 326).
+                    if (Hidden(k, c))
+                        break;
                     // A find in a shut house is put out on its step (T114: the houses are walls, with no way in); in an open
                     // one it's inside, where it'd be kept (note 326).
                     var put = StopWalls.FindAt(stop, c);

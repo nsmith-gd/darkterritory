@@ -1,0 +1,42 @@
+// The jobs the train makes as it runs (docs/design/orchestrator.md §5.1; GDD App. F.3, the director, 7 Oct 2026: "on the
+// train, still relatively boring from point A to point B"). Small jobs at known places, each with its own tell, each fixed
+// by a crewmate's hands; left alone each costs the train something, never a life on its own. They give riders and walkers
+// something to do between stops, and a reason to be out on the train. A first pass (note 331), by the outline's numbers.
+{
+  // U1, the hot box: a car's rear axle box running dry. One comes on, on a car drawn from those running cool, every
+  // everyMetres of the train's running (± jitter of it; the outline's "every 4 km per car" would be 29 a 23 km night on five
+  // cars: note 331), the metres counting fastFactor times over above fastAbove (m/s), none in the first firstAfterMetres
+  // of the night, none in the yard or a fort, and never more open than there are crewmates alive. Hot, it squeals, then
+  // smokes (the tell). Greased with Use held greaseSeconds at it (the hands within reach m of the box, on the rear bogie
+  // bogieInset m in from the car's end, from the coupling gap behind or the ground beside), it's cool again. Left
+  // dragAfter seconds it drags: each such box takes slowBy (m/s) off the top speed, held there as the Car Hugger holds its
+  // cap (over it, holdFactor times what the engine can pull). Left fireAfter seconds it catches: a car fire there (App.
+  // C.5), and the box is done.
+  "hotBox": {
+    "enabled": true,
+    "everyMetres": 2500,
+    "jitter": 0.5,
+    "fastAbove": 18,
+    "fastFactor": 1.5,
+    "firstAfterMetres": 2000,
+    "dragAfter": 60,
+    "slowBy": 2,
+    "holdFactor": 1.1,
+    "fireAfter": 120,
+    "greaseSeconds": 3,
+    "reach": 3.0,
+    "bogieInset": 1.6
+  },
+  // U3, a lamp guttering (note 346): a lit car's lamp running low. One starts, on a lit car with a room drawn at random,
+  // every everyMetres of the train's running (± jitter of it), none in the first firstAfterMetres, none in the yard or a
+  // fort, and never more guttering than there are crewmates alive. It flickers and dims, worse as it goes (the tell);
+  // whoever's in the car trims it with the lamp key, and it burns steady. Left outAfter seconds it goes out: the car is
+  // dark (Climbers make for an unlit car, App. A.4) until someone lights it again.
+  "lamp": {
+    "enabled": true,
+    "everyMetres": 3000,
+    "jitter": 0.5,
+    "firstAfterMetres": 3000,
+    "outAfter": 45
+  }
+}

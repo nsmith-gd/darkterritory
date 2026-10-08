@@ -1,0 +1,52 @@
+// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): the square inside the departure fortress's
+// walls, who's in it, what's posted there, and how close you come to talk or read. The words are content/world/towns.json.
+// Nothing here is in the systems spec; the director's direction sets no numbers, so each is a first reading, made to
+// fit the yard the line generator already lays (linegen tiers.json "fortress": walls 14.8 m out, houses 10.9 m out
+// every 15 m, the home platform right of the line).
+{
+  // Off, a fortress is the walls and houses of note 107 and nothing to talk to.
+  "enabled": true,
+
+  // The director, 7 Oct: "towns should land somewhere between 20 to 350 people". How many live here now, how many to a
+  // house, and how many more lived here before (the empty, boarded and burnt houses further down the yard: every town has
+  // lost people). People out of doors at night beyond those at their work: one in "outdoors".
+  "population": [20, 350],
+  "household": [2, 6],
+  "former": [1.3, 3.5],
+  "outdoors": 22,
+  // Houses with their door open and a household inside to talk to (fully modelled downstairs): one per "per" people,
+  // between min and max, the lived-in houses nearest the square.
+  "explorable": { "per": 70, "min": 2, "max": 5 },
+  // The yard's street (note 107's: a house every 15 m, 10.9 m out, fronts to the line, between the line and the wall):
+  // each house's width along the street and depth (m), from this far inside the gate, and of the houses nobody lives in,
+  // the share burnt and the share standing open.
+  "houses": { "every": 15, "out": 10.9, "width": [6.5, 8.5], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12 },
+
+  // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
+  // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
+  // along the line, in metres from the outer gate (negative is inside); wallOut: how far from the line its far wall
+  // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
+  // backed onto that wall, fronts to the line.
+  "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9 },
+
+  // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
+  // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the
+  // street's folk are "outdoors" above, out in front of the lived-in houses with a lantern.
+  "ring": [1, 5],
+  // Lines a person has (the first is their job's or their town's, the next the other, then perhaps a scrap of a
+  // thread), and the share of people who carry a scrap.
+  "linesPerPerson": [2, 3],
+  "scrapShare": 0.35,
+  // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
+  "quirks": [1, 2],
+  "notices": [3, 4],
+  "looseNotes": [1, 2],
+
+  // Talking and reading (Use, looked at, as the cab's controls are picked: train.json "pick"). Reach is from the eye to
+  // the person's chest or the paper; lookDegrees the cone it has to be in. A card closes once you're further than
+  // closeBeyond from what you're reading or talking to.
+  "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
+  // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
+  "typePerSecond": 45,
+  "lingerSeconds": 6
+}

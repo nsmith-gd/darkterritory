@@ -28,6 +28,7 @@ public sealed record EnemyTuning(
     public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    public MooseTuning Moose { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -35,6 +36,8 @@ public sealed record EnemyTuning(
     /// creatures driven off by its rules only with this many crewmates on it at once.
     /// </summary>
     public CoordinatedKillTuning CoordinatedKill { get; init; } = new();
+    /// <summary>Note 279: what holds a creature loose in the world (enemies.json <c>solidity</c>).</summary>
+    public SolidityTuning Solidity { get; init; } = new();
     /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
@@ -631,6 +634,12 @@ public sealed record DirectorTuning(
     public PressureTuning Pressure { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
+    /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
+    public AfootTuning Afoot { get; init; } = new();
+    /// <summary>The hound run (note 328): a fast train's wave of Cinder Hounds, answered by the guns one hound at a time.</summary>
+    public HoundRunTuning Run { get; init; } = new();
+    /// <summary>The orchestrator's live crew and caps (note 336; orchestrator.md §3.2).</summary>
+    public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -735,11 +744,120 @@ public sealed record AbandonedTuning
 }
 
 /// <summary>
+/// The orchestrator's census and caps (ARCHITECTURE §8 note 336; docs/design/orchestrator.md §3.2 1, 3, 5): the budget's crew
+/// multiplier from the crew alive now, and the engaged cap by it. Mirror of enemies.json <c>director.orchestrator</c>; field
+/// docs live there.
+/// </summary>
+public sealed record OrchestratorTuning
+{
+    public bool On { get; init; } = true;
+    public bool LiveCrew { get; init; } = true;
+    public double EngagedPerActive { get; init; } = 0.75;
+    public double PerPlayer { get; init; } = 1;
+}
+
+/// <summary>
+/// Note 327 (GDD App. F.3, the director, 7 Oct 2026: "when they leave, there is this presence of threat at all times"). Field
+/// docs in enemies.json director.afoot.
+/// </summary>
+public sealed record AfootTuning
+{
+    public bool On { get; init; } = true;
+    public double FromTrainM { get; init; } = 20;
+    public double PerSecond { get; init; } = 0.08;
+    public double OutsideWeight { get; init; } = 2.5;
+    public double[] SignEvery { get; init; } = [12, 24];
+    public double FirstSign { get; init; } = 6;
+    public double[] SignOut { get; init; } = [14, 22];
+    public double SignReach { get; init; } = 160;
+    public double SignSeconds { get; init; } = 3.5;
+    public double SignSpread { get; init; } = 35;
+    /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
+    public Dictionary<string, double> SignHeight { get; init; } = new();
+    public double SignHeightDefault { get; init; } = 0.7;
+}
+
+/// <summary>
+/// The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3, §6.1; GDD App. F.3, the director, 7 Oct 2026:
+/// "things that are trying to attack the train sort of like tower defense style that gives our gunners things to do"): a
+/// train run fast long enough draws a stream of Cinder Hounds faster than it is, sized to the crew active, that the guns
+/// answer one hound at a time. Mirror of enemies.json <c>director.run</c>; field docs live there.
+/// </summary>
+public sealed record HoundRunTuning
+{
+    public bool On { get; init; } = true;
+    public double FromSpeed { get; init; } = 19;
+    public double StopSpeed { get; init; } = 2;
+    public double AfterMetres { get; init; } = 2400;
+    public double HotShorter { get; init; } = 0.75;
+    public double Base { get; init; } = 1.4;
+    public double PerActive { get; init; } = 0.6;
+    public int[] Size { get; init; } = [2, 6];
+    public double Spacing { get; init; } = 6;
+    public double SpawnBehind { get; init; } = 200;
+    public double[] Lateral { get; init; } = [4, 8];
+    public double Closing { get; init; } = 5;
+    public double Scatter { get; init; } = 5;
+}
+
+/// <summary>
 /// D.11 and D.13: each vote multiplies its creature's spawn weight by <paramref name="PerVote"/>, to at most <paramref name="Cap"/>,
 /// within its want tag; a dead player's ballot is <paramref name="Options"/> creatures drawn by weighted roll from what's eligible.
 /// A dead bot, a crewmate like any other, casts its vote <paramref name="BotSeconds"/> after it's offered (note 202).
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
+
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339). Field docs live in enemies.json.</summary>
+public sealed record MooseTuning
+{
+    public double CrowdAt { get; init; } = 20;
+    public double CrowdPerSecond { get; init; } = 25;
+    public double CloseAt { get; init; } = 12;
+    public double ClosePerSecond { get; init; } = 70;
+    public double HearVoice { get; init; } = 15;
+    public int TalkingAbove { get; init; } = 40;
+    public double VoicePerSecond { get; init; } = 40;
+    public double TrainPassAt { get; init; } = 25;
+    public double TrainPass { get; init; } = 25;
+    public double CalmPerSecond { get; init; } = 15;
+    public double ListenAt { get; init; } = 20;
+    public double WarnAt { get; init; } = 50;
+    public double[] SquareUpAt { get; init; } = [12, 30];
+    public double SquareUpSeconds { get; init; } = 2.5;
+    public double HuntSpeed { get; init; } = 4.5;
+    public double ChargeSpeed { get; init; } = 11;
+    public double Overrun { get; init; } = 8;
+    public double WheelSeconds { get; init; } = 2.5;
+    public double RackSpan { get; init; } = 3.2;
+    public double HitReach { get; init; } = 0.5;
+    public double SnagSeconds { get; init; } = 4;
+    public int BlockedCharges { get; init; } = 3;
+    public int ChargeDamage { get; init; } = 60;
+    public double GrabBelowHealth { get; init; } = 40;
+    public double PinSeconds { get; init; } = 12;
+    public double SightRange { get; init; } = 60;
+    public double SearchSpeed { get; init; } = 2.5;
+    public double SearchSeconds { get; init; } = 25;
+    public double LeashRadius { get; init; } = 80;
+    public double LostAtCar { get; init; } = 5;
+    public double RamEvery { get; init; } = 3;
+    public double RamSeconds { get; init; } = 15;
+    public double TrackClearance { get; init; } = 3.2;
+    public double MovingClearance { get; init; } = 6;
+    public double GoneBeyond { get; init; } = 600;
+    public double[] GroundAt { get; init; } = [30, 60];
+    public int MinCrew { get; init; } = 1;
+    public double PerGroundWeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> Lineside { get; init; } = new() { ["local"] = 2, ["frontier"] = 3, ["deadLines"] = 4, ["deepTerritory"] = 5 };
+    public double[] LinesideOut { get; init; } = [8, 22];
+    public double LinesideAhead { get; init; } = 300;
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
+
+    /// <summary>A tier's weight in a table keyed by its camel-cased name (1 where it isn't listed).</summary>
+    public static double ByTier(IReadOnlyDictionary<string, double> table, Route.RouteTier tier) =>
+        table.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 1);
+}
 
 /// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
 public sealed record CreatureSitesTuning
@@ -750,4 +868,23 @@ public sealed record CreatureSitesTuning
     public double RoostReach { get; init; } = 400;
     public double CallReach { get; init; } = 160;
     public double GroundMargin { get; init; } = 4;
+}
+
+/// <summary>How a creature loose in the world is held by it (note 279): on the land, in the air over it, or its own way.</summary>
+public enum Solid : byte { None, Ground, Air }
+
+/// <summary>The world is solid for the creatures (note 279). Field docs live in enemies.json <c>solidity</c>.</summary>
+public sealed record SolidityTuning
+{
+    public double ClimbM { get; init; } = 2.5;
+    public double AirClearM { get; init; } = 0.2;
+    public Dictionary<string, string> Kinds { get; init; } = new();
+
+    Dictionary<EnemyKind, Solid>? _kinds;
+
+    public Solid Of(EnemyKind kind)
+    {
+        _kinds ??= Kinds.ToDictionary(k => Enum.Parse<EnemyKind>(k.Key, ignoreCase: true), k => Enum.Parse<Solid>(k.Value, ignoreCase: true));
+        return _kinds.TryGetValue(kind, out var s) ? s : Solid.None;
+    }
 }

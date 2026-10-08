@@ -21,10 +21,17 @@ public sealed record LootTuning
     /// as bought): every village container and yard crate stack and strongroom, each rolled on its own stream.
     /// </summary>
     public double RepairKitChance { get; init; }
+    /// <summary>
+    /// How far out along the main line (m) a stop's loot, and its facility's crates, come out (the director, 8 Oct 2026:
+    /// he watched it appear after he'd stopped; note 352). 0: when the train first stops there.
+    /// </summary>
+    public double StockAhead { get; init; }
     /// <summary>Toys found at the stops (note 264: none ride from the fortress now). Unset, none.</summary>
     public ToyLootTuning? Toys { get; init; }
     /// <summary>The finds that heal when used (GDD App. F.1, the damage model; note 272). Unset, none do.</summary>
     public HealingTuning? Healing { get; init; }
+    /// <summary>The held search of an open house's hiding spots (GDD App. F.3; note 326). Unset, the finds lie out.</summary>
+    public SearchTuning? Search { get; init; }
 
     public LootKindTuning Of(ContainerKind kind) =>
         Kinds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var k) ? k : throw new KeyNotFoundException($"loot.json has no kind {kind}");
@@ -62,6 +69,18 @@ public sealed record HealingTuning
     public int BotBelow { get; init; } = 50;
 
     public int Of(string item) => Heals.GetValueOrDefault(item);
+}
+
+/// <summary>loot.json <c>search</c> (GDD App. F.3; note 326): how near a hiding spot, and how long held, to search it.</summary>
+public sealed record SearchTuning
+{
+    public double Reach { get; init; } = 1;
+    /// <summary>Seconds held to search a spot, by container kind in loot.json's camelCase (looked up, never iterated).</summary>
+    public Dictionary<string, double> Seconds { get; init; } = [];
+
+    /// <summary>The seconds a kind of spot takes, or null if it's never searched (it lies out).</summary>
+    public double? Of(ContainerKind kind) =>
+        Seconds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var s) ? s : null;
 }
 
 public sealed record LootKindTuning
