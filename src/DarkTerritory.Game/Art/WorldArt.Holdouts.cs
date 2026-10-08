@@ -79,8 +79,12 @@ public sealed partial class WorldArt
     /// padlock, a shelter's barricade, a lockup's gate. Shut while anyone's in there or nobody is; freed, broken open: the
     /// car's door swung wide, its padlock smashed off into the ballast (or hanging open on the hasp, picked with the repair
     /// kit); the barricade's boards pried off, two hanging, the rest on the ground, the doorway dark; the cage's gate open.
+    /// While it's being breached (note 464), the breach shows where it's worked: <see cref="Lock"/>, <see cref="Barricade"/>.
     /// </summary>
-    void Entrance(Kit k, StopBuilding b, Vector3 facing, bool open, bool picked)
+    /// <param name="breach">How far the breach under way is (0 to 1 of its seconds); −1 when nobody's at it.</param>
+    /// <param name="quiet">The breach under way is the repair kit's picks (a lock opened, not smashed).</param>
+    /// <param name="time">The scene's clock, the crew's clips' own: the blows and the heaves land on their beats.</param>
+    void Entrance(Kit k, StopBuilding b, Vector3 facing, bool open, bool picked, float breach = -1, bool quiet = false, float time = 0)
     {
         float length = (float)b.Length, width = (float)b.Width;
         switch (b.Kind)
@@ -97,7 +101,8 @@ public sealed partial class WorldArt
                     // (Open, the doorway shows the van's inside: PrisonCar draws it hollow, note 387.)
                     k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
                     if (!open)
-                        k.BoxAt(new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(0.05f, 0.12f, 0.09f));
+                        Lock(k, new Vector3(door * (w + 0.1f), 2.0f, 0.9f), new Vector3(door, 0, 0), Vector3.UnitZ, new Vector3(0.09f, 0.12f, 0.05f),
+                            breach, quiet, time, b.Variant);
                     else if (picked)
                         // Opened with the kit: the padlock hanging open from the staple, its shackle up.
                         k.BoxAt(new Vector3(door * (w + 0.1f), 1.85f, -0.95f), new Vector3(0.05f, 0.08f, 0.09f));
@@ -126,7 +131,8 @@ public sealed partial class WorldArt
                         });
                         k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.5f);
                         if (!open)
-                            k.BoxAt(new Vector3(halfSpan - 0.05f, 1.3f, at + 0.06f), new Vector3(0.05f, 0.08f, 0.04f));
+                            Lock(k, new Vector3(halfSpan - 0.05f, 1.3f, at + 0.06f), Vector3.UnitZ, Vector3.UnitX, new Vector3(0.05f, 0.08f, 0.04f),
+                                breach, quiet, time, b.Variant);
                         else if (!picked)
                             k.BoxAt(new Vector3(halfSpan + 0.3f, 0.3f, at + 0.4f), new Vector3(0.05f, 0.04f, 0.08f));
                     });
@@ -140,7 +146,7 @@ public sealed partial class WorldArt
                     float half = (float)_look.Walls.PersonDoorM / 2 + 0.25f;
                     // (Its sill's the room's boards, a step up: ShelterRoom.)
                     if (!open)
-                        Barricade(k, centre + Doorway(k) + Vector3.UnitY * 0.25f, facing, half, k.DoorHeight());
+                        Barricade(k, centre + Doorway(k) + Vector3.UnitY * 0.25f, facing, half, k.DoorHeight(), breach, time, b.Variant);
                     else
                         PriedOff(k, centre, facing, half, k.DoorHeight());
                     break;
@@ -171,7 +177,7 @@ public sealed partial class WorldArt
     /// Each Holdout's way in near <paramref name="eye"/>, by its state (<see cref="Entrance"/>): placed as the stop's own
     /// building is (<see cref="Building"/>), so it sits where the baked building expects it.
     /// </summary>
-    public void Entrances(MeshBuilder mesh, RailLine line, Route? route, Sim.Run.Holdouts holdouts, Double3 eye, float valleyDepth)
+    public void Entrances(MeshBuilder mesh, RailLine line, Route? route, Sim.Run.Holdouts holdouts, Double3 eye, float valleyDepth, double time = 0)
     {
         if (route is null)
             return;
@@ -189,8 +195,11 @@ public sealed partial class WorldArt
             var (dx, dy) = Local(b, h.Layout.Door);
             var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
             bool open = h.State == Sim.Run.HoldoutState.Freed;
+            // The breach under way (note 464), from the sim's replicated progress, so a client's is the host's.
+            float breach = h.State == Sim.Run.HoldoutState.Breaching
+                ? (float)Math.Clamp(h.Progress / Math.Max(1e-6, h.Breach(holdouts.Tuning).Seconds), 0, 1) : -1;
             k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
-            k.With(frame, () => Entrance(k, b, facing, open, open && h.Quiet));
+            k.With(frame, () => Entrance(k, b, facing, open, open && h.Quiet, breach, h.Quiet, (float)(time % 3600)));
         }
     }
 
@@ -318,19 +327,160 @@ public sealed partial class WorldArt
     /// <summary>A ground-floor doorway's middle (its sill a hand over the ground), the standard door's height up (note 110).</summary>
     static Vector3 Doorway(Kit k) => Vector3.UnitY * (0.05f + k.DoorHeight() / 2);
 
-    static void Barricade(Kit k, Vector3 centre, Vector3 outward, float halfWidth, float height)
+    /// <summary>
+    /// A shelter's barricade: five boards nailed across its doorway. Being pried (<paramref name="breach"/> 0 to 1, note 464),
+    /// they come away one at a time in the order a bar gets at them (the one at the chest first, crew_clips' pry, then the ones
+    /// above and below it): each pried board lies on the ground before the doorway, and the one being worked stands out from
+    /// the jamb at its free end, further as its share of the breach goes on, sprung out on each heave of the clip and
+    /// splintering at its nails as the heave comes on.
+    /// </summary>
+    static void Barricade(Kit k, Vector3 centre, Vector3 outward, float halfWidth, float height, float breach = -1, float time = 0, int seed = 0)
     {
         var across = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, outward));
         k.Shade(1);
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        // Which board comes off when: the chest's, then above, below, the top, the bottom (5 boards, a fifth of the breach each).
+        int[] order = [2, 3, 1, 4, 0];
+        int worked = breach < 0 ? -1 : Math.Min(4, (int)(breach * 5));
+        float share = breach < 0 ? 0 : breach * 5 - worked;
+        float heave = breach < 0 ? 0 : Heave(time);
         for (int i = 0; i < 5; i++)
         {
             float y = -height / 2 + 0.2f + i * (height - 0.4f) / 4;
             float tilt = (i % 2 == 0 ? 1 : -1) * 0.12f;
             var a = centre + across * -halfWidth + Vector3.UnitY * (y - tilt) + outward * 0.08f;
             var c = centre + across * halfWidth + Vector3.UnitY * (y + tilt) + outward * 0.08f;
+            int rank = Array.IndexOf(order, i);
+            if (rank < worked)
+            {
+                // Off: down on the ground before the doorway, where PriedOff lays them (its sill is the ground's).
+                var g = centre - Vector3.UnitY * (height / 2 + 0.25f + 0.05f - 0.07f) + outward * (0.5f + rank * 0.33f) + across * (-halfWidth * 0.9f + rank * 0.15f);
+                k.Rod(g, g + across * (2 * halfWidth * 0.85f) + outward * ((rank % 3 - 1) * 0.3f), 0.07f);
+                continue;
+            }
+            if (rank == worked)
+            {
+                // Worked: its free end (the right jamb's) pulled off the nails, sprung out further on each heave.
+                float pull = 0.04f + 0.16f * share + 0.07f * heave;
+                c += outward * pull + Vector3.UnitY * (0.03f * heave);
+                // Its nails drawn with it: two bright points of iron at the end.
+                k.Rod(c - across * 0.04f, c - across * 0.04f - outward * (pull * 0.8f), 0.008f);
+            }
             k.Rod(a, c, 0.07f);
+            if (rank == worked)
+                Splinters(k, c - across * 0.06f, outward, across, PrySince(time), seed * 31 + (int)(time / PryCycle));
         }
+    }
+
+    // The breach clips' beats (tools/blender/crew_clips.py, 30 fps), so the lock and the boards answer the crew's blows: the
+    // smash a 24-frame loop with the bar on the hasp at frame 9; the pry a 40-frame loop hauled back from 0 to 14, held to 22,
+    // eased off by 32.
+    const float SmashCycle = 24 / 30f, SmashBlow = 9 / 30f, PryCycle = 40 / 30f, PryOn = 14 / 30f, PryHeld = 22 / 30f, PryOff = 32 / 30f;
+
+    /// <summary>How long since the last blow of the smash landed (s).</summary>
+    static float SmashSince(float time) => ((time - SmashBlow) % SmashCycle + SmashCycle) % SmashCycle;
+
+    /// <summary>How long since the pry's heave came on (s).</summary>
+    static float PrySince(float time) => ((time - PryOn) % PryCycle + PryCycle) % PryCycle;
+
+    /// <summary>How hard the pry's heaving at <paramref name="time"/>: 0 at rest, 1 hauled right back.</summary>
+    static float Heave(float time)
+    {
+        float t = (time % PryCycle + PryCycle) % PryCycle;
+        return t < PryOn ? t / PryOn : t < PryHeld ? 1 : t < PryOff ? 1 - (t - PryHeld) / (PryOff - PryHeld) : 0;
+    }
+
+    /// <summary>
+    /// A lock on its hasp (a prison car's padlock, a lockup gate's), <paramref name="outward"/> toward whoever's at it. Struck
+    /// (note 464): it jumps out on the hasp at each blow of the smash and swings back, throwing sparks, and hangs lower and
+    /// more twisted the further the breach is; under the repair kit's picks it turns a little this way and that, a pick in it.
+    /// </summary>
+    /// <param name="half">Its half size along the door (<paramref name="along"/>), up, and out from it.</param>
+    static void Lock(Kit k, Vector3 at, Vector3 outward, Vector3 along, Vector3 half, float breach, bool quiet, float time, int seed)
+    {
+        if (breach < 0)
+        {
+            k.BoxAt(at, Vector3.Abs(along * half.X) + new Vector3(0, half.Y, 0) + Vector3.Abs(outward * half.Z));
+            return;
+        }
+        var up = Vector3.UnitY;
+        // The hasp's staple it hangs from, just over it, bent out by the blows.
+        var staple = at + up * (half.Y + 0.03f);
+        float since = SmashSince(time), jolt = quiet || since > 0.3f ? 0 : MathF.Exp(-since / 0.06f);
+        float swing = quiet ? 0.12f * MathF.Sin(time * 9) : 0.5f * breach + 0.6f * jolt;
+        float twist = quiet ? 0.25f * MathF.Sin(time * 5.3f) : 0.3f * breach;
+        var turn = Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(along), -swing) * Matrix4x4.CreateFromAxisAngle(up, twist);
+        var hang = Vector3.Transform(at - staple, turn);
+        var centre = staple + hang - up * (0.04f * breach) + outward * (0.02f * jolt);
+        var down = Vector3.Normalize(Vector3.Transform(-up, turn));
+        var face = Vector3.Normalize(Vector3.Transform(outward, turn));
+        var side = Vector3.Cross(-down, face);
+        k.Rod(staple - outward * 0.02f, staple + outward * (0.03f + 0.03f * breach + 0.03f * jolt), 0.012f);
+        k.Rod(staple, centre - down * half.Y, 0.008f);
+        k.With(new Matrix4x4(side.X, side.Y, side.Z, 0, -down.X, -down.Y, -down.Z, 0, face.X, face.Y, face.Z, 0, centre.X, centre.Y, centre.Z, 1),
+            () => k.BoxAt(Vector3.Zero, new Vector3(half.X, half.Y, half.Z)));
+        if (quiet)
+        {
+            // The kit's pick and tension wrench in its keyhole, at its foot.
+            k.Use("iron_plate", Palette.IronGrey, 0.4f, 0.6f);
+            var hole = centre + down * (half.Y * 0.7f) + face * half.Z;
+            k.Rod(hole, hole + face * 0.07f + down * 0.02f, 0.004f);
+            k.Rod(hole + side * 0.01f, hole + side * 0.01f + face * 0.05f - down * 0.03f, 0.004f);
+            return;
+        }
+        if (since < 0.35f)
+            Sparks(k, centre + face * half.Z, face, side, since, seed * 17 + (int)((time - SmashBlow) / SmashCycle));
+    }
+
+    /// <summary>A blow's sparks off struck iron: a dozen streaks out of it, splayed, falling, gone in a third of a second.</summary>
+    static void Sparks(Kit k, Vector3 at, Vector3 outward, Vector3 side, float since, int seed)
+    {
+        k.Use("lamp_lens", new Vector3(1.0f, 0.62f, 0.2f), 0, 0, tile: 0.25f);
+        k.Tint = new Vector3(1.6f, 0.95f, 0.35f);
+        k.Emissive = 1;
+        if (since < 0.06f)
+            k.BoxAt(at, new Vector3(0.05f * (1 - since / 0.06f) + 0.01f));
+        for (int i = 0; i < 12; i++)
+        {
+            float h = Hash01(seed, i, 1), h2 = Hash01(seed, i, 2), h3 = Hash01(seed, i, 3);
+            var dir = Vector3.Normalize(outward * 1.1f + side * ((h - 0.5f) * 1.8f) + Vector3.UnitY * ((h2 - 0.25f) * 1.4f));
+            float speed = 2.6f * (0.6f + 0.7f * h3);
+            float life = 0.2f + 0.15f * h;
+            if (since > life)
+                continue;
+            var v = dir * speed - Vector3.UnitY * (9.8f * since);
+            var p = at + dir * (speed * since) - Vector3.UnitY * (4.9f * since * since);
+            k.Rod(p, p - v * 0.035f, 0.011f * (1 - since / life) + 0.004f);
+        }
+        k.Emissive = 0;
+    }
+
+    /// <summary>Splinters off a board pried from its nails as the heave comes on: slivers of it out and down, gone in half a second.</summary>
+    static void Splinters(Kit k, Vector3 at, Vector3 outward, Vector3 across, float since, int seed)
+    {
+        if (since > 0.5f)
+            return;
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Shade(1.25f);
+        for (int i = 0; i < 7; i++)
+        {
+            float h = Hash01(seed, i, 4), h2 = Hash01(seed, i, 5), h3 = Hash01(seed, i, 6);
+            var dir = Vector3.Normalize(outward * 1.0f + across * ((h - 0.5f) * 1.2f) + Vector3.UnitY * ((h2 - 0.2f) * 1.1f));
+            float speed = 1.6f * (0.6f + 0.7f * h3);
+            var p = at + dir * (speed * since) - Vector3.UnitY * (4.9f * since * since);
+            var spin = Vector3.Normalize(across * MathF.Cos(since * 20 + h * 6) + Vector3.UnitY * MathF.Sin(since * 20 + h * 6));
+            k.Rod(p, p + spin * (0.05f + 0.06f * h2), 0.008f);
+        }
+    }
+
+    /// <summary>A repeatable 0..1 from three integers (the effects' own scatter, so a still frame is the same each time).</summary>
+    static float Hash01(int seed, int i, int salt)
+    {
+        uint x = (uint)(seed * 73856093) ^ (uint)(i * 19349663) ^ (uint)(salt * 83492791);
+        x ^= x >> 13;
+        x *= 0x5bd1e995;
+        x ^= x >> 15;
+        return (x & 0xffffff) / (float)0x1000000;
     }
 
     /// <summary>A Holdout's lamp: a caged lantern on a short bracket (its glass lit by the scene while someone waits there).</summary>

@@ -6654,6 +6654,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `free`, `slap`: the belt jerking free with a slap, the idlers spinning up, the heap sliding off down the belt.
     - **Not yet:** the drive's speed on Low power (note 400: half rate) isn't heard; the engine runs as it does on Live. The head's gate shutting over a full car isn't heard either: the pour just stops.
     - **Pinned:** `WorldSoundTests.TheConveyorIsHeardStartedRunningJammedClearedAndStalled`, on a client night at a grain elevator, off the mirrored record. It checks the starter cranking while it's held; one catch and the running engine after; the belt and the pour while it carries; one jam where it is, with the drive labouring in place of running free; the hands at it; one free where the jam was, the engine running again; and a jam left, one stall and nothing of the line playing after.
+
     - **Not yet:** a yard's walk-in sheds and its hero (note 387) are still outside to the renderer, though they're walls with a door too.
 469. **The extinguisher heard on the fire (AU1, queue #205; the director, 8 Oct 2026: "Holding fire extinguisher on fire still doesnt feel like its doing anything"; D1's note 467: the cell aimed at is out in a second; App. F.1 "the extinguisher puts out the cell you aim at").** The extinguisher's jet was heard, and the fire's crackle, but nothing where the two met: the jet on a burning cell made no sound of its own, and a cell knocked out went out silently. Held on a fire, it sounded as it did held on bare boards. D1's note 467 made the fire go a cell a second; this makes that heard.
     - **How** (`GameAudio.FireDoused`, after the carried things' sounds; off the fire's replicated cells, `CarFire.Heat`, and the sprayer's aim, so every machine hears it):
@@ -6672,3 +6673,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the jet on a burning cell is heard at that cell;
         - knocked out under the jet, one cell-out there, and the jet on a dead cell sizzles on nothing;
         - on to the last cell and the fire gone, one fire-out.
+
+464. **A Holdout's breach seen at its lock and its barricade (queue #200, C1; the art checklist's `breach-states` "next", "the boards' splinters, and the hasp jumping as it's struck", and `crew-breach` "next", "the lock's own reaction (the hasp jumping) and the barricade's boards giving"; App. D.7).** While a Holdout was breached, its way in was drawn shut, as if nobody were at it: the padlock still, the barricade whole, until suddenly it was open. Now `WorldArt.Entrance` draws the breach under way from the sim's own replicated progress (`Holdout.Progress` over its `Breach` seconds), so a client sees what the host does. The beats are those of the crew's clips (crew_clips.py, 30 fps), on the scene's clock, which is the clips' own:
+    - **A lock smashed** (a prison car's padlock, a lockup gate's): it hangs from its hasp's staple (`Lock`).
+        - At each blow of the smash, which lands 0.3 s into each 0.8 s loop, it jumps out on the hasp and swings back.
+        - A flash at its face, then a dozen spark streaks splayed out and falling, gone in a third of a second (`Sparks`: emissive kit rods, so no effect atlas is needed).
+        - It hangs lower and more twisted on the bent staple the further the breach is.
+    - **A lock picked** with the repair kit (quiet): it turns a little this way and that, the pick and the tension wrench in its keyhole. No sparks.
+    - **A barricade pried:** its five boards come away one at a time, a fifth of the breach each, in the order a bar gets at them: the one at the chest first (the pry clip's bite), then above, below, the top, the bottom.
+        - A board pried lies on the ground before the doorway, where `PriedOff` lays them.
+        - The one being worked stands out from the jamb at its free end, further as its share goes on, sprung out on each heave (0.47 to 0.73 s into each 1.33 s), its nails drawn with it.
+        - It splinters as the heave comes on (`Splinters`).
+    - **`dt screenshot --breaching f [--quiet] --holdout n [--close | --lock h] --scene-time s`:** every Holdout breached f of the way, and the camera close at its barricade or at arm's length from its lock. `--scene-time` picks the moment in the beats.
+    - **Pinned:** `BreachArtTests`.
+        - A struck lock sparks on the blow, not between blows, and never while shut or picked.
+        - It hangs lower late in the breach than early.
+        - A barricade has fewer boards up and more down as the pry goes on.
+    - **Verified:**
+        - Looked at, before and after: a prison car's lock on the blow, its sparks falling, late in the breach, and picked; a lockup's on the blow; a shelter's barricade early, mid-heave and late.
+        - The Game suite.

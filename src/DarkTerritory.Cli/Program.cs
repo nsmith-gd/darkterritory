@@ -1357,12 +1357,26 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
     // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every
     // other one, picked with the repair kit), the barricade pried down. --holdout n: the camera before the nth one's door.
-    if ((args.Contains("--lit") || args.Contains("--freed")) && generated is not null)
+    // --breaching f: every Holdout being broken into, f of the way (note 464): its lock jumping and sparking on the smash's blows
+    // (--quiet: picked with the kit instead), its barricade's boards coming away; --scene-time s picks the moment in the
+    // clips' beats (a blow lands 0.3 s into each 0.8 s; a heave comes on 0.47 s into each 1.33 s).
+    if ((args.Contains("--lit") || args.Contains("--freed") || args.Contains("--breaching")) && generated is not null)
     {
         holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), generated, line);
         bool freed = args.Contains("--freed");
+        double breaching = args.Contains("--breaching") ? Math.Clamp(Opt(args, "--breaching", 0.5), 0, 0.999) : -1;
         foreach (var h in holdouts.All)
+        {
+            if (breaching >= 0)
+            {
+                bool quiet = args.Contains("--quiet") && h.Lockable;
+                // (Quiet first: how long its breach takes is the kit's or the smash's by it.)
+                holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Breaching, 1, 0, quiet);
+                holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Breaching, 1, breaching * h.Breach(holdouts.Tuning).Seconds, quiet);
+                continue;
+            }
             holdouts.Mirror(h.Index, freed ? DarkTerritory.Sim.Run.HoldoutState.Freed : DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0, quiet: freed && h.Index % 2 == 1);
+        }
         if (Opt(args, "--holdout", -1) is var hi and >= 0 && hi < holdouts.All.Count)
         {
             var h = holdouts.All[(int)hi];
@@ -1370,6 +1384,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             outward = outward.Length > 0.1 ? outward.Normalized : Double3.Cross(Double3.Up, line.Sample(h.LineHint).Tangent);
             var across = Double3.Cross(Double3.Up, outward);
             camera = Camera.LookAt(h.Door + outward * 4.2 + across * 3.6 + Double3.Up * 2.0, h.Door + Double3.Up * 1.2, 60);
+            // --close: at arm's length from its lock or its barricade, as whoever's breaching it sees it (note 464).
+            if (args.Contains("--close"))
+                camera = Camera.LookAt(h.Door + outward * 1.6 + across * 1.1 + Double3.Up * 1.75, h.Door + Double3.Up * 1.35, 55);
+            // --lock h: closer still, at the lock h m up (a prison car's 1.85, a lockup's 1.3).
+            if (args.Contains("--lock"))
+            {
+                double lockUp = Opt(args, "--lock", 1.85);
+                camera = Camera.LookAt(h.Door + outward * 1.0 + across * 0.55 + Double3.Up * (lockUp + 0.25), h.Door + Double3.Up * lockUp, 50);
+            }
             // --inside: through its broken-open door, from just in, at the room (note 387; --lantern for a hand lamp).
             if (args.Contains("--inside"))
                 camera = Camera.LookAt(h.Door - outward * 2.0 + across * 0.3 + Double3.Up * 1.65, h.Inside - outward * 2.5 + Double3.Up * 1.0, 80);
