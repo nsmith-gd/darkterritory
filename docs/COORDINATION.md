@@ -151,8 +151,9 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 80 | **A lone crew answers a boarded hound pack (found in note 336):** a crew of one bot never fights Cinder Hounds that boarded and stayed (note 269), so the pack and its fires fill the caps all night. The lone driver stands the train, goes back and cuts the hounds' car loose (App. A.3's counter: "they go only dead, or with their car cut loose"), and drives on. **Overlaps:** the bots (D1's #71 follow-up has `Heed.HotBox`; this stays out of it) | D1 (D1.2) | `d1.2-boarded-pack`, [#283](https://github.com/nsmith-gd/darkterritory/pull/283) | 343 | done |
 | 82 | **The orchestrator's census of posts and slack (App. F.3; [orchestrator.md](design/orchestrator.md) §3.1, §3.2 items 2 and 4, §6.2 item 4):** each active player's post and seconds of slack; the director's pick weighted toward the post with the most slack; slack pressing the director; and one threat on any one player (note 336 held it as a total). An open hot box (#71, note 331) counts as something to answer at its car's post. **Overlaps:** D1's hot boxes (read, not changed) | D1 (D1.2) | `d1.2-census` | 345 | claimed |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 7 Oct at
-17:33 UTC (D1, main at 8ebf15e, version 12); whoever lands a gdd.md change republishes it (A1 when it's about).
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 8 Oct at
+00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
+carried it; whoever lands a gdd.md change republishes it (A1 when it's about).
 
 ## ARCHITECTURE §8 note numbers
 
