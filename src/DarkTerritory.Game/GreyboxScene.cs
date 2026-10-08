@@ -168,6 +168,8 @@ public sealed class GreyboxScene
     /// <summary>You as your own eyes see you (X3): your forearms and hands, and the tool in them; null for none (a chase
     /// camera, a headset's own hands, the dead).</summary>
     public OwnView? Own { get; set; }
+    /// <summary>The eye breathes on the glass it's near (note 485): first person, as <see cref="Own"/> is; a still frame's staging.</summary>
+    public bool EyeBreathes { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
 
@@ -658,6 +660,14 @@ public sealed class GreyboxScene
             }
         if (Own is { } own)
             Look?.Art.OwnArms(mesh, own, Time);
+        // The cab's glass in the cold (note 485): its frost, and the fog breathed onto it, after the crew whose mouths it
+        // reads (and the eye's own, first person).
+        if (Look is not null)
+        {
+            float frost = MathF.Max(Look.Tuning.Atmosphere.Cold.Frost(Cold), (Look.Tuning.Atmosphere.ChoirCold?.Rime ?? 0) * ChoirCold(ChoirGathering));
+            foreach (var frame in frames.Where(f => f.Shape.Cab is not null))
+                Look.Art.CabGlass(mesh, frame, eye, frost, Time, Own is not null || EyeBreathes);
+        }
         Lap(mesh, "bodies and crew");
     }
 
