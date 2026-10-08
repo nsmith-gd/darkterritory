@@ -88,6 +88,23 @@ public class CensusTests
     }
 
     [Fact]
+    public void ACouplingWorkingLooseIsTheWalkersToMakeFast()
+    {
+        // Note 356: made fast in its gap. Anyone on either car of the gap, and any walker; not a rider on another car.
+        var n = OnTheRun();
+        var layout = Tuning.Train.Geometry.Interior!;
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Surface = Surface.Deck, Position = new Double3(0, layout.FloorHeight, 0) };
+        var d = n.World.Director!;
+        n.Run(d.Grace + 20);
+        Assert.True(Of(n, 2).Slack > 10);
+        // The gap far down the train from the walker: still the walker's; not the rider's in car 1.
+        n.Train.Vehicles[n.Train.Dynamics.Consist.Vehicles[^2].Id].Loose = 1;
+        n.Run(1.1);
+        Assert.Equal(0, Of(n, 2).Slack);
+        Assert.True(Of(n, 3).Slack > 10);
+    }
+
+    [Fact]
     public void AGutteringLampIsARidersToTrim()
     {
         // Note 346: trimmed inside the car. A rider's, wherever it is on the train; not a walker's on another car.

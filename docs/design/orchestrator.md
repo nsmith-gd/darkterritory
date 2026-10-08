@@ -63,7 +63,7 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 train is moving the line and the fire are its answer, so it isn't slack. A threat is on the crewmate it's holding, or
 the nearest within `onRadius` (20 m), or failing that the nearest at a post that answers it (`answers`: a pack running
 behind is the gunner's). An open hot box (note 331) is something to answer for anyone on its car and any walker; a guttering lamp (note 346) for
-anyone on its car and any rider. Slack
+anyone on its car and any rider; a coupling working loose (note 356) for anyone on either car of its gap and any walker. Slack
 counts only on the run between stops: the train moving, past the grace, out of the forts and facilities, short of the
 final approach.
 
@@ -216,7 +216,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness ni
 
 1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): **built (note 336, queue #75).**
 2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
-3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train.
+3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train. **Built: the hot box (note 331, queue #71), the lamp (U3; note 346, queue #83) and the loose coupling (note 356, queue #93).**
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.

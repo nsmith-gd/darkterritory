@@ -31,8 +31,8 @@ public sealed record CensusEntry(int Player, Post Post, double Slack, int On);
 /// stops since they last had something to answer. Something to answer is:
 /// - a threat on them: holding them; else the nearest crewmate to it within <see cref="OrchestratorTuning.OnRadius"/>; else
 ///   the nearest at a post that answers it (a pack running behind is the gunner's);
-/// - an upkeep job on their car (an open hot box, note 331; a guttering lamp, note 346), a hot box anywhere for a walker, or
-///   a guttering lamp anywhere for a rider;
+/// - an upkeep job on their car (an open hot box, note 331; a guttering lamp, note 346; a coupling working loose at either
+///   end, note 356), a hot box or loose coupling anywhere for a walker, or a guttering lamp anywhere for a rider;
 /// - in the cab, a train on the move (the line is the driver's to answer).
 /// Deterministic: players by id, threats by id.
 /// </summary>
@@ -91,16 +91,21 @@ public sealed class Census
         foreach (var e in active.Where(Director.Engaged).OrderBy(e => e.Id))
             if (On(e, posts, train, t) is { } who)
                 on[who] = on.GetValueOrDefault(who) + 1;
-        bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0), anyGutter = train.Vehicles.Any(v => v.Gutter > 0);
+        bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0 || v.Loose > 0), anyGutter = train.Vehicles.Any(v => v.Gutter > 0);
         var seen = new HashSet<int>();
         foreach (var (id, post, _, parent) in posts)
         {
             seen.Add(id);
             int n = on.GetValueOrDefault(id);
-            // The upkeep jobs (orchestrator.md §5.1): an open hot box (note 331) is greased from the landing above it, the walkers'
-            // job; a guttering lamp (note 346) is trimmed inside the car, the riders'. Either on their own car is theirs.
+            // The upkeep jobs (orchestrator.md §5.1): an open hot box (note 331) is greased from the landing above it and a
+            // coupling working loose (note 356) is made fast in its gap, the walkers' jobs; a guttering lamp (note 346) is
+            // trimmed inside the car, the riders'. Any of them on their own car is theirs (a loose coupling: either car of its
+            // gap, the one behind it or the one ahead).
             bool onCar = parent >= 0 && parent < train.Vehicles.Count;
-            bool hotBox = onCar && (train.Vehicles[parent].HotBox > 0 || train.Vehicles[parent].Gutter > 0)
+            // (Loose is on the car ahead of its gap: this car's own is the gap behind it, the car ahead's the gap in front.)
+            int ahead = onCar ? train.VehicleAhead(parent) : -1;
+            bool hotBox = onCar && (train.Vehicles[parent].HotBox > 0 || train.Vehicles[parent].Gutter > 0 || train.Vehicles[parent].Loose > 0
+                    || ahead >= 0 && train.Vehicles[ahead].Loose > 0)
                 || post == Post.Walker && anyHotBox || post == Post.Rider && anyGutter;
             // The cab with the train moving has the line to answer: the boards and bends ahead, the fire and the gauge (§12's
             // conductor and boiler). Standing, it's as idle as anyone.
