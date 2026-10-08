@@ -341,6 +341,8 @@ CUE_DEF = {
     "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-sheep": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
+    # A loose coupling's knock is heard where D1's synth was (note 356): from the gap, its ladders and the ground beside.
+    "state-coupling-loose.knock": {"minDistance": 3, "maxDistance": 60},
 }
 
 
