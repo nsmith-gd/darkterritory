@@ -48,8 +48,9 @@ public sealed partial class WorldArt
         if (b.Kind is not (BuildingKind.Shed or BuildingKind.Hero or BuildingKind.GoodsShed or BuildingKind.Powerhouse or BuildingKind.Barn
             or BuildingKind.Outbuilding or BuildingKind.Station or BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower))
             yield break;
-        // A crane's runway through a shed is the yard's to keep clear (its castings lie there): no piles at that shed.
-        if (CraneBay(stop, index) is not null)
+        // A crane's runway through a shed is the yard's to keep clear (its castings lie there): no piles at that shed. Nor at
+        // an open barn or shed (note 417): it's walked into, and a gable's length of rail laid along it reached in through the wall.
+        if (CraneBay(stop, index) is not null || Sim.Run.StopWalls.OpenShed(b))
             yield break;
         double along = f.Start + b.S;
         var at = Footing(line, route, f, b, valleyDepth);

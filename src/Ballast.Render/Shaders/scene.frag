@@ -23,7 +23,13 @@ layout(set = 0, binding = 13) uniform sampler2DArray bigNormal;
 
 float heroSlot(float layer) {
     int l = int(layer + 0.5);
-    return l >= 0 && l < 256 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+    return l >= 0 && l < 512 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+}
+
+// How a layer moves (GreyboxRenderer.Motion): 1 the foliage, 2 water.
+float layerMotion(float layer) {
+    int l = int(layer + 0.5);
+    return l >= 0 && l < 512 ? frame.motionOf[l >> 2][l & 3] : 0.0;
 }
 
 layout(location = 0) in vec3 vPos;
@@ -148,6 +154,69 @@ vec3 perturb(vec3 n, vec3 p, vec2 uv, vec3 mapped) {
     return normalize(t * inv * mapped.x + b * inv * mapped.y + n * mapped.z);
 }
 
+// The water (ARCHITECTURE s8 note 424). A water layer's vertices say where it lies and how it moves (WorldArt.WaterSheet):
+// its texture coordinates are the world's own in metres (wrapped at WRAP, as the grime's are), its surface coordinates its
+// current (xy, m/s along the world's x and z) and how open it lies to the wind (z: 0 a marsh's pool, 1 the open sea), its
+// blend how near the land (1 at the waterline). Its relief is all in the normal: the ripple map twice, turned to the
+// night's wind and running downwind and down the current, over a long swell.
+const float WRAP = 4096.0;
+
+// A tiling turned to face dir, about tile metres a repeat, seamless across the wrap: its axes are whole-number lattice
+// directions, so the wrap is a whole number of repeats along both of the world's axes. Returns its coordinates; tile is
+// left at the repeat it settled on, along and across at its axes (along dir, and a quarter turn from it).
+vec2 turned(vec2 at, vec2 dir, inout float tile, out vec2 along, out vec2 across) {
+    vec2 n = floor(dir * (WRAP / tile) + 0.5);
+    float len = max(length(n), 1.0);
+    tile = WRAP / len;
+    along = n / len;
+    across = vec2(-along.y, along.x);
+    return vec2(dot(at, vec2(-n.y, n.x)), dot(at, n)) / WRAP;
+}
+
+vec2 rotated(vec2 d, float a) {
+    float c = cos(a), s = sin(a);
+    return vec2(c * d.x - s * d.y, s * d.x + c * d.y);
+}
+
+// The water's normal at a point, from its ripples and its swell; crest is how near a swell's crest it is (0..1).
+vec3 waterNormal(vec2 at, vec2 current, float open, float t, out float crest) {
+    vec2 wind = frame.wind.xz;
+    float speed = length(wind);
+    vec2 dir = speed > 0.05 ? wind / speed : vec2(0.8, 0.6);
+    // How rough: a still night leaves it near glass, a gale chops it up; the fetch it lies open to scales that.
+    float windy = smoothstep(1.0, 14.0, speed);
+    float rough = mix(0.35, 1.0, windy) * mix(0.55, 1.0, open);
+    vec2 tilt = vec2(0.0);
+    // Ripples: the map at two scales, a little either side of the wind, each running downwind at a pace of its own (a
+    // ripple's phase speed in deep water, sqrt(g L / 2 pi), slowed: it's a pattern of them, not one) and down the current.
+    for (int i = 0; i < 2; i++) {
+        float tile = i == 0 ? 2.7 : 7.9;
+        vec2 along, across;
+        vec2 s = turned(at, rotated(dir, i == 0 ? 0.38 : -0.31), tile, along, across);
+        float pace = sqrt(9.81 * tile / 6.2831853) * 0.35;
+        vec2 drift = vec2(dot(current, across), dot(current, along) + pace);
+        vec3 m = textureGrad(normalMaps, vec3(s - fract(drift * t / tile), vLayer), dFdx(s), dFdy(s)).xyz * 2.0 - 1.0;
+        tilt += (across * m.x + along * m.y) / max(m.z, 0.35) * (i == 0 ? 0.55 : 0.8);
+    }
+    tilt *= rough;
+    // Swell: three long waves near downwind (each on a whole-number lattice, so the wrap is seamless), each at deep
+    // water's own speed (w^2 = g k); none on a still pool, most on the open sea, which has some even on a still night
+    // (a storm's, far off); faded out before they're finer than a pixel.
+    float foot = length(fwidth(at));
+    crest = 0.0;
+    for (int k = 0; k < 3; k++) {
+        float len = k == 0 ? 23.0 : k == 1 ? 37.0 : 61.0;
+        vec2 kv = floor(rotated(dir, k == 0 ? 0.33 : k == 1 ? -0.21 : 0.06) * (WRAP / len) + 0.5) * (6.2831853 / WRAP);
+        float kk = max(length(kv), 1e-4);
+        float ph = dot(kv, at) - sqrt(9.81 * kk) * t + float(k) * 1.7;
+        // Steepness (a k): 0.025 on the open sea on a still night, 0.07 in a gale.
+        float a = (0.025 + 0.045 * windy) / kk * open * (1.0 - smoothstep(len * 0.08, len * 0.3, foot));
+        tilt -= a * kv * cos(ph);
+        crest = max(crest, smoothstep(0.6, 1.0, sin(ph)) * open);
+    }
+    return normalize(vec3(tilt.x, 1.0, tilt.y));
+}
+
 // Exponential height fog: thick in the low ground and the valleys under bridges, thinner up on the roofs, never gone.
 float fogAmount(vec3 p) {
     float dist = length(p);
@@ -247,6 +316,8 @@ void main() {
     bool textured = vLayer >= 0.0 && vLayer < frame.params.w;
     bool ps2 = frame.params.y > 0.5;
     bool terrain = textured && vLayer2 >= 0.0 && vLayer2 < frame.params.w;
+    bool water = textured && !terrain && layerMotion(vLayer) > 1.5;
+    float waterCrest = 0.0;
 
     vec4 tex = vec4(1.0);
     vec3 specMap = vec3(vShine, 0.3, 0.0);
@@ -271,7 +342,9 @@ void main() {
         tex.rgb *= mix(1.0, clamp(macro, 0.45, 1.7), 0.3 + 0.35 * far);
         tex2.rgb *= mix(1.0, clamp(macro2, 0.45, 1.7), 0.3 + 0.35 * far);
         float breakup = dot(tex.rgb, lw) * 1.4 + (noise(floor(vSurface / 3.0)) - 0.5) * 0.5;
-        float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3);
+        // (None of the second where its weight is nought: the dark of the first's texels let it through before, so a shore's
+        // shingle came up the bank wherever the ground was dark; note 424.)
+        float w = smoothstep(0.0, 0.18, vBlend * 1.4 - 0.2 - breakup * 0.6 + 0.3) * smoothstep(0.0, 0.12, vBlend);
         tex = mix(tex, tex2, w);
         specMap = mix(bombed(specMaps, t1, vLayer, false).rgb, bombed(specMaps, t2, vLayer2, false).rgb, w);
         if (ps2)
@@ -280,6 +353,11 @@ void main() {
             vec3 mapped = mix(bombed(normalMaps, t1, vLayer, false).xyz, bombed(normalMaps, t2, vLayer2, false).xyz, w) * 2.0 - 1.0;
             n = perturb(n, vPos, vUv, normalize(mapped));
         }
+    } else if (water) {
+        // Its colour from its own map, at its tile; its relief all in its moving normal (waterNormal).
+        n = waterNormal(vUv, vSurface.xy, vSurface.z, frame.fogHeight.w, waterCrest);
+        tex = texture(diffuseMaps, vec3(vUv / 8.0, vLayer));
+        specMap = vec3(1.0, 1.0, 0.0);
     } else if (textured) {
         float hero = ps2 ? -1.0 : heroSlot(vLayer);
         tex = hero >= 64.0 ? texture(bigDiffuse, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroDiffuse, vec3(vUv, hero)) : texture(diffuseMaps, vec3(vUv, vLayer));
@@ -292,6 +370,21 @@ void main() {
             n = perturb(n, vPos, vUv, normalize((hero >= 64.0 ? texture(bigNormal, vec3(vUv, hero - 64.0)) : hero >= 0.0 ? texture(heroNormal, vec3(vUv, hero)) : texture(normalMaps, vec3(vUv, vLayer))).xyz * 2.0 - 1.0));
     }
     vec3 albedo = tex.rgb * vColor;
+    // The water's edge: shallower toward the land, the bottom showing through browner and lighter; and the lap, a band of
+    // broken foam along the waterline that runs up and back with the swell, more of it in a wind, and whitecaps in a gale.
+    float foam = 0.0;
+    if (water) {
+        float shore = clamp(vBlend, 0.0, 1.0), wind = length(frame.wind.xz), t = frame.fogHeight.w;
+        // Deep water scatters next to nothing back (a lamp on it is a glare, not a lit patch); the shallows more. (A silty
+        // water, Fundy's, carries its murk in its tint: WorldArt.Water.)
+        albedo *= mix(0.35, 1.5, shore * shore);
+        float reach = 0.5 + 0.25 * sin(t * 0.8 + dot(vUv, vec2(0.043, 0.071))) + 0.25 * waterCrest;
+        float froth = noise(vec3(vUv * 0.9, t * 0.35)) * 0.6 + noise(vec3(vUv * 3.1, t * 0.8)) * 0.4;
+        foam = smoothstep(1.0 - reach * 0.6, 1.0, shore) * smoothstep(0.42, 0.62, froth) * mix(0.35, 1.0, smoothstep(2.0, 12.0, wind));
+        foam += waterCrest * smoothstep(0.66, 0.8, froth) * smoothstep(8.0, 16.0, wind) * 0.6;
+        foam = clamp(foam, 0.0, 1.0);
+        albedo = mix(albedo, vec3(0.42, 0.44, 0.45), foam);
+    }
     if (vWear > 0.0)
         albedo = weathered(albedo, vSurface, vWear * (textured ? frame.params.z : 1.0), textured);
 
@@ -317,12 +410,12 @@ void main() {
     // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
     float inside = frame.counts.x > 0.0 ? indoors(vPos) : 0.0;
     float night = 1.0 - inside;
-    float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night;
+    float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night * (water ? 0.0 : 1.0);
     albedo *= 1.0 - 0.3 * wet;
     // Frost: a pale rime over what's out in the night, thick on what faces the sky (roofs, ballast, the tops of
     // things), thin on the walls, broken up by the surface's own grain so it lies in the texture's hollows and edges.
     // (Pitch, worn under 0.015 (PlanArt.PitchWear: the tar ponds), stays black and wet: it doesn't rime.)
-    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6) * (vWear > 0.0 && vWear < 0.015 ? 0.0 : 1.0);
+    float frost = frame.counts.w * night * (textured ? 1.0 : 0.6) * (vWear > 0.0 && vWear < 0.015 || water ? 0.0 : 1.0);
     float rime = frost * (0.22 + 0.6 * smoothstep(0.2, 0.9, n.y)) * (0.55 + 0.45 * smoothstep(0.02, 0.2, dot(albedo, vec3(0.33))));
     albedo = mix(albedo, vec3(0.5, 0.54, 0.6), clamp(rime, 0.0, 0.8));
 
@@ -335,7 +428,7 @@ void main() {
 
     // Phong exponent from gloss: 4..128, clamped so nothing mirror-polishes (pipeline "Gloss").
     float shininess = textured ? mix(4.0, 128.0, specMap.g * specMap.g) : 40.0;
-    float specStrength = specMap.r;
+    float specStrength = specMap.r * (1.0 - 0.8 * foam);
     float up = smoothstep(0.5, 0.95, n.y) * wet;
     // Standing water where the surface dips (the ground's hollows, a roof's sag, the ballast between the ties): a mirror
     // of the sky in patches, the rest only filmed over.
@@ -368,6 +461,9 @@ void main() {
     light += lampC * lampLit * max(dot(n, l), 0.0);
     spec += lampC * lampLit * pow(max(dot(n, normalize(l + v)), 0.0), shininess) * 0.75;
     spec += frame.moonColour.rgb * pow(max(dot(n, normalize(moonDir + v)), 0.0), shininess * 0.6) * (0.08 + 0.5 * up) * moonLit;
+    // The moon's road on the water: a glitter of it on every facet of the ripples that turns it to the eye.
+    if (water)
+        spec += frame.moonColour.rgb * frame.moonColour.a * pow(max(dot(n, normalize(moonDir + v)), 0.0), 420.0) * 4.0 * moonLit;
 
     // Practical lights, per pixel and unshadowed: warm pools the crew work in.
     int count = int(frame.params.x);
@@ -388,15 +484,22 @@ void main() {
     vec3 colour = albedo * light + spec * specStrength * (vWear > 0.0 ? 0.55 + 0.45 * noise(vSurface / 16.0) : 1.0);
     // Reflection, by Schlick's Fresnel: every surface picks up the sky at a grazing angle, the glossy ones (brass, glass,
     // wet steel, a puddle) head on too; the rough ones hardly at all. Indoors it's the lamplit room, warm and dim.
-    if (!ps2) {
+    if (!ps2 || water) {
         float gloss = textured ? specMap.g : 0.45;
         gloss = mix(gloss, 0.85, up);
         gloss = mix(gloss, 0.97, puddle);
-        float f0 = mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
+        float f0 = water ? 0.02 : mix(0.02, 0.3, clamp(specStrength * 1.4, 0.0, 1.0)); // glass and water ~0.02-0.04, worn metal more
+        gloss *= 1.0 - foam;
         // (A face seen from behind, a card or a thin plate, reflects off the side that faces the eye.)
         vec3 nf = dot(n, v) < 0.0 ? -n : n;
         float fres = f0 + (1.0 - f0) * pow(1.0 - dot(nf, v), 5.0);
         vec3 env = mix(envAt(reflect(-v, nf)), vec3(0.03, 0.022, 0.014), inside);
+        // Open water sees the haze along the horizon in it, not a world close round it: brighter low down, so its ripples
+        // read even where the moon doesn't reach.
+        if (water) {
+            vec3 r = reflect(-v, nf);
+            env = mix(frame.fog.rgb * frame.sky2.z * 1.15, frame.sky.rgb, smoothstep(0.0, 0.5, r.y));
+        }
         colour += env * fres * gloss * gloss * smoothstep(0.25, 0.7, gloss) * (1.0 - scar.w) * 1.6;
     }
     float emissive = max(vEmissive, specMap.b);

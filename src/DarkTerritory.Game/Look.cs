@@ -19,6 +19,30 @@ public sealed record MaterialTuning
     public float? Tile { get; init; }
 }
 
+/// <summary>
+/// The water (look.json <c>water</c>; ARCHITECTURE §8 note 424): each kind's current and how open it lies to the wind,
+/// which its surface carries to the shader (PlanArt.WaterSheet), and how wide the lap along its waterline is.
+/// </summary>
+public sealed record WaterTuning
+{
+    /// <summary>By kind: sea, fundy, dyke, river, tidal, lake, marsh.</summary>
+    public Dictionary<string, WaterKind> Kinds { get; init; } = new();
+    public float LapM { get; init; } = 5;
+
+    public WaterKind Of(string kind) => Kinds.TryGetValue(kind, out var k) ? k : new();
+}
+
+/// <summary>
+/// A kind of water: its current (m/s), how open it lies to the wind (0 a still pool, 1 the open sea), and its murk (0
+/// clear dark water, giving back only the sky; 1 silty, its own colour lit as well).
+/// </summary>
+public sealed record WaterKind
+{
+    public float Current { get; init; }
+    public float Open { get; init; } = 0.4f;
+    public float Murk { get; init; }
+}
+
 /// <summary>The night's light and air (GDD §28): the cold moon, the headlamp, the height fog.</summary>
 public sealed record AtmosphereTuning
 {
@@ -183,6 +207,7 @@ public sealed record LookTuning
     public ColourGrade Grade { get; init; } = new();
     public PostSettings Post { get; init; } = new();
     public AtmosphereTuning Atmosphere { get; init; } = new();
+    public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
 }

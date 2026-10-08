@@ -1243,6 +1243,9 @@ public static class Staging
         marks.Punish(world, 46, "CarHugger", 2, Sim.Player.PlayerMotor.WorldPosition(roof, train), crew);
         log.Add(Sim.Run.IncidentLog.Death(world, 2, roof with { Death = Sim.Player.DeathCause.Eaten }, null, crew));
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Rescue, 900, 2, "Freed from the Holdout", "at Hollin Halt", 0, "Broken out by {actor}."));
+        // Note 416: a line of each ink, what the night took and what the crew did well beside the deaths.
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Fire, 940, -1, "Fire Flies set car 3 alight", "at km 11", 3, "Lamp lit by {actor}."));
+        log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Slain, 980, -1, "Killed the Gaunt together", "beside car 2 at km 12", 0, "By Dave, Dunmore."));
         At(1012);
         log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
         At(1104);
@@ -1332,10 +1335,26 @@ public static class Staging
     /// in front of the engine in the headlamp's beam: the furthest still howling off to the flank, the next coming in, the
     /// nearest crossing the line.
     /// </remarks>
-    public static List<Enemy> Run(TrainOnLine train, bool ahead = false)
+    public static List<Enemy> Run(TrainOnLine train, bool ahead = false, bool flank = false)
     {
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
+        // The flank lanes (note 418; dt screenshot --run-flank --view run): three pairs coming in from the open country abeam
+        // the guard van, the furthest still howling out there, the nearest at the car's side.
+        if (flank)
+        {
+            (double Out, SpinePhase Phase)[] lane = [(9, SpinePhase.Commit), (30, SpinePhase.Commit), (62, SpinePhase.Telegraph)];
+            int f = 60;
+            foreach (var (o, phase) in lane)
+                for (int k = 0; k < 2; k++)
+                {
+                    var hound = new CinderHound(f, 60) { Runner = true, Flank = true };
+                    hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, rear + 4 - k * 3, -(o + k * 3), 0.6, 60, 0);
+                    runners.Add(hound);
+                    f++;
+                }
+            return runners;
+        }
         if (ahead)
         {
             double front = train.Dynamics.Distance;
@@ -1362,6 +1381,18 @@ public static class Staging
                 id++;
             }
         return runners;
+    }
+
+    /// <summary>
+    /// A Dragger perched on a through-truss's top chord (note 435; <c>dt screenshot --route frontier:7 --truss --view ahead</c>):
+    /// mid-span on the right, scraping (its limb reaching down off the steel), the train coming up on it.
+    /// </summary>
+    public static List<Enemy> Truss(double along)
+    {
+        var t = new DraggerDropTuning();
+        var dragger = Sim.Enemies.Dragger.OnTruss(60, along, 1, t);
+        dragger.Restore(SpinePhase.Telegraph, 0.6, dragger.Health, -1, default, along, t.Lateral, t.Height, -1, 0);
+        return [dragger];
     }
 
     public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)

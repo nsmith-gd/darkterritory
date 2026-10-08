@@ -50,7 +50,7 @@ void main() {
     // The wind in the foliage: a card or bough bends from its root (v 1, its foot) to its tip (v 0), swaying on a
     // phase of its own place so a stand doesn't move in step, harder in the gusts that roll through.
     int li = int(inLayer + 0.5);
-    if (inLayer >= 0.0 && li < 256 && frame.swayOf[li >> 2][li & 3] > 0.5) {
+    if (inLayer >= 0.0 && li < 512 && abs(frame.motionOf[li >> 2][li & 3] - 1.0) < 0.5) {
         float flex = clamp(1.0 - fract(inUv.y), 0.0, 1.0);
         flex *= flex;
         float t = frame.fogHeight.w;

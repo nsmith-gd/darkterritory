@@ -202,24 +202,56 @@ public sealed partial class WorldArt(Look look)
         var origin = k.SurfaceOrigin;
         const double step = 5;
         var plan = Scene(route);
-        var lateral = plan is null ? Lateral : PlanLateral;
-        int columns = lateral.Length;
-        var left = new Vector3[columns * 2 - 1];
-        var right = new Vector3[columns * 2 - 1];
-        // Across the line: from the far left to the far right, both sides of one profile.
-        float LateralAt(int c) => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)];
+        // Across the line: from the far left to the far right, both sides of one profile, finer where a lake wants it.
+        var (lats, real, before, after) = Columns(plan, from, to);
+        var left = new Vector3[lats.Length];
+        var right = new Vector3[lats.Length];
+        // By the water (note 424), each corner: the water within 30 m of it (its shore's ground), and whether any is within
+        // ShoreFar (where the land's second ground gives way, so a shore quad's edge never shows against it). Only in a cell
+        // with water near it.
+        var shoreL = new (double Level, string Kind)?[lats.Length];
+        var shoreR = new (double Level, string Kind)?[lats.Length];
+        var farL = new bool[lats.Length];
+        var farR = new bool[lats.Length];
+        bool wet = plan is not null && Wet(plan, from, to);
+        float LateralAt(int c) => lats[c];
+        void Shores(double s, Vector3[] row, (double Level, string Kind)?[] shore, bool[] far)
+        {
+            Array.Clear(shore);
+            Array.Clear(far);
+            if (!wet)
+                return;
+            double rail = line.Sample(s).Position.Y;
+            for (int c = 0; c < row.Length; c++)
+            {
+                if (MathF.Abs(lats[c]) <= 6)
+                    continue;
+                var main = new Sim.LineGen.TerrainField.Near(plan!.Main, s, lats[c], rail);
+                double x = row[c].X + eye.X, z = row[c].Z + eye.Z;
+                far[c] = plan.Terrain.WaterNear(x, z, ShoreFar, main) is not null;
+                shore[c] = far[c] ? plan.Terrain.WaterNear(x, z, ShoreNear, main) : null;
+            }
+        }
         void Row(double s, Vector3[] into, out float gorge, out bool bore)
         {
             var sample = line.Sample(s);
             var r = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
             gorge = Gorge(route, s);
             Ridge(route, s, out bore);
+            int last = 0;
             for (int c = 0; c < into.Length; c++)
             {
+                if (!real(c, s))
+                    continue;
                 float lat = LateralAt(c);
                 // On a bridge the bed isn't there: the ground under the deck is the gorge's. Over a bore it's the hill.
                 float h = gorge > 0.5f && MathF.Abs(lat) < 3.7f ? Ground(route, s, 3.7f, valleyDepth, gorge) : Ground(route, s, lat, valleyDepth, gorge);
                 into[c] = (sample.Position + r * lat + Double3.Up * h).RelativeTo(eye);
+                // A lake's columns outside its stretch lie on the straight line between the ground either side, so the next
+                // cell, without them, meets this one edge to edge (note 424).
+                for (int i = last + 1; i < c; i++)
+                    into[i] = Vector3.Lerp(into[last], into[c], (lats[i] - lats[last]) / (lats[c] - lats[last]));
+                last = c;
             }
         }
         var rows = new List<double>();
@@ -229,12 +261,14 @@ public sealed partial class WorldArt(Look look)
         rows.AddRange(Breaks(route, from, to));
         rows.Sort();
         Row(rows[0], left, out float gorgeLeft, out bool boreLeft);
+        Shores(rows[0], left, shoreL, farL);
         for (int ri = 1; ri < rows.Count; ri++)
         {
             double s = rows[ri - 1], s1 = rows[ri];
             if (s1 - s < 0.01)
                 continue;
             Row(s1, right, out float gorgeRight, out bool boreRight);
+            Shores(s1, right, shoreR, farR);
             bool hill = boreLeft || boreRight;
             // Where the ground climbs from the cutting onto the hill at a portal, the portal's face is the ground:
             // leave that step out across its width, or it walls the bore up.
@@ -275,21 +309,28 @@ public sealed partial class WorldArt(Look look)
                 // A generated line's land: its biome's own ground, going to bare rock where it's steep (linegen plan §12.5).
                 if (plan is not null && !bridge && !hill && band > 0 && BiomeGround(plan, s) is var (ga, gb) && ga >= 0)
                 {
-                    float Steep(Vector3[] row, int i) => SmoothStep(0.65f, 1.3f, SlopeAt(row, i));
+                    float Steep(Vector3[] row, int i) => SmoothStep(0.65f, 1.3f, SlopeAt(row, before[i], after[i]));
                     // World position of a corner (the rows are camera-relative), for the slow macro variation.
                     Vector3 World(Vector3[] row, int i) => row[i] + origin;
                     // By the water (maritime-rules.md §2-5) the ground goes to its shore: the lakes' and the Atlantic's
-                    // shingle and boulders, Fundy's and the tidal rivers' red mud, up to a couple of metres over the water.
-                    var mid = (left[c] + right[c + 1]) / 2;
-                    var water = MathF.Abs(lat) > 6 ? plan.Terrain.WaterNear(mid.X + eye.X, mid.Z + eye.Z, 30) : null;
+                    // shingle and boulders, Fundy's and the tidal rivers' red mud, up to ShoreAboveM over the water.
+                    // A quad is the shore's if any corner is within ShoreNear of the water, and its corners further out
+                    // have none of it; the land's second ground gives way inside ShoreFar. So where a shore quad meets
+                    // the land's, both are the biome's own ground along the edge between them (note 424).
+                    var water = shoreL[c] ?? shoreL[c + 1] ?? shoreR[c + 1] ?? shoreR[c];
                     int shore = water is { } wn ? _look.Layer(wn.Kind is "lake" or "sea" or "river" ? "shore_shingle" : "ground_red_clay") : -1;
-                    float Wet(Vector3[] row, int i) => water is { } wn2 && shore >= 0 ? SmoothStep(2.4f, 0.6f, (float)(row[i].Y + eye.Y - wn2.Level)) : 0;
+                    var shoreOf = new[] { shoreL, shoreR };
+                    var farOf = new[] { farL, farR };
+                    int Side(Vector3[] row) => ReferenceEquals(row, left) ? 0 : 1;
+                    float Wet(Vector3[] row, int i) => water is { } wn2 && shore >= 0 && shoreOf[Side(row)][i] is not null
+                        ? SmoothStep(ShoreAboveM, 0.3f, (float)(row[i].Y + eye.Y - wn2.Level)) : 0;
+                    float Dry(Vector3[] row, int i) => farOf[Side(row)][i] ? 0 : 1;
                     // Under a stand the ground is the forest's: dark needle duff in the shade, not the open heath.
                     float cover = plan.Biome(s) is { } bd ? Cover(bd) : 0;
                     float Duff(Vector3[] row, int i) => cover > 0 && MathF.Abs(LateralAt(i)) > 6 ? 1 - 0.5f * Stand(new Double3(row[i].X + eye.X, row[i].Y + eye.Y, row[i].Z + eye.Z), cover) : 1;
                     Corner At(Vector3[] row, int i, float l, double at) => shore >= 0
                         ? new(Macro(World(row, i)) * GroundShade(l, at), Wet(row, i))
-                        : new(Macro(World(row, i)) * GroundShade(l, at) * Duff(row, i), MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
+                        : new(Macro(World(row, i)) * GroundShade(l, at) * Duff(row, i), Dry(row, i) * MathF.Max(Steep(row, i), Patches(World(row, i)) * SmoothStep(9, 20, MathF.Abs(l))));
                     Quad(mesh, left[c], left[c + 1], right[c + 1], right[c], At(left, c, l0, s), At(left, c + 1, l1, s), At(right, c + 1, l1, s1), At(right, c, l0, s1),
                         origin, ga, shore >= 0 ? shore : gb, TerrainTile);
                     continue;
@@ -298,12 +339,74 @@ public sealed partial class WorldArt(Look look)
                     a >= 0 && _look.Textures[a].TileMetres is { } tm ? tm : 2);
             }
             (left, right) = (right, left);
+            (shoreL, shoreR, farL, farR) = (shoreR, shoreL, farR, farL);
             (gorgeLeft, boreLeft) = (gorgeRight, boreRight);
         }
 
         // Sleepers near the eye only (past ~150 m the fog has them anyway), each a little off true; rails all along.
         // A timber trestle's deck carries its own ties.
         Rails(k, line, eye, from, to, s => route?.BridgeAt(s) is not { MaxCars: > 0 } && Laid(route, s), s => Laid(route, s));
+    }
+
+    /// <summary>Finer than this between the line's own columns, where a lake wants it (m; note 424).</summary>
+    const float LakeColumnM = 6;
+
+    /// <summary>
+    /// The shore's ground (note 424): a quad with a corner this near the water's edge is the shore's (m); the land's own
+    /// second ground (its rock on the steep, its patches) gives way inside the far distance, past a shore quad's corners
+    /// however wide a quad is out there (the line's own columns are up to 50 m apart).
+    /// </summary>
+    const double ShoreNear = 30, ShoreFar = 90;
+
+    /// <summary>
+    /// How high over the water the shore's ground climbs (m): the band the water and the ice wash, not the whole bank (a
+    /// river's rail stands only 3.5 m over it, and at 2.4 m its shingle covered the ground right up to the bed).
+    /// </summary>
+    const float ShoreAboveM = 1.5f;
+
+    /// <summary>Whether any water lies within <see cref="ShoreFar"/> of the land from <paramref name="from"/> to <paramref name="to"/>.</summary>
+    static bool Wet(PlanScene plan, double from, double to)
+    {
+        double taper = plan.Plan.Rules.Terrain.Shore.TaperM, m = ShoreFar + 10;
+        return plan.LakeBands.Any(b => b.S0 - m < to && b.S1 + m > from)
+            || plan.Plan.Shores.Any(sh => sh.S0 - taper - m < to && sh.S1 + taper + m > from)
+            || plan.Plan.Water.Any(w => w.Type == "tidal" && w.S0 - w.WidthM - m < to && w.S1 + w.WidthM + m > from);
+    }
+
+    /// <summary>
+    /// The land's columns across the line for a cell from <paramref name="from"/> to <paramref name="to"/>: the line's own,
+    /// both sides of its profile, and where a lake beside it wants it (<see cref="PlanScene.LakeBands"/>) one every
+    /// <see cref="LakeColumnM"/> between them across its laterals. A lake's column is sampled only on the rows in its
+    /// stretch (real says which); elsewhere it lies on the straight line between its neighbours. Before and after are each
+    /// column's neighbours for its slope: the line's own columns take only each other, so a cell with a lake's columns and
+    /// the next without them read the same slope where they meet.
+    /// </summary>
+    (float[] Lats, Func<int, double, bool> Real, int[] Before, int[] After) Columns(PlanScene? plan, double from, double to)
+    {
+        var lateral = plan is null ? Lateral : PlanLateral;
+        int columns = lateral.Length;
+        float[] own = [.. Enumerable.Range(0, columns * 2 - 1).Select(c => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)])];
+        var bands = plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from).ToArray() ?? [];
+        var extra = new SortedSet<float>();
+        float edge = lateral[^1];
+        foreach (var b in bands)
+            for (float l = MathF.Ceiling(MathF.Max(b.Lat0, -edge) / LakeColumnM) * LakeColumnM; l <= MathF.Min(b.Lat1, edge); l += LakeColumnM)
+                if (MathF.Abs(l) > 20 && own.All(o => MathF.Abs(o - l) > 1.5f))
+                    extra.Add(l);
+        float[] lats = [.. own.Concat(extra).Order()];
+        bool[] mine = [.. lats.Select(l => own.Contains(l))];
+        int[] before = new int[lats.Length], after = new int[lats.Length];
+        for (int c = 0; c < lats.Length; c++)
+        {
+            int b = c - 1, a = c + 1;
+            while (mine[c] && b > 0 && !mine[b])
+                b--;
+            while (mine[c] && a < lats.Length - 1 && !mine[a])
+                a++;
+            (before[c], after[c]) = (Math.Max(b, 0), Math.Min(a, lats.Length - 1));
+        }
+        bool Real(int c, double s) => mine[c] || bands.Any(b => b.S0 < s && s < b.S1 && lats[c] >= b.Lat0 && lats[c] <= b.Lat1);
+        return (lats, Real, before, after);
     }
 
     /// <summary>A transform from a piece's frame (−Z along <paramref name="tangent"/>, +X to its right) to camera-relative space.</summary>
