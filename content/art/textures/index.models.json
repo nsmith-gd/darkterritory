@@ -336,6 +336,26 @@
     ]
   },
   {
+    "name": "brakeman_0",
+    "diffuse": "models/brakeman_0.png",
+    "spec": "models/brakeman_0_s.png",
+    "normal": "models/brakeman_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/brakeman.py",
+        "what": "the Brakeman, modelled in tools/blender/brakeman.py, his colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "cab_backhead_0",
     "diffuse": "models/cab_backhead_0.png",
     "spec": "models/cab_backhead_0_s.png",
@@ -5277,6 +5297,26 @@
     ]
   },
   {
+    "name": "hotbox_0",
+    "diffuse": "models/hotbox_0.png",
+    "spec": "models/hotbox_0_s.png",
+    "normal": "models/hotbox_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/hotbox.py",
+        "what": "Hotbox, modelled in tools/blender/hotbox.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "house_0_0",
     "diffuse": "models/house_0_0.png",
     "spec": "models/house_0_0_s.png",
@@ -5907,6 +5947,26 @@
         "path": "mini_texture/textures/leather_brown_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      }
+    ]
+  },
+  {
+    "name": "knotter_0",
+    "diffuse": "models/knotter_0.png",
+    "spec": "models/knotter_0_s.png",
+    "normal": "models/knotter_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/knotter.py",
+        "what": "the Knotter, modelled in tools/blender/knotter.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

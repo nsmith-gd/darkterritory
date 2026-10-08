@@ -343,6 +343,15 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.TowerJaw, SpinePhase.Telegraph) => "it rears and slaps its tail: four blows drive it off",
         (EnemyKind.TowerJaw, SpinePhase.BreakOff) => "it lopes off: it'll be back for the tower",
         (EnemyKind.TowerJaw, SpinePhase.Punish) => "the tower's down across the line: clear it by hand (Use)",
+        // The train's own (notes 364, 365, 367; docs/design/creatures/brakeman.md, knotter.md, hotbox.md §5): the Brakeman runs
+        // from one and turns on two; the Knotter's creak is its tell, its gap the split; Hotbox comes out only at a stand.
+        (EnemyKind.Brakeman, SpinePhase.Alert) => "the brakeman's running from you: get someone at the other end",
+        (EnemyKind.Brakeman, SpinePhase.Telegraph) => "he's cornered, the chain's up: hit him now, from both sides",
+        (EnemyKind.Knotter, SpinePhase.Alert) => "something's creaking at a coupling: cut it now or it's in",
+        (EnemyKind.Knotter, SpinePhase.Telegraph) => "a living rope's holding the cars apart: don't walk it, stop the train",
+        (EnemyKind.Knotter, SpinePhase.Grab) => "it's coiled round someone: pull them up, hit it!",
+        (EnemyKind.Hotbox, SpinePhase.Telegraph) => "it's come out of the truck onto the ballast: kill it or prise it out",
+        (EnemyKind.Hotbox, SpinePhase.BreakOff) => "prised out: it scuttles off into the dark",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",

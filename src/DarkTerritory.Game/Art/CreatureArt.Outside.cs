@@ -8,8 +8,7 @@ namespace DarkTerritory.Game.Art;
 /// <summary>
 /// The Mourners, the Freight Beetle and Tower Jaw (GDD §21 OUTSIDE; the director's briefs of 8 Oct 2026; notes 362, 366,
 /// 363): each drawn by the sim's mode (replicated in its Height) and how long it's been in it (GreyboxScene watches it
-/// change), each facing its own heading. And, till they're modelled, the roster's other newest (the Brakeman, the Knotter,
-/// Hotbox: notes 364, 365, 367) as plainly temporary stand-ins.
+/// change), each facing its own heading.
 /// </summary>
 public sealed partial class CreatureArt
 {
@@ -97,44 +96,6 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw:
                 return false;
-            case EnemyKind.Brakeman:
-                {
-                    // TEMPORARY (note 364; another agent models him): the crew's own figure gone wrong, darkened, walking the
-                    // roofs; his greybox is what the sim's tests see.
-                    if (!_models.ContainsKey("husk"))
-                        return false;
-                    return Draw(mesh, "husk", phase is SpinePhase.Dormant ? "crouch_idle" : "walk", t, true, model, seed: 364,
-                        adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.35f, 0.33f, 0.3f) });
-                }
-            case EnemyKind.Knotter:
-                {
-                    // TEMPORARY (note 365; another agent models it): a living rope knotted across the gap between two cars,
-                    // a twisted run of dark segments writhing on its beat.
-                    var (r, u, b) = Basis(model);
-                    var o = model.Translation;
-                    for (int i = 0; i < 9; i++)
-                    {
-                        float k = i / 8f - 0.5f;
-                        float sway = 0.12f * MathF.Sin((float)t * 3 + i * 0.9f);
-                        var c = o + b * (k * 1.6f) + u * (0.9f + sway) + r * (0.08f * MathF.Cos(i * 1.7f));
-                        mesh.Box(c, r, u, b, new Vector3(0.09f, 0.09f, 0.12f), Palette.DeepBrown * (i % 2 == 0 ? 1f : 0.7f));
-                    }
-                    return true;
-                }
-            case EnemyKind.Hotbox:
-                {
-                    // TEMPORARY (note 367; another agent models it): a hunched thing half out of an axle box, glowing like the
-                    // bearing it's cooking.
-                    var (r, u, b) = Basis(model);
-                    var o = model.Translation;
-                    float heat = 0.6f + 0.4f * MathF.Sin((float)t * 5);
-                    mesh.Box(o + u * 0.25f, r, u, b, new Vector3(0.3f, 0.25f, 0.35f), Palette.SootBlack);
-                    mesh.Emissive = heat;
-                    mesh.Box(o + u * 0.55f, r, u, b, new Vector3(0.18f, 0.12f, 0.2f), Palette.LampAmber);
-                    mesh.Emissive = 0;
-                    mesh.PointLights.Add(new PointLight(o + u * 0.6f, Palette.LampAmber * heat, 2.5f));
-                    return true;
-                }
         }
         return null;
     }

@@ -115,6 +115,10 @@ public static class Views
             "mourners" => Staging.MournersCamera(train),
             "beetle" => Staging.BeetleCamera(train),
             "towerjaw" or "towerjawfall" => Camera.LookAt(engine.ToWorld(new Double3(-6, 2, -engineHalf - 20)), engine.ToWorld(new Double3(4, 4, -engineHalf - 40)), 66),
+            // (Not one of Names.) The train's own (Staging.Trainfolk): the Brakeman winding a wheel on the second car's roof, and
+            // cornered there; the Knotter taut across the gap behind it at speed from the next car's roof, and coiled round
+            // someone; Hotbox glowing in its truck from beside the car, and out on the ballast at a stand.
+            "brakeman" or "brakemancorner" or "knotter" or "knotterslip" or "hotboxbug" or "hotboxout" => Staging.TrainfolkCamera(train, name),
             // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
             "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
                 Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),

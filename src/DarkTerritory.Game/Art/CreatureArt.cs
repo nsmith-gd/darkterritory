@@ -60,7 +60,7 @@ public sealed partial class CreatureArt
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
-        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw"];
+        "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -1991,6 +1991,14 @@ public sealed partial class CreatureArt
                     }
                     return drawn;
                 }
+            // The train's own (notes 364, 365, 367; CreatureArt.Train): the Brakeman on the roofs, the Knotter across a
+            // coupling, Hotbox in a truck.
+            case EnemyKind.Brakeman when _models.ContainsKey("brakeman"):
+                return Brakeman(mesh, model, phase, t);
+            case EnemyKind.Knotter when _models.ContainsKey("knotter"):
+                return Knotter(mesh, model, phase, t);
+            case EnemyKind.Hotbox when _models.ContainsKey("hotbox"):
+                return Hotbox(mesh, model, phase, t, extra2);
             case EnemyKind.Choir:
                 {
                     // (No model: the Hollow's figure, child-sized and pale, bobbing in the air with a cold light of its own.)
@@ -2110,6 +2118,7 @@ public sealed partial class CreatureArt
         _mooseSince = modeSeconds;
         _gannetSince = modeSeconds;
         _outsideSince = modeSeconds;
+        _trainSince = modeSeconds;
         try
         {
             return EnemyIn(mesh, model, e, bite, prey, room, pace);
@@ -2122,6 +2131,7 @@ public sealed partial class CreatureArt
             (_mooseMode, _mooseSince) = (null, -1);
             (_gannetMode, _gannetWas, _gannetSince) = (null, null, -1);
             GannetWas = null;
+            ForgetTrainfolk();
         }
     }
 
@@ -2550,6 +2560,10 @@ public sealed partial class CreatureArt
                     _prey = p;
                     break;
                 }
+            case EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox:
+                // The train's own (CreatureArt.Train): its mode, and where and which way it's drawn.
+                m = Trainfolk(e, model, prey);
+                break;
             case EnemyKind.CarHugger when bite.Any:
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
