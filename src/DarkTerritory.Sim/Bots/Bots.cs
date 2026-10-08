@@ -978,7 +978,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// standing train too: a walker that fell off backing out of a spur (T121) watched the train go on past 60 m to the main line
     /// and stop there for it, and stood on the ballast until the driver gave up on it and left.
     /// </summary>
-    static PlayerIntent Board(in PlayerState self, TrainOnLine train)
+    /// <param name="roofOnly">Only ladders that reach the roof (note 343: a side door's steps go up to its landing, and a lone
+    /// driver making for the roofs went up them and back down for the rest of the night).</param>
+    internal static PlayerIntent Board(in PlayerState self, TrainOnLine train, bool roofOnly = false)
     {
         Double3? best = null;
         double bestD = double.MaxValue;
@@ -993,7 +995,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             foreach (var ladder in frame.Shape.Ladders)
             {
                 // Side ladders from the ground: stand just outside the foot.
-                if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5)
+                if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5 || roofOnly && ladder.Top < frame.Shape.RoofHeight - 0.5)
                     continue;
                 var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
                 double lx = at.X - self.Position.X, lz = at.Z - self.Position.Z, d = Math.Sqrt(lx * lx + lz * lz);
@@ -1197,6 +1199,61 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>Out of the cab to breach a Holdout itself, or on the way back up (for the harness's trace; note 259).</summary>
     public bool BreachingAlone => _outToBreach;
+
+    bool _outToCut;
+    int _cutCar = -1;
+
+    /// <summary>Out of the cab to cut a boarded pack's car loose, or on the way back up (note 343).</summary>
+    public bool CuttingAlone => _outToCut;
+
+    /// <summary>
+    /// Note 343 (found in note 336: a crew of one bot never answered Cinder Hounds that boarded and stayed, note 269, and the
+    /// pack and the fires it set filled the caps for the rest of the night). With nobody else alive to fight them, the driver
+    /// answers by App. A.3's other counter ("they go only dead, or with their car cut loose"): a pack fight alone is three
+    /// to five hounds biting at once, which a lone player loses. The train brought to a stand and readied to be left, as for
+    /// a Holdout (<see cref="ReadyToLeave"/>); down, back aboard, along the roofs to the gap ahead of the front hound's car,
+    /// Uncouple; and back up into the cab, where it drives on without that car. Not a car right behind the engine: the gap
+    /// there is the cab's own, and cutting it is every car. Null when it isn't going (or is back).
+    /// </summary>
+    PlayerIntent? CutAlone(in PlayerState self, World world, uint tick)
+    {
+        var train = world.Train;
+        if (!self.Alive || calls is null || world.Enemies is not { CinderHounds.StayAboard: true })
+        {
+            _outToCut = false;
+            return null;
+        }
+        var consist = train.Dynamics.Consist;
+        int front = -1;
+        foreach (var h in world.ActiveEnemies.OfType<CinderHound>())
+            if (!h.Gone && h.Attached > 0 && consist.IndexOf(h.Attached) is var i && i > 1 && (front < 0 || i < consist.IndexOf(front)))
+                front = h.Attached;
+        var hold = new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
+        _aloneHand ??= new StopHand(StopJob.None, calls, member);
+        if (_outToCut)
+        {
+            // Still on the train with the hounds aboard: on to the cut. Done (or they're gone): back up into the cab.
+            if (_cutCar >= 0 && consist.IndexOf(_cutCar) > 1 && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == _cutCar)
+                && _aloneHand.CutLoose(self, world, train.VehicleAhead(_cutCar)) is { } cutting)
+                return cutting with { Buttons = cutting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+            if (_aloneHand.SetBackAlone(self, world, null) is { } back)
+                return back with { Buttons = back.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+            _outToCut = false;
+            _cutCar = -1;
+            _firedToLeave = false;
+            return null;
+        }
+        // Only with nobody else alive to fight them (a crew's walkers and gunner go at a pack aboard: Heed.Hounds), from the cab.
+        if (front < 0 || Crewmates?.Any(c => c.Alive) == true || !PlayerMotor.InCab(self, train))
+            return null;
+        if (train.Dynamics.Speed > 0.05)
+            return hold;
+        if (ReadyToLeave(self, world, minded: false) is { } readying)
+            return readying;
+        _outToCut = true;
+        _cutCar = front;
+        return hold;
+    }
 
     /// <summary>
     /// Note 258 (T115's leftover): a crewmate in a lit Holdout (GDD App. D.5: "a living crew member begins the breach") and
@@ -1490,6 +1547,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
         if (_outToBreach && BreachAlone(self, world) is { } outBreaching)
             return outBreaching with { Lamp = lamp };
+        // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
+        if (CutAlone(self, world, tick) is { } cuttingAlone)
+            return cuttingAlone with { Lamp = lamp };
         // T96: a crewmate left behind, or back in a lit Holdout: stop for them.
         if (self.Alive && PlayerMotor.InCab(self, train))
         {
