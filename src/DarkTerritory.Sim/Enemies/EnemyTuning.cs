@@ -1033,7 +1033,7 @@ public sealed record HotboxTuning
     public double PriseReach { get; init; } = 1.8;
     public double ScuttleSeconds { get; init; } = 3;
     public double SnapReach { get; init; } = 1.2;
-    public int SnapDamage { get; init; } = 25;
+    public int SnapDamage { get; init; } = 30;
     public double SnapEvery { get; init; } = 3;
     public double RepairSeconds { get; init; } = 10;
     public double RepairReach { get; init; } = 2.2;
