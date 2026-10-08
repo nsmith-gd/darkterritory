@@ -254,7 +254,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # their stones back, the rocky ledges' surf a candidate.
                 "world-water.river": "run", "world-water.surf": "shingle",
                 # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
-                "bed-wheel-rail.joint": "crack"}
+                "bed-wheel-rail.joint": "crack",
+                # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
+                "cs-draggers.drop": "slam"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
@@ -422,6 +424,8 @@ CUE_DEF = {
     "world-water.lake": {"minDistance": 3, "maxDistance": 50, "rolloff": 1.0},
     "world-water.surf": {"minDistance": 15, "maxDistance": 400, "rolloff": 0.6},
     "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
+    # Note 444: a truss Dragger's fall into the ballast, heard from the train drawing away from it.
+    "cs-draggers.fall": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
 }
 
 

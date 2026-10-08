@@ -648,6 +648,9 @@ CUES = {
         L("scrabble", "The victim's boots scrabbling on the car side"),
         O("haul-up", "Hauled back up", vars=2),
         O("under", "Dragged under", vars=2),
+        # A truss Dragger's drop (D1's #171, note 435; queue #180, note 444): onto a roof with someone on it, or the ballast.
+        O("drop", "It drops off the truss onto the car's roof", vars=3),
+        O("fall", "It drops off the truss onto the ballast behind the train", vars=3),
     ],
     "cs-stoker": [
         L("in-fire", "Something moving in the fire"),
