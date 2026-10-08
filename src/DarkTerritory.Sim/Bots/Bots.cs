@@ -1898,8 +1898,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var me = self;
         if (Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train) && (c.Position - me.Position).Length > 0.01) == true
             && Heed.Strike(self, train, climber.WorldPosition(train), 1.6) is { } clubbing)
-            return intent with { MoveX = clubbing.MoveX, MoveZ = clubbing.MoveZ, LookYaw = clubbing.LookYaw, Actions = intent.Actions | clubbing.Actions,
-                Buttons = intent.Buttons | (clubbing.Buttons & PlayerButtons.Run) };
+            return intent with
+            {
+                MoveX = clubbing.MoveX,
+                MoveZ = clubbing.MoveZ,
+                LookYaw = clubbing.LookYaw,
+                Actions = intent.Actions | clubbing.Actions,
+                Buttons = intent.Buttons | (clubbing.Buttons & PlayerButtons.Run)
+            };
         var cab = train.Frames[0].Shape.Cab!.Value;
         var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
         var (step, _) = WarmUp.Steer(self, corner, 0);
