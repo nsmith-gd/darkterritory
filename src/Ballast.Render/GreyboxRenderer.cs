@@ -47,6 +47,8 @@ unsafe struct FrameData
     public Vector4 HandColour;
     /// <summary>Its cube's six faces (+X, −X, +Y, −Y, +Z, −Z), camera-relative, one layer each of its shadow map.</summary>
     public fixed float HandViewProj[6 * 16];
+    /// <summary>x <see cref="GreyboxRenderer.HoleSlope"/>, y 1 for <see cref="GreyboxRenderer.ShowUntextured"/>.</summary>
+    public Vector4 Probe;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -431,6 +433,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
     }
     PostSettings _post = new();
+
+    /// <summary>
+    /// The hole probe (`dt holes`, ARCHITECTURE §8 note 433): when below 0, the sky is painted magenta wherever it shows
+    /// steeper below the horizon than this (the sine of the angle), where the land should have hidden it. 0, off.
+    /// </summary>
+    public float HoleSlope { get; set; }
+
+    /// <summary>The untextured probe (`dt holes --untextured`, note 433): every surface drawn without a texture, cyan.</summary>
+    public bool ShowUntextured { get; set; }
 
     /// <summary>Counts from the last frame recorded, for budgets (pipeline "frame-level ceilings").</summary>
     public FrameStats Stats { get; private set; }
@@ -921,6 +932,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, lighting.Frost);
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
+        f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }

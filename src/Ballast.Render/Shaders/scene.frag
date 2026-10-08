@@ -546,5 +546,8 @@ void main() {
 
     // Light sources punch through fog further than lit surfaces: the lamp is the last thing you lose.
     colour = mix(colour, frame.fog.rgb, fogAmount(vPos) * (1.0 - 0.6 * emissive * min(vGlow, 1.0)));
+    // The untextured probe (dt holes --untextured, note 433): a surface drawn without a texture, cyan through the fog.
+    if (frame.probe.y > 0.5 && !textured)
+        colour = vec3(0.0, 8.0, 8.0);
     outColor = vec4(colour, 1.0);
 }
