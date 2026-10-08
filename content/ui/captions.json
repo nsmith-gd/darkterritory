@@ -71,6 +71,12 @@
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
     "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND",
+    // The grain elevator's conveyor (note 466): its engine starting, a jam (the belt bunching, then the drive labouring with
+    // the belt squealing on its drum, which goes on out of sight down the belt), and the engine dying under one left.
+    "place-conveyor.catch": "AN ENGINE STARTING",
+    "place-conveyor.jam": "A BELT JAMMING",
+    "place-conveyor.labour": "A BELT SQUEALING, AN ENGINE LABOURING",
+    "place-conveyor.stall": "AN ENGINE DYING",
     // The extinguisher on a fire (note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
     // a reader is told the jet's on the flames, a patch of them going out, and the fire out, as a hearing player is.
     "crew-extinguisher.on-fire": "WATER HISSING ON THE FLAMES",
