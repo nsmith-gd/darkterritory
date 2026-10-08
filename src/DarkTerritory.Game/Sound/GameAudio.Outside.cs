@@ -325,7 +325,8 @@ public sealed partial class GameAudio
         {
             if (!tunnel)
             {
-                if (_exposed)
+                // Under a stop building's roof (note 392) it's on the roof over you, as in a car.
+                if (_exposed && Space is not ("shed" or "room"))
                     HoldLevel("world-rain.rain-out", 0, ear, 0, 1);
                 else
                     HoldLevel("world-rain.rain-roof", 0, ear + Double3.Up * 2.5, 0, 1);

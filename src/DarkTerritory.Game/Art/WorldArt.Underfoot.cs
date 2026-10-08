@@ -115,9 +115,9 @@ public sealed partial class WorldArt
                 if (p.D >= Math.Min(x0, x1) && p.D <= Math.Max(x0, x1))
                     return "cobbles";
             }
-            foreach (var b in stop.Buildings)
-                if (Inside(b, p))
-                    return "concrete";
+            for (int i = 0; i < stop.Buildings.Count; i++)
+                if (Inside(stop.Buildings[i], p))
+                    return Floor(stop, i);
             foreach (var road in stop.Roads)
             {
                 double half = RoadHalfWidth(road.Kind);
@@ -131,6 +131,43 @@ public sealed partial class WorldArt
                         return road.Kind == RoadKind.Street ? "cobbles" : "ground_mud";
                 }
             }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// What's underfoot in a stop's building, as the art lays it (note 387's walk-in Holdouts and sheds, note 326's open
+    /// houses; queue #129, note 392): a Holdout's signal box, lamp room or pump house on boards a step up, the prison van's
+    /// plate, an open house's boards; a shed, the hero and anything shut, concrete.
+    /// </summary>
+    public static string Floor(StopLayout stop, int index)
+    {
+        var b = stop.Buildings[index];
+        bool holdout = stop.Holdouts.Any(h => h.Building == index);
+        return b.Kind switch
+        {
+            BuildingKind.PrisonCar when holdout => "paint_oxide",
+            BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower when holdout => "wood_floor",
+            _ when b.Open && Sim.Run.StopWalls.Walled(stop, index) => "wood_grey",
+            _ => "concrete",
+        };
+    }
+
+    /// <summary>
+    /// The stop's building a point <paramref name="s"/> along the main line, <paramref name="lateral"/> across, stands in
+    /// (its footprint), and whether it can be walked into (note 279's shells: a yard's shed, its hero, a Holdout; note 326's
+    /// open houses); null outside them all.
+    /// </summary>
+    public static (StopLayout Stop, int Index, bool Open)? BuildingAt(Route route, double s, double lateral)
+    {
+        foreach (var f in route.Features)
+        {
+            if (f.Stop is not { } stop || s < f.Start - 250 || s > f.End + 250)
+                continue;
+            var p = new Pt(s - f.Start, lateral);
+            for (int i = 0; i < stop.Buildings.Count; i++)
+                if (Inside(stop.Buildings[i], p))
+                    return (stop, i, Sim.Run.StopWalls.Shelled(stop, i) || stop.Buildings[i].Open && Sim.Run.StopWalls.Walled(stop, i));
         }
         return null;
     }
