@@ -204,6 +204,8 @@ The council's laws are posted by the clerk's door, and the town's flag flies in 
 
 Use talks to someone, and Use again hears their next line. They turn to face you. Nobody can be talked to through a wall.
 
+**Everyone is somebody, and their name says who** (the director, 8 Oct: "procedural personalities that spawn off of town cultures ... matched to procedurally generated names"; note 474, docs/design/townsfolk.md). Each townsperson has six traits, each a way of carrying the town's grief: how hard they keep the custom, how much of it they'll tell, their nerve, how raw their grief is, how warm they are to those from away, and how much they try to make the world tolerable. The custom leans its whole town (the Passenger's town is wary of strangers; the Gaunt's never stops talking), the job and the household lean each person, and the rest is their own. From the traits comes a temperament (the faithful, the doubter, the mourner, the hollow, the watcher, the comforter, the talker, the frayed, the mender, the restless, or plain), and each says one line of how they carry it. **Who to ask matters:** the close-mouthed never speak of the custom, and the open say the most. Names come from the town's mix of the province's peoples (a fort named Boudreau is mostly Acadian). Children born inside the walls carry after-names their parents chose by what they kept, hoped or lost: Patience, Dawn, a rulebook town's Nine, the name of the aunt who never came back. About a third are known by a byname, the Cape Breton way: Holy Annie Gillis, Lamp Hughie MacNeil, Angus Dan Rory.
+
 **Lore is through what people say** (the director, 7 Oct). They say creepy things. Sometimes it's a hint of how another town deals with a creature they've heard about ("in Pell's Cove they won't sing"), never the full rule. Everyone is a little damaged by what happened.
 
 **Papers.** The board carries three or four notices: the custom's orders first, then the town's trade and whatever else is posted. One or two notes lie about the square. A town's papers name its own people, so a line from one person and a notice about another can be put together.
@@ -2296,6 +2298,10 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Fire**
 - Holding the extinguisher on a fire still doesn't feel like it's doing anything. It should be a second per grid cell to put out. *Done (queue #203, ARCHITECTURE §8 note 467): a cell at full blaze aimed at is out after a second of spray (`carFire.sprayPerSecond` 1.0, was 0.35), the cells round it cooled at 0.4 of that; an extinguisher's charge is about fifteen cells.*
+
+**The crane**
+- Crane hooks only go up with Space; there's no obvious way to bring them down. *Fixed (queue #217): the brake key lowers the hook (`Crane.Drive`, T48), but a solo game kept the brake key for the cab alone, so the crane never saw it. It reaches the crane now, and the crane's corner names the hook both ways: `HOOK UP : [SPACE]`, `HOOK DOWN : [B]`.*
+- The crane should be entered with E and left with E, not held. *Done (queue #217): at the control stand, E's press takes the controls and the next lets them go (`STEP DOWN : [E]`); the prompt at the stand is `THE CRANE : [E]`, and bots work it the same way.*
 
 **Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
 

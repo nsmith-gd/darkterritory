@@ -1248,7 +1248,8 @@ public static class Staging
         var train = world.Train;
         var log = world.Attribution;
         var marks = world.Bookmarks;
-        var run = world.Run!;
+        // A night's run keeps the report (note 476: `--radio tally` on the default test loop, which has none, was a null).
+        var run = world.Run ?? throw new ArgumentException("a staged report needs a night's run: give it a --route (e.g. --route frontier:7)");
         void At(double seconds) => run.Resume(seconds, -1, train.Boiler.Tender, 0);
         log.Drove(0);
         log.Fired(1, 100);

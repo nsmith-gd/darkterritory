@@ -6651,7 +6651,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `HudTests.AtTheTippleThePromptsSayHowTrueTheCarStandsAndPutItBackOnItsRails`.
         - `dt screenshot --route deepTerritory:3 --site --facility mineHead --tipple [--tip r [--tipping]] [--offrails]`.
 
-
 460. **The Follower's nest built up over its 60 s (queue #196, E1; the art checklist's `follower-nest` "next", "the nest building up over its 60 s rather than at its swell's size"; GDD App. A.6).** The nest was drawn whole from its first second, scaled from a quarter of its size up with the Follower's swell: a small finished heap growing.
     - **Built from its own pieces:** the follower_nest model (tools/models/recipes/follower_nest.py) keeps each of its parts a piece of its own in the baked mesh, welded to no other. `NestBuild` finds them (triangles that share a corner) and tells them by their shape: the loot it's built on (the spill and the sack low down, the crates' boxes), ten strands (thin twelve-triangle cylinders), the crust's six lobes, and the hollow (the highest).
     - **In turn:** the loot there from the start; the strands down to the floor over the first fifth of the build, one after another round it, each grown from its foot on the floor; the lobes from 0.15 to 0.85, lowest first, each over a quarter of the build, swelling up out of the heap from its own foot; the hollow over the last sixth. Each eased in (smoothstep). Drawn at 48 steps, each cooked once.
@@ -6749,7 +6748,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - over the gap to the next car, one leap and two paws landing on its roof;
         - down in at its door, one leap and two paws on the boards, and walking there, the boards (never the ballast's).
 
-
 477. **The hounds' patrol clips (queue #213, E1; for D1's #208, note 472; the director, 8 Oct: "It matters that they dont just stand there and howl, they should either patrol between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump"; the art checklist's `cinder-hounds-anim`).** Five new clips in tools/blender/cinder_hound.py, which D1 wires in CreatureArt's hound case:
     - **`patrol`** (64 frames, loop): the hunting walk along the roofs. The prowl's slink without its stop and stare: nose down at the boards, the head swept slowly side to side over two strides, the ears pricked forward.
     - **`leap`** (27 frames, once): over a coupling gap. In place along the line: the gather, the arc up off the roof (0.62 m), the landing on the forelegs and on into the walk; the Sim carries it the 2-3 m across between 0.25 s and 0.65 s.
@@ -6770,8 +6768,74 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Screenshots before and after: `--cottage 0..2`, `--cottage 0 --lantern`, `--barn 0 --back` (with and without `--lantern`), `--barn 0 --find`, `--barn 1 --back`, `--shed 0 --inside`, `--view inside`. Means out of 255: cottages 5.6, 6.0, 5.9 → 10.6, 12.9, 10.7; barn 4.6 → 27; yard shed 6.9 → 12; car 27.6 → 28.6. Walls, furniture, the bench and the floorboards read; the yard shed's lanterns throw warm pools on its floor.
         - LookTests, PerfBudgetTests, ScreenshotTests, StopShellArtTests, HouseInteriorArtTests, VrTests, MultiviewTests, BookmarkStillsTests, DamageTests, CreatureArtTests and WorldSoundTests pass (the frame's constants grew a vec4 at their end).
 
+485. **Frost from the cab windows' edges, and breath on the glass (queue #222, E1; the art checklist's `cold` "next": "frost creeping in from a window's edges, and breath fogging the cab glass"; GDD §22, §26 "frost on windows and metal, breath vapour").** The cold's rime (`FrameLighting.Frost`, scene.frag) lies on whatever faces the sky, but the cab's windows are open frames in the kit with no glass drawn, so a deep night left them as clear as a mild one. Nothing fogged them either: a breath was a puff in the air whether or not a face was at the glass.
+    - **The panes:** `TrainKit.CabPanes` names the cab's glass in the engine's frame: the two front windows either side of the middle post (`FrontWindow`), and each side's slit in its three bays between the posts. Each pane has a corner, two edges and a normal into the cab.
+    - **The frost:** `SceneArt.CabGlass` lays a frost on each pane as an alpha effect, grown in from its frame in a strip round all four edges:
+        - It uses a new tiling texture, `fx_frost` (tools/art/texgen/mat_fx.py): fern fronds of ice, a stem with feathered branches at sixty degrees, over a fine sugar of rime.
+        - The edge is thick and fades to nothing at the front. The edge band is laid twice, the second with the texture turned across the first, so it reads as a crust, not a row of tufts.
+        - It reaches in `paneReach` (0.16 m) at the frost's full, ragged along the front by its own hash. It goes furthest in the corners, up from the sill most and down from the top least.
+        - It never reaches more than `SceneArt.FrostMostOfPane` (0.55) of the way to a pane's middle, so the view ahead stays clear.
+        - It follows the night's frost (`ColdTuning.Frost`), or the Choir's rime as it gathers (`choirCold.rime`), whichever is heavier.
+    - **The fog:** each crewmate whose mouth is within `fogReach` (0.7 m) of a pane and facing it fogs it where their breath meets the glass:
+        - A soft patch with a fainter halo, held inside the pane's frame. It is thicker the nearer the face.
+        - It comes on with their breath out, on `Effects.Breath`'s beat (`SceneArt.BreathOut`). It goes back as they breathe in, but never quite clears while they're still at the glass (`FogStays`, 0.35).
+        - First person (`GreyboxScene.Own`), the eye fogs the glass it's near. The mouths are those of the crew drawn this frame (`SceneArt.Crewmate` records each), so the glass is drawn after the crew.
+    - **Drawn as effects:** nothing in the sim, so no prediction or netcode is touched. Tuning lives in look.json `atmosphere.cold` (`paneReach`, `paneColour`, `paneDensity`, `fogReach`, `fogColour`, `fogDensity`). It is drawn within 60 m.
+    - **Headless:** `dt screenshot --view glass` is a breath from the driver's window looking out through it (`--breathe`: the eye's own breath on it). `--view cab|fireman|prow --cold 0.55|0.9` shows the frost from the footplate and from outside.
+    - **Verified:** `CabGlassTests`:
+        - The panes are the cab's windows and face into it.
+        - The frost creeps in further as it deepens and leaves the middle clear.
+        - A face 0.3 m from the glass fogs it, without spilling off the pane, and one 1.5 m off doesn't.
+        - The fog comes and goes on the breath.
+
 483. **A hound aboard seen as it patrols (queue #220, D1.3 for D1; note 472's "not yet").** A hound aboard faces up or down its car, or to a side door (`CinderHound.Facing`, replicated in its `Lateral`), and the art turned its model by it (`CreatureArt`). The greybox stand-in didn't: `GreyboxScene.DrawEnemy` drew everything on a car in the car's own basis, so in greybox every hound walked and leapt facing up the train, sideways or backwards to where it was going.
     - **Now** a hound aboard's basis is turned by its facing, by the same angles the art turns its model, as a player's yaw in the car's frame (the stand-in's head is at −Z).
     - **Seen:** `dt screenshot --patrol --view patrol --greybox`, before and after: the walker faces along its roof, the leaper faces the gap it's crossing to the third car, and the one dropping in at the open door faces into the car. The art's view (`--view patrol` without `--greybox`) is unchanged and matches.
     - **The night** (`dt playthrough --route frontier:7 --bots 4 --minutes 20`, and with 2 bots, `--insist cinderhound --seed 2`): every hound run was scattered or killed, so no hound got aboard to photograph on a real night. The photos of the runs (telegraph, scattered, killed) show nothing wrong. The 2-bot night does show the train standing at 5.76 km from about 450 s to the end, with a car fire starting every 20 s. That isn't the hounds', and it's left with D1.
     - **Verified:** Game tests 486/486; build 0 warnings; format clean.
+
+474. **The townsfolk's personality matrix, and names to match (P1; the director, 8 Oct: "for townspeople I want to create a personality matrix ... procedural personalities that spawn off of town cultures and then match them to procedurally generated names"; GDD §3.1; docs/design/townsfolk.md).** Townspeople were a role, a random name and their lines: nobody was anybody, and a MacNeil stood next to a Boudreau and a Zwicker in every town alike.
+    - **Six traits, from the world** (tuning/townsfolk.json): keeping (lapsed to zealous), telling (close to open), nerve, grief (sealed to raw), welcome (wary to warm) and hope (resigned to making it tolerable). Each is a way of carrying the town's grief (GDD §2: the towns exaggerate what let them survive), and each changes something the crew can notice.
+    - **A trait is a sum:** the custom's lean (`cultures`: the Passenger's town is welcome −0.5, the Gaunt's telling +0.5), the town's mood, the household's mood and its loss, the job's lean (`roles`) or the part in the house (`parts`), and the person's own draw (three uniforms summed: no transcendental functions in the Sim), clamped to [−1, 1]. Each part is on its own stream by the person's place in the town (`folk.town`, `folk.house`, `folk.person`, `folk.name`), so every machine makes the same people. Temperaments are iterated in ordinal order, never a dictionary's.
+    - **Temperaments** are directions in the six traits: somebody is the one their traits lie furthest along (dot over the direction's length), or plain under `temperamentFloor`. Each has bynames and a deck of lines (world/townsfolk.json); a person says one second, after the gate's law or the household's story. The lines say how somebody carries it, never a creature or its rule, so they sit in any edition's towns.
+    - **Telling is the hint economy:** below `telling.close` somebody never says the custom's lines (the keeper of its hall always does) and says one line fewer than the fewest; above `telling.open`, the most.
+    - **Names** (`TownFolk.Person`, world/townsfolk.json `heritages`):
+        - **A town's mix of peoples.** Five heritages (Gaelic, Acadian, Irish, Lunenburg, Loyalist), one dominant (the fort's own name's 70% of the time, else by the trade's leans) and a second. House families are drawn by the mix (`TownFolk.Families`, replacing the plain surname deck in `Houses`), so a household's people share a heritage.
+        - **Generations.** Elders and adults have their people's old names, now and then another heritage's.
+        - **After-names.** Children born inside the walls are named by their house's strongest lean: a virtue, a daylight name, or the lost one's own (the household's `{absent}`). Now and then they have the custom's own name (Nine, Silence, Dolly).
+        - **Bynames, the Cape Breton way,** between the given name and the surname: a strong temperament's ("Black Flora", "Jumpy Seamus"), a job's ("Lamp Hughie"; a hand's by the trade), or a Gaelic patronymic ("Angus Dan Rory"). `Townsperson.Name` is that full name, so the HUD and other people's `{name}` use it. `Townsperson.Personality` carries the rest.
+    - **Content:** `TownContent.Folk` loads both files, and `TownContent.Surnames` gains the heritages' surnames after towns.json's, so fort names drawn by index are as they were. Content without the files (a mod's) gets the old names and no personalities.
+    - **`dt town`** shows each person's mind and the town's peoples; **`dt town sweep`** shows each custom's mean traits, temperament shares and bynamed share. At 200 seeds every custom has its own mix: the Passenger's 31% faithful and 16% watchers, the Gaunt's 26% talkers, the Track Doll's 29% mourners, the Tippy Toesie's the most comforters. About a third have a byname. Doubters are 1–5% everywhere, since these towns keep their customs harder every year.
+    - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
+    - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
+
+476. **The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441 and 459).**
+    - **The corner.** With the link lost, the HUD's top-right corner said "[F5] RECONNECT", and "CREW FULL (8/8): [F5] TRY AGAIN" when turned away. That's key first. The ballot's menu keys aside (note 285 kept them), it was the only line in play not in note 285's ACTION : [KEY] form, and it sat right over the centre's alarm saying the same thing as RECONNECT : [F5]. It now says it as the alarm does: RECONNECT : [F5], and CREW FULL (8/8)   TRY AGAIN : [F5] (`Hud.LinkLine`).
+    - **The staged report.** `dt screenshot --radio tally` on the default test loop crashed on a null: its staged report (`Staging.Report`) needs a night's run, and the test loop has none. It now says so: "give it a --route (e.g. --route frontier:7)".
+    - **Verified.** `QuietHudTests.TheLinksCornerSaysWhatToDoAsTheAlarmDoes` checks each line of the corner, and that none is key first or has words after a key. There's no screenshot: no `dt` staging draws a lost link, and the line is the same print in the same place.
+480. **The tipple heard (AU1, queue #216; A1's #458, note 423: "its sound (the clamp, the roll, the derail) AU1's"; spec D.2 "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur").** The mine head's tipple clamps a car in a cradle of iron hoops, rolls it over toward the ore bin (its chute tipping ore in at the top) and back by itself, and a bad clamp throws the car off its rails and holds the train till the wrench puts it back. None of it made a sound, though "the roll is machinery, so it's loud".
+    - **How** (`GameAudio.TippleSounds`, from `PlaceWorks` for every site with a tipple; off the run record's site, `Clamp`, `Clamped`, `Roll`, `RollingBack`, `Rerail`, and the clamped car's `Vehicle.OffRails`, alike on every machine):
+        - **The clamp:** `place-tipple.clamping` at the beam while the lever's held (`Clamp` counting), and `place-tipple.clamp` once as it shuts.
+        - **The roll:** `place-tipple.roll` at the hoops' axis while the cradle moves, over or back by itself (a little lighter going back), within 0.25 s of its last move, since the record comes in snapshots. Held still mid-roll, it's quiet.
+        - **The top:** `place-tipple.pour` at the bin once as the roll reaches the top.
+        - **Let go:** rolled back and unclamped, `place-tipple.release` once.
+        - **A bad clamp:** the car the tipple last clamped coming off its rails is `place-tipple.derail` there, and not a release (`Run.Derail` lets the clamp go with it). The train moving with a car clamped does the same.
+        - **The wrench:** `place-tipple.rerail` at the car while its re-railing goes on (`Rerail` counting), and `place-tipple.rerailed` once as it's back on.
+        - Heard within 250 m of the cradle; the edges are read wherever the ear is, so nothing plays late.
+        - **The HUD's hold ticks:** the clamp and the re-railing (`GameAudio.Holding`: `Clamp`, `Rerail`), done when it's clamped or back on its rails.
+        - **Captions:** a car crashing off its rails, and its wheels back on.
+    - **The sounds** (`tools/audio/recipes/tipple.py`): eight candidates on the Audio Checklist's new `place-tipple` line, all installed. Built from the packs' real iron, plate, wood and stones; the rollers' rumble, the creaks and the pour are the kits' models.
+        - `clamping`, `screw`: the clamp's ratchet about five clicks a second, the beam's screw grinding, iron creaking.
+        - `clamp`, `bite`: the beam's heavy clank on the roof, the platen's crunch of timber, the car creaking once.
+        - `roll`, `hoops`: the hoops grinding round on their rollers (a flat thudding twice a second), the pinion clanking through the ring gear, the car's timber twisting, its load shifting. 8 s exact cycle.
+        - `pour`, `chute`: the bin's gate knocked open and ore down its steel chute into the car (the steam lift's pour, from a bin).
+        - `release`, `springs`: the beam lifting off with a clank and rattle, the car dropping onto its springs.
+        - `derail`, `off`: the trucks dropping off the rail heads onto the sleepers one after the other, the body slamming into the hoop, the timbers groaning, ore spilling.
+        - `rerail`, `jack`: a rerailing jack's ratchet in heaves, a bar scraping, the car's weight creaking up. 4 s exact cycle.
+        - `rerailed`, `back-on`: the wheels dropping onto the rail heads, one truck then the other, the car settling.
+    - **Pinned:** `WorldSoundTests.TheTippleIsHeardClampingRollingTippingAndDerailingABadClamp`, at a mine head with every module (the draw off) on a client night, off the mirrored record:
+        - the clamp wound while held, and one bite;
+        - the roll while it moves and quiet held still, the ore once at the top;
+        - rolled back, one release;
+        - a bad clamp, one derail and no second release;
+        - the wrench heard at it, and once back on.

@@ -2385,6 +2385,25 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "fx_frost",
+    "diffuse": "fx_frost.png",
+    "spec": "fx_frost_s.png",
+    "size": 256,
+    "tileMetres": 0.3,
+    "tiling": true,
+    "family": "fx",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "branching fern fronds over sugary rime, wrapped",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "ground_heath",
     "diffuse": "ground_heath.png",
     "spec": "ground_heath_s.png",

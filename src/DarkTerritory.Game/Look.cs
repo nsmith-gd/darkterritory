@@ -121,6 +121,15 @@ public sealed record ColdTuning
     public float FrostFrom { get; init; } = 0.35f;
     public float FrostFull { get; init; } = 0.85f;
     public float BreathFrom { get; init; } = 0.15f;
+    /// <summary>How far in from its frame the frost on the cab's glass reaches at its full (m, note 485).</summary>
+    public float PaneReach { get; init; } = 0.16f;
+    /// <summary>The frost on the glass: its colour (as the effects are, unlit) and how thick at the frame (0..1).</summary>
+    public Vector3 PaneColour { get; init; } = new(0.5f, 0.57f, 0.64f);
+    public float PaneDensity { get; init; } = 0.9f;
+    /// <summary>How near the glass a mouth fogs it (m), and the fog's colour and thickness at the glass (0..1).</summary>
+    public float FogReach { get; init; } = 0.7f;
+    public Vector3 FogColour { get; init; } = new(0.42f, 0.45f, 0.48f);
+    public float FogDensity { get; init; } = 0.8f;
 
     /// <summary>How heavy the frost is at <paramref name="cold"/>, 0..1.</summary>
     public float Frost(double cold) => Math.Clamp(((float)cold - FrostFrom) / Math.Max(1e-3f, FrostFull - FrostFrom), 0, 1);
