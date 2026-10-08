@@ -377,6 +377,8 @@ public sealed class CreatureArt
         public Pose Pose { get; } = new(model.Skeleton.Count);
         /// <summary>The distance copy (&lt;name&gt;.lod1.glb), its joints renumbered to this model's: posed by this one's palette.</summary>
         public Entry? Lod { get; init; }
+        /// <summary>How far off (m) the distance copy is drawn: an authored one's, or one made at load's (note 479).</summary>
+        public float LodFrom { get; init; }
     }
 
     readonly Dictionary<string, Entry> _models = new();
@@ -411,10 +413,14 @@ public sealed class CreatureArt
             if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
+            // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
+            // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
+            var authored = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model);
+            var far = authored ?? (look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, look.Tuning.ClusteredLodCell) : null);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
             {
-                Lod = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model) is { } lod
-                    ? new Entry(lod, [.. lod.Materials.Select(m => Resolve(m, wear))]) : null,
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+                LodFrom = authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres,
             };
         }
     }
@@ -547,7 +553,7 @@ public sealed class CreatureArt
         _skinner.Evaluate(m.Model, c, time, loop, m.Pose);
         posed?.Invoke(m);
         // Far from the eye (the scene is built about it: `at`'s origin is the distance), its distance copy, on this pose.
-        float lod = Look.Tuning.CreatureLodMetres;
+        float lod = m.LodFrom;
         var drawn = m.Lod is { } far && lod > 0 && at.Translation.LengthSquared() > lod * lod ? far : m;
         Emit(mesh, drawn, clip, at, variant, glow, seed, adjust, skin: m.Pose.Skin);
         return true;
@@ -795,11 +801,16 @@ public sealed class CreatureArt
     /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
     /// bottle on their back (note 353). False when that figure or bone isn't built.
     /// </summary>
-    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
+    /// <param name="instanced">Drawn as its own instance rather than copied into the frame (a far figure's, note 479: a draw
+    /// the more, none of its vertices moved on the CPU).</param>
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew", bool instanced = false)
     {
         if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
             return false;
-        mesh.Append(piece, m.Pose.Skin[b] * model);
+        if (instanced)
+            mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
+        else
+            mesh.Append(piece, m.Pose.Skin[b] * model);
         return true;
     }
 

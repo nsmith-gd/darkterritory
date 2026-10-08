@@ -220,6 +220,39 @@ public class CreatureArtTests
         Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
     }
 
+    /// <summary>
+    /// The figures with no distance copy of their own (no Blender to bake one) get one clustered at load (note 479): a walled
+    /// town's people and its watch are dozens of them in a frame, some 8,400 triangles each. A fifth of it or less, the same
+    /// materials and bones, the same size; drawn only past look.json's clusteredLodMetres, a few pixels tall.
+    /// </summary>
+    [Theory]
+    [InlineData("survivor_prisoner")]
+    [InlineData("survivor_wildlander")]
+    [InlineData("crew")]
+    public void TheFiguresGetADistanceCopyClusteredFromThem(string name)
+    {
+        var full = Get(name);
+        var lod = Art.LodOf(name);
+        Assert.NotNull(lod);
+        int a = full.Parts.Sum(p => p.Triangles), b = lod.Parts.Sum(p => p.Triangles);
+        Assert.InRange(b, a / 40, a / 5);
+        Assert.Equal(full.Materials.Length, lod.Materials.Length);
+        Assert.Equal(full.Parts.Length, lod.Parts.Length);
+        Assert.All(lod.Parts, p => Assert.All(p.Joints, j => Assert.InRange(j, 0, full.Skeleton.Count - 1)));
+        // The same size: every part that has triangles still spans what it did, give or take a cell.
+        float cell = Art.Look.Tuning.ClusteredLodCell;
+        foreach (var (whole, near) in full.Parts.Zip(lod.Parts).Where(x => x.First.Triangles > 40))
+        {
+            Assert.True(near.Triangles > 0, $"{name}/{whole.Name}: gone");
+            var (lo, hi) = (whole.Positions.Aggregate(Vector3.Min), whole.Positions.Aggregate(Vector3.Max));
+            var used = near.Indices.Select(i => near.Positions[i]).ToList();
+            var (lo2, hi2) = (used.Aggregate(Vector3.Min), used.Aggregate(Vector3.Max));
+            Assert.True(Vector3.Distance(lo, lo2) < cell * 2.5f && Vector3.Distance(hi, hi2) < cell * 2.5f,
+                $"{name}/{whole.Name}: {lo}..{hi} became {lo2}..{hi2}");
+        }
+        Assert.True(Art.Look.Tuning.ClusteredLodMetres >= 30, "drawn nearer than a figure is a few pixels tall");
+    }
+
     [Theory]
     [MemberData(nameof(Models))]
     public void ClipsAre30FpsAndLoopsCloseCleanly(string name)

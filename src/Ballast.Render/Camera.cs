@@ -137,4 +137,41 @@ public struct FrameLighting
         LampColour = new Vector3(1.0f, 0.72f, 0.38f),
         LampIntensity = 3,
     };
+
+    /// <summary>
+    /// How much of the fog's colour a lit surface takes <paramref name="distance"/> m from an eye at
+    /// <paramref name="eyeY"/>, <paramref name="height"/> m above the eye (below it, negative): scene.frag's
+    /// <c>fogAmount</c> on the CPU, so the scene can leave out what the fog has swallowed (<see cref="FogReach"/>).
+    /// </summary>
+    public readonly double FogAt(double distance, double height, double eyeY) =>
+        1 - Math.Exp(-Math.Pow(Math.Max(0, FogDensity * distance * FogThickness(height, eyeY)), Math.Max(0.2f, FogCurve)));
+
+    /// <summary>
+    /// How far the fog lets you see a surface that stands up to <paramref name="height"/> m above an eye at
+    /// <paramref name="eyeY"/>: past this it takes at least <paramref name="closed"/> of the fog's colour, everywhere on it
+    /// (its top is where the fog's thinnest). Infinite with no fog. A lit surface keeps some of its light through any fog
+    /// (scene.frag: the lamp is the last thing you lose), so what glows needs drawing further than this.
+    /// </summary>
+    public readonly double FogReach(double height, double eyeY, double closed = 0.99)
+    {
+        double thick = FogDensity * FogThickness(height, eyeY);
+        if (thick <= 1e-9 || closed <= 0)
+            return double.PositiveInfinity;
+        // fogAmount = 1 - exp(-(density·dist·thickness)^curve), solved for dist.
+        return Math.Pow(-Math.Log(1 - Math.Min(closed, 0.999999)), 1.0 / Math.Max(0.2f, FogCurve)) / thick;
+    }
+
+    /// <summary>
+    /// The fog's thickness on the way to a point <paramref name="height"/> m above the eye, as scene.frag has it: the
+    /// height fog's density averaged up the ray, never thinner than <see cref="FogFloor"/>. The fog's base is
+    /// <see cref="FogBase"/>, or 1.7 m under the eye (GreyboxRenderer: the ground under it).
+    /// </summary>
+    readonly double FogThickness(double height, double eyeY)
+    {
+        double k = FogHeightFalloff, above = double.IsNaN(FogBase) ? 1.7 : eyeY - FogBase;
+        double thickness = k <= 0 || Math.Abs(height) < 0.01
+            ? Math.Exp(-k * Math.Max(above, 0))
+            : Math.Exp(-k * above) * (1 - Math.Exp(-k * height)) / (k * height);
+        return FogFloor + (1 - FogFloor) * Math.Clamp(thickness, 0, 1);
+    }
 }

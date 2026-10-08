@@ -17,6 +17,11 @@ namespace DarkTerritory.Game;
 public sealed class GreyboxScene
 {
     public float DrawDistance { get; init; } = 400;
+    /// <summary>
+    /// The frame's fog as it's drawn (ARCHITECTURE §8 note 479): what it swallows needn't be there yet, so the line's cells
+    /// past its reach are cooked a few a frame instead of all at once. Null: everything in <see cref="DrawDistance"/> now.
+    /// </summary>
+    public FrameLighting? Fog { get; set; }
     public int Seed { get; init; } = 7;
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
@@ -258,8 +263,10 @@ public sealed class GreyboxScene
     /// added up over the builds since it was set: `dt perf`'s breakdown of the main thread's frame.
     /// </summary>
     public Dictionary<string, (double Ms, int Triangles)>? Timings { get; set; }
+    /// <summary>With <see cref="Timings"/>: the triangles each part put in the frame as kit pieces and models (instances).</summary>
+    public Dictionary<string, int>? InstanceTriangles { get; set; }
     readonly System.Diagnostics.Stopwatch _lap = new();
-    int _lapCount;
+    int _lapCount, _lapInstances;
 
     void Lap(MeshBuilder mesh, string part)
     {
@@ -267,7 +274,15 @@ public sealed class GreyboxScene
             return;
         Timings.TryGetValue(part, out var sum);
         Timings[part] = (sum.Ms + _lap.Elapsed.TotalMilliseconds, sum.Triangles + (mesh.Count - _lapCount) / 3);
+        if (InstanceTriangles is not null)
+        {
+            int added = 0;
+            for (int i = _lapInstances; i < mesh.Instances.Count; i++)
+                added += mesh.Instances[i].Asset.Triangles;
+            InstanceTriangles[part] = InstanceTriangles.GetValueOrDefault(part) + added;
+        }
         _lapCount = mesh.Count;
+        _lapInstances = mesh.Instances.Count;
         _lap.Restart();
     }
 
@@ -307,6 +322,7 @@ public sealed class GreyboxScene
         _hint = hint;
         _lap.Restart();
         _lapCount = 0;
+        _lapInstances = 0;
         // Bare triangles (the ground, the ballast, the trees) take world texels, wrapped every few km so they fit a
         // float; the pattern jumps at a wrap, rarely and far off in the fog.
         const double Wrap = 4096;
@@ -329,6 +345,7 @@ public sealed class GreyboxScene
             // A generated line's own land, boards, hazards, water and places (Art/PlanArt, linegen plan §12-13).
             if (Look is not null && Route.Plan is not null)
                 Look.Art.World.Plan(mesh, line, Route, eye, centre, DrawDistance, Time);
+            Lap(mesh, "land");
             if (Run is not null)
                 foreach (var site in Run.Sites)
                 {
@@ -398,10 +415,11 @@ public sealed class GreyboxScene
                 }
             // GDD §9: the fortress yard behind the gates, and the terminus: "lights, then walls, then gun towers".
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
+            Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
                 Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
-            Lap(mesh, "route");
+            Lap(mesh, "fortresses and towns");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
         // and any hand lamp lying about or being carried.
@@ -2215,7 +2233,8 @@ public sealed class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
-            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
+            Look.Art.World.Fog = Fog;
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth, centre);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
@@ -2653,6 +2672,9 @@ public sealed class GreyboxScene
     /// survivors' bare-headed figure, never the crew's masked one; null for note 107's folk in the crew's own.</param>
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
+    /// <summary>The hand lamp's distance copy, carried by a far figure (note 479).</summary>
+    MeshAsset? _farLantern;
+
     void Folk(MeshBuilder mesh, Double3 eye, Double3 feet, Double3 facing, int variant, float drab = 0.45f, string pose = "idle",
         string? gear = null, bool home = false, int who = 0, bool lamp = false)
     {
@@ -2663,10 +2685,12 @@ public sealed class GreyboxScene
         var creatures = Look!.Art.Creatures;
         string figure = "crew";
         Matrix4x4 m;
+        // Past where the figure draws its distance copy (note 479), what they wear and carry is drawn cheap too.
+        bool far = (feet - eye).Length > Look.Tuning.ClusteredLodMetres && Look.Tuning.ClusteredLodMetres > 0;
         // A town's people are the survivors' figure, bare-headed, with what they breathe through (note 353), set down on
         // their feet (the director's 8 Oct shots: a resident crouched in the air by the range).
         if (gear is not null && Look.Art.Townsfolk.Person(creatures, mesh, V(feet, eye), ToF(facing), clip, pose == "seated", gear, home, variant, who,
-            Time + variant * 0.73, drab) is { } drawn)
+            Time + variant * 0.73, drab, far) is { } drawn)
             (figure, m) = drawn;
         else
         {
@@ -2677,7 +2701,8 @@ public sealed class GreyboxScene
                 return;
         }
         // The street's lamp-carriers: the hand lamp hung from the fist, burning.
-        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern && creatures.Hang(mesh, lantern, m, figure))
+        if ((gear is null ? pose is "lantern" or "walk" : lamp) && Art.PropArt.Of(Look).Get("hand_lantern") is { } lantern
+            && creatures.Hang(mesh, far ? _farLantern ??= lantern.Clustered(Look.Tuning.ClusteredLodCell / 4) : lantern, m, figure))
         {
             var flame = creatures.LastHanging;
             mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.2f, 6));
@@ -2693,13 +2718,17 @@ public sealed class GreyboxScene
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             var town = start == 0 && lit ? Town : null;
             Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
+            Lap(mesh, "fortress walls");
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                Lap(mesh, "town square, green, works");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                Lap(mesh, "town houses");
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
+                Lap(mesh, "town streets");
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
                 foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
@@ -2708,9 +2737,11 @@ public sealed class GreyboxScene
                 foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
                         Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
+                Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
                         Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                Lap(mesh, "town watch");
                 // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
                 // cut in stone; the Lamplighter's lamp lit.
                 foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "statue"))
@@ -2731,6 +2762,10 @@ public sealed class GreyboxScene
                 }
                 foreach (var p in town.Plan.People)
                 {
+                    // Nowhere near on their whole round: not asked where they are (note 479).
+                    var (round, radius) = town.Reach(p);
+                    if ((round - eye).Length - radius > 160)
+                        continue;
                     // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.
                     var now = town.Now(p);
                     var feet = now.Feet;
@@ -2750,6 +2785,7 @@ public sealed class GreyboxScene
                     if (talking)
                         mesh.PointLights.Add(new PointLight(V(feet + facing * 1.1 + Double3.Up * 1.8, eye), Palette.LampAmber * 1.1f, 4.5f));
                 }
+                Lap(mesh, "town folk");
                 return;
             }
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.

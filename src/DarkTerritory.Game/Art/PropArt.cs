@@ -52,7 +52,14 @@ public sealed class PropArt
         return Skinner.Socket(p.Model, pose, socket, Matrix4x4.Identity).Translation;
     }
 
+    // (Locked: a cell of the line can be cooked on a worker while the frame's built, note 479.)
     (MeshAsset Mesh, Model Model)? Load(string name)
+    {
+        lock (_cache)
+            return LoadLocked(name);
+    }
+
+    (MeshAsset Mesh, Model Model)? LoadLocked(string name)
     {
         if (_cache.TryGetValue(name, out var hit))
             return hit;
