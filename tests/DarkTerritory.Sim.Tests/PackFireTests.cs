@@ -14,7 +14,7 @@ public class PackFireTests
 {
     static readonly PlayerTuning P = Tuning.Player;
 
-    static (bool In, PlayerState Walker) Night(bool pack, int health)
+    static (bool In, PlayerState Walker) Night(bool pack, int health, bool onIt = false)
     {
         var n = new Night(4, speed: 8);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
@@ -29,7 +29,9 @@ public class PackFireTests
             }
         }
         var bot = new RoofWalkerBot(3, P.Cold) { Me = 1 };
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, n.Train.VehicleAhead(rear), 0, P) with { Health = health };
+        // Cold, as everyone was on frontier:7 that night; onIt: already on the burning car's roof, at its front end.
+        n.Crew[1] = (onIt ? PlayerMotor.SpawnOnRoof(n.Train, rear, -n.Train.Frames[rear].Shape.HalfLength + 1, P)
+            : PlayerMotor.SpawnOnRoof(n.Train, n.Train.VehicleAhead(rear), 0, P)) with { Health = health, Cold = P.Cold.OnsetSeconds };
         bool inside = false;
         for (int i = 0; i < 40 && !inside; i++)
         {
@@ -42,17 +44,27 @@ public class PackFireTests
 
     [Theory]
     [InlineData(100)]
-    [InlineData(50)] // hurt past the pack fight (Heed.PackFightHealth), still fit to fight a fire: the frontier:7 walker
+    [InlineData(50)] // hurt past the pack fight (Heed.PackFightHealth), still fit to fight a fire
     public void AFireUnderABoardedPackIsntFoughtFromInside(int health)
     {
         var (inside, s) = Night(pack: true, health);
         Assert.False(inside, $"in under the pack to fight its fire (walker {s.Parent} {s.Surface} hp {s.Health})");
     }
 
+    [Theory]
+    [InlineData(100)]
+    [InlineData(50)]
+    public void OnTheBurningCarsRoofAlreadyAWalkerStillDoesntGoInUnderThePack(int health)
+    {
+        // The frontier:7 walker: on car 10's roof, cold, the pack at its far end; down onto the plate and in to the fire.
+        var (inside, s) = Night(pack: true, health, onIt: true);
+        Assert.False(inside, $"in under the pack to fight its fire (walker {s.Parent} {s.Surface} hp {s.Health})");
+    }
+
     [Fact]
     public void AFireWithNoPackAboardIsFoughtFromInside()
     {
-        var (inside, s) = Night(pack: false, 50);
+        var (inside, s) = Night(pack: false, 50, onIt: true);
         Assert.True(inside, $"never went in to fight it (walker {s.Parent} {s.Surface} hp {s.Health})");
     }
 }
