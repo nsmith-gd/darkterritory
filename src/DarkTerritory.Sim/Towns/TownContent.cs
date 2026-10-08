@@ -239,7 +239,7 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
     /// <summary>How the towns' houses look (content/world/houses.json): their palettes and the towns' characters.</summary>
     public HouseLooks Looks { get; init; } = new();
 
-    /// <summary>Who the townspeople are and what they're called (note 470: tuning and world townsfolk.json); null without them.</summary>
+    /// <summary>Who the townspeople are and what they're called (note 474: tuning and world townsfolk.json); null without them.</summary>
     public TownFolkContent? Folk { get; init; }
 
     /// <summary>The content's towns, or null where it has none (a mod that leaves them out, an old content folder).</summary>
@@ -252,7 +252,7 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
         // Its own people's surnames (the province's); else the line's, as the places are named.
         IReadOnlyList<string> surnames = words.Surnames.Length > 0 ? words.Surnames
             : DataFile.Load<NamesFile>(Path.Combine(content, LineGenConfig.Directory, "names.json")).Surnames;
-        // The peoples' surnames after them (note 470), so every family a house is given is one of the town's.
+        // The peoples' surnames after them (note 474), so every family a house is given is one of the town's.
         var folk = TownFolkContent.Load(content);
         if (folk is not null)
             surnames = [.. surnames.Concat(folk.Surnames).Distinct(StringComparer.Ordinal)];

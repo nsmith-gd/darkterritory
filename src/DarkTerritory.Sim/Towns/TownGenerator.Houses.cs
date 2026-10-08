@@ -219,7 +219,7 @@ public static partial class TownGenerator
         HouseDesign? model = null;
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
-        // The families by the town's mix of peoples (note 470), or any of the province's.
+        // The families by the town's mix of peoples (note 474), or any of the province's.
         var families = folk is not null ? new Deck<string>(folk.Families(rngFor("houses.families")), null) : new Deck<string>([.. content.Surnames], rngFor("houses.families"));
         var srng = rngFor("houses.spots");
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";

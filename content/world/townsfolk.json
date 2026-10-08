@@ -1,4 +1,4 @@
-// The townsfolk's names and temperaments (GDD §3.1; ARCHITECTURE §8 note 470; docs/design/townsfolk.md). The numbers
+// The townsfolk's names and temperaments (GDD §3.1; ARCHITECTURE §8 note 474; docs/design/townsfolk.md). The numbers
 // (the personality matrix, how names are drawn) are in tuning/townsfolk.json; this file is only words, read by
 // Sim/Towns/TownFolk.
 //

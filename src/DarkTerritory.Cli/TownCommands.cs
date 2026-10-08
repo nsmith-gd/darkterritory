@@ -52,7 +52,7 @@ static class TownCommands
             plan.Industry,
             plan.Quirks,
             square = new { plan.Square.S0, plan.Square.S1, plan.Square.Side, plan.Square.WallD, gate },
-            // Who they are (note 470): the town's peoples, how many of each temperament, and each person's traits.
+            // Who they are (note 474): the town's peoples, how many of each temperament, and each person's traits.
             peoples = plan.People.Where(p => p.Personality is not null).GroupBy(p => p.Personality!.Heritage).OrderByDescending(g => g.Count())
                 .ToDictionary(g => g.Key, g => g.Count()),
             temperaments = Temperaments(plan.People),
@@ -92,7 +92,7 @@ static class TownCommands
         // Walled towns (note 335): how many, the smallest walled and the biggest that isn't, and the most streets a side.
         int walled = 0, smallestWalled = int.MaxValue, biggestYard = 0, mostStreets = 0;
         string? last = null;
-        // The personality matrix (note 470): each custom's people's mean traits and temperaments, and the bynamed share.
+        // The personality matrix (note 474): each custom's people's mean traits and temperaments, and the bynamed share.
         var minds = new SortedDictionary<string, List<TownPersonality>>(StringComparer.Ordinal);
         string[] industries = [.. towns.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         for (int i = 1; i <= seeds; i++)
