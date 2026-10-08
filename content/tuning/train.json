@@ -206,8 +206,11 @@
   //   buffers (the line the Switchman throws a train down) run into over this, and the train goes through them and off the
   //   end. The same warning and lead: the cab is told while there's still room to stop, and a hit short of the lead is the
   //   buffer stop's damage alone.
+  // - The lean (note 370; App. F.1's telegraph: "the cars straining and leaning"): each car rolls out about its outer rail
+  //   by its own stress, as stress^1.5 of leanDegrees, so its inner wheels lift; it settles into it over leanSeconds, and
+  //   past half way to derailing rocks on its springs by leanRock of it. Drawn only: the sim's cars never lean.
   "overspeed": { "leadSeconds": 4, "brakeShare": 0.6, "marginM": 30, "lurchAt": 0.5, "repeatSeconds": 1.5, "warningSound": "warn-overspeed",
-    "deadEndDerailAbove": 6.9 },
+    "deadEndDerailAbove": 6.9, "leanDegrees": 4, "leanSeconds": 0.35, "leanRock": 0.18 },
   // The consist's make-up and fittings (GDD §10, §26, spec F.3; ARCHITECTURE §8 note 184). The counts and the handrails are
   // what the fortress sells: campaign.json's upgrades add to them, and every machine builds the same train. Converted cars
   // come out of the cargo cars, never leaving fewer than minCargoCars: extra guard cars first (each with a gun, in the

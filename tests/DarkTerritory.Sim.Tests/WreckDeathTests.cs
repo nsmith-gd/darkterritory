@@ -77,6 +77,37 @@ public class WreckDeathTests
     }
 
     [Fact]
+    public void ACarriedCrateGoesIntoTheWreckInTheirArmsAndIsThrownFree()
+    {
+        // Note 370 (the checklist: "a carried crate isn't in the ragdoll's hands"): held till they let go of their work, then
+        // on its own, falling and tumbling to rest on the ground; and nothing of the bodies' film changes for it.
+        var carrying = new FilmPlayer(5, "Ada", "carrying", new Double3(0, 1.1, -1), new Double3(0, 0, -12), 0, 0, Task: FilmTask.Carrying,
+            Carried: Physics.BodyKind.Crate);
+        var film = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying], "test", 12), Flat);
+        var without = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying with { Carried = null }], "test", 12), Flat);
+        Assert.Equal(without.Deaths, film.Deaths);
+        for (int f = 0; f < film.Frames.Count; f++)
+            Assert.Equal(without.Frames[f].Ragdolls[0], film.Frames[f].Ragdolls[0]);
+        Assert.All(without.Frames, f => Assert.Null(f.Loads));
+        // In the arms at the start, and still while the work's pose is held.
+        int held = (int)(W.Film.TaskHold * WreckFilm.Rate) - 1;
+        foreach (int f in new[] { 0, held })
+        {
+            var load = Assert.Single(film.Frames[f].Loads!);
+            Assert.Equal(0, load.Doll);
+            Assert.True((load.At - WreckFilm.InArms(film.Frames[f].Ragdolls[0]).At).Length < 1e-6, $"frame {f}: in the arms");
+        }
+        // Let go, it goes its own way: away from the hands, down on the ground by the end, at rest and lying flat.
+        var last = film.Frames[^1];
+        var end = Assert.Single(last.Loads!);
+        Assert.True((end.At - WreckFilm.InArms(last.Ragdolls[0]).At).Length > 0.3, "not still in the hands");
+        Assert.InRange(end.At.Y, 0.1, 0.6);
+        Assert.True(end.Up.Y > 0.95, $"settled flat: up {end.Up}");
+        // It tumbled on the way: its up was well off the vertical somewhere in the air.
+        Assert.Contains(film.Frames, f => f.Loads is [var l] && l.Up.Y < 0.7);
+    }
+
+    [Fact]
     public void TheGunnerStartsClearOfTheGunAndIsThrownUpOutOfTheSeat()
     {
         var car = Car(15, gun: true);

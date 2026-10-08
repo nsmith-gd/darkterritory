@@ -180,11 +180,16 @@ public sealed class PrototypeSession : IPlaySession
     }
 
     readonly List<CarFrame> _renderFrames = new();
+    readonly CarLean _lean = new();
 
-    /// <summary>Vehicle frames between the previous and current tick, for smooth rendering at any frame rate.</summary>
+    /// <summary>
+    /// Vehicle frames between the previous and current tick, for smooth rendering at any frame rate; each car leaning out
+    /// on a bend it's taking too fast (note 370: drawn only).
+    /// </summary>
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
         Train.FramesAt(alpha, _renderFrames);
+        _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         return _renderFrames;
     }
 
