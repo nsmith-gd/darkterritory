@@ -5743,6 +5743,34 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - No night stood. The shorter runs carried more cars home.
    - **Not yet.** A bot on the forward gun (a second gunner for a crew of five or more). Lanes on the flanks from the open country's sides. Other runners than hounds.
 
+406. **The driver left on the ground: a far Holdout, and the walk back to the cab (queue #142, D1.3 for D1; found in D1.3's seed nights since #299: "bot nights vary and many don't deliver").** The queue item named a switch set-back. In the seed sweep (`dt harness --route frontier:7 --bots 4 --enemies --upkeep --seconds 2700 --seed 1..9 --trace`) the switch set-backs all went fine: the driver down, the points over and back up in 16–17 s. The nights where the driver ended on the ground were the driver breaking a crewmate out of a Holdout on its own (note 258), at two facilities whose lockups stand 113–186 m off the line (frontier:7 at km 13.3 and 19.4).
+    - **Why.** `StopHand.Breach` and the way back to the cab (`IntoCab`) walked by `WalkTo`, which keeps to the line's own along and across: out to the side, along beside the track, then in. It's the walk for beside the train. Toward a door 160 m off, behind the lineside spruce (note 371 made them solid), it went into the trees, slid along them the wrong way, and stood out there until `HoldoutGiveUp` (180 s) or the end of the night. The train stood on its brake all that time.
+    - **The fix** (`StopHand.OnFoot`):
+        - Further than 10 m from where it's going on the ground, a hand goes by `FootPath` (note 326's A*, round the stops' walls, the lineside trees and the cars), `Follow`ing it as the village errand does.
+        - Nearer, it uses `WalkTo` round the train, as before.
+        - Where `FootPath` finds no way, it uses `WalkTo` too, and doesn't search again for 3 s (`WayTo`). Beside the train the foot path's margins (a car's steps, the coupling gaps) can leave no way between the cars and the trees where a crewmate fits. With the first fix alone, a lone driver back from cutting a hound pack's car loose (note 343) found no way to the cab from 150 m back. It headed straight at the cars and stood against them, searching again every tick (seed 5).
+        - The walkers' breaches (`Heed.Holdouts`) go through the same `Breach`, so they walk the same way.
+    - **Verified.** `HoldoutTests.ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab`: a lone driver breaches a facility's lockup more than 100 m off the line and is back in the cab and away. Without the fix it frees them but never gets back to the cab.
+    - **The sweep** (frontier:7, 4 bots, enemies, upkeep, 2700 s; main at 05a96b0 against this branch merged with it). Km reached, and where the driver ended:
+
+      | Seed | Main | With note 406 |
+      |---|---|---|
+      | 1 | 19.4, on the ground at km 19.4's lockup | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 2 | 13.3, on the ground at km 13.3's lockup | 25.5, delivered |
+      | 3 | 18.9, running | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 4 | 12.9, running | 24.9, running |
+      | 5 | 21.7, in the cab, standing | 21.7, running (cut a pack's car loose alone at km 16.5 and back in 93 s) |
+      | 6 | 25.5, delivered | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 7 | 17.2, running | 18.7, running |
+      | 8 | 13.3, on the ground at km 13.3's lockup | 21.7, in the cab, standing for km 21.7's Holdout at the end |
+      | 9 | 13.9, running | 25.5, delivered |
+
+      - The mean is 17.4 km on main and 22.6 km with the fix, with 1 and 2 nights delivered.
+      - On main, a far lockup's breach took 169–174 s (the give-up) or the rest of the night, 7 times in 9 nights. With the fix: 47 s at km 19.4 and 65–66 s at km 13.3, every time.
+      - Seed 6 delivered on main and stands at km 21.7 with the fix. Its night went another way: its crew met Holdouts it never stopped for on main. Single nights diverge after any change, so the table compares where they end, not each night alike.
+    - **A hand behind another's door** (`StopCrew.Shelter`, note 413). With the walks changed, `StopCrewTests`' Choir night went another way: two hands were searching one house. One of them, not a crate hand, took it for shelter and shut the door on both. The crate hand couldn't take a house that was already taken, went for the train from inside the shut house, and stood at the wall. Now a hand standing inside a house another of us has taken is its guest: behind that door, out (the driver waits), the door left to whoever took it, and back to work when it's quiet. The test watches every stop hand's doings for the door being shut and opened, not only the crate hands'.
+    - **Not yet:** nobody stands guard at the train while the driver's out: a Holdout 180 m off leaves the cab empty for a minute and more. `ToARoofLadder` (the climb back aboard to cut a car loose) still walks by `WalkTo`.
+
 411. **The game stopped last time, said on the title (F1, UI/UX 3; queue #147; roadmap M6's crash reports).** A crash writes its report to the user's app data (`CrashReports`, T33): the exception, and the last 200 lines the game said. Then it prints where the report is to the console. A player launched from Steam or a desktop shortcut never sees the console, so the report the demo's players would be asked to send was never found.
     - **The notice.** The next launch opens on it instead of the title: DARK TERRITORY STOPPED LAST TIME, then OK and OPEN THE REPORTS. Under both is where the newest report is, how many there are if there's more than one, and "Send it in with a few words on what you were doing". OK is first and lit, so the Enter pressed on arriving puts it away; Escape is OK too. OPEN THE REPORTS (`Launch.OpenFolder`) shows the folder in the system's file browser (the app's `Process.Start` with the shell: Explorer, Finder or `xdg-open`), and the notice stays up under it. A night started from the command line skips the front end, and the notice waits for the next launch that shows it.
     - **Seen once.** `CrashReports.Unseen` lists the reports newer than the one the notice was last put away at (`seen.txt` in the folder; the names carry their time, so ordinal order is the order they were written). `MarkSeen` writes it on OK. A crash after that is said on the launch after it. A folder that can't be read says nothing, as before.
