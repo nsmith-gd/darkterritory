@@ -5649,7 +5649,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **The elevator:** the grain left (`Site.Bin`) shows in the sight glass, and its lever (`SpoutLever`) is up and ready or pulled down while it pours, with the pour.
         - **The lift:** the ore left (`Ore`) shows in its gauge, and the skip (`Wind`) rides 0.9 + 9.8 m up the guides as far as it's wound. Its lever is down while it winds, with ore down the chute as a skip tips.
         - **The hose stand:** its gauge's face goes from green to red with `Pressure`, brighter while it leaks. The hose hangs off the coupling, or runs over to the filler on the car it's coupled to (`HoseCar`) as a ten-piece sag, tarred and banded yellow. There's the leak's cloud.
-        - **The pen:** eight panels of pen fence round the sim's pen (`PenRadius` 4: an octagon of 3.06 m sides, which is the panel's span), open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
+        - **The pen:** seven panels of pen fence round the sim's pen, an octagon's (`PenRadius` 4: 3.06 m sides, which is the panel's span) with its eighth left open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
     - **`dt screenshot --site --facility <kind> --close`:** the set pieces' site cameras at half the distance.
     - **Verified:**
         - `SetPieceArtTests` covers each set piece. The elevator's bin stands on the ground under the sim's spout mouth, and its lever's handle rises when ready and falls while pouring. The lift's works stand under its chute, and its skip climbs 7.8 m when wound to 0.8. The hose stand is at the sim's stand. The pen is seven panels at its edge plus the ramp.
@@ -5701,6 +5701,50 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Rounds fired: 3, 4 and 0 before; 14, 7 and 5 after.
      - Deaths: 5, 1 and 3 before; 4, 0 and 3 after (the rest at speed are #117's). 12.0, 9.6 and 12.0 km before; 12.7, 9.6 and 12.0 after.
 
+410. **The mine head's and the chemical works' buildings modelled (queue #146, C1; the art checklist's `mine-head` and `chemical-works`; GDD §18, §30 "oversized, partially abandoned, barely operable"; notes 381 and 393 did the elevator and the slaughterhouse).** Past their headframe and tanks, both sites were still the structure kit's boxes. Now they are modelled in facility_pieces.py and set by `StructureKit.Facility`, with the kit kept as the fallback.
+    - **The mine head:**
+        - `winding_house` (384 triangles, a 1024 layer) stands 38 m out, its gable facing the headframe. It is a brick engine house on a stone plinth, with tall arched windows down both sides (one lit, two out), a louvred ventilator on its slate ridge, and the date stone in the apex. Behind it are the boiler house, then the banded 30 m chimney.
+        - The headframe's back ropes now land on the winding drum, 2 m inside the house's front wall with its top 5 m up (`ROPE_END`). They cross the gable at the timber-framed slots at 9.75 m (`ROPE_Z`), where the straight line from the sheaves meets it. They used to end in the air past the kit's house.
+        - `spoil_heap` (896) is the tip, 12 m of dark shale 32 m across: lobed, gullied, burnt in seams down the fall line, and black where the last tubs tipped. Its incline climbs one flank on a timber trestle, with a tub tipped at the top and another fallen at the foot. Its game mesh is the tip's coarse shape, and its bake reaches deeper than the props' (`build`'s new `reach` and `cage`).
+    - **Where the mine head's pieces stand** comes from the sim, not from taste:
+        - The facility's frame (GreyboxScene: 25 m short of the layout down the spur, 4 m out) has its +Z back along the track, and that doesn't flip with the side.
+        - The winch's sleds come in from 41 m out at z −33 (`SledFrom`), so the tip stands at +33 for either side, turned so its incline always climbs toward the house.
+        - The boiler house and chimney are behind the engine house rather than beside it, so the house's footprint along the line is the same from either side. The old kit's comment that "the winch hauls from" the heap was never true; it stood at +26.
+    - **The chemical works:**
+        - `chem_works` (1,554, a 1024 layer) is the process house. It has a brick base and a steel frame above, clad in rusting corrugated iron, acid-streaked, with sheets fallen off and one hanging. A louvred monitor runs along its ridge, and its band of steel windows is broken (one bay boarded). There is a sliding door half open, the outside stair to the upper floor's door, and NO NAKED LIGHTS stencilled by the door (GDD §18's "do not fire indoors").
+        - Two guyed iron stacks rise behind its ridge, and the lead-clad acid tower, banded, seamed and laddered, stands off its −X end. Two pipe bridges run out from its front over the gap between the tanks, on a post pair each, and drop onto the rack.
+        - `pipe_rack` (460) is a 12 m bay on its steel portal. It carries four pipes flanged bay to bay, a valve with its wheel and the acid crust under it, and torn lagging. `pipe_rack_end` turns the last bay's pipes down into a pit.
+        - Four bays at s·(−18, −6, 6, 18) run the rack ±24 m along its tanks from either side. A bay turns with its side, so it is set at s·z.
+    - **`dt screenshot --building m`:**
+        - `--aerial` gives the whole site from up over the far side of the track.
+        - `--shift z` centres the view on another part of the buildings' frame (the tip at 33).
+        - `--close` halves the camera's distance back along the line.
+    - **Verified:**
+        - `FacilityBuildingArtTests` covers two things. Neither side's mine head puts a vertex on the winch's sled run, measured from the real site's `SledFrom`. From either side, the chemical works' rack meets at −24, −12, 0 and 12 and ends short of 24.
+        - `dt art check`: everything is well under the large prop's 8,000; the chemical works' facility is 5,410 of its 90,000.
+        - The Game suite.
+        - Looked at: each site from its building camera, closer, from the air and (the tip) shifted, at dawn, before and after, and each piece on the turntable.
+409. **The village houses' doors heard (AU1, queue #145; B4's note 401: "a house shut up is behind a closed door").** A house door shut or opened was silent, though shutting it is the Choir's rule (GDD §21, "not behind a closed door"). The Choir's BESIEGE beat on the door of a shut car (`GameAudio.ChoirSwarm`) but not of a house shut up, so whoever hid in one heard nothing at the door.
+    - **How:**
+        - `GameAudio.HouseDoors` plays `crew-house-door.shut` or `.open` when a door flips, read off `StopWalls.Shut`, the doors shut as replicated (`RecordKind.Door`). Host and client hear the same. The 0.6 s hold is the host's alone (`World.DoorAct`), so the sound starts as the door flips and the art pops it.
+        - The sound plays at `GameAudio.DoorSound`: the leaf, a hand's height up, half a metre in from the doorway's outside edge, inside the house's footprint (`EarRoom.Holds`).
+            - From inside the house, it's in the room with the ear: no `roomWall` (note 396), no occlusion.
+            - From the street, it's clear.
+            - From a shut car, or from another house shut up, it's muffled as anything outside (`DoorOcclusion`).
+        - BESIEGE counts a house shut up as a space somebody's shut in (`PlayerMotor.HouseSpace`), the listener's own or a crewmate's. It beats on one of that house's doors at random, with the wooden `cs-choir.bang-door` at the same spot.
+        - Inside a shut house, the outside was already muffled before this note: the house is a space of its own, so `GameAudio.Occlusion` gives anything outside it a full wall, which is more than `roomWall`.
+    - **The sounds** (`tools/audio/recipes/house_doors.py`): a ledged plank door, swollen in its frame, on strap hinges with a thumb latch. Four candidates are on the Audio Checklist's new `crew-house-door` line. The installed pick (`install.py` `FIRST_CHOICE`) is listed first for each.
+        - Shut, `sag`: the hinge's creak, the foot dragging over the sill, a hard bang, and the latch's bar dropping last. Installed because a shut door must be heard and trusted. It carries 60 m at +3 dB (`CUE_DEF`), across a village street.
+        - Shut, `pull`: Kenney's door closing with a dull thump.
+        - Open, `creak`: the latch lifted, the leaf jerking free, a long creak with the leaf's weight groaning under it, and a bump against the wall.
+        - Open, `door`: Kenney's door opening, with the foot catching the sill.
+    - **Captions** (note 349): A DOOR SLAMMING SHUT, A DOOR CREAKING OPEN, and BANGING ON THE DOOR. The Choir's beating at a shut car had no caption either.
+    - **Not yet:**
+        - The hold itself, 0.6 s of a hand on a sagging door, isn't heard. It's the host's alone and isn't replicated.
+        - Searching an open house's cupboards and cellars (note 326) is silent. That's the next item.
+    - **Pinned:**
+        - `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp`. A door shut from the street is heard once, at `DoorSound`, clear. Opened and shut again from inside, the ear is in the house's space, the space is "room", and nothing stands between the ear and the door. Shut up in the house while the Choir besieges, 2–5 beats in 3 s on its door, with nothing between.
+        - `CaptionsTests`' theory names the three captions.
 419. **The car floors and roofs underfoot (AU1, queue #155; AU1's audit of the installed sets, after note 354's cobbles).** AU1 measured every installed set's centroid, peak and how alike its takes are (scratchpad tooling, not shipped). The steps the crew hears most, boots on a car's plank floor and on its tin roof, came out centred at 300-390 Hz, with a slow 100-250 Hz wobble on each step. That's the character the director heard as the town stones' "squish".
     - **The roof:** the old roof step was the car's hollow over everything: the panel's 84-310 Hz boom at full level under every contact. `crew_feet.on_tin` builds the sheet first:
         - Kenney's light plate, barely pitched and choked under the boot.
