@@ -179,14 +179,19 @@ string? capture = Arg("--capture", "") is { Length: > 0 } c ? c : null;
 var startSettings = frontEnd.Settings;
 if (!pinnedInternal)
     internalSize = [startSettings.InternalSize.Width, startSettings.InternalSize.Height];
-using var window = new Window("Dark Territory", startSettings.WindowSize.Width, startSettings.WindowSize.Height);
+// --window WxH (note 459): the window at a size of its own, any shape (a Steam Deck's 1280x800, an ultrawide), windowed; the
+// frame keeps its shape inside it. For seeing the real window headless (Xvfb at that size, the screen captured).
+var windowSize = Arg("--window", "") is { Length: > 0 } ws && ws.Split('x') is [var wws, var whs] && int.TryParse(wws, out int ww) && int.TryParse(whs, out int wh)
+    ? (Width: ww, Height: wh) : (Width: 0, Height: 0);
+using var window = new Window("Dark Territory", windowSize.Width > 0 ? windowSize.Width : startSettings.WindowSize.Width,
+    windowSize.Height > 0 ? windowSize.Height : startSettings.WindowSize.Height);
 // The icon (tools/art/store/icon.py): the headlamp's glow and the stencilled DT.
 if (Path.Combine(content, "art", "ui", "icon.png") is var iconPath && File.Exists(iconPath))
 {
     var icon = Ballast.Render.ImageFile.Load(iconPath);
     window.SetIcon(icon.Width, icon.Height, icon.Rgba);
 }
-window.Fullscreen = startSettings.Fullscreen;
+window.Fullscreen = startSettings.Fullscreen && windowSize.Width == 0;
 // --vr: the headset makes the GPU (it has to pick the device and the extensions), and the window mirrors the flat view.
 using var vr = args.Contains("--vr") ? StartVr() : null;
 VrView? StartVr()
@@ -284,6 +289,14 @@ void FeedSpeaker()
 }
 
 var input = window.Input;
+// Note 459: the mouse in the overlay's pixels. The frame keeps its shape in the window, bars beside it where the window's is
+// another, so the mouse is read inside the frame, not across the window (on a bar it's off the overlay's edge).
+Vector2 OverlayMouse()
+{
+    var (pw, ph) = window.PixelSize;
+    var (x, y) = Letterbox.Inside(input.MouseX, input.MouseY, Letterbox.Fit(renderer.Width, renderer.Height, pw, ph), pw, ph);
+    return new Vector2(x * UiWidth, y * UiHeight);
+}
 var timer = Stopwatch.StartNew();
 var mesh = new MeshBuilder();
 var overlay = new Overlay();
@@ -417,9 +430,9 @@ Launch? MenuLoop()
         else
         {
             // The keys as ever, and the mouse (note 264): hover, click, the wheel, in the overlay's pixels (it's stretched
-            // over the window). Typing only while a field's being edited (the window turns text input on for that).
+            // over the frame, which keeps its shape in the window: note 459). Typing only while a field's being edited (the window turns text input on for that).
             var keys = MenuInput.Keys(name => Enum.TryParse<Key>(name, out var k) && input.Pressed(k), frontEnd.WantsText);
-            var mouse = vr is not null ? (MenuMouse?)null : new MenuMouse(new Vector2(input.MouseX * UiWidth, input.MouseY * UiHeight), input.MouseMoved,
+            var mouse = vr is not null ? (MenuMouse?)null : new MenuMouse(OverlayMouse(), input.MouseMoved,
                 input.Pressed(Key.MouseLeft), input.Pressed(Key.MouseRight), input.Wheel);
             chosen = MenuInput.Apply(frontEnd, keys, frontEnd.WantsText ? input.Text : "", mouse);
         }
@@ -865,7 +878,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             else
             {
                 var keys = MenuInput.Keys(name => Enum.TryParse<Key>(name, out var k) && input.Pressed(k), frontEnd.WantsText);
-                var mouse = new MenuMouse(new Vector2(input.MouseX * UiWidth, input.MouseY * UiHeight), input.MouseMoved,
+                var mouse = new MenuMouse(OverlayMouse(), input.MouseMoved,
                     input.Pressed(Key.MouseLeft), input.Pressed(Key.MouseRight), input.Wheel);
                 chosen = MenuInput.Apply(frontEnd, keys, frontEnd.WantsText ? input.Text : "", mouse);
             }
