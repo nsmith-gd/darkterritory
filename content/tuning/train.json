@@ -41,14 +41,21 @@
       // The boiler's 1.4 m (T110: a 0.7 m way past it on each side), now behind the cab, so it hides nothing ahead.
       "boilerHalfWidth": 0.7,
       "boilerTop": 3.6,
-      // The cab: the driver's end at the front windows, the fireman's at the back with the firebox door and the coal.
+      // The cab (note 280, the director: "the controls and firebox need to be in front ... no need to turn around for coal,
+      // the whole cab being operable by one person"): everything at its front, facing forward. Across it under the windows,
+      // left to right: the coal bunker in the front left corner, the firebox against the front wall beside it, the
+      // driver's console under the right-hand window. One person stood behind them reaches all three without turning round.
       "cabLength": 5.0,
-      // The coal bunker (note 276, the director: "put a coal bunker in the cab"): against the cab's left wall ahead of its
-      // left doorway, this long, this deep in from the wall and this high over the floor. The fireman stands between it
-      // and the fire door, a quarter turn from one to the other.
+      // The coal bunker: in the front left corner, back along the left wall this long, this deep in from the wall and this
+      // high over the floor.
       "bunkerLength": 1.8,
-      "bunkerDepth": 0.85,
+      "bunkerDepth": 0.62,
       "bunkerHeight": 1.0,
+      // The firebox, standing against the front wall beside the bunker under the window sill (out of the line's view), its
+      // door facing back into the cab: this wide, this deep from the wall and this high.
+      "fireboxWidth": 0.96,
+      "fireboxDepth": 0.7,
+      "fireboxHeight": 1.05,
       // The running boards out past the body's sides (App. A.2 GREASE: "sanding from the running boards"), this wide, from
       // the cab's doorways back along the boiler, and the sandbox on each this far behind the cab, over the drivers.
       "runningBoardWidth": 0.6,
@@ -279,16 +286,15 @@
     // campaign adds what the save has (SessionSetup.SpareKits), and each starts the night in a locker beside the first.
     "spareKits": 0,
     // The crew lockers (GDD §12, ARCHITECTURE §8 note 173): a row of tall iron lockers along the left wall of the kit's car,
-    // ahead of its side door, each lettered with a crew grade in the railway's own words. Hold Use at one to open or shut
+    // ahead of its side door, each numbered on its enamel plate (note 280: no role names; the crew is the driver, gunners
+    // and labourers). Hold Use at one to open or shut
     // its door; a tap of Use puts what's in your hands on its first free shelf, or takes the top thing off its shelves.
     // What's inside is held by the locker, not lying in the car: it can't fall, slide, or go through a wall.
     "lockers": {
-      // One locker a name, front to back: the grades as a depot would paint them on its lockers (the wheeltapper is the
-      // carriage-and-wagon examiner, whose hammer rang the wheels).
-      "names": ["DRIVER", "FIREMAN", "GUARD", "SHUNTER", "SIGNALMAN", "BRAKESMAN", "LAMPMAN", "FITTER", "GANGER", "WHEELTAPPER", "PORTER", "YARDMASTER"],
-      // The repair kit's locker. A fitter is the shed's mechanic, the one who mends engines, boilers included: the toolbox
-      // that mends a ruptured boiler is his. Spare kits go on his other shelf, then into the lockers after his.
-      "kitLocker": "FITTER",
+      // One locker a number, front to back, painted on its plate.
+      "names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      // The repair kit's locker. Spare kits go on its other shelf, then into the lockers after it.
+      "kitLocker": "8",
       // Shelves in each: the locker's floor, and one at chest height.
       "slots": 2,
       // What goes in: hand-sized things. Freight, the train's crates, the heavy, the dead and the living don't.
@@ -302,14 +308,14 @@
       // Holding Use this long at one opens or shuts its door (a tap is shorter: it stows or takes).
       "doorSeconds": 0.4,
       // Note 267 (the director's notes on build 1121: "all of these seem empty"): what each locker starts with besides the
-      // kit. Not in the GDD, which names only the fitter's kit; GDD §10's "where emergency lamps are kept, where fire
-      // extinguishers hang", by the grade whose job it is. The rest stand empty for what the crew finds and stows.
+      // kit. Not in the GDD, which names only the kit; GDD §10's "where emergency lamps are kept, where fire extinguishers
+      // hang". The rest stand empty for what the crew finds and stows.
       "stock": {
-        "DRIVER": ["lamp"],
-        "FIREMAN": ["extinguisher"],
-        "GUARD": ["lamp"],
-        "BRAKESMAN": ["extinguisher"],
-        "LAMPMAN": ["lamp", "lamp"]
+        "1": ["lamp"],
+        "2": ["extinguisher"],
+        "3": ["lamp"],
+        "6": ["extinguisher"],
+        "7": ["lamp", "lamp"]
       }
     }
   }

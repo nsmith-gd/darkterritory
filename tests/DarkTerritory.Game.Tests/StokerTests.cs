@@ -53,7 +53,7 @@ public class StokerTests
         Assert.True(v.Max(p => p.Position.Z) > door.Z + 0.15f, $"out to z {v.Max(p => p.Position.Z)} from the face at {door.Z}");
         // And it's in the door: what's out in the cab is no wider than the firehole and its reach to the floor.
         var outside = v.Where(p => p.Position.Z > door.Z + 0.02f).ToArray();
-        Assert.All(outside, p => Assert.InRange(p.Position.X, -0.6f, 0.6f));
+        Assert.All(outside, p => Assert.InRange(p.Position.X, door.X - 0.6f, door.X + 0.6f));
         Assert.True(outside.Min(p => p.Position.Y) > (float)Firebox.Y - 0.05f, "its hands rest on the cab's floor, not under it");
     }
 }
