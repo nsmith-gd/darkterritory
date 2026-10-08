@@ -34,6 +34,7 @@ python3 tools/models/fetch.py && tools/models/build.sh                # sourced 
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
 dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300 [--express 21]   # host + bots over lossy loopback; netcode report (--express: a driver that runs hot and takes no stops, note 376)
 dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      # mods are Thunderstore packages: check one and zip it; `dt mods` lists what's installed
+dotnet run --project src/DarkTerritory.Cli -- credits --write   # after a model, sound pack or library comes in: the credits from the content's provenance, THIRD-PARTY-NOTICES.txt rewritten (note 390)
 dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
 ```

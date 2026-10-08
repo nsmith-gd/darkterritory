@@ -33,6 +33,9 @@ return args switch
     ["mods", "pack", var package, ..] => PrintPack(package, Str(args, "--out", "out/mods")),
     // dt mods: the mods found, in load order, what can't be loaded and why, and what each does to which file (T49, T78).
     ["mods", ..] => Print(ModsReport(baseContent)),
+    // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
+    // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
+    ["credits", ..] => CreditsCommands.Run(baseContent, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -1557,6 +1560,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
+    // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
+    if (generated is not null)
+    {
+        scene.Walls = DarkTerritory.Sim.Run.StopWalls.Of(generated, line);
+        if (args.Contains("--doors-shut"))
+            foreach (var d in scene.Walls.HouseDoors)
+                scene.Walls.SetShut(d.Key, true);
+    }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -2152,8 +2163,13 @@ static object MenuShot(TrainTuning t, string content, string[] args)
         : new GreyboxRenderer(gpu, 480, 270);
     look?.Dress(renderer);
     var overlay = new Overlay();
-    menu.Draw(overlay, canvas.Item1, canvas.Item2);
-    string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
+    // --loading [n] (note 386): the loading screen the app shows while a night's built, with a first night's tip (the n-th).
+    if (args.Contains("--loading"))
+        DarkTerritory.Game.Onboarding.DrawLoading(overlay, canvas.Item1, canvas.Item2, "BUILDING THE NIGHT...", "THE LINE, THE LAND, THE CREW",
+            DarkTerritory.Game.Onboarding.Tip(DarkTerritory.Game.Onboarding.Load(content), new Settings(), (int)Opt(args, "--loading", 0)));
+    else
+        menu.Draw(overlay, canvas.Item1, canvas.Item2);
+    string output = Str(args, "--out", args.Contains("--loading") ? "out/shots/menu-loading.png" : $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
     PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, sized ? 1 : (int)Opt(args, "--scale", 2));
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
@@ -2189,6 +2205,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     };
     menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
+    menu.CreditSections = DarkTerritory.Game.Credits.Load(content);
     // The join screen's list, as a crowded evening has it: games on the network (pings as measured) and public lobbies off
     // a platform search (the fake's, its pings estimated from where each host is).
     if (screen == DarkTerritory.Game.Screen.Join)
@@ -2873,6 +2890,7 @@ static int Usage()
     Console.Error.WriteLine("""
         usage: dt <command>        (mods in ./mods and the user's app data are laid over content/; --no-mods for the base game)
           mods                                     the mods found, their load order, and what each does to which file
+          credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
           train table                              spec table (B.4–B.6) as produced by current tuning
           train stop <cars> [--from v] [--load l] [--grade g]
           train climb <cars> <grade%> [--from v] [--load l]
