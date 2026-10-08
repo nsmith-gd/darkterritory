@@ -7,7 +7,7 @@ namespace DarkTerritory.Game.Art;
 /// Dave, the wandering painter (the director, 8 Oct 2026: "a unique model so he's recognizable from afar ... Dave doesn't
 /// have a beard, he's a bit tubby on the belly and has glasses. He's extremely fashionable and wears Birks sandals often. He
 /// loves vests and cool hats. Players often find him wearing different cool hats and vests. He's a true artist"; GDD §3.2;
-/// ARCHITECTURE §8 note 483). He's the survivors' figure in his own things, the only person out there dressed for anything
+/// ARCHITECTURE §8 note 486). He's the survivors' figure in his own things, the only person out there dressed for anything
 /// but the dark:
 /// <list type="bullet">
 /// <item>one of his hats (<see cref="Hats"/>: the wide straw, a beret, a fedora with a feather, a bucket hat, a panama);</item>

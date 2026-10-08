@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>
-/// Dave, the wandering painter (the director, 8 Oct 2026; GDD §3.2; ARCHITECTURE §8 note 483). Just Dave. Some nights he's
+/// Dave, the wandering painter (the director, 8 Oct 2026; GDD §3.2; ARCHITECTURE §8 note 486). Just Dave. Some nights he's
 /// at his easel out past a stop, painting the world as it was. Nothing out there hunts him (no creature's target is ever
 /// anything but the crew), he's kind to whoever comes by, and he's patient. Not endlessly: a crewmate who strikes him
 /// <see cref="DaveTuning.Blows"/> times is taken by the neck. His blows one to four are his telegraph (he says so, and at
@@ -170,7 +170,7 @@ public sealed class Dave(int id) : Enemy(id)
     }
 }
 
-/// <summary>enemies.json <c>dave</c> (note 483). Field docs live in that file.</summary>
+/// <summary>enemies.json <c>dave</c> (note 486). Field docs live in that file.</summary>
 public sealed record DaveTuning
 {
     public double Chance { get; init; } = 0.3;

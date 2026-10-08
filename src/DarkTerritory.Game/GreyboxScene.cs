@@ -606,7 +606,7 @@ public sealed class GreyboxScene
                         if (Look?.Art.Creatures is { } flock)
                             flock.GannetWas = before;
                     }
-                    // Dave at his easel (note 483): his own figure and things, not a creature's.
+                    // Dave at his easel (note 486): his own figure and things, not a creature's.
                     if (e is Sim.Enemies.Dave dave && Look is not null && Painter(mesh, eye, dave))
                         continue;
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
@@ -2604,7 +2604,7 @@ public sealed class GreyboxScene
     /// <param name="home">At home in an open house: some have the mask down on the chest.</param>
     /// <param name="lamp">A town's person carrying a lit hand lamp (out in the street at night).</param>
     /// <summary>
-    /// Dave (note 483): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
+    /// Dave (note 486): the survivors' figure in full colour, in tonight's hat and waistcoat, his glasses and sandals, at his easel with its lantern
     /// lit. At his canvas he faces it, his brush arm out; turned on whoever's had their last warning (his telegraph) he faces
     /// them, still; holding them he faces them with his hands out. False when his figure isn't built (the greybox draws him).
     /// </summary>

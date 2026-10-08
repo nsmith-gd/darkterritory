@@ -16,7 +16,7 @@ public enum EnemyKind : byte
     Moose = 31,
     // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
     Gannet = 32,
-    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 483): not a creature, and nobody's quarry.
+    // Dave, the wandering painter (GDD §3.2, the director, 8 Oct 2026; note 486): not a creature, and nobody's quarry.
     Dave = 33
 }
 

@@ -105,7 +105,7 @@ public static class Views
             // (Not one of Names.) A crewmate's eye on the ground beside the stopped engine's front, out at the staged Moose 15 m
             // off up the line in the headlamp's spill (Staging.Moose: graze, listen, warn).
             "moose" => MooseCamera(train),
-            // (Not one of Names.) Dave (note 483): over his shoulder at his canvas, close; from the engine's front as the crew
+            // (Not one of Names.) Dave (note 486): over his shoulder at his canvas, close; from the engine's front as the crew
             // would first see him, 30 m off in the dark with his lantern; and side on to him with crewmate 4 (--dave warn, grab).
             "dave" => DaveCamera(train, 0),
             "davefar" => DaveCamera(train, 1),
