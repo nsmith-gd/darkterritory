@@ -194,7 +194,10 @@ FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": 
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
                 "state-starved.labour": "drag",
                 # Note 384: the croak's voice is a tenth of a second (the roar it's cut from has no more); the squawk's is a cry.
-                "cs-gannet-strike.hit": "squawk"}
+                "cs-gannet-strike.hit": "squawk",
+                # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
+                # the headframe's rope, whose tones can read as a whine.
+                "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
 
 
 def pick(cands, mat, line_level, cue_name=None):
@@ -338,6 +341,8 @@ CUE_DEF = {
     "crew-mishaps.startle-pigs": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.startle-sheep": {"tier": 6, "minDistance": 6, "maxDistance": 200, "rolloff": 0.8},
     "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
+    # A loose coupling's knock is heard where D1's synth was (note 356): from the gap, its ladders and the ground beside.
+    "state-coupling-loose.knock": {"minDistance": 3, "maxDistance": 60},
 }
 
 

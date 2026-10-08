@@ -255,6 +255,78 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed()
+    {
+        // D.7 (note 301's slice 2; queue #122, note 385): the wrench at a lock opens it quietly (Holdout.Quiet, replicated), and
+        // it was heard as the smash, "loud as a cannon".
+        var (world, site) = Night(f => f.Stop is { } stop && stop.Holdouts.Any(x => x.Kind != Sim.Stops.HoldoutKind.Shelter), from: -200);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-breach.smash", "place-breach.pick-give");
+        Held(audio, "place-breach.pick");
+        var h = world.Holdouts!.All.First(x => x.Site == site && x.Lockable);
+        var ears = new Ears(audio, world);
+        var ear = h.Door + new Double3(1, 1.6, 0);
+        ears.Tick(ear);
+        double progress = 0;
+        void Breach(bool quiet, double seconds)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                world.Holdouts.Mirror(h.Index, HoldoutState.Breaching, 1, progress += SimConstants.TickSeconds, quiet);
+                ears.Tick(ear);
+            }
+        }
+        Breach(quiet: true, 2);
+        Assert.True(Playing(audio, "place-breach.pick"));
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-breach.smash");
+        // It gives (Free clears Quiet the tick it does): a click and the hasp, not a smash.
+        world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-breach.smash");
+        Assert.False(Playing(audio, "place-breach.pick"));
+        // Without the wrench, it's smashed, and smashed open.
+        world.Holdouts.Mirror(h.Index, HoldoutState.Occupied, 1, progress = 0);
+        Breach(quiet: false, 2);
+        Assert.True(ears.Started.Count(v => v.Name == "place-breach.smash") >= 2);
+        Assert.False(Playing(audio, "place-breach.pick"));
+        world.Holdouts.Mirror(h.Index, HoldoutState.Freed, 1, 0);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-breach.pick-give");
+    }
+
+    [Fact]
+    public void TheSteamLiftsWindingEngineRunsWhileItWindsAndEachSkipTipsDownTheChute()
+    {
+        // The mine head's steam lift (note 368; queue #122, note 385), off the site's replicated state: winding, the ore left.
+        var (world, mine) = Night(f => f.Facility == FacilityKind.MineHead, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-mine-lift.tip");
+        Held(audio, "place-mine-lift.winding");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(mine)]!;
+        Assert.True(site.Has(ModuleKind.Lift));
+        var ear = site.LiftLever + Double3.Up * 1.6;
+        var ears = new Ears(audio, world);
+        ears.Tick(ear, 5);
+        Assert.False(Playing(audio, "place-mine-lift.winding"));
+        site.Mirror(site.State with { Winding = true, Wind = 0.5 });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.True(Playing(audio, "place-mine-lift.winding"));
+        Assert.DoesNotContain(ears.Started, v => v.Name == "place-mine-lift.tip");
+        // A skip wound and tipped: its ore off the shaft's, down the chute, once.
+        site.Mirror(site.State with { Ore = site.Ore - 0.25, Wind = 0 });
+        ears.Tick(ear, SimConstants.TickRate);
+        var tip = Assert.Single(ears.Started, v => v.Name == "place-mine-lift.tip");
+        Assert.True((tip.Position - site.LiftChute).Length < 1);
+        // The lever let go, or the steam stopped: the engine stops.
+        site.Mirror(site.State with { Winding = false });
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.False(Playing(audio, "place-mine-lift.winding"));
+    }
+
+    [Fact]
     public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
     {
         // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them
