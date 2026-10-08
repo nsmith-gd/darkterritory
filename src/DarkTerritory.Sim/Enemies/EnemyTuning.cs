@@ -812,6 +812,17 @@ public sealed record HoundRunTuning
     public double[] Lateral { get; init; } = [4, 8];
     public double Closing { get; init; } = 5;
     public double Scatter { get; init; } = 5;
+    /// <summary>
+    /// The lane ahead (note 405, orchestrator.md §5.3 6): every this many pairs, the second of them comes from in front, for the
+    /// forward gun (0: none; 1: every pair). Only to a train with a gun laid forward on the engine's rake.
+    /// </summary>
+    public int AheadEvery { get; init; } = 3;
+    /// <summary>How far in front of the engine an ahead pair is put down (m), and how far off the line to a flank (m).</summary>
+    public double AheadMetres { get; init; } = 330;
+    public double[] AheadLateral { get; init; } = [12, 16];
+    /// <summary>Running in to meet the train (m/s, against it), across the line to this far out on the other side (m).</summary>
+    public double AheadSpeed { get; init; } = 3;
+    public double AheadCross { get; init; } = 3;
 }
 
 /// <summary>
