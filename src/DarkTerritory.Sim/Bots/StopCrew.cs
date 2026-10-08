@@ -217,6 +217,8 @@ public sealed partial class CrewCalls
             || site.Crane is { Left: > 0 } && PairWithPeople
             // The spout's lever is the shunter's, while the driver walks the cars under it.
             || site.Has(ModuleKind.Spout) && site.Bin > 0 && Has(StopJob.Shunter)
+            // The steam lift's lever too (note 368), while the driver walks the cars under its chute and vents into it.
+            || site.Has(ModuleKind.Lift) && site.Ore > 0 && Has(StopJob.Shunter)
             || site.Has(ModuleKind.Ramp) && site.Head > 0 && PairWithPeople
             // The hose wants one (D.2 fluid gantry "1–2"): its own hand, or a spare one (note 261).
             || site.Has(ModuleKind.Hose) && HoseHand
@@ -400,6 +402,36 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                 continue;
             double front = spout + rake.Consist.OffsetOf(i) + v.Length(rake.Consist.Tuning) / 2;
             if (front <= Spur.End - 1 && (best is null || front > best.Value.Front))
+                best = (v.Id, front);
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// The steam lift's next car (note 368): as the spout's, the car with room that comes under the chute with the engine
+    /// furthest up the spur, but only those that do with the engine's middle within its steam line's reach
+    /// (facilities.json <c>lift.steamReach</c>, less a metre); and where the engine's front stands for that.
+    /// </summary>
+    public (int Car, double Front)? LiftTarget(World world)
+    {
+        var rake = world.Train.Dynamics;
+        if (!Site.Has(ModuleKind.Lift) || Site.Ore <= 1e-6 || rake.Path != Spur.Index || world.Run?.FacilityTuning is not { } t)
+            return null;
+        double chute = Spur.Toe + Site.LiftAlong;
+        var consist = rake.Consist;
+        var vehicles = consist.Vehicles;
+        int engine = vehicles.ToList().FindIndex(v => v.Kind == VehicleKind.Engine);
+        if (engine < 0)
+            return null;
+        (int Car, double Front)? best = null;
+        for (int i = 0; i < vehicles.Count; i++)
+        {
+            var v = vehicles[i];
+            if (v.Kind != VehicleKind.Cargo || v.Load >= 1 - 1e-6)
+                continue;
+            double front = chute + consist.OffsetOf(i) + v.Length(consist.Tuning) / 2;
+            double engineMiddle = front - consist.OffsetOf(engine) - vehicles[engine].Length(consist.Tuning) / 2;
+            if (front <= Spur.End - 1 && engineMiddle - chute <= t.Lift.SteamReach - 1 && (best is null || front > best.Value.Front))
                 best = (v.Id, front);
         }
         return best;
@@ -589,12 +621,14 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
     // loading's was 300; cab forward, note 276, the warm a cold hand goes back to is 10 m further from the cars, and a lone
     // bot's crates ran up to it with a door still to shut.)
     const double HeldGiveUp = 240, LoadingGiveUp = 360, AboardGiveUp = 120, CoalGiveUp = 150, SpoutGiveUp = 300;
+    /// <summary>The steam lift's give-up (note 368): it goes at the fire's pace once the boiler's emptied, slower than the spout.</summary>
+    const double LiftGiveUp = 480;
     /// <summary>Seconds a facility stop (or a coaling stop) takes a crew, to leave spare before the dawn.</summary>
     const double StopAllowance = 600, CoalAllowance = 120;
     /// <summary>Seconds a stop's leaving takes (backing out, clearing, the crew aboard): a stop's loading is late past this.</summary>
@@ -898,6 +932,12 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.Spouting);
                         return Hold(world);
                     }
+                    // Or the mine head's steam lift (note 368), the same way, the engine's steam to it at the chute.
+                    if (loaded && !late && Waited <= LoadingGiveUp && calls.Has(StopJob.Shunter) && p.LiftTarget(world) is not null)
+                    {
+                        Begin(Leg.Lifting);
+                        return Hold(world);
+                    }
                     // Everyone aboard, or long enough waited for them since the loading was done (not since it began: a stop
                     // given up for the dawn waited out the whole give-up again for a hand still out, T70).
                     if (loaded && _loadedAt < 0)
@@ -926,6 +966,34 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     double front = target.Value.Front;
                     if (Math.Abs(engine.Distance - front) < 0.5)
+                        return Hold(world);
+                    return Toward(world, front, engine.Distance > front ? -1 : 1, 1.5);
+                }
+            case Leg.Lifting:
+                {
+                    var p = Plan!;
+                    bool late = world.Run is { } lr && lr.DawnIn < Home(world, lr, p.Hold) + LateSpare + AboardGiveUp;
+                    var target = p.LiftTarget(world);
+                    calls.Leave(false);
+                    if (target is null || late || !calls.Has(StopJob.Shunter) || Waited > LiftGiveUp)
+                    {
+                        calls.Leave(true);
+                        if (calls.Riding(OnTheTrain(train)) || Waited > LiftGiveUp + AboardGiveUp)
+                            Begin(Leg.BackOut);
+                        return Hold(world);
+                    }
+                    if (!calls.RidingBut(OnTheTrain(train), StopJob.Shunter) && Waited < AboardGiveUp)
+                        return Hold(world);
+                    var site = world.Run?.Sites[p.Facility];
+                    double front = target.Value.Front;
+                    if (Math.Abs(engine.Distance - front) < 0.5)
+                    {
+                        // At the chute, the steam to the lift while the shunter's on its lever (spec D.2: "venting pressure to
+                        // power it"): the gauge to nothing, and the next car waits on the fire.
+                        var standing = Hold(world);
+                        return site is { LeverHeld: true } ? standing with { Actions = standing.Actions | PlayerActions.Vent } : standing;
+                    }
+                    if (site?.Winding == true)
                         return Hold(world);
                     return Toward(world, front, engine.Distance > front ? -1 : 1, 1.5);
                 }
@@ -1614,6 +1682,9 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         bool back = train.TrainRakes == 1 && train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && train.Dynamics.Distance <= p.Hold + 3;
         if (!back && _reachedEnd && p.SpoutTarget(world) is not null && !calls.Leaving)
             return Spout(self, world, p);
+        // Or on the steam lift's (note 368), while there's a car to fill under its chute in the engine's reach.
+        if (!back && _reachedEnd && p.LiftTarget(world) is not null && !calls.Leaving)
+            return Lift(self, world, p);
         if (!back)
             return Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
@@ -1664,6 +1735,30 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         var car = world.Run?.CarUnderSpout(train, site);
         bool fill = car is not null && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05;
         Doing = fill ? "pouring" : "at the spout";
+        return fill ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// On the steam lift's lever (note 368): as on the spout's, down on its side, beside it, and holding it while a car with
+    /// room stands still under the chute; the driver vents for it while it's held.
+    /// </summary>
+    PlayerIntent? Lift(in PlayerState self, World world, StopPlan p)
+    {
+        var train = world.Train;
+        var site = p.Site;
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, SideOf(train, p, site.LiftLever, self.LineHint));
+        var (along, across) = TrackCoords(train.Line, p.Spur.Index, site.LiftLever, self.LineHint);
+        var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
+        {
+            Doing = "to the lift";
+            return step;
+        }
+        var car = world.Run?.CarUnderChute(train, site);
+        bool fill = car is not null && car.Load < 1 - 1e-6 && Math.Abs(train.Dynamics.Velocity) < 0.05;
+        Doing = fill ? "winding" : "at the lift";
         return fill ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
     }
 

@@ -54,6 +54,15 @@ public sealed record OverspeedTuning
     /// decision of 7 Oct 2026, note 286; <see cref="DeadEnds"/>), once this tuning's warning has been up its lead.
     /// </summary>
     public double DeadEndDerailAbove { get; init; } = 6.9;
+    /// <summary>
+    /// The cars lean out on a bend taken too fast (note 370): this far at the derailing speed (degrees), about the outer
+    /// rail. Presentation only (DarkTerritory.Game's CarLean): the sim's frames never lean.
+    /// </summary>
+    public double LeanDegrees { get; init; } = 4;
+    /// <summary>How long a car takes to settle into its lean (s, the time constant).</summary>
+    public double LeanSeconds { get; init; } = 0.35;
+    /// <summary>Past half way to derailing, a car rocks on its springs by this share of <see cref="LeanDegrees"/>.</summary>
+    public double LeanRock { get; init; } = 0.18;
 
     /// <summary>
     /// How far ahead a demand at <paramref name="safe"/> must be told of to a train at <paramref name="speed"/> braking at

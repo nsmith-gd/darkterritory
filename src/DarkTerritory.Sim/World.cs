@@ -862,8 +862,11 @@ public sealed class World
                 : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
                 : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
                 : FilmTask.None;
+            // In their arms, a load goes into the wreck with them (note 370); someone carried isn't one.
+            var load = task == FilmTask.Carrying && Bodies.CarriedBy(id) is { Kind: not (Physics.BodyKind.Ragdoll or Physics.BodyKind.Child) } carried ? carried : null;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task,
+                load?.Kind, load?.Cargo ?? CargoKind.None));
         }
         return crew;
     }

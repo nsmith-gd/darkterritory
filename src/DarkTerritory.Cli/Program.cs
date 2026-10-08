@@ -904,6 +904,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // At the grain elevator, its first car under the spout (the engine short of the buffer stop).
             if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout) && site.Spur >= 0)
                 at = line.Branches[site.Spur].Toe + site.SpoutAlong + consist.OffsetOf(1) + t.Geometry.CarLength / 2;
+            // At the mine head, its first car under the steam lift's chute (note 368), the skip part-way up (--lifting).
+            if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && site.Spur >= 0 && !args.Contains("--crank"))
+                at = line.Branches[site.Spur].Toe + site.LiftAlong + consist.OffsetOf(1) + t.Geometry.CarLength / 2;
             bool leak = args.Contains("--leak");
             run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, site.Index, false,
                 [.. Enumerable.Repeat(0.0, run.FacilityCount)], [.. run.Sites.Select(x => new DarkTerritory.Sim.Run.SiteState(true, x == site ? 0.45 : 0, x?.SledsLeft ?? 0, x == site, false, x == site ? 0.7 : 0)
@@ -911,6 +914,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Bin = x?.Bin ?? 0, Head = x?.Head ?? 0, Pouring = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Spout),
                     Herding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp), Herd = x == site ? 0.5 : 0,
                     Pressure = x == site ? leak ? 1 : 0.6 : 0, Leak = x == site && leak ? 10 : 0,
+                    Ore = x?.Ore ?? 0, Winding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && args.Contains("--lifting"),
+                    Wind = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) ? Opt(args, "--wind", 0.6) : 0,
                 })]);
         }
     }
@@ -1124,6 +1129,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp))
                 camera = Camera.LookAt(site.Pen + Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6, (site.Pen + site.RampTop) * 0.5, 65);
+            // The steam lift (note 368): from across the track, along the line toward the engine, back over the car at the bin
+            // over it, the trough and the skip on the headframe beyond.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && !args.Contains("--crank"))
+            {
+                var out_ = ((site.Headframe - site.LiftChute) with { Y = 0 }).Normalized;
+                camera = Camera.LookAt(site.LiftChute - out_ * 15 + Along() * 9 + Double3.Up * 3.5, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
+            }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose))
             {
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
@@ -1438,7 +1450,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 new Ballast.Physics.PbdBody(joints))
             { Owner = k + 1 };
         });
-        scene.Bodies = [.. scene.Bodies ?? [], .. posed];
+        // ... and what the carrier has in their arms (note 370): a crate, as the film starts it.
+        var arms = WreckFilm.TaskPose(FilmTask.Carrying).Select(j => by.ToWorld(new Double3(2.6, 0, -by.Shape.HalfLength * 0.6 + 3 * 1.3) + j)).ToArray();
+        var (load, loadUp, across) = WreckFilm.InArms(arms);
+        var forward = Double3.Cross(across, loadUp) * -1;
+        var crate = new DarkTerritory.Sim.Physics.Body(-10, DarkTerritory.Sim.Physics.BodyKind.Crate, DarkTerritory.Sim.Player.PlayerState.World,
+            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(load, 1, 0.3)]))
+        { Tilt = loadUp, Yaw = Math.Atan2(forward.X, forward.Z) };
+        scene.Bodies = [.. scene.Bodies ?? [], .. posed, crate];
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
@@ -1529,12 +1548,42 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
-    scene.Build(mesh, train, camera.Position);
+    // --toys [h]: the six toys as they're found at a stop (note 372), on the floor h m (default 1.6) under the eye, in an arc
+    // 1.5-2.2 m in front of it: the bear, the horse and the doll (body ids that pick each one's model, SceneArt.ToyModel),
+    // the squeaker, the music box and the drummer. With --lantern, as a crewmate's lamp finds them.
+    if (args.Contains("--toys"))
+    {
+        var ahead = camera.Forward with { Y = 0 };
+        var fwd = ahead.LengthSquared() > 1e-6f ? System.Numerics.Vector3.Normalize(ahead) : -System.Numerics.Vector3.UnitZ;
+        var side = System.Numerics.Vector3.Cross(fwd, System.Numerics.Vector3.UnitY);
+        double drop = args.SkipWhile(a => a != "--toys").Skip(1).FirstOrDefault() is { } given
+            && double.TryParse(given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 1.6;
+        double floor = camera.Position.Y - drop;
+        (int Id, DarkTerritory.Sim.Physics.ToyNoise Noise)[] toys =
+        [
+            (6, default), (1, default), (3, default),
+            (100, DarkTerritory.Sim.Physics.ToyNoise.Squeaker), (101, DarkTerritory.Sim.Physics.ToyNoise.MusicBox), (102, DarkTerritory.Sim.Physics.ToyNoise.Drummer),
+        ];
+        var foundToys = toys.Select((t, k) =>
+        {
+            float across = (k - 2.5f) * 0.42f, out_ = 1.5f + 0.7f * MathF.Abs(k - 2.5f) / 2.5f;
+            var at = camera.Position + new Double3(fwd.X * out_ + side.X * across, 0, fwd.Z * out_ + side.Z * across);
+            return new DarkTerritory.Sim.Physics.Body(t.Id, DarkTerritory.Sim.Physics.BodyKind.Toy, DarkTerritory.Sim.Player.PlayerState.World,
+                new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at with { Y = floor + 0.15 }, 1, 0.15)]))
+            { Noise = t.Noise, Yaw = Math.Atan2(-fwd.X, -fwd.Z) + (k - 2.5) * 0.35 };
+        });
+        scene.Bodies = [.. scene.Bodies ?? [], .. foundToys];
+    }
+    // --strain x leans the cars out too, about their right-hand rail, as far as that strain leans them (note 370).
+    IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
+        ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
+        : null;
+    scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
     int builds = (int)Opt(args, "--builds", 5);
     for (int b = 0; b < builds; b++)
-        scene.Build(mesh, train, camera.Position);
+        scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
@@ -2328,6 +2377,10 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
             && double.TryParse(args[hu + 1], System.Globalization.CultureInfo.InvariantCulture, out double hurt) ? hurt : 0.6;
+    // --commend-pick [name]: the run end's commendation picker on that crewmate (note 369), as a networked night shows it.
+    if (args.Contains("--commend-pick"))
+        Hud.StagedCommendPick = (Str(args, "--commend-pick", "Okafor") is { Length: > 0 } to && !to.StartsWith("--") ? to.ToUpperInvariant() : "OKAFOR",
+            UiStyle.Name(UiStyle.Commendation.CameBackForMe), false);
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
     Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
@@ -2753,7 +2806,8 @@ static int Usage()
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
                      --report [derailed]: the run-end screen's incident report, its bookmark stills beside their lines
                      (GDD v1.4 App. D.12); --stills dir keeps them as the app does past the run end, a folder for the
-                     night with night.txt (note 203)
+                     night with night.txt (note 203); --commend: the night's commendations under it; --commend-pick
+                     [name]: the commendation picker on name (note 369)
           screenshot --film s [--crew n --speed v --route r] [--stills dir]   a frame of the derailment film s seconds into
                      its cut (note 177); --stills dir: each crewmate's bookmark, their peak in the film (E.5), kept as the app keeps them
                      --hazards clear|wet|cold|dark: a balance.json hazard set over the line; --mend t: the repair kit in hand,

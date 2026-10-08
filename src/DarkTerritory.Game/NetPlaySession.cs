@@ -918,9 +918,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             StepRedial();
     }
 
+    readonly CarLean _lean = new();
+
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
         Train.FramesAt(alpha, _frames);
+        // Each car leaning out on a bend it's taking too fast (note 370): drawn only, worked out alike on every machine.
+        _lean.Apply(_frames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         return _frames;
     }
 
