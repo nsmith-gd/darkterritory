@@ -173,6 +173,33 @@ public static class CrewActs
     }
 
     /// <summary>
+    /// How a friend held by something is hauled at, by what has them (note 378; App. A.1's rescue): out of the Car Hugger's
+    /// mouth, heaved back hand over hand; the Tippy Toesie's fingers prised off their face; lifted away by the Whistler or
+    /// the Choir, hauled back down by the legs; over an edge below (a Dragger's), hauled up; otherwise down on a knee at
+    /// their collar. What has them is the holding creature nearest them (every machine mirrors the enemies).
+    /// </summary>
+    static CrewPose Rescue(in PlayerState friend, in PlayerState s, World world)
+    {
+        var train = world.Train;
+        var at = PlayerMotor.WorldPosition(friend, train);
+        Enemy? holder = null;
+        double best = double.MaxValue;
+        foreach (var e in world.ActiveEnemies)
+            if (e.Holding >= 0 && (e.WorldPosition(train) - at).Length is var d && d < best)
+                (holder, best) = (e, d);
+        return RescueOf(HeldPose(holder?.Kind), below: friend.Position.Y < s.Position.Y - 0.5);
+    }
+
+    /// <summary>The rescuer's act for a friend held in <paramref name="held"/> (<see cref="HeldPose"/>), and whether they're below the edge.</summary>
+    public static CrewPose RescueOf(CrewPose held, bool below) => held switch
+    {
+        CrewPose.HeldMouth => CrewPose.PullMouth,
+        CrewPose.HeldCover => CrewPose.PryOff,
+        CrewPose.HeldCarried or CrewPose.HeldSeized => CrewPose.HaulDown,
+        _ => below ? CrewPose.HaulUp : CrewPose.Haul,
+    };
+
+    /// <summary>
     /// Stood at the door of a Holdout that's being breached (App. D.7): the act by its kind: a barricade pried, a lock picked
     /// with the repair kit (Holdout.Quiet), or smashed.
     /// </summary>
@@ -263,7 +290,7 @@ public static class CrewActs
         // Beside a friend something's got hold of (App. A.1's rescue), down hauling them free; one hanging over the edge
         // below (a Dragger's, App. A.4), stood leaning back hauling them up.
         if (others is not null && HeldNear(s, others) is { } friend)
-            return friend.Position.Y < s.Position.Y - 0.5 ? CrewPose.HaulUp : CrewPose.Haul;
+            return Rescue(friend, s, world);
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)

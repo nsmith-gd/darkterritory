@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
@@ -113,6 +114,20 @@ public class CrewActsTests
         Assert.True(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
         lamp.Carrier = -1;
         Assert.False(CrewActs.Crewmate(1, s, w, w.Train.Frames).Lamp);
+    }
+
+    [Fact]
+    public void TheRescueIsMatchedToWhatHasThem()
+    {
+        // Note 378 (App. A.1's rescue; the checklist's crew-rescue): out of the Car Hugger's mouth, heaved; the Tippy
+        // Toesie's fingers prised off; lifted by the Whistler or the Choir, hauled down; a Dragger's over the edge, hauled
+        // up; the rest, down at the collar. (The clips are CreatureArtTests' crew's.)
+        Assert.Equal(CrewPose.PullMouth, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.CarHugger), below: false));
+        Assert.Equal(CrewPose.PryOff, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.TippyToesie), below: false));
+        Assert.Equal(CrewPose.HaulDown, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Whistler), below: false));
+        Assert.Equal(CrewPose.HaulDown, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Choir), below: false));
+        Assert.Equal(CrewPose.HaulUp, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Dragger), below: true));
+        Assert.Equal(CrewPose.Haul, CrewActs.RescueOf(CrewActs.HeldPose(EnemyKind.Ribbit), below: false));
     }
 
     [Fact]

@@ -30,7 +30,9 @@ public class CreatureArtTests
         // Characters (GDD §27: 4-10k; the crew brief: at most 9k, aim for chunky 3-5k). SK_Human: at most 60 bones.
         // Its actions come from crew_clips.glb, merged on load (note 145).
         ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "carry_walk", "drag", "drag_fwd", "door",
-            "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk"], ["dead", "swing", "fp_swing"]),
+            "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk",
+            // (Note 375's stumble; note 378's rescues by the grab.)
+            "stumble", "pull_mouth", "pry_off", "haul_down"], ["dead", "swing", "fp_swing", "jump"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
