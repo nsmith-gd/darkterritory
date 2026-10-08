@@ -8,5 +8,9 @@
   // An opening's leaf, made this much bigger each way (m): what's at its edge comes round it.
   "openingMargin": 0.15,
   // A breach's hole (spec B.9, Vehicle.BreachAt): within this of it (m), a sound goes through it, not the wall.
-  "breachRadius": 0.9
+  "breachRadius": 0.9,
+  // In a stop's building (ARCHITECTURE §8 note 396; the "shed" and "room" spaces, note 392), what's outside it comes through
+  // its walls: a shed's or the hero's bays stand open (a little of a wall), a room's one door is broken open (most of one).
+  "shedWall": 0.35,
+  "roomWall": 0.8
 }

@@ -372,6 +372,39 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void FromInsideAStopsBuildingWhatsOutsideComesThroughItsWalls()
+    {
+        // Note 396 (note 392's "not yet"): in a Holdout's room or a shed, a sound out on the line is behind its walls (walls.json:
+        // a room's one door lets less through than a shed's open bays); one in the room with you isn't; out of the building,
+        // the same sound is clear.
+        var walls = DataFile.Load<WallsTuning>(Path.Combine(Content, WallsTuning.File));
+        static bool Boarded(Sim.Stops.BuildingKind k) =>
+            k is Sim.Stops.BuildingKind.SignalBox or Sim.Stops.BuildingKind.LampRoom or Sim.Stops.BuildingKind.WaterTower;
+        var (world, f) = Night(f => f.Stop is { } st && st.Holdouts.Any(h => Boarded(st.Buildings[h.Building].Kind))
+            && st.Buildings.Any(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero), from: -200);
+        var stop = f.Stop!;
+        var line = world.Train.Line;
+        Double3 At(Sim.Stops.StopBuilding b) => Run.StopWorld(line, f, new Sim.Stops.Pt(b.S, b.D), 1.6);
+        var room = stop.Buildings[stop.Holdouts.First(h => Boarded(stop.Buildings[h.Building].Kind)).Building];
+        var shed = stop.Buildings.First(b => b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero);
+        var audio = new GameAudio(Content);
+        Held(audio, "out-on-the-line", "in-the-room");
+        var ears = new Ears(audio, world);
+        var outside = audio.Mixer.Play("out-on-the-line", Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 0), 1.6))!;
+        var inside = audio.Mixer.Play("in-the-room", At(room) + new Double3(0.3, 0, 0.3))!;
+        ears.Tick(At(room));
+        Assert.Equal("room", audio.Space);
+        Assert.Equal((float)walls.RoomWall, outside.Walls, 3);
+        Assert.Equal(0, inside.Walls);
+        ears.Tick(At(shed));
+        Assert.Equal("shed", audio.Space);
+        Assert.True(walls.ShedWall < walls.RoomWall);
+        Assert.Equal((float)walls.ShedWall, outside.Walls, 3);
+        ears.Tick(Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 2), 1.6));
+        Assert.Equal(0, outside.Walls);
+    }
+
+    [Fact]
     public void AWreckYardHeapGroansForItsWholeWarningThenShifts()
     {
         // GDD §18's wreck yard (note 187): a heap about to shift onto whoever's beside it groans for the 3 s it gives them

@@ -5506,4 +5506,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Pinned:**
         - `WorldSoundTests.InsideAStopsBuildingTheListenerIsInItsRoomAndUnderfootIsTheFloorItsDrawnWith`: a shed is the shed on concrete; a Holdout's room is a room on boards; an open house is a room on boards; the line beside them is neither.
         - `MixTests.EverySpaceSoundsLikeItself`: the room between the cab and a car, the shed between a facility's yard and a tunnel.
-    - **Not yet:** the outside quieter through a room's walls. Occlusion goes by the train's spaces (`PlayerMotor.Space`), and a stop's building isn't one.
+    - **Not yet:** the outside quieter through a room's walls (done since, note 396).
+
+396. **The outside through a room's walls (AU1, queue #133; note 392's "not yet").** Since note 392, a stop's shed or small room had its own space. What was outside it still came through as if there were no walls, because `Sound.Walls` (note 248) only knows the train's cars.
+    - **How:** `GameAudio.SpaceOf` now hands back the building the ear is in (`EarRoom`: which building, where it stands, the line's way there). `HearWalls` puts its walls between the ear and every voice outside its footprint (`EarRoom.Holds`, the footprint test Footing uses, with the line taken as straight over a building's length).
+        - A shed's or the hero's bays stand open: `walls.json` `shedWall`, 0.35 of a wall.
+        - A room's one door is broken open: `roomWall`, 0.8.
+        - The train's bed is walled too. It isn't the car around you here, as it is in a car, where the space has it.
+        - A tell keeps the mixer's floor (`TellOcclusionFloorDb`), so it's never lost behind a wall.
+        - A voice in the room with you isn't walled.
+    - **Not yet:**
+        - A sound inside a building heard from outside it (a crewmate searching a house, from the street). That would cost a line search per voice for every listener outside; it waits for a cheaper building lookup.
+        - The night's own air, played at the ear, isn't walled.
+    - **Pinned:** `WorldSoundTests.FromInsideAStopsBuildingWhatsOutsideComesThroughItsWalls`: in a Holdout's room, a sound on the line is behind `roomWall` and one in the room behind none; in a shed, behind the lighter `shedWall`; out on the line, clear. The audio test classes pass (119).
