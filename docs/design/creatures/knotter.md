@@ -10,16 +10,17 @@ first pass in the roster's units (player health 100, a crowbar blow = 1, a gun r
 **As built** (`dt screenshot --view knotter|knotterslip`, `--knotter creep|force|taut|slack|coil`; `dt art clip knotter
 <clip>`): tools/blender/knotter.py, its colour baked by tools/models/recipes/knotter.py; drawn by Art/CreatureArt.Train.cs.
 The lay (three strands' signed-distance field, their grooves kept; thick as a thigh, 0.21 m across), the whipping, the
-knots (the strands swelling and wrung round tighter into a fist, one turned back over it) and the claws' roots are one
-fused skin; the legs and each knot's ten short, thick, jointed claws, hooked in like a fist's knuckles, over it. 12,316
-triangles, 56 bones. Its 33 segments are laid along the gap as the sim has it forced
+ends (the rope tapering, still laid, and a short stalk off it to each claw's root) are one fused skin; over it the legs
+and, at each end, a splayed ring of ten arthropod claws: thin (2.1-3 cm), 0.25-0.42 m long, four segments ringed at the
+knuckles, each turned further over into a hook, grey-white darkening to black horn at the tip, at their own lengths and
+angles, two of each end's curling back along the lay. No palm, no knot of flesh. 11,972 triangles, 56 bones. Its 33 segments are laid along the gap as the sim has it forced
 (CarShape.Knotted's span): hanging in a U under the coupling while it creeps, straightening as it forces the cars apart,
 straight and taut at speed, sagging slack at a stand, and coiled up round whoever slipped. The coupler plate isn't drawn
 while it's the coupling; held taut, a crewmate's lamp at the car's end is on it.
 
 ![Taut across a forced gap at speed](knotter-taut.png)
 ![Coiled round a crewmate who slipped](knotter-coil.png)
-![A knot of claws](knotter-closeup.png)
+![An end: a ring of hooked arthropod claws](knotter-closeup.png)
 
 > **The train is still one train, but now it's held together by something alive, and you can't get across it.**
 
