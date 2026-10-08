@@ -240,6 +240,8 @@ public class FiremanTests
         Assert.False(n.Walker.Relieving);
         Assert.True(n.Crew[2].Parent != 0, $"still on the engine: {n.Crew[2].Surface} {n.Crew[2].Position}");
         Assert.True(n.Calls.Has(StopJob.Driver));
+    }
+
     [Fact]
     public void TheHeadlampsMendedFromTheFloorNotTheVentsCorner()
     {
