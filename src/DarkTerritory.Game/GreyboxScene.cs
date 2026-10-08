@@ -2861,8 +2861,8 @@ public sealed class GreyboxScene
     /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
     /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
     /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. An open barn, outbuilding or goods shed (note
-    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp. Only the houses near
-    /// the eye.
+    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp; and so is a yard's
+    /// walk-in shed or strongroom, along its roofed lengths (queue #201, note 465). Only the houses near the eye.
     /// </summary>
     void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
     {
@@ -2876,15 +2876,23 @@ public sealed class GreyboxScene
                 for (int i = 0; i < stop.Buildings.Count; i++)
                 {
                     var b = stop.Buildings[i];
-                    // An open barn or shed (note 462): its walls from the frame (0.15 m under the ground at its middle, as
-                    // WorldArt stands it) to its eaves, one part, no light. Not one a Holdout's in: that's the Holdout's shell.
-                    if (Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
+                    // An open barn or shed (note 462), or a yard's walk-in shed or its strongroom (note 465): its walls from the
+                    // frame (0.15 m under the ground at its middle, as WorldArt stands it) to its eaves, no light of its own. A
+                    // yard shed is a room along each roofed length (a gantry's cut through it is the open air, the sky over the
+                    // castings). Not one a Holdout's in: that's the Holdout's shell.
+                    bool yard = b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero;
+                    if ((yard || Sim.Run.StopWalls.OpenShed(b)) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
                     {
                         double frame = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15).Y;
                         Double3 On(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = frame };
                         var origin = On(0, 0);
-                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized,
-                            [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)], null, false, (int)(f.Start * 7 + i), Art.WorldArt.OpenShedHeight(b.Kind)));
+                        IReadOnlyList<Sim.Stops.FootprintPart> lengths = yard
+                            ? [.. Sim.Run.StopWalls.Roofed(stop, i).Select(r => new Sim.Stops.FootprintPart((r.Lo + r.Hi) / 2, 0, r.Hi - r.Lo, b.Width))]
+                            : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                        if (lengths.Count == 0)
+                            continue;
+                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind)));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -2908,7 +2916,8 @@ public sealed class GreyboxScene
         foreach (var h in cached.Houses)
         {
             float wallHeight = h.Height;
-            if ((h.Origin - eye).Length > Near)
+            // (Near its walls, not its middle: a long yard shed is walked into at an end.)
+            if ((h.Origin - eye).Length > Near + h.Parts.Max(p => Math.Abs(p.X) + p.Length / 2))
                 continue;
             var right = ToF(h.X);
             var back = ToF(h.Y);
