@@ -2302,8 +2302,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
 - The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
-- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
-- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *Done (T127): the wheels' roll under each car near you, a roar with speed and the rail joints' click-clack (`bed-wheel-rail`).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *Done (T127, note 266): on a bend past its board the flanges squeal, then the derail scream climbs in pitch to the edge, with the frames creaking and the cab's bell.*
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**
