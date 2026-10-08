@@ -3,22 +3,24 @@ rope-bodied parasite that becomes the coupling.
 
 A length of ship's hawser come alive: a body thick as a thigh, laid up of three twisted strands of pale grey-white flesh
 exactly like a hawser's lay, the strands' ridges worn and dirty; black whipping (tarred twine) bound round it every metre
-or so; rows of small pale hooked legs along its underside like a centipede's; and each end a knot, the strands wrung
-round into a fist, clustered with ten short thick jointed grey claws hooked in like a fist's knuckles, that clamp the cars'
-end sills. Stretched across a coupling it's 5 m long and taut.
+or so; rows of small pale hooked legs along its underside like a centipede's; and at each end the strands part, taper and
+unlay into a splayed ring of ten long arthropod claws (a crab's or a centipede's: thin, four segments each, ringed at the
+knuckles, hooked over, grey-white darkening to black horn at the tips; different lengths and angles, two curling back
+along the lay) that clamp the cars' end sills. No palm, no knot of flesh. Stretched across a coupling it's 5 m long and
+taut.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): its body is one
-skin (tools/blender/trainflesh.py): the three strands laid up round each other (each a term of a signed-distance field, their
-grooves kept sharp where they meet), the whipping's bands swelling the lay, each end's knot (the strands swelling and
-wrung round tighter into a fist, one turned back over it) and the roots of the claws growing out of it: the union of their solids settled onto that field,
-QuadriFlowed and smooth-shaded, so the strands run into the knots and the knots into the claws with no seam. Over it: the
-legs in their two rows, and the claws' jointed fingers with their hooked horn tips. Its colour (and the strands' fibres,
-the twine's turns and the grime, too fine for the mesh) is baked into one atlas by tools/models/recipes/knotter.py; built
-alone (this script), it wears the shared tiling textures.
+skin (tools/blender/trainflesh.py): the three strands laid up round each other (each a term of a signed-distance field,
+their grooves kept sharp where they meet), the whipping's bands swelling the lay, each end's unlaying (the strands
+parting, thinning and backing off their twist) and a short stalk off them to each claw's root: the union of their solids
+settled onto that field and smooth-shaded, so the strands run into the claws with no seam. Over it: the legs in their two
+rows, and the claws with their knuckle rings and hooked horn tips. Its colour (and the strands' fibres, the twine's turns
+and the grime, too fine for the mesh) is baked into one atlas by tools/models/recipes/knotter.py; built alone (this
+script), it wears the shared tiling textures.
 
 SK_Knotter: a root at its middle, 33 segments along it (flat under the root: CreatureArt lays them along the gap's span,
-however wide it's been forced, sagging or coiled), and at each end the knot's bone and its ten claws. At rest it
-lies straight along +Y (the engine's -Z), 4.8 m from knot to knot and 5.4 m claw tip to claw tip, its middle on the origin:
+however wide it's been forced, sagging or coiled), and at each end the knot's bone and its ten claws (one bone each, turning at the root). At rest it
+lies straight along +Y (the engine's -Z), 4.8 m from end to end of the lay and about 5.5 m claw tip to claw tip, its middle on the origin:
 the origin is the gap's middle at the coupler's height (the sim's Local). A large monster's budget (GDD §27). Clips (§31:
 still, then abrupt; laid along the span by the engine): creep (writhing up out from under, the claws feeling), clamp
 (the claws closing on the sills), force (swelling and twisting, the cars pushed apart), taut (held, the lay creaking round),
@@ -65,14 +67,15 @@ def claw_spec(end, k):
     sy = 1 if end == "f" else -1
     a = 2 * math.pi * k / CLAWS + 0.3 + 0.35 * (_h(k, sy, 1) - 0.5)
     back = k % 5 == 2
-    length = 0.2 + 0.06 * _h(k, sy, 2) if back else 0.26 + 0.14 * _h(k, sy, 3)
+    length = 0.2 + 0.07 * _h(k, sy, 2) if back else 0.25 + 0.17 * _h(k, sy, 3)
     phi = math.radians(110 + 25 * _h(k, sy, 4) if back else 34 + 46 * _h(k, sy, 5))
     bend = math.radians(20 + 16 * _h(k, sy, 6))
     ax = Vector((0, sy, 0))
     rad = Vector((math.sin(a), 0, math.cos(a)))
     tan = ax.cross(rad).normalized()
     lean = 0.5 * (_h(k, sy, 8) - 0.5)
-    pts = [rad * 0.068 + Vector((0, sy * (END - 0.04 + 0.06 * _h(k, sy, 7)), 0))]
+    # (Their roots staggered back along the parting strands, not all from one face.)
+    pts = [rad * 0.078 + Vector((0, sy * (END - 0.1 + 0.1 * ((k * 7) % CLAWS) / (CLAWS - 1)), 0))]
     for i in range(JOINTS):
         th = phi - i * bend
         pts.append(pts[-1] + (ax * math.cos(th) + rad * math.sin(th) + tan * lean).normalized() * (length / JOINTS))
@@ -180,13 +183,14 @@ def strand_at(y, k):
 
 # The lay as a solid (for the union, the materials and the weights): a tube whose section is the three strands' outline,
 # turning with them.
-KNOT_LEN = END + 0.02        # the strands' ends, among the claws' roots
+KNOT_LEN = END + 0.04        # the strands' ends, among the claws' roots
 
 
 def spread(y):
-    """How far the strands have parted at y (their centres' radius, times LAY_R) and how thin they've grown."""
+    """The strands at y, toward each end: their centres drawing in and each thinning (the rope tapering to its end, still
+    laid, the claws splaying out of it), as multiples of LAY_R and STRAND_R."""
     u = unlay01(y)
-    return 1 + 0.5 * u, 1 - 0.6 * u
+    return 1 - 0.45 * u, 1 - 0.45 * u
 
 
 rings, cents = [], []
@@ -221,7 +225,7 @@ def lay(P):
     y = P[:, 1]
     u = np.clip((np.abs(y) - (END - UNLAY)) / UNLAY, 0.0, 1.0)
     u = u * u * (3 - 2 * u)
-    s, thin = 1 + 0.5 * u, 1 - 0.6 * u
+    s, thin = 1 - 0.45 * u, 1 - 0.45 * u
     d = None
     for k in range(3):
         a = 2 * np.pi * y / PITCH + 2 * np.pi * k / 3 - np.sign(y) * 0.6 * u
@@ -229,7 +233,7 @@ def lay(P):
         dk = np.hypot(P[:, 0] - cx, P[:, 2] - cz) * COS_ALPHA - STRAND_R * thin * COS_ALPHA
         d = dk if d is None else fl._smin(d, dk, 0.006)
     # (Their ends rounded off among the claws' roots.)
-    return -fl._smin(-d, KNOT_LEN - np.abs(y), 0.03)
+    return -fl._smin(-d, KNOT_LEN - np.abs(y), 0.045)
 
 
 F.ops.append((lay, 0, False))
@@ -244,8 +248,8 @@ for end, sy in (("f", 1), ("b", -1)):
     for k in range(CLAWS):
         pts = claw_spec(end, k)
         rad = Vector((pts[0].x, 0, pts[0].z)).normalized()
-        start = rad * 0.045 + Vector((0, sy * (END - 0.13), 0))
-        F.limb([start, pts[0], pts[0].lerp(pts[1], 0.45)], [0.026, 0.019, 0.016], 0.015, FLESH,
+        start = rad * 0.04 + Vector((0, pts[0].y - sy * 0.075, 0))
+        F.limb([start, pts[0], pts[0].lerp(pts[1], 0.4)], [0.026, 0.019, 0.016], 0.015, FLESH,
                (lambda p, end=end, k=k: {f"knot_{end}": 0.55, f"claw_{end}{k}": 0.45}), sides=8, ref=(0, 1, 0))
 
 # ----------------------------------------------------------------------------------------------------------------
