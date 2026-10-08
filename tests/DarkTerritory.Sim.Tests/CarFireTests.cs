@@ -104,24 +104,27 @@ public class CarFireTests
     }
 
     [Fact]
-    public void WalkersInForAFireWithASideDoorLeftOpenPutItOut()
+    public void WalkersOnASideDoorsStepsGoInAndPutTheFireOut()
     {
-        // Note 437: frontier:7's 8-bot hot run. Four cold walkers went into burning car 1, and its side door was open (left so
-        // for a bag). Going to shut it, they stood in the doorway (in the wall, outside the room's box): the fire walked them
-        // in, the open door walked them back out, tick by tick, and they burned there. In the doorway is in the car: the
-        // fire first, the door after.
-        var n = new Night(5, speed: 0);
+        // Note 437: frontier:7's 8-bot hot run. Four walkers in at car 1's side door (for a bag) stood on its steps, outside
+        // the walls, when the car caught: they made for its extinguishers on a slant, into the door's jamb, and stood against
+        // it for 20 s with the car alight round them. Straight in through the doorway first.
+        var n = new Night(5, speed: 15); // running: past what anyone runs, so nobody steps out of the doorway (note 380)
         n.World.MountExtinguishers();
-        int car = 2;
+        int car = n.Train.Dynamics.Consist.Vehicles[1].Id;
         var shape = n.Train.Frames[car].Shape;
         int door = Bots.StopHand.SideDoor(shape, -1)!.Value;
         n.Train.Vehicles[car].ToggleDoor(door);
+        var (at, _) = Bots.WarmUp.Inside(shape, door);
+        var room = shape.Interior!.Value;
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
         var bots = new List<Bots.RoofWalkerBot>();
         for (int i = 1; i <= 3; i++)
         {
             bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
-            n.Crew[i] = PlayerMotor.SpawnOnRoof(n.Train, car, -3 + 2 * i, P) with { Cold = P.Cold.OnsetSeconds };
+            // Where they stood: out past the wall, at the doorway's forward edge.
+            n.Crew[i] = new PlayerState { Parent = car, Position = new Double3(room.Min.X - 0.2, Tuning.Train.Geometry.Interior!.FloorHeight, at.Z - 0.6 + 0.3 * (i - 2)),
+                Yaw = Math.PI, Surface = Surface.Deck, Health = P.Health };
         }
         for (int s = 0; s < 60 && !fire.Gone; s++)
         {

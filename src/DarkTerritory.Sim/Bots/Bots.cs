@@ -679,6 +679,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
             return null;
         bool tap = _tick % KitRun.TapEvery == 0;
+        // On a side door's steps, outside the walls (in there for a bag, the hook out): straight in through the doorway first.
+        // Note 437: frontier:7's four walkers in at car 1's side door made for its extinguishers from the steps on a slant,
+        // into the door's jamb, and stood against it for 20 s with the car alight round them.
+        if (train.Frames[self.Parent].Shape.Interior is { } walls && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
+        {
+            TendStep = "in";
+            double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5);
+            return WarmUp.Steer(self, new Double3(inX, 0, self.Position.Z), self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2).Step;
+        }
         // Fire Flies on the lamp: put it out (a press every other tick until it's out; the press is what the host counts).
         if (trouble is FireFlies)
         {
