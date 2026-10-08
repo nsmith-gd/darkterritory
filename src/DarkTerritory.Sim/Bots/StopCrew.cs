@@ -1635,11 +1635,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
             && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
-            // Done at the crane: let go of the controls (and so step down) before anything else.
+            // Done at the crane: the press that lets go of the controls (and so steps down) before anything else.
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         // GDD §18's set pieces (note 185): the pair drive the herd up the ramp; the first of them minds the hose.
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && calls.PairNow && !calls.Leaving && p.HerdLeft(world))
@@ -1674,10 +1674,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return new PlayerIntent();
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.Site.Crane is { } crane && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
-        if (_atControls)
+        if (_atControls || self.Has(PlayerFlags.Operating))
         {
             _atControls = false;
-            return new PlayerIntent();
+            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
         }
         if (Pair is StopJob.Winch0 or StopJob.Winch1 && plan.HerdLeft(world))
             return Herd(self, world, plan);
@@ -1764,8 +1764,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>
-    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and holding Use there, the stick drives
-    /// the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
+    /// At the crane's controls (spec D.2): down on the stand's side, to the stand, and the press there that takes the controls
+    /// (Use's, sent as <see cref="PlayerActions.Seat"/>, only while it hasn't got them: a second would let them go); the stick
+    /// drives the crane. Hook down over the next casting and held there while it's rigged; up high, over a car with room, down onto
     /// its roof, and let go (only ever when it's set down: a load let go of high kills).
     /// </summary>
     PlayerIntent? Operate(in PlayerState self, World world, StopPlan p, Crane c)
@@ -1786,7 +1787,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             _atControls = true;
         }
         Doing = "at the crane";
-        var drive = new PlayerIntent { Buttons = PlayerButtons.Use };
+        var drive = new PlayerIntent { Actions = self.Has(PlayerFlags.Operating) ? PlayerActions.None : PlayerActions.Seat };
         var t = c.Tuning;
         if (c.Hooked is null)
         {
@@ -1946,9 +1947,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var handle = p.Site.Handles[Pair == StopJob.Winch0 ? 0 : 1];
         var (along, across) = TrackCoords(train.Line, p.Spur.Index, handle, self.LineHint);
         var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) - 0.4));
-        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        var (step, there) = OnFoot(self, train, p.Spur.Index, stand, null);
         if (!there)
+        {
+            Doing = "to the winch";
             return step;
+        }
         Doing = "cranking";
         return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
@@ -2899,9 +2903,31 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
     {
         var here = PlayerMotor.WorldPosition(self, train);
-        if (self.Parent == PlayerState.World && (Flat(target) - Flat(here)).Length > ByFootPath && WayTo(train, here, target))
+        if (self.Parent == PlayerState.World && ((Flat(target) - Flat(here)).Length > ByFootPath || Across(train, path, here, target, self.LineHint))
+            && WayTo(train, here, target))
             return (Follow(self, train, target), false);
         return WalkTo(self, train.Line, path, target, yaw);
+    }
+
+    /// <summary>
+    /// Note 486: <paramref name="target"/> is across the track from <paramref name="here"/> with the train standing between:
+    /// <see cref="WalkTo"/> keeps to its own side of the track and steps across it at the end, straight into the cars. A
+    /// 2-bot crew's shunter, lent to the winch on the far side of the spur, walked into car 3's side (and up its steps, and
+    /// off) for the six minutes the driver cranked alone. The way round is the foot path's.
+    /// </summary>
+    static bool Across(TrainOnLine train, int path, Double3 here, Double3 target, double hint)
+    {
+        var (a, x) = TrackCoords(train.Line, path, here, hint);
+        var (ta, tx) = TrackCoords(train.Line, path, target, hint);
+        if (Math.Sign(x) == Math.Sign(tx) || Math.Abs(x) < 0.5 || Math.Abs(tx) < 0.5)
+            return false;
+        // The train between them: a car on this path within the stretch from here to there.
+        double lo = Math.Min(a, ta) - 2, hi = Math.Max(a, ta) + 2;
+        foreach (var f in train.Frames)
+            if (f.Index > 0 && train.Line.Nearest(f.Origin, ref hint) is var (_, along) && along >= lo - f.Shape.HalfLength && along <= hi + f.Shape.HalfLength
+                && Math.Abs(TrackCoords(train.Line, path, f.Origin, hint).Across) < 1)
+                return true;
+        return false;
     }
 
     /// <summary>A way to <paramref name="goal"/> by <see cref="FootPath"/>, kept or planned; false when there's none, and it
