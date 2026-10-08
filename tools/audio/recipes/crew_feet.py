@@ -150,26 +150,42 @@ def on_ballast(rng, boot, s, part, take):
     """Ballast: fist-sized crushed rock that grinds and knocks under the weight, lower and heavier than gravel, with the
     packs' real gravel crunch under the stones."""
     y = crunch(rng, take, 0.13, 600, 3800, 22, CRUNCH, -5, 75, -6, s, part, size=-2.5)
-    return mix(y, sole(boot, 2500) * 0.1 * s)
+    # The heel coming down on the stones before they shift: the step's onset, which a crunch alone smears into a hiss.
+    knock = ck.hollow(rng, [rng.uniform(380, 520), rng.uniform(900, 1300)], 0.04, q=2.5, hit=0.002)
+    knock = ck.norm(ck.choke(knock, 0.004, 0.008)) * (0.35 if part == "toe" else 0.55)
+    # Under 90 Hz out: the crunch's pad of weight is pink noise lowpassed, mostly sub, a boom under every step.
+    return hp(mix(y, knock * s, tup(rng, s, part, (140, 200)) * 0.35, sole(boot, 2500) * 0.1 * s), 90, 4)
+
+
+def tup(rng, s, part, f=(170, 260), length=0.03):
+    """A boot's weight on ground that gives a little: a short dead knock, low-mid and gone in 30 ms. No sub: the packs'
+    steps lowpassed for it were a boom a step, two slow swings of 40-60 Hz that read as a squish (App. F.1: "footsteps on
+    the ground sound wrong; on wood and grates they're good"; the director, 8 Oct: "squishy")."""
+    k = ck.hollow(rng, [rng.uniform(*f), rng.uniform(f[0] * 2.1, f[1] * 2.1)], length, q=1.6, hit=0.004)
+    k = hp(ck.choke(k, 0.006, 0.01), 110, 4)
+    return ck.norm(k) * (0.75 if part == "toe" else 1.0) * s
 
 
 def on_dirt(rng, boot, s, part, take):
-    """Packed dirt and forest floor: a dull, soft thud that takes the click out of the boot, a fine grit of sand and needles
-    under it."""
-    pad = ck.get(ck.one(WOODSTEP, take + (part == "toe")))
-    pad = ck.norm(lp(ck.align(pad), 900)) * 0.8
-    thud = lp(boot, 1200) * 0.5
-    grit = ck.grains(rng, int(12 * s), 0.07, 2500, 9000, q=(2, 5), length=(0.003, 0.01)) * 0.18
-    return mix(pad * s, thud * s, grit * s)
+    """Packed dirt and forest floor: the boot's weight a short dead tup (no boom), and what's on the earth crunching under
+    it: dry crumbs, grit and needles, the packs' real crunch thinned and darkened to it, a twig's tick now and then."""
+    rec = ck.get(CRUNCH[(take + (part == "toe")) % len(CRUNCH)])
+    h = ck.hits(rec, floor_db=-12, gap=0.03)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    rec = ck.cut(ck.denoise(rec), a - samples(0.002), a + samples(0.07), 0.002, 0.03)
+    rec = ck.norm(lp(hp(dsp.vari(rec, -4), 500), 4500))
+    grit = ck.grains(rng, int(10 * s), 0.05, 1500, 6000, q=(2, 5), length=(0.002, 0.008))
+    twig = ck.tick(rng, rng.uniform(1800, 2800), q=8, length=0.012) if rng.random() < 0.3 else np.zeros(1, np.float32)
+    return mix(tup(rng, s, part) * 0.9, rec * 0.45 * s, ck.norm(grit) * 0.2 * s, twig * 0.25 * s, sole(boot, 2500) * 0.12 * s)
 
 
 def on_grass(rng, boot, s, part, take):
-    """Grass and heath: the blades swishing aside round the boot (the packs' grass steps), the soft ground under it."""
+    """Grass and heath: the blades swishing aside round the boot (the packs' grass steps, their low wobble taken out), a
+    thin rustle of stalks, and the soft ground's tup under it."""
     sw = ck.get(ck.one(GRASS, take * 2 + (part == "toe")))
-    sw = ck.norm(ck.align(sw)[:samples(0.2)])
+    sw = ck.norm(hp(ck.align(sw)[:samples(0.2)], 350, 4))
     rus = synth.rustle(0.14, 900, rng, f=(2500, 9000), ticks=0.4) * env([(0, 1), (0.14, 0)], 0.14)
-    thud = lp(boot, 700) * 0.35
-    return mix(sw * s, ck.norm(rus) * 0.15 * s, thud * s)
+    return mix(sw * 0.8 * s, ck.norm(rus) * 0.3 * s, tup(rng, s, part, (150, 220)) * 0.55)
 
 
 def on_mud(rng, boot, s, part, take):
@@ -184,7 +200,8 @@ def on_mud(rng, boot, s, part, take):
     if part == "toe":
         suck = ck.slurp(rng, 0.11, 300, 1500, rise=True)
         y = mix(y, np.concatenate([np.zeros(samples(0.09), np.float32), suck * 0.3 * s]))
-    return y
+    # The squelch is the mud; a boom under it isn't (half of each step was under 120 Hz).
+    return hp(y, 80, 4)
 
 
 def stone(rng, boot, s, part, take, grit=1.0):

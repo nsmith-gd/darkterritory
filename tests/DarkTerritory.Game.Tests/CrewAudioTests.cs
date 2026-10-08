@@ -701,6 +701,26 @@ public class CrewAudioTests
         Assert.True(crack > body - 3, $"{sound}: {crack:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
     }
 
+    [Theory]
+    [InlineData("crew-footsteps.walk.dirt", 8)]
+    [InlineData("crew-footsteps.run.dirt", 8)]
+    [InlineData("crew-footsteps.walk.grass", 8)]
+    [InlineData("crew-footsteps.walk.ballast", 8)]
+    [InlineData("crew-footsteps.land.ballast", 8)]
+    [InlineData("crew-footsteps.walk.mud", 3)]
+    public void TheGroundUnderfootIsAStepNotABoom(string sound, double under)
+    {
+        // Note 354 and App. F.1 (build 1121: "footsteps on the ground sound wrong; on wood and grates they're good"). Dirt
+        // and grass were the packs' steps lowpassed, two slow swings under 60 Hz a step, and the crunches' pad of weight
+        // and the mud were half sub: a boom under every step. A step on the ground is its contact and what's on it: what's
+        // under 120 Hz well under the step itself (the car's boards, which the director likes, are 10 dB under; mud's
+        // squelch is allowed its weight).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double boom = Meter.BandDb(mix, 20, 120), step = Meter.BandDb(mix, 250, 4000);
+        Assert.True(boom < step - under, $"{sound}: {boom:0.0} dB under 120 Hz, {step:0.0} dB at 250 Hz-4 kHz");
+    }
+
     [Fact]
     public void ABotCrewIsHeardOverTheNetworkAsTheAppHearsIt()
     {
