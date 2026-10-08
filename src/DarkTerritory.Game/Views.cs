@@ -185,6 +185,9 @@ public static class Views
             // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
             "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
+            // (Not one of Names.) From the engine's forward gun's seat, down the line ahead in the headlamp: the lane ahead
+            // (note 405; dt screenshot --run-ahead --view lane).
+            "lane" => LaneCamera(train),
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
@@ -440,6 +443,19 @@ public static class Views
             return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral + Double3.Up * height;
         }
         return Camera.LookAt(At(48, -9, 3.2), At(4, 1, 1.6), 60);
+    }
+
+    static Camera LaneCamera(TrainOnLine train)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Gun is { Mounted: true, Facing: < 0 }, -1);
+        if (v < 0 || Sim.Combat.Guns.Mount(train, v) is not { } mount)
+            return GunCamera(train);
+        var f = train.Frames[v];
+        var p = mount.Position;
+        var seat = Art.TrainKit.CannonSeat;
+        var eye = new Double3(p.X, p.Y + seat.Y + 0.78, p.Z + seat.Z);
+        var ahead = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance + 95).Position;
+        return Camera.LookAt(f.ToWorld(eye + new Double3(0, 0.9, 0)), ahead + Double3.Up * 0.6, 20);
     }
 
     static Camera CannonCamera(TrainOnLine train, bool side)

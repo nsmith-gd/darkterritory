@@ -702,13 +702,16 @@ public sealed partial class CreatureArt
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        // A freed prisoner walks their own way (note 407): the irons' shuffle.
+        if (figure == "survivor_prisoner" && clip == "walk")
+            clip = "shuffle";
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                : clip == "dance" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
         bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
@@ -758,6 +761,51 @@ public sealed partial class CreatureArt
         Hung(mesh, m, hanging, model);
         return true;
     }
+
+    /// <summary>
+    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
+    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// </summary>
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
+    {
+        if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
+            return false;
+        mesh.Append(piece, m.Pose.Skin[b] * model);
+        return true;
+    }
+
+    /// <summary>Where <paramref name="bind"/> (a point of the figure's bind pose, carried by <paramref name="bone"/>) is on the
+    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a hose's ends, one on the head and one on the back.</summary>
+    public Vector3 Posed(string bone, Vector3 bind, in Matrix4x4 model, string figure = "crew") =>
+        _models.TryGetValue(figure, out var m) && m.Model.Skeleton.IndexOf(bone) is var b && b >= 0
+            ? Vector3.Transform(bind, m.Pose.Skin[b] * model) : Vector3.Transform(bind, model);
+
+    readonly Dictionary<(string, string), float> _feetOver = [];
+
+    /// <summary>
+    /// How far a clip's feet stand off the floor at its start (m, the lowest foot or ball joint over <see cref="Planted"/>):
+    /// what a figure set down on its feet is lowered by. crew_clips.py plants most clips' feet on the floor, but not
+    /// crouch_idle's, which is drawn ~0.5 m up (a town's resident crouched at the range, note 353).
+    /// </summary>
+    public float FeetOver(string name, string clip)
+    {
+        if (_feetOver.TryGetValue((name, clip), out float over))
+            return over;
+        if (_models.TryGetValue(name, out var m) && m.Model.Clips.TryGetValue(clip, out var c))
+        {
+            _skinner.Evaluate(m.Model, c, 0, true, m.Pose);
+            float low = float.MaxValue;
+            foreach (string bone in (string[])["foot_l", "foot_r", "ball_l", "ball_r"])
+                if (m.Model.Skeleton.IndexOf(bone) is var b && b >= 0)
+                    low = Math.Min(low, m.Pose.World[b].Translation.Y);
+            over = low < float.MaxValue ? Math.Max(0, low - Planted) : 0;
+        }
+        return _feetOver[(name, clip)] = over;
+    }
+
+    /// <summary>The ball joints' height over the floor standing (the idle's: the sole under them).</summary>
+    const float Planted = 0.03f;
 
     void Hung(MeshBuilder mesh, Entry m, MeshAsset hanging, in Matrix4x4 model)
     {

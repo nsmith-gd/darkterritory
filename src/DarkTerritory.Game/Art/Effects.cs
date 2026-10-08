@@ -324,6 +324,36 @@ public sealed partial class Effects(Look look)
     /// Sparks off steel being chewed (the Car Hugger feeding on its car, App. A.3: "the teeth grinding"): spat out of the
     /// mouth at <paramref name="at"/> in bursts, flying out and falling, around <paramref name="back"/> (the way out of it).
     /// </summary>
+    /// <summary>
+    /// Wood smoke from a lived-in house's chimney (App. F.3: the fortresses feel static): thin, pale, a puff a second or so
+    /// rising slowly and leaning off with the air, gone at a few metres. <paramref name="top"/> is the chimney's mouth,
+    /// relative to the eye; <paramref name="seed"/> keeps each chimney's puffs its own.
+    /// </summary>
+    public void Chimney(MeshBuilder mesh, Vector3 top, double time, int seed)
+    {
+        if (_smoke < 0)
+            return;
+        float rate = 0.9f + Hash(seed * 0.37f) * 0.6f;
+        const float life = 7f;
+        int count = (int)(rate * life);
+        double emitted = Math.Floor(time * rate);
+        var wind = new Vector3(0.35f, 0, 0.2f);
+        for (int k = 0; k < count; k++)
+        {
+            double index = emitted - k;
+            float age = (float)(time - index / rate);
+            if (age < 0 || age > life)
+                continue;
+            float h = Hash((float)(index * 0.618 + seed * 1.7)), t = age / life;
+            var drift = Vector3.UnitY * (0.6f * age + 0.9f * MathF.Sqrt(age)) + wind * age * (0.6f + 0.6f * h)
+                + new Vector3(h - 0.5f, 0, Hash((float)index + seed) - 0.5f) * (0.2f + age * 0.25f);
+            float size = 0.45f + 2.3f * MathF.Sqrt(t);
+            float alpha = 0.5f * MathF.Pow(1 - t, 1.5f) * MathF.Min(1, age * 3);
+            var colour = new Vector4(new Vector3(0.46f, 0.45f, 0.44f) * (0.9f + 0.25f * h), alpha);
+            mesh.Billboard(top + drift, size, h * 6.28f + age * 0.15f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
+        }
+    }
+
     public void Grind(MeshBuilder mesh, Vector3 at, Vector3 up, Vector3 back, double time, int seed)
     {
         var right = Vector3.Normalize(Vector3.Cross(up, back));

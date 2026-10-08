@@ -22,6 +22,9 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The line and its lineside.</summary>
     public WorldArt World { get; } = new(look);
 
+    /// <summary>A town's people's breathing gear and hats (note 353).</summary>
+    public TownsfolkKit Townsfolk { get; } = new(look);
+
     CreatureArt? _creatures;
     readonly Dictionary<byte, (Double3 At, int Car, double Time, float Speed)> _crewMotion = new();
 
@@ -975,11 +978,20 @@ public sealed partial class SceneArt(Look look)
     readonly Dictionary<(int Vehicle, int Door), (bool Open, long Since)> _doors = new();
     const double DoorSeconds = 0.6;
 
+    /// <summary>How long a cut coupler's knuckle takes to swing open on its pin (s; note 402): sprung, a third of a second.</summary>
+    const double KnuckleSeconds = 0.35;
+    /// <summary>Its pin (car_gear's coupler_knuckle: x 0.1, 0.47 out, 0.9 up), and how far it swings open: 80°.</summary>
+    public static readonly Vector3 KnucklePin = new(0.1f, 0.9f, -0.47f);
+    public const float KnuckleSwing = 80 * MathF.PI / 180;
+
     /// <summary>
     /// How far a door is open, 0..1, eased: it slides over <see cref="DoorSeconds"/> from when the scene first saw it change.
     /// One first seen (or with no clock, <paramref name="tick"/> −1) is where it's set.
     /// </summary>
-    float Opening(int vehicle, int door, bool open, long tick)
+    float Opening(int vehicle, int door, bool open, long tick) => Opening(vehicle, door, open, tick, DoorSeconds);
+
+    /// <summary>The same over <paramref name="seconds"/> (a coupler's knuckle swinging open as it's cut: <see cref="KnuckleSeconds"/>).</summary>
+    float Opening(int vehicle, int door, bool open, long tick, double seconds)
     {
         if (tick < 0)
             return open ? 1 : 0;
@@ -987,7 +999,7 @@ public sealed partial class SceneArt(Look look)
             _doors[(vehicle, door)] = was = (open, long.MinValue / 2);
         else if (was.Open != open)
             _doors[(vehicle, door)] = was = (open, tick);
-        double k = Math.Clamp((tick - was.Since) * Sim.SimConstants.TickSeconds / DoorSeconds, 0, 1);
+        double k = Math.Clamp((tick - was.Since) * Sim.SimConstants.TickSeconds / seconds, 0, 1);
         k = k * k * (3 - 2 * k);
         return (float)(open ? k : 1 - k);
     }
@@ -1048,13 +1060,28 @@ public sealed partial class SceneArt(Look look)
                 foreach (var lamp in TrainKit.CorridorLamps(shape))
                     mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.62f, 0.32f) * 0.55f, 4.5f));
         }
-        // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go.
+        // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go. Where
+        // the knuckle's its own piece (car_gear's coupler_jaw, note 402) it swings open on its pin as the end's cut, over
+        // KnuckleSeconds, rather than popping: the head drawn without it, shut or cut (its lock lifted, the hose parted).
         if (PropArt.Of(Look).Get("coupler_knuckle") is { } shut && (frame.Origin - eye).Length < 160)
         {
             var open = PropArt.Of(Look).Get("coupler_open") ?? shut;
             var (front, rear) = TrainKit.CouplerEnds(shape);
-            mesh.Instances.Add(new MeshInstance((cutEnds & 1) != 0 ? open : shut, front * m, emergency ? 0.06f : 1, Scar: scar));
-            mesh.Instances.Add(new MeshInstance((cutEnds & 2) != 0 ? open : shut, rear * m, emergency ? 0.06f : 1, Scar: scar));
+            var props = PropArt.Of(Look);
+            bool swings = props.Get("coupler_jaw") is not null && props.Get("coupler_head_shut") is not null && props.Get("coupler_head_open") is not null;
+            foreach (var (end, at) in new[] { (1, front), (2, rear) })
+            {
+                bool let = (cutEnds & end) != 0;
+                if (!swings)
+                {
+                    mesh.Instances.Add(new MeshInstance(let ? open : shut, at * m, emergency ? 0.06f : 1, Scar: scar));
+                    continue;
+                }
+                float swung = Opening(seed, -end, let, tick, KnuckleSeconds);
+                mesh.Instances.Add(new MeshInstance(props.Get(let ? "coupler_head_open" : "coupler_head_shut")!, at * m, emergency ? 0.06f : 1, Scar: scar));
+                var jaw = Matrix4x4.CreateTranslation(-KnucklePin) * Matrix4x4.CreateRotationY(swung * KnuckleSwing) * Matrix4x4.CreateTranslation(KnucklePin);
+                mesh.Instances.Add(new MeshInstance(props.Get("coupler_jaw")!, jaw * at * m, emergency ? 0.06f : 1, Scar: scar));
+            }
         }
         // Its brake wheel on its staff (TrainKit.BrakeWheelPiece), turned as far as its brake's wound: wound on by the Brakeman
         // (note 364), turned round and its chain taken up round the staff's foot.

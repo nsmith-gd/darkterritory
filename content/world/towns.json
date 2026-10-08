@@ -738,5 +738,78 @@
     "photo": ["A photograph of the family on the wharf before the fall. Somebody's face has been scratched out of it with a pin. Very neatly.",
       "A wedding photograph. The groom's face has been turned to the wall by somebody cutting it out and gluing it on backwards.",
       "A school photograph, rows of children. Every child in the back row has been circled in pencil."]
-  }
+  },
+
+  // A town walled in for fear of the outside, and what becomes of those who rarely leave it (the director, 8 Oct 2026:
+  // "parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of
+  // the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the
+  // world feel tolerable"; ARCHITECTURE §8 note 353). Hints, never the rules: these are a people, not a manual.
+  //
+  // The council's ordinances: four are posted by the clerk's door.
+  "laws": [
+    "The outer gate opens for the train and shuts behind it. Nobody holds it.",
+    "Masks are worn out of doors, and at any window that opens.",
+    "Every house answers the census bell. A house that does not answer is visited by two of the watch.",
+    "Whoever comes in from outside sleeps the first night in the quiet house.",
+    "Nobody is named at the gate.",
+    "Lamps are lit at the fourth bell and put out at the first. The oil is the town's.",
+    "No child is taken up onto the wall.",
+    "What is found outside is left outside.",
+    "The dead are buried inside the walls. There is room.",
+    "Nobody goes out alone, and nobody goes out but by the train.",
+    "The sky on the walls is painted again every spring, by everyone."
+  ],
+
+  // The pieces of a walled town's green, its flag and its murals, by kind: what each is called and what looking at it
+  // tells you.
+  "civic": {
+    "statue": [
+      { "title": "the Founder", "text": "A bronze man with one hand up, palm out, the way you'd stop somebody at a door. FOUNDER, the plinth says, and the year the wall went up. His hand is polished bright where people touch it going past." },
+      { "title": "the Lamplighter", "text": "A woman in stone holding a lamp up over her head. Her face has been chipped smooth. A real lamp has been wired into the stone one, and somebody keeps it filled." },
+      { "title": "the Child", "text": "A bronze child looking up at where the sun would be. Coins at its feet, though nobody's spent money here in years. A note under a stone: FOR WHEN IT COMES BACK." },
+      { "title": "the Railwayman", "text": "A man in a railway coat, life size, his back to the gate. They turned him round the second winter: the old bolt holes show where he used to face the other way." }
+    ],
+    "memorial": [
+      { "title": "the wall of names", "text": "Slate, a name cut in each, hundreds, the newest painted on because the mason's up there too. TO THOSE WHO WENT OUT. Along the bottom, a row of blank slates, already mounted." },
+      { "title": "the wall of names", "text": "Names, and beside some a small iron ring. The ring means they were seen again, after. Under the heading somebody has scratched AND TO THOSE WHO CAME BACK WRONG, and somebody else has tried to scratch it out." }
+    ],
+    "bandstand": [
+      { "title": "the bandstand", "text": "An eight-sided bandstand, its ceiling painted as a sky: blue, a white sun, gulls. A slate on the steps: THE BAND PLAYS AT THE CHANGE OF THE WATCH. LOUD, BY ORDER." },
+      { "title": "the bandstand", "text": "Music stands still set out, the same sheet on every one: a reel with half its bars inked over. The chairs face the wall, not the green." }
+    ],
+    "garden": [
+      { "title": "the lamp garden", "text": "A raised bed under lamps on poles, lit all night: kale, beans, a row of something pale. A slate: THE LAMPS ARE THE SUN NOW. TURN THEM AT NOON." },
+      { "title": "the lamp garden", "text": "Glass cloches over seedlings, a candle stub by each. The labels say what they'll be: TOMATO. ROSE. ORANGE. Nothing in the bed is any of those." },
+      { "title": "the tin garden", "text": "Flowers cut from tin and painted, planted in real soil in neat rows. The soil's damp. Somebody waters them." }
+    ],
+    "tree": [
+      { "title": "a tin tree", "text": "A tree riveted out of tin, its leaves painted green. Some leaves are newer than others: the children paint a new one each in what they call spring." },
+      { "title": "the old elm", "text": "A real tree, long dead, its branches hung with paper leaves and little lamps. A rope swing, its seat worn pale." }
+    ],
+    "flag": [
+      { "title": "the town's flag", "text": "A flag on a tall pole: the wall, a lamp, the year. It comes down at the census bell and goes back up when every house has answered. Tonight it's up." },
+      { "title": "the town's flag", "text": "The town's flag, a lamp on blue. Half the blue has been patched with a different blue. Nobody remembers the first one's colour now; they argue about it." }
+    ],
+    "mural": [
+      { "title": "a painted sunrise", "text": "A sunrise across the wall, ten metres of it: a yellow sun, a blue sea, a white house on a hill. In chalk underneath, in a child's hand: THIS IS WHAT IT LOOKS LIKE." },
+      { "title": "a painted window", "text": "A window painted on the stone, its shutters open on a field and a summer sky. Real curtains hang either side of it, tied back." },
+      { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." }
+    ]
+  },
+
+  // What the people of a walled town say of living inside it.
+  "walled": [
+    "My youngest was born inside. She asked me once if the train goes anywhere, or only comes.",
+    "Eleven years I've not been past the gate. I don't miss it. I miss wanting to.",
+    "We paint the sky on the walls so the children know which way is up.",
+    "You get used to the walls. Then you get used to being used to them. That's the bad part.",
+    "Some nights I put my ear to the wall, to hear that it's still there, outside. It always is.",
+    "The council says the outside's smaller every year. I don't know what they measure it with.",
+    "When you come back in, don't tell us what it's like. We had a man who told us. We had to let him go.",
+    "The band plays at the change of the watch. So the wall knows we're still here.",
+    "We grow beans under the lamps. Turn them at noon, the slate says. Nobody knows who wrote it.",
+    "Children here draw the sun with a handle on it.",
+    "I keep a jar of sea water on the sill. It's gone green. I don't open it.",
+    "The quiet house had somebody in it last week. The bowl on the step was empty every morning. Then it wasn't."
+  ]
 }

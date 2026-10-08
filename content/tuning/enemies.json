@@ -843,7 +843,26 @@
     "run": {
       "on": true, "fromSpeed": 19, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
       "base": 1.4, "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8],
-      "closing": 5, "scatter": 5
+      "closing": 5, "scatter": 5,
+      // The lane ahead (note 405; orchestrator.md §5.3 6, "lanes ahead: runners crossing the line in the lamp, for the forward
+      // gun"): of a run's pairs, every aheadEvery-th from the second on comes from in front instead, to a train with a gun laid
+      // forward on the engine's rake. Put down aheadMetres in front of the engine and aheadLateral m out to a flank, they howl
+      // in the lamp, then run in at aheadSpeed m/s to meet the train, across the line to aheadCross m out on its other side,
+      // and leap aboard the first car behind the engine as it comes alongside. The forward gun has them from its range (220 m)
+      // in to the stack's mask (about 60 m): at 21 m/s, about seven seconds, one shot laid early or two quick. A ball landing
+      // within scatter m sends them off, as the run's; aboard, they're the pack fight at the front of the train.
+      "aheadEvery": 3, "aheadMetres": 330, "aheadLateral": [12, 16], "aheadSpeed": 3, "aheadCross": 3,
+      // The flank lanes (note 418; orchestrator.md §5.3 6, "lanes on the flanks from the open country's sides"): of a run's
+      // pairs, every flankEvery-th (the third; a pair that's the lane ahead's stays ahead) comes in from the open country
+      // instead, to a train whose last car has its gun, where the line runs through one of flankBiomes (all but the forests,
+      // blackForest and forestEdge, in linegen's biomes.json) and the land's open that far out. Put down flankOut m off to its
+      // side, abeam the guard van's gun (flankAbeam m ahead of the train's rear end: a gun traverses 100 degrees either side of
+      // its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun reaches) and keeping
+      // pace with the train, it howls, then runs in at flankSpeed m/s across the open ground and leaps onto the car it comes
+      // alongside. The guard van's gun has it for about fifteen seconds from the howl.
+      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6,
+      "flankBiomes": ["farmland", "plains", "hills", "mountain", "coast", "marsh", "dykeland", "contaminatedMarsh", "slag",
+        "deadTown", "industrialRuin"]
     },
     // A spawn pressed for (pressure at pressAt) may overdraw the budget's curve by up to pacedCost. Budgets are about twice
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.

@@ -7,13 +7,13 @@ namespace DarkTerritory.Sim.LineGen;
 // plan's sections; every number is there and none is here. `LineGenConfigTests` holds every property below to a value
 // in the files, so a field can't silently come out zero.
 
-/// <summary>Everything the line generator reads from content: the seven linegen files.</summary>
+/// <summary>Everything the line generator reads from content: the eight linegen files.</summary>
 public sealed record LineGenConfig(
     TiersFile Tiers, SetPiecesFile SetPieces, BiomesFile Biomes, FacilitiesFile Facilities, SignageFile Signage, NamesFile Names,
-    FallbackSeedsFile FallbackSeeds)
+    FallbackSeedsFile FallbackSeeds, FootprintsFile Footprints)
 {
     public const string Directory = "linegen";
-    public static readonly string[] Files = ["tiers.json", "setpieces.json", "biomes.json", "facilities.json", "signage.json", "names.json", "fallback_seeds.json"];
+    public static readonly string[] Files = ["tiers.json", "setpieces.json", "biomes.json", "facilities.json", "signage.json", "names.json", "fallback_seeds.json", "footprints.json"];
 
     public static LineGenConfig Load(string content)
     {
@@ -21,7 +21,7 @@ public sealed record LineGenConfig(
         return new LineGenConfig(
             DataFile.Load<TiersFile>(P("tiers.json")), DataFile.Load<SetPiecesFile>(P("setpieces.json")), DataFile.Load<BiomesFile>(P("biomes.json")),
             DataFile.Load<FacilitiesFile>(P("facilities.json")), DataFile.Load<SignageFile>(P("signage.json")), DataFile.Load<NamesFile>(P("names.json")),
-            DataFile.Load<FallbackSeedsFile>(P("fallback_seeds.json")));
+            DataFile.Load<FallbackSeedsFile>(P("fallback_seeds.json")), DataFile.Load<FootprintsFile>(P("footprints.json")));
     }
 }
 
@@ -198,7 +198,7 @@ public sealed record PlateauRules(double WavelengthM, double Height, double Gorg
 /// </summary>
 public sealed record LakeRules(double[] RadiusM, double[] Stretch, double[] OffM, double CrossChance, double[] CrossRadiusM, double TurnDeg, double DepthM,
     double LevelBelowRailM, double ShoreSlope, double Wobble, double ClearM, double FillSlope, double TrestleChance = 0, double TrestleAbutmentM = 6,
-    double TrestleMaxM = 0, double TrestleClearM = 50);
+    double TrestleMaxM = 0, double TrestleClearM = 50, double RimM = 0, double RimCrestM = 0, double RimSlope = 0.25);
 
 /// <summary>
 /// A shore the line runs along (maritime-rules.md §3): the sea on one side, its edge wandering in coves and headlands
@@ -283,6 +283,15 @@ public sealed record PropRule(double Chance, double[] OutM, int Count);
 /// <summary>§13.2 lineside scatter bands.</summary>
 public sealed record ScatterRules(double TrackKitM, double LinesideM, double PoleOffsetM, double PoleEveryM, double LowVegetationM, double TreesFromM,
     double BrokenPolesAtCorruption, double CellM);
+
+// ---------------------------------------------------------------- footprints.json
+
+/// <summary>
+/// What each kit piece the lineside deals stands on (ARCHITECTURE §8 note 389), measured off the art's meshes
+/// (<c>dt art footprints --write</c>): by piece, each variant's boxes as [centre x, centre z, half x, half z, turn, top] in
+/// the piece's own frame. A piece with no boxes is walked through.
+/// </summary>
+public sealed record FootprintsFile(string Version, Dictionary<string, double[][][]> Pieces);
 
 // ---------------------------------------------------------------- facilities.json
 

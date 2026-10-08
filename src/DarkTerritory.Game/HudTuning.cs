@@ -27,6 +27,8 @@ public sealed record HudTuning
     public HudPalette Standard { get; init; } = new([0.55, 0.82, 0.45], [1.00, 0.70, 0.30], [0.95, 0.26, 0.18]);
     /// <summary>COLOURS: COLOURBLIND (note 348): the same meanings told apart under protanopia, deuteranopia and tritanopia.</summary>
     public HudPalette Colourblind { get; init; } = new([0.40, 0.75, 1.00], [0.98, 0.85, 0.25], [0.80, 0.25, 0.15]);
+    /// <summary>TEXT BACKING (note 404): how dark the band behind the HUD's print in play is, 0 to 1.</summary>
+    public double TextBacking { get; init; } = 0.6;
 }
 
 /// <summary>

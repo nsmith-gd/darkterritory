@@ -705,6 +705,21 @@ public class CrewAudioTests
     }
 
     [Theory]
+    [InlineData("crew-footsteps.walk.roof")]
+    [InlineData("crew-footsteps.run.roof")]
+    [InlineData("crew-footsteps.land.roof")]
+    public void BootsOnTheRoofsTinAreTheSheetNotABoom(string sound)
+    {
+        // Note 419 (AU1's audit of the installed sets, after note 354's cobbles): the roof's steps were the car's hollow under
+        // the tin, centred near 300 Hz with a slow wobble a step. Boots on a nailed tin sheet are the sheet buckling and
+        // rattling, the hollow under it: as much over 1 kHz as in the low mids (the old roof was 8 dB under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double sheet = Meter.BandDb(mix, 1000, 8000), body = Meter.BandDb(mix, 100, 500);
+        Assert.True(sheet > body - 3, $"{sound}: {sheet:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
+    }
+
+    [Theory]
     [InlineData("crew-footsteps.walk.dirt", 8)]
     [InlineData("crew-footsteps.run.dirt", 8)]
     [InlineData("crew-footsteps.walk.grass", 8)]

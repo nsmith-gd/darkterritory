@@ -48,8 +48,26 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Voice (networked): open mic with voice activity, or push to talk (the settings, or --push-to-talk) and hold V. Hold T
 //   to talk on the radio. --no-mic to only listen.
 
-// A crash leaves a report (the exception, and the last things the game said) in the user's app data.
-CrashReports.Install();
+// A crash leaves a report (the exception, and the last things the game said) in the user's app data (--crashes dir
+// elsewhere), and the next launch opens on a notice that says where it is (note 411).
+int crashesAt = Array.IndexOf(args, "--crashes");
+var crashes = CrashReports.Install(crashesAt >= 0 && crashesAt + 1 < args.Length ? args[crashesAt + 1] : null);
+
+// The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
+// (note 434's store page), the browser.
+void ShellOpen(string path)
+{
+    try
+    {
+        if (!path.StartsWith("https://", StringComparison.Ordinal))
+            System.IO.Directory.CreateDirectory(path);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+    }
+    catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
+    {
+        Console.WriteLine($"couldn't open {path}: {e.Message}");
+    }
+}
 
 string Arg(string name, string fallback)
 {
@@ -94,6 +112,8 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
+    // Note 390: everyone else whose work is in the game, from the content's own provenance.
+    CreditSections = DarkTerritory.Game.Credits.Load(content),
     // MODS (note 323): what Mount found installed, and whether --no-mods left it all off.
     InstalledMods = [.. Mods.Installed.Mods.Select(m => new InstalledMod(m.Name, m.Version, m.Description))],
     ModProblems = Mods.Installed.Problems,
@@ -105,7 +125,11 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     // The PROFILE page (note 293): the commendations kept in the profile, and where the nights' stills go (note 203).
     Profile = profile.Load(),
     StillsFolder = BookmarkAlbum.DefaultDirectory,
+    // Note 411: the game stopped last time, and the console that said where its report is was never seen.
+    Crash = CrashReports.Unseen(crashes.Directory),
 };
+if (frontEnd.Crash is not null)
+    frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -401,6 +425,19 @@ Launch? MenuLoop()
         }
         if (vr is not null)
             chosen ??= VrMenuInput.Apply(vrKeys.Read(vr.Session.Controllers), frontEnd);
+        // Note 411: OPEN THE REPORTS shows their folder in the system's file browser, and the menu stays up under it.
+        if (chosen is Launch.OpenFolder folder)
+        {
+            ShellOpen(folder.Path);
+            chosen = null;
+        }
+        // Note 434: WISHLIST ON STEAM, the store page in the overlay over the menu, or the browser when the overlay's off.
+        if (chosen is Launch.Wishlist wishlist)
+        {
+            if (steam?.ShowStorePage(wishlist.App) != true)
+                ShellOpen(wishlist.Url);
+            chosen = null;
+        }
         if (chosen is not null)
         {
             // The key that chose it isn't also the night's first press.

@@ -96,11 +96,11 @@ M3 is done but for a test with eight people.
 
 **Builds for players (M6):**
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
-- Crashes leave a report in the user's app data.
+- Crashes leave a report in the user's app data, and the next launch opens on a notice that says where it is, with OPEN THE REPORTS (note 411).
 - **The demo edition (T79, GDD §21, §35):**
   - the demo roster of GDD §21 (Track Doll, Car Hugger, Whistler, Tippy Toesie, Ribbits, the Choir underneath; `editions/demo/tuning/enemies.json`), the trouble in the cars, and the Frontier with two facilities;
   - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
-  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line; asked for another tier, it plays the Frontier;
+  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line, with WISHLIST ON STEAM lit under it once the edition names the store's app (note 434); asked for another tier, it plays the Frontier;
   - `tools/upload.sh --demo` sends only a demo build, and the game's upload refuses one.
 - **Store uploads (T38):**
   - `tools/upload.sh steam|itch [--demo]` sends them through `steamcmd` or `butler`, and never sets Steam's default branch live;

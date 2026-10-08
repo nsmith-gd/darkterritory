@@ -69,7 +69,7 @@ public sealed class EditionTests : IDisposable
         var tier = m.Items.First(i => i.Label.StartsWith("TIER", StringComparison.Ordinal));
         Assert.Equal("TIER: FRONTIER", tier.Label);
         Assert.False(tier.Enabled);
-        int cars = m.Items.ToList().FindIndex(i => i.Label.StartsWith("CARS", StringComparison.Ordinal));
+        int cars = m.Items.ToList().FindIndex(i => !i.Heading && i.Label.StartsWith("CARS", StringComparison.Ordinal));
         while (m.Selected != cars)
             m.Down();
         for (int i = 0; i < 30; i++)
@@ -83,5 +83,32 @@ public sealed class EditionTests : IDisposable
         m.NightOver();
         Assert.Equal(Screen.Title, m.Screen);
         Assert.Contains("Wishlist", m.Message);
+    }
+
+    [Fact]
+    public void WishlistIsOnTheDemosTitleOnceItNamesTheStoresApp()
+    {
+        // Note 434: the end card's line has something to press. No store page yet (the demo's edition says 0): not there.
+        var demo = Mods.Bake(Content, "demo", Path.Combine(_dir, "content"));
+        var c = DataFile.Load<CampaignTuning>(Path.Combine(demo, CampaignTuning.File));
+        var r = DataFile.Load<RunTuning>(Path.Combine(demo, RunTuning.File));
+        var edition = EditionTuning.Load(demo);
+        Assert.Equal(0u, edition.StoreAppId);
+        Assert.Null(edition.StoreUrl);
+        FrontEnd Menu(EditionTuning e) => new(c, r, new SaveSlots(Path.Combine(_dir, "saves"), c.SaveSlots), Path.Combine(_dir, "settings.json"), () => 1, e);
+        Assert.DoesNotContain(Menu(edition).Items, i => i.Label == "WISHLIST ON STEAM");
+        // Named: on the title, under QUICK NIGHT, and it's the store page, over the game or in the browser.
+        var m = Menu(edition with { StoreAppId = 3412340 });
+        Assert.Equal("WISHLIST ON STEAM", m.Items[1].Label);
+        m.Down();
+        Assert.Equal(new Launch.Wishlist(3412340, "https://store.steampowered.com/app/3412340/"), m.Select());
+        Assert.Equal(Screen.Title, m.Screen);
+        // After a night, the end card's line and the entry lit under it: Enter there is the store page.
+        m.Up();
+        m.NightOver();
+        Assert.Contains("Wishlist", m.Message);
+        Assert.Equal("WISHLIST ON STEAM", m.Items[m.Selected].Label);
+        // The full game has none.
+        Assert.DoesNotContain(Menu(EditionTuning.Load(Content)).Items, i => i.Label == "WISHLIST ON STEAM");
     }
 }

@@ -443,6 +443,10 @@ public sealed class PrototypeSession : IPlaySession
         // The mine head's steam lift (note 368).
         if (site.Has(ModuleKind.Lift))
             parts.Add(site.Ore <= 0 ? "the shaft's worked out" : site.Winding ? $"the lift WINDING ({site.Ore:0.0} loads left)" : $"a steam lift: {site.Ore:0.0} loads");
+        // The grain elevator's conveyor line (note 400).
+        if (site.Has(ModuleKind.Conveyor))
+            parts.Add(site.Grain <= 0 ? "the belt's carried it all" : site.Jam >= 0 ? $"the belt JAMMED ({site.Grain:0.0} loads left)"
+                : site.Running ? $"the belt RUNNING ({site.Grain:0.0} loads left)" : $"a conveyor: {site.Grain:0.0} loads");
         if (site.Has(ModuleKind.Ramp))
             parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left)" : $"{site.Head} head in the pen");
         if (site.Has(ModuleKind.Hose))

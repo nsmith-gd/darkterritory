@@ -12,6 +12,8 @@ namespace DarkTerritory.Game.Tests;
 /// written over the hotbar as they're heard, what each is and where, at the gain the mixer heard it at. What a sound is, never
 /// which creature makes it: a reader learns what tiptoeing means as a listener does.
 /// </summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public class CaptionsTests
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -34,10 +36,14 @@ public class CaptionsTests
     [InlineData("tell-gannet-bank.scream")]
     [InlineData("lamp-gutter")]
     [InlineData("state-coupling-loose.knock")]
+    [InlineData("crew-house-door.shut")]
+    [InlineData("crew-house-door.open")]
+    [InlineData("cs-choir.bang-door.wood")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
-        // that call for a hand (notes 346, 356, 385) are heard by name, so a reader is told them too.
+        // that call for a hand (notes 346, 356, 385) are heard by name, so a reader is told them too; and the house doors and
+        // the Choir beating on a door (note 409).
         Assert.NotNull(new Captions(File).CaptionOf(sound));
     }
 

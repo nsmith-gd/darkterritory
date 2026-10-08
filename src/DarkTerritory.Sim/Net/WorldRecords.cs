@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -161,8 +161,9 @@ public static class WorldRecords
         if (world.Run is { } run)
         {
             // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning), then
-            // the set pieces' (note 185: the spout's bin, the herd, the hose; note 368: the steam lift's ore and skip).
-            const int Each = 15, Head = RunHead;
+            // the set pieces' (note 185: the spout's bin, the herd, the hose; note 368: the steam lift's ore and skip; note 400: the
+            // conveyor's grain, its jam and how far through starting it and clearing that someone is).
+            const int Each = 20, Head = RunHead;
             var f = new long[Head + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
@@ -180,7 +181,8 @@ public static class WorldRecords
                 var site = i < run.Sites.Count ? run.Sites[i] : null;
                 f[Head + i * Each] = Q(run.ChuteLeft(i), Fine);
                 f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
-                    | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0);
+                    | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0)
+                    | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0);
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
@@ -194,6 +196,11 @@ public static class WorldRecords
                 f[Head + 12 + i * Each] = Q(site?.Leak ?? 0, Fine);
                 f[Head + 13 + i * Each] = Q(site?.Ore ?? 0, Fine);
                 f[Head + 14 + i * Each] = Q(site?.Wind ?? 0, Fine);
+                f[Head + 15 + i * Each] = Q(site?.Grain ?? 0, Fine);
+                f[Head + 16 + i * Each] = Q(site?.Jam ?? -1, Fine);
+                f[Head + 17 + i * Each] = Q(site?.JamFor ?? 0, Fine);
+                f[Head + 18 + i * Each] = Q(site?.Start ?? 0, Fine);
+                f[Head + 19 + i * Each] = Q(site?.Clear ?? 0, Fine);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
@@ -225,6 +232,12 @@ public static class WorldRecords
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Search, k),
                         [done.Count, .. done.Select(c => (long)c), .. under.SelectMany(u => new long[] { u.Container, Q(u.Progress, Fine) })]));
                 }
+        // The village houses' doors shut (note 401): a count, then each door's key. One record, while there are doors.
+        if (world.Train.Walls is { HouseDoors.Count: > 0 } doored)
+        {
+            var shut = doored.ShutDoors.ToList();
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Door, 0), [shut.Count, .. shut.Select(k => (long)k)]));
+        }
         // GDD App. D: each Holdout's state, who's in it and how far the breach is, and whether it's the repair kit's (the
         // lamps and the HUD).
         if (world.Holdouts is { } holdouts)
@@ -442,6 +455,9 @@ public static class WorldRecords
                     searchRun.MirrorSearch(r.Id, f.Skip(1).Take(searched).Select(c => (int)c),
                         Enumerable.Range(0, (f.Length - 1 - searched) / 2).Select(i => ((int)f[1 + searched + i * 2], D(f[2 + searched + i * 2], Fine))));
                     break;
+                case RecordKind.Door when !world.Authority && world.Train.Walls is { } doorWalls && f.Length > 0:
+                    doorWalls.MirrorShut(f.Skip(1).Take((int)Math.Min(f[0], f.Length - 1)).Select(k => (int)k));
+                    break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
                     queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));
                     break;
@@ -450,7 +466,7 @@ public static class WorldRecords
                         f.Length > 4 ? (int)f[4] : 0, f.Length > 5 && f[5] != 0);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
-                    const int Each = 15, Head = RunHead;
+                    const int Each = 20, Head = RunHead;
                     int facilities = (f.Length - Head) / Each;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
                         [.. Enumerable.Range(0, facilities).Select(i => D(f[Head + i * Each], Fine))],
@@ -462,6 +478,9 @@ public static class WorldRecords
                             Bin = D(f[Head + 7 + i * Each], Fine), Head = (int)f[Head + 8 + i * Each], Herd = D(f[Head + 9 + i * Each], Fine),
                             HoseCar = (int)f[Head + 10 + i * Each], Pressure = D(f[Head + 11 + i * Each], Fine), Leak = D(f[Head + 12 + i * Each], Fine),
                             Winding = (f[Head + 1 + i * Each] & 32) != 0, Ore = D(f[Head + 13 + i * Each], Fine), Wind = D(f[Head + 14 + i * Each], Fine),
+                            Running = (f[Head + 1 + i * Each] & 64) != 0, Carrying = (f[Head + 1 + i * Each] & 128) != 0,
+                            Grain = D(f[Head + 15 + i * Each], Fine), Jam = D(f[Head + 16 + i * Each], Fine), JamFor = D(f[Head + 17 + i * Each], Fine),
+                            Start = D(f[Head + 18 + i * Each], Fine), Clear = D(f[Head + 19 + i * Each], Fine),
                         })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;
             }

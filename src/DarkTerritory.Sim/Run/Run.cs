@@ -68,7 +68,8 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 
 /// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
-public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9, double LinesideReachM = 40);
+public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9, double LinesideReachM = 40,
+    double HouseDoorSeconds = 0.6, double HouseDoorReachM = 1.2);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
@@ -232,7 +233,7 @@ public sealed partial class Run
     /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
     public double StopSeconds { get; private set; }
     /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
-    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding);
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding || site.Running);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>

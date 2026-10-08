@@ -86,7 +86,7 @@ public class CrewCapTests
         Assert.Equal("CREW FULL (8/8)", refusal.ToString());
         Messages.WriteLeave(w);
         Assert.Equal([(byte)MessageType.Leave], w.Written.ToArray());
-        Assert.Equal(40, Protocol.Version);
+        Assert.Equal(42, Protocol.Version);
         // The GDD's largest crew is the content's cap.
         Assert.Equal(8, P.Crew.Cap);
     }

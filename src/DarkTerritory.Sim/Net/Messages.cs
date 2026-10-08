@@ -52,8 +52,10 @@ public static class Protocol
     // 37: the run record's sites carry the steam lift's ore left, its skip's wind and whether it's winding (note 368).
     // 38: the vehicle record carries how long the coupling behind it has worked loose (note 356), after the lamp.
     // 39: the vehicle record carries its gun's ready rack (note 374), after the loose coupling.
-    // 40: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the gun's rack; and a Knotter's gap (note 365).
-    public const int Version = 40;
+    // 40: the film's start carries its extras, the stowed dead and the loose things aboard that go into the wreck (note 373).
+    // 41: the run record's sites carry the conveyor line's grain, its drive and jam, and its start and clear held (note 400).
+    // 42: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the gun's rack; and a Knotter's gap (note 365).
+    public const int Version = 42;
 }
 
 public enum MessageType : byte

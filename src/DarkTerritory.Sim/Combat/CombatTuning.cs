@@ -48,6 +48,31 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// <summary>How near the powder locker a crewmate's hands must be to take a charge from it (m).</summary>
     public double LockerReach { get; init; } = 1.3;
     /// <summary>
+    /// Bots bring the powder (note 377, orchestrator.md §5.1 U4): a manned gun's ready rack down to this many rounds or fewer
+    /// sends a walker for a charge, so it's up before the gunner fires the last. -1: no walker goes (the gunner fetches its own).
+    /// </summary>
+    public int FeedAt { get; init; } = 2;
+    /// <summary>
+    /// <see cref="FeedAt"/> for a gun on another car than the powder locker's (the engine's forward gun): a walk the length of
+    /// the train each way, so the walker goes sooner.
+    /// </summary>
+    public int FeedAtFar { get; init; } = 5;
+    /// <summary>
+    /// A gunner bot whose rack's run dry keeps its seat this long (s) for the walker bringing a charge (note 377), then goes
+    /// for its own: up out of the seat, the gun's unmanned and no walker's sent to it.
+    /// </summary>
+    public double GunnerWaits { get; init; } = 30;
+    /// <summary>
+    /// A gun that's fired in the last this many seconds is in action (note 377): any round short of a full rack sends a walker
+    /// for a charge, to stand by at the gun with it, so a wave doesn't wait on a walk the train's length.
+    /// </summary>
+    public double FeedWhileFiring { get; init; } = 20;
+    /// <summary>
+    /// A bot crew this big or bigger (bots and all) has a second gunner on the engine's forward gun (note 414), for the lane
+    /// ahead (note 405), the Track Doll and the Switchman: its last place. 0: never.
+    /// </summary>
+    public int ForwardGunnerFrom { get; init; } = 6;
+    /// <summary>
     /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
     /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.
     /// </summary>

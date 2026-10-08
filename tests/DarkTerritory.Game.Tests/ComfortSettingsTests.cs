@@ -24,7 +24,7 @@ public sealed class ComfortSettingsTests : IDisposable
 
     static void Pick(FrontEnd m, string label)
     {
-        int i = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+        int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
         while (m.Selected != i)
             m.Down();

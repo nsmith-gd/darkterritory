@@ -146,6 +146,22 @@
       "gusts": 0.7
     }
   },
+  // The water (ARCHITECTURE §8 note 424): how each kind of it moves. Its current (m/s: a river's down its valley, the
+  // tide's along Fundy's red shore) and how open it lies to the wind (0 a marsh's still pool, 1 the open Atlantic: its
+  // swell and how hard the wind chops it); its murk (0 clear dark water, which gives back next to nothing but the sky,
+  // 1 Fundy's, thick with the red mud it carries); its lap (m: how far out from the waterline its foam comes and goes).
+  "water": {
+    "kinds": {
+      "sea": { "current": 0.1, "open": 1.0, "murk": 0.1 },
+      "fundy": { "current": 0.9, "open": 0.75, "murk": 1.0 },
+      "dyke": { "current": 0.5, "open": 0.55, "murk": 1.0 },
+      "river": { "current": 0.8, "open": 0.3, "murk": 0.2 },
+      "tidal": { "current": 0.9, "open": 0.5, "murk": 1.0 },
+      "lake": { "current": 0, "open": 0.45, "murk": 0 },
+      "marsh": { "current": 0, "open": 0.12, "murk": 0.3 }
+    },
+    "lapM": 5
+  },
   // The consist's wear and tear (pipeline plan, consist kit: "3 damage states per car; scars persist between runs").
   // Read off each car's integrity, which the campaign keeps, so a car comes back scarred where it was (ARCHITECTURE §8).
   "damage": {
