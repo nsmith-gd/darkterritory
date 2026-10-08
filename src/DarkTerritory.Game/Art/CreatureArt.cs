@@ -813,7 +813,8 @@ public sealed class CreatureArt
         var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
         var hung = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
         hung.Translation = fist - up * LanternRing;
-        mesh.Append(hanging, hung);
+        // Casting nothing: its light's inside it (the hand lamp's cube shadow, GreyboxScene), and its cage would shut it in.
+        mesh.Instances.Add(new MeshInstance(hanging, hung, Shadowless: true));
         LastHanging = fist - up * (LanternRing - LanternFlame);
     }
 
