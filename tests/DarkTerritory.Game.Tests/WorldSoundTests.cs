@@ -258,6 +258,55 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn()
+    {
+        // Spec D.2's capstan winch (T43; queue #204, note 468), at a foundry (the wreck yard's is place-wreck's), off its site's
+        // record as a client has it: the drum while it's cranked in rhythm, the sled hauled in over the ground, the stall as
+        // the cranks fall out of rhythm, once, and a sled brought up to its stop, once, where it stops.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-winch.stall", "place-winch.in");
+        Held(audio, "place-winch.capstan", "place-winch.drag");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Winch));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool turning = false, bool outOfRhythm = false, double progress = 0, int sleds = 2) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, progress, sleds, turning, outOfRhythm, 0))]);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        var ears = new Ears(audio, world);
+        var ear = site.Capstan + new Double3(0, 0.9, 2);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // Cranked in rhythm: the drum, and the sled coming in.
+        Set(turning: true, progress: 0.3);
+        ears.Tick(ear, 10);
+        Assert.True(Playing("place-winch.capstan") && Playing("place-winch.drag"));
+        // Out of rhythm: the stall, once, and the drum and the sled still.
+        Set(outOfRhythm: true, progress: 0.4);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // In rhythm again and the sled in: brought up to its stop, once, and the next one waiting out at the far end.
+        Set(turning: true, progress: 0.98);
+        ears.Tick(ear, 10);
+        Set(turning: true, progress: 0, sleds: 1);
+        ears.Tick(ear, 10);
+        var stop = Assert.Single(ears.Started, v => v.Name == "place-winch.in");
+        Assert.True((stop.Position - site.SledTo).Length < 1e-6);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        // Far off, nothing.
+        ears.Tick(site.Capstan + new Double3(400, 0, 0), SimConstants.TickRate);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+    }
+
+    [Fact]
     public void ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed()
     {
         // D.7 (note 301's slice 2; queue #122, note 385): the wrench at a lock opens it quietly (Holdout.Quiet, replicated), and

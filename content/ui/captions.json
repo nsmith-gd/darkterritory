@@ -70,6 +70,8 @@
     // A truss's Dragger (note 444): its weight landing on the roof of a car with someone on it, before its grab; with
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
-    "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND"
+    "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND",
+    // A capstan winch's cranks out of rhythm (note 468; D.2's desync): the drum snatched to a stop.
+    "place-winch.stall": "A WINCH JARRING TO A STOP"
   }
 }
