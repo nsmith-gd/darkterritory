@@ -5848,3 +5848,38 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The landings, the drops and a few hits peak over 0 dBFS once decoded from Opus. The engine mixes in float, so nothing clips before the master, but `install.py` could leave a decibel of headroom.
         - Some sets' takes are near-copies by spectrum, though not by ear.
     - **Pinned:** `CrewAudioTests.BootsOnTheRoofsTinAreTheSheetNotABoom` (walk, run, land): as much over 1 kHz as at 100-500 Hz, within 3 dB, as note 354 asks of stone.
+
+424. **Water with life in it, and shores that meet it (queue #160, B1; the director, 8 Oct, GDD App. F.4: "lots of textures in the landscape generation that are see through or missing. Water looks bad right now, it's still with no life or movement to it").**
+    - **Found:**
+        - The water's texture coordinates were the camera's (`PlanArt.Water` mapped each quad by its eye-relative x and z), so its pattern slid along with the train, and nothing in it moved.
+        - A lake was a disc grown past its shore by its wobble. Where the land round it lay lower than its water, the disc stood out over the land and was seen through from under and past it: frontier:3's second lake by 6.5 m on 45 of 120 rays, five more lakes over six nights by 0.3–3.4 m.
+        - Past 100 m out the land's columns are 30–50 m apart, wider than many a lake's shore is long, so the land couldn't follow a shoreline.
+        - The terrain blend let its second ground through the first's dark texels even at no weight, so a shore's pale shingle came up the bank to the bed wherever the grass was dark. The shore's ground also ran to 2.4 m over the water, which beside a river 3.5 m under the rail is nearly all of it, and it was decided by the quad, in hard rectangles.
+    - **The water is its own surface** (`WorldArt.Water.cs`, `WaterSheet`). Each vertex carries:
+        - its texture coordinates: where it lies in the world in metres, wrapped at 4096 m as the grime's are;
+        - its surface coordinates: its current (m/s) and how open it lies to the wind;
+        - its blend: how near the land, 1 at the waterline.
+        - look.json `water` sets each kind's current, openness and murk (Fundy's red silt lit as the shallows are; clear water gives back little but the sky), and the lap's width.
+    - **It moves in the shader** (`scene.frag`, `waterNormal`). The renderer's per-layer table is `motionOf` now (it was `swayOf`): `GreyboxRenderer.Motion` gives the foliage 1 as before and `water_*` 2.
+        - The ripple map twice, turned to the night's wind and running downwind at a ripple's own pace and down the current. Its axes are whole-number lattice directions, so the 4096 m wrap stays seamless.
+        - Three long swells near downwind at deep water's own speed (ω² = gk). The open sea has some even on a still night; they're faded out before they're finer than a pixel.
+        - It throws the sky back by Fresnel (f0 0.02), the horizon's haze low in it, and the moon's road glitters on its facets. Deep water's own colour is a third of what it was, so the headlamp on it is a glare, not a lit patch.
+        - At its waterline it laps: a band of broken foam that comes and goes with the swell, more in a wind, and whitecaps in a gale. No frost or rain sheen on it.
+    - **How each moves:** a river under its span runs across the line, one way or the other by its id; Fundy's and the dykes' tide sets along the shore; the sea sets slowly along it; lakes and marshes lie still. A river alongside runs down the way its rail falls.
+    - **Lakes are drawn to their shorelines:** rings at the waterline (where the basin's bed comes up through the water, a few metres inside the shore), the lap's inner edge, and 2 m on under the land past the shore (`LakeSkirtM`).
+    - **A lake's rim** (tiers.json lakes `rimM` 0.6, `rimCrestM` 10, `rimSlope` 0.25; `TerrainField.Waterside`): where the land outside its shore lies lower than its water, a bank holds the water in, at least `rimM` over it for `rimCrestM`, then falling away to the land. Every lake of six nights now has its land over its water 3 m and 10 m past its shore, but for frontier:7's first: a tidal river's cut (the shores come after the lakes) takes it back down to 0.29 m under on 5 of 120 rays.
+    - **The land is finer round a lake** (`WorldArt.Columns`, `PlanScene.LakeBands`): across a lake's stretch of the line, a column every 6 m between the line's own, over the lake's laterals and its rim. On rows outside that stretch those columns lie on the straight line between the line's own, so the next cell, without them, meets it edge to edge.
+    - **The shore's ground** (`WorldArt.Track`):
+        - It runs to 1.5 m over the water (`ShoreAboveM`; it was 2.4).
+        - A quad is the shore's if any corner is within 30 m of the water, and its corners further out get none of it. The land's second ground gives way within 90 m, so where a shore quad meets the land's, both are the biome's own ground along the edge between them. `TerrainField.WaterNear` takes the line's own nearest point for it, which saves finding it.
+        - The terrain blend's second layer shows only where its weight is over nought (`scene.frag`).
+    - The static surf strips along the Atlantic (`PlanArt`) went: the lap is the water's own now.
+    - **Verified:**
+        - Shots before and after from the same cameras: local:1's lake at 4 km and its sea at 9.4 km, frontier:7's tidal river under its truss at 8.1 km, its Fundy shore at 16 km and its dykes at 23 km, at night and in `--survey` light (`dt screenshot --route local:1 --at 3950 --cam 4040,-62,4 --target 4060,-140,-2`, and so on). The water ripples and runs, the moon's road lies on the lake and the river, and the lakes keep to their shores.
+        - `WaterArtTests` (Game): only water moves as water; from two eyes the water's mapping is the world's, and a lake's water never runs out over its shore; a tidal river runs across the line at its kind's current and laps at its banks; the sea lies open, lapping along the beach's foot.
+        - `WatersideTests.ALakesRimStandsOverItsWater` (Sim): frontier:3, deadLines:8 and local:4, every lake, 120 rays, 3 m and 10 m past its shore.
+        - The whole Sim suite (1286), and the Game suite in two halves.
+    - **Not yet:**
+        - The drifting fog cards cut where they meet the water, as everywhere (soft particles stay off).
+        - The far treeline cards are near-black silhouettes, which read as cut-outs seen close (the texture's art).
+        - The tar ponds' pitch stands still.

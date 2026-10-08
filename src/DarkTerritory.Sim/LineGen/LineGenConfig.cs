@@ -198,7 +198,7 @@ public sealed record PlateauRules(double WavelengthM, double Height, double Gorg
 /// </summary>
 public sealed record LakeRules(double[] RadiusM, double[] Stretch, double[] OffM, double CrossChance, double[] CrossRadiusM, double TurnDeg, double DepthM,
     double LevelBelowRailM, double ShoreSlope, double Wobble, double ClearM, double FillSlope, double TrestleChance = 0, double TrestleAbutmentM = 6,
-    double TrestleMaxM = 0, double TrestleClearM = 50);
+    double TrestleMaxM = 0, double TrestleClearM = 50, double RimM = 0, double RimCrestM = 0, double RimSlope = 0.25);
 
 /// <summary>
 /// A shore the line runs along (maritime-rules.md §3): the sea on one side, its edge wandering in coves and headlands
