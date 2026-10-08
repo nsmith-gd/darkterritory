@@ -75,6 +75,9 @@ public static class Views
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
+            // Up off the second car's left, looking along its roof to the gap behind it (the hounds' patrol, --patrol).
+            "patrol" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 6.5), train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.RoofHeight + 2.2, -2)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(0, train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.RoofHeight - 0.6, 2)), 60),
             // Low along the second car's left, side on to crewmate 4 and what's on them (the Ribbits' devour, --ribbits devour).
             "packside" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.6), 1.1, 3.4)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.8), 0.6, -1.5)), 50),
@@ -158,6 +161,11 @@ public static class Views
             // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
             "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
                 engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
+            // (Not one of Names.) A breath from the driver's window, looking out through it (note 485): the frost in from its
+            // frame, and with --breathe the eye's own breath fogging it.
+            "glass" => Art.TrainKit.CabPanes(engine.Shape).Skip(1).FirstOrDefault() is { U.X: > 0 } pane
+                ? Camera.LookAt(engine.ToWorld(D(pane.Centre + pane.In * 0.45f - new Vector3(0.12f, 0.05f, 0))), engine.ToWorld(D(pane.Centre - pane.In * 6 - new Vector3(0.1f, 0.25f, 0))), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // (Not one of Names.) In the cab's front corner on the driver's side, back at the driver, the brake and the reverser
             // (dt screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
             "driverside" => engine.Shape.Levers is { } driverLevers
@@ -634,4 +642,6 @@ public static class Views
         light.LampDirection = Vector3.Normalize(new Vector3((float)fwd.X, (float)fwd.Y - 0.04f, (float)fwd.Z));
         return light;
     }
+
+    static Double3 D(Vector3 v) => new(v.X, v.Y, v.Z);
 }

@@ -1,0 +1,230 @@
+// The townsfolk's names and temperaments (GDD §3.1; ARCHITECTURE §8 note 474; docs/design/townsfolk.md). The numbers
+// (the personality matrix, how names are drawn) are in tuning/townsfolk.json; this file is only words, read by
+// Sim/Towns/TownFolk.
+//
+// How it's written (towns.json's rules hold): the voice is plain, dry, a little Maritime, never put on. A temperament's
+// lines are how somebody carries the town's grief, not what the custom is: they never name a creature or its rule, so
+// they sit in any town. Keep a line under ~150 characters, in the HUD's letters (ASCII and àâçéèêëîïôùûü). Placeholders:
+// {town}, {law}, {hall}, {name}/{name2} (somebody else here), {other} (another town), {n} (a small number). Bynames:
+// {first} is the given name; the surname follows the byname ("Holy Annie Gillis").
+{
+  // The province's peoples. A household shares its surname, and so its heritage. "given": the old names, given before
+  // the fall; "patronymic": the Gaelic way of telling the eleventh Angus MacNeil from the rest ("Angus Dan Rory": Angus,
+  // son of Dan, son of Rory), from "fathers".
+  "heritages": [
+    {
+      "id": "gaelic",
+      "given": ["Angus", "Archie", "Alasdair", "Dougal", "Donald", "Hector", "Hughie", "Lauchie", "Murdoch", "Neil", "Ronald",
+        "Rory", "Johnena", "Flora", "Effie", "Catherine", "Christie", "Annie", "Kirsty", "Morag", "Mary-Catherine", "Sadie",
+        "Jessie", "Peggy", "Isabel"],
+      "surnames": ["MacDonald", "MacNeil", "MacLean", "MacIsaac", "MacKinnon", "Gillis", "Beaton", "Chisholm", "Rankin",
+        "Fraser", "Campbell", "Cameron", "Matheson", "Ross", "MacLeod", "MacPhee", "MacEachern", "MacKenzie"],
+      "patronymic": true,
+      "fathers": ["Dan", "Rory", "Angus", "Alex", "Hughie", "Archie", "Johnny", "Neil", "Dougal", "Ronald", "Joe", "Sandy"]
+    },
+    {
+      "id": "acadian",
+      "given": ["Aurèle", "Jean-Guy", "Rémi", "Placide", "Onésime", "Anselme", "Fidèle", "Edmour", "Yvon", "Théo", "Léonie",
+        "Marie-Rose", "Evangeline", "Zita", "Bernadette", "Mathilde", "Odile", "Philomène", "Germaine", "Rose-Anne",
+        "Clothilde", "Aurore"],
+      "surnames": ["Boudreau", "LeBlanc", "Cormier", "Gallant", "Arsenault", "Doucet", "Comeau", "Thibodeau", "Robichaud",
+        "Landry", "Richard", "Babineau", "Poirier", "Aucoin", "Chiasson", "Deveau"]
+    },
+    {
+      "id": "irish",
+      "given": ["Seamus", "Patrick", "Michael", "Francis", "Brendan", "Timothy", "Cornelius", "Bridget", "Nora", "Theresa",
+        "Kathleen", "Maureen", "Delia", "Honora", "Eileen", "Mary-Kate"],
+      "surnames": ["Murphy", "Power", "Walsh", "Kelly", "O'Brien", "Sweeney", "Doyle", "Ryan", "Kehoe", "Fitzgerald",
+        "Dunphy", "Kavanagh"]
+    },
+    {
+      "id": "lunenburg",
+      "given": ["Ephraim", "Obadiah", "Elmer", "Wilfred", "Gus", "Isaac", "Lorenz", "Conrad", "Myrtle", "Thelma", "Ida",
+        "Lottie", "Hilda", "Ernestine", "Minnie", "Gretchen"],
+      "surnames": ["Hiltz", "Zwicker", "Mosher", "Corkum", "Ernst", "Himmelman", "Knickle", "Wentzell", "Oxner", "Rhuland",
+        "Eisenhauer", "Veinot", "Mader"]
+    },
+    {
+      "id": "loyalist",
+      "given": ["Clarence", "Harold", "Percy", "Arthur", "Wendell", "Lester", "Florence", "Edna", "Winnie", "Nellie", "Agnes",
+        "Margaret", "Mabel", "Gladys", "Hazel", "Lottie"],
+      "surnames": ["Hatfield", "Crowell", "Nickerson", "Saunders", "Harding", "Tupper", "Burgess", "Spinney", "Morrell",
+        "Purdy", "Whitman", "Lyle"]
+    }
+  ],
+
+  // After-names: what a child born inside the walls is called. Their parents named them for what they hoped, or kept,
+  // or lost. "culture": a custom's own (a rulebook town has more than one child called Nine).
+  "after": {
+    "virtue": ["Patience", "Constance", "Prudence", "Mercy", "Faith", "Temperance", "Verity", "Thankful", "Comfort", "Silence"],
+    "daylight": ["Dawn", "June", "Sunny", "Clare", "Lucy", "Summer", "Aurora", "Noon", "Day"],
+    "plain": ["Ash", "Ivo", "Wren", "Jory", "Tam", "Bree", "Kit", "Nell", "Abe", "Dot", "Jem"],
+    "culture": {
+      "hush": ["Silence", "Mercy", "Hush"],
+      "count": ["Constance", "Tally"],
+      "rulebook": ["Nine", "Rule"],
+      "offerings": ["Dolly"],
+      "banked": ["Ember"],
+      "shutters": ["Shade"],
+      "eyes": ["Vigil"],
+      "pairs": ["Twin"],
+      "backGun": ["Gunner"]
+    }
+  },
+
+  // A job's byname: what the town calls the one who does it. "hand": by the town's trade.
+  "roleBynames": {
+    "gatekeeper": ["{first} the Gate"],
+    "guard": ["{first} the Wall", "Sentry {first}"],
+    "clerk": ["{first} the Pen"],
+    "keeper": ["Deacon {first}"],
+    "storekeeper": ["{first} the Store", "{first} Scales"],
+    "fitter": ["{first} Spanner"],
+    "lampman": ["Lamp {first}", "{first} the Wick"],
+    "porter": ["{first} the Bag"],
+    "driver": ["Steam {first}", "{first} the Engine"],
+    "widow": ["Widow {first}"],
+    "cook": ["{first} the Pot"],
+    "hand": ["{first} the Shift"]
+  },
+  "tradeBynames": {
+    "coal": ["{first} the Pit", "Coal {first}"],
+    "farm": ["{first} Turnip", "{first} the Byre"],
+    "foundry": ["{first} the Forge", "Cinder {first}"]
+  },
+
+  // The temperaments (tuning/townsfolk.json "temperaments"): their bynames, and one line each person of them may say
+  // (a deck: nobody in a town says another's).
+  "temperaments": {
+    "faithful": {
+      "bynames": ["Holy {first}", "{first} Amen", "{first} the Deacon"],
+      "lines": [
+        "{law} I'd keep it twice if they let me.",
+        "The council says once. I do it three times. Nobody I love has gone since I started.",
+        "You're doing it wrong. Not wrong enough to die. Wrong enough to watch.",
+        "I keep it for the ones who didn't. That's who it's for. Not you.",
+        "They want to ease it. Ease it! Ask {hall} what easing it cost us the first winter.",
+        "Every night I do it right, and every night I'm still here. That's not luck, b'y.",
+        "{name} skips it some nights. I write it down. Somebody has to.",
+        "When I die, keep it at my grave. Don't stop because I'm past needing it."
+      ]
+    },
+    "doubter": {
+      "bynames": ["{first} Maybe", "Doubting {first}", "{first} the Lawyer"],
+      "lines": [
+        "Half of it's grief and half of it's habit. Nobody can tell me which half saves you.",
+        "I stopped keeping it for a month once. Nothing came. I started again anyway. Don't ask me why.",
+        "It was one bad night, years back. We built a whole town on it.",
+        "{other} does the opposite and they're still alive. Mostly.",
+        "Don't tell the keeper I said so. I still do it. I only don't believe it.",
+        "There's a reason in it somewhere. It's smaller than they make out.",
+        "Nobody knows why it works. That's the honest answer, and you'll not hear it twice in {town}.",
+        "Trust the first thing they tell you here. The rest grew on after, like moss."
+      ]
+    },
+    "mourner": {
+      "bynames": ["Black {first}", "{first} Waiting", "{first} Sorrow"],
+      "lines": [
+        "I talk to him at the window. Some nights the glass fogs on the other side.",
+        "Nobody says her name now. I say it. Every morning. In case.",
+        "You've the look of somebody I lost. Around the eyes. Don't mind me.",
+        "I kept the coat. It still smells of the coal shed. That's all that's left that's his.",
+        "Grief's a job here. Some of us work longer hours.",
+        "If you see a woman out there in a blue scarf, don't stop. It isn't her. I know. I still look.",
+        "They say it gets lighter. It doesn't. You only get stronger carrying it.",
+        "Leave the door on the latch for them. ... No. Don't. I don't know why I said that."
+      ]
+    },
+    "hollow": {
+      "bynames": ["Quiet {first}", "{first} Grey", "Still {first}"],
+      "lines": [
+        "I don't feel the cold now. Or much else.",
+        "We lost {n} that winter. I've stopped counting the ones since.",
+        "You'll go out on the line and you'll come back or you won't. Either way the kettle's on at six.",
+        "I used to be frightened. It took too long. I put it down.",
+        "Ask somebody else. I've said all my words about it.",
+        "Nothing changes in {town}. I like it that way. Nothing changing means nobody's gone.",
+        "Every face in here I'll bury, or they'll bury me. I don't mind which.",
+        "Funny. You stop hoping and you stop hurting about the same time."
+      ]
+    },
+    "watcher": {
+      "bynames": ["{first} Eyes", "{first} Count-Twice", "Hawk {first}"],
+      "lines": [
+        "From away, are you. Stand where I can see your hands.",
+        "I watched you come in. I'll watch you go. I count both times.",
+        "Say what you want and go on. We're not short of strangers who looked like friends.",
+        "Don't take it personal. I look at everybody like this. My own mother. Her most of all.",
+        "Last crew through said they'd write. Nobody's written.",
+        "You keep looking at the wall. Why are you looking at the wall?",
+        "I'll know you next time. I know everybody next time.",
+        "Your boots are wet. It's not rained. Where've you been walking?"
+      ]
+    },
+    "comforter": {
+      "bynames": ["{first} Kettle", "Sweet {first}", "{first} Biscuit"],
+      "lines": [
+        "Sit a minute. There's tea. It's mostly tea.",
+        "You've a long night ahead. Eat something. Go on. I made too much. I always make too much.",
+        "I knit for the crews. Mitts, mostly. Somebody's always come back without them.",
+        "We do what we can to make it a home. It's not much. It's something.",
+        "Here. Take the heel of the loaf. It's lucky. Don't ask me who told me that.",
+        "Come back and tell me how it went. Nobody ever comes back to tell me.",
+        "You look like you've not slept. Nobody here has either. We're good company that way.",
+        "There's a kitchen racket Saturdays. We keep it quiet. You'd be welcome."
+      ]
+    },
+    "talker": {
+      "bynames": ["{first} the Mouth", "Talking {first}", "{first} Telegraph"],
+      "lines": [
+        "{name} says it's on the roofs. {name2} says it's under the platform. I say it's both, and that's worse.",
+        "You'll want to know about the line. I'll tell you what I heard, and you'll not like it.",
+        "Don't listen to the keeper, listen to me. I listen to everybody.",
+        "There was a crew through last spring that did it backwards. One came home. She told me all about it.",
+        "I'm not supposed to say. So I'll say it quiet: it doesn't like what the law's about. That's why there's a law.",
+        "{name} keeps a jar under the floor. Don't ask me what's in it. I'll tell you anyway. Teeth.",
+        "Nobody has the whole story. I've got the most of it.",
+        "The {hall} lot don't tell you the half. They tell you the half that makes them look good."
+      ]
+    },
+    "frayed": {
+      "bynames": ["Jumpy {first}", "Shaky {first}", "{first} Startle"],
+      "lines": [
+        "Did you hear that? ... No. No, you're right. Go on.",
+        "I can't - sorry. I can't stand near the gate. Walk me back a ways?",
+        "Don't come up on me from that side. Ever. I'll not be responsible.",
+        "My hands shake. They've shaken since the second winter. I hold the cup with both.",
+        "Every train that comes in, I think: that's the one. And it never is. And I think it again.",
+        "Talk to me. Keep talking. When people stop talking is when I hear it.",
+        "I sleep in my boots. You never know. You never know.",
+        "Is it dark yet? I mean properly dark. Is it properly dark?"
+      ]
+    },
+    "mender": {
+      "bynames": ["{first} Paint", "Sunday {first}", "{first} Daylight"],
+      "lines": [
+        "I painted that sun on the back wall. Wrong colour. Nobody here remembers the right one.",
+        "We grow beans under the lamps. They come up pale, but they come up.",
+        "You keep the law, and then you find a little room inside it. That's where you live.",
+        "Every Sunday we sweep the square like there'll be a fair. There's never a fair. It's clean, though.",
+        "Fix one thing a day. A hinge. A sock. A face. That's how {town} keeps going.",
+        "I keep a list of good things. It's short. I read it to {name} at night.",
+        "Bring us something from out there. A stone, a leaf. The children have never held a leaf.",
+        "We hold a fair for the first snow. No noise. Paper lanterns. You'd be surprised what we manage."
+      ]
+    },
+    "restless": {
+      "bynames": ["{first} Away", "{first} the Train", "{first} Mainland"],
+      "lines": [
+        "Where does the line go, past the last fort? Tell me true. I'll not tell anyone.",
+        "I've a bag packed under the bed. It's been packed since the walls went up.",
+        "Take me with you. ... I'm joking. Unless you'd say yes.",
+        "{other}. Have you been? What's it like? Is it like here?",
+        "They say the walls keep us safe. They keep us something.",
+        "One day I'll walk out that gate and keep walking till I see the sea. The real one, not the painted one.",
+        "I watch the trains go. Not come. Go.",
+        "Do you ever get used to it out there? I'd get used to it. I know I would."
+      ]
+    }
+  }
+}

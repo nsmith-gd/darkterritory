@@ -198,6 +198,8 @@ public sealed class HostSession
         held.LookYaw = held.LookPitch = 0;
         held.ThrottleNotch = 0;
         held.Buttons &= ~(PlayerButtons.Jump | PlayerButtons.Reverser);
+        // The seat's press too: at the crane it takes the controls and the next lets them go, so a repeated one would undo it.
+        held.Actions &= ~PlayerActions.Seat;
         return held;
     }
 
