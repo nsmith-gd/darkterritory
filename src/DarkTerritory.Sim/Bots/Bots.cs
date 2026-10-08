@@ -1277,14 +1277,18 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // Hounds aboard. They stay, setting the car alight (note 269): the fit go along the roofs at them together (Heed.Hounds
             // swings once they're close); the hurt keep clear. Where they drop off when bored (stayAboard off), nobody goes near
             // them, and anyone close walks away.
+            // A pack that patrols (note 472) is spread over its ground: the fit go at the nearest of it they can fight (Heed.
+            // Fightable: on the roofs, not dropped into a car or mid-leap); the hurt keep clear of any of it.
             if (world.ActiveEnemies.FirstOrDefault(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0) is { } aboard)
             {
+                var me = self;
                 if (world.Enemies?.CinderHounds.StayAboard == true && self.Health >= Heed.PackFightHealth)
                 {
-                    if (aboard.Attached != parent)
-                        _direction = aboard.Attached < parent ? -1 : 1;
+                    if (world.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached >= 0 && Heed.Fightable(h, train, me))
+                        .OrderBy(h => Math.Abs(h.Attached - parent)).ThenBy(h => h.Id).FirstOrDefault() is { } nearest && nearest.Attached != parent)
+                        _direction = nearest.Attached < parent ? -1 : 1;
                 }
-                else if (aboard.Attached >= parent - 1)
+                else if (world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached >= parent - 1))
                     _direction = -1;
             }
             // The Car Hugger on a car with no platform to club it from: off that car and the one ahead of it, toward the engine,
@@ -3652,6 +3656,15 @@ public static class Heed
         return intent;
     }
 
+    /// <summary>
+    /// A hound aboard a crewmate can fight where it is (note 484, against note 472's patrol): on their side of the car's walls
+    /// (the hounds' own rule, <see cref="CinderHound.Reaches"/>: from the roofs, not one dropped into the car below; in a car,
+    /// the one in there with them), and not in the air over a gap, mid-leap (it lands on the next roof, and the walker who
+    /// ran at it ran off the end).
+    /// </summary>
+    public static bool Fightable(CinderHound h, TrainOnLine train, in PlayerState self) =>
+        h.Reaches(train, self) && h.Aboard != HoundMode.Leap;
+
     /// <summary>Health a bot wants before it wades into a pack fight (a hound bites for 45).</summary>
     public const int PackFightHealth = 55;
 
@@ -3665,7 +3678,9 @@ public static class Heed
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
-        var hound = world.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached >= 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+        var at = self;
+        var hound = world.ActiveEnemies.OfType<CinderHound>().Where(h => !h.Gone && h.Attached >= 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit
+                && Fightable(h, train, at))
             .Select(h => (h, At: h.WorldPosition(train))).Where(x => (x.At - me).Length <= 20).OrderBy(x => (x.At - me).Length).FirstOrDefault();
         if (hound.h is null || self.Health < PackFightHealth)
             return intent;
