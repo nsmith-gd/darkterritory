@@ -403,9 +403,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
         // Not with the Choir about: the hook goes out through an open side door.
-        _drop = tend && catches && !choir && _trouble is null ? NextDrop(world) : null;
+        // Trouble aside, a guttering lamp (note 346) in a car nobody's in, the nearest: in there, Heed.Gutter trims it. Before a
+        // bag: the lamp's on a clock (45 s and the car's dark, the Climbers' way in); a bag is pay. Only for whoever takes the
+        // errands (a gunner only with nobody else to send), and not with the Choir about.
+        _lampCar = tend && catches && !choir && _trouble is null ? GutterCar(world, here) : null;
+        _drop = tend && catches && !choir && _trouble is null && _lampCar is null ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
-        _warm.Into = _trouble?.Attached ?? _catchCar;
+        _warm.Into = _trouble?.Attached ?? _catchCar ?? _lampCar;
         if (_trouble is { } trouble)
             _warm.Indoors = s => Tend(s, trouble, world, Me);
         else if (_drop is { } drop && _catchCar is { } car && world.Lineside is { } lineside)
@@ -434,6 +438,26 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     Enemy? _trouble;
     Sim.Route.Drop? _drop;
     int? _catchCar;
+    int? _lampCar;
+
+    /// <summary>The nearest car of the engine's rake whose lamp is guttering (note 346) with no crewmate inside it, or null.</summary>
+    int? GutterCar(World world, int here)
+    {
+        var train = world.Train;
+        if (train.Gutter is null)
+            return null;
+        int? best = null;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Gutter <= 0 || !v.LampLit || v.Id == 0)
+                continue;
+            if (v.Id != here && Crew.Any(c => c.Id != Me && c.State.Alive && c.State.Parent == v.Id && PlayerMotor.Indoors(c.State, train)))
+                continue;
+            if (best is not { } b || Math.Abs(v.Id - here) < Math.Abs(b - here))
+                best = v.Id;
+        }
+        return best;
+    }
 
     /// <summary>The rest of the crew as its client sees them, by player id (who goes for the kit: <see cref="KitCarry"/>). Set by whoever runs it.</summary>
     public IReadOnlyList<(int Id, PlayerState State)> Crew { get; set; } = [];
@@ -794,7 +818,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             if (self.Surface == Surface.Roof && _warm is not { Active: true } && Hold(self, world) is { } holding)
                 return holding;
             // Trouble (or a bag to catch) in another car: head along the roofs for it (in through its door when we're there).
-            if ((_trouble?.Attached ?? _catchCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
+            if ((_trouble?.Attached ?? _catchCar ?? _lampCar) is { } goal && goal != parent && _warm is { Active: false } && self.Surface == Surface.Roof)
                 _direction = goal < parent ? -1 : 1;
             // Or the lip over a Dragger the look-out's making for, on another car (note 212).
             else if (lookAt is { } lip && lip != parent && _warm is not { Active: true } && self.Surface == Surface.Roof)
