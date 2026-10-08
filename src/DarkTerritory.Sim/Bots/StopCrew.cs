@@ -2268,7 +2268,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
                 return new PlayerIntent();
             }
             if (mine.Second == PlayerId)
-                return Follow(self, world, mine);
+                return _yardHelp == mine.Id && mine.Parent == PlayerState.World ? BackEnd(self, world, mine) : Follow(self, world, mine);
         }
         else if (mine is null && PlayerId is not null && Wanting(world, p) is { } wanting)
             return LendAHand(self, world, wanting);
@@ -2367,12 +2367,17 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return GetDown(self, train, side);
         // A crate from elsewhere in the yard in our arms (note 403): back round the sheds, and round the train if it was
         // across it, to these steps first.
-        if (mine is { Kind: Physics.BodyKind.Cargo }
+        if (mine is { Kind: Physics.BodyKind.Cargo or Physics.BodyKind.Heavy }
             && CrateHome(self, world, p, mine, frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 })) is { } back)
             return back;
         // On the far side of the train from the steps there's no way round on foot: put it down, over the train (the
         // walker climbs the nearest car; off it, we get down on this side), and back to it.
         var (_, across) = TrackCoords(train.Line, p.Spur.Index, self.Position, self.LineHint);
+        // Empty-handed out in the yard, or across the train from the steps (beaten to a heavy crate's other end, note 440):
+        // back round the sheds and the train to a car's steps first. The walker's way aboard goes straight at a ladder, and
+        // between a hero and the cars beside it, it stood there till we left.
+        if (mine is null && BackFromTheYard(self, world, p, Math.Sign(across) != side && Math.Abs(across) > 1.2) is { } yardBack)
+            return yardBack;
         if (Math.Sign(across) != side && Math.Abs(across) > 1.2)
         {
             Doing = "over the train";
@@ -2430,10 +2435,15 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         return Press();
     }
 
-    /// <summary>A heavy crate at the site with one holding it, waiting for a hand (a bot or anyone else).</summary>
+    /// <summary>
+    /// A heavy crate with one holding it, waiting for a hand (a bot or anyone else): at the site, or one a hand of ours has
+    /// gone for out in the yard (its claim on the crew's calls, note 440), if we're a crate hand not out at the houses ourselves
+    /// (a hand lent to the crates goes back to its own part when it's done, and the crate would be left half way).
+    /// </summary>
     Physics.Body? Wanting(World world, StopPlan p) =>
         world.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Heavy && b.Carrier >= 0 && b.Carrier != PlayerId && b.Second < 0
-            && (Physics.Bodies.WorldCentre(b, world.Train) - p.Site.CrateStack.FirstOrDefault()).Length < 60);
+            && (calls.SpotClaimed(CrateKey(b.Id), member) ? job == StopJob.Crates && _spot is null
+                : (Physics.Bodies.WorldCentre(b, world.Train) - p.Site.CrateStack.FirstOrDefault()).Length < 60));
 
     /// <summary>
     /// To the free end of a heavy crate someone's holding: across it from them (if they've said where they are, else from
@@ -2448,6 +2458,17 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var stand = at + (away.Length > 0.01 ? away.Normalized : new Double3(1, 0, 0)) * 0.9;
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, _plan!.Site.Side);
+        // Out in the yard (note 440): round the sheds and the train to it, as the one holding it went; and walked home by the
+        // same reckoning (BackEnd), not along where the crate's been.
+        _yardHelp = calls.SpotClaimed(CrateKey(crate.Id), member) ? crate.Id : -1;
+        if ((Flat(me) - Flat(stand)).Length > 4)
+        {
+            if (_path is null && OutFromTheTrain(self, train) is { } clear)
+                return clear;
+            Doing = "to lend a hand in the yard";
+            return Follow(self, train, stand);
+        }
+        _path = null;
         var (step, there) = WalkTo(self, train.Line, _plan!.Spur.Index, stand with { Y = at.Y }, null);
         if (!there && (Flat(self.Position) - Flat(stand)).Length > 0.25)
         {
