@@ -570,11 +570,11 @@ public static class TrainKit
             }
             float ym = win.Y0 + (win.Y1 - win.Y0) * 0.55f;
             k.Box(new Vector3(win.X0, ym - 0.02f, z - 0.05f), new Vector3(win.X1, ym + 0.02f, z - 0.03f), Kit.Faces.All & ~Kit.Faces.PosZ);
-            // An armoured visor over the window's top third, propped out (the driver's eye is under it).
-            float yv = win.Y1 - (win.Y1 - win.Y0) / 3;
+            // An armoured hood over the window, out from its top and barely down (the director, 8 Oct: hung down over the
+            // glass's top third, as it was, it filled the driver's view ahead with plate).
             Plate(k, 1.0f);
             k.Quad(new Vector3(win.X0 - 0.04f, win.Y1 + 0.02f, z), new Vector3(win.X1 + 0.04f, win.Y1 + 0.02f, z),
-                new Vector3(win.X1 + 0.04f, yv, z - 0.16f), new Vector3(win.X0 - 0.04f, yv, z - 0.16f), twoSided: true);
+                new Vector3(win.X1 + 0.04f, win.Y1 - 0.03f, z - 0.24f), new Vector3(win.X0 - 0.04f, win.Y1 - 0.03f, z - 0.24f), twoSided: true);
             Rusted(k).Shade(0.5f);
         }
 
@@ -1225,6 +1225,45 @@ public static class TrainKit
         MathF.Abs(t) <= RoofFlat ? top : top - (top - low - 0.08f) * 0.9f * (MathF.Abs(t) - RoofFlat) / (1 - RoofFlat);
 
     /// <summary>
+    /// The hatch the cab's ladder goes up to (note 280's ladder up from the cab floor to the forward gun; the director, 8 Oct:
+    /// "ladder in cab to nowhere"): over the climber at its top, a riveted coaming under the ceiling round the shut lid's
+    /// underside, dogged by two handles and hung on two hinges; and up on the roof, its coaming standing proud and the lid
+    /// on it.
+    /// </summary>
+    static void RoofHatch(Kit k, CarShape shape, float w, float roofLow, float roofTop)
+    {
+        foreach (var ladder in shape.Ladders.Where(d => d.Foot.Y > 0.2 && d.Inward.Z > 0))
+        {
+            // Over the climber (the rungs face +Z, the climber on the −Z side of them).
+            var c = new Vector3((float)ladder.Foot.X, 0, (float)ladder.Foot.Z - 0.33f);
+            const float HalfX = 0.3f, HalfZ = 0.28f, Rim = 0.05f;
+            // Inside: the coaming round the opening, down from the ceiling...
+            Iron(k).Shade(0.8f);
+            foreach (int s in new[] { -1, 1 })
+            {
+                k.Box(new Vector3(c.X - HalfX - Rim, roofLow - 0.09f, c.Z + s * HalfZ - Rim / 2), new Vector3(c.X + HalfX + Rim, roofLow, c.Z + s * HalfZ + Rim / 2));
+                k.Box(new Vector3(c.X + s * HalfX - Rim / 2, roofLow - 0.09f, c.Z - HalfZ), new Vector3(c.X + s * HalfX + Rim / 2, roofLow, c.Z + HalfZ));
+            }
+            // ...and the shut lid's underside up in it, its dogs (a handle each side) and its hinges at the back edge.
+            Plate(k, 0.7f);
+            k.Box(new Vector3(c.X - HalfX, roofLow - 0.03f, c.Z - HalfZ), new Vector3(c.X + HalfX, roofLow - 0.01f, c.Z + HalfZ), top: false);
+            Rusted(k).Shade(0.6f);
+            foreach (int s in new[] { -1, 1 })
+            {
+                k.Rod(new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z - 0.08f), new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z + 0.08f), 0.012f);
+                k.Box(new Vector3(c.X + s * 0.18f - 0.04f, roofLow - 0.06f, c.Z + HalfZ - 0.03f), new Vector3(c.X + s * 0.18f + 0.04f, roofLow - 0.02f, c.Z + HalfZ + 0.02f));
+            }
+            // Outside: the coaming proud of the roof where it stands there, and the lid shut down on it.
+            float t = c.X / (w + 0.12f), y = RoofProfile(t, roofTop, roofLow);
+            Plate(k, 1.0f);
+            k.Box(new Vector3(c.X - HalfX - Rim, y - 0.04f, c.Z - HalfZ - Rim), new Vector3(c.X + HalfX + Rim, y + 0.08f, c.Z + HalfZ + Rim));
+            Rusted(k).Shade(0.7f);
+            k.Box(new Vector3(c.X - HalfX - 0.02f, y + 0.08f, c.Z - HalfZ - 0.02f), new Vector3(c.X + HalfX + 0.02f, y + 0.11f, c.Z + HalfZ + 0.02f));
+            k.Rod(new Vector3(c.X - 0.1f, y + 0.13f, c.Z), new Vector3(c.X + 0.1f, y + 0.13f, c.Z), 0.015f);
+        }
+    }
+
+    /// <summary>
     /// The cab's roof (note 311): a helmet. Arched across and overhanging the sides, it rides the cab's length; at the
     /// front it narrows and droops into a brow out over the windows, and at the back it sweeps down in two shoulders onto
     /// the boiler's flanks (clear over the way beside the boiler: they start head-high there), so the cab and the boiler
@@ -1360,6 +1399,7 @@ public static class TrainKit
         // The roof: a helmet over the cab, its front drooping into a brow over the windows, its back sweeping down onto
         // the boiler (note 311).
         Roof(k, w, cabFront, cabBack, (float)shape.Solids.Where(x => x.Part == PartKind.CabRoof).Max(x => x.Box.Max.Z), roofLow, roofTop);
+        RoofHatch(k, shape, w, roofLow, roofTop);
 
         // Inside: the floor, and the backhead, turned to face forward from the back wall.
         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
