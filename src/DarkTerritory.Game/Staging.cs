@@ -1413,6 +1413,40 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Hounds aboard on patrol (note 472; <c>dt screenshot --patrol --view patrol</c>): with nobody they can reach, along the
+    /// second car's roof, one stopped sniffing, one mid-leap over the gap to the third car, and one dropping in at the second
+    /// car's open left side door (opened here). Each one's mode and facing in its Lateral, the mode's start in its LineDistance.
+    /// </summary>
+    public static List<Enemy> Patrol(TrainOnLine train)
+    {
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var shape = train.Frames[car].Shape;
+        double roof = shape.RoofHeight, end = shape.HalfLength;
+        var p = new HoundPatrolTuning();
+        if (shape.DoorList.FirstOrDefault(d => d.Box.Centre.X < -0.5 && Math.Abs(d.Box.Centre.Z) < 1) is { } door && !train.Vehicles[car].DoorOpen(door.Index))
+            train.Vehicles[car].ToggleDoor(door.Index);
+        var room = shape.Interior;
+        (HoundMode Mode, int Face, Double3 At, double Into)[] hounds =
+        [
+            (HoundMode.Patrol, 1, new Double3(0.6, roof, -end + 2.2), 0.4),
+            (HoundMode.Sniff, 0, new Double3(-0.6, roof, -end + 4.6), 1.2),
+            // Halfway over the coupling gap behind the car: the clip's arc carries it up off the roofs' line.
+            (HoundMode.Leap, 1, new Double3(0.6, roof, end + 0.75), p.LeapSeconds * 0.45),
+            (HoundMode.Drop, 3, room is { } r ? new Double3(-(r.HalfSize.X - 0.4), r.Min.Y, 0) : new Double3(-0.6, roof, 0), p.DropSeconds * 0.4),
+        ];
+        var list = new List<Enemy>();
+        for (int i = 0; i < hounds.Length; i++)
+        {
+            var (mode, face, at, into) = hounds[i];
+            var hound = new CinderHound(70 + i, 70);
+            const double seconds = 30;
+            hound.Restore(SpinePhase.Commit, seconds, 60, car, at, seconds - into, (int)mode * 4 + face, 0, 70, 0);
+            list.Add(hound);
+        }
+        return list;
+    }
+
+    /// <summary>
     /// A Dragger perched on a through-truss's top chord (note 435; <c>dt screenshot --route frontier:7 --truss --view ahead</c>):
     /// mid-span on the right, scraping (its limb reaching down off the steel), the train coming up on it.
     /// </summary>
