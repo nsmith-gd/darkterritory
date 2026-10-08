@@ -27,12 +27,14 @@ public sealed record CensusEntry(int Player, Post Post, double Slack, int On);
 /// <summary>
 /// The orchestrator's census (ARCHITECTURE §8 note 345; docs/design/orchestrator.md §3.1, §3.2 items 2–4; GDD App. F.3: threats
 /// orchestrated to "the number of active players"). Once a second, host only, with the director's think: each crewmate alive
-/// in the night, their <see cref="Post"/>, which engaged threats are on whom, and each one's slack: seconds out on the line
-/// since they last had something to answer. Something to answer is a threat on them (holding them, the nearest crewmate to
-/// it within <see cref="OrchestratorTuning.OnRadius"/>, or, with nobody that near, the nearest crewmate at a post that
-/// answers it: a pack running behind is the gunner's), or an open hot box (note 331) on their car or, for a walker, anywhere
-/// on the train; or, in the cab, a train on the move (the line is the driver's to answer). Deterministic: players by id,
-/// threats by id.
+/// in the night, their <see cref="Post"/>, which engaged threats are on whom, and each one's slack: seconds on the run between
+/// stops since they last had something to answer. Something to answer is:
+/// - a threat on them: holding them; else the nearest crewmate to it within <see cref="OrchestratorTuning.OnRadius"/>; else
+///   the nearest at a post that answers it (a pack running behind is the gunner's);
+/// - an upkeep job on their car (an open hot box, note 331; a guttering lamp, note 346), a hot box anywhere for a walker, or
+///   a guttering lamp anywhere for a rider;
+/// - in the cab, a train on the move (the line is the driver's to answer).
+/// Deterministic: players by id, threats by id.
 /// </summary>
 public sealed class Census
 {
@@ -89,13 +91,17 @@ public sealed class Census
         foreach (var e in active.Where(Director.Engaged).OrderBy(e => e.Id))
             if (On(e, posts, train, t) is { } who)
                 on[who] = on.GetValueOrDefault(who) + 1;
-        bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0);
+        bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0), anyGutter = train.Vehicles.Any(v => v.Gutter > 0);
         var seen = new HashSet<int>();
         foreach (var (id, post, _, parent) in posts)
         {
             seen.Add(id);
             int n = on.GetValueOrDefault(id);
-            bool hotBox = parent >= 0 && parent < train.Vehicles.Count && train.Vehicles[parent].HotBox > 0 || post == Post.Walker && anyHotBox;
+            // The upkeep jobs (orchestrator.md §5.1): an open hot box (note 331) is greased from the landing above it, the walkers'
+            // job; a guttering lamp (note 346) is trimmed inside the car, the riders'. Either on their own car is theirs.
+            bool onCar = parent >= 0 && parent < train.Vehicles.Count;
+            bool hotBox = onCar && (train.Vehicles[parent].HotBox > 0 || train.Vehicles[parent].Gutter > 0)
+                || post == Post.Walker && anyHotBox || post == Post.Rider && anyGutter;
             // The cab with the train moving has the line to answer: the boards and bends ahead, the fire and the gauge (§12's
             // conductor and boiler). Standing, it's as idle as anyone.
             bool driving = post == Post.Cab && Math.Abs(train.Dynamics.Velocity) > t.DrivingAbove;

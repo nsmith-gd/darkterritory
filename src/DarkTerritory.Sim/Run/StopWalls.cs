@@ -232,11 +232,12 @@ public sealed partial class StopWalls
                 if (!Walled(stop, i))
                     continue;
                 var b = stop.Buildings[i];
-                // An open house stands as its four walls with a door, and its cupboards and cabinets (note 326); the rest as
-                // their footprints' boxes.
+                // An open house stands as its four walls with a door, its cupboards and cabinets, and the heavy furniture a
+                // ransack left against its walls (note 326); the rest as their footprints' boxes.
                 int index = i;
                 List<(double X, double Y, double HalfX, double HalfY)> boxes = b.Open
-                    ? [.. OpenWalls(b), .. Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY))]
+                    ? [.. OpenWalls(b), .. Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)),
+                        .. ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY))]
                     : [.. (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)]).Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2))];
                 foreach (var (x, y, hx, hy) in boxes)
                 {

@@ -88,6 +88,22 @@ public class CensusTests
     }
 
     [Fact]
+    public void AGutteringLampIsARidersToTrim()
+    {
+        // Note 346: trimmed inside the car. A rider's, wherever it is on the train; not a walker's on another car.
+        var n = OnTheRun();
+        var layout = Tuning.Train.Geometry.Interior!;
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P) with { Surface = Surface.Deck, Position = new Double3(0, layout.FloorHeight, 0) };
+        var d = n.World.Director!;
+        n.Run(d.Grace + 20);
+        Assert.True(Of(n, 3).Slack > 10);
+        n.Train.Vehicles[4].Gutter = 1;
+        n.Run(1.1);
+        Assert.Equal(0, Of(n, 3).Slack);
+        Assert.True(Of(n, 2).Slack > 10);
+    }
+
+    [Fact]
     public void SlackPressesTheDirector()
     {
         // With slackPress low, the walker's slack adds slackPerSecond a second past it; census off, it doesn't.

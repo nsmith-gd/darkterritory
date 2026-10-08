@@ -582,7 +582,8 @@
       // (holding them; else the nearest crewmate within onRadius m; else the nearest at a post that answers it below: a pack
       // running behind is the gunner's); and their slack, the seconds on the run between stops (the train moving faster than
       // drivingAbove, past the grace, out of the forts and facilities, short of the final approach) since they last had something to
-      // answer (a threat on them; an open hot box, note 331, on their car or, for a walker, anywhere on the train; or, in the
+      // answer (a threat on them; an upkeep job on their car: an open hot box, note 331, or a guttering lamp, note 346; a hot box
+      // anywhere for a walker, a guttering lamp anywhere for a rider; or, in the
       // cab, the train moving faster than drivingAbove m/s: the line and the fire are the driver's to answer). It
       // counts whenever "on" is (the harness reports it); with census on too and minCrew or more alive it steers (a crew of
       // one is App. B.1's as it was):

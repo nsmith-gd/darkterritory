@@ -62,7 +62,8 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 **Built (note 345, queue #82)**, with these readings. One cab post: the driver and the fireman share it, and while the
 train is moving the line and the fire are its answer, so it isn't slack. A threat is on the crewmate it's holding, or
 the nearest within `onRadius` (20 m), or failing that the nearest at a post that answers it (`answers`: a pack running
-behind is the gunner's). An open hot box (note 331) is something to answer for anyone on its car and any walker. Slack
+behind is the gunner's). An open hot box (note 331) is something to answer for anyone on its car and any walker; a guttering lamp (note 346) for
+anyone on its car and any rider. Slack
 counts only on the run between stops: the train moving, past the grace, out of the forts and facilities, short of the
 final approach.
 

@@ -711,8 +711,57 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             int mine = train.Dynamics.Consist.IndexOf(parent);
             if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0 && mine >= held - 1))
                 _direction = -1;
+            // A hot axle box (note 331): to its car, down its end ladder into the gap behind it, and grease it.
+            if (_trouble is null && _warm is not { Active: true } && Grease(self, world) is { } greasing)
+                return greasing;
         }
         return Decide(self, train, tick);
+    }
+
+    /// <summary>
+    /// The nearest hot axle box nobody's at yet (note 331, <see cref="HotBoxes"/>): along the roofs to its car, to the roof's
+    /// back end over the ladder down into the gap behind it, down it, and Use held until it's greased (its box is in reach
+    /// from the ladder's foot). Greased, there's nothing to go to, and the walker climbs out of the gap as from any.
+    /// </summary>
+    PlayerIntent? Grease(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (train.HotBoxTuning is not { Enabled: true } t)
+            return null;
+        var me = PlayerMotor.WorldPosition(self, train);
+        int? hot = null;
+        double nearest = double.MaxValue;
+        for (int i = 1; i < train.Vehicles.Count && i < train.Frames.Count; i++)
+        {
+            if (train.Vehicles[i].HotBox <= 0)
+                continue;
+            var box = train.Frames[i].ToWorld(HotBoxes.Box(train.Frames[i].Shape, t));
+            if (Crew.Any(c => c.Id != Me && c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - box).Length <= t.Reach + 0.5))
+                continue;
+            double d = (box - me).Length;
+            if (d < nearest)
+                (hot, nearest) = (i, d);
+        }
+        if (hot is not { } car)
+            return null;
+        if (HotBoxes.Within(self, train, t) == car)
+            return new PlayerIntent { Buttons = PlayerButtons.Use };
+        double l = train.Frames[car].Shape.HalfLength;
+        switch (self.Surface)
+        {
+            case Surface.Ladder when self.Parent == car:
+                return new PlayerIntent { MoveZ = -1 };
+            case Surface.Roof when self.Parent == car:
+                {
+                    var (step, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX, 0, l - 0.35), Math.PI);
+                    return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
+                }
+            case Surface.Roof:
+                _direction = car < self.Parent ? -1 : 1;
+                return null;
+            default:
+                return null;
+        }
     }
 
     static double Wrap(double a) => Math.IEEERemainder(a, 2 * Math.PI);
@@ -2851,6 +2900,22 @@ public static class Heed
             return intent;
         int car = self.Parent;
         if (world.ActiveEnemies.Any(e => e is FireFlies f && !f.Gone && f.Attached == car) && tick % 2 == 0)
+            intent.Actions |= PlayerActions.CarLamp;
+        return intent;
+    }
+
+    /// <summary>
+    /// A lamp guttering (note 346): a bot in the car trims it with the lamp key. A press every half second while it's guttering
+    /// and nothing else is: the host's trim reaches this client a snapshot later, and a second press on a lamp burning steady
+    /// would put it out.
+    /// </summary>
+    public static PlayerIntent Gutter(PlayerIntent intent, in PlayerState self, World world, uint tick)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= world.Train.Vehicles.Count
+            || world.Train.Vehicles[self.Parent] is not { LampLit: true, Gutter: > 0 } || !PlayerMotor.Indoors(self, world.Train)
+            || intent.Has(PlayerActions.CarLamp))
+            return intent;
+        if (tick % (SimConstants.TickRate / 2) == 0)
             intent.Actions |= PlayerActions.CarLamp;
         return intent;
     }

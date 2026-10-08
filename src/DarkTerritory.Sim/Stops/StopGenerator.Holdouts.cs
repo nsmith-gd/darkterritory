@@ -238,7 +238,17 @@ public static partial class StopGenerator
             : g.Buildings.Select((b, i) => (b, i)).Where(x => x.b.Kind is BuildingKind.Shed or BuildingKind.Hero).ToList();
         var roost = roosts.Select(x => (x.b, x.i, m: walk.To(DoorOf(x.b, stopPoint)))).Where(x => x.m is not null).OrderByDescending(x => x.m).FirstOrDefault();
         if (roost.b is not null)
-            lairs.Add(new StopLair(LairKind.GauntRoost, roost.b.Zone, roost.b.Centre, Math.Max(roost.b.Length, roost.b.Width) / 2, roost.i));
+        {
+            // In an open house of parts (an L, a cross, a pair) its middle can be in a wall: the nest's in the middle of its
+            // biggest stretch of floor (note 326). Anywhere else, the building's middle, as before.
+            var at = roost.b.Centre;
+            if (roost.b.Open && Run.StopWalls.Composite(roost.b))
+            {
+                var (x0, y0, x1, y1) = Run.StopWalls.Outline(roost.b).Cells.MaxBy(c => (c.X1 - c.X0) * (c.Y1 - c.Y0));
+                at = Plan.World(roost.b, (x0 + x1) / 2, (y0 + y1) / 2);
+            }
+            lairs.Add(new StopLair(LairKind.GauntRoost, roost.b.Zone, at, Math.Max(roost.b.Length, roost.b.Width) / 2, roost.i));
+        }
 
         // Followers: the facility's loading ground, spread out (the nearest loading first, then the furthest from those).
         var loading = g.Containers.Where(c => c.Zone == StopZone.Yard).ToList();
