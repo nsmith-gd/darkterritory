@@ -588,6 +588,7 @@ public class WorldSoundTests
             Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
             Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
             Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            // A barn's hayloft and a shed's workbench, searchable since B4's #153 (note 417).
             Sim.Stops.ContainerKind.Hayloft => "crew-search.hayloft",
             Sim.Stops.ContainerKind.Bench => "crew-search.bench",
             _ => "crew-search.boards",
