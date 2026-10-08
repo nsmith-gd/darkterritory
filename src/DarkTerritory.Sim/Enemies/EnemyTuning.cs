@@ -32,6 +32,8 @@ public sealed record EnemyTuning(
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
     public FreightBeetleTuning FreightBeetle { get; init; } = new();
+    public BrakemanTuning Brakeman { get; init; } = new();
+    public HotboxTuning Hotbox { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -973,4 +975,56 @@ public sealed record FreightBeetleTuning
     public double Health { get; init; } = 6;
     public double FacilityReach { get; init; } = 80;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
+}
+
+/// <summary>The Brakeman (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 364). Field docs live in enemies.json.</summary>
+public sealed record BrakemanTuning
+{
+    public int MinCrew { get; init; } = 2;
+    public int MinCars { get; init; } = 4;
+    public double MovingAbove { get; init; } = 3;
+    public double ClimbSeconds { get; init; } = 2;
+    public double Walk { get; init; } = 2.5;
+    public double Flee { get; init; } = 5;
+    public double WindSeconds { get; init; } = 4;
+    public double Spook { get; init; } = 12;
+    public double Lose { get; init; } = 20;
+    public double[] Hide { get; init; } = [30, 60];
+    public double CornerSpan { get; init; } = 10;
+    public double LashEvery { get; init; } = 2.5;
+    public double LashReach { get; init; } = 2.5;
+    public int LashDamage { get; init; } = 30;
+    public double Health { get; init; } = 4;
+    public double PerCarsWeight { get; init; } = 6;
+    public double ClimbWeight { get; init; } = 2;
+    public double ClimbAhead { get; init; } = 1000;
+    public double ClimbPercent { get; init; } = 2;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Hotbox (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 367). Field docs live in enemies.json.</summary>
+public sealed record HotboxTuning
+{
+    public double BoardAbove { get; init; } = 10;
+    public double RefSpeed { get; init; } = 18;
+    public double KnockSeconds { get; init; } = 90;
+    public double GlowSeconds { get; init; } = 90;
+    public double WheelDiameter { get; init; } = 0.9;
+    public double SeizedTopSpeed { get; init; } = 7;
+    public double SeizedHold { get; init; } = 1.5;
+    public double StoodBelow { get; init; } = 0.3;
+    public double ExposeAfter { get; init; } = 2;
+    public double Health { get; init; } = 6;
+    public double PriseSeconds { get; init; } = 4;
+    public double PriseReach { get; init; } = 1.8;
+    public double ScuttleSeconds { get; init; } = 3;
+    public double SnapReach { get; init; } = 1.2;
+    public int SnapDamage { get; init; } = 25;
+    public double SnapEvery { get; init; } = 3;
+    public double RepairSeconds { get; init; } = 10;
+    public double RepairReach { get; init; } = 2.2;
+    public double BogieInset { get; init; } = 1.6;
+    public double Inboard { get; init; } = 0.35;
+    public double AxleHeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.75 };
 }

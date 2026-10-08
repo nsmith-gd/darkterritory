@@ -372,6 +372,43 @@ public static class Spawns
             c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
             return true;
         }),
+        // B.4 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
+        // harder, the longer the train and with a climb ahead.
+        new(EnemyKind.Brakeman, c =>
+        {
+            var t = c.Tuning.Brakeman;
+            if (c.Living.Count() < t.MinCrew || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.MovingAbove
+                || !c.None(EnemyKind.Brakeman) || c.World.Slain.Contains(EnemyKind.Brakeman) || c.World.TrainInFort
+                || c.World.Route?.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(c.Front)) == true)
+                return null;
+            bool climb = false;
+            for (double at = c.Front; at <= c.Front + t.ClimbAhead && !climb; at += 50)
+                climb = c.Train.Line.Sample(c.Train.Dynamics.Path, at).GradePercent >= t.ClimbPercent;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier) * c.Train.Dynamics.Consist.CarCount / t.PerCarsWeight * (climb ? t.ClimbWeight : 1);
+        }, c =>
+        {
+            c.Add(i => Brakeman.AtFarEnd(i, c.Train, c.Living, c.Tuning.Brakeman));
+            return true;
+        }),
+        // B.3 · Hotbox (note 367): into a truck of a car of the engine's rake, the train running over its speed; every tier,
+        // more the harder; one at a time; a car whose axle's already seized isn't taken again.
+        new(EnemyKind.Hotbox, c =>
+        {
+            var t = c.Tuning.Hotbox;
+            if (c.Train.Dynamics.Speed < t.BoardAbove || !c.None(EnemyKind.Hotbox) || c.World.TrainInFort || Hotbox.Cars(c.Train).Count == 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var cars = Hotbox.Cars(c.Train);
+            if (cars.Count == 0)
+                return false;
+            int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+            bool rear = c.Director.NextRange(0, 1) < 0.5;
+            int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+            c.Add(i => Hotbox.In(i, c.Train, car, rear, side, c.Tuning.Hotbox));
+            return true;
+        }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
         // it peels off and comes back on its own, until it's killed or gives up.

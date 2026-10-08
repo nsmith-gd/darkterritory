@@ -131,7 +131,10 @@
     // Child-high, hunched over (note 362).
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
     // Its plated back, a handcart's bulk (note 366).
-    "freightBeetle": [[0.75, 0.7], [0.6, 0.7]]
+    "freightBeetle": [[0.75, 0.7], [0.6, 0.7]],
+    // A stooped man (note 364); Hotbox half out of its truck, low (note 367).
+    "brakeman": [[0.4, 0.5], [0.4, 1.1], [0.3, 1.55]],
+    "hotbox": [[0.45, 0.2]]
   },
   "gauntAsleep": 0.35,
 
@@ -380,6 +383,43 @@
     "startleWithin": 1.5, "startleSeconds": 2, "driveOffBlows": 3, "driveOffSeconds": 10, "awaySeconds": 30, "health": 6,
     "facilityReach": 80,
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
+  },
+
+  // THE BRAKEMAN · sight · flank (GDD §21, App. A.4, B.4; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 364;
+  // docs/design/creatures/brakeman.md). A dead railwayman winding the brakes on. He climbs up (climbSeconds) at the end of
+  // the moving train furthest from the crew on the roofs and works toward the other end at walk m/s, winding each car's
+  // handbrake on at its wheel (windSeconds): a wound car's own handbrake drags the train (train.json couplings.handbrakeDecel
+  // of its mass), until a crewmate unwinds it there (Use held handbrakeSeconds). A crewmate on the roofs within spook m and
+  // he runs from them at flee m/s (a roof run is 3.5) and ducks their blows; at the train's end, or lose m clear of them all,
+  // he drops out of sight for hide s and comes up again at the far end. Crewmates on the roofs within cornerSpan m on both
+  // sides of him corner him: blows land (health in blows), and he lashes the nearer within lashReach every lashEvery s for
+  // lashDamage (never a kill). Spawns (B.4): never with fewer than minCrew alive (the brief: "never spawns solo"), at least
+  // minCars cars, the train over movingAbove m/s; every tier, tierWeights; up with the train's length (cars / perCarsWeight)
+  // and climbWeight times with a climb of climbPercent % or more within climbAhead m.
+  "brakeman": {
+    "minCrew": 2, "minCars": 4, "movingAbove": 3, "climbSeconds": 2, "walk": 2.5, "flee": 5, "windSeconds": 4,
+    "spook": 12, "lose": 20, "hide": [30, 60], "cornerSpan": 10, "lashEvery": 2.5, "lashReach": 2.5, "lashDamage": 30, "health": 4,
+    "perCarsWeight": 6, "climbWeight": 2, "climbAhead": 1000, "climbPercent": 2,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
+  },
+
+  // HOTBOX · vibration · train (GDD §21, App. A.3, B.3; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 367;
+  // docs/design/creatures/hotbox.md). An axle parasite in one truck, one side, of a car of the engine's rake. Over
+  // boardAbove m/s it takes a truck bogieInset m in from the car's end, inboard m in from its side, axleHeight m up. It heats
+  // a second a second at refSpeed m/s (in proportion to the speed): knocking (once a turn of a wheelDiameter m wheel) for
+  // knockSeconds, then glowing and smoking glowSeconds, then the axle's seized: the train's held to seizedTopSpeed m/s (over
+  // it a drag of seizedHold times what the engine can pull) while the car's in it. Never fire, never a derailment. Stood
+  // under stoodBelow m/s for exposeAfter s it half unfolds (a blow lands; health in blows; it bites snapDamage at anyone
+  // within snapReach every snapEvery s, never a kill); Use held priseSeconds within priseReach with a crowbar or a wrench
+  // prises it out (it scuttles off over scuttleSeconds). Moving again it folds back. A seized axle stays seized once it's
+  // out: a wrench held repairSeconds within repairReach of one of the car's trucks frees it (or cut the car). Spawns (B.3):
+  // every tier, tierWeights; one at a time.
+  "hotbox": {
+    "boardAbove": 10, "refSpeed": 18, "knockSeconds": 90, "glowSeconds": 90, "wheelDiameter": 0.9,
+    "seizedTopSpeed": 7, "seizedHold": 1.5, "stoodBelow": 0.3, "exposeAfter": 2, "health": 6,
+    "priseSeconds": 4, "priseReach": 1.8, "scuttleSeconds": 3, "snapReach": 1.2, "snapDamage": 25, "snapEvery": 3,
+    "repairSeconds": 10, "repairReach": 2.2, "bogieInset": 1.6, "inboard": 0.35, "axleHeight": 0.5,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.75 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -761,7 +801,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "brakeman": 3, "hotbox": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -803,6 +843,13 @@
       // overhead.
       ["freightBeetle", "facilityLoading"],
       ["grumbler", "freightBeetle"],
+      // The Brakeman (note 364): up on the roofs after him vs. walking the roofs is what the Gannet dives at; run the roofs vs.
+      // the edges the Draggers hold; keep the speed up for the hounds vs. he's winding the brakes on.
+      ["brakeman", "gannet"],
+      ["draggers", "brakeman"],
+      ["cinderHounds", "brakeman"],
+      // Hotbox (note 367): run fast for the hounds vs. stop to pull it before it seizes.
+      ["cinderHounds", "hotbox"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

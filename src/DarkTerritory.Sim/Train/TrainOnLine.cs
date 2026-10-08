@@ -22,7 +22,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0);
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, bool Wound = false, bool Seized = false);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -331,7 +331,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Wound, v.Seized)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -354,6 +354,8 @@ public sealed class TrainOnLine
             vehicle.Char = v.Char is { } c ? (byte[])c.Clone() : [];
             vehicle.HotBox = v.HotBox;
             vehicle.Gutter = v.Gutter;
+            vehicle.Wound = v.Wound;
+            vehicle.Seized = v.Seized;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
@@ -501,8 +503,37 @@ public sealed class TrainOnLine
             // And an engine short of steam holds back the speed its steam can't make (boiler.json starvedDecel, note 319).
             + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0)
             // And its hot boxes run dry (upkeep.json hotBox, note 331): each takes some top speed off it.
-            + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0),
+            + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0)
+            // And what the creatures have done to its cars: brakes the Brakeman wound on, an axle Hotbox seized (notes 364, 367).
+            + CreatureDrag(rake),
     };
+
+    /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>
+    public double SeizedTopSpeed { get; set; } = 7;
+    /// <summary>Over it, the drag as a share of what the engine can pull (enemies.json <c>hotbox.seizedHold</c>).</summary>
+    public double SeizedHold { get; set; } = 1.1;
+    /// <summary>How a seized axle's repaired (enemies.json <c>hotbox</c>), when the creatures are on; null, nothing seizes.</summary>
+    public Enemies.HotboxTuning? SeizedRepair { get; set; }
+
+    /// <summary>
+    /// A rake's drag from its wound handbrakes (each car's handbrake on its own mass, as a standing rake's are: note 364) and
+    /// its seized axles (over <see cref="SeizedTopSpeed"/>, more than the engine can pull: note 367). The same on every machine.
+    /// </summary>
+    double CreatureDrag(TrainDynamics rake)
+    {
+        double wound = 0;
+        bool seized = false;
+        foreach (var v in rake.Consist.Vehicles)
+        {
+            if (v.Wound)
+                wound += v.MassTonnes(rake.Tuning);
+            seized |= v.Seized;
+        }
+        double drag = wound > 0 ? rake.Tuning.Couplings.HandbrakeDecel * wound / rake.Consist.MassTonnes : 0;
+        if (seized && rake.Speed > SeizedTopSpeed)
+            drag += SeizedHold * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes;
+        return drag;
+    }
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>
     void TakeSwitches(TrainDynamics rake)

@@ -969,6 +969,8 @@ public sealed class Director
         && e is not Gannet { Mode: GannetMode.Away }
         // The Mourners (note 362) hunt nobody: they come for the dead, and cost the caps nothing.
         && e.Kind != EnemyKind.Mourners
+        // Nor a Brakeman out of sight under the train (note 364), waiting to come up again.
+        && e is not Brakeman { Mode: BrakemanMode.Hidden }
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
             || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
@@ -1027,6 +1029,8 @@ public sealed class Director
                 EnemyKind.Gannet => new Gannet(0),
                 EnemyKind.Mourners => new Mourner(0),
                 EnemyKind.FreightBeetle => new FreightBeetle(0),
+                EnemyKind.Brakeman => new Brakeman(0),
+                EnemyKind.Hotbox => new Hotbox(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

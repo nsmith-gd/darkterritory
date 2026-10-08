@@ -359,6 +359,10 @@ public sealed class World
         Enemies = tuning;
         Route = route;
         Authority = authority;
+        // A seized axle's hold on the train (note 367), on every machine alike: prediction drags as the host does.
+        Train.SeizedTopSpeed = tuning.Hotbox.SeizedTopSpeed;
+        Train.SeizedHold = tuning.Hotbox.SeizedHold;
+        Train.SeizedRepair = tuning.Hotbox;
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
