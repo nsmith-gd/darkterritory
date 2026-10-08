@@ -2546,6 +2546,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         return RoofWalkerBot.Board(self, train, roofOnly: true);
     }
 
+    /// <summary>
+    /// Note 380: the cut behind <paramref name="car"/> by the roofs only, for a train running faster than anyone runs: along
+    /// them to the gap, down onto its plate, and Uncouple. Null off the roofs (in a car, on a ladder): <see cref="CutLoose"/>'s
+    /// way round there is the ballast, which only a standing train's crew can take. On frontier:3's hot run two walkers in
+    /// cars 3 and 4, sent to a cut at 9 m/s, stepped out of their side doors to go round and were left 48 hp each.
+    /// </summary>
+    public PlayerIntent? CutFromTheRoofs(in PlayerState self, World world, int car) => CutAt(self, world.Train, car);
+
     PlayerIntent? CutAt(in PlayerState self, TrainOnLine train, int car)
     {
         if (self.Surface == Surface.Coupler && self.Parent == car)
