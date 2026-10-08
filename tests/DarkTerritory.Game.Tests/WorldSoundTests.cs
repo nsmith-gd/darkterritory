@@ -407,6 +407,55 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough()
+    {
+        // Note 412 (note 326): each kind of hiding spot its own sound, held where it's kept while the search is under way as
+        // the host has it (a client's view: Run.MirrorSearch), cut when the hands come off; the find once, as it's gone through.
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 1);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), 900, Boilers);
+        var world = new World(train);
+        world.EnableRun(Runs, route, 600, authority: false, loot: DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(Content, Sim.Stops.LootTuning.File)));
+        var run = world.Run!;
+        Assert.NotEmpty(run.HidingSpots);
+        var audio = new GameAudio(Content);
+        static string CueOf(Sim.Stops.ContainerKind kind) => kind switch
+        {
+            Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
+            Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
+            Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            _ => "crew-search.boards",
+        };
+        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards");
+        Stand(audio, "crew-search.found");
+        bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
+        var ears = new Ears(audio, world);
+        var kinds = run.HidingSpots.GroupBy(h => h.Container.Kind).Select(g => g.First()).ToList();
+        Assert.True(kinds.Count >= 3, $"only {kinds.Count} kinds of hiding spot on the night");
+        foreach (var spot in kinds)
+        {
+            string cue = CueOf(spot.Container.Kind);
+            var ear = spot.Kept + spot.Facing * 1.5 + Double3.Up * 1.6;
+            ears.Tick(ear);
+            Assert.False(Sounding(cue));
+            // Under way: held where it's kept.
+            run.MirrorSearch(spot.Stop, [], [(spot.Container.Index, 0.3)]);
+            ears.Tick(ear, 5);
+            Assert.True(Sounding(cue), cue);
+            Assert.True((audio.Mixer.Voices.First(v => v.Name == cue && !v.Stopped).Position - spot.Kept).Length < 1.5);
+            // Hands off: cut.
+            run.MirrorSearch(spot.Stop, [], []);
+            ears.Tick(ear, 2);
+            Assert.False(Sounding(cue));
+            // Gone through: the find, once.
+            int found = ears.Started.Count(v => v.Name == "crew-search.found");
+            run.MirrorSearch(spot.Stop, [spot.Container.Index], []);
+            ears.Tick(ear, SimConstants.TickRate);
+            Assert.Equal(found + 1, ears.Started.Count(v => v.Name == "crew-search.found"));
+            Assert.False(Sounding(cue));
+        }
+    }
+
+    [Fact]
     public void AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp()
     {
         // Note 409 (B4's note 401): a house door shut or opened, off the replicated state, once a change, in its doorway: in
