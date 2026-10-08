@@ -73,8 +73,9 @@ public class HandShadowTests
         var plain = renderer.Render(Scene(true, false), Above, light, light.FogColor);
         var output = TestContext.Current.TestOutputHelper;
 
-        // Behind each post, and under the plate: a face each.
-        foreach (var behind in new[] { new Vector3(1.6f, Floor, 0), new Vector3(-1.6f, Floor, 0), new Vector3(0, Floor, 1.6f), new Vector3(0, Floor, -1.6f), new Vector3(0, Floor, 0) })
+        // Behind each post, and under the plate (its shadow's twice its width on the floor; from up here the plate hides
+        // only the middle of it): a face each.
+        foreach (var behind in new[] { new Vector3(1.6f, Floor, 0), new Vector3(-1.6f, Floor, 0), new Vector3(0, Floor, 1.6f), new Vector3(0, Floor, -1.6f), new Vector3(0.155f, Floor, 0) })
         {
             float s = Luma(shadowed, behind), p = Luma(plain, behind);
             output?.WriteLine($"behind {behind}: {s:0} shadowed, {p:0} plain");
