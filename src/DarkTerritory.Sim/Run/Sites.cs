@@ -20,6 +20,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public LiftTuning Lift { get; init; } = new();
     /// <summary>The grain elevator's conveyor line (spec D.2; queue #136, note 400).</summary>
     public ConveyorTuning Conveyor { get; init; } = new();
+    /// <summary>The mine head's tipple (spec D.2; queue #159, note 423).</summary>
+    public TippleTuning Tipple { get; init; } = new();
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
     public DerelictsTuning Derelicts { get; init; } = new();
@@ -29,6 +31,45 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
 
     /// <summary>On a spur, the modules are laid out from this far back from its buffer stop (beside the first cars).</summary>
     public double SpurLayout { get; init; } = 45;
+
+    /// <summary>
+    /// Each stop's own modules (spec D.1: "POIs are procedurally assembled from a module grammar, so no two facilities operate
+    /// identically"; queue #185, note 449): drawn per stop from its kind's (<see cref="ModulesFor"/>). Off, every facility has
+    /// all its kind's, as before.
+    /// </summary>
+    public ModuleDrawTuning Draw { get; init; } = new();
+
+    /// <summary>The modules a kind can draw beyond its own list (note 449): only drawn, never part of the full set.</summary>
+    public Dictionary<string, string[]> Extras { get; init; } = new();
+
+    /// <summary>
+    /// This stop's modules (note 449): a facility the route gives its own (T44) has those; otherwise, with the draw on, its
+    /// kind's first module (its signature: the spout, the crane, the lift) and the rest of its kind's list and its extras each
+    /// with <see cref="ModuleDrawTuning.Chance"/>, from the night's seed and the facility's place in the night, filled up to
+    /// the fewest and cut to the most in that order (the kind's own first); with it off, all its kind's.
+    /// </summary>
+    public IReadOnlyList<ModuleKind> ModulesFor(RouteFeature facility, ulong seed, int index)
+    {
+        var all = ModulesOf(facility);
+        if (!Draw.Enabled || facility.Modules is not null || facility.Facility is not { } kind || all.Count == 0)
+            return all;
+        var offered = all.Skip(1).Concat(Names(Extras, kind).Where(m => !all.Contains(m))).ToList();
+        var rng = new Pcg32(seed ^ 0x4D4F44554C4553UL, (ulong)index * 2 + 1);
+        var drawn = new bool[offered.Count];
+        for (int i = 0; i < offered.Count; i++)
+            drawn[i] = rng.NextDouble() < Draw.Chance;
+        for (int i = 0; i < offered.Count && 1 + drawn.Count(d => d) < Draw.Count[0]; i++)
+            drawn[i] = true;
+        var modules = new List<ModuleKind> { all[0] };
+        for (int i = 0; i < offered.Count && modules.Count < Draw.Count[^1]; i++)
+            if (drawn[i])
+                modules.Add(offered[i]);
+        return modules;
+    }
+
+    static IEnumerable<ModuleKind> Names(Dictionary<string, string[]> byKind, FacilityKind kind) =>
+        byKind.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var names)
+            ? names.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true)) : [];
 
     /// <summary>A facility's modules: its own, if the route gives it some (T44), else its kind's.</summary>
     public IReadOnlyList<ModuleKind> ModulesOf(RouteFeature facility) =>
@@ -49,6 +90,14 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
             ? [.. names.Select(n => Enum.Parse<ModuleKind>(n, ignoreCase: true))]
             : [];
     }
+}
+
+/// <summary>Each stop's own modules (spec D.1; queue #185, note 449). Field docs in facilities.json.</summary>
+public sealed record ModuleDrawTuning
+{
+    public bool Enabled { get; init; }
+    public double Chance { get; init; } = 0.6;
+    public int[] Count { get; init; } = [2, 4];
 }
 
 public sealed record CrateTuning(int[] Count, double LoadPerCrate, double SettleSeconds, double Lateral, double Along)
@@ -198,6 +247,34 @@ public sealed record ConveyorTuning
     public double ClearSeconds { get; init; } = 2.5;
     public double StallSeconds { get; init; } = 20;
     public double NearBelt { get; init; } = 25;
+}
+
+/// <summary>
+/// The mine head's tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; queue
+/// #159, note 423). Field docs in facilities.json.
+/// </summary>
+public sealed record TippleTuning
+{
+    public double Back { get; init; } = 84;
+    public double BehindLift { get; init; } = 15.5;
+    public double BinLateral { get; init; } = 7;
+    public double BinHeight { get; init; } = 6;
+    public double LeverAlong { get; init; } = 3.5;
+    public double LeverLateral { get; init; } = 3.6;
+    public double LeverReach { get; init; } = 1.3;
+    public double Tolerance { get; init; } = 1.2;
+    public double GoodClamp { get; init; } = 0.6;
+    public double ClampSeconds { get; init; } = 1.5;
+    public double RollSeconds { get; init; } = 6;
+    public double BackSeconds { get; init; } = 3;
+    public double PerRoll { get; init; } = 0.5;
+    public double Ore { get; init; } = 3;
+    public double BadAt { get; init; } = 0.3;
+    public double Spill { get; init; } = 0.5;
+    public double DerailDamage { get; init; } = 0.2;
+    public double RerailSeconds { get; init; } = 20;
+    public double RerailReach { get; init; } = 2.5;
+    public double RollDegrees { get; init; } = 150;
 }
 
 /// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
@@ -353,10 +430,22 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public double JamFor { get; init; }
     public double Start { get; init; }
     public double Clear { get; init; }
+    /// <summary>
+    /// The tipple's (note 423): the ore left in its bin, the car clamped in the cradle (−1 none) and whether the clamp is good,
+    /// how far over it's rolled (0..1) and whether it's rolling back, how far through clamping someone is (s held), and how
+    /// far a car off its rails at it is put back (s of wrench work).
+    /// </summary>
+    public double TippleOre { get; init; }
+    public int Clamped { get; init; } = -1;
+    public bool GoodClamp { get; init; }
+    public double Roll { get; init; }
+    public bool RollingBack { get; init; }
+    public double Clamp { get; init; }
+    public double Rerail { get; init; }
 }
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift, Conveyor }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift, Conveyor, Tipple }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -448,6 +537,19 @@ public sealed class Site
             ConveyorTail = At(ConveyorAlong - mid + c.Run, c.TailLateral, c.BeltHeight);
             ConveyorStarter = At(ConveyorAlong - mid + c.Run + c.StarterAlong, c.StarterLateral, 0.9);
             Grain = c.Grain;
+        }
+        if (Has(ModuleKind.Tipple))
+        {
+            // The cradle on the track a car's pitch behind the lift's chute, so a car under the chute and the one behind it in the
+            // cradle load at once (without a lift, laid from the buffer stop as the spout is); the ore bin out on the site's side
+            // with its chute over where a car rolled toward it would take it, the lever on from it.
+            var tp = t.Tipple;
+            double back = Math.Min(tp.Back, Math.Max(0, (room ?? track.Length - mid) - 4));
+            TippleAlong = Has(ModuleKind.Lift) ? Math.Max(0, LiftAlong - tp.BehindLift) : room is null ? mid : Math.Max(0, track.Length - back);
+            Cradle = At(TippleAlong - mid, 0);
+            TippleBin = At(TippleAlong - mid, tp.BinLateral, tp.BinHeight);
+            TippleLever = At(TippleAlong - mid + tp.LeverAlong, tp.LeverLateral, 0.9);
+            TippleOre = tp.Ore;
         }
         if (Has(ModuleKind.Ramp))
         {
@@ -545,6 +647,27 @@ public sealed class Site
     /// <summary>Where the jam is: on the low run, from the tail to the knee.</summary>
     public Double3 JamAt => Double3.Lerp(ConveyorTail, ConveyorKnee, Math.Clamp(Jam, 0, 1));
 
+    /// <summary>
+    /// The tipple (note 423): its cradle on the track and how far along the track it is, the ore bin's chute out on the site's
+    /// side, its lever; the ore left in the bin.
+    /// </summary>
+    public Double3 Cradle { get; }
+    public double TippleAlong { get; }
+    public Double3 TippleBin { get; }
+    public Double3 TippleLever { get; }
+    public double TippleOre { get; internal set; }
+    /// <summary>The car clamped in the cradle (−1 none), and whether it was clamped true (a bad clamp derails it on the roll).</summary>
+    public int Clamped { get; internal set; } = -1;
+    public bool GoodClamp { get; internal set; }
+    /// <summary>How far over the cradle has rolled its car (0..1), and whether it's on its way back.</summary>
+    public double Roll { get; internal set; }
+    public bool RollingBack { get; internal set; }
+    /// <summary>Seconds someone's held the lever to clamp; seconds of wrench work on a car off its rails here.</summary>
+    public double Clamp { get; internal set; }
+    public double Rerail { get; internal set; }
+    /// <summary>Who's on the tipple's lever this tick (−1 nobody), and how many have a wrench to a car off its rails here. Host only.</summary>
+    internal int Tippler = -1, Rerailers;
+
     /// <summary>The ramp's top by the cars, the pen out beyond it, the head penned at the start and left.</summary>
     public Double3 RampTop { get; }
     public Double3 Pen { get; }
@@ -613,6 +736,12 @@ public sealed class Site
             yield return LiftChute;
             yield return Headframe;
             yield return LiftLever;
+        }
+        if (Has(ModuleKind.Tipple))
+        {
+            yield return Cradle;
+            yield return TippleBin with { Y = Cradle.Y };
+            yield return TippleLever;
         }
         if (Has(ModuleKind.Conveyor))
         {
@@ -742,6 +871,13 @@ public sealed class Site
         JamFor = JamFor,
         Start = Start,
         Clear = Clear,
+        TippleOre = TippleOre,
+        Clamped = Clamped,
+        GoodClamp = GoodClamp,
+        Roll = Roll,
+        RollingBack = RollingBack,
+        Clamp = Clamp,
+        Rerail = Rerail,
     };
 
     /// <summary>Client side: adopts the host's state.</summary>
@@ -773,5 +909,12 @@ public sealed class Site
         JamFor = s.JamFor;
         Start = s.Start;
         Clear = s.Clear;
+        TippleOre = s.TippleOre;
+        Clamped = s.Clamped;
+        GoodClamp = s.GoodClamp;
+        Roll = s.Roll;
+        RollingBack = s.RollingBack;
+        Clamp = s.Clamp;
+        Rerail = s.Rerail;
     }
 }
