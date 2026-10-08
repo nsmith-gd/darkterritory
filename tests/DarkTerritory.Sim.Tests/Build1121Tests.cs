@@ -184,7 +184,7 @@ public class Build1121Tests
         // "If the fireman is at the firebox, they can catch it on the way in." Then: "it should stay gone for at least a
         // couple minutes after it's been defeated."
         var n = Standing(70);
-        n.Crew[1] = AtTheFirebox(n.Train) with { Yaw = Math.PI }; // turned round at the scrape on the coal
+        n.Crew[1] = AtTheFirebox(n.Train) with { Yaw = 0.5 }; // turned to the scrape on the coal at the left (note 280)
         RunHot(n, 60, Tuning.Boiler.FireboxCapacity, until: () => StokerOf(n) is not null);
         var stoker = StokerOf(n)!;
         for (int i = 0; i < E.Stoker.BoardSeconds * SimConstants.TickRate && !stoker.Gone; i++)
