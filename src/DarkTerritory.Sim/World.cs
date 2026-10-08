@@ -716,7 +716,11 @@ public sealed class World
     Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
     {
         if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
+        {
             walls.Add(side.Walls(Forts ?? [], t.LinesideReachM));
+            // And the alternates' and dead lines' pines, out as far from their own track.
+            walls.Add(side.BranchWalls(t.LinesideReachM));
+        }
         return walls;
     }
 
