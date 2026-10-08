@@ -2205,12 +2205,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>
     /// The smashed forward lamp (note 301, slice 2): forward to the cab's front windows, the wrench into hand and Use held
-    /// there, the train left as it's going for the few seconds it takes. Null with the lamp whole or the bot out of the cab.
+    /// there, the train left as it's going for the few seconds it takes. Null with the lamp whole or the bot out of the cab,
+    /// or with the Climber that smashed it still in the cab: it takes whoever comes within its reach, so the driver keeps to
+    /// its corner (<see cref="KeepClear"/>) and the glass waits (a harness night's driver, sent to mend it across the cab,
+    /// was taken at km 3 and the train stood the rest of the night).
     /// </summary>
     PlayerIntent? MendLamp(in PlayerState self, World world)
     {
         var train = world.Train;
-        if (!Repairs.LampSmashed(train) || !self.Alive || !PlayerMotor.InCab(self, train) || train.Frames[0].Shape.Cab is not { } cab)
+        if (!Repairs.LampSmashed(train) || !self.Alive || !PlayerMotor.InCab(self, train) || train.Frames[0].Shape.Cab is not { } cab
+            || world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
             return null;
         // Forward to the windows first (the driver works the controls from anywhere in the cab).
         if (!Repairs.AtLamp(self, train))
