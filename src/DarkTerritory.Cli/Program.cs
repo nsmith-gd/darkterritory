@@ -72,6 +72,7 @@ return args switch
     ["art", "clearance", ..] => Print(ArtClearance(content, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
+    ["holes", ..] => Print(HolesCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
     ["screenshot", ..] when args.Contains("--hud") || args.Contains("--hurt") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
@@ -452,13 +453,14 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
     }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
-    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
+    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them;
+    // --stock: the train stocked as a night leaves the fortress (the guard van's hand lamps among it, note 492).
     if (args.Contains("--empty"))
         run = run with { DepartureLoad = 0 };
     if (args.Contains("--no-crates"))
         facilities = facilities with { Crates = facilities.Crates with { Count = [0, 0], Heavy = facilities.Crates.Heavy with { Count = [0, 0] } } };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
-        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
+        (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength), stock: args.Contains("--stock"));
     return new
     {
         route = at.Route.Name,
@@ -492,6 +494,7 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         order = r.Order,
         // The wreck yard's heaps (note 187).
         heaps = r.Heaps.Select(h => new { found = h.Found, unfound = h.Unfound, shifts = h.Shifts, stability = h.Stability }),
+        lampsLeft = r.LampsLeft,
         stops = r.Stops.Select(x => new { x.Kind, x.Seconds }),
     };
 }
@@ -1534,6 +1537,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+        StagedHealing = Str(args, "--grumbler", "") == "heal", // a Grumbler healing a lone crewmate's blows (note 487)
         EyeBreathes = args.Contains("--breathe"), // the eye breathes on the glass it's near (note 485)
         // --utility i[,j]: those cars drawn as utility cars, fitted out for the crew (the sim has no utility kind yet).
         Utility = Str(args, "--utility", "") is { Length: > 0 } utilities && utilities.Split(',').Select(int.Parse).ToHashSet() is var utilitySet

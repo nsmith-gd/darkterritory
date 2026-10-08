@@ -1280,6 +1280,15 @@ public static class MaritimeKit
                     break;
                 case YardKind.Boards:
                     k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+                    if (z1 - z0 > x1 - x0)
+                    {
+                        // Down the lot's side, beside a lane (note 353).
+                        float xm = (x0 + x1) / 2;
+                        k.Quad(new Vector3(xm, ht, z0), new Vector3(xm, ht, z1), new Vector3(xm, 0, z1), new Vector3(xm, 0, z0), twoSided: true);
+                        for (float z = z0 + 0.05f; z < z1; z += 2.4f)
+                            k.Box(new Vector3(x0 - 0.05f, 0, z - 0.05f), new Vector3(x1 + 0.05f, ht + 0.05f, z + 0.05f), Kit.Faces.Sides | Kit.Faces.PosY);
+                        break;
+                    }
                     k.Quad(new Vector3(x0, ht, (z0 + z1) / 2), new Vector3(x1, ht, (z0 + z1) / 2), new Vector3(x1, 0, (z0 + z1) / 2), new Vector3(x0, 0, (z0 + z1) / 2), twoSided: true);
                     for (float x = x0 + 0.05f; x < x1; x += 2.4f)
                         k.Box(new Vector3(x - 0.05f, 0, z0 - 0.05f), new Vector3(x + 0.05f, ht + 0.05f, z1 + 0.05f), Kit.Faces.Sides | Kit.Faces.PosY);

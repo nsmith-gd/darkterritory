@@ -2978,7 +2978,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **Unlit:** there are no lamps (the powerhouse's lamp isn't drawn at a wreck yard either). A heap's salvage is only found, and comes out onto the ground beside it, once a hand lamp is within `lampReach` (6 m) of it, carried or set down, or it's in the engine's headlamp (within `beamLength` 40 m ahead, from 2 m either side widening `beamSpread` 0.2 m a metre). The layout puts two heaps in the beam of an engine run up to the buffer stop and the rest out wide or beside the cars: those need someone to take a lamp to them.
       - **Unstable:** every piece picked up costs its heap `strainPerPiece` (0.4); at none it groans for `warnSeconds` (3 s: the tell, dust shaken off it, and the HUD's "IT'S GOING") and then shifts: everyone within `crushRadius` (3.5 m) takes `damage` (45), death cause `Wreckage`, attributed to whoever pulled the last piece (`Run.WreckBy`); it settles at `settle` and shifts at most `shifts` (2) times. The pieces come out at the heap's near edge, so someone carrying one off towards the cars is clear of it in a couple of steps; someone lingering by it isn't.
       - **Already occupied:** enemies.json `director.residents.wreckYard`: Draggers ×3 and the Gaunt ×2 while stopped there.
-      - **Bots:** the crate hands (and the winch pair, once the sleds are in) carry out whatever's been found, as crates (`StopPlan.Loose` takes a piece lying within 60 m of a heap; `CratesToLoad` counts them), and step clear of a groaning heap. They carry no lamps, so they salvage what the headlamp finds.
+      - **Bots:** the crate hands (and the winch pair, once the sleds are in) carry out whatever's been found, as crates (`StopPlan.Loose` takes a piece lying within 60 m of a heap; `CratesToLoad` counts them), and step clear of a groaning heap. ~~They carry no lamps, so they salvage what the headlamp finds.~~ One takes a hand lamp out to the dark heaps (note 492).
     - **Replication:** the standing cars are rakes and vehicles like any (records keyed by id), and each heap is a record of its own (`RecordKind.Heap`: salvage unfound, found, stability, groan, shifts). Protocol 18.
     - **Headless:** `dt facility drill switchyard|wreckyard` (and `--route tier:seed`) report the cars picked up (id, load, cargo), those still standing at that facility, the engine's rake front to back, the heaps, and every stop the driver made. Both default drills leave with the crew alive and the switch back: the switchyard's crates loaded and its siding's cars brought away ahead of the engine; the wreck yard's sleds in and the headlamp's heaps salvaged. `dt screenshot --route r --site --facility switchyard` shows the engine run up a siding to its standing cars; `--facility wreckYard` the heaps from beside the engine at the buffer stop, all but the last found, the first groaning (`--settled`: quiet).
     - **Readings:**
@@ -2990,8 +2990,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - A yard track that isn't one of a generated plan's edges is walked at its own limits (none): `PlanRouteWay.Locate` names it `yard<n>` rather than throwing (it threw as soon as an engine went down one).
     - **Not yet:**
       - Run-rounds and trailing points, so picked-up cars could go behind the engine (I.4).
-      - Bots fetching a hand lamp from the guard van for the dark heaps.
-      - A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.
+      - ~~Bots fetching a hand lamp from the guard van for the dark heaps.~~ Done in note 492.
+      - ~~A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.~~ Done in note 481.
       - Art-pass models for the heaps (greybox boxes drawn from the sim's state; the art pass's wreck-yard scenery is separate), and audio for the groan (the tell is visual and on the HUD for now).
       - frontier:11's and deadLines:2's switchyards, drilled, lose a hand to the cold before their first stop's done: as they did before this package.
     - Protocol 18 (standing rakes from the start; the heap record; death cause `Wreckage`). Tests: `FacilityTests` (the standing cars, their ids and limit, a client standing the same, nobody counting them lost; coupled up they're ahead of the engine and paid; the wreck dark until a lamp's on it; pulling pieces makes a heap groan, then shift on whoever's by; a client mirroring the heaps; the residents); `StopCrewTests` (a bot crew fetches the switchyard's standing cars a siding at a time, and salvages what the headlamp finds at the wreck yard). `StopCrewTests`' crate-only and winch-only stops give a switchyard or wreck yard just those modules (a route's own, T44).
@@ -5309,10 +5309,31 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             - lamp gardens: cloches, or tin flowers in damp soil;
             - tin trees and the old elm hung with paper leaves and little lamps;
             - benches.
-        - **Governance** (every town): four of the council's ordinances posted by the clerk's door, and the town's flag in the square.
+        - **Governance** (every town): four of the council's ordinances posted by the clerk's door, and the town's flag in the square. In a walled town the clerk keeps the council house (the office's `council` style: two storeys, a cupola with the town's clock, a portico).
+        - **The quiet house** (a walled town): by the gate on the line's far side, windowless, its door barred on the outside, QUIET chalked on a slate, a bowl and a blanket on the step. You can knock (towns.json `doors.quiet`). The laws say whoever comes in from outside sleeps the first night there.
+        - **A small town** keeps its wall of names and a painted day on the square's far wall, in the gaps between its buildings.
         - **Culture:** the day painted on the inside of the back wall at the ends of the first streets: a sunrise over the sea, a window on a field, the day the wall's length.
         - **What becomes of those who rarely leave:** a walled town's folk have lines of their own ("My youngest was born inside. She asked me once if the train goes anywhere, or only comes.").
-        - `dt screenshot --town green|statue|memorial|mural|garden`, `--clock s` for the rounds.
+        - `dt screenshot --town green|statue|memorial|mural|garden|quiet|council|farwall`, `--clock s` for the rounds.
+    - **Nothing ruled straight** (the director's "natural layout"):
+        - **Streets that bend** (`TownStreet.At`, `TownWave`; towns.json `walled` `bend*`). Each side's streets swing on one wave (220–320 m long), the first 3 m and each further out 0.6 m more up to 5.4 m, so the rows between them keep their room; eased straight within 30 m of the square's ends, by the square and its green. Rows, yard edges and back lines follow it, each yard taking the cautious line over its whole frontage (`RowYards`), so facing yards never meet. A house stands back from its street by up to 1.2 m more than the setback (`setbackJitter`). The art lays a street's chunks along `At` and turns them with it.
+        - **Lanes that turn** (`TownLane.Kinks`, `At`, `Span`; towns.json `walled` `laneJog`). Where a lane meets each street it turns 3–10 m one way or the other along the line, straight between, and straight on from the last street to the wall. It never wanders more than two turns (20 m) from where it crosses the line, so it never comes near the next lane (90 m on at least), and the first two turns on the square's side never go into the square or across the green. A lot is left out where a lane's ground (its width, wider where it runs at an angle) comes within the lot's frontage anywhere over its house and yard, from its street to its back line, where the bend has them (`Ground`). A lot beside a lane, within 6 m, is fenced along it with boards from the street's edge to the back (one in ten down, one in three where nobody lives; by the house's number, so the other yards come out as they did): a lane runs between fences. The jogs draw from their own stream (`houses.lanes`), so the lots', bends' and yards' streams are as they were. The art lays a lane's beaten ground as strips cut to each straight stretch and turned along it, with a square at each turn (`LaneStrips`); what's underfoot reads the lane's middle at that distance out (`WorldArt.Underfoot`, AU1's: one line).
+    - **A town's trade inside its wall** (GDD §3: "Fortified towns survive behind stone and steel walls, floodlights, watchtowers, artillery, furnaces, rail yards and warehouses ... One settlement produces coal. Another grows food. Another ... operates foundries"; App. F.3, the fortresses feel static, with not enough world building in them; the director's 8 Oct notes, things that tell the story of a people walled in). Folded into this note rather than given a number of its own: its claim collided three times with others landing first.
+        - **Where** (`TownPlan.Works`, `TownWorks`; towns.json `walled.works*`): across the line from the green, between the far side's first and second streets (the rows there left out, as the green's are), from 30 m before the square's rear end to 6 m past its gate end, so it's what you see across the line from the train and the square. No lane crosses it: the lanes keep out of the square's and the works' stretch at the line and at the first two streets either side. A town with one street a side has its works between that street and the wall, and only what fits there.
+        - **What** (world/towns.json `works`, by the trade's industry key, then `any`): pieces in order along the line, each a fixture (solid, and looked at), packed `worksGap` apart and centred, those that don't fit between the streets left out. A piece can stand a set distance from the one before (`after`, its group placed whole or not at all) and off the works' middle (`across`).
+            - a pit town ("coal"): the tip, the headframe, the town's coal beside the headframe's back-stays, the winding house its ropes' length on (32.9 m between their middles: the mine head's 26 m between origins, the house's boiler house and chimney behind it);
+            - a growing town ("farm"): two glasshouses and the seed house, the grain elevator, the root cellar;
+            - a foundry town ("foundry"): the casting shed with its cupola and stack, the slag, the pig iron;
+            - every town: the warehouse, the water tower, where there's room.
+        - **Drawn** (`WorksKit`, `WorldArt.Works`): the facilities' modelled pieces stood as they are, scaled to the town and centred by their meshes' footprints on their fixtures (the headframe 1.5 as at the mine head, the winding house, the tip 0.55, the elevator 0.8, C1's foundry shed 0.6, the water tower). `TownWorksArtTests` holds each footprint to its fixture's box. The kit's own: whitewashed glasshouses lit warm from within, their glazing bars, lamps hung over the beds; the cellar's turf mound and padlocked door; coal and slag heaps (the slag's toe glowing); pig iron in crossed courses; the goods shed with its sliding door, its lamp and the chalk. Lights at the furnace's doorways, in the glasshouses, the winding house's door; smoke off the foundry's stack and the winding house's chimney (`WorldArt.Stacks`). The square's own fixtures pass skips the works' kinds.
+        - **Hands at work** (towns.json `walled.worksHands`): up to three of the town's hands at a piece's front, one a kind (the headframe, the casting shed, a glasshouse, the elevator, the warehouse), with the trade's lines first (their precedence is the keeper's). Their rounds go between the pieces' fronts ("work", "mend" at the coal and the pig iron) and the slag ("warm").
+        - **Looked at from its foot:** `Town.LookAt` puts a thing's look point no higher than 2.4 m, so a headframe or the flag is read from where you stand like anything else.
+        - **Overlaps:** C1's facility pieces are placed, never changed. AU1's walled town sounds (#432) read the fixtures' kinds: the works are new kinds, silent until AU1 hears them.
+        - **Verified:**
+            - `TownWorksTests`: each trade's pieces, inside the works and clear of their streets, none on another; the winding house its ropes' length from its headframe; each solid and looked at from in front; no house, yard or lane in them; their hands at work there on their rounds; a one-street town's works only what fits; the same every time.
+            - `TownWorksArtTests`: the modelled pieces on their fixtures' footprints; the kit's pieces built, cheap and their fixtures' size.
+            - Looked at: each trade's works from over the line and from the first street (`dt screenshot --route r --town works|worksover|worksend`; `dt town` lists them).
+        - **Not yet:** goods sheds and a rail yard along the platform; the works heard; artillery on the wall's towers; a works for a small town.
     - **Verified:**
         - `TownsfolkTests`:
             - gear of the town's kinds, the same every time;
@@ -5322,12 +5343,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             - the green and its pieces, the laws, the flag and the mural, each lookable.
         - `TownsfolkArtTests`: crouched set down, seated on the chair, every piece of gear built and cheap.
         - `TownTests` (people in no wall now, they've none of their own).
-        - Looked at: the lineups, the sitter, the range, the armchair, the square over a round, the green, the statue, the names, the gardens, the mural.
+        - `WalledTownTests`: every house and yard off the bent streets and out of the turning lanes (over each house's own depth); the walk from the line to the wall follows a lane round its turns; `ALaneRunsCrookedButNeverIntoTheSquareTheGreenOrTheNextLane` (it turns, keeps 16 m from the next lane all the way across, keeps out of the square and the green, has fenced yards beside it and nothing solid down its middle).
+        - Looked at: the lineups, the sitter, the range, the armchair, the square over a round, the green, the statue, the names, the gardens, the mural, a bent street, a lane from over the town and down it (`dt screenshot --town bend|crooked|crookedover`).
     - **Not yet:**
-        - natural layouts: streets that bend with the land, irregular setbacks, a crescent round the green;
-        - the quiet house;
-        - a council house of its own;
-        - murals and a green for a small town (the yard's corridor);
+        - a crescent round the green; streets that bend with the land itself (the wave is the town's own: linegen levels the pad flat);
+        - a green for a small town (the yard's corridor);
         - a modelled townsfolk figure (tools/models needs Blender, not in this container: the gear is procedural on the survivors' figure).
 
 357. **At a switch stand, Use is the lever's (A1, queue #94; found following up the switch audit, note 289).** `World.CrewAct` works a switch's lever (`SwitchStands.CrewAct`, Use held `junctions.throwSeconds`) before the hands (`Bodies.Handle`), and neither knew of the other: so the press that started a throw also put down what was carried (the lamp you'd carried out to the stand in the dark, dropped at your feet) or, empty-handed, picked up whatever lay by the stand, and the lever still went over. The cab's interactables were already spared the pick-up (`CrewActions.NearestInteractable` blocks it), but a stand isn't one of them, and nothing spared what was carried. The HUD offered the thing lying by the stand before the switch, and with something in hand offered nothing.
@@ -6822,6 +6842,19 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
     - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
 
+487. **The Grumbler's healing seen (queue #224, E1; the art checklist's `grumbler-anim` "still to do": "a tell for its healing"; GDD App. A.8 "It heals if only one player has hit it in the last few seconds: no one player can kill it", "Rule: gang up or leave it alone").** A lone crewmate's blow takes a sixth of a Grumbler's health (`grumbler.health` 6), and at `regenPerSecond` 1.5 it's back in under a second. Nothing showed it, so the rule couldn't be learned by watching: a player hit it and nothing happened.
+    - **When:** a Grumbler's health is replicated, so every machine sees it climb as the host does. `GreyboxScene.Healing` keeps each one's health as last seen, the most it's been, and when it last rose. While it's rising (and for 0.35 s after, a snapshot's gap) the scene draws it healing, harder the further it's down from its most.
+    - **What:** `Effects.Knit` draws what a blow knocked out of it drawn back in:
+        - Drops of its own dark blood (`Ichor`'s colour) rise off the ground round it in arcs, each with a short trail, and run back into the body. The spot each leaves fades as it goes.
+        - A dull red throb goes through it on each heave.
+        - Wet glints come and go on its skin, and a faint vapour rises off its back.
+    - **What it doesn't do:** a gang's blows, which it doesn't heal, show none. Nor does a Grumbler whole and steady. Presentation only: the sim's rule is as it was.
+    - **Headless:** `dt screenshot --threats --crew --grumbler heal --view grumbler` stages it reared up at a lone crewmate, at 0.4 of its health, healing (`GreyboxScene.StagedHealing`); `--grumbler rear` is the same without. `--scene-time` steps through it.
+    - **Verified:** `GrumblerHealingTests`:
+        - Healing draws its effects round it; a gang's blows and a whole Grumbler draw none.
+        - Nearly beaten, it knits harder than scratched.
+    - **Not yet:** a sound for it (AU1's, if wanted); the girders "still to do" is untouched.
+
 476. **The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441 and 459).**
     - **The corner.** With the link lost, the HUD's top-right corner said "[F5] RECONNECT", and "CREW FULL (8/8): [F5] TRY AGAIN" when turned away. That's key first. The ballot's menu keys aside (note 285 kept them), it was the only line in play not in note 285's ACTION : [KEY] form, and it sat right over the centre's alarm saying the same thing as RECONNECT : [F5]. It now says it as the alarm does: RECONNECT : [F5], and CREW FULL (8/8)   TRY AGAIN : [F5] (`Hud.LinkLine`).
     - **The staged report.** `dt screenshot --radio tally` on the default test loop crashed on a null: its staged report (`Staging.Report`) needs a night's run, and the test loop has none. It now says so: "give it a --route (e.g. --route frontier:7)".
@@ -6853,6 +6886,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - a bad clamp, one derail and no second release;
         - the wrench heard at it, and once back on.
 
+486. **A stop hand goes round the train to its winch handle (queue #223, D1.3 for D1; found on #220's playthrough).** `dt playthrough --route frontier:7 --bots 2 --minutes 20 --insist cinderhound --seed 2` stood at the first stop, the Foundry (@5764), from about 433 s to 811 s. From 642 s a car fire started every 20 s.
+    - **The fires** are a pack of four aboard cars 5 and 6, which followed the train into the spur and boarded there, lighting each car they're on (`CinderHound.Feed`). With two bots nobody fights it or cuts it. That's D1.2's #221 (the pack fight and the cut), and the trace has gone to D1.2.
+    - **The stand** happens with `--no-enemies` too, so the hounds aren't its cause.
+      - The shunter, which is the gunner in a crew of two, is lent to the winch pair once the train's in (Winch0). Its handle is across the spur from where it came down.
+      - `StopHand.Crank` walked there by `WalkTo`, which routes round the train only on the walker's own side of the track. So it walked straight at car 3's side, up its side steps, onto the deck and off again, for six minutes.
+      - The winch turns only with both handles held, so the driver cranked alone and hauled nothing.
+    - **Now** `StopHand.OnFoot` takes the `FootPath` (which plans round the cars) whenever the target is across the track with the train standing between (`Across`), as well as for targets more than 10 m off. `Crank` walks by `OnFoot`, and says "to the winch" on the way.
+    - **Measured** (`dt harness --route frontier:7 --cars 6 --upkeep --seconds 1200`, against current main):
+
+      | Night | Winch sleds | Cargo delivered | Stop | km | Deaths |
+      |---|---|---|---|---|---|
+      | 2 bots, `--no-enemies`, seed 2 | 0 → 2 | 3.5 → 4.5 | 360 s → 376 s loading | 9.66 → 9.67 | 0 → 0 |
+      | 2 bots, `--insist cinderhound`, seed 2 | 0 → 1 | 0.31 → 2.34 (cars 1 → 5) | 377 s → 367 s loading | 7.33 → 9.69 | 1 → 0 |
+      | 4 bots, `--enemies`, seed 1 | 0 → 2 | 3.5 → 5 | 553 s → 534 s | 8.76 → 8.65 | 0 → 1 (Dragged, later in the night) |
+      | 4 bots, `--enemies`, seed 2 | 0 → 1 | 2.34 → 2.68 | 709 s → 565 s | 7.64 → 9.14 | 2 → 2 |
+      | 4 bots, `--enemies`, seed 3 | 0 → 2 | 3.5 → 5 | 554 s → 539 s | 8.12 → 8.82 | 0 → 0 |
+
+      So on main the Foundry's winch hauled nothing for a crew of four either.
+    - **Test:** `CrewOfTwoTests.ACrewOfTwosGunnerLentToTheWinchGoesRoundTheTrainToItsHandle` (frontier:7, seed 2, two bots, no enemies, 900 s): the stop's done and at least one sled hauled. It fails without the change. Sim 1383/1383; ClerkVoice, CrewAudio, Hud, LobbyBrowser and NetPlay 99/99.
+    - **Not yet:** the pack aboard a 2-bot train, which nobody fights or cuts (D1.2's #221).
+
 488. **The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28).** Since note 475 every open barn, outbuilding and goods shed, and each roofed length of a yard's shed or strongroom, hangs a lantern turned low. The Gaunt's roost was among them. The roost falls in a barn or outbuilding when it's the village's furthest building on foot, and in a yard shed or the strongroom at a stop with no village, which is most facilities: across local, frontier, deadLines and deepTerritory seeds 1 to 12, nearly every stop whose roost isn't a house has it in a yard shed or the hero, and deadLines nights put it in a barn at about one stop in two. A house the Gaunt nests in has no candle, and that dark is its tell (`TownKit.HouseLight`). A lit barn with the Gaunt asleep in it said the opposite.
     - **Its lanterns out** (`GreyboxScene.HouseInteriors`, `OpenHouse.Dark`): a barn, outbuilding, goods shed, yard shed or strongroom that `StopWalls.Nest` names keeps its Room (the moon stays out, and the room's own fill, note 475, still shows the walls close to) but hangs no lantern. A dark building among lit ones is where the Gaunt is, as a house with no candle is.
     - **Its nest** (`WorldArt.OpenShed`): in an open barn, outbuilding or goods shed, `RansackKit.Nest` lies on the boards where the Gaunt sleeps (the lair's place, its middle), as in a house.
@@ -6878,6 +6932,150 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at down the line (trackside), in the coupling gap (gapside), and off a car's side with its doors shut and open.
         - The Game suite.
+
+433. **Holes in the land, found headless and closed (queue #169, B1; the director, 8 Oct, GDD App. F.4: "lots of textures in the landscape generation that are see through or missing"; note 424's follow-on).** #441 closed the holes found by eye (a lake over its rim, the shingle up the bank). Nothing looked for the rest.
+    - **`dt holes --route r`** (`HolesCommands`): down a night's main line every `--every` m (400), three cameras: at the track looking on down it, up over it (18 m out, 30 up) looking ahead, and out across the land to one side, the sides taken in turn. An eye that's in the ground (beside a bore, in a cutting's wall) is skipped. Each frame is drawn in a flat survey light with the renderer's probe on, and the frames with any of it are saved to `out/holes/<night>/` and listed, worst first.
+        - **The hole probe** (`GreyboxRenderer.HoleSlope`, the frame's `probe.x`; `sky.frag`): the sky is painted magenta wherever it shows lower than the land could hide it, which is steeper below the horizon than the eye's height over the land, plus 30 m, over `--reach` (300 m). So the land's far edge and a valley's far side never count, and a magenta pixel is a hole whatever made it. With the reach made huge it paints the land's far edge, which shows it works.
+        - **The untextured probe** (`--untextured`; `ShowUntextured`, `probe.y`; `scene.frag`): every surface drawn without a texture, cyan.
+    - **Found:** frontier:7, frontier:3, deadLines:3, deepTerritory:2 and local:1, every 300 m (255 frames a night, about 5 minutes each). The holes were all at the tunnels:
+        - **The hill over a bore** was a mound of `tunnelCoverM` (18 m, rising 0.25 a metre out) whatever the land round it. deadLines:3's Hensley tunnel bores a mountain that stands 134 m over the rail 60 m out beside its cutting, but over its 253 m the land fell to 33–48 m. That left a trench 100 m deep over the bore, its walls cliffs at the portals.
+        - **Above every portal's face** (its coping 11.5 m up), the land's step was left out across the face's width, and the hill's edge stood at 17–20 m. A 5–7 m slot was open to the sky behind: 821 px from the high camera at Hensley.
+        - **The lining's 10 m lengths** were each laid on their own tangent with a 5 cm overlap. Round a curve a length's end stood off the line by its sag (12 cm at 400 m), and a wedge opened at the outer wall's joints. deepTerritory:2's Holt Brook tunnel showed the sky through every one.
+        - **The far land's edge** (a wider sweep, below): its rows were 40 m apart, straight between, and its first column, 292 m out, only 0.6 m under the corridor ground's edge at 300. Over a hollow along the line that chord rode above the corridor's ground, and the sky showed under it (frontier:3 at 12.2 km).
+        - **Untextured:** only the signal lamps, which glow by design. No surface of the land was drawn without its texture.
+    - **Closed:**
+        - **The hill over a bore** (`TerrainField.EdgeHeight`) is the land the cutting goes up into: its walls carried on in over the bore as if the cut went that many metres further out (how far in from the nearer portal), the relief with it, never under the old cover. It runs from the portal's face in, not from a metre short of it, so the cutting goes right up to the face. Hensley's hill is 157 m over the bore at its middle.
+        - **At a portal** (`WorldArt.Track`): where the land's step across the face was left out, a cap runs from the coping (`StructureKit.PortalTop`, `PortalHalf`) back onto the hill, with a headwall up from the coping where the cutting beside the face stands higher. Past the face's edge, where the cutting beside it is lower than the coping, a flank closes the gap from the cutting's ground up to the cap (deepTerritory:4's portal corners). The cap starts 0.15 m under the coping and the flank 0.25 m in from the face's edge: two meshes that only meet edge to edge showed pinholes of sky along the seam (a ray cast found nothing; the GPU did).
+        - **The far land** (`PlanArt.FarLand`): rows every 20 m (`FarStep`), its first column 3 m under the ground.
+        - **The lining** (`WorldArt.Tunnel`): each length laid on the chord between its ends, and longer by the outer wall's wedge, (`TunnelHalf` + 0.5)·turn.
+    - **After:** swept again every 300 m, eight nights: frontier:3 and :7, deadLines:1, :3 and :8, deepTerritory:2 and :4, and local:1. deadLines:8's and deepTerritory:4's tunnels were new to the sweep. Two more turned up and were closed (the far land's edge on frontier:3, deepTerritory:4's portal corners); after that, none.
+    - **Verified:**
+        - `TunnelHillTests` (Sim), on deadLines:3, deepTerritory:2, deadLines:8 and deepTerritory:4. The bore is covered by `boreCrownM` + 5 m. The hill across it is nowhere lower than 0.6 of the cutting's walls at both its portals, less 2 m (the land's own lie varies: deadLines:8's Marsh tunnel runs along a sidehill whose ridge falls from 100 m to 14 m along it). The bed is at rail height right to the face. All four nights fail on the old terrain.
+        - `TunnelArtTests` (Game). From the high camera's two places at each portal, 189 sight lines through the ground round the face land on something (the old art left up to 9 open). At and either side of every joint of Holt Brook's lining, out from the bore's middle to beyond its wall, the wall is there (the old lining was open at the joint 100 m in). Where frontier:3's far land meets its corridor, every sight line from that camera through the seam lands on one or the other (the old far land left 32 of 775 open). All three fail on the old art.
+        - Looked at: Hensley's portal from the front, from below and from above, before and after.
+    - **Not yet:**
+        - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
+        - The fog cards still cut where they meet the land and water (soft particles stay off).
+494. **The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit it in the last ~5s", "gang up or leave it alone").** A lone crewmate's blow on a Grumbler closes again (enemies.json `grumbler`: 6 health, back at 1.5 a second), and since #224 it's seen: the stuff of it drawn back into the body, a wet pulse. It made no sound, so whoever wasn't looking at it, or reads the captions, didn't learn the rule.
+    - **How** (`GameAudio.GrumblerSounds`, off the mirrored record's `Health`, replicated, so every machine hears it): while its health climbs (and 0.35 s after it last rose, a snapshot's gap and more, as E1's knit is seen), `cs-grumbler.heal` is held at its middle, 0.45 m over its feet. Its level is E1's knit's: 0.35 + 1.3 × how far down it is from full (`grumbler.health`), at most 1. A gang's blows, which it doesn't heal, are never heard healing. It's layered over whatever else it's doing (scuttling, gnawing, after its hitter).
+        - **Caption:** wet flesh knitting.
+    - **The sound** (`tools/audio/recipes/grumbler_heal.py`): `heal`, `knit`, a new loop on the Audio Checklist's `cs-grumbler` line, installed. It's beasts.py's Grumbler (a man gone wrong, flesh, not chitin, and his own voice).
+        - Wet sucks every half second or so as what the blow knocked out of it is drawn back in (a seal pulling inward as its colour opens late), each then giving and closing round it (wet tissue squishing, small bubbles).
+        - Tissue ticking as it knits, a low wet throb about every 0.6 s under it, and his muttering, low, shut-mouthed and pleased with himself.
+        - 2.4 s exact cycle.
+    - **Pinned:** `CreatureSoundTests.AGrumblerIsHeardHealingALoneBlowLouderTheFurtherDownItIs`, off the mirrored record:
+        - a lone blow (6 to 2), the hit and no healing yet;
+        - climbing back at 1.5 a second, one heal held all the way, louder from 2 than from 5.5;
+        - back at full, it stops;
+        - ganged down and staying down, never heard healing.
+489. **The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips, note 477; AU1's note 478 heard the patrol by its motion).** Note 478 heard a hound aboard by where its record went. Its leap over a gap played when the record's car changed, half-way through E1's arc, with the landing a fixed moment after. Its climb back out at a door played as a leap. A hound stopped to sniff (every 8-15 s on patrol) made no sound at all. And the leap it played was the boarding's, a landing on the rear platform's boards, whichever roof it came off.
+    - **How** (`GameAudio.HoundAboard` and `HoundMove`, off the hound's replicated mode and when it began, `ModeSeconds`; alike on every machine):
+        - **On a change of mode** each move's sounds are set for when they come in it, counted from when the mode began, so a record that arrives a snapshot late still lands them on time. Joined more than 0.25 s past one, it's missed rather than played late. Each plays where the hound is when it comes (its latest record).
+        - **The leap:** `cs-hounds.spring` (new) as it drives off and four paws on the next car's tin as it lands, fore pair then hind (`cs-hounds.paw.roof`). Both are the sim's own times: it's carried across between `leapFrom` and `leapTo` of `leapSeconds` (enemies.json `cinderHounds.patrol`), and E1's clip drives off and lands with it.
+        - **The drop in at a door:** `cs-hounds.spring` off the roof's edge, then four paws landing on the boards (`cs-hounds.paw.wood`). These are at E1's clip's frames (`cinder_hound.py` drop, 30 fps: off the edge at 13, on the sill at 28). The spring is placed up at the roof over the door (`DROP_UP`, 2.9 m), where the clip has the hound, since the record has it on the floor from the start.
+        - **The climb out:** `cs-hounds.climb` (new), the whole climb in one sound timed to E1's clip, from the trot to the sill to its weight onto the roof. It's placed half-way up the car's side.
+        - **Sniffing:** `cs-hounds.sniff` (new) held at its nose while the mode is `Sniff`, and gone when it moves on.
+        - **Paws** are stepped only while it walks or stands (Patrol, Still). A change of car other than by a leap is the record catching up, not a step.
+        - **The snarl** (the pack fight's, now and then) waits while it's in the middle of a move or sniffing, which have their own breath.
+        - **Captions:** sniffing; claws scrabbling up the side.
+    - **The sounds** (`tools/audio/recipes/hound_moves.py`): three new cues on the Audio Checklist's `cs-hounds` line, installed. Each is built from beasts.py's hound (its breath through the same dog's tract, its claws, the kept paws on the tin and the boards, the embers and ash in its hide), so it's the same animal.
+        - `spring`, `tin`: a gathering forepaw, both hind feet driving off the tin a hair apart, the sheet popping back low, a huff, its body through the air with sparks off it. No landing: that's its paws, where it lands.
+        - `sniff`, `nose`: quick hard sniffs in runs of four to six, a wet snort between, a low rumble in its chest, the embers crackling. 3 s exact cycle (`sniffSeconds`).
+        - `climb`, `scrabble`: the trot to the sill on the boards, the spring out and up (frame 10), its forelegs hooking over the roof's edge (19), its hind legs scrabbling at the side (22-28), the heave (33), and its weight onto the tin (37).
+        - The kept `leap` stays the boarding's (onto the rear platform from the ballast).
+    - **Pinned:** `CreatureSoundTests.AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside`, off records carrying the mode as `Lateral` (mode × 4 + facing) and its start as `LineDistance`:
+        - walking the roof, its paws on the tin;
+        - over the gap, one spring at a quarter of the leap and four paws on the tin at two thirds, and no `leap`;
+        - down at a door, one spring and four paws on the boards, none on the tin;
+        - out again, one climb and no paws, spring or snarl;
+        - stopped, the sniffing held and no snarl; moving on, it stops.
+497. **The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are theirs"; App. D.7).** Since #200 a lock jumps on its hasp at each blow of the crew's smash clip (a blow every 0.8 s, frame 9 of 24), and a barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the breach. Both are on the scene's clock, the crew's clips' own. The sound didn't follow either:
+    - **The smash:** each of its takes was three seconds of blows, and it was played again every 0.45-0.7 s at random while the lock was worked. That's a din of six or more sequences over one another, never on the lock's jumps.
+    - **The pry:** a held loop with heaves of its own.
+    - **The boards** coming off made no sound.
+    - **How** (`GameAudio.BreachBeats`, off the replicated `Holdout.Progress` and state, as C1's drawing is):
+        - **The clock:** the app hands GameAudio the scene's clock (`GameAudio.SceneClock`, `GreyboxScene.Time`'s `now`), so the sound counts the clips' beats as the drawing does (`WorldArt.SmashCycle`, `SmashBlow`, `PryCycle`, shared with `WorldArt.Holdouts`). Headless, with no scene, it counts on its own clock.
+        - **The smash:** `place-breach.smash` is one blow now, played at the lock on each blow of the clip as the lock jumps. When it gives, `place-breach.smash-give`, the last blow tearing the hasp out (it was the three-second smash again).
+        - **The pry:** `place-breach.pry` is one heave now, played as each heave of the clip begins: the haul back, the board flexing out at the full heave, easing back. Each board coming off (`WorldArt.BoardsOff`, a fifth of the breach each) is `place-breach.board`; the fifth goes with the barricade giving way (`pry-give`, as before).
+        - **Being worked:** a breach is worked while its progress moved in the last 0.25 s (a snapshot's gap and more; it was only the tick it moved). A lock worked open with the wrench stays the quiet `pick` (note 385).
+        - **Captions:** a sledge on iron; wood creaking, nails squealing; a board torn away.
+    - **The sounds** (`tools/audio/recipes/world_places.py`), on the Audio Checklist's `place-breach` line, installed. Neither old take had a verdict.
+        - `smash`, `blow` (5 takes): one sledge blow on the padlock and hasp, steel on steel, the plank door booming, the lock rattling on its staple (the old sequence's own blow).
+        - `smash-give`, `tear` (2): the last blow, the staple torn out of the splintering plank, the lock and hasp clattering down.
+        - `pry`, `heave` (4): the bar seated with an iron knock, the board bending as it's hauled back, its nails squealing, a crack of splitting wood at the full heave (at the clip's frame 14), the board easing back. Timed to the clip's haul, hold and ease.
+        - `board`, `torn` (3): the last nails shrieking out of the jamb, the wood splitting, the board wrenched free and clattering down on the step.
+    - **Pinned:** `WorldSoundTests.ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff`, off the mirrored record with the scene's clock given:
+        - a lock's 3 s, three or four blows, each within a tick of the clip's blow, and one last blow as it gives;
+        - a barricade's 6 s, four or five heaves, each within a tick of the clip's haul, four boards off and the barricade giving way once, and no smash.
+    - `ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed` now hears a smashed lock give with its last blow.
+
+481. **A resumed night keeps the train as it left (A1, queue #218; spec E "Autosave per POI, on successful departure", "Crash: Session lost. Campaign rolls back to last POI autosave"; note 187's "not yet").**
+    - **What was wrong:** the autosave (`NetPlaySession.Capture`, taken as the engine leaves a stop's zone) kept each car's load, shell, ammunition and cargo, the coal, the clock and the spent Holdouts. A resumed night then built the train from the campaign's own cars, engine first, at the save's front, and put those values back on them. So whatever had happened to the train's *shape* before the save was undone:
+      - a car cut loose, or rolled away by the Passenger or finished by the Car Hugger, was back in the train;
+      - a switchyard's cars picked up (note 187) were standing on their siding again, and the train was short of them;
+      - what the Car Hugger had eaten of a car's shell was whole again (A.3: "gone, not dented").
+    - **The save keeps the rakes** (`RunCheckpoint.Rakes`, a `RakeSave` each): every rake's vehicles front to back, the track its front is on and how far along, its handbrake and front coupler lock. The engine's is the train going on, the picked-up cars ahead of it; any other is cars cut off it where they were left, or a yard's still standing. `CarState` keeps `Eaten` too.
+    - **Resuming** (`NetPlaySession.Restore`): `TrainOnLine.Resume` puts the rakes back as they were, every one at rest, and nothing slides on the first frame (each rake's previous distance is where it is). It shares `Restore`'s rebuild, the one a client's snapshot uses, so the engine's rake object stays the train's. A joiner's world builds its own cars and then takes the host's rakes like any snapshot.
+    - **An older save,** with no rakes, resumes as it did: the train from its own cars. So does one whose rakes aren't this train's: `Resume` checks every vehicle is in exactly one rake, the engine in one, on a track the line has, and changes nothing otherwise. The save carries its line (linegen plan §17.4), so a yard's standing cars take the same ids on resume.
+    - **Readings:** every rake comes back at rest, the engine's too, as it always did (the night restarts stopped where it was saved). A cut rake left rolling at the save is stopped where it was.
+    - **Not yet:** what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh; nor are the crew's places.
+    - Protocol unchanged (the save is the host's file; clients take the rakes from snapshots as ever). Tests: `ResumeTests` (the rakes back as they left: picked-up cars ahead of the engine and not standing, a cut car where it was left with its handbrake on, at rest, and the train running on; a save that isn't this train's changes nothing: a car missing, a car twice, a car past the train, a track the line hasn't, no rakes). `CampaignSessionTests.AResumedNightKeepsTheTrainAsItLeft` (at the coaling tower on frontier:10, a yard's derelicts put ahead of the engine, the last car cut off and a bite out of car one; the autosave on leaving keeps all three, the resumed host has them, its own client agrees, and an older save without rakes resumes the old way). `CampaignSessionTests.ThreeSlotsOfText` round-trips the rakes and the eaten shell through a save slot.
+499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
+    - **How** (`GameAudio.DollSounds`, off the mirrored record):
+        - **Restless,** at any stage, in a car or at the controls: `cs-track-doll.restless` at her, first 1-2 s after she becomes so, then every 4-8 s while she is. It comes between the quickened giggles (`GameAudio.Tells`, unchanged).
+        - **Her rattle:** at stage 2, restless, on the beat she'll take the brake, `cs-track-doll.rattle` at the brake handle. It falls back to the crew's `brake-handle` only if hers isn't installed.
+        - **Captions:** small heels drumming, humming; the brake handle rattling.
+    - **The sounds** (`tools/audio/recipes/doll_restless.py`): two new cues on the Audio Checklist's `cs-track-doll` line, installed. Each is the same doll as her giggle and her pleased "heh": a child's throat played an octave up into a hollow porcelain head's 3-6 kHz, glaze ticks, a door creak two octaves up for her joints.
+        - `restless`, `heels` (4 takes, different moods):
+            - her porcelain heels drumming against a crate or a bench the way a child kicks, impatient, one take quickening and stopping dead;
+            - a tuneless hum through her teeth, a few porcelain "mm"s that wander and don't resolve;
+            - her head turning on its joint with a porcelain tick;
+            - in a wooden car's room.
+        - `rattle`, `brass` (3 takes): the brake valve's brass handle shaken in its detent, not turned. Quick light squeaks of brass on brass (the crew's handle's stick-slip, shorter and higher), the detent clicking out and back in, five to eight in half a second, her fingertips ticking on the brass. In the cab.
+    - **Pinned:** `CreatureSoundTests.RestlessTheTrackDollIsHeardOfHerOwnAndRattlesTheBrakeWithHerOwnHand`:
+        - haunting a car, not restless, never her restlessness;
+        - restless, 20 s, three to five times;
+        - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
+    - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+501. **The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit).** `crew-coupling.knuckle-release` plays where a car is cut loose (`GameAudio.Crew`). Its recipe describes "the heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked)", but the iron hit was pitched down 8 semitones and choked under a mining hit's sub, with the lock's rattle at -16 dB. The installed takes were a low thud: they centred at 127-136 Hz, with little over 1 kHz after the first 0.1 s, and the cut's own moment was lost under the wheels.
+    - **The sound** (`tools/audio/recipes/crew_train.py`, `knuckle-release`, `clank`, 3 takes): rebuilt as a clank, installed in place, its hook unchanged.
+        - a short squeal of steel on its pin as it swings;
+        - the clank as it fetches up against its stop: the packs' heavy plate and metal hits pitched only 2-3.5 semitones down, barely choked, so the iron rings;
+        - the knuckle's own cast ring, a bar's inharmonic modes at a few hundred hertz, choked after a few hundredths of a second ("cast iron clanks, it doesn't sing");
+        - its lock rattling loose and the lifted pin clinking on its chain;
+        - the slack's low knock through the frame, a beat after and quieter than before.
+    - **Measured:** the takes now centre at 590-830 Hz.
+    - **Neither the cue nor its hook changed**, so `CrewAudioTests` (the cut heard) stand. `AudioTests` pass over the installed takes.
+    - The old `knuckle` candidate had no verdict.
+
+492. **A bot crew takes a hand lamp out to the wreck yard's dark heaps (A1, queue #229; note 187's "not yet"; GDD §18 wreck yard "unstable, unlit").**
+    - **What was wrong:** a heap's salvage is found only once a hand lamp is within `wreck.lampReach` (6 m) of it, or it's in the engine's headlamp (`Run.Lit`). The bots carried no lamps, so a bot crew loaded only what the headlamp found, and the heaps off its beam stayed dark all stop.
+    - **The lamp hand** (`StopHand.WreckLamp`, StopCrew.Lamp.cs): the first crate hand alive, or the shunter where no bot's on the crates. While a heap's dark (salvage unfound, no lamp within reach, not in the headlamp), it takes a lamp and walks it out toward the nearest dark heap, to the side the heap's pieces come out (`Run.PieceAt`), short of its shift. The heap's found as the lamp comes within reach, and it goes on to the next. It's out while it does (`CrewCalls.Out`), so the driver doesn't call the loading done.
+    - **Which lamp:** the nearest lying loose. One on the ground at the stop comes first. Otherwise it's one in a car behind the engine: on its floor (the guard van's) or the top one on a shelf of car 1's crew lockers, as a locker tap takes it (`KitRun.Take`). The hand fetches it in by that car's side-door steps, opening the door. A lamp already lighting an unfound heap is left where it is.
+    - **Back aboard:** with every heap found, the lamp goes back into the nearest car whose side door is open on the stop's side, down on its floor (where the next wreck's is fetched from). It isn't carried up a ladder: the walker's grab is a Use press, which puts down what's carried, and a lamp in hand at the boarding was dropped in the yard. With no door open it goes down where the hand stands, and comes up again for a car before the doors are shut (`LampAboard`).
+    - **Readings:** the lamp's carried, not set down, at a heap: the heap's found the moment it's in reach, and a lamp set down by one would only be fetched again for the next. Only the bots' part changed; the finding, the shifts and the lamps are as they were.
+    - **Headless:** `dt facility drill wreckYard --stock` stocks the train as a night leaves the fortress (`FacilityWork.Run(stock: true)`, `World.Stock`: the guard van's lamp, car 1's lockers). The drill reports `lampsLeft`, the lamps left lying on the ground. On frontier:1's wreck yard with the cars run in empty (`--empty`), against the same drill unstocked:
+      - every heap found (4 of 4, against 2);
+      - 4.0 loaded (against 3.25);
+      - the loading took 230 s (against 386);
+      - all six alive, and no lamp left behind.
+      - With the cars part full (no `--empty`), the cars fill either way.
+    - Protocol unchanged (bots act through intent). Tests: `StopCrewTests.AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard` (stocked: away whole, every heap found, a lamp put back inside a car and none left in the yard, salvage aboard, nobody under a shift); `AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans` unchanged (unstocked, no lamp aboard: the headlamp's heaps only).
+503. **Weak sounds: a body on the grating, and a crate set on concrete (AU1, queue #240; the weak-sounds audit, dull one-shots).** Two installed sets came out a thump where their own recipes describe a material.
+    - **A crewmate hitting the train's steel grating at speed** (`crew-jump-off.impact.grate`, `GameAudio.Crew` off a moving train onto a car):
+        - **Before:** its recipe asks for "the grating crashing and buzzing under the weight (thin and heavy plate, bars chattering)", but its plate crash was choked inside 0.05 s at -4 dB under the body's thump. Its takes centred at 214-263 Hz, the same as on the ballast (254 Hz), so it read as earth.
+        - **Now** (`tools/audio/recipes/crew_body.py`):
+            - the body's thump 7 dB down;
+            - the heavy plate's crash let ring to a fifth of a second;
+            - the thin plate ringing on as it settles;
+            - the bars' buzz, dense, over a fifth of a second;
+            - the grating's own chatter, and a last settle.
+        - Its takes centre at 540-1120 Hz now; the ballast's are untouched.
+    - **A crate set down on concrete** (`crew-carry.crate-set.concrete`):
+        - **Before:** one take centred at 114 Hz, a thump with no concrete in it (the concrete slap it drew was a dull one).
+        - **Now** (`tools/audio/recipes/crew_items.py`), on concrete only: the crate's corner bites the floor and drags a hand's breadth (stick-slip on concrete), grit crunching under it, and its slats knock as it settles. Its takes centre at 298-440 Hz; the wood, the grate and the ground are untouched.
+    - **Installed:** only those six takes changed of the two lines' 117. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass.
+    - Neither old take had a verdict; both lines are on the Audio Checklist for a Keep or Redo.
 
 493. **A dead town's station stands open (B4, queue #230; note 417's "not yet": "the station, the derelicts and the powerhouse stay shut"; linegen plan §11.3; level-design P13).** A dead town's station (note 302) was a shut brick box behind its platform, with a door and a canopy painted onto it.
     - **Open** (stops.json `deadTown.station.open`, set on the building as the generator makes it; no dice of its own, so the stops are laid as before). `StopWalls.OpenShed` takes a station: its walls (`Shell`) with one door, `walls.bayDoorM` wide, in the middle of the side toward the line, where the platform and the canopy are. It's walked as the goods shed is (note 417): a Room to its eaves (5.2 m, `WorldArt.OpenShedHeight`) with its lantern turned low (note 475). A roost in one goes dark (note 488).

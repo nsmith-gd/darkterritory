@@ -347,10 +347,13 @@ public static class StructureKit
     /// A tunnel portal facing +Z (the way into it): a dressed stone face with the bore's opening, a ring of voussoirs
     /// and a keystone, a coping along the top, wing walls raked back into the hill.
     /// </summary>
+    /// <summary>A portal's face: <see cref="PortalHalf"/> either side of the rail, up to its coping at <see cref="PortalTop"/> over it.</summary>
+    public const float PortalHalf = 10, PortalTop = 11.5f;
+
     public static MeshAsset Portal(Look? look)
     {
         var k = new Kit(look, 930);
-        const float w = 10, top = 11.5f, t = 1.6f;
+        const float w = PortalHalf, top = PortalTop, t = 1.6f;
         var bore = Bore(0.02f);
         k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 2.5f);
         // The face at z = 0: from each point of the opening's outline out to the rectangle's edge.
