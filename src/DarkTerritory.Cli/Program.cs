@@ -1532,6 +1532,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+        StagedHealing = Str(args, "--grumbler", "") == "heal", // a Grumbler healing a lone crewmate's blows (note 487)
         EyeBreathes = args.Contains("--breathe"), // the eye breathes on the glass it's near (note 485)
         // --utility i[,j]: those cars drawn as utility cars, fitted out for the crew (the sim has no utility kind yet).
         Utility = Str(args, "--utility", "") is { Length: > 0 } utilities && utilities.Split(',').Select(int.Parse).ToHashSet() is var utilitySet
