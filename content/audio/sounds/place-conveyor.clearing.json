@@ -1,0 +1,20 @@
+// The conveyor line: Clearing a jam by hand: grain dug out, the belt hauled at. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 25,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-conveyor/clearing",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

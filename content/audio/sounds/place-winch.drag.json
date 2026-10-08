@@ -1,0 +1,20 @@
+// The capstan winch: A sled of cargo hauled in over the ground. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 6,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 2,
+ "maxDistance": 60,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-winch/drag",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

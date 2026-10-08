@@ -440,10 +440,10 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | **Wreck yard** | Salvage, high value | Pull cargo off derailed trains. Unstable, unlit, already occupied. |
 | **Slaughterhouse** | Livestock, food | Animals are loud, and something already lives here. |
 | **Chemical works** | Volatile, top payout | Leaks. Do not fire indoors. |
-| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. Its steam lift runs off the engine's own boiler: the engine stands by the headframe and vents into it while someone holds the lever, and loading empties the gauge (spec D.2; note 368). |
+| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. Its steam lift runs off the engine's own boiler: the engine stands by the headframe and vents into it while someone holds the lever, and loading empties the gauge (spec D.2; note 368). Its tipple, a car behind the lift's chute, clamps a car and rolls it over to load it; a car clamped off its mark comes off its rails on the roll and holds the train till a wrench puts it back on (spec D.2; note 423). |
 | **Military depot** | Gunpowder and shot | Best payout, worst cargo to be carrying when something boards. |
 
-Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
+Each stop of a kind has the module it's named for and two to four in all, drawn for the night (spec D.1's module grammar; note 449). One mine head has its lift and a winch, the next its lift, tipple and crates; a switchyard or a slaughterhouse may have a winch; a wreck yard, crates.
 
 **Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
 
@@ -2452,6 +2452,13 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **The land and the water**
 - Lots of the landscape generation's textures are see-through or missing. The water looks bad: still, with no life or movement to it. *Fixed in PR #441 (queue #160, ARCHITECTURE §8 note 424): the water stays put under the camera and moves, rippling and swelling in the night's wind, its rivers running, the moon's road in it and a lap at its waterline; lakes are drawn to their own shores and held in by a rim where the land is lower; the shore's shingle keeps to its waterline. Found: the water's texture is pinned to the camera, so it slides along with the train, and nothing in it moves; a lake drawn as a disc floats over its rim where the land is lower than its water (on frontier:3, by up to 6.5 m); the shore's ground changes by the land mesh's quad in hard patches; the sea is one flat sheet. Next (queue #169, B1, note 433): `dt holes`, a headless search for the rest, the sky painted where it shows through the land and untextured surfaces flagged, down every tier's nights.*
+
+**Cinder Hounds aboard**
+- They grabbed the director through the car: in the car, with them on the roof above. That shouldn't happen. And they overlap each other on top of the car; they should pick their own spots. *Done (queue #207, ARCHITECTURE §8 note 471): a hound on the roof bites only who's out on the train with it, never anyone inside a car or the cab; each hound coming aboard takes its own spot, 1.6 m or more from the next.*
+- They shouldn't just stand there and howl: patrol between cars with their doors open, or along the roofs, jumping between them when they can make the jump; and an animation for it. *In progress: the patrol (queue #208, note 472, D1); its clips (queue #213, note 477, E1: patrol, leap, drop, climb, sniff).*
+
+**The jump**
+- The base jump is too weak. *Done (queue #209, ARCHITECTURE §8 note 473): `jumpHeight` 0.8 m to 1.2 m, about a fifth longer in the air, so a jump at a roof run carries about 3.4 m (2.8 m before).*
 
 **Derailment**
 - Turning into a yard, derailment is way too easy. Don't allow derailments when turning into and leaving a yard. *Done (queue #206, ARCHITECTURE §8 note 470): no bend on a yard's track (its turnout off the main line included) derails the train or warns of it, in or out, at any speed; the main line's bends as before.*

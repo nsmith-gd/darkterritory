@@ -156,6 +156,11 @@ public static class Views
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
             "rupture" => Camera.LookAt(engine.ToWorld(new Double3(-14, 2.4, -engineHalf + 1)), engine.ToWorld(new Double3(-0.7, 3.0, 0.5)), 60),
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
+            // (Not one of Names.) On the cab floor, up at the ladder and the hatch it goes up to (the director, 8 Oct: "ladder
+            // in cab to nowhere").
+            "cabhatch" => engine.Shape.Ladders.FirstOrDefault(d => d.Foot.Y > 0.2 && d.Inward.Z > 0) is { Top: > 0 } hatchLadder
+                ? Camera.LookAt(engine.ToWorld(hatchLadder.Foot + new Double3(1.2, 1.5, -1.3)), engine.ToWorld(hatchLadder.Foot + new Double3(0, 2.7, -0.33)), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
             // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
             "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),

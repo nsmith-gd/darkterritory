@@ -754,7 +754,106 @@ board.key(25, {**DRIVE, "root": (18, 0, 0), "root@loc": (0, -1.3, -0.25)}, "BEZI
 board.key(30, {**CROUCH, "root@loc": (0, -0.2, -0.06), "jaw": (-30, 0, 0)}, "BEZIER")
 board.key(33, CROUCH, "LINEAR")
 
+# The patrol aboard (queue #213, note 477; D1's #208; the director, 8 Oct: "It matters that they dont just stand there and
+# howl, they should either patrol between cars that have doors open or patrol the roofs of the cars, jumping between them
+# if they can make the jump").
+#
+# Patrol (64 frames, two strides): the hunting walk along the roofs. The prowl's slink without its stop: nose down at the
+# boards, the head swept slowly from side to side over the two strides, the ears pricked forward, the tail low and
+# swinging; it doesn't stop to stare, it's looking.
+def hunting(t, sweep):
+    p = stalk(t)
+    p.update(posed(neck_01=(-30, 0, 4 * sweep), neck_02=(-10, 0, 12 * sweep), head=(10, 0, 10 * sweep), jaw=(-3, 0, 0),
+                   ear_r=(8, 0, -14), ear_l=(8, 0, 14)))
+    return p
+
+
+patrol = Clip("patrol")
+for f in range(0, 64, 2):
+    patrol.key(f, hunting((f / 32) % 1.0, math.sin(2 * math.pi * f / 64)), "LINEAR")
+patrol.close(64)
+
+# Leap (27 frames once): over a coupling gap from one roof's end to the next. In place along the line: the sim carries it
+# the 2-3 m across between frames 8 and 20 (0.27 s to 0.67 s); the clip is its gather, its arc up off the roof and its
+# landing on the far one, the forelegs taking it, and on into the walk.
+def aloft(pose, z, **extra):
+    q = {**pose, "root@loc": (0, 0, z)}
+    q.update(posed(**extra))
+    return q
+
+
+leap = Clip("leap", loop=False)
+leap.key(0, stalk(0.0), "BEZIER")
+leap.key(5, aloft(crouched(-0.3), -0.2, pelvis=(-14, 0, 0), chest=(-14, 0, 0), jaw=(-12, 0, 0)), "LINEAR")
+leap.key(8, aloft(DRIVE, 0.12, jaw=(-20, 0, 0)), "LINEAR")
+leap.key(14, aloft(FLIGHT, 0.62, jaw=(-14, 0, 0), tongue=(-10, 0, 0)), "BEZIER")
+leap.key(20, aloft(LANDED, -0.05, jaw=(-14, 0, 0)), "LINEAR")
+leap.key(24, aloft(GATHERED, -0.06, jaw=(-8, 0, 0)), "BEZIER")
+leap.key(27, stalk(0.0), "BEZIER")
+
+# Drop (36 frames once): from a roof's edge down in at an open door. It ends where the sim puts it, on the car's floor
+# 0.7 m in from the doorway, facing in; it starts up on the roof over the doorway (2.9 m up: the roof at 4.0, the floor
+# at 1.1), facing out over the edge. It looks down, springs out off the edge, turns in the air and swoops in through the
+# doorway, lands on the sill on its forelegs and comes in.
+DROP_UP, DOOR_IN = 2.9, 0.7
+drop = Clip("drop", loop=False)
+drop.key(0, {**STAND, "root@loc": (0, -DOOR_IN + 0.2, DROP_UP), "root": (0, 0, 180)}, "BEZIER")
+drop.key(8, {**crouched(0.6, neck_01=(-34, 0, 0), neck_02=(-20, 0, 0), head=(-8, 0, 0)),
+             "root@loc": (0, -DOOR_IN + 0.15, DROP_UP - 0.1), "root": (-12, 0, 180)}, "BEZIER")
+drop.key(13, {**DRIVE, "root@loc": (0, -DOOR_IN - 0.25, DROP_UP + 0.05), "root": (-10, 0, 180)}, "LINEAR")
+drop.key(19, {**FLIGHT, "root@loc": (0, -DOOR_IN - 0.75, DROP_UP - 0.9), "root": (-30, 0, 90)}, "LINEAR")
+drop.key(24, {**FLIGHT, "root@loc": (0, -DOOR_IN - 0.35, 0.45), "root": (-18, 0, 15)}, "LINEAR")
+drop.key(28, {**LANDED, "root@loc": (0, -DOOR_IN - 0.25, -0.08), "root": (-8, 0, 0)}, "BEZIER")
+drop.key(32, {**GATHERED, "root@loc": (0, -0.25, -0.06)}, "BEZIER")
+drop.key(36, STAND, "BEZIER")
+
+# Climb (40 frames once): the drop backwards, out at an open door and up onto the roof. It starts where the sim has it, on
+# the floor 0.7 m in from the doorway, facing out; it trots to the sill, springs out and up, turning in the air to face the
+# car, hooks its forelegs over the roof's edge and hangs there scrabbling at the side as it did boarding, then heaves up
+# and over onto the roof. It ends up there 2.9 m up and 0.5 m out from where it started, turned round (facing back in over
+# the car).
+climb = Clip("climb", loop=False)
+climb.key(0, STAND, "BEZIER")
+climb.key(6, {**stalk(0.3), "root@loc": (0, DOOR_IN - 0.15, 0)}, "LINEAR")
+climb.key(10, {**DRIVE, "root@loc": (0, DOOR_IN + 0.05, 0.05)}, "LINEAR")
+climb.key(15, {**FLIGHT, "root@loc": (0, DOOR_IN + 0.55, 1.4), "root": (20, 0, 90)}, "LINEAR")
+climb.key(19, {**REAR, "root@loc": (0, DOOR_IN + 0.45, DROP_UP - 1.2), "root": (62, 0, 180)}, "BEZIER")
+for f, d in ((22, 1), (25, -1), (28, 1)):
+    climb.key(f, {**REAR, "root": (58 + 4 * d, 0, 180), "root@loc": (0, DOOR_IN + 0.4, DROP_UP - 1.1 + 0.05 * (f - 22) / 6),
+                  "thigh_r": (-20 + 45 * d, 0, 0), "calf_r": (20 - 40 * d, 0, 0), "thigh_l": (-20 - 45 * d, 0, 0),
+                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "CONSTANT")
+climb.key(33, {**DRIVE, "root": (18, 0, 180), "root@loc": (0, DOOR_IN + 0.05, DROP_UP - 0.3)}, "BEZIER")
+climb.key(37, {**crouched(0.2), "root@loc": (0, DOOR_IN - 0.2, DROP_UP - 0.06), "root": (0, 0, 180)}, "BEZIER")
+climb.key(40, {**STAND, "root@loc": (0, DOOR_IN - 0.2, DROP_UP), "root": (0, 0, 180)}, "BEZIER")
+
+# Sniff (120 frames, loop): the idle beat aboard, not a howl. Nose down to the boards, sniffing in quick pops along them;
+# then a forepaw scraping at them (at a hatch's edge, at a seam) three times; then a long look over the side, head low
+# and turned out, the ears up, still; and back to the boards.
+def nosing(dip, turn=0.0, **extra):
+    p = posed(root__loc=(0, 0.02, -0.06), pelvis=(0, 0, 0), chest=(-4 - 6 * dip, 0, 0), neck_01=(-34 - 14 * dip, 0, 6 * turn),
+              neck_02=(-14 - 10 * dip, 0, 26 * turn), head=(4 + 6 * dip, 0, 16 * turn), jaw=(-4, 0, 0),
+              ear_r=(4, 0, -16), ear_l=(4, 0, 16), tail_01=(-6, 0, 0), tail_02=(4, 0, 0))
+    p.update(posed(**extra))
+    return planted(p, {"front_r": (0.36, GROUND), "front_l": (0.4, GROUND), "rear_r": (-0.46, GROUND), "rear_l": (-0.44, GROUND)})
+
+
+def scraping(lift):
+    p = nosing(0.6, 0.0)
+    return paw(p, "front", "r", 0.52 - 0.1 * lift, GROUND + 0.1 * lift, -40 - 20 * lift, -30 - 30 * lift)
+
+
+sniff = Clip("sniff")
+for f, pose in ((0, nosing(0.4)), (6, nosing(0.8)), (8, nosing(0.7, 0.1)), (10, nosing(0.85, 0.1)), (14, nosing(0.75, -0.15)),
+                (16, nosing(0.9, -0.15)), (24, nosing(0.6, 0.2)), (28, nosing(0.9, 0.25)), (30, nosing(0.8, 0.25))):
+    sniff.key(f, pose, "CONSTANT" if f in (8, 10, 14, 16, 28, 30) else "BEZIER")
+for f, lift in ((38, 1), (42, 0), (46, 1), (50, 0), (54, 1), (58, 0)):
+    sniff.key(f, scraping(lift), "BEZIER")
+for f, pose in ((66, nosing(0.2, 1.0, ear_r=(14, 0, -20), ear_l=(14, 0, 20))), (72, nosing(0.3, 1.1, ear_r=(14, 0, -20), ear_l=(14, 0, 20))),
+                (96, nosing(0.3, 1.1, ear_r=(14, 0, -20), ear_l=(14, 0, 20))), (104, nosing(0.5, 0.2)), (112, nosing(0.4))):
+    sniff.key(f, pose, "BEZIER")
+sniff.close(120)
+
 kit.build()
 # (No feet planter: every clip's paws are placed by IK.)
-rig.bake(sk, [prowl, run, crouch, lunge, board, hit, bite])
+rig.bake(sk, [prowl, run, crouch, lunge, board, hit, bite, patrol, leap, drop, climb, sniff])
 rig.export(rig.args()[0] if rig.args() else "cinder_hound.glb", kit)

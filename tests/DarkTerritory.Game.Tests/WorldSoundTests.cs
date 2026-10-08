@@ -258,6 +258,131 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn()
+    {
+        // Spec D.2's capstan winch (T43; queue #204, note 468), at a foundry (the wreck yard's is place-wreck's), off its site's
+        // record as a client has it: the drum while it's cranked in rhythm, the sled hauled in over the ground, the stall as
+        // the cranks fall out of rhythm, once, and a sled brought up to its stop, once, where it stops.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-winch.stall", "place-winch.in");
+        Held(audio, "place-winch.capstan", "place-winch.drag");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Winch));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool turning = false, bool outOfRhythm = false, double progress = 0, int sleds = 2) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, progress, sleds, turning, outOfRhythm, 0))]);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        var ears = new Ears(audio, world);
+        var ear = site.Capstan + new Double3(0, 0.9, 2);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // Cranked in rhythm: the drum, and the sled coming in.
+        Set(turning: true, progress: 0.3);
+        ears.Tick(ear, 10);
+        Assert.True(Playing("place-winch.capstan") && Playing("place-winch.drag"));
+        // Out of rhythm: the stall, once, and the drum and the sled still.
+        Set(outOfRhythm: true, progress: 0.4);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // In rhythm again and the sled in: brought up to its stop, once, and the next one waiting out at the far end.
+        Set(turning: true, progress: 0.98);
+        ears.Tick(ear, 10);
+        Set(turning: true, progress: 0, sleds: 1);
+        ears.Tick(ear, 10);
+        var stop = Assert.Single(ears.Started, v => v.Name == "place-winch.in");
+        Assert.True((stop.Position - site.SledTo).Length < 1e-6);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        // Far off, nothing.
+        ears.Tick(site.Capstan + new Double3(400, 0, 0), SimConstants.TickRate);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+    }
+
+    [Fact]
+    public void TheConveyorIsHeardStartedRunningJammedClearedAndStalled()
+    {
+        // The grain elevator's conveyor line (A1's note 400; queue #202, note 466), off its site's record as a client has it:
+        // the starter cranking its engine while held, the engine catching as it starts and running once it's up, the belt
+        // and the grain off its head while it carries; a jam where it is, the drive labouring under it and not running
+        // free, the hands at it, the belt jerking free as it's cleared; and a jam left, the engine dying.
+        var (world, elevator) = Night(f => f.Facility == FacilityKind.GrainElevator, from: 20);
+        var audio = new GameAudio(Content);
+        string[] once = ["place-conveyor.catch", "place-conveyor.stall", "place-conveyor.jam", "place-conveyor.free"];
+        string[] held = ["place-conveyor.cranking", "place-conveyor.engine", "place-conveyor.labour", "place-conveyor.belt",
+            "place-conveyor.pour", "place-conveyor.clearing"];
+        Stand(audio, once);
+        Held(audio, held);
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(elevator);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Conveyor));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool running = false, bool carrying = false, double jam = -1, double jamFor = 0, double start = 0, double clear = 0) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0, Grain = x?.Grain ?? 0 }
+                : new SiteState(true, 0, 0, false, false, 0) { Bin = site.Bin, Grain = 2, Running = running, Carrying = carrying,
+                    Jam = jam, JamFor = jamFor, Start = start, Clear = clear })]);
+        string[] Now() => [.. held.Where(c => Playing(audio, c))];
+        var ears = new Ears(audio, world);
+        var ear = site.ConveyorStarter + new Double3(0, 0.7, 1.5);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Empty(Now());
+        // Someone at the starter: the engine cranked over while they hold it.
+        Set(start: 1.5);
+        ears.Tick(ear, 10);
+        Assert.Equal(["place-conveyor.cranking"], Now());
+        // It starts: it catches, once, and the running engine takes over as the catch comes up to its beat.
+        Set(running: true);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.catch");
+        Assert.DoesNotContain("place-conveyor.cranking", Now());
+        ears.Tick(ear, SimConstants.TickRate * 4);
+        Assert.Contains("place-conveyor.engine", Now());
+        Assert.Contains("place-conveyor.belt", Now());
+        Assert.DoesNotContain("place-conveyor.pour", Now());
+        // Carrying into the car under its head: the grain going in.
+        Set(running: true, carrying: true);
+        ears.Tick(ear, 10);
+        Assert.Contains("place-conveyor.pour", Now());
+        // Jammed half-way down its low run: the belt bunching there, and the drive labouring instead of running free.
+        Set(running: true, jam: 0.5);
+        ears.Tick(ear, 10);
+        var jammed = Assert.Single(ears.Started, v => v.Name == "place-conveyor.jam");
+        var jamAt = site.JamAt;
+        Assert.True((jammed.Position - jamAt).Length < 1e-6);
+        Assert.Equal(["place-conveyor.labour"], Now());
+        // Someone clearing it, then cleared: the belt jerks free where it was jammed and runs on.
+        Set(running: true, jam: 0.5, jamFor: 3, clear: 1);
+        ears.Tick(ear, 10);
+        Assert.Contains("place-conveyor.clearing", Now());
+        Set(running: true);
+        ears.Tick(ear, 10);
+        var free = Assert.Single(ears.Started, v => v.Name == "place-conveyor.free");
+        Assert.True((free.Position - jamAt).Length < 1e-6);
+        Assert.Contains("place-conveyor.engine", Now());
+        Assert.DoesNotContain("place-conveyor.labour", Now());
+        // Jammed again and left: the engine dies under it, and nothing of the line goes on.
+        Set(running: true, jam: 0.2, jamFor: 10);
+        ears.Tick(ear, 10);
+        Set(jam: 0.2);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.stall");
+        Assert.Single(ears.Started, v => v.Name == "place-conveyor.free");
+        Assert.Empty(Now());
+    }
+
+    [Fact]
     public void ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed()
     {
         // D.7 (note 301's slice 2; queue #122, note 385): the wrench at a lock opens it quietly (Holdout.Quiet, replicated), and
