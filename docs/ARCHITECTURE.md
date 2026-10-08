@@ -5129,7 +5129,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The mark and the pin.** A blow or a ball (`Struck`) hurts it and makes the hitter its mark. Its next pass is for them: a 2.5 s bank (the telegraph; the spine refuses a commit sooner), then, if they're still out (not in a car's room or the cab), down on them: the shared GRAB for 4 pecks × 3 s. Three blows from friends in the pin (`DriveOffBlows`) break it, and the last of them is its mark. The fourth peck is `DeathCause.Pecked`. 12 health; under 4 it leaves for the run (gone); killed, its head drops (`Bodies.SpawnCrate` in its car's frame, or `SpawnLoot` on the ground) as a find owned `Run.TrophyOwner(EnemyKind.Gannet)`. `RunLoot.FindOf` reads a trophy's owner (stop 0xFFF, container the kind) from loot.json `trophies.gannet`: 1.5 of the tier's car-loads, stowed in any car, the same on every machine.
     - **Coming and going.** `World.FastSeconds` counts the train's run at 18 m/s or more. The spawn rule (B.4) wants 30 s of it out of a tunnel, a train of two or more, once a run, every tier weighted 1/1.5/2/2.5, by the plan's biome and per walker on the roofs. Under 12 m/s for 6 s, in a tunnel, or 60 s with nobody walking the roofs and its mark inside, it goes Away (not exposed, not engaged: `Director.Engaged` leaves it out of the caps) and comes back after 180 s once the train's run fast again. It's never dismissed for want of company (`StaysAboard`). Its passes' waits come from its own id and the tick, never the director's dice.
     - **Its art** (from the director's reference, `docs/design/creatures/gannet-reference.webp`; rebuilt at the director's word that the first pass was "super low quality ... very boxy and rigid, not organic"). `tools/blender/gannet.py`: the body, the S of the neck, the head, the sacs and the legs one skin through `rig.fuse` (the union voxel-remeshed, then QuadriFlow, smooth-shaded); the wings bone-curved, their feathers layered, cupped and twisted cards, each riding two bones so the wing bends and the primaries splay; 15,712 triangles (its LOD 6,578), a 7.04 m span, 2.28 m tall. Its colour is baked into one 2048 texture by `tools/models/recipes/gannet.py` (sooted, flecked white, black primaries, a sulphur head, veined sacs glowing from inside), so `tools/blender/build.sh` leaves it out. `CreatureArt` picks its clip from the replicated `GannetMode` and lands each peck on the Sim's 3 s beat; the one it pins lies on their back under its foot (`HeldPinned`). Views `gannet`, `gannetfold`, `gannetstuck`, `gannetpin` and `--gannet <mode>`; stills in docs/design/creatures/. `CreatureArtTests` and `CreatureBodyTests` pin its budget, size, clips, clearance and gun body.
-    - **Not yet.** Its sounds are made (note 384, spec A.4's row). The bots don't stop on a fold, or keep from hitting it; they do beat it off a pinned crewmate (`Heed.Rescue`), which the grab audit uses.
+    - **Not yet.** Its sounds are made (note 384, spec A.4's row). The bots don't stop on a fold, or keep from hitting it (both since: note 454, and D1.3's #183); they do beat it off a pinned crewmate (`Heed.Rescue`), which the grab audit uses.
     - **Verified:** `GannetTests` (10: holding the line is a stab; breaking stride a miss and stuck; whoever's still is never prey; hit it and it banks and pins and pecks to the fourth; friends' three blows drive it off and the last is its mark; inside a car it can't come down; a slow train and it peels off, unengaged; killed, its head is a trophy in its car; under a third it leaves for the run; its numbers keep the fairness contract). `SpecTableTests.TheGannetMatchesB13`. `dt audit grabs --only gannet`: freed at every crew from 2 to 8 (2.4 s at crew 2, 1.0 s from 4). The Sim suite.
 
 344. **Hold prompts in one form (F1, UI/UX 3; queue #81; GDD §32 "the action and its key ... and a hold's progress"; note 285).** Two forms had grown up. The search, the generator and the rigging said the action and its key ("SEARCH THE CUPBOARD : HOLD [E]") and their progress only once under way; the repairs (note 301), the boiler, the fouled gun, the breach and the hot box (note 331) said "(0%)" before anyone had touched them.
@@ -5628,7 +5628,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - the Choir's swarm passes over whoever's in it, and lets go of anyone it was holding who gets into one;
         - voices through its walls are muffled (`VoiceRouting`, a different space);
         - the listener inside hears the outside occluded, as in a shut car (`GameAudio.Occlusion`; AU1's notes 392 and 396 are the room's sound and the walls' damping, untouched).
-      A pair of cottages is shut up only with both its doors shut, since the space is per house, not per cottage. The test is cheap while nothing's shut: only the houses with every door shut are looked at.
+      A pair of cottages is two spaces, each shut up behind its own door (note 453; it was one, shut up only with both doors shut). The test is cheap while nothing's shut: only the houses with every door shut are looked at.
     - **The art** (`GreyboxScene.HouseDoors`). A plank door, ledged on its inside, hung just inside the wall's outer face on one side of the doorway. Open, it's swung in about its hinge a little past square into the room, which the clutter keeps clear (note 326). Shut, it's across the doorway under the lintel. Drawn from the sim's state, so a client sees what the host has. `dt screenshot --doors-shut` shuts every door (a screenshot from a route draws the doors open by default).
     - **Reading:** GDD §21 says "not behind a closed door", and a house has doors. The spec's Choir rows don't name cars only, and a closed house is the village's answer to the Choir, as a car is the train's. Not a tuning flag: a door that shuts and doesn't shelter would be a lie (App. F.1's rule: a tell the rules can back).
     - **Verified:** `HouseDoorTests` (frontier:7):
@@ -5785,7 +5785,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - gathered less than `shelterOutAt` and gone, it opens the door, takes up what it put down if it's in reach, gives the house back and goes back to what it was doing (out again only if it was).
       With no house for it, it puts down what it carries and leaves the stop to the walker, who gets aboard and into a shut car, the run's own shelter.
     - **Verified:** `StopCrewTests.WithTheChoirGatheringAHandOutInTheVillageShutsItselfIntoAHouseAndComesOutAfter`. A crate hand searching a house when the Choir gathers shuts itself into an open house (the door shut, its space a house's) while the rest get behind shut doors aboard. It's still there 20 s on, with the train still standing for it. Quiet, it opens the door, and the train leaves whole with everyone aboard and alive.
-    - **Not yet:** a house of two doors (the paired cottages) isn't sheltered in. (A hand inside a cargo car with its side door open: note 439.) The doors' sound is AU1's #145.
+    - **Not yet:** ~~a house of two doors (the paired cottages) isn't sheltered in~~ (note 453: each cottage is a home of its own). (A hand inside a cargo car with its side door open: note 439.) The doors' sound is AU1's #145.
 
 414. **A bot on the forward gun (queue #150, D1; note 405's "not yet").** The lane ahead (note 405) is the forward gun's, and a bot crew had one gunner, the guard van's, so every pair ahead boarded the first car.
    - **Who.** A bot crew of `guns.forwardGunnerFrom` (6) or more, bots and all, has a second gunner (`GunnerBot.Forward`, named `forward-gunner`): the crew's last place. Its stop job is a crate hand's. The driver, the guard van's gunner, the shunter and the winch pair come first, so five keep their parts as before.
@@ -6029,6 +6029,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - "In it" is in its footprint and between 3 m under the rail (a cellar) and 8 m over it (`EarRoom.ShutsIn`). It must also still be in the footprint 0.5 m (`roomEdge`) nearer the ear. A sound that close to the face on the ear's side is at the door or a window and is heard out of it: a door shut in a house's doorway, a crewmate at a window.
         - An ear in one building, hearing a sound in another, hears it through the greater of the two walls.
         - The train's bed (tier 5) is never in a building. A sound its caller has already put part-way behind something (a prisoner's call through a Holdout's door, a town house's range) keeps its caller's judgement, as before.
+        - A house's door is heard at the doorway as the house and the street both (note 409): its shutting and opening, and the Choir beating on it, pass no building's walls. Fixed since: the door's sound sits 0.5 m inside the house's footprint (so an ear inside hears it clear), and from along the street, off to the door's side, the 0.5 m `roomEdge` didn't reach the face, so the door came through a whole room's wall (0.8). `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp` hears it from there too.
     - **The night's air, walled:** `world-night.night`, the gale, its gusts and a dead town's quiet are played at the ear. Now they're behind the walls of the room or shed the ear is in (`GameAudio.AirWalls`). The rain already moved onto the roof indoors (note 392). The far cries and the thunder, placed out in the night, were already walled by note 396.
     - **No new sounds and no new mix numbers:** `roomEdge` is the one new tuning value.
     - **Pinned:** `WorldSoundTests.AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt`, on a client night with a Holdout's room and a shed:
@@ -6149,7 +6150,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - quiet again, opens the side door the loading uses and goes back to it. The Choir back first, the doors again.
       It gives the doors up after 30 s stuck at them. It isn't "out" (`CrewCalls.Out`): it's aboard, and the loading the driver waits on isn't done.
     - **Verified:** `StopCrewTests.WithTheChoirGatheringAHandLoadingACarShutsItselfInAndOpensUpAfter`: a crate hand loading a cargo car when the Choir gathers is shut into it (its space the car's) within the time it gathers, and still in there 15 s on, the train standing; quiet, it opens up, the loading's finished and the train leaves whole, every side door shut, everyone aboard and alive.
-    - **Not yet:** the paired cottages (note 413's). A walker on a deck elsewhere still stands where it is (its own shelter, `RoofWalkerBot`: from a roof).
+    - **Not yet:** ~~the paired cottages (note 413's)~~ (note 453). A walker on a deck elsewhere still stands where it is (its own shelter, `RoofWalkerBot`: from a roof).
 
 435. **Draggers off a truss (queue #171, D1; [orchestrator.md](design/orchestrator.md) §5.2 S4, "dropping onto the roofs from an overbridge or a tunnel mouth"; note 286's boarding-first: a threat that boards at speed does it at a known point, with a tell and a counter).** Since note 286, a Dragger got under a car only with the train under 14 m/s, so a train at speed never had one.
    - **Where.** A through-truss's top chord, 7 m over the rail (`StructureKit.TrussSpan`). Not a tunnel mouth: a mouth already takes anyone standing on a roof (the low-clearance board, `Lineside`, Struck), so a Dragger there would add nothing. The line has no overbridges.
@@ -6164,6 +6165,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
      - Frontier:7's run-fast train finds one on Stroud Bridge's chord, put there within 500 m of it.
    - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, after: a truss Dragger on every night. One grabbed a walker (seed 2) and was hauled off; the others met empty roofs. Deaths 1, 0 and 3 against main's 2, 0 and 2. Seed 3's three were hounds Mauling, nothing to do with the truss.
    - **Not yet.** Bots off the roofs at a truss's scrape (they heed a tunnel's mouth, T81, not this).
+454. **The bots and the Gannet (queue #190, D1; note 340's "not yet": "the bots don't stop on a fold, or keep from hitting it").** The Gannet hangs over someone walking a roof, then folds onto where they'll be 1.6 s on; its rule is "when it folds, break your stride". The bots walked on through the hang and the fold and were stabbed.
+   - **Stopped dead** (`Heed.Gannet`, in every crew bot's heed chain, `BotCrew`). A bot on a roof that a Gannet is hanging or folding over (its mode and its prey, as every client has them) drops its movement, run and jump. Whoever stops walking is let be (`Gannet.Hang`: a second still and it climbs away), so the fold never comes; it walks on once it's gone.
+   - **Holding fire** on a Gannet nobody's pinned is the gunner's half (`GunnerBot`, D1.3's #183, PR #501): a ball makes the gunner its mark, and the seat is out in the open.
+   - **Counted.** `Director.GannetPasses` (hung over a walker, folded, stabbed one), and `dt harness`'s `threats.gannet`.
+   - **Test.** `GannetTests.ABotWalkingTheRoofStopsWhenItHangsOverItAndIsLetBe`: a heeding walker on car 2's roof at 20 m/s stops as it hangs, it climbs away without folding, and the walker walks on unhurt. Without the heed it folds, and the test fails.
+   - **Bot nights.** `dt harness --route frontier:7 --bots 4 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, this branch without the heed against with it:
+     - Folds 10, 23 and 5 to 0, 0 and 0; stabs 3, 7 and 0 to none. It hangs over a walker as often as before (25/42/11 against 29/37/17).
+     - Deaths 1/0/3 against 1/1/2; km 13.4/19.2/8.3 against 9.6/15.7/12.0. None of either side's deaths was the Gannet's (Mauled, Devoured, one JumpedAtSpeed): the nights diverge after the first difference.
+   - **Not yet.** A bot never hits it stuck in the planks on purpose (the crew's choice to make it a fight); they only beat it off a pinned crewmate (`Heed.Rescue`).
+
 451. **A scattered hound runs off, never blinks out (queue #187, D1; the guns' effect on creatures, note 290; note 328's scatter).** A ball landing near a hound runner scatters it, and that's the guns' commonest effect on a creature. The sim has it gone the same tick (BreakOff, then Gone: `CinderHound.Tick`), so on every screen it vanished where it stood. The scene already keeps its own memory of what leaves the sim: the killed falling and crumbling, the Choir dispersing, a cut Car Hugger riding off, a Track Doll vanishing. It had none for this.
    - **Seen going** (`GreyboxScene.Fleeing`, presentation only, as the Choir's leaving). A Cinder Hound on the line (not aboard, not killed) that's gone since the last frame is remembered with the train's speed then. For `CreatureArt.HoundRunOffSeconds` (4 s) it is drawn running on:
      - It pulls up along the line at 7 m/s², so a running train draws away from it.
@@ -6280,6 +6291,133 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **How:** its neck and head turned that way over whatever clip it's on (`CreatureArt.DrawTurned`: the turn shared 0.4, 0.25, 0.35 down neck_01, neck_02 and head, clamped at 1.3 rad, as far as a sheep turns standing; the head tipped up to a face, 0.5 rad, or down 0.35), by `CreatureArt.Bend` on the clip's pose. `SceneArt.SheepAim` is the turn and tip from its own facing.
     - **Each at its own pace:** eased toward who it's looking at at 2 to 5 per second, from its own hash, so the pen comes round one after another, not all at once; first seen (a still, a car coming into reach), already there.
     - **Verified:** `LivestockArtTests` (ahead, left, right and behind from either facing; the tip clamped; the turned head's forward where it was asked to look). `dt screenshot --cargo livestock --view penclose [--unseen]` (crouched at the pen's rail; `--unseen` for them not looking, GreyboxScene.Onlook).
+
+430. **The conveyor line's art (queue #166, C1; A1's #136, note 400: "the conveyor's greybox only, its art left to C1"; spec D.2, D.3).** The grain elevator's conveyor was the greybox's rods and boxes. Now it is modelled in facility_pieces.py and drawn by `SceneArt.Conveyor` where the sim lays it (`Site.ConveyorTail`, `Knee`, `Head`, `Starter`). The greybox is kept as the fallback (`GreyboxScene.SetPieces`' `conveyorDrawn`).
+    - **The pieces:**
+        - The low run from the tail to the knee is `belt_section`s (380 triangles each): 3 m of troughed belt on its idlers and stringers, its return under, on a timber trestle. They're stretched a little so a whole number fills the run.
+        - `belt_riser` (768): a covered truss gallery from the knee up into the head's hood, tipped up the slope and stretched to the sim's knee and head (`Inclined`).
+        - `belt_head` (452): the gantry astride the track, its deck and rail, the head pulley's hood and the chute down to over a car's roof.
+        - `drive_house` (174): the corrugated hut past the tail, its exhaust, the tail drum at the belt's end and the drive's guard.
+        - `drive_flywheel` (220).
+    - **What moves, from the sim:**
+        - The flywheel turns, and splices crawl along the belt at the grain's speed, while it runs and isn't jammed (`Running`, `Jam`).
+        - The lamp by the drive house's door is green while it runs and red stopped or jammed. The starter (`lever_handle`) is down while it runs.
+        - Grain rides the belt while it carries and falls from the head into the car under it.
+        - A jam is a heap fouled on the belt where the sim has it (`JamAt`), the grain behind it stood still and some spilled off the side.
+    - **The frame's per-layer tables, 256 to 512 (`GreyboxRenderer.LayerTable`):** the conveyor's five atlases took the library's and the models' layers past 256. The frame's per-layer tables (`HeroOf`, `MotionOf`; frame.glsl's `heroOf`, `motionOf`) covered only the first 256. A layer past them was still drawn, but never at its hero size and never moving: the Weight's atlas lost its hero slot (`LookTests.TheBakedAtlasesKeepTheirResolution` caught it). They cover 512 now, and the uniform grows 2 KB, to about 6.5 KB of the 16 KB every device allows. `LookTests.EveryLayerHasItsPlaceInTheFramesTables` fails before the next model passes them again.
+    - **`dt screenshot --site --facility grainElevator --belt [head | drive] [--conveying | --jam f]`:** A1's camera along the run, and two new ones. `head` looks from the riser's side up at the gantry; across the track a stop's sheds stand. `drive` is at the drive house from the track's side.
+    - **Verified:**
+        - `SetPieceArtTests.TheConveyorIsTheArtsWhereTheSimLaysItAndTurnsOnlyWhileItRuns` covers the layout and the motion. The head's gantry stands on the track under the sim's head, and the sections fill the run. The flywheel is still while stopped and turns while running. The lamp is red, then green.
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - The Game suite.
+        - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
+
+
+452. **Reports to the studio (F1, UI/UX 3; queue #188; the director, 8 Oct: "You can point reports, crashes, logs, etc. into a nicely formatted reporting structure that is dev friendly for debugging to nsmith@squidostudio.com"; roadmap M6, note 626's not-yet "a crash reporter that sends reports").** A crash wrote a plain dump to app data: a line of version, the exception, the last lines. That was all a player could send, and nothing helped them send it.
+    - **A report a developer reads at a glance** (`Report`, written by `CrashReports`).
+        - It's titled DARK TERRITORY CRASH REPORT, or PROBLEM REPORT for a player's own.
+        - Then a header of labelled lines, every value in one column:
+            - its id and time (local, and UTC);
+            - the build (the version, and the commit the SDK stamps into the assembly's informational version);
+            - the OS and runtime;
+            - this launch's log file;
+            - what the app sets as it goes (`CrashReports.Context`): the edition, mods, Steam, the arguments, the GPU, VR;
+            - what's asked as it's written (`Live`): the settings in a line (`ReportFields.Settings`), what the game was doing (the menus and their screen, or the night as launched: "a hosted night, frontier:7, 6 cars, 3 bots"), and in a night where it had got to (`ReportFields.Night`: the phase and seconds, the km and speed, the vehicles, the player alive or how they died, the link's role, crew and ping);
+            - the uptime.
+        - Then WHAT HAPPENED (a player's words), the EXCEPTION with its stack, and the LAST LINES the game printed, each with its time.
+        - What goes wrong reading the night (the state that broke) is a line of its own; the report's still written.
+    - **Its JSON twin** beside it (`crash-….json`): the same fields as an object, the exception's type, message and text, and the log as an array. The notice and `Report.Load` read it back. The crash notice counts only the text files.
+    - **A log of every launch.** The console (out and error) is teed, a line at a time with its time, into `DarkTerritory/logs/latest.log`. The last launch's is kept as `log-<when it started>.txt`, the newest five of those kept. A report names the log, so a developer can ask for the whole of it.
+    - **Sent from the player's own mail** (`Launch.Mail`).
+        - The crash notice has SEND THE REPORT under OK. The settings have a HELP section with REPORT A PROBLEM, in a night's settings too, which writes a problem report (`CrashReports.WriteProblem`) then does the same.
+        - Either opens the player's mail program on a `mailto:` link to `content/ui/reports.json`'s address (the director's). The subject says what it is, its id and the build ("Dark Territory crash, System.NullReferenceException: crash-20261008-031522 (1.0.0, 419b82f42a3b)"). The body asks for a few words and for the file to be attached, then carries the header and the exception's first lines, cut at `mailBodyChars` (mail programs cut long links).
+        - The report's folder opens beside it, since a link can't attach a file.
+        - Nothing is sent by the game: it can't hold a mail server's credentials safely, and a report doesn't leave a player's machine unless they send it. An empty address hides both entries. A server that takes reports by itself would be the next step, and needs a service the studio runs.
+    - **Line numbers in a player's stack.** `tools/package.sh` built with `DebugType=none`, so a shipped crash's frames had no file or line. It's `embedded` now: the debug information is inside the assemblies, a few MB, and every frame says where.
+    - **Verified.** `ReportsTests`:
+        - the header's fields in one column (the build's commit, the context as last set, what was going on), then the exception, its stack and the timestamped lines;
+        - the JSON twin round trips and isn't counted by the notice;
+        - a broken night still leaves a report;
+        - a problem report has no exception and isn't the notice's;
+        - the mail is to the address with the kind, id, exception and build in its subject and the header in a body within the limit;
+        - eight launches keep the latest and three older logs;
+        - SEND THE REPORT on the notice and REPORT A PROBLEM in the settings return the mail and its folder, and neither shows without an address.
+      `CrashReportsTests` as before. `dt report [--problem]` writes one and prints its mail. The app with `--crash-test` crashes on purpose: its report, read, named the commit, the GPU, the settings and the screen. Two launches kept two logs. `dt screenshot --menu crashed` and `--menu settings`, looked at.
+453. **A pair of cottages is two homes, each behind its own door (B4, queue #189; note 413's "not yet"; GDD §21: the Choir takes "anyone ... not behind a closed door"; note 401's doors).** A village's pair of cottages (`HouseShape.Pair`) is two parts 0.4 m apart, each with its own front door and no way between them (note 401's outline: two units, a door each). Note 401 made the house the space, so the pair was shut up only with both doors shut. Someone behind their own shut door was still outside while the neighbour's door stood open, and the stop hands' shelter (note 413) passed every pair by. Now:
+    - **The space** (`StopWalls.AddHouse`, `HouseSpace.Part`): a house whose doors each open into a part of its own is a space per door, that part's floor (`HouseSpace.Holds`). So `HouseAt`, `ShutIn` and `PlayerMotor.Space` (the Choir, voices through walls, the sound's occlusion) take each cottage alone. Every other house (an L, a cross, a plain house with its back room) is one space as before, its parts open into each other. A door's key is unchanged (`DoorKey`, its building and its doorway), so the wire's shut doors are as they were; only the house index (`HouseDoor.House`) counts each cottage.
+    - **The shelter** (`StopHand.House`): every house has one door now, so the hands' "a single door" filter is gone, and a cottage is taken like any house.
+    - **Verified:** `HouseDoorTests.AHouseShutUpIsASpaceOfItsOwnAsAShutCarIs` (a pair's cottages are different houses; one shut is its own space with the other's door open, and the other's inside is still outside until its own door shuts) and `StopCrewTests.WithTheChoirGatheringAHandInAPairOfCottagesShutsItselfIntoItsOwn` (a crate hand out searching, put a stride inside a cottage's door: with the Choir gathering it shuts that door and is behind it, the next cottage's door open; quiet, it opens up and the train leaves whole with everyone aboard). The other shelter and Choir tests pass.
+431. **The rail joints' clack (AU1, queue #167; AU1's audit of the installed sets, after note 354's cobbles and note 419's floors).** The most-heard sound in the game is a wheel over a rail joint, fired per axle every 12 m under every car near you (`bed-wheel-rail.joint`). It was a dull thunk: 1.6 s long, centred at 280-420 Hz, a 70 Hz knock and the packs' plates pitched down, with the night's tail on it. At speed the joints, twenty or so a rail length, piled into a low rumble instead of the click-clack.
+    - **The sounds** (`tools/audio/recipes/joints.py`): two new candidates on the Audio Checklist's wheel-on-rail line, beside the old `clack`. Each previews as the game fires them at 15 m/s.
+        - `crack` (installed): the wheel's tread cracking onto the far rail's end. The contact is a fraction of a millisecond of steel on steel, with the rail's short ring from 800 Hz up and the wheel's damped tread modes. The packs' heavy metal hit sits under it, pitched only a little down and choked, with a light thump of the truck; the rolling loops carry the weight. Most takes have the tick of the wheel leaving the near rail end first. Half a second, centred near 1 kHz.
+        - `battered`: a worn, dipped joint. The wheel drops into the dip with a dull clunk and cracks onto the far end 15-25 ms later.
+    - **Kept under 2 kHz.** Spec A.4 rule 1 gives the tells 2-6 kHz and the bed the low mids, and the joint is rhythmic, which is the other way a tell is told apart. Both new joints are cut steeply above 1.9 kHz: crack has none of its energy in 2-6 kHz, and battered 2 %. They're crisper than the old thunk without crowding the tells.
+    - **Verified:** with crack installed, `AudioTests.EveryTellCutsThroughTheBedForWhoeverHasToHearIt` (chaos and tells: 20 cars at 22 m/s, every tell at least 6 dB over the bed for every listener) passes, and so do the WorldSound and Credits classes (88). Only the six joint takes changed.
+444. **The truss Dragger's drop heard (AU1, queue #180; D1's #171, note 435).** A Dragger perched on a through-truss's top chord scrapes (`dragger-scrape`, the tell), then drops 7 m onto the roof of the car passing under with someone on it and grabs them. With nobody up there, it drops onto the ballast behind and is gone. Neither fall made a sound: the grab came out of the scrape with nothing between, and the miss was silent.
+    - **How** (`GameAudio.DraggerSounds`, `Vanished`): a client's mirrored Dragger never knows it was `Perched`. So the drop is read off its record: a Dragger in its tell with no car of its own (`Attached < 0`), its height over the line.
+        - When it has a car in the next record, that's the landing. `cs-draggers.drop` plays on that car's roof, heard clear inside the car under it and through the walls from another. The grab follows 0.3 s later (`DropToGrab`) as it reaches the edge, not on top of the landing.
+        - When it's gone while still perched in its tell, that's the fall. `cs-draggers.fall` plays under the chord, at the line.
+    - **The sounds** (`tools/audio/recipes/dragger_drop.py`, from boarders.py's Dragger pieces, so it's the creature of the grab): three candidates on the Audio Checklist's Dragger line.
+        - The landing, `slam` (installed): its whole weight on the tin, which booms and flexes (the packs' tin hit pitched far down, the sheet's modes), a body thud, a second limb a beat after, then its claws skating and joints popping as it gathers itself.
+        - The landing, `limbs`: lighter, on all its limbs, a rattle of hard tips on the tin before its body settles.
+        - The fall, `ballast` (installed): a deep thud and a heavy crunch of ballast, stones scattering, its limbs scrabbling a moment. It's heard drawing away from the train (`recede`), so it sits behind you.
+    - **Captioned:** "SOMETHING HEAVY LANDING ON THE ROOF" and "SOMETHING FALLING ONTO THE TRACK BEHIND".
+    - **Pinned:** `CreatureSoundTests.ATrussDraggerLandsOnTheRoofBeforeItsGrabOrFallsOnTheBallastBehind`, on records mirrored as a client gets them:
+        - perched, then on car 2's roof in its grab: the landing at once, and the grab once within half a second;
+        - another perched, then gone: its fall, 7.2 m under where it hung.
+446. **The townsfolk heard on their rounds (AU1, queue #182; B2's #389, note 353: towns that are lived in; AU1's note 415 heard the town standing still).** Since #389 everyone in a walled town has a round: from their post to a bench, a fire, the board, a vigil and back, a household round its rooms, the watch along the wall with their lanterns. Each of them breathes through their gear (a respirator, an oxygen cup, a rebreather, a wrapped can). None of it was heard but the murmur: nobody's feet, nobody's breath.
+    - **How** (`GameAudio.FolkOnTheirRounds`): with the rest of the town, every 0.25 s, each person's feet are found once (`Town.Feet`). The lookup keeps the nearest four within 20 m, the nearest out of doors within 4 m and the nearest two of the watch (`Pose` "lantern") within 25 m. Then, every tick, off `Town.Now`:
+        - **Steps:** a walker's step each 0.7 m they cover (`TownPose.Walking`), on what's under them. That's the street's cobbles or dirt as `Footing.Ground` has the town, a house's boards indoors, or the wall-walk's planks up on it. It's the crew's own `crew-footsteps.walk` set, a little softer (0.6).
+        - **Gear:** the breath of whoever's close enough, out of doors, by the gear they wear (`Townsperson.Gear`: `place-town.gear-respirator`, `-oxygen`, `-rebreather`, `-wrap`), at their head.
+        - **The watch's lanterns:** `place-town.lantern` at the hand, swinging as they walk and quieter hanging still as they stand.
+        - Indoors and out are walled as the rest of the town is (note 415's `TownWall`).
+    - **The sounds** (`tools/audio/recipes/townsfolk.py`): five loops on the Audio Checklist's `place-town` line, all installed. Each gear loop is two slow breaths of heard_foley's modelled breath, the stand-in until recorded ones, with a smooth swell on each.
+        - The respirator, `valves`: drawn muffled through its filters, the valves ticking, the exhalation flap buzzing and clapping shut.
+        - The oxygen cup, `cup`: a thin steady hiss of gas, and the breath hollow in the cup.
+        - The rebreather, `bag`: the mouthpiece's valves clicking, the rubber bag crinkling as it fills and empties.
+        - The wrap, `can`: thick through the wool, the can ringing faintly hollow.
+        - The lantern, `bail`: the wire bail squeaking each swing, the glass chimney ticking, the flame behind.
+    - **Not yet:** the townsfolk's voices in a word with you are the talk's (B2's lines, not heard). A townsperson indoors with the mask down breathes unheard.
+    - **Pinned:** `WorldSoundTests.TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns`, in a town of 3000 with its clock run:
+        - followed a pace off through four seconds of walking, a walker's steps fall on their own way, one about each 0.7 m they cover;
+        - a pace from somebody out of doors, their own gear's breathing;
+        - near the watch, their lantern, at their hand.
+
+461. **The switchyard's goods shed and the military depot's huts, wire and magazine modelled (queue #197, C1; the art checklist's `switchyard` and `military-depot`; GDD §18 "the switchyard: six sidings of scattered cars", "the military depot: gunpowder and shot. Best payout, worst cargo", §30 "oversized, partially abandoned, barely operable, dimly lit").** The switchyard's goods shed was the structure kit's flat works box. The depot's huts were flat half-round prisms behind a line of rods for wire. They are now modelled in facility_pieces.py and placed by `StructureKit.Facility` where the kit's stood; the kit is kept as the fallback.
+    - **`goods_shed`** (690 triangles, a 1024 layer like the other big buildings):
+        - 30 m of weatherboarded shed on a brick plinth under slate;
+        - its loading dock along the front at a car's floor, under a corrugated canopy on iron brackets;
+        - three sliding doors: one open on the dark, one half across, one shut and barred;
+        - a hand crane at the dock's end, crates and sacks left on it, GOODS on a board over the middle door;
+        - the office at its end, its lamp still lit (`_Glow`, the foundry's mask).
+    - **`nissen_hut`** (158):
+        - a corrugated half-round 9 m across, its sheets lapped in rings, rusting, a few gone;
+        - boarded end walls, the door behind a sandbag blast wall, windows (one boarded), the stovepipe.
+        - Three stand where the kit's did, along the line.
+    - **`wire_fence`** (128): a 6 m panel of angle-iron pickets cranked toward the line, barbed wire between them, one strand let go and hanging.
+        - The panels run 60 m along the depot's front.
+        - The gate by the watchtower is 12 m wide, where the sim stacks the depot's crates (facilities.json "crates": the stack 3 m out at −10 to −13, the heavy ones at −4). The kit's rods had stood on the stack.
+    - **`powder_magazine`** (196): a squat brick house under a concrete vault, half buried behind its earth traverse on three sides.
+        - Its red steel door is stencilled DANGER EXPLOSIVES, behind a blast wall; vents low in its walls, the lightning conductor's mast and the red flag.
+        - It stands behind the huts, 31 m out.
+    - **Two recipe helpers:**
+        - `_vault`, a barrel vault's shell (the hut, the magazine's roof);
+        - `_solid`, a convex piece from its own faces, each turned outward (the traverse's banks).
+    - **Pinned:**
+        - `FacilityBuildingArtTests.TheMilitaryDepotsHutsWireAndMagazineStandOffItsCratesAndTheWinchsRun`, from either side of the spur:
+            - nothing within 0.9 m of a crate, and nothing on the sleds' run;
+            - the wire there and open at the gate.
+        - `TheSwitchyardsGoodsShedIsTheModelClearOfItsTracksAndItsOfficeLampIsLit`:
+            - the lamp is the bake's emissive mask;
+            - nothing above 0.3 m within 2.5 m of a yard track or the spur, on four nights' switchyards.
+    - **Verified:**
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - `dt credits --write`: unchanged.
+        - Looked at before and after:
+            - the depot from the air, along its wire, at a hut, and its magazine from the air;
+            - the switchyard from the air, at its shed in dawn light and at night;
+            - each piece on the turntable.
+        - Two bake faults caught by looking: the vault wound inward (the hut had no shell), and the blast wall's game mesh around its bags (the bake missed them: a black box at the gate).
 
 432. **The branches' pines are solid (queue #168, B1; GDD App. F.1 "the world is solid"; the last of notes 371's and 389's lineside the art dealt alone).** After note 389 everything beside a generated main line was the sim's, but out along an alternate or a dead line, past the main line's own land, the stand of pines on each 100 m cell of its land was still dealt in `PlanArt.BranchCell` from `System.Random`, seeded by the branch and the cell: seen, never stood. A crew walking a dead line out to its site, or a bot crew sent up one, went through the woods either side of it.
     - **The sim deals them** (`LinesideProps.BranchTrees`, `LinesideProps.Branches.cs`): the art's rule, ported. Ten tries a 100 m cell, 12–67 m out either side of the branch's track, 7–17 m tall, one of the pine's four meshes, turned anywhere. Each cell has its own stream off the night's seed (`Streams.Rng(seed, "lineside-branch", edge, cell)`), and every try's draws are made before it's tested, so a stretch asked in pieces deals as the whole. None in water (`TerrainField.WaterAt`), within 9 m of any track, or where the main line's own land runs (290 m out, the art's `Covered`): its woods are its own (note 371).

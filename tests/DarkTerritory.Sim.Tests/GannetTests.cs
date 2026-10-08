@@ -63,6 +63,31 @@ public class GannetTests
     }
 
     [Fact]
+    public void ABotWalkingTheRoofStopsWhenItHangsOverItAndIsLetBe()
+    {
+        // Note 454: a crew bot heeds it (Heed.Gannet): walking car 2's roof, it stops dead as the Gannet hangs over it, the
+        // Gannet lets it be and climbs away, and it walks on, unhurt.
+        var n = new Night(4, speed: 20);
+        n.Crew[1] = Roof(n, 2, 6);
+        var g = Over(n);
+        double hung = -1, walkedOn = -1;
+        var stopped = n.Crew[1].Position;
+        for (double t = 0; t < 30 && walkedOn < 0; t += SimConstants.TickSeconds)
+        {
+            n.Run(SimConstants.TickSeconds, id => Bots.Heed.Gannet(Walk, n.Crew[id], n.World, id));
+            if (hung < 0 && g.Mode == GannetMode.Hang && g.Prey == 1)
+                (hung, stopped) = (t, n.Crew[1].Position);
+            else if (hung >= 0 && g.Mode is GannetMode.Climb or GannetMode.Soar && (n.Crew[1].Position - stopped).Length > 0.5)
+                walkedOn = t;
+            Assert.NotEqual(GannetMode.Fold, g.Mode);
+        }
+        Assert.True(hung >= 0, "it never hung over the walker");
+        Assert.True(walkedOn > hung, "it never walked on");
+        Assert.Equal(P.Health, n.Crew[1].Health);
+        n.AssertFair();
+    }
+
+    [Fact]
     public void WhoeverStandsStillIsNeverItsPrey()
     {
         var n = new Night(4, speed: 20);
