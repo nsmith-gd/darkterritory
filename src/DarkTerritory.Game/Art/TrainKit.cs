@@ -951,7 +951,9 @@ public static class TrainKit
         k.Cylinder(lens + new Vector3(0, 0, 0.04f), lens - new Vector3(0, 0, 0.01f), 0.37f, 12, caps: false);
         k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.64f);
         k.Emissive = 1;
-        k.Disc(lens, -Vector3.UnitZ, 0.34f, 12);
+        // The lens image once across the disc (tile 0.64 m: its middle at 0.32), not four quarters of it mirrored from a
+        // corner: those read as a pattern behind the saltire (the director, 8 Oct).
+        k.Disc(lens, -Vector3.UnitZ, 0.34f, 16, new Vector2(0.32f, 0.32f), 0.32f);
         k.Emissive = 0;
         // The cage is a saltire (the director, 8 Oct 2026: "a cool symbol for the maritimes in this world, a world dominated
         // by monsters, in the headlamp of the train ... something more anglo maritimes"): St Andrew's cross, Nova Scotia's
