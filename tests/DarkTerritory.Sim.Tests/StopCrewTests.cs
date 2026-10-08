@@ -701,6 +701,48 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithTheChoirGatheringAHandLoadingACarShutsItselfInAndOpensUpAfter()
+    {
+        // Note 439 (note 413's "not yet"): a crate hand in a cargo car, loading through its open side door, is outside to the
+        // Choir (an open door lets it in). With the Choir gathering it puts its crate down in there, shuts the car's doors from
+        // inside and waits behind them; quiet again, it opens the side door and goes back to loading, and they leave together.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var run = world.Run!;
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        bool Loading(StopHand h) => h.PlayerId is { } id && night.Crew[id - 1] is var s && s.Parent > 0 && s.Surface == Surface.Deck
+            && PlayerMotor.Indoors(s, train) && train.Vehicles[s.Parent].Kind == VehicleKind.Cargo;
+        night.Until(() => hands.Any(Loading), 1500);
+        var hand = hands.First(Loading);
+        int me = hand.PlayerId!.Value - 1, car = night.Crew[me].Parent;
+        var doing = new List<string>();
+        void Watch()
+        {
+            if (hand.Doing.Length > 0 && !doing.Contains(hand.Doing))
+                doing.Add(hand.Doing);
+        }
+        // The Choir gathers: shut in, every door of its car shut, and it stays so.
+        night.Until(() => PlayerMotor.Space(night.Crew[me], train) == car, 40, () => { world.Choir.Build = 0.8; Watch(); });
+        string trace = $"the hand was {hand.ShutInCar}/{hand.Doing}; it did {string.Join(", ", doing)}; doors {train.Vehicles[car].DoorsOpen:x}";
+        Assert.True(PlayerMotor.Space(night.Crew[me], train) == car, $"not shut in car {car}: {trace}");
+        Assert.Contains("shutting the car on the Choir", doing);
+        night.Until(() => false, 15, () => world.Choir.Build = 0.8);
+        Assert.True(PlayerMotor.Space(night.Crew[me], train) == car, $"came out with the Choir about: {hand.Doing}");
+        Assert.Equal(0, run.Departures);
+        // Quiet: it opens up, the loading's finished, and they leave together.
+        world.Choir.Build = 0;
+        night.Until(() => run.Departures > 0, 1500, Watch);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}");
+        Assert.Contains("opening up", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+        Assert.Empty(OpenSideDoors(train, night.Site.Side));
+        Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
     public void WithTheSitesCratesInTheHandsFetchTheRestOfTheYardsOnFoot()
     {
         // Note 403 (GDD App. F.3 "work the yard together"; queue #89's loot on every siding): the crates by the site's own
