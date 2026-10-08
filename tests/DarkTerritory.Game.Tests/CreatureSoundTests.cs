@@ -270,45 +270,99 @@ public class CreatureSoundTests
     public void AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside()
     {
         // Note 478 (D1's #208: hounds aboard patrol the roofs, jump the gaps they can make, and go in and out of cars whose
-        // doors stand open): its paws at its walk on what it's on, the leap over a gap and its landing, and the drop in at
-        // a door onto the boards; standing, nothing.
-        using var scene = new Scene(5, "cs-hounds.paw.ground", "cs-hounds.paw.roof", "cs-hounds.paw.wood", "cs-hounds.leap", "cs-hounds.snarl");
+        // doors stand open): its paws at its walk on what it's on; standing, nothing. Its moves by its replicated mode
+        // (note 489, CinderHound.Aboard, as mode × 4 + facing in Lateral, begun at LineDistance): over the gap, the spring
+        // off the roof and its four feet landing on the next one's tin; down in at a door, the spring off the roof's edge
+        // and its landing on the boards; out again, its climb; stopped, its sniffing, and nothing underfoot.
+        using var scene = new Scene(5, "cs-hounds.paw.ground", "cs-hounds.paw.roof", "cs-hounds.paw.wood", "cs-hounds.leap", "cs-hounds.snarl",
+            "cs-hounds.spring", "cs-hounds.climb", "cs-hounds.sniff~");
         int rear = scene.Rear, next = rear - 1;
         var shape = scene.Train.Frames[rear].Shape;
-        CinderHound On(int car, Double3 local) => Record(new CinderHound(10, 10), SpinePhase.Commit, 2, 3, car, local, extra: 10);
+        double secs = 2;
+        CinderHound On(int car, Double3 local, HoundMode mode = HoundMode.Still, double began = 0) =>
+            Record(new CinderHound(10, 10), SpinePhase.Commit, secs, 3, car, local, s: began, lateral: (int)mode * 4, extra: 10);
         var roof = new Double3(0, shape.RoofHeight, shape.HalfLength - 2);
         var heard = new List<string>();
         int Count(string name) => heard.Count(h => h == name);
+        List<string> Tick(CinderHound h)
+        {
+            secs += SimConstants.TickSeconds;
+            return scene.Tick(h);
+        }
         for (int i = 0; i < 10; i++)
-            heard.AddRange(scene.Tick(On(rear, roof)));
+            heard.AddRange(Tick(On(rear, roof)));
         heard.Clear();
         // Standing on the roof: nothing underfoot.
         for (int i = 0; i < 30; i++)
-            heard.AddRange(scene.Tick(On(rear, roof)));
+            heard.AddRange(Tick(On(rear, roof)));
         Assert.Equal(0, Count("cs-hounds.paw.roof"));
         // Two seconds' walk forward along it at 1.2 m/s: a walk's paws on the tin, four to a stride of about a metre.
         for (int i = 1; i <= 60; i++)
-            heard.AddRange(scene.Tick(On(rear, roof with { Z = roof.Z - 1.2 * i / 30 })));
+            heard.AddRange(Tick(On(rear, roof with { Z = roof.Z - 1.2 * i / 30 }, HoundMode.Patrol)));
         Assert.InRange(Count("cs-hounds.paw.roof"), 8, 16);
-        Assert.Equal(0, Count("cs-hounds.leap"));
-        // Over the gap onto the next car's roof: the leap, and two paws landing on its tin.
+        Assert.Equal(0, Count("cs-hounds.spring"));
+        // Over the gap onto the next car's roof (enemies.json's patrol: 0.9 s, carried across between a quarter and two
+        // thirds of it, its car changing halfway): the spring as it drives off, nothing in the air, four paws as it lands.
         heard.Clear();
+        var edge = roof with { Z = -shape.HalfLength + 0.8 };
         var over = new Double3(0, shape.RoofHeight, scene.Train.Frames[next].Shape.HalfLength - 0.8);
+        double began = secs + SimConstants.TickSeconds;
+        var times = new List<(string Name, double At)>();
+        for (int i = 0; i < 27; i++)
+        {
+            double f = Math.Clamp((i / 30.0 / 0.9 - 0.25) / 0.4, 0, 1);
+            foreach (var name in Tick(f < 0.5 ? On(rear, edge with { Z = edge.Z - 1.6 * f }, HoundMode.Leap, began)
+                         : On(next, over with { Z = over.Z + 1.6 * (1 - f) }, HoundMode.Leap, began)))
+                times.Add((name, secs - began));
+        }
         for (int i = 0; i < 15; i++)
-            heard.AddRange(scene.Tick(On(next, over)));
-        Assert.Equal(1, Count("cs-hounds.leap"));
-        Assert.Equal(2, Count("cs-hounds.paw.roof"));
-        // Down in at its open door onto the floor: the leap, and the landing on the boards; walking there, the boards.
+            foreach (var name in Tick(On(next, over, HoundMode.Patrol)))
+                times.Add((name, secs - began));
+        heard.AddRange(times.Select(t => t.Name));
+        Assert.Equal(1, Count("cs-hounds.spring"));
+        Assert.Equal(4, Count("cs-hounds.paw.roof"));
+        Assert.Equal(0, Count("cs-hounds.leap"));
+        Assert.InRange(times.Single(t => t.Name == "cs-hounds.spring").At, 0.2, 0.27);
+        Assert.InRange(times.First(t => t.Name == "cs-hounds.paw.roof").At, 0.57, 0.64);
+        // Down in at its open door (the record on the floor from the first tick): the spring off the roof's edge, then its
+        // landing on the boards as the clip has it, and walking there, the boards.
         heard.Clear();
         var room = scene.Train.Frames[next].Shape.Interior!.Value;
-        var floor = new Double3(room.Centre.X, room.Min.Y + 0.05, room.Centre.Z);
-        for (int i = 0; i < 15; i++)
-            heard.AddRange(scene.Tick(On(next, floor)));
-        Assert.Equal(1, Count("cs-hounds.leap"));
-        Assert.Equal(2, Count("cs-hounds.paw.wood"));
+        var floor = new Double3(room.Max.X - 0.4, room.Min.Y, room.Centre.Z);
+        began = secs + SimConstants.TickSeconds;
+        for (int i = 0; i < 30; i++)
+            heard.AddRange(Tick(On(next, floor, HoundMode.Drop, began)));
+        // (its hind feet come down just after the drop's second, as it stands)
+        for (int i = 0; i < 5; i++)
+            heard.AddRange(Tick(On(next, floor, HoundMode.Patrol)));
+        Assert.Equal(1, Count("cs-hounds.spring"));
+        Assert.Equal(4, Count("cs-hounds.paw.wood"));
+        Assert.Equal(0, Count("cs-hounds.paw.roof"));
         for (int i = 1; i <= 30; i++)
-            heard.AddRange(scene.Tick(On(next, floor with { Z = floor.Z + 1.2 * i / 30 })));
-        Assert.InRange(Count("cs-hounds.paw.wood"), 2 + 4, 2 + 9);
+            heard.AddRange(Tick(On(next, floor with { Z = floor.Z + 1.2 * i / 30 }, HoundMode.Patrol)));
+        Assert.InRange(Count("cs-hounds.paw.wood"), 4 + 4, 4 + 9);
+        // Up and out at the door (1.2 s at it, then put on the roof above): the climb, once, and no paws for either.
+        heard.Clear();
+        var door = floor with { Z = floor.Z + 1.2 };
+        began = secs + SimConstants.TickSeconds;
+        for (int i = 0; i < 36; i++)
+            heard.AddRange(Tick(On(next, door, HoundMode.Climb, began)));
+        var up = new Double3(0.6, shape.RoofHeight, door.Z);
+        for (int i = 0; i < 5; i++)
+            heard.AddRange(Tick(On(next, up, HoundMode.Patrol)));
+        Assert.Equal(1, Count("cs-hounds.climb"));
+        Assert.Equal(0, Count("cs-hounds.paw.roof") + Count("cs-hounds.paw.wood") + Count("cs-hounds.spring"));
+        Assert.Equal(0, Count("cs-hounds.snarl"));
+        // Stopped to sniff (3 s): its sniffing held, nothing underfoot; on its way again, the sniffing stops.
+        began = secs + SimConstants.TickSeconds;
+        for (int i = 0; i < 90; i++)
+            heard.AddRange(Tick(On(next, up, HoundMode.Sniff, began)));
+        Assert.True(scene.Playing("cs-hounds.sniff"));
+        Assert.Equal(0, Count("cs-hounds.snarl"));
+        for (int i = 1; i <= 60; i++)
+            heard.AddRange(Tick(On(next, up with { Z = up.Z - 1.2 * i / 30 }, HoundMode.Patrol)));
+        Assert.False(scene.Playing("cs-hounds.sniff"));
+        Assert.Equal(1, Count("cs-hounds.sniff"));
         Assert.Equal(0, Count("cs-hounds.paw.ground"));
     }
 

@@ -71,6 +71,10 @@
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
     "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND",
+    // A Cinder Hound's patrol aboard (note 489): stopped to sniff on a roof or in a car, and climbing up a car's side out of
+    // an open door.
+    "cs-hounds.sniff": "SNIFFING",
+    "cs-hounds.climb": "CLAWS SCRABBLING UP THE SIDE",
     // The grain elevator's conveyor (note 466): its engine starting, a jam (the belt bunching, then the drive labouring with
     // the belt squealing on its drum, which goes on out of sight down the belt), and the engine dying under one left.
     "place-conveyor.catch": "AN ENGINE STARTING",
