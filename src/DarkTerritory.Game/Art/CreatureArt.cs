@@ -328,6 +328,11 @@ public sealed class CreatureArt
     const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
 
     /// <summary>How long a Tippy Toesie pulled off or seen is held in its recoil before it scuttles (s): its clip's length.</summary>
+    bool HasClip(string model, string clip) => _models.TryGetValue(model, out var m) && m.Model.Clips.ContainsKey(clip);
+
+    // A Cinder Hound aboard's patrol (note 472), set for the one being drawn by the Enemy overload that has it.
+    (HoundMode Mode, double Seconds) _houndAboard;
+
     double TippyRecoil => _models.TryGetValue("tippy_toesie", out var tippy) && tippy.Model.Clips.TryGetValue("recoil", out var c) ? c.Duration : 0;
 
     static float SmoothStep(float a, float b, float x)
@@ -1432,6 +1437,28 @@ public sealed class CreatureArt
                     if (phase is SpinePhase.Grab or SpinePhase.Punish)
                         // On someone: the leap, then the jaws clamped on them and the head wrenching (the pack fight's bite).
                         (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
+                    else if (aboard && _houndAboard.Mode != HoundMode.Still)
+                    {
+                        // Its patrol (note 472, E1's clips, note 477): along the roof or the boards, over a gap, down in at a
+                        // side door and up out of one, and stopping to sniff; from when it began each.
+                        (clip, loop) = _houndAboard.Mode switch
+                        {
+                            HoundMode.Leap => ("leap", false),
+                            HoundMode.Drop => ("drop", false),
+                            HoundMode.Climb => ("climb", false),
+                            HoundMode.Sniff => ("sniff", true),
+                            _ => ("patrol", true),
+                        };
+                        ct = _houndAboard.Seconds;
+                        if (!HasClip("cinder_hound", clip))
+                            (clip, loop) = _houndAboard.Mode switch
+                            {
+                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Drop or HoundMode.Climb => ("board", false),
+                                HoundMode.Sniff => ("crouch", true),
+                                _ => ("prowl", true),
+                            };
+                    }
                     else if (aboard)
                     {
                         // Onto the rear car (its board: up off the ballast, scrabbling up the car's end, over the roof's lip), then
@@ -2665,10 +2692,17 @@ public sealed class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
+            case EnemyKind.CinderHound when e is Sim.Enemies.CinderHound { Attached: >= 0 } hound:
+                // Aboard (note 472): turned the way the sim has it facing in its car (up or down the car, or to a side door),
+                // and doing what it's doing there, E1's clips (#213, note 477).
+                m = Matrix4x4.CreateRotationY(hound.Facing switch { 1 => MathF.PI, 2 => -MathF.PI / 2, 3 => MathF.PI / 2, _ => 0f }) * model;
+                _houndAboard = (hound.Aboard, hound.ModeSeconds);
+                break;
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
             extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+        _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;
         _clutch = null;

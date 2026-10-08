@@ -9510,6 +9510,27 @@
   "takes": 6,
   "sha": "fd5f186820b92f0d"
  },
+ "cs-hounds/paw/wood": {
+  "cue": "cs-hounds.paw",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's paw on a car's plank floor: its nails ticking on the boards, the pad's soft weight, ash and embers",
+    "key": "boards",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "e8b15a1ca1e86d97"
+ },
  "cs-hounds/snarl": {
   "cue": "cs-hounds.snarl",
   "surface": null,

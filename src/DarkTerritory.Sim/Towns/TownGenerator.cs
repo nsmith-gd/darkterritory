@@ -119,7 +119,9 @@ public static partial class TownGenerator
         Fix("stall", "a market stall", wares.Length > 1 ? wares.First(x => x != fixtures[^1].Text) : "", s1 - 2.2, side * (front - 4), -1, 0);
 
         // The houses down the yard's street, and the households in the open ones (TownGenerator.Houses).
-        var homes = Houses(content, site, square, population, former, Rng);
+        // Who the people are and what they're called (note 474), when the content has the townsfolk's matrix.
+        var folk = content.Folk is { } fc ? new TownFolk(fc, w, site, culture.Id, seed) : null;
+        var homes = Houses(content, site, square, population, former, Rng, folk);
 
         // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
         // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
@@ -215,11 +217,21 @@ public static partial class TownGenerator
             }
         }
         var rrng = Rng("roles");
-        var people = new List<(string Role, string Name, Spot Spot)>();
+        var people = new List<(string Role, string Name, Spot Spot, TownPersonality? Mind)>();
         foreach (var spot in spots)
         {
             string role = spot.Role.Length > 0 ? spot.Role : spot.House >= 0 ? "home" : rrng.Pick(Folk);
-            people.Add((role, NewName(spot.House >= 0 ? homes.Houses[spot.House].Family : null), spot));
+            string? family = spot.House >= 0 ? homes.Houses[spot.House].Family : null;
+            if (folk is null)
+            {
+                people.Add((role, NewName(family), spot, null));
+                continue;
+            }
+            // Who they are, then what they're called by it (note 474). A lamp-carrier on the street is "street" to the
+            // matrix (their role's a passer-by's).
+            string? absent = spot.House >= 0 && homes.Vars(spot.House) is { } hv && hv.TryGetValue("{absent}", out var lost) ? lost : null;
+            var mind = folk.Person(people.Count, spot.Street ? "street" : role, spot.Part, spot.House, family, absent, names);
+            people.Add((role, mind.Name, spot, mind));
         }
         string[] everyone = [.. people.Select(p => p.Name)];
         var places = w.Places.Length > 0 ? w.Places : [.. content.Surnames];
@@ -252,24 +264,40 @@ public static partial class TownGenerator
                 roleDecks[role] = deck = role == "hand" ? trade : new Deck<string>(w.Roles.TryGetValue(role, out var r) ? r.Lines : [], Rng("lines." + role));
             return deck;
         }
+        var temperDecks = new Dictionary<string, Deck<string>?>();
+        Deck<string>? TemperDeck(string temperament)
+        {
+            if (!temperDecks.TryGetValue(temperament, out var deck))
+                temperDecks[temperament] = deck = folk is not null && folk.Writing.Temperaments.TryGetValue(temperament, out var tw)
+                    ? new Deck<string>(tw.Lines, Rng("lines.temper." + temperament)) : null;
+            return deck;
+        }
         var lrng = Rng("lines");
         var said = new List<string>[people.Count];
         foreach (int i in Enumerable.Range(0, people.Count).OrderBy(i => Precedence(people[i].Spot)).ThenBy(i => i))
         {
             var (role, name, spot, street) = (people[i].Role, people[i].Name, people[i].Spot, people[i].Spot.Street);
             var lines = new List<string>();
+            int first = 1;
             int want = lrng.RangeInclusive(t.LinesPerPerson[0], t.LinesPerPerson[1]);
+            // How much they'll tell (note 474): somebody close keeps the custom to themselves (its keeper never does) and
+            // says as little as anyone; somebody open says as much as anyone.
+            var mind = people[i].Mind;
+            bool close = mind is not null && mind.Traits.Telling < folk!.Tuning.Telling.Close && role != "keeper";
+            if (mind is not null)
+                want = close ? t.LinesPerPerson[0] - 1 : mind.Traits.Telling > folk!.Tuning.Telling.Open ? t.LinesPerPerson[1] : want;
             if (spot.House >= 0)
             {
                 // Their household's story, in their own part, then the custom.
                 foreach (var line in homes.Story(spot.House, spot.Part))
                     lines.Add(line);
-                if (cultureLines.Next() is { } town)
+                first = lines.Count;
+                if (!close && cultureLines.Next() is { } town)
                     lines.Add(town);
             }
             else
             {
-                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
+                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
                 // The gatekeeper says the town's law first, as you come in (the first thing anyone in a town tells you).
                 if (role == "gatekeeper" && w.Welcome.Length > 0)
                     lines.Add(Rng("welcome").Pick(w.Welcome));
@@ -278,6 +306,10 @@ public static partial class TownGenerator
                     if (line is not null)
                         lines.Add(line);
             }
+            // How they carry it (their temperament's line, note 474): the second thing they say, after a household's story
+            // or the gate's law.
+            if (mind is not null && TemperDeck(mind.Temperament)?.Next() is { } temper)
+                lines.Insert(Math.Min(lines.Count, first), temper);
             if (lines.Count < want && lrng.Chance(t.ScrapShare) && scraps.Next() is { } scrap)
                 lines.Add(scrap);
             // Short of lines: the town's habits and trade, another of the job's, a scrap of a thread after all, and last what
@@ -290,11 +322,11 @@ public static partial class TownGenerator
         var townsfolk = new List<Townsperson>();
         for (int i = 0; i < people.Count; i++)
         {
-            var (role, name, spot) = people[i];
+            var (role, name, spot, mind) = people[i];
             string title = spot.House >= 0 ? homes.Title(spot.House, spot.Part)
                 : role == "hand" ? industry?.Hand ?? "townsman" : w.Roles.TryGetValue(role, out var rt) ? rt.Title : role;
             townsfolk.Add(new Townsperson(i, name, fill.In(title, name, spot.House >= 0 ? homes.Vars(spot.House) : null), role, spot.S, spot.D, spot.Up, spot.FaceS, spot.FaceD,
-                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name))));
+                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind));
         }
 
         // The plaque: the town, when it was walled, how many live here and how many did.
@@ -366,12 +398,15 @@ public static partial class TownGenerator
         readonly List<T> _cards;
         int _next;
 
-        public Deck(IReadOnlyList<T> cards, Pcg32 rng)
+        /// <summary>The cards shuffled, or dealt in the order given with no <paramref name="rng"/> (already drawn in order).</summary>
+        public Deck(IReadOnlyList<T> cards, Pcg32? rng)
         {
             _cards = [.. cards];
+            if (rng is not { } r)
+                return;
             for (int i = _cards.Count - 1; i > 0; i--)
             {
-                int j = (int)(rng.NextDouble() * (i + 1));
+                int j = (int)(r.NextDouble() * (i + 1));
                 (_cards[i], _cards[j]) = (_cards[j], _cards[i]);
             }
         }

@@ -2357,9 +2357,18 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             if (!heavy && open && _setDown is int put && world.Bodies.All.FirstOrDefault(b => b.Id == put && b.Carrier < 0) is { } setDown
                 && (Physics.Bodies.WorldCentre(setDown, train) - PlayerMotor.WorldPosition(self, train)).Length < 2.5)
             {
-                var lies = Physics.Bodies.WorldCentre(setDown, train);
-                var standing = PlayerMotor.WorldPosition(self, train);
-                double toward = DMath.Atan2(-(lies.X - standing.X), -(lies.Z - standing.Z));
+                // In the car's frame, as the hands' yaw is: a world heading turned them away from it wherever the car didn't
+                // point up world −Z (note 473's higher jump moved one night's timing onto that, and onto the door below).
+                var lies = frame.ToLocal(Physics.Bodies.WorldCentre(setDown, train));
+                var to = new Double3(lies.X - self.Position.X, 0, lies.Z - self.Position.Z);
+                double toward = DMath.Atan2(-to.X, -to.Z);
+                // Still at the door, Use works the door before it reaches the find (CrewActions first, Bodies.Hands); and a find
+                // set down on the steps is a step down from the landing: over to stand with the hands above it first.
+                if (to.Length > 0.8 || CrewActions.Nearest(self, train) is not null)
+                {
+                    var shortOf = self.Position + to * Math.Max(0, 1 - 0.6 / Math.Max(to.Length, 1e-6));
+                    return Walk(self, shortOf with { Y = layout.FloorHeight }, toward, "picking the find up again");
+                }
                 if (!Aligned(self, toward))
                     return new PlayerIntent { LookYaw = Turn(self, toward) };
                 Doing = "picking the find up again";

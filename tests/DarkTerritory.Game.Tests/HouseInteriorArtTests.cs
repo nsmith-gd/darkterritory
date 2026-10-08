@@ -85,10 +85,11 @@ public class HouseInteriorArtTests
         Assert.True(candles > 0 && lamps > 0 && nests > 0, $"{spec}: {candles} candles, {lamps} lamps, {nests} nests");
     }
     [Fact]
-    public void AnOpenBarnOrShedIsARoomWithNoLightOfItsOwn()
+    public void AnOpenBarnOrShedIsARoomLitByALanternTurnedLow()
     {
         // Note 462 (note 417's "not yet"): inside an open barn, outbuilding or goods shed the moon and the sky are kept out, as
-        // in an open house's parts (a Room the renderer's lighting leaves out), and there's no candle: bring a lamp.
+        // in an open house's parts (a Room the renderer's lighting leaves out). Note 475 (the director: "interior lighting
+        // ... functional"): a hurricane lantern turned low hangs in it, inside its walls.
         var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
         var line = route.Build();
         var trains = DataFile.Load<DarkTerritory.Sim.Train.TrainTuning>(Path.Combine(Content, DarkTerritory.Sim.Train.TrainTuning.File));
@@ -110,8 +111,9 @@ public class HouseInteriorArtTests
                 new GreyboxScene { Look = look, Route = route, Time = 0.37 }.Build(mesh, train, eye);
                 // (Camera-relative: the eye's at the origin.)
                 Assert.Contains(mesh.Rooms, r => Inside(r, Vector3.Zero));
-                // Nothing lit in there: no light inside its walls.
-                Assert.DoesNotContain(mesh.PointLights, l => StopWalls.InParts(b, Along(l.Position), Across(l.Position)));
+                // Its lantern: a light inside its walls, under its eaves.
+                Assert.Contains(mesh.PointLights, l => StopWalls.InParts(b, Along(l.Position), Across(l.Position))
+                    && l.Position.Y > -1.6f && l.Position.Y < WorldArt.OpenShedHeight(b.Kind) - 1.6f);
                 seen++;
 
                 // The light's place in the barn's own frame (x along it, y across), from camera-relative.
