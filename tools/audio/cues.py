@@ -614,8 +614,11 @@ CUES = {
         O("drip", "Something dripping", vars=3),
     ],
     "place-breach": [
-        O("smash", "A lock smashed (3 s of it: loud as a cannon)", vars=4),
-        L("pry", "A barricade pried (6 s: loud as machinery)"),
+        # On the crew's clips' beats (queue #234, note 497; C1's #200): each blow, each heave, each board off as it goes.
+        O("smash", "One blow of the sledge on a lock (3 s of them: loud as a cannon), on the smash clip's beat", vars=5),
+        O("smash-give", "The last blow: the hasp torn out, the lock clattering down", vars=2),
+        O("pry", "One heave on the bar at a barricade (6 s of them: loud as machinery), on the pry clip's beat", vars=4),
+        O("board", "A board torn off the barricade, at each fifth of the breach", vars=3),
         O("pry-give", "The barricade giving way", vars=2),
         # A lock opened quietly with the wrench (D.7; note 301's slice 2; queue #122, note 385): it was heard as the smash.
         L("pick", "A lock worked open with a wrench: the hasp levered, the wards scraping, quiet (held while at it)"),
@@ -679,6 +682,11 @@ CUES = {
     "cs-hounds": [
         O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
+        # On patrol aboard (D1's #208; queue #226, note 489): springing off a roof (over a gap, or down in at a door),
+        # stopped to sniff, and climbing back out at an open door.
+        O("spring", "Springing off a roof: hind feet driving off the tin, a huff", vars=3),
+        L("sniff", "Stopped to sniff on patrol: quick sniffs, a snort, a rumble"),
+        O("climb", "Climbing out at an open door: claws up the car's side, onto the roof", vars=3),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),
         O("yelp", "Driven off by a hit", vars=3),
@@ -743,6 +751,8 @@ CUES = {
         L("eat", "Eating cargo aboard"),
         # Note 290: pain sounds for a ball are the audio chat's.
         O("hit", "A ball or a blow landing on it before it turns: an indignant bark", vars=3),
+        # Its healing (App. A.8, queue #231, note 494; E1's #224 shows it): held while its health climbs.
+        L("heal", "Healing a lone crewmate's blow: wet sucks drawn back in, tissue knitting, his muttering"),
     ],
 
     # ---- Enemy tells (the warning sounds; the director's In review stands) --------------------------------------------
