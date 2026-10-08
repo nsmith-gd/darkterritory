@@ -211,13 +211,13 @@ public class TownTests
             Assert.True(plan.Bounds?.Holds(p.S, p.D, 1) ?? (Math.Abs(p.D) < 14.8 || plan.Square.Holds(p.S, Math.Sign((int)Math.Round(p.D)))),
                 $"{p.Title} outside the walls at {p.D:0.0}");
             var feet = town.Feet(p);
-            // In no wall but their own (each person stands in a box their own size).
+            // In no wall (they go about their rounds, so they've none of their own: note 353; TownsfolkTests walk them).
             int inside = train.Walls!.Near(feet).Count(w =>
             {
                 var l = w.ToLocal(feet);
                 return Math.Abs(l.X) < w.HalfLength - 0.01 && Math.Abs(l.Z) < w.HalfWidth - 0.01 && feet.Y + 1 > w.Bottom && feet.Y < w.Top;
             });
-            Assert.True(inside == 1, $"{p.Title} at ({p.S - gate:0.0}, {p.D:0.0}) is in {inside} walls");
+            Assert.True(inside == 0, $"{p.Title} at ({p.S - gate:0.0}, {p.D:0.0}) is in {inside} walls");
         }
     }
 
