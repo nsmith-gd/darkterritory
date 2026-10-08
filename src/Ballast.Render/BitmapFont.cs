@@ -17,6 +17,12 @@ public sealed class BitmapFont
         Height = height;
     }
 
+    /// <summary>
+    /// A padlock (the font's "char lock"), on a private-use code point since the padlock's own (U+1F512) won't go in a
+    /// char: a private game on the join list (note 450).
+    /// </summary>
+    public const char Lock = '\uE000';
+
     public int Width { get; }
     public int Height { get; }
     /// <summary>Advance per character: the glyph and one column of space.</summary>
@@ -43,7 +49,7 @@ public sealed class BitmapFont
             if (!lines[i].StartsWith("char ", StringComparison.Ordinal))
                 throw new InvalidDataException($"expected 'char X', found '{lines[i]}'");
             string name = lines[i][5..];
-            char c = name == "space" ? ' ' : name[0];
+            char c = name switch { "space" => ' ', "lock" => Lock, _ => name[0] };
             var rows = new List<string>();
             for (i++; i < lines.Count && !lines[i].StartsWith("char ", StringComparison.Ordinal); i++)
                 rows.Add(lines[i]);

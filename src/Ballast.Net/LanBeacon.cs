@@ -22,6 +22,10 @@ public sealed record LanGame(IPEndPoint Address, string Host, string Night, int 
     public IPEndPoint? Beacon { get; init; }
     /// <summary>The measured round trip to the host's beacon, in milliseconds; null until a pong has come back.</summary>
     public double? PingMs { get; init; }
+    /// <summary>A private game: a joiner needs its password (the browser shows a lock).</summary>
+    public bool Locked { get; init; }
+    /// <summary>The game's own word for who it's for (a mood), or "".</summary>
+    public string Mood { get; init; } = "";
 }
 
 /// <summary>What a host's beacon says about its game.</summary>
@@ -31,6 +35,8 @@ public sealed record LanAdvert(string Game, int Protocol, int GamePort, string H
     public int Max { get; init; }
     public string Tier { get; init; } = "";
     public string Lobby { get; init; } = "";
+    public bool Locked { get; init; }
+    public string Mood { get; init; } = "";
 }
 
 /// <summary>
@@ -69,7 +75,7 @@ public sealed class LanBeacon : IDisposable
         _next = now + 1;
         // The fields after the seventh are newer; an older browser reads the first seven and ignores the rest.
         var payload = Encoding.UTF8.GetBytes(string.Join('\n', Magic, advert.Game, advert.Protocol, advert.GamePort, advert.Aboard, Clean(advert.Host),
-            Clean(advert.Night), Clean(advert.Name), advert.Max, Clean(advert.Tier), Clean(advert.Lobby)));
+            Clean(advert.Night), Clean(advert.Name), advert.Max, Clean(advert.Tier), Clean(advert.Lobby), advert.Locked ? 1 : 0, Clean(advert.Mood)));
         foreach (var target in _targets)
         {
             try
@@ -176,6 +182,8 @@ public sealed class LanBeacon : IDisposable
             Max = f.Length > 8 && int.TryParse(f[8], out int max) ? max : 0,
             Tier = f.Length > 9 ? f[9] : "",
             Lobby = f.Length > 10 ? f[10] : "",
+            Locked = f.Length > 11 && f[11] == "1",
+            Mood = f.Length > 12 ? f[12] : "",
         };
     }
 

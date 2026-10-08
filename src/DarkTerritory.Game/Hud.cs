@@ -247,7 +247,8 @@ public static partial class Hud
             lines.Add(($"CREW FULL ({link.Places}/{link.Cap}): NOBODY ELSE CAN JOIN", Red));
         else if (link.JoinAt is { } at)
         {
-            lines.Add((link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
+            // Note 450: a private run's listed too, behind its password; the host's Steam friends get in without it.
+            lines.Add((link.Locked ? "PRIVATE: LISTED WITH A LOCK, JOINED WITH THE PASSWORD" : link.Listed ? "FRIENDS: JOIN, YOUR GAME'S LISTED" : "A PRIVATE LOBBY: FRIENDS JOIN BY INVITE", Dim));
             lines.Add(($"  (OR THEY TYPE {at})", Dim));
         }
         else if (hosting)
@@ -2099,8 +2100,9 @@ public static partial class Hud
             // At its controls, they're the corner's (Hints).
             if (p.Has(PlayerFlags.Operating))
                 return null;
-            if (p.Parent == PlayerState.World && ((PlayerMotor.WorldPosition(p, train) - crane.Controls) with { Y = 0 }).Length <= crane.Tuning.ControlsReach)
-                return "THE CRANE : HOLD [E]";
+            // A press takes the controls, and the next lets them go (Crane.Operates; the director, 8 Oct).
+            if (crane.AtStand(p, train))
+                return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
         }

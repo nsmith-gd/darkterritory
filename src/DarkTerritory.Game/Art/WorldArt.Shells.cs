@@ -156,7 +156,8 @@ public sealed partial class WorldArt
     /// An open barn, outbuilding or goods shed (note 417): the yard sheds' walk-in shell (no chain hoists: it's a farm's or
     /// a goods agent's, not a works'), and what its finds are kept in, where the sim keeps them (<see cref="StopWalls.ShedKept"/>):
     /// a barn's hayloft over the back of it with its ladder leant on the edge, or a workbench against the back wall with
-    /// its vice, its tools and a rack over it. The bench is the sim's solid box (<see cref="StopWalls.Benches"/>).
+    /// its vice, its tools and a rack over it. The bench is the sim's solid box (<see cref="StopWalls.Benches"/>). The Gaunt's
+    /// nest on its boards if it roosts here (note 488).
     /// </summary>
     /// <param name="rise">How far the ground under its footprint climbs over the ground at its middle (m): its boards are laid over it.</param>
     void OpenShed(Kit k, StopLayout stop, int index, float height, string wall, float rise)
@@ -235,6 +236,10 @@ public sealed partial class WorldArt
                     k.Rod(InKit(x + tx, Back(0.07), up + 1.95f), InKit(x + tx, Back(0.07), up + 1.55f), 0.015f);
             }
         }
+        // The Gaunt's nest, if it roosts here (note 488): on the boards where it sleeps, under no lantern
+        // (GreyboxScene.HouseInteriors), as in a house (TownKit.OpenHouse).
+        if (StopWalls.Nest(stop, index) is { } n)
+            k.With(Matrix4x4.CreateTranslation(InKit(n.X, n.Y, floor)), () => RansackKit.Nest(k, b.Variant));
     }
 
     /// <summary>The top of a barn's hayloft floor (m over the shed's floor): over a head, under the eaves.</summary>
