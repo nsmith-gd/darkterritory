@@ -47,6 +47,9 @@ public sealed partial class GameAudio
     World? _creatureWorld;
     double _creatureTime, _lastShot = double.NegativeInfinity;
 
+    /// <summary>A truss Dragger's landing on the roof before its grab is heard (note 444): it gathers itself and reaches the edge.</summary>
+    const double DropToGrab = 0.3;
+
     /// <summary>What a creature's record said last tick, and its own clocks for steps and irregular calls.</summary>
     sealed class Creature
     {
@@ -447,12 +450,19 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// Draggers (App. A.4): the grab over the side, the victim's boots on the car side while they hang, and how it ended:
-    /// hauled back up (or the limb clubbed off), or dragged under.
+    /// hauled back up (or the limb clubbed off), or dragged under. One off a truss (note 435) lands on the roof first.
     /// </summary>
     void DraggerSounds(TrainOnLine train, Enemy e, Creature was, Double3 at, bool grabbed)
     {
         float outside = Occlusion(PlayerMotor.Outside);
-        if (grabbed)
+        // Off a truss's top chord (D1's #171; queue #180, note 444): perched with no car of its own, then on one. Its whole
+        // weight comes down on that car's roof, heard clear under it, and the grab a moment after, as it reaches the edge.
+        bool dropped = was.Attached < 0 && e.Attached >= 0;
+        if (dropped)
+            Cue("cs-draggers.drop", at + Double3.Up * 0.35, Occlusion(e.Attached));
+        if (grabbed && dropped)
+            CueLater(DropToGrab, "cs-draggers.grab", at, outside);
+        else if (grabbed)
             Cue("cs-draggers.grab", at, outside);
         if (e.Phase == SpinePhase.Grab)
             Hold("cs-draggers.scrabble", e.Id, Victim(train, e.Holding, 0.2) ?? at - Double3.Up * 1.2, outside);
@@ -796,6 +806,11 @@ public sealed partial class GameAudio
             case EnemyKind.Dragger when c.Phase == SpinePhase.Grab:
                 // Its limb clubbed off the one it held (one blow kills it): they're free, hauled back up.
                 DraggerLetGo(train, c);
+                break;
+            case EnemyKind.Dragger when c.Attached < 0 && c.Phase == SpinePhase.Telegraph:
+                // Still on the truss's chord when it went (note 444): the train went under with nobody on the roofs, and it
+                // dropped onto the ballast behind it. Under the chord, at the line.
+                Cue("cs-draggers.fall", c.At - Double3.Up * c.Height, Occlusion(PlayerMotor.Outside));
                 break;
             case EnemyKind.Gannet when killed:
                 GannetDown(train, c, occ);

@@ -136,6 +136,8 @@ public sealed class World
     public double BendWarnSeconds { get; set; }
     /// <summary>Host: ticks a bend would have derailed the train but its warning hadn't been up long enough (should be 0).</summary>
     public int BendsSpared { get; set; }
+    /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
+    public int PackFires { get; set; }
     /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
