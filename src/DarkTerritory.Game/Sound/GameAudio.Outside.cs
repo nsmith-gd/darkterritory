@@ -707,6 +707,9 @@ public sealed partial class GameAudio
                 ContainerKind.Cabinet => ("crew-search.cabinet", 0.8),
                 ContainerKind.Cellar => ("crew-search.cellar", 0.2),
                 ContainerKind.UnderFloor => ("crew-search.boards", 0.2),
+                // A barn's hayloft (up its ladder) and a shed's workbench, once they're searched (B4's #153, note 417).
+                ContainerKind.Hayloft => ("crew-search.hayloft", 2.5),
+                ContainerKind.Bench => ("crew-search.bench", 1.0),
                 _ => (null, 0.0),
             };
             if (cue is not null)

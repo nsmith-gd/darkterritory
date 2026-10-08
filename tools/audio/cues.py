@@ -266,6 +266,9 @@ CUES = {
         O("cabinet", "A cabinet's drawers pulled out, rattled through and shoved back (about 2 s)", vars=3),
         O("cellar", "A cellar's hatch lifted and laid back, the steps down, crates shifted in the stone below (about 4 s)", vars=3),
         O("boards", "Floorboards prised up: the bar's bite, the nails squealing out, laid aside (about 5 s)", vars=3),
+        # B4's #153 (note 417): a barn's hayloft and a shed's workbench, searched as a house's spots are.
+        O("hayloft", "A hayloft gone through: up the ladder, hay shoved about, a tin knocked", vars=3),
+        O("bench", "A workbench gone through: tools rattled, a drawer of nails, the vice", vars=3),
         O("found", "The spot gone through: the find lifted out and set down", vars=3),
     ],
     "crew-cannon-ball": [

@@ -212,3 +212,47 @@ def found_find(rng, k):
     under = (TIN + LEATHER)[k % (len(TIN) + len(LEATHER))]
     return dry(ck.place([(0, rustle(rng, k, 0.2), -8), (0.14, hit(WOOD_M[k % 5], rng, 0, tau=0.05), 0),
                          (0.145, hit(under, rng, 0, tau=0.04), -8)]))
+
+
+# ---- A barn's hayloft, a shed's workbench (B4's #153: the barns, outbuildings and goods sheds open) ------------------------
+
+HAY = R("cloth1", "cloth3") + S("misc_02")         # dry stuff shifted (cloth handling, a swish of straw-like rustle)
+RUNGS = K("impactWood_medium")
+TOOLS = K("impactMetal_light") + R("metalClick") + S("misc_09")
+
+
+def hay(rng, length, density=14):
+    """Hay and straw shoved aside: dry brittle rustle (fine grains, high and dense) under handfuls of the packs' cloth."""
+    rustle = ck.norm(synth.rustle(length, density, rng, f=(2500, 9000), ticks=0.5))
+    handfuls = ck.place([(float(t), ck.cloth(rng, i, 0.3, keys=tuple(HAY[:2])), rng.uniform(-12, -6))
+                         for i, t in enumerate(np.sort(rng.uniform(0, max(0.1, length - 0.3), max(1, int(length * 2)))))], length + 0.4)
+    return mix(rustle * 0.5, handfuls)
+
+
+@recipe(L, "hayloft", "ladder", "A hayloft gone through: up the ladder's rungs, hay shoved about, a tin of lamp oil knocked",
+        """A barn's hayloft: three rungs of its wooden ladder taken (the packs' wood knocks, a rung's creak under the weight),
+        then the hay up there shoved about by the armful (dry rustle, synth, under the packs' cloth handling), a tin can
+        knocked over in it (Kenney's tin) and a coil of rope dragged out. About its search.""",
+        sources=RUNGS + HAY + TIN, takes=3, lufs=-22)
+def hayloft_ladder(rng, k):
+    parts = []
+    for i in range(3):
+        t = 0.05 + 0.45 * i
+        parts += [(t, hit(RUNGS[(k + i) % 5], rng, 1, tau=0.05), -6), (t + 0.03, groan(rng, 0.15, 40, 70), -16)]
+    parts += [(1.4, hay(rng, 1.8), -2)]
+    parts += [(1.8 + rng.uniform(0, 0.6), hit(TIN[k % 5], rng, -2, tau=0.05), -8)]
+    parts += [(2.6, ck.friction(rng, 0.5, rate=70, lo=300, hi=2500, rough=0.8), -12)]
+    return dry(ck.place(parts, 3.4))
+
+
+@recipe(L, "bench", "tools", "A workbench gone through: tools rattled and set aside, a drawer of nails, a vice's handle",
+        """A shed's workbench: tools picked up and set down on the boards (the packs' light metal and wood knocks), a
+        drawer of nails and bits dragged out on its runner and rattled through (coins and clicks, choked: iron in a wooden
+        box), a vice's sliding handle dropping. About its search.""",
+        sources=TOOLS + WOOD_M + COINS, takes=3, lufs=-21)
+def bench_tools(rng, k):
+    parts = handling(rng, 1.2, TOOLS + WOOD_M, 6, 0, (-14, -4))
+    parts += [(1.3, runner(rng, 0.25), -10)]
+    parts += handling(rng, 2.3, COINS + CLICKS, 5, -2, (-16, -8), lead=1.6)
+    parts += [(2.4 + rng.uniform(0, 0.2), hit(TOOLS[(k + 1) % len(TOOLS)], rng, -5, tau=0.03), -6)]
+    return dry(ck.place(parts, 2.9))

@@ -5680,13 +5680,14 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Each kind's sound runs about as long as its search: a cupboard 2.5 s, a cabinet 2, a cellar 4, the boards 5. A held one-shot that ends early starts again.
         - `crew-search.found` plays once as the spot is gone through, when it turns `Searched`.
     - **Occlusion:** a sound in a village house is in that house's space while the house is shut up (`StopWalls.ShutIn`, note 401). An ear shut in there with it hears it clear; an ear shut in a car or another house hears it through the walls.
-    - **The sounds** (`tools/audio/recipes/house_search.py`): six candidates on the Audio Checklist's new `crew-search` line, built from the packs' real handling.
+    - **The sounds** (`tools/audio/recipes/house_search.py`): eight candidates on the Audio Checklist's new `crew-search` line, built from the packs' real handling.
         - The cupboard, `crockery` (installed): its door pulled open, then jars and crockery knocked about, a tin, cloth, a box shoved along.
         - The cupboard, `pantry`: the same door, with no glass.
         - The cabinet: drawers pulled on dry wooden runners and their oddments rattled. There's no drawer in the packs, so the runner is stick-slip friction.
         - The cellar: the hatch heaved up and laid back, two steps creaking down, and crates shifted and a bottle knocked in the stone hole below, which has its own small, dark stone room.
         - The boards: a bar's bite into the wood, the deal groaning, the nails squealing out (iron stick-slip, since there's no nail drawn in the packs), the board cracking free and laid aside, board after board.
         - The find: set down on the boards.
+        - A barn's hayloft (up its ladder, hay shoved about, a tin knocked) and a shed's workbench (tools rattled, a drawer of nails, the vice). These are ready for B4's #153 (note 417), which makes them searchable; they play once loot.json's `search.seconds` has their kinds.
     - **Not yet:**
         - Heard from the street, a search inside a house that isn't shut up comes through no walls (note 396's not-yet).
         - The search isn't captioned. It's a crewmate's work, not a threat or a call, like the car doors.

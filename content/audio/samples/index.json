@@ -7563,6 +7563,36 @@
   "takes": 1,
   "sha": "eeaad2ea31217034"
  },
+ "crew-search/bench": {
+  "cue": "crew-search.bench",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A workbench gone through: tools rattled and set aside, a drawer of nails, a vice's handle",
+    "key": "tools",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_09",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:handleCoins",
+     "kenney_rpg-audio:handleCoins2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fbcdb30077cf69ea"
+ },
  "crew-search/boards": {
   "cue": "crew-search.boards",
   "surface": null,
@@ -7744,6 +7774,35 @@
   ],
   "takes": 3,
   "sha": "2a9d7a3963f36845"
+ },
+ "crew-search/hayloft": {
+  "cue": "crew-search.hayloft",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hayloft gone through: up the ladder's rungs, hay shoved about, a tin of lamp oil knocked",
+    "key": "ladder",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth3",
+     "sfx_100_v2:misc_02",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bbb0ee3a6417902a"
  },
  "crew-shovel/knock": {
   "cue": "crew-shovel.knock",
