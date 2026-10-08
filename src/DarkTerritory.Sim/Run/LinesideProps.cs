@@ -5,15 +5,22 @@ using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Sim.Run;
 
-/// <summary>What stands beside a generated line that a body walks into (note 371): a tree, a boulder, a telegraph pole.</summary>
-public enum LinesideKind : byte { Tree, Rock, Pole }
+/// <summary>
+/// What stands beside a generated line that a body walks into: a tree, a boulder, a telegraph pole (note 371); a kit piece
+/// (note 389): a homestead, a barn, a road's pole, a fence post, a car, a fish shed, a lighthouse, a church, a stone wall.
+/// </summary>
+public enum LinesideKind : byte { Tree, Rock, Pole, Piece }
 
 /// <summary>
 /// One thing standing beside a generated line (note 371), where it stands (<see cref="Along"/> the main line,
-/// <see cref="Lateral"/> out from it, right positive) and what it is. A tree: its <see cref="Species"/> by the biome's flora,
-/// <see cref="Height"/>, whether it's <see cref="Dead"/> or <see cref="Corrupted"/>, its mesh <see cref="Variant"/>. A rock:
-/// its <see cref="Size"/> (the unit lump's scale) and how far it's <see cref="Sink"/>-ed into the slope. <see cref="Seed"/>
-/// is the art's for what's only seen (a tint; a ghost or a dead spruce), so nothing seen-only draws on the solids' stream.
+/// <see cref="Lateral"/> out from it, right positive) and what it is. A tree: its <see cref="Species"/> by the biome's flora
+/// (or an old field's spruce, an orchard's apple), <see cref="Height"/>, whether it's <see cref="Dead"/> or
+/// <see cref="Corrupted"/>, its mesh <see cref="Variant"/>. A rock: its <see cref="Size"/> (the unit lump's scale), its kind
+/// (<see cref="Species"/>: a slot's boulder, an erratic, an outcrop, a shore's ledge, weed rock or boulder) and how far it's
+/// <see cref="Sink"/>-ed into the slope; its <see cref="Height"/> its top over its foot before that. A piece (note 389): its kit
+/// piece by the sim's name (<see cref="Species"/>, footprints.json's), its variant, its yaw as the art turns it, its scale,
+/// its sink and its top. <see cref="Seed"/> is the art's for what's only seen (a tint; a ghost or a dead spruce), so nothing
+/// seen-only draws on the solids' stream.
 /// </summary>
 /// <see cref="Ground"/> is the land's height at its foot.
 public readonly record struct LinesideProp(LinesideKind Kind, double Along, double Lateral, double Yaw, double Height, double Size, double Sink,
@@ -28,6 +35,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
     {
         LinesideKind.Pole => LinesideProps.PoleRadius,
         LinesideKind.Rock => Size * 0.9,
+        LinesideKind.Piece => 0,
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
         _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
     };
@@ -43,7 +51,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
 /// in world-space stands as dense as the biome grows it, the odd tree out of them, none on a crag, boulders where the land
 /// is rough, a pole every 50 m on the right; none on a stop's ground, a branch's, a road's, in water or inside a fort.
 /// </summary>
-public sealed class LinesideProps
+public sealed partial class LinesideProps
 {
     /// <summary>The slots trees and boulders are dealt in along the line (m), and how far out the forest runs.</summary>
     public const double SlotM = 12, ForestOutM = 90;
@@ -71,6 +79,7 @@ public sealed class LinesideProps
         _line = line;
         _plan = route.Plan!;
         _terrain = terrain;
+        _footprints = _plan.Rules.Footprints;
         _seed = ulong.TryParse(_plan.Seed.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? _plan.Seed[2..] : _plan.Seed,
             System.Globalization.NumberStyles.HexNumber, null, out var s) ? s : Streams.Mix(0, _plan.Seed);
         _stopGround = StopGround(route);
@@ -248,8 +257,10 @@ public sealed class LinesideProps
     }
 
     /// <summary>
-    /// Every tree, boulder and pole whose slot starts in [<paramref name="from"/>, <paramref name="to"/>): so neighbouring
-    /// stretches (the art's cells) share nothing and miss nothing. The same for the same night on every machine.
+    /// Everything beside the line whose slot, cell or block starts in [<paramref name="from"/>, <paramref name="to"/>): so
+    /// neighbouring stretches (the art's cells) share nothing and miss nothing. The woods' trees and boulders by their slot,
+    /// the telegraph poles; the road's homesteads, poles and cars by its cells, a shore's sheds and rocks by its, the biomes'
+    /// props by the block (note 389). The same for the same night on every machine.
     /// </summary>
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
@@ -261,6 +272,12 @@ public sealed class LinesideProps
         for (double s = Math.Ceiling(from / PoleEveryM) * PoleEveryM; s < to; s += PoleEveryM)
             if (s >= 0 && s <= _line.Length && Clear(s) && OffTheLine(s, PoleOut, out double ground))
                 yield return new LinesideProp(LinesideKind.Pole, s, PoleOut, 0, PoleHeight, 1, 0, (int)(s / PoleEveryM) % 3, "pole", false, false, 0, ground);
+        foreach (var p in Roads(from, to, reach))
+            yield return p;
+        foreach (var p in Shores(from, to, reach))
+            yield return p;
+        foreach (var p in Blocks(from, to, reach))
+            yield return p;
     }
 
     /// <summary>Whether a telegraph pole stands at <paramref name="s"/> (a multiple of <see cref="PoleEveryM"/>): not on a bridge, by a tunnel, on a siding or a branch, in water or inside a fort.</summary>
@@ -325,15 +342,16 @@ public sealed class LinesideProps
                 continue;
             double slope = Slope(along, offset, ground);
             size *= slope > 0.6 ? 1.6 : 1;
-            yield return new LinesideProp(LinesideKind.Rock, along, offset, yaw, size * 1.1, size, size * (0.3 + 1.1 * Math.Min(slope, 1.5)), variant, "rock", false, false, 0, ground);
+            yield return Rock("rock", along, offset, yaw, size, size * (0.3 + 1.1 * Math.Min(slope, 1.5)), variant, ground);
         }
     }
 
     /// <summary>
-    /// Every tree, boulder and pole along the line, stood as walls (note 371): a trunk as the box round its radius, to its
-    /// top; a boulder as its lump's box, turned as it lies, its top where its sinking leaves it (one sunk to under a step
-    /// is stepped over, as PlayerMotor steps anything that low); a pole round its foot. Owner 0: a facility's module
-    /// clears what stands on its work point (<see cref="StopWalls.Clear"/>).
+    /// Everything along the line, stood as walls (notes 371, 389): a trunk as the box round its radius, to its top; a boulder
+    /// as its lump's box (footprints.json's), turned as it lies, its top where its sinking leaves it (one sunk to under a step
+    /// is stepped over, as PlayerMotor steps anything that low); a pole round its foot; a kit piece on its footprint's boxes
+    /// (none for a burying ground or a wharf, which are walked through). Owner 0: a facility's module clears what stands on
+    /// its work point (<see cref="StopWalls.Clear"/>).
     /// </summary>
     /// <param name="forts">The night's fortresses (<see cref="Fortresses.Of"/>), the departure one's town square on it once there's a town: nothing stands inside.</param>
     /// <param name="reach">How far out from the line they're solid (run.json <c>walls.linesideReachM</c>): where the crew and what hunts them go.</param>
@@ -342,7 +360,7 @@ public sealed class LinesideProps
         List<(LinesideProp Prop, Wall Wall)> solids;
         lock (_solids)
             if (!_solids.TryGetValue(reach, out solids!))
-                _solids[reach] = solids = [.. Props(0, _line.Length, reach).Where(Stands).Select(p => (p, WallOf(p)))];
+                _solids[reach] = solids = [.. Props(0, _line.Length, reach).Where(Stands).SelectMany(p => WallsOf(p).Select(w => (p, w)))];
         // Nothing wild grows inside a fort; the poles run on through it.
         foreach (var (p, w) in solids)
             if (p.Kind == LinesideKind.Pole || !InsideAFort(forts, p.Along, p.Lateral))
@@ -354,19 +372,26 @@ public sealed class LinesideProps
     /// <summary>Whether something of it stands above the ground: a boulder sunk wholly into a steep slope is under it, and nothing to walk into.</summary>
     static bool Stands(LinesideProp p) => p.Height - p.Sink > 0.05;
 
-    Wall WallOf(LinesideProp p)
+    /// <summary>What one thing beside the line stands as (<see cref="Walls"/>): none for what's walked through or sunk under the ground.</summary>
+    public IEnumerable<Wall> WallsOf(LinesideProp p)
     {
-        var t = _line.Sample(Math.Clamp(p.Along, 0, _line.Length));
-        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
-        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        var at = (t.Position + right * p.Lateral) with { Y = 0 };
-        if (p.Kind == LinesideKind.Rock)
+        if (!Stands(p))
+            return [];
+        switch (p.Kind)
         {
-            // The lump is about 1 across and 0.85 deep at size 1, its long side turned yaw from across the line.
-            var axis = (right * DMath.Cos(p.Yaw) + along * DMath.Sin(p.Yaw)).Normalized;
-            return new Wall(at, axis, p.Size * 0.9, p.Size * 0.75, p.Ground - 3, p.Ground + p.Height - p.Sink);
+            case LinesideKind.Rock:
+                // The lump as it lies, at its size and its kind's stretch, its long side turned yaw from across the line.
+                return FootprintWalls(p, Boxes("rock", p.Variant), RockStretch(p.Species) * p.Size);
+            case LinesideKind.Piece:
+                return FootprintWalls(p, Boxes(p.Species, p.Variant), new Double3(p.Size, p.Size, p.Size));
+            default:
+                {
+                    var t = _line.Sample(Math.Clamp(p.Along, 0, _line.Length));
+                    var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+                    var at = (t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * p.Lateral) with { Y = 0 };
+                    return [new Wall(at, along, p.Radius, p.Radius, p.Ground - 3, p.Ground + p.Height)];
+                }
         }
-        return new Wall(at, along, p.Radius, p.Radius, p.Ground - 3, p.Ground + p.Height);
     }
 
     /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>

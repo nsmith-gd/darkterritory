@@ -214,6 +214,7 @@ sealed partial class LineBuilder
                     b => (IReadOnlyDictionary<string, double>)new SortedDictionary<string, double>(b.Value.Landform, StringComparer.Ordinal)), StringComparer.Ordinal),
                 BiomeRelief = new SortedDictionary<string, double>(_c.Config.Biomes.Biomes.ToDictionary(b => b.Key, b => b.Value.NoiseScale), StringComparer.Ordinal),
                 Boards = new SortedDictionary<string, BoardDef>(_c.Config.Signage.Boards, StringComparer.Ordinal),
+                Footprints = new SortedDictionary<string, double[][][]>(_c.Config.Footprints.Pieces, StringComparer.Ordinal),
             },
             Validation = new PlanValidation
             {

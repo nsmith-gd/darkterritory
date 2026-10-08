@@ -530,6 +530,16 @@ CUES = {
         O("shutter", "A shutter banging", vars=3),
         O("sign", "A sign creaking", vars=3),
     ],
+    # The walled town (queue #151, note 415): its fires, its lived-in houses' ranges and the custom's things in them, and its
+    # people, held where they are (World.Town's plan) while the ear is near.
+    "place-town": [
+        L("fire", "A fire barrel or a brazier burning in the square"),
+        L("range", "A kitchen range lit in a lived-in house: the fire shut in iron, a kettle on the hob"),
+        L("clock", "A clock ticking in a house"),
+        L("radio", "A wireless left on in a house: static, a far station fading in and out"),
+        L("murmur", "Townsfolk talking low among themselves through their masks, no words"),
+        O("cough", "A townsperson coughing into their mask", vars=3),
+    ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
         O("drip", "Water dripping", vars=4),
