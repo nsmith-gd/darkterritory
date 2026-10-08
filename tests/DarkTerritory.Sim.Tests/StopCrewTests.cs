@@ -660,9 +660,12 @@ public class StopCrewTests
         int me = outThere.PlayerId!.Value - 1;
         Assert.True(night.Crew[me].Parent == PlayerState.World, "nobody went out to the village");
         var doing = new List<string>();
+        // Every stop hand's doings, not only the crate hands': another of us may have taken the house first and shut its door on
+        // the pair of them (note 406: the hand out there's then its guest, behind that door).
+        var allHands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         void Watch()
         {
-            foreach (var h in hands)
+            foreach (var h in allHands)
                 if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
                     doing.Add(h.Doing);
         }
