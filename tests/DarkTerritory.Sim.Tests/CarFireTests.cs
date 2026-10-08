@@ -124,8 +124,14 @@ public class CarFireTests
             bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
             // Where they stood: out past the wall, at the doorway's forward edge.
             var opening = shape.DoorList.First(d => d.Index == door).Box;
-            n.Crew[i] = new PlayerState { Parent = car, Position = new Double3(room.Min.X - 0.42 + 0.02 * i, Tuning.Train.Geometry.Interior!.FloorHeight, opening.Min.Z + 0.25 + 0.05 * i),
-                Yaw = 3.13, Surface = Surface.Deck, Health = P.Health };
+            n.Crew[i] = new PlayerState
+            {
+                Parent = car,
+                Position = new Double3(room.Min.X - 0.42 + 0.02 * i, Tuning.Train.Geometry.Interior!.FloorHeight, opening.Min.Z + 0.25 + 0.05 * i),
+                Yaw = 3.13,
+                Surface = Surface.Deck,
+                Health = P.Health
+            };
         }
         for (int s = 0; s < 60 && !fire.Gone; s++)
         {

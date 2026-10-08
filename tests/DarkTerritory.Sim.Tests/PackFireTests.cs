@@ -31,7 +31,8 @@ public class PackFireTests
         var bot = new RoofWalkerBot(3, P.Cold) { Me = 1 };
         // Cold, as everyone was on frontier:7 that night; onIt: already on the burning car's roof, at its front end.
         n.Crew[1] = (onIt ? PlayerMotor.SpawnOnRoof(n.Train, rear, -n.Train.Frames[rear].Shape.HalfLength + 1, P)
-            : PlayerMotor.SpawnOnRoof(n.Train, n.Train.VehicleAhead(rear), 0, P)) with { Health = health, Cold = P.Cold.OnsetSeconds };
+            : PlayerMotor.SpawnOnRoof(n.Train, n.Train.VehicleAhead(rear), 0, P)) with
+        { Health = health, Cold = P.Cold.OnsetSeconds };
         bool inside = false;
         for (int i = 0; i < 40 && !inside; i++)
         {
