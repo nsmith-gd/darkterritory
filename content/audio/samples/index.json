@@ -2365,7 +2365,7 @@
    }
   ],
   "takes": 3,
-  "sha": "f779e3f5155da943"
+  "sha": "655a03379dc98a5f"
  },
  "crew-coupling/knuckle-release": {
   "cue": "crew-coupling.knuckle-release",
@@ -2373,8 +2373,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "The coupler knuckle swinging open as the cars part",
-    "key": "knuckle",
+    "label": "The coupler knuckle swinging open as the cars part: a cast-steel clank that rings",
+    "key": "clank",
     "sources": [
      "kenney_impact-sounds:impactPlate_heavy_000",
      "kenney_impact-sounds:impactPlate_heavy_001",
@@ -2390,13 +2390,15 @@
      "kenney_impact-sounds:impactMining_001",
      "kenney_impact-sounds:impactMining_002",
      "kenney_impact-sounds:impactMining_003",
-     "kenney_impact-sounds:impactMining_004"
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 3,
-  "sha": "e046fb081ef0949e"
+  "sha": "f98d65b110166668"
  },
  "crew-coupling/pin-drop": {
   "cue": "crew-coupling.pin-drop",
