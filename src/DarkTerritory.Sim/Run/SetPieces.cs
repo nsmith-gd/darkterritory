@@ -145,6 +145,10 @@ public sealed partial class Run
     /// <summary>How far a car's middle stands off the tipple's cradle (m, flat): a clamp shut past <see cref="TippleTuning.GoodClamp"/> is a bad one.</summary>
     public static double OffCradle(TrainOnLine train, Site site, Vehicle car) => Flat(train.Frames[car.Id].Origin - site.Cradle);
 
+    /// <summary>Whether a car in the tipple's cradle stands true enough in it for a good clamp (the bots clamp only one that does).</summary>
+    public bool StoodTrue(TrainOnLine train, Site site, Vehicle car) =>
+        _facilityTuning is { } t && OffCradle(train, site, car) <= t.Tipple.GoodClamp * 0.9;
+
     /// <summary>A car off its rails at the tipple (note 423), if there is one: the one the bad clamp derailed.</summary>
     public Vehicle? OffRailsAt(TrainOnLine train, Site site) =>
         _facilityTuning is not { } t || !site.Has(ModuleKind.Tipple) ? null
@@ -229,8 +233,9 @@ public sealed partial class Run
             drive.Starter = playerId;
         if (use && TippleLeverInReach(s, train, hand) is { } tipple && (tipple.Tippler < 0 || playerId < tipple.Tippler))
             tipple.Tippler = playerId;
-        // A wrench to a car off its rails at the tipple (note 423): each at it puts it back that much faster.
-        if (use && Repairs.WrenchInHand(s) && OffRailsInReach(s, train) is { } derailed)
+        // A wrench to a car off its rails at the tipple (note 423): each at it puts it back that much faster. (The repair kit
+        // carried where the wrench isn't the repair tool, as at the burst boiler.)
+        if (use && Repairs.MendsBoiler(s, train) && OffRailsInReach(s, train) is { } derailed)
             derailed.Site.Rerailers++;
         if (use && JamInReach(s, train) is { } jammed && (jammed.Clearer < 0 || playerId < jammed.Clearer))
             jammed.Clearer = playerId;
