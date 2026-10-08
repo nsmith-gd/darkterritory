@@ -938,6 +938,7 @@ The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE
 - **COLOURS** (standard, colourblind): what the HUD's colours mean (good, a warning, danger) told apart without red against green: blue, yellow and red. Measured as a protanope, deuteranope and tritanope sees them, every pair stays clearly apart (ARCHITECTURE §8 note 348).
 - **CAPTIONS** (off by default): the sounds worth hearing written as they're heard, and where: "[TIPTOEING, ABOVE]". A caption says what a sound is, as someone hearing it would say it, never which creature makes it or what to do about it, so a player who reads learns the same as one who listens. What's silent by design stays silent (ARCHITECTURE §8 note 349).
 - **FIRST NIGHTS** (on by default): a tip on the loading screen, and for a player's first three nights the core controls on a card in the yard, in their own keys. The tips are the shape of a night and the crew's habits ("Roll call is shouted. Count the crew before the train moves."), never a creature's rule (ARCHITECTURE §8 note 350).
+- **HOLD KEYS** (hold, toggle): run, the brake, talk, the radio and the crew roster as a press for on and another for off, for a player who can't keep a key down. Use stays a hold, since its taps and holds mean different things (ARCHITECTURE §8 note 383).
 
 ### The screenshot test
 
