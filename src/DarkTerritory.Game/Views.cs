@@ -75,6 +75,9 @@ public static class Views
             // Off the second car's left, over the shoulder of crewmate 4 (Staging.Lone) at the Ribbit pack beyond them.
             "pack" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 0.4), 2.1, 1.2)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 5.2), 0.4, -1.6)), 55),
+            // Up off the second car's left, looking along its roof to the gap behind it (the hounds' patrol, --patrol).
+            "patrol" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 6.5), train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.RoofHeight + 2.2, -2)),
+                train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(0, train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.RoofHeight - 0.6, 2)), 60),
             // Low along the second car's left, side on to crewmate 4 and what's on them (the Ribbits' devour, --ribbits devour).
             "packside" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 3.6), 1.1, 3.4)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.8), 0.6, -1.5)), 50),

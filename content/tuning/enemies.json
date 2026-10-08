@@ -76,6 +76,19 @@
     "stayAboard": true,
     "cargoPerSecond": 0.002,
     "igniteEverySeconds": 20,
+    // Note 472 (the director, 8 Oct 2026: "It matters that they dont just stand there and howl, they should either patrol
+    // between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump").
+    // Aboard with nobody it can reach (note 471), a hound patrols its roof at walk m/s, and the next car's at its end: a leap
+    // of leapSeconds across the coupling gap (carried across between leapFrom and leapTo of it; never onto the engine, which
+    // is hooded, note 338), turning back at the ends of its ground. Its ground: the car it boarded, every car behind it, and
+    // carsAhead cars ahead of it (never the car right behind the engine), so the coupling ahead of that still cuts the pack
+    // loose wherever its patrol has it (note 269). Every sniffEvery s (from its own dice) it stops for sniffSeconds to sniff.
+    // Over a car with a side door open, inChance of the time it drops in (dropSeconds), patrols the car inside for
+    // insideSeconds, and climbs out again (climbSeconds) at an open door. Someone it can reach within chaseFrom m, it goes
+    // for at chase m/s, the gaps leapt. It still eats and lights the car it's on (note 269).
+    "patrol": { "on": true, "walk": 1.6, "chase": 3.5, "chaseFrom": 20, "leapSeconds": 0.9, "leapFrom": 0.25, "leapTo": 0.65,
+      "sniffEvery": [8, 15], "sniffSeconds": 3, "dropSeconds": 1.0, "climbSeconds": 1.2, "inChance": 0.5, "insideSeconds": [8, 15],
+      "carsAhead": 1 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,

@@ -27,13 +27,13 @@ public class HoundsAboardTests
         var n = new Night(4, 10, enemies: HoundRunTests.Quiet);
         int car = 3;
         var room = n.Train.Frames[car].Shape.Interior!.Value;
-        OnRoof(n, car, room.Centre.Z);
+        var hound = OnRoof(n, car, room.Centre.Z);
         // Inside, under it: in its old reach (4 m), straight down through the roof.
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, room.Centre.Z), Surface = Surface.Deck, Health = P.Health };
         n.Run(Tuning.Enemies.CinderHounds.BiteEverySeconds * 4);
         Assert.Equal(P.Health, n.Crew[1].Health);
-        // Up on the roof with it, it has them.
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, room.Centre.Z + 2, P);
+        // Up on the roof with it (wherever its patrol's taken it, note 472), it has them.
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, hound.Attached, hound.Local.Z + (hound.Local.Z > 0 ? -2 : 2), P);
         n.Run(Tuning.Enemies.CinderHounds.BiteEverySeconds + 1);
         Assert.True(n.Crew[1].Health < P.Health, "not bitten on the roof beside it");
     }
@@ -47,12 +47,29 @@ public class HoundsAboardTests
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         for (int s = 0; s < 300 && n.World.Director!.HoundRuns.Count == 0; s++)
             n.Run(1);
-        n.Run(60);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
-        var aboard = n.World.ActiveEnemies.OfType<CinderHound>().Where(h => h.Attached == rear).ToList();
+        var aboard = new HashSet<CinderHound>();
+        var hounds = new List<CinderHound>();
+        for (int s = 0; s < 60 * 60 && aboard.Count < 4; s++)
+        {
+            n.Run(1.0 / 60);
+            hounds = [.. n.World.ActiveEnemies.OfType<CinderHound>()];
+            // Each where it came up, clear of every hound already on that roof (note 471).
+            foreach (var a in hounds.Where(h => h.Attached >= 0 && aboard.Add(h)))
+            {
+                Assert.Equal(rear, a.Attached);
+                foreach (var b in hounds.Where(b => b != a && b.Attached == a.Attached && b.Aboard != HoundMode.Leap))
+                    Assert.True((a.Local - b.Local).Length >= 1.6 - 1e-9, $"{a.Local} and {b.Local}");
+            }
+        }
         Assert.Equal(4, aboard.Count);
-        foreach (var a in aboard)
-            foreach (var b in aboard.Where(b => b != a))
-                Assert.True((a.Local - b.Local).Length >= 1.6 - 1e-9, $"{a.Local} and {b.Local}");
+        // And patrolling after (note 472), never on top of each other on a roof.
+        for (int s = 0; s < 60 * 4; s++)
+        {
+            n.Run(0.25);
+            foreach (var a in hounds)
+                foreach (var b in hounds.Where(b => b != a && b.Attached == a.Attached && a.Aboard != HoundMode.Leap && b.Aboard != HoundMode.Leap))
+                    Assert.True((a.Local - b.Local).Length >= 1.2, $"{a.Local} and {b.Local} on {a.Attached}");
+        }
     }
 }
