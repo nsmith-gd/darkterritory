@@ -138,4 +138,28 @@ public class BoardedPackTests
         Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}");
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AFitCrewmateWhoDoesntFightThePackStillHasItCut(bool onTheTrain)
+    {
+        // Note 484 (D1.3's repro again): the gunner, at full health, stood at the castings for the stop's loading while the pack
+        // burned cars 2 to 6 for 500 s, and the driver held off the cut for it. Down off the train, it isn't fighting: cut now.
+        // Up on it but not going at the pack (standing here): cut once the pack's been aboard Heed.PackUnfoughtSeconds.
+        var n = new Lone(cars: 4, speed: 12);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var pack = n.Pack(n.Train.Dynamics.Consist.Vehicles.Count - 1, 3);
+        n.Mate = onTheTrain ? PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P)
+            : new PlayerState { Parent = PlayerState.World, Surface = Surface.Ground, Position = new Double3(3, 0, -2_000), Health = P.Health };
+        double held = onTheTrain ? Heed.PackUnfoughtSeconds - 5 : 0;
+        if (held > 0)
+        {
+            n.Until(() => n.Driver.CuttingAlone, held);
+            Assert.False(n.Driver.CuttingAlone, "a fit crewmate aboard gets its while to go at the pack");
+        }
+        n.Until(() => pack.All(h => h.Gone), 300);
+        Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}; cutting {n.Driver.CuttingAlone}");
+        Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
+    }
 }

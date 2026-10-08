@@ -1930,6 +1930,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     bool _outToCut;
     int _cutCar = -1;
+    uint _packSince; // the tick a pack was first seen aboard (0: none aboard)
 
     /// <summary>Out of the cab to cut a boarded pack's car loose, or on the way back up (note 343).</summary>
     public bool CuttingAlone => _outToCut;
@@ -1977,7 +1978,16 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // Only with nobody else to fight them (a crew's walkers and gunner go at a pack aboard: Heed.Hounds), from the cab. Note
         // 484: nobody fit to. A walker under Heed.PackFightHealth keeps clear of a pack, so a crew of two with its walker hurt
         // had nobody fight it and nobody cut it: D1.3's frontier:7 seed 2, the train stood 750 s with a fire every 20 s.
-        if (front < 0 || Crewmates?.Any(c => c.Alive && c.Health >= Heed.PackFightHealth) == true || !PlayerMotor.InCab(self, train))
+        // And nobody fighting it: a crewmate fit for it but down at a stop's work (the loading, the warm-up) never goes at it,
+        // and in D1.3's repro the gunner stood at the castings at full health while the pack burned cars 2 to 6 for 500 s. So
+        // only a crewmate up on the train counts, and a pack aboard Heed.PackUnfoughtSeconds is cut loose whoever's fit.
+        if (front < 0)
+            _packSince = 0;
+        else if (_packSince == 0)
+            _packSince = Math.Max(1, tick);
+        bool unfought = _packSince > 0 && (tick - _packSince) * SimConstants.TickSeconds >= Heed.PackUnfoughtSeconds;
+        if (front < 0 || !unfought && Crewmates?.Any(c => c.Alive && c.Health >= Heed.PackFightHealth && c.Parent != PlayerState.World) == true
+            || !PlayerMotor.InCab(self, train))
             return null;
         if (train.Dynamics.Speed > 0.05)
             return hold;
@@ -3669,6 +3679,10 @@ public static class Heed
 
     /// <summary>Health a bot wants before it wades into a pack fight (a hound bites for 45).</summary>
     public const int PackFightHealth = 55;
+
+    /// <summary>How long a pack rides aboard before the driver cuts it loose whoever's fit to fight it (note 484): the crew's
+    /// eight bots killed theirs in 10 to 150 s; a car set alight every 20 s or so meanwhile.</summary>
+    public const double PackUnfoughtSeconds = 90;
 
     /// <summary>
     /// Cinder Hounds aboard (v1.1 App. A.3 PACK FIGHT): "each takes several bludgeons", so everyone near enough and fit
