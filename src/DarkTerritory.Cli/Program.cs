@@ -1156,6 +1156,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var right = Double3.Cross(end.Tangent, Double3.Up).Normalized * site.Side;
                 camera = Camera.LookAt(end.Position - end.Tangent * 12 + right * 7 + Double3.Up * 4.5,
                     (site.Heaps[0].Centre + site.Heaps[Math.Min(1, site.Heaps.Count - 1)].Centre) * 0.5 + Double3.Up, 70);
+                // --heap n: up close to the nth heap (note 394), at a crewman's eye 9 m off it on the track's side.
+                if (Opt(args, "--heap", -1) is var hn and >= 0 && hn < site.Heaps.Count)
+                {
+                    var heap = site.Heaps[(int)hn].Centre;
+                    var toward = ((end.Position - heap) with { Y = 0 }).Normalized;
+                    var across = Double3.Cross(toward, Double3.Up);
+                    camera = Camera.LookAt(heap + toward * 9 + across * 4 + Double3.Up * 1.7, heap + Double3.Up * 1.2, 70);
+                }
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
