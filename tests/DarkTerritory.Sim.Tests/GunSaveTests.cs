@@ -40,6 +40,43 @@ public class GunSaveTests
     }
 
     [Fact]
+    public void TheSavedGunsPowderStillComesFromTheHeldVansLocker()
+    {
+        // Note 457 (#183's seed 3: the guard gun dry ten minutes with the Car Hugger on the guard van): the powder locker is in
+        // the held van, behind the saved gun. Its front end isn't the Car Hugger's mouth, so the charge still comes from it and
+        // the rack is filled; the gun isn't left dry for the van being eaten.
+        var n = new Night(4, speed: 8);
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id, ahead = n.Train.VehicleAhead(rear);
+        var mount = Guns.Mount(n.Train, rear)!.Value;
+        var calls = new CrewCalls();
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, rear, mount.Position.Z + 0.7, P) with { Yaw = Math.PI };
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, n.Train.Dynamics.Consist.Vehicles[2].Id, 0, P);
+        var hugger = n.World.AddEnemy(id => CarHugger.Lurking(id, n.Train.Dynamics.RearDistance + 1, 1, Tuning.Enemies.CarHugger));
+        var gunner = new GunnerBot(Tuning.Combat.Guns) { Me = 1, Calls = calls };
+        var walker = new RoofWalkerBot(7) { Me = 2, Calls = calls };
+        PlayerIntent Decide(int id)
+        {
+            List<(int, PlayerState)> crew = [.. n.Crew.Where(c => c.Key != id).Select(c => (c.Key, c.Value))];
+            if (id == 1)
+            {
+                gunner.Crew = crew;
+                return gunner.Decide(n.Crew[1], n.World, n.World.Tick, out _);
+            }
+            walker.Crew = crew;
+            return walker.Decide(n.Crew[2], n.World, n.World.Tick, out _);
+        }
+        n.Run(0.5);
+        for (int i = 0; i < 30 && n.Train.Vehicles[rear].HasGun; i++)
+            n.Run(1, Decide);
+        Assert.True(n.Train.Vehicles[ahead].HasGun, "saved onto the car ahead");
+        n.Train.Vehicles[ahead].Gun.Rack = 0;
+        for (int i = 0; i < 45 && n.Train.Vehicles[ahead].Gun.Rack == 0; i++)
+            n.Run(1, Decide);
+        Assert.True(hugger.Latched, "still on the van");
+        Assert.True(n.Train.Vehicles[ahead].Gun.Rack > 0, $"the rack's still dry: gunner {n.Crew[1].Parent}/{n.Crew[1].Surface}, walker {n.Crew[2].Parent}/{n.Crew[2].Surface}");
+    }
+
+    [Fact]
     public void WithAPackAboardTheHeldCarTooTheGunnerLeavesTheGun()
     {
         // Note 380: a frontier:3 hot run's gunner pushed its gun along the Car Hugger's car with four hounds on that roof, and
