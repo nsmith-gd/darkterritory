@@ -702,13 +702,16 @@ public sealed class CreatureArt
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
         double offset = (variant & 7) * 0.41;
         string clip = ClipOf(pose);
+        // A freed prisoner walks their own way (note 407): the irons' shuffle.
+        if (figure == "survivor_prisoner" && clip == "walk")
+            clip = "shuffle";
         // A build without crew_clips.glb (or an older one, short of a clip) stands them idle rather than in the greybox.
         if (_models.TryGetValue(figure, out var has) && !has.Model.Clips.ContainsKey(clip))
             clip = clip.StartsWith("held_", StringComparison.Ordinal) && has.Model.Clips.ContainsKey("held") ? "held"
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                : clip == "dance" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
         bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
