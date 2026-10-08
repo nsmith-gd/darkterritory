@@ -131,6 +131,10 @@ public sealed partial class GameAudio
             if (v.HotBox > 0 && train.HotBoxTuning is { } hb)
                 Hold("hotbox", v.Id, train.Frames[v.Id].ToWorld(HotBoxes.Box(train.Frames[v.Id].Shape, hb)), outside)?
                     .Params.Set("heat", Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
+            // A loose coupling (note 356): the pin knocking in its gap, faster and harder as it works out.
+            if (v.Loose > 0 && train.Loose is { } lt)
+                Hold("coupling-loose", v.Id, train.Frames[v.Id].ToWorld(Couplings.Pin(train.Frames[v.Id].Shape, train.Dynamics.Tuning)), outside)?
+                    .Params.Set("loose", Math.Clamp(v.Loose / lt.PartAfter, 0, 1));
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {
