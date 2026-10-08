@@ -739,6 +739,13 @@ public sealed partial class GameAudio
                 Cue(v.LampLit ? "crew-lamps.car-lamp-on" : "crew-lamps.car-lamp-off", frame.ToWorld(local), OccludedAt(train, v.Id, local));
             }
             car.Lamp = v.LampLit;
+            // Guttering (note 346): the wick sputtering by the ceiling lamps, quick and uneven, worse as it goes.
+            if (v.LampLit && v.Gutter > 0 && shape.Interior is { } lit)
+            {
+                var local = new Double3(0, lit.Max.Y - 0.2, lit.Centre.Z);
+                Hold("lamp-gutter", v.Id, frame.ToWorld(local), OccludedAt(train, v.Id, local))?
+                    .Params.Set("gutter", Math.Clamp(v.Gutter / (train.Gutter?.OutAfter ?? 45), 0, 1));
+            }
         }
     }
 
