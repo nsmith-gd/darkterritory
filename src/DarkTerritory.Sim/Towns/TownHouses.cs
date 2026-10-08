@@ -37,6 +37,17 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
             yield return (d.DoorU - HouseDesign.VestibuleHalf, d.DoorU + HouseDesign.VestibuleHalf, -HouseDesign.VestibuleDepth, 0, 3.5);
     }
 
+    /// <summary>
+    /// What stands in its yard (ARCHITECTURE §8 note 335, the director's references: the picket fence out front, the board
+    /// fence at the back, the woodpile, the shed, the privy, the traps and the dory), in its own frame. Empty on the
+    /// line's own street of a town that's still the yard (no room behind the houses).
+    /// </summary>
+    public IReadOnlyList<YardThing> Yard { get; init; } = [];
+
+    /// <summary>Everything of it that stops you: <see cref="Parts"/>, and its yard's solid things.</summary>
+    public IEnumerable<(double U0, double U1, double V0, double V1, double Height)> Solids() =>
+        Parts().Concat(Yard.Where(y => y.Solid).Select(y => (y.U0, y.U1, y.V0, y.V1, y.Height)));
+
     /// <summary>How far its front door is out from its front wall: an enclosed porch's door, else the front's.</summary>
     public double DoorV => Design.Porch == HousePorch.Vestibule ? -HouseDesign.VestibuleDepth : 0;
 
@@ -48,6 +59,19 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
 
     /// <summary>A direction in the house's frame (along, in) as the rail frame's (along the line, across it).</summary>
     public (double S, double D) Facing(double fu, double fv) => (fu, Side * fv);
+}
+
+/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335).</summary>
+public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel }
+
+/// <summary>
+/// A thing in a house's yard, in the house's frame (u along its front from its middle, v in from its front): its footprint,
+/// its height, and which of its kind it is. A picket fence's gate is the gap between two of them, in front of the door.
+/// </summary>
+public sealed record YardThing(YardKind Kind, double U0, double U1, double V0, double V1, double Height, int Variant = 0)
+{
+    /// <summary>Whether it stops you: everything but the clothesline (you walk under the washing).</summary>
+    public bool Solid => Kind != YardKind.Clothesline;
 }
 
 /// <summary>
@@ -72,8 +96,8 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         {
             // The kitchen: the range against the side wall at the back, the table, the dresser against the back wall.
             new("stove", k * (w - 0.55), depth - 1.1, 0.42, 0.35, 0.9, true),
-            new("table", k * width / 4, depth * 0.6, 0.7, 0.45, 0.75, true),
-            new("chair", k * width / 4, depth * 0.6 + 0.75, 0.22, 0.22, 0.9, false),
+            new("table", k * width / 4, TableV(depth), 0.7, 0.45, 0.75, true),
+            new("chair", k * width / 4, TableV(depth) + 0.75, 0.22, 0.22, 0.9, false),
             new("dresser", k * 0.85, depth - 0.3, 0.6, 0.22, 1.9, true),
             // The parlour: the stair boxed in its back corner (its door toward the partition), a cabinet against the back
             // wall, a chair with the parlour's lamp on a stand beside it, a photograph on the partition.
@@ -86,7 +110,7 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         var spots = new List<HouseSpot>
         {
             new("stove", k * (w - 1.35), depth - 1.1, k, 0, "crouch"),
-            new("table", k * width / 4, depth * 0.6 + 0.75, 0, -1, "seated"),
+            new("table", k * width / 4, TableV(depth) + 0.75, 0, -1, "seated"),
             new("chair", -k * width / 4, depth * 0.4, 0, -1, "seated"),
             new("window", -k * (width / 4 + 0.4), 0.8, 0, -1, "idle"),
             new("stairs", -k * (w - 1.55), depth - 1.4, -k, 0, "idle"),
@@ -95,13 +119,20 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
         return new HouseLayout(kitchen, k * width / 4, depth * 0.35, things, spots);
     }
 
+    /// <summary>
+    /// How far in the kitchen table stands: three fifths of the way back, but in a short house forward of that, so its chair
+    /// (behind it) leaves room for whoever's crouched at the range (the director's 8 Oct shots: in a 5 m house the range's
+    /// place was on the table's chair, the one at the table sat beside it; note 353).
+    /// </summary>
+    public static double TableV(double depth) => Math.Min(depth * 0.6, depth - 2.5);
+
     /// <summary>Where the household's own thing goes, by its kind: on the table, by the stairs, on the cabinet, by the door.</summary>
     public (double U, double V, double H) Place(string kind, double width, double depth)
     {
         double w = width / 2, k = Kitchen;
         return kind switch
         {
-            "table" or "letters" => (k * width / 4 + 0.2, depth * 0.6, 0.8),
+            "table" or "letters" => (k * width / 4 + 0.2, TableV(depth), 0.8),
             "anklebell" => (-k * (w - 1.2), depth - 0.5, 0.9),
             "timetable" => (-k * width / 4, Wall + 0.03, 1.6),
             "boots" => (DoorU + k * 0.75, 0.45, 0.1),
