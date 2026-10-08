@@ -994,6 +994,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Math.Max(Math.Min(rbt.RuptureCoastBelow, Opt(args, "--speed", 20)), Opt(args, "--speed", 20) - rbt.RuptureDecel * Opt(args, "--ruptured", 0.8));
         train.RefreshFrames();
     }
+    // --gutter s: car 2's lamp guttering that many seconds (note 346): drawn out for this moment of its flicker, or not.
+    if (Opt(args, "--gutter", -1) is var gutterFor and >= 0)
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Gutter = gutterFor;
     // --hotbox s: car 2's axle box that many seconds hot (note 331): the smoke off its rear bogie, and the glow near the end.
     if (Opt(args, "--hotbox", -1) is var hotFor and >= 0)
     {

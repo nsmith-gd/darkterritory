@@ -67,7 +67,23 @@ public sealed class GreyboxScene
     public int LampsOut { get; set; }
 
     /// <summary>Car <paramref name="index"/>'s lamps are out (its vehicle's LampLit), so it's drawn dark inside and out.</summary>
-    bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && !fleet[index].LampLit;
+    bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && (!fleet[index].LampLit || Sputtered(fleet[index], index));
+
+    /// <summary>
+    /// A guttering lamp (note 346) out for this moment of its flicker: a few times a second, at random, more of the time the
+    /// nearer it is to going out (from a twelfth to over half).
+    /// </summary>
+    bool Sputtered(Vehicle v, int index)
+    {
+        if (v.Gutter <= 0)
+            return false;
+        double gone = Math.Clamp(v.Gutter / (Gutter?.OutAfter ?? 45), 0, 1);
+        uint h = (uint)((long)Math.Floor(Time * 14) * 2654435761L + index * 40503L);
+        h ^= h >> 15;
+        h *= 2246822519u;
+        h ^= h >> 13;
+        return h % 1000 < 80 + 450 * gone;
+    }
     /// <summary>
     /// GDD v1.4 App. E.9, the Stranded outro: the repair kit's locker (note 173) stands open, whatever its door is doing, on
     /// the empty shelf where the kit should be.
@@ -115,6 +131,8 @@ public sealed class GreyboxScene
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
     /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
     public Sim.Train.HotBoxTuning? HotBoxTuning { get; set; }
+    /// <summary>The lamps' guttering tuning (note 346), for how near a guttering lamp is to going out; null, the file's defaults.</summary>
+    public Sim.Train.GutterTuning? Gutter { get; set; }
     static readonly Sim.Train.HotBoxTuning DefaultHotBox = new();
     /// <summary>Loose bodies: crates, lamps, the dead.</summary>
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
