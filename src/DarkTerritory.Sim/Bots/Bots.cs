@@ -281,6 +281,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (!self.Alive || self.Parent != rear || self.Surface != Surface.Roof || !train.Vehicles[rear].HasGun
             || !world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == rear))
             return null;
+        // Not with a pack aboard it too (note 380): a frontier:3 hot run's gunner pushed its gun along the held car with four
+        // hounds on its roof, and was mauled there. The car's for cutting loose (the walkers', HeldAndBoarded); off it.
+        if (world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == rear))
+            return null;
         int ahead = train.VehicleAhead(rear);
         if (ahead < 0 || train.Vehicles[ahead].HasGun || train.Frames[ahead].Shape.RoofRail is null || Guns.Mount(train, rear) is not { } mount)
             return null;
@@ -799,6 +803,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Only with someone near enough to pull us from its mouth (A.3: "swallowSeconds for friends to pull them free",
         // and one player can barely out-hit it). Alone but for the driver, a crew of two's gunner went down to it and was
         // eaten on every Dead Lines night it came (note 305): clear of it instead (below), and it may take the car.
+        // Note 380: the Car Hugger's car with a hound pack aboard it as well (a hot run: the Hugger's grip holds the train
+        // under the hounds' speed, and a run behind boards the same car). The Hugger's rule keeps everyone off that car and the
+        // one ahead; the pack's sends the fit at it. On frontier:3 the walkers went back and forth between cars 8 and 9 for a
+        // minute while the pack mauled the gunner. Both go with the car cut loose (App. A.3), so with nobody of the crew on it,
+        // a walker cuts it: along the roofs to the gap ahead of it (behind the car ahead), and Uncouple there.
+        if (HeldAndBoarded(self, world) is { } held && job?.CutLoose(self, world, train.VehicleAhead(held)) is { } cuttingHeld)
+            return cuttingHeld;
         int on = self.Parent;
         var here = PlayerMotor.WorldPosition(self, train);
         bool pulled = Crew.Any(c => c.Id != Me && c.State.Alive && !PlayerMotor.InCab(c.State, train)
@@ -1106,6 +1117,24 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             }
         }
         return intent;
+    }
+
+    /// <summary>
+    /// The car to cut loose (note 380): the Car Hugger's, with hounds aboard it too, nobody of the crew alive on it, and a car
+    /// ahead of it that isn't the engine (a car right behind the engine is every car). For a walker alive, fit for the pack
+    /// fight and aboard; null otherwise.
+    /// </summary>
+    int? HeldAndBoarded(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!self.Alive || self.Parent == PlayerState.World || self.Health < Heed.PackFightHealth)
+            return null;
+        foreach (var e in world.ActiveEnemies)
+            if (e is CarHugger { Latched: true } hugger && hugger.Attached is var car && car > 0 && train.VehicleAhead(car) > 0
+                && world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached == car)
+                && !Crew.Any(c => c.State.Alive && c.State.Parent == car))
+                return car;
+        return null;
     }
 
     static double WrapAngle(double a)
@@ -2024,9 +2053,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>What the line allows here: its authority (linegen plan §9, §16.1) and the boards read.</summary>
     /// <summary>The least the express driver's margin keeps under a bend's derailing speed (note 376).</summary>
-    const double HotBendMargin = 0.85;
+    const double HotBendMargin = 0.8;
     /// <summary>The share of the rake's rated brake the express driver counts on to get down to a bend's speed in time.</summary>
-    const double HotBrakeShare = 0.5;
+    const double HotBrakeShare = 0.3;
 
     /// <summary>
     /// Running hot (note 376): the fastest it can go now and still get under every bend ahead's derailing speed (the line's
@@ -2434,6 +2463,8 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
 
     Step _step;
     int _car = -1, _ticks;
+    /// <summary>Down onto the plate for shelter only, every way in being alight (note 380).</summary>
+    bool _plateOnly;
     double _l, _doorX;
 
     public bool Active => _step != Step.Off;
@@ -2509,6 +2540,15 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
             case Step.ToDoor:
                 if (self.Parent != _car || self.Surface != Surface.Coupler)
                     return Abandon();
+                // Down for shelter by a car alight (note 380): on the plate while the warning holds, then back up the way it came.
+                if (_plateOnly)
+                {
+                    if (!Shelter)
+                        return Abandon();
+                    _ticks = 0;
+                    _why = "on the plate";
+                    return new PlayerIntent();
+                }
                 // Just outside the door, facing it, on the plate that lies in line with it.
                 return Reach(self, new Double3(_doorX, 0, _l + 0.45), 0, Step.Open);
             case Step.Open:
@@ -2694,12 +2734,16 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
         bool ownPlate = behind > 0 || train.Frames[here].Shape.Platform is not null;
         bool back = ownPlate && Walkable(train, here) && Barred?.Invoke(here) != true && (Into == here || Troubled?.Invoke(here) != true);
         bool front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true && (Into == ahead || Troubled?.Invoke(ahead) != true);
-        // A tunnel's mouth coming and the only ways in troubled (the rear car, the car ahead alight): in anyway. A fire's a
-        // chance; the roof under that mouth isn't.
+        // A tunnel's mouth coming (or a bend taken over its board, the roof warning) and the only ways in alight: down onto
+        // the plate, under the roof line, and wait there till it's passed, not in. Note 380: on a hot run (the express
+        // driver takes bends over their boards, note 376) the warning held for whole stretches, and a walker in for shelter
+        // went into car 10 burning and died there; the plate is out of the mouth's and the bend's reach both.
+        _plateOnly = false;
         if (Shelter && !back && !front)
         {
             back = ownPlate && Walkable(train, here) && Barred?.Invoke(here) != true;
             front = ahead > 0 && Walkable(train, ahead) && Barred?.Invoke(ahead) != true;
+            _plateOnly = back || front;
         }
         // Sent into one car in particular: its own rear door, from its roof or the roof behind it.
         if (Into is { } into && !Shelter)
