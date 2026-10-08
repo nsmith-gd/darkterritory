@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -272,6 +273,38 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAStandThePromptIsTheLeversWhateversInYourHandsOrLyingByIt()
+    {
+        // Queue #94 (note 357): Use is the lever's at a stand, so the prompt was wrong to offer the crate lying by it, and
+        // to say nothing while a lamp was in hand.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        int me = ((IPlaySession)s).PlayerId;
+        var feet = PlayerMotor.WorldPosition(s.Player, s.Train);
+
+        var crate = s.World.Bodies.SpawnCargo(feet + new Double3(0, 0, -0.6), line.Branches[0].Toe);
+        Assert.Same(crate, s.World.Bodies.InReach(s.Player, s.Train));
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+
+        crate.Pbd.Particles[0].Position = feet + right * 40;
+        var lamp = s.World.Bodies.SpawnItem(feet, line.Branches[0].Toe, BodyKind.Lamp);
+        lamp.Carrier = me;
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+        for (int i = 0; i < (stands.Tuning.ThrowSeconds + 0.2) * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(s.Train.Diverging(0));
+        Assert.Equal(me, lamp.Carrier);
     }
 
     [Fact]
