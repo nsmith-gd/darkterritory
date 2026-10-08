@@ -65,6 +65,35 @@ public sealed record AtmosphereTuning
     public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
+    /// <summary>The light indoors (queue #211, note 475): a room's own fill, the houses' candles and lamps, the hand lamp, the sheds' lanterns.</summary>
+    public InteriorTuning Interiors { get; init; } = new();
+}
+
+/// <summary>
+/// The light indoors (the director, 8 Oct: "it feels almost impossible to see anything ... we do need interior lighting to
+/// be functional"; GDD §28 "inside = warm, human, temporary safety"; ARCHITECTURE §8 note 475). Inside a Room (a car, an open
+/// house, an open barn or shed, a yard's shed) the moon and sky are kept out; what's left is the room's own fill, which
+/// was the night's ambient (0.1) times a warm tint, and the practical lights. The defaults are those old numbers.
+/// </summary>
+public sealed record InteriorTuning
+{
+    /// <summary>A room's fill (rgb), lamplight off the boards: what a corner no lamp reaches is lit by. Null: the old, the night's ambient times (0.55, 0.42, 0.3).</summary>
+    public Vector3? Fill { get; init; }
+    /// <summary>An open house's candle stub: its strength (times the lamp amber) and reach (m).</summary>
+    public float Candle { get; init; } = 0.9f;
+    public float CandleRange { get; init; } = 5.5f;
+    /// <summary>An open house's oil lamp turned down: its strength and reach (m).</summary>
+    public float Lamp { get; init; } = 0.8f;
+    public float LampRange { get; init; } = 6.5f;
+    /// <summary>A crewmate's hand lamp: its strength and reach (m).</summary>
+    public float HandLamp { get; init; } = 1.8f;
+    public float HandLampRange { get; init; } = 7f;
+    /// <summary>A hurricane lantern turned low, hung in each open barn or shed and each roofed length of a yard shed: its strength (0: none), reach (m), and how high it hangs over the floor (m; under the eaves at the most).</summary>
+    public float ShedLantern { get; init; }
+    public float ShedLanternRange { get; init; } = 9f;
+    public float ShedLanternHeight { get; init; } = 3.2f;
+    /// <summary>A long yard shed has one each this far along it (m).</summary>
+    public float ShedLanternSpacing { get; init; } = 10f;
 }
 
 /// <summary>
@@ -92,6 +121,15 @@ public sealed record ColdTuning
     public float FrostFrom { get; init; } = 0.35f;
     public float FrostFull { get; init; } = 0.85f;
     public float BreathFrom { get; init; } = 0.15f;
+    /// <summary>How far in from its frame the frost on the cab's glass reaches at its full (m, note 485).</summary>
+    public float PaneReach { get; init; } = 0.16f;
+    /// <summary>The frost on the glass: its colour (as the effects are, unlit) and how thick at the frame (0..1).</summary>
+    public Vector3 PaneColour { get; init; } = new(0.5f, 0.57f, 0.64f);
+    public float PaneDensity { get; init; } = 0.9f;
+    /// <summary>How near the glass a mouth fogs it (m), and the fog's colour and thickness at the glass (0..1).</summary>
+    public float FogReach { get; init; } = 0.7f;
+    public Vector3 FogColour { get; init; } = new(0.42f, 0.45f, 0.48f);
+    public float FogDensity { get; init; } = 0.8f;
 
     /// <summary>How heavy the frost is at <paramref name="cold"/>, 0..1.</summary>
     public float Frost(double cold) => Math.Clamp(((float)cold - FrostFrom) / Math.Max(1e-3f, FrostFull - FrostFrom), 0, 1);
@@ -380,6 +418,8 @@ public sealed class Look
             light.LampColour = lc;
         if (a.LampIntensity is { } li)
             light.LampIntensity = li;
+        if (a.Interiors.Fill is { } fill)
+            light.IndoorFill = fill;
         return light;
     }
 

@@ -65,11 +65,11 @@ Cut, layered and processed for the game.
 - LibriTTS, Zen et al. 2019
   CC BY 4.0. Spoken through Piper, LibriTTS en-us high (rhasspy/piper v0.0.2). In: tell soot children, voice clerk, voice prisoner sets.
 - Impact Sounds, by Kenney (kenney.nl)
-  CC0 1.0. In 313 of the game's sounds.
+  CC0 1.0. In 321 of the game's sounds.
 - RPG Audio, by Kenney (kenney.nl)
   CC0 1.0. In 245 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 281 of the game's sounds.
+  CC0 1.0. In 285 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)
   CC0 1.0. In 6 of the game's sounds.
 

@@ -597,6 +597,18 @@ CUES = {
         L("clearing", "Clearing a jam by hand: grain dug out, the belt hauled at"),
         O("free", "The jam cleared: the belt jerking free and running on", vars=3),
     ],
+    # The tipple at the mine head (A1's #458, note 423; queue #216, note 480): a car clamped in its cradle, rolled over to the
+    # ore bin's chute and back; a bad clamp throws it off its rails, and the wrench puts it back.
+    "place-tipple": [
+        L("clamping", "The clamp wound down while the lever's held"),
+        O("clamp", "Clamped: the beam and platen biting on the car", vars=3),
+        L("roll", "The cradle rolling the car over (and back)"),
+        O("pour", "At the top: ore down the bin's chute into the car", vars=2),
+        O("release", "Rolled back and let go", vars=2),
+        O("derail", "A bad clamp: the car off its rails in the cradle", vars=2),
+        L("rerail", "Putting it back on its rails with the wrench"),
+        O("rerailed", "Back on its rails", vars=2),
+    ],
     "place-chemical": [
         L("leak", "A leak hissing in the works"),
         O("drip", "Something dripping", vars=3),
@@ -665,7 +677,7 @@ CUES = {
         O("disperse", "Leaving once quiet holds", vars=2),
     ],
     "cs-hounds": [
-        O("paw", "One paw fall (fired at the gallop's tempo)", vars=6, mats=["ground", "grate", "roof"]),
+        O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),

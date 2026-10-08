@@ -161,9 +161,12 @@ public sealed partial class SceneArt(Look look)
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time));
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
+        bool hard = pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry;
         if (drawn && Breath > 0 && c.Alive)
-            Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id,
-                pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry);
+            Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id, hard);
+        // (And where it is, for the cab's glass it fogs: CabGlass, drawn after the crew.)
+        if (drawn && c.Alive)
+            _mouths[c.Id] = new Mouth(eye + new Double3(Creatures.LastMouth.X, Creatures.LastMouth.Y, Creatures.LastMouth.Z), Creatures.LastFacing, hard, time);
         if (drawn && lamp is not null)
         {
             // Its glow where it hangs, swinging with the hand; and its light there next frame (GreyboxScene's practical lights

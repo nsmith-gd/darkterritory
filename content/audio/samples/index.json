@@ -9510,6 +9510,27 @@
   "takes": 6,
   "sha": "fd5f186820b92f0d"
  },
+ "cs-hounds/paw/wood": {
+  "cue": "cs-hounds.paw",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hound's paw on a car's plank floor: its nails ticking on the boards, the pad's soft weight, ash and embers",
+    "key": "boards",
+    "sources": [
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "e8b15a1ca1e86d97"
+ },
  "cs-hounds/snarl": {
   "cue": "cs-hounds.snarl",
   "surface": null,
@@ -11707,6 +11728,202 @@
   ],
   "takes": 1,
   "sha": "801c41fe26413275"
+ },
+ "place-tipple/clamp": {
+  "cue": "place-tipple.clamp",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Clamped: the beam biting down on the car's roof, the platen at its side, iron on timber",
+    "key": "bite",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "83c8af9db3eb7a04"
+ },
+ "place-tipple/clamping": {
+  "cue": "place-tipple.clamping",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lever held: the clamp's screw wound down by its ratchet, the beam's thread grinding, iron creaking",
+    "key": "screw",
+    "sources": [
+     "sfx_100_v2:misc_20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "a8e0b0c90750f6cb"
+ },
+ "place-tipple/derail": {
+  "cue": "place-tipple.derail",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bad clamp: the car wrenching off its rails in the cradle, wheels crashing onto the sleepers, ore spilling",
+    "key": "off",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "f6e1c4303dab2da1"
+ },
+ "place-tipple/pour": {
+  "cue": "place-tipple.pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "At the top: ore roaring down the bin's steel chute into the rolled-over car",
+    "key": "chute",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5b35f355fe9ce2ce"
+ },
+ "place-tipple/release": {
+  "cue": "place-tipple.release",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Rolled back and let go: the beam lifting off with a clank, the car dropping onto its springs",
+    "key": "springs",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "0c6cdc1d05dd2aca"
+ },
+ "place-tipple/rerail": {
+  "cue": "place-tipple.rerail",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Putting it back on its rails: a jack's ratchet, a bar levering, the car's weight creaking up and over",
+    "key": "jack",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1d88819625e2d162"
+ },
+ "place-tipple/rerailed": {
+  "cue": "place-tipple.rerailed",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Back on its rails: the wheels dropping onto the rail heads with heavy clunks, the springs settling",
+    "key": "back-on",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "383eb074c34feebf"
+ },
+ "place-tipple/roll": {
+  "cue": "place-tipple.roll",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cradle rolling the car over: its hoops grinding round on their rollers, the ring gear clanking, the car twisting",
+    "key": "hoops",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "128048c4b275af8b"
  },
  "place-town/clock": {
   "cue": "place-town.clock",

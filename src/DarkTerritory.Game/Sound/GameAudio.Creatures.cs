@@ -368,6 +368,9 @@ public sealed partial class GameAudio
 
     /// <summary>Where in a gallop's stride each paw falls: the hind pair, then the fore pair.</summary>
     static readonly double[] PawFalls = [0, 0.1, 0.4, 0.5];
+    // Aboard (note 478): slower than this it's standing (a pack fight's shuffle isn't a walk); a step further than this in
+    // a tick is a jump or a correction, not a walk.
+    const double HoundAboardMoving = 0.3, HoundAboardJump = 1.5;
 
     static bool HopLeaping(double phaseSeconds, int id) => (int)(phaseSeconds * 2 + id) % 2 == 0;
 
@@ -393,6 +396,8 @@ public sealed partial class GameAudio
                 was.Stride = to - Math.Floor(to);
             }
         }
+        if (e.Attached >= 0 && was.Attached >= 0 && e.Attached < train.Frames.Count && was.Attached < train.Frames.Count)
+            HoundAboard(train, e, was, at, dt);
         if (e.Attached >= 0 && was.Attached < 0)
         {
             // LEAP onto the rear car (CinderHound.Board), and it lands on the roof a moment later.
@@ -421,6 +426,41 @@ public sealed partial class GameAudio
         if (grabbed)
             Cue("cs-hounds.bite", Victim(train, e.Holding, 0.8) ?? at, occ);
     }
+
+    /// <summary>
+    /// A hound aboard on its feet (note 478; D1's #208: patrolling the roofs, jumping the gaps it can make, in and out of
+    /// cars whose doors stand open): its paws on what it's on as it moves (the roof's tin, or a car's boards inside), at
+    /// its walk's stride; over a coupling gap to the next car, or down in at a door and back up, the leap and its landing.
+    /// Heard from inside the car it's on or over as the Climbers' steps are (that car's own space, clear in there).
+    /// </summary>
+    void HoundAboard(TrainOnLine train, Enemy e, Creature was, Double3 at, double dt)
+    {
+        bool inside = Inside(train, e.Attached, e.Local), wasInside = Inside(train, was.Attached, was.Local);
+        string on = inside ? "wood" : "roof";
+        float occ = Occlusion(e.Attached);
+        if (e.Attached != was.Attached || inside != wasInside)
+        {
+            Cue("cs-hounds.leap", at, occ);
+            var land = at;
+            Later(0.28, () => Cue("cs-hounds.paw", on, land, occ));
+            Later(0.36, () => Cue("cs-hounds.paw", on, land, occ));
+            was.Stride = 0;
+            return;
+        }
+        double run = (e.Local - was.Local).Length, speed = run / dt;
+        if (speed < HoundAboardMoving || run > HoundAboardJump)
+            return;
+        // A walk's stride is shorter than a gallop's (a metre at a prowl), the paws at the same fractions of it.
+        double stride = Math.Clamp(speed * 0.3, 0.7, 6), from = was.Stride, to = from + run / stride;
+        foreach (double paw in PawFalls)
+            for (double k = Math.Floor(from - paw) + 1; k + paw <= to; k++)
+                Cue("cs-hounds.paw", on, at, occ, (float)(0.7 + 0.25 * _creatureRng.Next()));
+        was.Stride = to - Math.Floor(to);
+    }
+
+    /// <summary>Whether a point on a car (its frame) is inside it: within the room its walls and roof shut in.</summary>
+    static bool Inside(TrainOnLine train, int car, Double3 local) =>
+        train.Frames[car].Shape.Interior is { } room && room.Contains(local);
 
     /// <summary>
     /// Climbers (App. A.4): along the roofs toward the engine, each step heard by whoever's in the car under it (the cue is
