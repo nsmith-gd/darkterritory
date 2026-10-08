@@ -2871,7 +2871,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // Inside, that is: on the plate still, the way to it is through the door it's walking at (and it never
                     // gave up, its clock kept at nothing by the work).
                     _why = "";
-                    if (!ShutFirst && Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
+                    // On its floor is inside: a side doorway is in the wall, outside the room's box (note 437: frontier:7's four
+                    // walkers in at car 1's side door stood in it, the work walking them in and the door walking them back out,
+                    // every other tick, for 15 s with the car alight, and burned there; four in a doorway, it never shut).
+                    if (!ShutFirst && Into == _car && self.Parent == _car && self.Surface == Surface.Deck && Indoors?.Invoke(self) is { } first)
                     {
                         _ticks = 0;
                         _why = "busy";

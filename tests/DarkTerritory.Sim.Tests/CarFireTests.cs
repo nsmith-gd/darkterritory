@@ -104,6 +104,36 @@ public class CarFireTests
     }
 
     [Fact]
+    public void WalkersInForAFireWithASideDoorLeftOpenPutItOut()
+    {
+        // Note 437: frontier:7's 8-bot hot run. Four cold walkers went into burning car 1, and its side door was open (left so
+        // for a bag). Going to shut it, they stood in the doorway (in the wall, outside the room's box): the fire walked them
+        // in, the open door walked them back out, tick by tick, and they burned there. In the doorway is in the car: the
+        // fire first, the door after.
+        var n = new Night(5, speed: 0);
+        n.World.MountExtinguishers();
+        int car = 2;
+        var shape = n.Train.Frames[car].Shape;
+        int door = Bots.StopHand.SideDoor(shape, -1)!.Value;
+        n.Train.Vehicles[car].ToggleDoor(door);
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        var bots = new List<Bots.RoofWalkerBot>();
+        for (int i = 1; i <= 3; i++)
+        {
+            bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
+            n.Crew[i] = PlayerMotor.SpawnOnRoof(n.Train, car, -3 + 2 * i, P) with { Cold = P.Cold.OnsetSeconds };
+        }
+        for (int s = 0; s < 60 && !fire.Gone; s++)
+        {
+            foreach (var b in bots)
+                b.Crew = [.. n.Crew.Select(kv => (kv.Key, kv.Value))];
+            n.Run(1, id => bots[id - 1].Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        }
+        Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; " + string.Join("; ", bots.Select(b => $"{b.TendStep ?? b.WarmUpStep} at {n.Crew[b.Me].Position}")));
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
+    [Fact]
     public void AnExtinguisherPutDownInTheAisleIsTakenFromTheAisle()
     {
         // Note 188: put down spent in the aisle, it recharges where it lies. In from it (the side away from its wall, the way
