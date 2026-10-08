@@ -922,6 +922,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Pressure = x == site ? leak ? 1 : 0.6 : 0, Leak = x == site && leak ? 10 : 0,
                     Ore = x?.Ore ?? 0, Winding = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && args.Contains("--lifting"),
                     Wind = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) ? Opt(args, "--wind", 0.6) : 0,
+                    // The conveyor line (note 400): --conveying runs it into the car under its head, --jam f jams it f of the way
+                    // along its low run from the tail.
+                    Grain = x?.Grain ?? 0,
+                    Running = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && (args.Contains("--conveying") || args.Contains("--jam")),
+                    Carrying = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--conveying") && !args.Contains("--jam"),
+                    Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
         }
     }
@@ -1161,6 +1167,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     var across = Double3.Cross(toward, Double3.Up);
                     camera = Camera.LookAt(heap + toward * 9 + across * 4 + Double3.Up * 1.7, heap + Double3.Up * 1.2, 70);
                 }
+            }
+            // --belt: the grain elevator's conveyor line (note 400), from behind its drive house down the belt's low run to the knee,
+            // the riser and its head over the car.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--belt"))
+            {
+                var back = ((site.ConveyorTail - site.ConveyorKnee) with { Y = 0 }).Normalized;
+                var right = Double3.Cross(back, Double3.Up);
+                camera = Camera.LookAt(site.ConveyorTail + back * 2 + right * 6 + Double3.Up * 4.5, Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.75), 70);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
