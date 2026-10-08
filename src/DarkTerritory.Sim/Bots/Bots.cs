@@ -327,6 +327,76 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 212); null otherwise.</summary>
     public LookErrand? Errand { get; set; }
 
+    /// <summary>The crew's calls (who's driving, and who's gone forward to relieve a dead driver: note 399), or null.</summary>
+    public CrewCalls? Calls { get; set; }
+
+    /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
+    public bool Relieving { get; private set; }
+
+    ConductorBot? _relief;
+    bool _sawDriver;
+
+    /// <summary>
+    /// The relief driver (note 399, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
+    /// living gone forward for it: claimed, and forward to the cab (along the roofs, onto the engine, down its roof hatch),
+    /// then the controls as a <see cref="ConductorBot"/> in the dead driver's place (member 0). Null otherwise, or with the
+    /// legs walking it forward (<see cref="Relieving"/> still set).
+    /// </summary>
+    PlayerIntent? Relieve(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        Relieving = false;
+        if (Calls is not { } calls || Me < 0)
+            return null;
+        if (!self.Alive)
+        {
+            if (calls.Relief == Me)
+                calls.Relief = null;
+            return null;
+        }
+        var train = world.Train;
+        // A Climber in the cab (App. A.4): it stays while anyone's in there, and only two clubbing it together hurt it (note
+        // 288), so the driver alone keeps clear of it, the fire unworked, till the train stands (a harness night's, at km 3.9).
+        var climber = world.ActiveEnemies.OfType<Climber>().FirstOrDefault(c => c.Inside && c.Attached == 0 && !c.Gone);
+        if (_relief is null)
+            _sawDriver |= calls.Has(StopJob.Driver);
+        bool driverGone = _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
+        if (!driverGone && climber is null)
+        {
+            if (calls.Relief == Me)
+                calls.Relief = null;
+            // Back out of the cab it came forward to, or off the engine's roof.
+            if (self.Parent != 0)
+                return null;
+            return self.Surface == Surface.Roof ? ReliefDriver.OffTheEngine(self, train) : KitRun.BackToTheTrain(self, train);
+        }
+        if (calls.Relief != Me)
+        {
+            // Someone living's gone already: theirs.
+            if (calls.Relief is { } other && Crew.Any(c => c.Id == other && c.State.Alive))
+                return null;
+            calls.Relief = Me;
+        }
+        Relieving = true;
+        if (PlayerMotor.InCab(self, train))
+        {
+            if (driverGone)
+            {
+                _relief ??= new ConductorBot(calls, 0);
+                _relief.Crewmates = [.. Crew.Select(c => c.State)];
+                _relief.Players = [.. Crew.Where(c => !calls.IsBot(c.Id)).Select(c => c.State)];
+                return _relief.Decide(self, world, tick, out aimed);
+            }
+            // The Climber, clubbed with the driver (it clubs it too with someone else in the cab: KeepClear).
+            return Heed.Strike(self, train, climber!.WorldPosition(train), 1.6) ?? default;
+        }
+        if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
+            return going;
+        if (forward)
+            Head(-1);
+        return null;
+    }
+
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
     bool _looked;
@@ -777,6 +847,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
         }
+        // The driver's dead (note 399): forward to take the controls, before anything else.
+        if (Relieve(self, world, tick, out aimed) is { } relieving)
+            return relieving;
+        if (Relieving)
+            return Decide(self, world.Train, tick);
         if (!_looked)
             Look(world, self);
         _looked = false;
@@ -1811,12 +1886,26 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// (the Deadman's there for an empty one). So nobody leaves: the driver and a second hand keep to the cab's free corners
     /// (<paramref name="side"/>: +1 the driver's, the front right by the console; −1 the back left by the doorway, the front
     /// left being the coal's, note 280), out of its reach. The controls as the intent had them; only where it stands changes.
+    /// With another crewmate in the cab, they club it together instead (note 399).
     /// </summary>
-    static PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
+    PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
     {
         var train = world.Train;
-        if (!self.Alive || !PlayerMotor.InCab(self, train) || !world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
+        if (!self.Alive || !PlayerMotor.InCab(self, train) || world.ActiveEnemies.FirstOrDefault(e => e is Climber { Inside: true } c && c.Attached == 0) is not { } climber)
             return intent;
+        // A crewmate come forward into the cab for it (note 399): the two of them club it (only a gang's blows hurt it, note
+        // 288), the controls as they were.
+        var me = self;
+        if (Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train) && (c.Position - me.Position).Length > 0.01) == true
+            && Heed.Strike(self, train, climber.WorldPosition(train), 1.6) is { } clubbing)
+            return intent with
+            {
+                MoveX = clubbing.MoveX,
+                MoveZ = clubbing.MoveZ,
+                LookYaw = clubbing.LookYaw,
+                Actions = intent.Actions | clubbing.Actions,
+                Buttons = intent.Buttons | (clubbing.Buttons & PlayerButtons.Run)
+            };
         var cab = train.Frames[0].Shape.Cab!.Value;
         var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
         var (step, _) = WarmUp.Steer(self, corner, 0);
