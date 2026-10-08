@@ -23,8 +23,10 @@ public static class SquareKit
     {
         var k = new Kit(look, 2100 + kind.Length + style.Length * 7);
         bool hall = kind == "hall";
-        string form = hall ? (style is "church" or "school" or "shed" ? style : "hall") : kind;
-        float h = form switch { "church" => 5.4f, "hall" => 6.2f, "shed" => 5.2f, "school" => 4.2f, _ => 4.0f };
+        string form = hall ? (style is "church" or "school" or "shed" ? style : "hall") : style == "council" ? "council" : kind;
+        if (form == "quiet")
+            return Quiet(look, w, d);
+        float h = form switch { "church" => 5.4f, "hall" => 6.2f, "shed" => 5.2f, "school" => 4.2f, "council" => 6.0f, _ => 4.0f };
         // The walls: clapboard in the form's paint, or a shed's upright boards.
         var paint = form switch
         {
@@ -32,6 +34,7 @@ public static class SquareKit
             "school" => new Vector3(0.46f, 0.16f, 0.12f),
             "shed" => new Vector3(0.36f, 0.30f, 0.26f),
             "hall" => new Vector3(0.36f, 0.42f, 0.46f),
+            "council" => new Vector3(0.72f, 0.70f, 0.64f),
             _ => new Vector3(0.62f, 0.50f, 0.26f),
         };
         bool clap = form != "shed";
@@ -71,6 +74,25 @@ public static class SquareKit
             Steeple(k, d, h, ridge, paint);
         if (form == "school")
             Belfry(k, ridge, paint);
+        // The council house: a cupola on the ridge with the town's clock in it, a portico over the door (note 353).
+        if (form == "council")
+        {
+            Belfry(k, ridge, paint);
+            k.Use("paper_form", Palette.BoardEnamel, 0.5f, 0.2f, tile: 1);
+            k.Emissive = 0.3f;
+            k.Disc(new Vector3(0, ridge + 0.05f, -0.62f), -Vector3.UnitZ, 0.42f, 16);
+            k.Emissive = 0;
+            k.Use("paint_black", Palette.SootBlack, 0.6f, 0.1f);
+            k.Box(new Vector3(-0.02f, ridge + 0.05f, -0.64f), new Vector3(0.02f, ridge + 0.36f, -0.63f));
+            k.Box(new Vector3(-0.02f, ridge + 0.03f, -0.64f), new Vector3(0.24f, ridge + 0.07f, -0.63f));
+            Walls(k, paint, true);
+            foreach (float x in new[] { -1.3f, 1.3f })
+                k.Cylinder(new Vector3(x, -0.1f, -d / 2 - 1.6f), new Vector3(x, 3.3f, -d / 2 - 1.6f), 0.16f, 10);
+            k.Box(new Vector3(-1.7f, 3.3f, -d / 2 - 1.9f), new Vector3(1.7f, 3.6f, -d / 2));
+            k.Tri(new Vector3(1.7f, 3.6f, -d / 2 - 1.9f), new Vector3(-1.7f, 3.6f, -d / 2 - 1.9f), new Vector3(0, 4.4f, -d / 2 - 1.9f), new(1, 0), new(0, 0), new(0.5f, -0.4f));
+            k.Use("stone_block", Palette.Ballast, 0.7f, 0.1f, tile: 1);
+            k.Box(new Vector3(-1.8f, -0.4f, -d / 2 - 2.1f), new Vector3(1.8f, 0.15f, -d / 2));
+        }
         // The door, and windows either side of it, a lamp burning behind most: a church's tall and pointed, a shed's
         // small and high either side of its big doors.
         bool bay = form is "hall" or "shed";
@@ -80,7 +102,7 @@ public static class SquareKit
         k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
         k.Emissive = form == "church" ? 0.6f : 1;
         float clear = form switch { "church" => 2.2f, "shed" => 2.4f, "hall" => 1.6f, _ => 1.0f };
-        int storeys = form == "hall" ? 2 : 1;
+        int storeys = form is "hall" or "council" ? 2 : 1;
         for (int s = 0; s < storeys; s++)
             for (float x = -w / 2 + 1.4f; x < w / 2 - 1.0f; x += 2.2f)
             {
@@ -181,6 +203,58 @@ public static class SquareKit
         var r = at + new Vector3(hw, hh, 0);
         var point = at + new Vector3(0, hh + 0.55f, 0);
         k.Tri(r, l, point, new(1, 0), new(0, 0), new(0.5f, -0.3f));
+    }
+
+    /// <summary>
+    /// The quiet house (note 353): small, windowless, whitewashed, its door barred on the outside, a slate by it that says
+    /// QUIET, a bowl and a folded blanket on the step. No lamp: nobody wants to see in.
+    /// </summary>
+    static MeshAsset Quiet(Look? look, float w, float d)
+    {
+        var k = new Kit(look, 2177);
+        const float h = 3.2f;
+        Walls(k, new Vector3(0.70f, 0.70f, 0.68f), true);
+        k.Box(new Vector3(-w / 2, -0.4f, -d / 2), new Vector3(w / 2, h, d / 2), Kit.Faces.Sides);
+        foreach (float x in new[] { -w / 2, w / 2 })
+        {
+            var a = new Vector3(x, h, -d / 2);
+            var b = new Vector3(x, h, d / 2);
+            var c = new Vector3(x, h + d * 0.35f, 0);
+            if (x < 0)
+                k.Tri(a, c, b, new(a.Z, -a.Y), new(c.Z, -c.Y), new(b.Z, -b.Y));
+            else
+                k.Tri(b, c, a, new(-b.Z, -b.Y), new(-c.Z, -c.Y), new(-a.Z, -a.Y));
+        }
+        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+        var top = new Vector3(0, h + d * 0.35f + 0.05f, 0);
+        foreach (float z in new[] { -d / 2 - 0.3f, d / 2 + 0.3f })
+        {
+            var eave = new Vector3(0, h - 0.25f, z);
+            if (z < 0)
+                k.Quad(top with { X = -w / 2 - 0.3f }, top with { X = w / 2 + 0.3f }, eave with { X = w / 2 + 0.3f }, eave with { X = -w / 2 - 0.3f }, twoSided: true);
+            else
+                k.Quad(top with { X = w / 2 + 0.3f }, top with { X = -w / 2 - 0.3f }, eave with { X = -w / 2 - 0.3f }, eave with { X = w / 2 + 0.3f }, twoSided: true);
+        }
+        // The door, shut, an iron bar across it in its brackets, outside.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.5f, -0.1f, -d / 2 - 0.06f), new Vector3(0.5f, 2.0f, -d / 2 - 0.01f));
+        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
+        k.Box(new Vector3(-0.75f, 1.05f, -d / 2 - 0.16f), new Vector3(0.75f, 1.15f, -d / 2 - 0.08f));
+        foreach (float x in new[] { -0.68f, 0.68f })
+            k.Box(new Vector3(x - 0.05f, 0.98f, -d / 2 - 0.18f), new Vector3(x + 0.05f, 1.22f, -d / 2 - 0.01f));
+        // The slate on the wall beside it: QUIET, chalked.
+        k.Use("roof_slate", Palette.Charcoal, 0.6f, 0.2f, tile: 1);
+        k.Box(new Vector3(0.75f, 1.3f, -d / 2 - 0.04f), new Vector3(1.35f, 1.7f, -d / 2 - 0.01f));
+        k.Use("paper_form", Palette.BoardEnamel, 0.7f, 0, tile: 1);
+        k.Box(new Vector3(0.82f, 1.47f, -d / 2 - 0.05f), new Vector3(1.28f, 1.53f, -d / 2 - 0.045f));
+        // The step, the bowl on it, a blanket folded beside.
+        k.Use("stone_block", Palette.Ballast, 0.7f, 0.1f, tile: 1);
+        k.Box(new Vector3(-0.8f, -0.4f, -d / 2 - 0.6f), new Vector3(0.8f, 0.12f, -d / 2));
+        k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.4f, tile: 1);
+        k.Lathe(new Vector3(-0.45f, 0.12f, -d / 2 - 0.3f), [new(0.06f, 0), new(0.11f, 0.06f), new(0.12f, 0.07f)], 10, capTop: false);
+        k.Use("wool", Palette.MuddyOlive, 0.8f, 0, tile: 1);
+        k.Box(new Vector3(0.1f, 0.12f, -d / 2 - 0.5f), new Vector3(0.6f, 0.24f, -d / 2 - 0.12f));
+        return k.Build($"square-quiet-{w:0}x{d:0}");
     }
 
     /// <summary>Where a building's door lamp hangs (local), for its light.</summary>

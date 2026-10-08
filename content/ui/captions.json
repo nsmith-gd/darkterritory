@@ -19,6 +19,9 @@
     "climber-scrabble": "SCRABBLING",
     "hugger-grind": "GRINDING",
     "doll-giggle": "A CHILD GIGGLING",
+    // Restless, her next stage coming (note 499): heard as a child would be, impatient; at the cab, the brake handle shaken.
+    "cs-track-doll.restless": "SMALL HEELS DRUMMING, HUMMING",
+    "cs-track-doll.rattle": "THE BRAKE HANDLE RATTLING",
     "fireflies-buzz": "BUZZING",
     "ribbit-swell": "A BUBBLING CROAK",
     "grumbler-gnaw": "GNAWING",
@@ -40,6 +43,8 @@
     "sign.grumbler": "SCUTTLING",
     "cs-ribbits.hop-land": "SOMETHING HOPPING",
     "cs-grumbler.scuttle": "SCUTTLING",
+    // Its healing a lone blow (note 494): how its rule is learned by ear.
+    "cs-grumbler.heal": "WET FLESH KNITTING",
     // The tells since (note 391): by the line, and by the cue where a line's cues say different things. The Moose
     // listening is silence, and so is the Gannet hanging over a walker: nothing to hear, nothing to caption.
     "tell-moose-grazing": "CHEWING",
@@ -67,10 +72,19 @@
     "crew-house-door.shut": "A DOOR SLAMMING SHUT",
     "crew-house-door.open": "A DOOR CREAKING OPEN",
     "cs-choir.bang-door": "BANGING ON THE DOOR",
+    // A Holdout breached (D.7: the smash "loud as a cannon", the pry "loud as machinery"; note 497): each blow, each heave,
+    // each board off, heard from far off.
+    "place-breach.smash": "A SLEDGE ON IRON",
+    "place-breach.pry": "WOOD CREAKING, NAILS SQUEALING",
+    "place-breach.board": "A BOARD TORN AWAY",
     // A truss's Dragger (note 444): its weight landing on the roof of a car with someone on it, before its grab; with
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
     "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND",
+    // A Cinder Hound's patrol aboard (note 489): stopped to sniff on a roof or in a car, and climbing up a car's side out of
+    // an open door.
+    "cs-hounds.sniff": "SNIFFING",
+    "cs-hounds.climb": "CLAWS SCRABBLING UP THE SIDE",
     // The grain elevator's conveyor (note 466): its engine starting, a jam (the belt bunching, then the drive labouring with
     // the belt squealing on its drum, which goes on out of sight down the belt), and the engine dying under one left.
     "place-conveyor.catch": "AN ENGINE STARTING",
