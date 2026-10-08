@@ -26,6 +26,9 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   lantern, _walk      the hand lamp held out low, swinging with the step
   haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
   haul_up             stood at the edge, leant back, hauling a friend up over it hand over hand (the Draggers, App. A.4)
+  pull_mouth          a friend half down the Car Hugger's mouth: braced, leant far back, heaved out hand over hand (note 378)
+  pry_off             the Tippy Toesie's fingers over a friend's mouth, prised off and wrenched aside (note 378)
+  haul_down           a friend being lifted away (the Whistler, the Choir): reached up for the legs, hauled down with the weight (note 378)
   gap_step            across the coupling plate: short wide steps, arms out, eyes on the gap (GDD §32)
   drive, whistle      at the controls, the hands on the regulator and brake; the left up on the whistle cord (GDD §12)
   smash, pry, pick    breaching a Holdout (App. D.7): the lock smashed, the barricade pried, the lock picked with the kit
@@ -570,6 +573,55 @@ haul_up.key(18, hands(HAUL_BACK, (0.14, 0.34, 0.86), (-0.14, 0.34, 0.86), grip=9
 haul_up.key(24, hands(HAUL_BACK, (0.14, 0.36, 0.84), (-0.14, 0.36, 0.84), grip=90))
 haul_up.close(36)
 clips.append(haul_up)
+
+# --- the rescue matched to the grab (App. A.1; note 378): CrewActs picks by what has the friend ---------------------------
+# pull_mouth: a friend half down the Car Hugger's mouth (D1's swallowed rescue, note 310). Feet braced, the front leg
+# out straight against the pull and the back one bent under, the whole body leant far back; both fists on their belt and
+# legs at the waist's height, heaved in, then the right hand thrown forward for a fresh grip, hand over hand.
+PULL_REACH = over(STAND, pelvis__loc=(0, 0.04, -0.06), pelvis=(-8, 0, 0), spine_01=(-10, 0, 0), spine_02=(-6, 0, 0), neck=(14, 0, 0),
+                  head=(4, 0, 0), thigh_r=(30, 0, 0), calf_r=(-24, 0, 0), foot_r=(8, 0, -6), thigh_l=(-16, 0, 0), calf_l=(-22, 0, 0),
+                  foot_l=(-10, 0, 6))
+PULL_HEAVE = over(STAND, pelvis__loc=(0, -0.2, -0.14), pelvis=(16, 0, 0), spine_01=(14, 0, 0), spine_02=(10, 0, 0), spine_03=(6, 0, 0),
+                  neck=(4, 0, 0), head=(-10, 0, 0), thigh_r=(44, 0, 0), calf_r=(-10, 0, 0), foot_r=(-6, 0, -6),
+                  thigh_l=(-8, 0, 0), calf_l=(-62, 0, 0), foot_l=(-24, 0, 6))
+pull_mouth = Clip("pull_mouth")
+pull_mouth.key(0, hands(PULL_REACH, (0.12, 0.64, 0.92), (-0.12, 0.62, 0.9), grip=95))
+pull_mouth.key(12, hands(PULL_HEAVE, (0.12, 0.34, 1.0), (-0.12, 0.32, 0.98), grip=95), "LINEAR")
+pull_mouth.key(18, hands(over(PULL_HEAVE, spine_02=(12, 0, -4)), (0.12, 0.3, 1.02), (-0.12, 0.3, 1.0), grip=95))
+pull_mouth.key(26, hands(over(PULL_REACH, pelvis__loc=(0, -0.08, -0.1), pelvis=(4, 0, 0), spine_01=(0, 0, 0), spine_02=(0, 0, 4)),
+                         (0.14, 0.66, 0.94), (-0.12, 0.36, 0.98), grip=60))
+pull_mouth.close(36)
+clips.append(pull_mouth)
+
+# pry_off: the Tippy Toesie stood behind a friend, its 0.3 m fingers over their mouth (App. A.5's smother). Squared up
+# to them, feet wide, both hands up at the face: the fingers gripped and wrenched off to the one side, the body leant into
+# it, then back for them and wrenched to the other.
+PRY_STAND = over(STAND, pelvis__loc=(0, 0, -0.06), spine_01=(-6, 0, 0), spine_02=(-4, 0, 0), neck=(6, 0, 0), head=(0, 0, 0),
+                 thigh_r=(8, -12, 0), calf_r=(-16, 0, 0), foot_r=(4, 0, -10), thigh_l=(8, 12, 0), calf_l=(-16, 0, 0), foot_l=(4, 0, 10))
+FACE = (0.0, 0.52, 1.54)
+pry_off = Clip("pry_off")
+pry_off.key(0, hands(PRY_STAND, at(FACE, dx=0.1), at(FACE, dx=-0.1, dz=-0.02), grip=90))
+pry_off.key(8, hands(over(PRY_STAND, spine_02=(-4, 0, 10), spine_03=(-2, 0, 6), head=(0, 0, -6)),
+                     at(FACE, dx=0.38, dy=-0.1, dz=-0.18), at(FACE, dx=-0.14, dy=0.04, dz=-0.04), grip=95), "LINEAR")
+pry_off.key(14, hands(PRY_STAND, at(FACE, dx=0.1), at(FACE, dx=-0.1), grip=90))
+pry_off.key(22, hands(over(PRY_STAND, spine_02=(-4, 0, -10), spine_03=(-2, 0, -6), head=(0, 0, 6)),
+                      at(FACE, dx=0.14, dy=0.04, dz=-0.04), at(FACE, dx=-0.38, dy=-0.1, dz=-0.18), grip=95), "LINEAR")
+pry_off.close(30)
+clips.append(pry_off)
+
+# haul_down: a friend being lifted off the roof (the Whistler's carry, the Choir's seizing): reached up for their legs
+# overhead, then the whole weight dropped onto them, knees bending, the fists hauled down to the chest; and up again.
+HD_UP = look_at(over(STAND, pelvis__loc=(0, 0, 0.04), spine_01=(4, 0, 0), spine_02=(6, 0, 0), thigh_r=(-4, 0, 0), thigh_l=(10, 0, 0),
+                     calf_l=(-8, 0, 0), foot_r=(-14, 0, -6), foot_l=(-10, 0, 6)), (0, 0.8, 2.6))
+HD_DOWN = look_at(over(STAND, pelvis__loc=(0, -0.06, -0.26), pelvis=(-6, 0, 0), spine_01=(-8, 0, 0), spine_02=(-4, 0, 0),
+                       thigh_r=(56, -6, 0), calf_r=(-84, 0, 0), foot_r=(26, 0, -6), thigh_l=(40, 6, 0), calf_l=(-70, 0, 0), foot_l=(28, 0, 6)),
+                  (0, 0.8, 2.4))
+haul_down = Clip("haul_down")
+haul_down.key(0, hands(HD_UP, (0.16, 0.36, 2.04), (-0.16, 0.32, 1.98), grip=95))
+haul_down.key(12, hands(HD_DOWN, (0.2, 0.38, 1.38), (-0.2, 0.36, 1.34), grip=95), "LINEAR")
+haul_down.key(18, hands(HD_DOWN, (0.2, 0.38, 1.34), (-0.2, 0.36, 1.32), grip=95))
+haul_down.close(32)
+clips.append(haul_down)
 
 # --- gap_step: across the coupling plate, a short wide careful step, arms out, eyes down at the gap (GDD §32) ----------
 def gap_upper(f, side):
@@ -1195,6 +1247,6 @@ rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", 
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",
                                                         "stagger", "throw", "chute", "spout", "shoulder", "cradle", "firedoor", "held_cover", "held_frozen",
-                                                        "held_seized", "held_mouth", "stumble"}))
+                                                        "held_seized", "held_mouth", "stumble", "pull_mouth", "pry_off", "haul_down"}))
 rig.export(rig.args()[0] if rig.args() else "crew_clips.glb", kit)
 print(f"[dt] crew clips {[c.name + ':' + str(c.length) for c in clips]}")
