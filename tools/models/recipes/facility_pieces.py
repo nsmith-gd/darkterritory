@@ -56,6 +56,14 @@ so each kind reads by its shape from the line:
     line: belt_section, 3 m of the troughed belt on its idlers and a trestle; belt_riser, the covered gallery up to the
     head; belt_head, the gantry astride the track, the head pulley's hood and the chute; drive_house, the hut at its tail
     with its exhaust and tail drum; drive_flywheel, turned while it runs.
+  * goods_shed (the switchyard): 30 m of weatherboarded shed on a brick plinth under slate, its loading dock along the
+    front at a car's floor under a canopy, three sliding doors (open, half across, shut and barred), a hand crane, GOODS
+    over the middle door, the office at its end with a lamp still lit (`_Glow`).
+  * the military depot's (GDD §18, "gunpowder and shot. Best payout, worst cargo"): nissen_hut, a half-round of
+    corrugated iron on a slab, its door behind a sandbag blast wall and its stovepipe; wire_fence, a 6 m panel of
+    angle-iron pickets cranked toward the line and barbed wire, one strand let go; powder_magazine, a squat brick house
+    under a concrete vault, banked round with earth, its red steel door stencilled DANGER EXPLOSIVES behind a blast wall,
+    the lightning conductor and the red flag.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -104,6 +112,8 @@ def materials():
         "chalk": make.flat("chalk", (0.42, 0.4, 0.36), rough=0.9),
         "rubber": make.flat("rubber", (0.035, 0.034, 0.033), rough=0.75),
         "grain": make.flat("grain", (0.5, 0.4, 0.22), rough=0.9),
+        "red": make.flat("red_paint", (0.3, 0.045, 0.03), rough=0.55),
+        "turf": make.lib("ground_grass", 0.35, tint=(0.62, 0.62, 0.55), rough=0.95),
     }
 
 
@@ -1681,6 +1691,281 @@ def drive_flywheel(m):
     return p, []
 
 
+
+def goods_shed(m):
+    """The switchyard's goods shed (GDD §18: "oversized, partially abandoned, barely operable"): 30 m along the line and
+    10 deep, weatherboarded timber on a brick plinth, its slate roof; along its front the loading dock at a car's floor
+    with its canopy out over it on iron brackets, three sliding doors onto it (one open on the dark, one half across, one
+    shut and barred), a hand crane at its end and what was left on it; the office at its -X end with a lamp still lit in
+    its window (`_Glow`); GOODS on its front. Its origin is on the ground at its middle, 24 m off the line, where the
+    kit's shed stood."""
+    p = []
+    glow = _Glow(colour=(0.85, 0.55, 0.2))
+    L, D, H, DOCK, DEEP = 15.0, 5.0, 6.0, 1.1, 2.6
+    p.append(make.box((0, 0, 0.3), (L + 0.1, D + 0.1, 0.6), m["brick"], bevel=0.02, name="plinth"))
+    p.append(make.box((0, 0, (0.6 + H) / 2), (L, D, (H - 0.6) / 2), m["grey"], bevel=0.01, name="walls"))
+    # Weatherboarding, lapped, down every wall (baked onto it), the timber frame's posts proud of it every 5 m.
+    for sy in (-1, 1):
+        make_boards = make.planks((-L, sy * (D + 0.005) - 0.02, 0.6), (L, sy * (D + 0.005) + 0.02, H), 2, 18, m["grey"], gap=0.012,
+                                  wobble=0.01, seed=3 + sy)
+        p += make_boards
+        for k in range(7):
+            x = -L + k * 5
+            p.append(make.box((x, sy * (D + 0.05), (0.6 + H) / 2), (0.12, 0.06, (H - 0.6) / 2), m["timber"], bevel=0.01, name="post",
+                              low=k in (0, 6)))
+    for sx in (-1, 1):
+        p += make.planks((sx * (L + 0.005) - 0.02, -D, 0.6), (sx * (L + 0.005) + 0.02, D, H), 2, 18, m["grey"], gap=0.012, wobble=0.01,
+                         seed=7 + sx)
+        _prism(p, [(sx * L, -D, H), (sx * L, D, H), (sx * L, 0, H + 2.9)], [(0, 1, 2) if sx > 0 else (0, 2, 1)], m["grey"], "gable")
+    # The roof: slate, pitched along it, a ridge of lead; a smoke vent; a hole where slates are gone.
+    pitch = math.atan2(2.9, D)
+    _pitched(p, m, L, D, H + 2.9 + 0.05, D + 0.4, pitch, m["slate"])
+    p.append(make.box((0, 0, H + 3.0), (L + 0.5, 0.18, 0.08), m["lead"], bevel=0.02, name="ridge"))
+    p.append(make.box((-4.0, D / 2 + 0.1, H + 1.55), (1.0, 0.8, 0.01), m["dark"], bevel=0, name="slates_gone", low=False,
+                      rot=Matrix.Rotation(-pitch, 4, "X")))
+    # The loading dock along the front at a car's floor: a timber deck on a brick face, its edge iron-shod; steps up at
+    # its +X end.
+    y0 = -D - DEEP
+    p.append(make.box((0, -D - DEEP / 2, DOCK / 2), (L, DEEP / 2, DOCK / 2), m["brick"], bevel=0.01, name="dock"))
+    p += make.planks((-L, y0, DOCK - 0.04), (L, -D, DOCK + 0.02), 0, 40, m["timber"], gap=0.01, wobble=0.004, seed=11)
+    p.append(make.box((0, y0 - 0.02, DOCK - 0.08), (L, 0.03, 0.08), m["rust"], bevel=0.005, name="dock_edge"))
+    for k in range(4):
+        p.append(make.box((L + 0.45 + k * 0.3, -D - DEEP / 2, 0.14 + k * 0.27), (0.15 + (3 - k) * 0.3 / 2, DEEP / 2 - 0.2, 0.14), m["stone"],
+                          bevel=0.01, name="step"))
+    # The canopy out over the dock: corrugated iron on iron brackets, its edge boarded (a valance), dripping rust.
+    cz0, cz1 = H - 0.3, H - 0.9
+    slope = math.atan2(cz0 - cz1, DEEP + 0.6)
+    run = (DEEP + 0.6) / math.cos(slope)
+    p.append(make.box((0, -D - (DEEP + 0.6) / 2, (cz0 + cz1) / 2), (L + 0.3, run / 2, 0.04), m["roof"], bevel=0.005, name="canopy",
+                      rot=Matrix.Rotation(slope, 4, "X")))
+    p.append(make.box((0, -D - DEEP - 0.6, cz1 - 0.2), (L + 0.3, 0.025, 0.22), m["grey"], bevel=0.005, name="valance"))
+    for k in range(7):
+        x = -L + 0.3 + k * (2 * L - 0.6) / 6
+        p.append(_beam(Vector((x, -D - 0.05, cz1 - 1.6)), Vector((x, -D - DEEP - 0.3, cz1 - 0.05)), 0.07, m["rust"], "bracket"))
+        p.append(make.box((x, -D - (DEEP + 0.4) / 2, cz1 + 0.02), (0.035, (DEEP + 0.4) / 2, 0.035), m["rust"], bevel=0, name="purlin_arm",
+                          low=False))
+    # Three sliding doors onto the dock: the -X one open on the dark, the middle one half across, the +X one shut and
+    # barred; their rail over them.
+    for i, x in enumerate((-8.5, 0.0, 8.5)):
+        z0, z1 = DOCK, DOCK + 3.4
+        p.append(make.box((x, -D - 0.02, (z0 + z1) / 2), (1.6, 0.02, (z1 - z0) / 2), m["dark"], bevel=0, name="doorway", low=False))
+        p.append(make.box((x + 1.6, -D - 0.12, z1 + 0.25), (3.4, 0.05, 0.06), m["rust"], bevel=0.005, name="door_rail"))
+        leaf = x + (3.25 if i == 0 else 1.5 if i == 1 else 0.0)
+        p.append(make.box((leaf, -D - 0.1, (z0 + z1) / 2 + 0.05), (1.65, 0.05, (z1 - z0) / 2 + 0.05), m["timber"], bevel=0.01, name="door_leaf"))
+        for sz in (-1, 1):
+            p.append(_beam(Vector((leaf - 1.5, -D - 0.16, (z0 + z1) / 2 - sz * 1.5)), Vector((leaf + 1.5, -D - 0.16, (z0 + z1) / 2 + sz * 0.0)),
+                           0.08, m["timber"], "brace"))
+        if i == 2:
+            p.append(make.box((x, -D - 0.2, (z0 + z1) / 2), (1.9, 0.04, 0.08), m["rust"], bevel=0.005, name="bar"))
+            p.append(make.box((x, -D - 0.24, (z0 + z1) / 2), (0.08, 0.02, 0.12), m["steel"], bevel=0.005, name="padlock", low=False))
+    # GOODS on a board over the middle door; the shed's windows high in its back, some out, and in its ends.
+    p.append(make.box((0, -D - 0.1, H - 0.95), (2.6, 0.03, 0.42), m["paint"], bevel=0.005, name="sign"))
+    p.append(make.stencil("GOODS", (0, -D - 0.135, H - 0.95), (0, -1, 0), (0, 0, 1), 0.55, m["chalk"]))
+    for k in range(6):
+        x = -12.5 + k * 5
+        state = "dark" if k in (1, 4) else "glass"
+        p.append(make.box((x, D + 0.03, H - 1.4), (0.9, 0.02, 0.5), m[state], bevel=0, name="window", low=False))
+        p.append(make.box((x, D + 0.06, H - 1.95), (1.0, 0.06, 0.05), m["timber"], bevel=0, name="sill", low=False))
+    # The office at the -X end: brick, a chimney, its door to the dock and its window onto it, a lamp left burning.
+    ox = -L - 2.0
+    p.append(make.box((ox, -1.0, 1.8), (2.0, 3.0, 1.8), m["brick"], bevel=0.02, name="office"))
+    p.append(make.box((ox, -1.0, 3.75), (2.3, 3.3, 0.12), m["slate"], bevel=0.02, name="office_roof", rot=Matrix.Rotation(-0.12, 4, "Y")))
+    p.append(make.box((ox - 1.1, 1.2, 4.6), (0.35, 0.35, 1.0), m["brick"], bevel=0.02, name="chimney"))
+    p.append(make.box((ox - 1.1, 1.2, 5.65), (0.42, 0.42, 0.08), m["stone"], bevel=0.01, name="chimney_cap"))
+    p.append(make.box((ox + 0.7, -4.02, 1.4), (0.5, 0.02, 1.05), m["dark"], bevel=0, name="office_door", low=False))
+    p.append(make.box((ox - 0.8, -4.02, 2.2), (0.55, 0.02, 0.5), m["glow"], bevel=0, name="office_window", low=False))
+    glow.box((ox - 0.8, -4.02, 2.2), (0.55, 0.02, 0.5))
+    for z in (1.95, 2.45):
+        p.append(make.box((ox - 0.8, -4.04, z), (0.55, 0.012, 0.015), m["timber"], bevel=0, name="glazing", low=False))
+    p.append(make.box((ox - 0.8, -4.04, 2.2), (0.015, 0.012, 0.5), m["timber"], bevel=0, name="glazing", low=False))
+    p.append(make.box((ox - 0.8, -4.08, 1.66), (0.65, 0.07, 0.05), m["stone"], bevel=0.005, name="sill", low=False))
+    # The hand crane on the dock's +X end: its cast post, the jib, the chain and hook; and what was left on the dock.
+    cx = L - 1.0
+    p.append(make.cyl((cx, -D - DEEP + 0.5, DOCK), (cx, -D - DEEP + 0.5, DOCK + 3.2), 0.12, m["rust"], n=12, name="crane_post", low=6))
+    p.append(_beam(Vector((cx, -D - DEEP + 0.5, DOCK + 3.1)), Vector((cx, -D - DEEP - 1.8, DOCK + 3.0)), 0.14, m["rust"], "jib"))
+    p.append(_beam(Vector((cx, -D - DEEP + 0.5, DOCK + 1.4)), Vector((cx, -D - DEEP - 1.4, DOCK + 2.95)), 0.08, m["rust"], "jib_tie"))
+    p.append(make.cyl((cx, -D - DEEP - 1.6, DOCK + 2.95), (cx, -D - DEEP - 1.6, DOCK + 1.1), 0.025, m["steel"], n=6, bevel=0, name="chain", low=4))
+    p.append(make.torus((cx, -D - DEEP - 1.6, DOCK + 1.0), (1, 0, 0), 0.1, 0.025, m["steel"], n=12, m=4, name="hook", low=(6, 3)))
+    p.append(make.cyl((cx + 0.15, -D - DEEP + 0.5, DOCK + 1.0), (cx + 0.4, -D - DEEP + 0.5, DOCK + 1.0), 0.18, m["rust"], n=12, name="winch_drum",
+                      low=6))
+    for (x, y, w, h) in ((-12.0, -D - 1.0, 0.45, 0.45), (-11.2, -D - 0.8, 0.35, 0.3), (-12.0, -D - 1.0, 0.3, 0.3), (5.0, -D - 1.6, 0.4, 0.35)):
+        base = DOCK + (0.9 if (x, w) == (-12.0, 0.3) else 0.0)
+        p.append(make.box((x, y, base + h), (w, w * 0.9, h), m["timber"], bevel=0.02, name="crate"))
+    p.append(make.box((3.6, -D - 1.2, DOCK + 0.25), (0.5, 0.35, 0.25), m["sack"], bevel=0.12, segments=3, name="sack"))
+    p.append(make.box((3.2, -D - 0.9, DOCK + 0.2), (0.45, 0.3, 0.2), m["sack"], bevel=0.1, segments=3, name="sack"))
+    return p, [], glow
+
+
+def _solid(p, verts, faces, material, name):
+    """A convex piece from its own faces (`_prism`'s), each turned to face away from its middle, whichever way it was
+    listed."""
+    verts = [Vector(v) for v in verts]
+    mid = sum(verts, Vector()) / len(verts)
+    out = []
+    for f in faces:
+        a, b, c = (verts[i] for i in f[:3])
+        n = (b - a).cross(c - a)
+        centre = sum((verts[i] for i in f), Vector()) / len(f)
+        out.append(tuple(f) if n.dot(centre - mid) >= 0 else tuple(reversed(f)))
+    _prism(p, [tuple(v) for v in verts], out, material, name)
+
+
+def _vault(p, material, x0, x1, R, n, name, a0=0.0, a1=math.pi, low=True, solid=True):
+    """A barrel vault's shell along X, from x0 to x1, radius R about the X axis at the ground, from angle a0 to a1 (0 is
+    +Y, pi/2 straight up): its outer face, in `n` facets (and the same in the game mesh if `low`). `solid` closes its
+    ends (a Nissen hut's end walls are their own)."""
+    verts, faces = [], []
+    for k in range(n + 1):
+        a = a0 + (a1 - a0) * k / n
+        y, z = math.cos(a) * R, math.sin(a) * R
+        verts += [(x0, y, z), (x1, y, z)]
+    for k in range(n):
+        i = 2 * k
+        faces.append((i, i + 2, i + 3, i + 1))
+    if solid:
+        cap = list(range(0, 2 * n + 2, 2))
+        faces.append(tuple(reversed(cap)))
+        faces.append(tuple(c + 1 for c in cap))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.materials.append(material)
+    o = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(o)
+    p.append(o)
+    if low:
+        twin = o.copy()
+        twin.data = mesh.copy()
+        twin.name = name + "_low"
+        bpy.context.scene.collection.objects.link(twin)
+        make.LOW.append(twin)
+    return o
+
+
+def nissen_hut(m):
+    """The military depot's Nissen hut: a half-round of corrugated iron 9 m across and 14 long on a concrete slab, its
+    sheets lapped in rings, rusting, a few gone; boarded end walls, the door in its -X end behind a sandbag blast wall,
+    windows either side of it (one boarded), the stove's pipe out through the shell. +X along it (StructureKit turns it
+    along the line); its origin on the ground at its middle."""
+    p = []
+    L, R = 7.0, 4.5
+    p.append(make.box((0, 0, 0.08), (L + 0.3, R + 0.3, 0.16), m["concrete"], bevel=0.02, name="slab"))
+    _vault(p, m["clad"], -L, L, R, 14, "shell", solid=False)
+    # The sheets lapped in rings every 1.75 m, a T-rib down each; rust run down from the crown; sheets gone.
+    for k in range(9):
+        x = -L + k * 1.75
+        _vault(p, m["rust"], x - 0.05, x + 0.05, R + 0.025, 40, "lap", low=False, solid=False)
+    for x, a, h in ((-4.6, 1.2, 0.5), (-1.2, 1.9, 0.6), (2.1, 1.0, 0.45), (4.4, 2.2, 0.55)):
+        _vault(p, m["streak"], x - 0.25, x + 0.25, R + 0.012, 12, "rust_run", a0=a - h, a1=a, low=False, solid=False)
+    for x, a in ((-3.2, 2.35), (3.0, 0.55)):
+        _vault(p, m["dark"], x - 0.85, x + 0.85, R + 0.015, 8, "sheet_gone", a0=a - 0.18, a1=a + 0.18, low=False, solid=False)
+    # The end walls: boarded, the door at -X with a hood over it, windows either side; the +X end two windows.
+    for sx in (-1, 1):
+        x = sx * (L - 0.15)
+        arc = [(x, math.cos(math.pi * k / 16) * (R - 0.05), math.sin(math.pi * k / 16) * (R - 0.05)) for k in range(17)]
+        _prism(p, arc, [tuple(range(17)) if sx > 0 else tuple(reversed(range(17)))], m["grey"], "end")
+        for k in range(-8, 9):
+            y = k * 0.5
+            top = math.sqrt(max(0, (R - 0.1) ** 2 - y * y))
+            if top > 0.3:
+                p.append(make.box((x + sx * 0.012, y, top / 2), (0.01, 0.012, top / 2), m["timber"], bevel=0, name="batten", low=False))
+        for y, state in ((-2.0, "glass" if sx < 0 else "dark"), (2.0, "boarded" if sx < 0 else "glass")):
+            if state == "boarded":
+                p.append(make.box((x + sx * 0.03, y, 1.9), (0.02, 0.55, 0.42), m["grey"], bevel=0.005, name="boards"))
+                for z in (1.7, 2.1):
+                    p.append(make.box((x + sx * 0.05, y, z), (0.02, 0.62, 0.07), m["timber"], bevel=0.005, name="board", low=False,
+                                      rot=Matrix.Rotation(0.12 if z < 2 else -0.08, 4, "X")))
+            else:
+                p.append(make.box((x + sx * 0.02, y, 1.9), (0.02, 0.5, 0.4), m[state], bevel=0, name="window", low=False))
+                p.append(make.box((x + sx * 0.04, y, 1.9), (0.012, 0.02, 0.4), m["timber"], bevel=0, name="glazing", low=False))
+                p.append(make.box((x + sx * 0.04, y, 1.9), (0.012, 0.5, 0.02), m["timber"], bevel=0, name="glazing", low=False))
+            p.append(make.box((x + sx * 0.08, y, 1.42), (0.08, 0.6, 0.04), m["timber"], bevel=0.005, name="sill", low=False))
+    x = -L - 0.02
+    p.append(make.box((x, 0, 1.05), (0.03, 0.55, 1.05), m["timber"], bevel=0.01, name="door"))
+    p.append(make.box((x - 0.02, 0.38, 1.0), (0.015, 0.05, 0.05), m["steel"], bevel=0, name="latch", low=False))
+    p.append(make.box((x - 0.4, 0, 2.35), (0.45, 0.85, 0.04), m["roof"], bevel=0.005, name="hood", rot=Matrix.Rotation(-0.2, 4, "Y")))
+    # The blast wall: sandbags in an L out from the door.
+    for course in range(5):
+        z = 0.14 + course * 0.24
+        for k in range(6):
+            y = -1.25 + k * 0.5 + (0.25 if course % 2 else 0)
+            if y > 1.35:
+                continue
+            p.append(make.box((-L - 2.2, y, z + 0.16), (0.16, 0.24, 0.11), m["sack"], bevel=0.07, segments=3, name="bag", low=False))
+    # (Its game mesh just inside the bags, so the bake finds them.)
+    p.append(make.box((-L - 2.2, 0.05, 0.72), (0.13, 1.3, 0.62), m["sack"], bevel=0.05, segments=2, name="blast_wall"))
+    # The stove's pipe out through the shell near the +X end, its cap; soot down the iron from it.
+    a = 1.15
+    px, py, pz = 4.6, math.cos(a) * R, math.sin(a) * R
+    p.append(make.cyl((px, py * 0.9, pz * 0.9), (px, py * 0.9, pz + 1.3), 0.1, m["rust"], n=10, bevel=0, name="stovepipe", low=6))
+    p.append(make.cyl((px, py * 0.9, pz + 1.3), (px, py * 0.9, pz + 1.5), 0.22, m["rust"], n=10, bevel=0, name="pipe_cap", r1=0.06, low=6))
+    _vault(p, m["streak"], px - 0.3, px + 0.3, R + 0.02, 8, "soot", a0=a - 0.35, a1=a, low=False, solid=False)
+    return p, []
+
+
+def wire_fence(m):
+    """A 6 m panel of the depot's wire fence: angle-iron pickets every 3 m, each cranked out at the top toward the line
+    (-Y), five strands of barbed wire between them and three along the cranks, rusting; one strand let go and hanging.
+    +X along it; its origin on the ground at its middle."""
+    p = []
+    for x in (-1.5, 1.5):
+        p.append(_beam(Vector((x, 0, -0.3)), Vector((x, 0, 1.85)), 0.05, m["rust"], "picket"))
+        p.append(_beam(Vector((x, 0, 1.82)), Vector((x, -0.42, 2.25)), 0.04, m["rust"], "crank"))
+    for k, z in enumerate((0.3, 0.65, 1.0, 1.35, 1.75)):
+        if k == 2:
+            # Let go at one picket: from the other it hangs to the ground.
+            p += make.pipe([(-3.0, 0.02, z), (-1.5, 0.02, z), (0.2, 0.05, z - 0.45), (1.2, 0.08, 0.05)], 0.008, m["rust"], name="strand", n=6,
+                           low=3)
+            continue
+        p.append(make.cyl((-3.0, 0.02, z), (3.0, 0.02, z), 0.008, m["rust"], n=6, bevel=0, name="strand", low=3))
+    for t in (0.33, 0.66, 1.0):
+        p.append(make.cyl((-3.0, -0.42 * t, 1.82 + 0.43 * t), (3.0, -0.42 * t, 1.82 + 0.43 * t), 0.008, m["rust"], n=6, bevel=0, name="strand",
+                          low=3))
+    return p, []
+
+
+def powder_magazine(m):
+    """The military depot's powder magazine (GDD §18: "gunpowder and shot. Best payout, worst cargo"): a squat brick
+    house under a concrete vault, half buried behind its earth traverse on three sides, its front to the line; the
+    door's steel, painted red, DANGER EXPLOSIVES stencilled on it and a blast wall across in front of it; vents low in
+    its walls; the lightning conductor's mast over it and the red flag by its door. +X along it; its origin on the ground
+    at its middle."""
+    p = []
+    L, D, H = 4.0, 2.6, 3.0
+    p.append(make.box((0, 0, 0.15), (L + 0.3, D + 0.3, 0.3), m["concrete"], bevel=0.02, name="footing"))
+    p.append(make.box((0, 0, (0.3 + H) / 2), (L, D, (H - 0.3) / 2), m["brick"], bevel=0.02, name="walls"))
+    v = _vault(p, m["concrete"], -L - 0.2, L + 0.2, D + 0.25, 10, "vault", a0=0.0, a1=math.pi)
+    v.data.transform(Matrix.Translation((0, 0, H)) @ Matrix.Diagonal((1, 1, 0.45, 1)))
+    make.LOW[-1].data.transform(Matrix.Translation((0, 0, H)) @ Matrix.Diagonal((1, 1, 0.45, 1)))
+    for sx in (-1, 1):
+        for y in (-1.6, 0.0, 1.6):
+            p.append(make.box((sx * (L + 0.02), y, 0.6), (0.02, 0.18, 0.12), m["dark"], bevel=0, name="vent", low=False))
+    # The door, its frame of stone, the stencil on its red; the blast wall across in front.
+    p.append(make.box((0, -D - 0.02, 1.4), (0.75, 0.04, 1.15), m["stone"], bevel=0.01, name="door_frame"))
+    p.append(make.box((0, -D - 0.07, 1.35), (0.6, 0.03, 1.05), m["red"], bevel=0.01, name="door"))
+    for z in (0.6, 2.1):
+        p.append(make.box((0, -D - 0.1, z), (0.6, 0.012, 0.04), m["steel"], bevel=0, name="strap", low=False))
+    p.append(make.stencil("DANGER", (0, -D - 0.106, 1.62), (0, -1, 0), (0, 0, 1), 0.2, m["chalk"]))
+    p.append(make.stencil("EXPLOSIVES", (0, -D - 0.106, 1.36), (0, -1, 0), (0, 0, 1), 0.13, m["chalk"]))
+    p.append(make.box((0, -D - 2.6, 1.0), (2.2, 0.35, 1.0), m["brick"], bevel=0.02, name="blast_wall"))
+    p.append(make.box((0, -D - 2.6, 2.05), (2.25, 0.4, 0.06), m["concrete"], bevel=0.01, name="coping"))
+    # The traverse: banked earth round the back and ends, higher than the eaves, grassed over.
+    E = 3.6
+    def bank(a, b, out):
+        a, b, out = Vector(a), Vector(b), Vector(out)
+        verts = [a, b, b + out * 5.0, a + out * 5.0, a + out * 1.0 + Vector((0, 0, E)), b + out * 1.0 + Vector((0, 0, E)),
+                 b + out * 2.0 + Vector((0, 0, E)), a + out * 2.0 + Vector((0, 0, E))]
+        _solid(p, verts, [(0, 4, 5, 1), (4, 7, 6, 5), (7, 3, 2, 6), (0, 3, 7, 4), (1, 5, 6, 2)], m["turf"], "bank")
+    bank((-L - 1.4, D + 1.0, 0), (L + 1.4, D + 1.0, 0), (0, 1, 0))
+    for sx in (-1, 1):
+        bank((sx * (L + 1.0), D + 2.0, 0), (sx * (L + 1.0), -D - 0.5, 0), (sx, 0, 0))
+    # The lightning conductor's mast at the +X end, its tape down; the red flag on its pole by the door, hanging.
+    p.append(make.cyl((L + 2.2, 0, 0), (L + 2.2, 0, 9.0), 0.06, m["steel"], n=8, bevel=0, name="mast", low=5))
+    p.append(make.cyl((L + 2.2, 0, 9.0), (L + 2.2, 0, 9.6), 0.025, m["brass"], n=6, bevel=0, name="rod", r1=0.004, low=4))
+    p.append(make.cyl((L + 1.6, -D - 0.8, 0), (L + 1.6, -D - 0.8, 4.2), 0.035, m["timber"], n=8, bevel=0, name="flagpole", low=5))
+    p.append(make.box((L + 1.6, -D - 0.8 - 0.02, 3.7), (0.02, 0.35, 0.45), m["red"], bevel=0, name="flag", rot=Matrix.Rotation(0.12, 4, "X")))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -1723,6 +2008,12 @@ PIECES = {
     "belt_head": lambda: build("belt_head", belt_head, "the conveyor's head over the track", budget=1500),
     "drive_house": lambda: build("drive_house", drive_house, "the conveyor's drive house", size=512, budget=800),
     "drive_flywheel": lambda: build("drive_flywheel", drive_flywheel, "the conveyor drive's flywheel", size=256, budget=300),
+    "goods_shed": lambda: build("goods_shed", goods_shed, "the switchyard's goods shed, its dock and office", size=2048, budget=3000,
+                                layer=1024),
+    "nissen_hut": lambda: build("nissen_hut", nissen_hut, "the military depot's Nissen hut", budget=1400),
+    "wire_fence": lambda: build("wire_fence", wire_fence, "a panel of the military depot's wire fence", size=256, budget=200),
+    "powder_magazine": lambda: build("powder_magazine", powder_magazine, "the military depot's powder magazine and its traverse",
+                                     budget=1500),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)

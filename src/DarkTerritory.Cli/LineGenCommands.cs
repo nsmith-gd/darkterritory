@@ -42,7 +42,7 @@ static class LineGenCommands
     /// <summary>The night's lineside (note 371) as every machine stands it.</summary>
     static DarkTerritory.Sim.Run.LinesideProps? LinesideOf(Route route, DarkTerritory.Sim.Rail.RailLine line) => DarkTerritory.Sim.Run.LinesideProps.Of(route, line);
 
-    /// <summary>A checksum of the lineside (notes 371, 389): its trees, boulders, poles and pieces are walls, so a machine that stood them differently would predict wrong.</summary>
+    /// <summary>A checksum of the lineside (notes 371, 389, 432): its trees, boulders, poles and pieces, and the branches' pines, are walls, so a machine that stood them differently would predict wrong.</summary>
     static string LinesidePrint(string content, Route route, DarkTerritory.Sim.Rail.RailLine line)
     {
         if (LinesideOf(route, line) is not { } side)
@@ -50,6 +50,9 @@ static class LineGenCommands
         var text = new System.Text.StringBuilder();
         foreach (var p in side.Props(0, line.Length))
             text.Append(CultureInfo.InvariantCulture, $"{(int)p.Kind} {p.Along:R} {p.Lateral:R} {p.Yaw:R} {p.Height:R} {p.Size:R} {p.Sink:R} {p.Species} {p.Variant} {p.Dead} {p.Seed};");
+        foreach (var b in route.Plan!.Alignment.Where(a => a.Role is EdgeRole.Alternate or EdgeRole.DeadLine))
+            foreach (var t in side.BranchTrees(b.Branch, 0, line.Branches[b.Branch].Local.Length))
+                text.Append(CultureInfo.InvariantCulture, $"b{t.Branch} {t.Along:R} {t.Lateral:R} {t.Yaw:R} {t.Height:R} {t.Variant} {t.Ground:R};");
         return Streams.Hash(text.ToString()).ToString("x16");
     }
 
@@ -79,7 +82,10 @@ static class LineGenCommands
         var walls = side.Walls(forts, solidReach).ToList();
         long wallsMs = clock.ElapsedMilliseconds;
         clock.Restart();
-        DarkTerritory.Sim.Run.StopWalls.Of(walls);
+        var branchWalls = side.BranchWalls(solidReach).ToList();
+        long branchMs = clock.ElapsedMilliseconds;
+        clock.Restart();
+        DarkTerritory.Sim.Run.StopWalls.Of([.. walls, .. branchWalls]);
         long indexMs = clock.ElapsedMilliseconds;
         double km = line.Length / 1000;
         return new
@@ -90,6 +96,11 @@ static class LineGenCommands
             solidReach,
             solids = walls.Count,
             wallsMs,
+            // The alternates' and dead lines' pines (note 432), by branch, and those in reach of their own track.
+            branchPines = route.Plan.Alignment.Where(a => a.Role is EdgeRole.Alternate or EdgeRole.DeadLine)
+                .ToDictionary(a => a.Edge, a => side.BranchTrees(a.Branch, 0, line.Branches[a.Branch].Local.Length).Count()),
+            branchSolids = branchWalls.Count,
+            branchMs,
             indexMs,
             reachMs = timed,
             print = LinesidePrint(content, route, line),

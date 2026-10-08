@@ -31,6 +31,18 @@ public sealed partial class GameAudio
     double _townLookAt = double.NegativeInfinity;
     int _townEarHouse = -1;
 
+    // On their rounds (B2's #389; queue #182, note 446): the nearest few people, whose feet are heard as they walk (how far
+    // each has come since their last step), the one close enough that their breathing gear is heard, and the watch with
+    // their lanterns. Who's near is looked up with the rest; where they are, every tick.
+    const double TownStepReach = 20, TownGearReach = 4, TownLanternReach = 25, TownStride = 0.7;
+    const int TownWalkers = 4, TownLanterns = 2;
+    // A townsperson's step to the crew's (crew-footsteps.walk): they go softly, at a stroll.
+    const float TownStep = 0.6f;
+    readonly List<Townsperson> _townWalkers = [], _townLanterns = [];
+    readonly Dictionary<int, (Double3 At, double Since)> _townStrides = [];
+    Townsperson? _townGear;
+    double _townStepHint = double.NaN;
+
     void TownSounds(World world, Double3 ear, double dt)
     {
         if (world.Town is not { } town)
@@ -48,6 +60,7 @@ public sealed partial class GameAudio
             float walls = house >= 0 ? (house == _townEarHouse ? 0 : TownWall) : _townEarHouse >= 0 ? TownWall : 0;
             HoldLevel(cue, TownOwner + id, at, Math.Max(outside, walls), 1);
         }
+        FolkOnTheirRounds(world, town, ear, outside);
         if (_townFolk.Count == 0)
             return;
         // The murmur where most of them are, louder the more there are (four or more a full square's worth).
@@ -97,9 +110,65 @@ public sealed partial class GameAudio
             _townNear.Add((id, "place-town.fire", at, -1));
         foreach (var (_, id, cue, at, house) in rooms.OrderBy(x => x.D).Take(TownRoomThings))
             _townNear.Add((id, cue, at, house));
+        // The folk out of doors for the murmur; and on their rounds (note 446), the nearest within earshot of a step, the
+        // nearest out of doors close enough to breathe on you, and the watch with their lanterns. Each one's feet found once.
+        var near = new List<(Townsperson P, double D)>();
         foreach (var p in town.Plan.People)
-            if (p.House < 0 && town.Feet(p) is var feet && (feet - ear).Length <= TownFolkReach)
+        {
+            var feet = town.Feet(p);
+            double d = (feet - ear).Length;
+            if (p.House < 0 && d <= TownFolkReach)
                 _townFolk.Add(feet);
+            if (d <= TownLanternReach)
+                near.Add((p, d));
+        }
+        near.Sort((a, b) => a.D.CompareTo(b.D));
+        _townWalkers.Clear();
+        _townLanterns.Clear();
+        _townWalkers.AddRange(near.Where(x => x.D <= TownStepReach).Take(TownWalkers).Select(x => x.P));
+        _townLanterns.AddRange(near.Where(x => x.P.Pose == "lantern").Take(TownLanterns).Select(x => x.P));
+        _townGear = near.Where(x => x.P.House < 0 && x.D <= TownGearReach).Select(x => x.P).FirstOrDefault();
+        foreach (int id in _townStrides.Keys.Where(id => !_townWalkers.Any(w => w.Id == id)).ToList())
+            _townStrides.Remove(id);
+    }
+
+    /// <summary>
+    /// The townsfolk on their rounds (queue #182, note 446): the nearest walkers' feet, a step each <see cref="TownStride"/>
+    /// they cover, on what's under them (the street's cobbles or dirt as <see cref="Footing.Ground"/> has the town, a
+    /// house's boards, the wall-walk's planks); the breathing gear of whoever's close enough, out of doors; the watch's
+    /// lanterns swinging as they walk, hanging still as they stand.
+    /// </summary>
+    void FolkOnTheirRounds(World world, Town town, Double3 ear, float outside)
+    {
+        if (double.IsNaN(_townStepHint))
+            _townStepHint = world.Train.Dynamics.Distance;
+        foreach (var p in _townWalkers)
+        {
+            var pose = town.Now(p);
+            if (!_townStrides.TryGetValue(p.Id, out var was))
+            {
+                _townStrides[p.Id] = (pose.Feet, 0);
+                continue;
+            }
+            double since = was.Since + (pose.Walking ? (pose.Feet - was.At).Length : 0);
+            if (since >= TownStride)
+            {
+                since -= TownStride * Math.Floor(since / TownStride);
+                string mat = p.House >= 0 || p.Up > 0.5 ? "wood" : Footing.Ground(world, pose.Feet, ref _townStepHint);
+                Cue($"crew-footsteps.walk.{mat}", pose.Feet + Double3.Up * 0.05, Walls(p.House), TownStep);
+            }
+            _townStrides[p.Id] = (pose.Feet, since);
+        }
+        if (_townGear is { } breather)
+            HoldLevel($"place-town.gear-{breather.Gear}", TownOwner + breather.Id, town.Feet(breather) + Double3.Up * 1.55, Walls(-1), 1);
+        foreach (var p in _townLanterns)
+        {
+            var pose = town.Now(p);
+            HoldLevel("place-town.lantern", TownOwner + p.Id, pose.Feet + Double3.Up * 0.9 + pose.Facing * 0.3, Math.Max(outside, Walls(p.House)),
+                pose.Walking ? 1 : 0.35);
+        }
+
+        float Walls(int house) => Math.Max(outside, house >= 0 ? (house == _townEarHouse ? 0 : TownWall) : _townEarHouse >= 0 ? TownWall : 0);
     }
 
     /// <summary>The town house a point stands in (its id), or −1: its main block's footprint, in the house's own frame.</summary>
