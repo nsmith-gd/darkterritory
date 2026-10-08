@@ -9335,6 +9335,21 @@
   "takes": 2,
   "sha": "e138a2ed8dee80a6"
  },
+ "cs-grumbler/heal": {
+  "cue": "cs-grumbler.heal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Grumbler healing: wet sucks as the stuff of it is drawn back in, tissue ticking, a throb, his muttering",
+    "key": "knit",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "9757f2723cc5dbc9"
+ },
  "cs-grumbler/hit": {
   "cue": "cs-grumbler.hit",
   "surface": null,

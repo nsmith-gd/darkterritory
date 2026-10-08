@@ -40,6 +40,8 @@
     "sign.grumbler": "SCUTTLING",
     "cs-ribbits.hop-land": "SOMETHING HOPPING",
     "cs-grumbler.scuttle": "SCUTTLING",
+    // Its healing a lone blow (note 494): how its rule is learned by ear.
+    "cs-grumbler.heal": "WET FLESH KNITTING",
     // The tells since (note 391): by the line, and by the cue where a line's cues say different things. The Moose
     // listening is silence, and so is the Gannet hanging over a walker: nothing to hear, nothing to caption.
     "tell-moose-grazing": "CHEWING",
