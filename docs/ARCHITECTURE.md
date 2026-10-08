@@ -5634,10 +5634,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **The elevator:** the grain left (`Site.Bin`) shows in the sight glass, and its lever (`SpoutLever`) is up and ready or pulled down while it pours, with the pour.
         - **The lift:** the ore left (`Ore`) shows in its gauge, and the skip (`Wind`) rides 0.9 + 9.8 m up the guides as far as it's wound. Its lever is down while it winds, with ore down the chute as a skip tips.
         - **The hose stand:** its gauge's face goes from green to red with `Pressure`, brighter while it leaks. The hose hangs off the coupling, or runs over to the filler on the car it's coupled to (`HoseCar`) as a ten-piece sag, tarred and banded yellow. There's the leak's cloud.
-        - **The pen:** eight panels of pen fence round the sim's pen (`PenRadius` 4: an octagon of 3.06 m sides, which is the panel's span), open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
+        - **The pen:** seven panels of pen fence round the sim's pen, an octagon's (`PenRadius` 4: 3.06 m sides, which is the panel's span) with its eighth left open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
     - **`dt screenshot --site --facility <kind> --close`:** the set pieces' site cameras at half the distance.
     - **Verified:**
         - `SetPieceArtTests` covers each set piece. The elevator's bin stands on the ground under the sim's spout mouth, and its lever's handle rises when ready and falls while pouring. The lift's works stand under its chute, and its skip climbs 7.8 m when wound to 0.8. The hose stand is at the sim's stand. The pen is seven panels at its edge plus the ramp.
         - `dt art check`: every piece is well under the large prop's 8,000.
         - The Game suite.
         - Looked at: each of the four from its site camera and close, at dawn, before and after.
+
+410. **The mine head's and the chemical works' buildings modelled (queue #146, C1; the art checklist's `mine-head` and `chemical-works`; GDD §18, §30 "oversized, partially abandoned, barely operable"; notes 381 and 393 did the elevator and the slaughterhouse).** Past their headframe and tanks, both sites were still the structure kit's boxes. Now they are modelled in facility_pieces.py and set by `StructureKit.Facility`, with the kit kept as the fallback.
+    - **The mine head:**
+        - `winding_house` (384 triangles, a 1024 layer) stands 38 m out, its gable facing the headframe. It is a brick engine house on a stone plinth, with tall arched windows down both sides (one lit, two out), a louvred ventilator on its slate ridge, and the date stone in the apex. Behind it are the boiler house, then the banded 30 m chimney.
+        - The headframe's back ropes now land on the winding drum, 2 m inside the house's front wall with its top 5 m up (`ROPE_END`). They cross the gable at the timber-framed slots at 9.75 m (`ROPE_Z`), where the straight line from the sheaves meets it. They used to end in the air past the kit's house.
+        - `spoil_heap` (896) is the tip, 12 m of dark shale 32 m across: lobed, gullied, burnt in seams down the fall line, and black where the last tubs tipped. Its incline climbs one flank on a timber trestle, with a tub tipped at the top and another fallen at the foot. Its game mesh is the tip's coarse shape, and its bake reaches deeper than the props' (`build`'s new `reach` and `cage`).
+    - **Where the mine head's pieces stand** comes from the sim, not from taste:
+        - The facility's frame (GreyboxScene: 25 m short of the layout down the spur, 4 m out) has its +Z back along the track, and that doesn't flip with the side.
+        - The winch's sleds come in from 41 m out at z −33 (`SledFrom`), so the tip stands at +33 for either side, turned so its incline always climbs toward the house.
+        - The boiler house and chimney are behind the engine house rather than beside it, so the house's footprint along the line is the same from either side. The old kit's comment that "the winch hauls from" the heap was never true; it stood at +26.
+    - **The chemical works:**
+        - `chem_works` (1,554, a 1024 layer) is the process house. It has a brick base and a steel frame above, clad in rusting corrugated iron, acid-streaked, with sheets fallen off and one hanging. A louvred monitor runs along its ridge, and its band of steel windows is broken (one bay boarded). There is a sliding door half open, the outside stair to the upper floor's door, and NO NAKED LIGHTS stencilled by the door (GDD §18's "do not fire indoors").
+        - Two guyed iron stacks rise behind its ridge, and the lead-clad acid tower, banded, seamed and laddered, stands off its −X end. Two pipe bridges run out from its front over the gap between the tanks, on a post pair each, and drop onto the rack.
+        - `pipe_rack` (460) is a 12 m bay on its steel portal. It carries four pipes flanged bay to bay, a valve with its wheel and the acid crust under it, and torn lagging. `pipe_rack_end` turns the last bay's pipes down into a pit.
+        - Four bays at s·(−18, −6, 6, 18) run the rack ±24 m along its tanks from either side. A bay turns with its side, so it is set at s·z.
+    - **`dt screenshot --building m`:**
+        - `--aerial` gives the whole site from up over the far side of the track.
+        - `--shift z` centres the view on another part of the buildings' frame (the tip at 33).
+        - `--close` halves the camera's distance back along the line.
+    - **Verified:**
+        - `FacilityBuildingArtTests` covers two things. Neither side's mine head puts a vertex on the winch's sled run, measured from the real site's `SledFrom`. From either side, the chemical works' rack meets at −24, −12, 0 and 12 and ends short of 24.
+        - `dt art check`: everything is well under the large prop's 8,000; the chemical works' facility is 5,410 of its 90,000.
+        - The Game suite.
+        - Looked at: each site from its building camera, closer, from the air and (the tip) shifted, at dawn, before and after, and each piece on the turntable.
+
