@@ -204,6 +204,39 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void ATrussDraggerLandsOnTheRoofBeforeItsGrabOrFallsOnTheBallastBehind()
+    {
+        // Note 444 (D1's #171, note 435): perched on a truss's chord (no car of its own, high over the line) in its tell, then
+        // on the roof of the car passing under: its landing as it comes down, its grab a moment after. Perched still when it
+        // goes (the train under it with nobody on the roofs): its fall onto the ballast, under the chord.
+        using var scene = new Scene(2, "cs-draggers.drop", "cs-draggers.fall", "cs-draggers.grab", "cs-draggers.scrabble~", "dragger-scrape~");
+        var shape = scene.Train.Frames[2].Shape;
+        var edge = new Double3(shape.HalfWidth + 0.1, shape.RoofHeight - 0.35, 1);
+        double chord = scene.Train.Dynamics.Distance - 25;
+        Dragger Perched(int id) => Record(new Dragger(id), SpinePhase.Telegraph, 1.0, 1, -1, default, chord, 2.7, 7.2, extra: -1);
+
+        scene.Tick(Perched(21));
+        var landed = scene.Tick(Record(new Dragger(21), SpinePhase.Grab, 0, 1, 2, edge, extra: 1, holding: 1, window: 8));
+        Assert.Contains("cs-draggers.drop", landed);
+        Assert.DoesNotContain("cs-draggers.grab", landed);
+        var after = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            after.AddRange(scene.Tick(Record(new Dragger(21), SpinePhase.Grab, (i + 1) * SimConstants.TickSeconds, 1, 2, edge, extra: 1, holding: 1, window: 8)));
+        Assert.Single(after, n => n == "cs-draggers.grab");
+        Assert.DoesNotContain("cs-draggers.drop", after);
+        Assert.DoesNotContain("cs-draggers.fall", landed.Concat(after));
+
+        // Another on the chord, and the train gone under it with nobody up there: it drops onto the ballast, under the chord.
+        scene.Tick(Perched(22));
+        var high = scene.World.ActiveEnemies.Single(e => e.Id == 22).WorldPosition(scene.Train);
+        var gone = scene.Tick();
+        Assert.Contains("cs-draggers.fall", gone);
+        Assert.DoesNotContain("cs-draggers.drop", gone);
+        var fall = scene.Audio.Mixer.Voices.Single(v => v.Name == "cs-draggers.fall");
+        Assert.Equal(high.Y - 7.2, fall.Position.Y, 1);
+    }
+
+    [Fact]
     public void HoundsGallopAtTheirSpeedLeapAboardAndHowlNearOnlyWhenClose()
     {
         using var scene = new Scene(6, "cs-hounds.paw.ground", "cs-hounds.paw.roof", "cs-hounds.leap", "cs-hounds.snarl", "hound-howl", "tell-hounds.howl-near");

@@ -1,0 +1,16 @@
+// Reports to the studio (ARCHITECTURE §8 note 452; the director, 8 Oct 2026: "point reports, crashes, logs, etc. into a
+// nicely formatted reporting structure that is dev friendly for debugging"). A crash's report (the notice's SEND THE
+// REPORT) and a player's own (the settings' REPORT A PROBLEM) open the player's mail program on a mail to this address,
+// its subject and a summary filled in, with the report's folder beside it to attach the file. The player sends it: the
+// game holds no mail credentials, and nothing leaves their machine unless they do. Empty "to": nothing offers to send.
+{
+  "to": "nsmith@squidostudio.com",
+
+  // Every subject starts with this, then what it is, its id and the build: "Dark Territory crash, System.NullReferenceException:
+  // crash-20261008-031522 (1.0.0, 419b82f42a3b)".
+  "subject": "Dark Territory",
+
+  // The mail's body (the report's header and the exception's first lines) is cut at this many characters: a mailto: link
+  // much past 2,000 is cut short or refused by some mail programs. The whole report goes as the attachment.
+  "mailBodyChars": 1500
+}

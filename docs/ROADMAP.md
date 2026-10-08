@@ -96,7 +96,7 @@ M3 is done but for a test with eight people.
 
 **Builds for players (M6):**
 - `tools/package.sh` makes self-contained Windows and Linux folders with their content, and CI keeps both as artifacts on every push, after starting the Linux one from elsewhere and playing it.
-- Crashes leave a report in the user's app data, and the next launch opens on a notice that says where it is, with OPEN THE REPORTS (note 411).
+- Crashes leave a report in the user's app data, and the next launch opens on a notice that says where it is, with OPEN THE REPORTS (note 411) and SEND THE REPORT; the settings' REPORT A PROBLEM writes one without a crash. A report reads at a glance (the build and its commit, the machine, the settings, what the game was doing, the exception, the last lines), has a JSON twin, and goes to the studio from the player's own mail; every launch keeps a log (note 452).
 - **The demo edition (T79, GDD §21, §35):**
   - the demo roster of GDD §21 (Track Doll, Car Hugger, Whistler, Tippy Toesie, Ribbits, the Choir underneath; `editions/demo/tuning/enemies.json`), the trouble in the cars, and the Frontier with two facilities;
   - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
