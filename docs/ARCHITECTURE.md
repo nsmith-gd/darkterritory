@@ -5526,3 +5526,16 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - A sound inside a building heard from outside it (a crewmate searching a house, from the street). That would cost a line search per voice for every listener outside; it waits for a cheaper building lookup.
         - The night's own air, played at the ear, isn't walled.
     - **Pinned:** `WorldSoundTests.FromInsideAStopsBuildingWhatsOutsideComesThroughItsWalls`: in a Holdout's room, a sound on the line is behind `roomWall` and one in the room behind none; in a shed, behind the lighter `shedWall`; out on the line, clear. The audio test classes pass (119).
+399. **The relief driver, and a Climber in the cab clubbed out (queue #134, D1.3 for D1; D1's regression call, 8 Oct: "when the driver is dead, another living bot should take the controls; today the night just stops").**
+    - **Why.** Since note 280 took the fireman out of the bot crew, nobody but the driver drives. A driver taken in the cab left the train standing where it fell for the rest of the night. And a Climber in the cab with a lone driver was a stalemate:
+        - it stays while anyone's in there;
+        - only a gang's blows hurt it (note 288), so the driver keeps clear of it (`KeepClear`);
+        - the fire goes unworked until the train stands. A frontier:7 harness night held at km 3.9 this way. #387 and note 301 handle the headlamp's part.
+    - **Who goes** (`CrewCalls.Relief`): a claim, instant like the others, taken by the first walker to see either case. That's a driver it heard, now dead (`calls.Has(StopJob.Driver)` false), or a Climber inside the cab. It holds the claim while it lives and the job's there, so two never go.
+    - **The way forward** (`ReliefDriver.ToTheCab`): along the roofs to car 1 (the legs' walk), then a running jump onto the engine's hood (note 338: level with the cars' roofs). It goes round the stack, which stands up through the hood on the centreline near its back, then to the cab's roof hatch ladder (the forward gun's, up from the cab floor) and down it.
+    - **In the cab:**
+        - With the driver dead, it's the driver: a `ConductorBot` in member 0's place on the calls, so the crew hears a driver again.
+        - With a Climber in there, it clubs it (`Heed.Strike`). The driver, seeing a crewmate in the cab, stops keeping clear and clubs it too, so their blows count as a gang's.
+        - Job done, it gives the claim back and goes back out: `KitRun.BackToTheTrain` from the cab floor, or `ReliefDriver.OffTheEngine` from the hood, round the stack and a jump down onto car 1.
+    - **Not yet:** a gunner doesn't relieve (its legs don't claim); a person playing is never counted on.
+    - **Verified.** `FiremanTests.WithTheDriverDeadAWalkerGoesForwardAndTakesTheControls` (the walker reaches the cab and drives on more than 100 m in a minute) and `...AClimberInTheCabBringsAWalkerForwardAndTheTwoClubItOut` (the Climber's out of the cab, both alive, the walker back off the engine). HARNESS_NOTE
