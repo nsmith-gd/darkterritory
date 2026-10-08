@@ -1538,21 +1538,21 @@ public static class TrainKit
     public static Vector3 WhistleLeverPivot(CarShape shape) => new(0.35f, (float)shape.Cab!.Value.Max.Y + 0.48f, WhistleZ(shape));
 
     /// <summary>The lever's length, pivot to tip, and its angle up off level at rest and pulled down (radians).</summary>
-    public const float WhistleLeverLength = 0.42f, WhistleLeverRest = 0.18f, WhistleLeverPulled = -0.5f;
+    public const float WhistleLeverLength = 0.45f, WhistleLeverRest = 0.25f, WhistleLeverPulled = -0.65f;
 
     /// <summary>
-    /// The whistle's valve lever (note 445): a flat iron bar forward off its pivot on the whistle's top, its last third
-    /// painted signal red like the cord's handle and the brake's grip (T101), so it reads at a glance from the roofs
-    /// whether it's down. Its origin at the pivot, the bar along −Z.
+    /// The whistle's valve lever (note 445): a flat iron bar out across the hood off its pivot on the whistle's top, its
+    /// outer half painted signal red like the cord's handle and the brake's grip (T101). Across, not along: from the roofs
+    /// behind it's seen side on, up or dropped like a signal's arm. Its origin at the pivot, the bar along +X.
     /// </summary>
     public static MeshAsset WhistleLever(Look? look)
     {
         var k = new Kit(look, 64);
         k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.6f, tile: 0.3f);
-        k.Cylinder(new Vector3(-0.05f, 0, 0), new Vector3(0.05f, 0, 0), 0.022f, 6);
-        k.Box(new Vector3(-0.014f, -0.018f, -WhistleLeverLength * 0.66f), new Vector3(0.014f, 0.018f, 0.03f));
+        k.Cylinder(new Vector3(0, 0, -0.05f), new Vector3(0, 0, 0.05f), 0.024f, 6);
+        k.Box(new Vector3(-0.03f, -0.02f, -0.016f), new Vector3(WhistleLeverLength * 0.5f, 0.02f, 0.016f));
         k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
-        k.Box(new Vector3(-0.017f, -0.021f, -WhistleLeverLength), new Vector3(0.017f, 0.021f, -WhistleLeverLength * 0.66f));
+        k.Box(new Vector3(WhistleLeverLength * 0.5f, -0.028f, -0.02f), new Vector3(WhistleLeverLength, 0.028f, 0.02f));
         return k.Build("whistle-lever");
     }
 
@@ -1563,7 +1563,7 @@ public static class TrainKit
     public static Vector3 WhistleCrank(CarShape shape, Box cab)
     {
         var cord = WhistleCordHandle(shape, pulled: false);
-        return new Vector3(0.35f, (float)cab.Max.Y, (float)Math.Max(cord.Z, cab.Min.Z + 0.6));
+        return new Vector3(WhistleLeverPivot(shape).X + WhistleLeverLength, (float)cab.Max.Y, (float)Math.Max(cord.Z, cab.Min.Z + 0.6));
     }
 
     /// <summary>The crank's stand (note 445): a bracket on the roof, the crank's arm up out of it to the rod. Origin on the roof.</summary>

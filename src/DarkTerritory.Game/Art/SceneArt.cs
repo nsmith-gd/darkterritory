@@ -482,9 +482,9 @@ public sealed partial class SceneArt(Look look)
     {
         var pivot = TrainKit.WhistleLeverPivot(shape);
         float angle = (float)(TrainKit.WhistleLeverRest + (TrainKit.WhistleLeverPulled - TrainKit.WhistleLeverRest) * pull);
-        mesh.Append(Piece("whistle-lever", () => TrainKit.WhistleLever(Look)), Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m);
-        // The lever's tip: along its −Z, turned up by the angle.
-        var tip = pivot + new Vector3(0, MathF.Sin(angle), -MathF.Cos(angle)) * TrainKit.WhistleLeverLength;
+        mesh.Append(Piece("whistle-lever", () => TrainKit.WhistleLever(Look)), Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(pivot) * m);
+        // The lever's tip: out along its +X, turned up by the angle.
+        var tip = pivot + new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0) * TrainKit.WhistleLeverLength;
         var crank = TrainKit.WhistleCrank(shape, cab);
         mesh.Append(Piece("whistle-crank", () => TrainKit.PullCrank(Look)), Matrix4x4.CreateTranslation(crank) * m);
         // The rod from the tip to the crank's arm, which the cord in the cab hauls forward as the tip comes down.
