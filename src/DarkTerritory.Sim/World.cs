@@ -46,8 +46,13 @@ public sealed class World
             Switches = new Rail.SwitchStands(tuning);
     }
 
-    /// <summary>Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests).</summary>
-    public bool SetSwitch(int branch, bool diverge) => Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
+    /// <summary>
+    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
+    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// </summary>
+    public bool SetSwitch(int branch, bool diverge) =>
+        Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
 
     public TrainOnLine Train { get; }
     /// <summary>
@@ -128,6 +133,29 @@ public sealed class World
     public double BendWarnSeconds { get; set; }
     /// <summary>Host: ticks a bend would have derailed the train but its warning hadn't been up long enough (should be 0).</summary>
     public int BendsSpared { get; set; }
+    /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
+    public double DeadEndWarnSeconds { get; set; }
+    /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
+    public int DeadEndsSpared { get; set; }
+    /// <summary>Host: the dead lines a Switchman has thrown the points for this night (note 286), by branch: C.9's Switchman row.</summary>
+    public HashSet<int> SwitchmanThrew { get; } = new();
+
+    /// <summary>
+    /// Through a dead line's buffers and off the end (note 286). Down a line the Switchman threw it onto, C.9's Switchman row
+    /// names the forward cannon as it always has; otherwise it's the throttle's.
+    /// </summary>
+    void OffTheEnd(int branch, double speed, double limit)
+    {
+        int kmh = (int)Math.Round(speed * 3.6), over = (int)Math.Round(limit * 3.6);
+        if (SwitchmanThrew.Contains(branch))
+        {
+            var (gunner, cannon) = Sim.Run.IncidentLog.ForwardCannon(this);
+            Derail($"ran off the end of the dead line the Switchman threw it down, at {kmh} km/h (over {over} km/h it goes through the buffers)", gunner, cannon);
+        }
+        else
+            Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
+    }
+
     /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
     public List<double> BendCommits { get; } = new();
     /// <summary>GDD §23: derailment kills the entire crew at once.</summary>
@@ -158,6 +186,47 @@ public sealed class World
     public double WhistleSeconds { get; set; }
     /// <summary>Who's blowing it (the last to pull the cord), or −1: the Whistler's whistle belongs to nobody (App. C.7).</summary>
     public int WhistleBy { get; internal set; } = -1;
+    /// <summary>
+    /// The dark's answer to what the crew did (note 287): a call from out past the lamp and eyes at its edge while it lasts.
+    /// The host's, replicated on the world record; presentation only.
+    /// </summary>
+    public DrawAnswer Answer { get; set; }
+
+    /// <summary>
+    /// A sign shown a crewmate afoot off the train (note 327): eyes toward what lives at the stop, and its sound. The host's,
+    /// replicated on the world record; presentation only.
+    /// </summary>
+    public Watcher Watcher { get; set; }
+
+    /// <summary>Host: a draw made (note 287), credited on the director's ledger; nothing in the safe yard.</summary>
+    void Drew(DrawCause cause, int player, double amount)
+    {
+        if (Authority && !SafeYard && Director is { } d)
+            d.Draws.Add(cause, player, amount);
+    }
+
+    /// <summary>
+    /// Host: where the dark answers from (note 287): out at the lamp's edge ahead (answerDistance from the engine's nose), off to a side
+    /// (answerLateral; the side from the tick, so it isn't always the same), at an animal's eye height off the ground.
+    /// </summary>
+    Ballast.Double3 AnswerAt(DrawTuning t)
+    {
+        double side = (Tick / SimConstants.TickRate) % 2 == 0 ? 1 : -1;
+        return DrawAnswerAt(Train, t.AnswerDistance, side * t.AnswerLateral, t.AnswerHeight);
+    }
+
+    /// <summary>
+    /// A point <paramref name="ahead"/> m out from the engine's nose, the way the lamp shines (its −Z), <paramref name="lateral"/>
+    /// m to its right, <paramref name="height"/> m off the ground there (note 287: where the dark answers from).
+    /// </summary>
+    public static Ballast.Double3 DrawAnswerAt(TrainOnLine train, double ahead, double lateral, double height)
+    {
+        var engine = train.Frames[0];
+        var at = engine.ToWorld(new Ballast.Double3(lateral, 0, -engine.Shape.HalfLength - ahead));
+        double hint = train.Dynamics.Distance + ahead;
+        return at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) + height };
+    }
+
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
@@ -205,6 +274,21 @@ public sealed class World
 
     /// <summary>The Choir's seized its one for the run (App. A.7 LIMIT): the swarm goes, and it's spent.</summary>
     public void ChoirTook() => _choirTook = true;
+
+    /// <summary>The last of the swarm killed by the crew together (note 288): the Choir is done for the run, as when it takes its one.</summary>
+    public void ChoirSlain() => _choirTook = true;
+
+    /// <summary>
+    /// Host: the kinds the crew have killed together tonight (note 288, the director's clarification of 7 Oct 2026): a kill is
+    /// for the night, so the director doesn't send that kind again. Driven off, a creature can come back.
+    /// </summary>
+    public HashSet<EnemyKind> Slain { get; } = [];
+
+    /// <summary>
+    /// Host: once-a-run kinds the crew drove off tonight rather than killed (the Passenger, note 288): driven off isn't the end
+    /// of it, so the director may send it again (Spawns' once-a-run rule lets it).
+    /// </summary>
+    public HashSet<EnemyKind> DrivenOff { get; } = [];
     bool _choirTook;
     double _hotFor;
     bool _stokerWasIn;
@@ -599,7 +683,8 @@ public sealed class World
         TrackPlan ??= route.Plan;
         Run = new Run.Run(tuning, route) { YardLength = yardLength };
         Bookmarks.Tuning = tuning.Bookmarks;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone));
+        Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -616,6 +701,31 @@ public sealed class World
         }
         Authority |= authority;
     }
+
+    /// <summary>
+    /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
+    /// on every machine from the route and the content. Null where the content has no towns or they're switched off.
+    /// </summary>
+    public Towns.Town? Town { get; private set; }
+
+    /// <param name="roster">The edition's creatures (enemies.json director.roster; empty, all): a town keeps only a custom
+    /// for a creature this edition fields.</param>
+    /// <param name="last">The custom of the last night's town, which this one won't have (App. F.1: "different from the last").</param>
+    public void EnableTown(Towns.TownContent content, Route.Route route, double gate, IReadOnlyList<string> roster, string? last = null)
+    {
+        if (!content.Tuning.Enabled)
+            return;
+        var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
+        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
+        if (Forts is { Count: > 0 } forts)
+            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts);
+        Train.Walls.Add(Town.Walls);
+    }
+
+    /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
+    public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
 
     /// <summary>
     /// GDD App. D: the Holdouts at the route's halts, villages and yards, and the respawn queue, the only way back into
@@ -781,6 +891,25 @@ public sealed class World
     /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
     public WreckTuning WreckTuning { get; set; } = new();
 
+    /// <summary>
+    /// The jobs the train makes as it runs (upkeep.json; orchestrator.md §5.1): null, none. Set on every machine (the hot
+    /// boxes' seconds and drag are predicted); the host brings them on and sets the fires (<see cref="Train.HotBoxes"/>).
+    /// </summary>
+    public UpkeepTuning? Upkeep
+    {
+        get => _upkeep;
+        set
+        {
+            _upkeep = value;
+            Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
+            _hotBoxes = null;
+        }
+    }
+    UpkeepTuning? _upkeep;
+    HotBoxes? _hotBoxes;
+    /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
+    public (int Came, int Caught) HotBoxCount => _hotBoxes is { } h ? (h.Came, h.Caught) : (0, 0);
+
     double _groundHint;
 
     /// <summary>The land's height under a point (the line's terrain, or the ballast by a hand-laid line).</summary>
@@ -834,6 +963,9 @@ public sealed class World
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
+        // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
+        if (Authority && Run is { } searching)
+            searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -889,6 +1021,8 @@ public sealed class World
             // The round's burst, in the gunner's name: it lifts the meter by roundLoudness, which the window takes to fall away.
             if (Authority)
                 CreditChoir(playerId, c.Choir.RoundLoudness * c.Choir.WindowSeconds);
+            // GDD §14: "a cannon solves the immediate problem while alerting everything nearby" (note 287).
+            Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
             // B.9: the fumes, once everyone's moved this tick (note 182).
             if (Authority && c.Fumes is not null)
                 _fumes.Add(shot);
@@ -909,7 +1043,11 @@ public sealed class World
         {
             Train.Vehicles[s.Parent].LampLit = !Train.Vehicles[s.Parent].LampLit;
             if (Train.Vehicles[s.Parent].LampLit)
+            {
                 Attribution.LitLamp(s.Parent, playerId);
+                // A light in the dark is seen (note 287).
+                Drew(DrawCause.Lamp, playerId, Director?.Tuning.Draw.Weight(DrawCause.Lamp) ?? 0);
+            }
         }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
         // An emote (note 298): the crew see it, and that's all. Not while something has hold of you, and not on top of the
@@ -1133,7 +1271,19 @@ public sealed class World
         var drag = _enemies.FirstOrDefault(e => !e.Gone && e.Drags >= 0);
         Train.DraggedVehicle = drag?.Drags ?? -1;
         Train.DragFactor = drag is { } d && Train.Dynamics.Speed > d.DragAbove ? d.DragFactor : 0;
+        // A dead line's end (the director's decision of 7 Oct 2026, note 286): the warning counted on the host before the step,
+        // as a bend's is; after it, running through the buffers over the limit with the warning up a full lead derails it.
+        var overspeed = Train.Dynamics.Tuning.Overspeed;
+        if (Authority)
+            DeadEndWarnSeconds = Sim.Train.DeadEnds.Assess(Train, overspeed).Warning ? DeadEndWarnSeconds + SimConstants.TickSeconds : 0;
         Train.Step(SimConstants.TickSeconds, applied);
+        if (Authority && !Derailed)
+        {
+            int spared = DeadEndsSpared, path = Train.Dynamics.Path;
+            if (Sim.Train.DeadEnds.OverranThisTick(Train, path, DeadEndWarnSeconds, overspeed, ref spared) is { } hit)
+                OffTheEnd(path, hit, overspeed.DeadEndDerailAbove);
+            DeadEndsSpared = spared;
+        }
         // The wreck (T117), on the host: a tick of it, and the cars' frames where it's put them.
         if (Train.Wreck is { Puppet: false } wreck)
         {
@@ -1142,6 +1292,17 @@ public sealed class World
         }
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
+        // The hot boxes (note 331): one open for each crewmate at most, none in the yard or a fort; one left too long
+        // catches, and the car's alight (App. C.5).
+        // Made on the first step, when the night's route (its seed) is known: the host's enemies come after its run.
+        if (Authority && _hotBoxes is null && Train.HotBoxTuning is { } hbt)
+            _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
+        if (Authority && !Derailed && _hotBoxes is { } boxes)
+        {
+            int open = Math.Max(1, _actors.Count(a => a.State.Alive));
+            if (boxes.Step(Train, open, SafeYard || TrainInFort) is var caught and >= 0 && Enemies is { } ht)
+                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire));
+        }
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
@@ -1160,6 +1321,10 @@ public sealed class World
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
+        if (Authority && Answer.Showing)
+            Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
+        if (Authority && Watcher.Showing)
+            Watcher = Watcher with { Seconds = Math.Max(0, Watcher.Seconds - SimConstants.TickSeconds) };
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -1192,6 +1357,14 @@ public sealed class World
                 // as they stood when it took its one, for the incident report to read.
                 if (Choir.Phase(c.Choir) == ChoirPhase.Distant && !Choir.Spent)
                     _choirShares.Clear();
+                // The Choir come first (note 287): drawn by the noise, in the loudest's name (A.7), by what of theirs was loudest.
+                if (swarm && Director is { First: null } fd)
+                {
+                    int loudest = ChoirLoudest;
+                    var noise = new[] { DrawCause.Whistle, DrawCause.Cannon, DrawCause.Voices, DrawCause.Toy }
+                        .Select(k => (Cause: k, Amount: fd.Draws.Of(k, loudest))).MaxBy(k => k.Amount);
+                    fd.Came(this, EnemyKind.Choir, noise.Amount > 0 ? noise.Cause : DrawCause.Voices, loudest, noise.Amount);
+                }
                 if (swarm && Enemies is { } et && _context is not null && Insist?.Contains(EnemyKind.Choir) != false)
                     for (int i = 0; i < et.Choir.Ghosts; i++)
                     {
@@ -1303,16 +1476,31 @@ public sealed class World
             total += loudness;
             CreditChoir(player, loudness * dt);
         }
+        // The same acts draw the night's first threat (note 287): a voice raised past the draw's floor (talking as you work
+        // doesn't), a noisy toy carried, the whistle. Its own weights, so the whistle's blast outweighs a minute's chatter.
+        var draw = Director?.Tuning.Draw;
         if (_context is { } ctx)
             foreach (var (p, intent) in ctx.Crew)
                 if (p.State.Alive)
+                {
                     Add(p.Id, intent.Voice / 255.0 * t.VoicePerPlayer);
+                    if (draw is { VoiceFloor: < 1 } && intent.Voice / 255.0 > draw.VoiceFloor)
+                        Drew(DrawCause.Voices, p.Id, draw.Weight(DrawCause.Voices) * (intent.Voice / 255.0 - draw.VoiceFloor) / (1 - draw.VoiceFloor) * dt);
+                }
         // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it.
         foreach (var b in Bodies.All)
             if (b is { Kind: Physics.BodyKind.Toy, Carrier: >= 0 } && b.Noise != Physics.ToyNoise.None)
+            {
                 Add(b.Carrier, t.Toys.Of(b.Noise));
+                Drew(DrawCause.Toy, b.Carrier, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+            }
         if (WhistleSeconds > 0)
+        {
             Add(WhistleBy, t.WhistleLoudness);
+            // The Whistler's blowing belongs to nobody, and it's already a threat: only a crewmate's pull draws.
+            if (WhistleBy >= 0)
+                Drew(DrawCause.Whistle, WhistleBy, (draw?.Weight(DrawCause.Whistle) ?? 0) * dt);
+        }
         if (Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility } run && run.Machinery)
             total += t.MachineryLoudness;
         return total;
@@ -1361,8 +1549,14 @@ public sealed class World
     void StepEnemies(EnemyContext ctx)
     {
         var t = ctx.Tuning;
+        ctx.Landed.Clear();
         foreach (var shot in Shots)
+        {
             _recentRounds.Add((Tick, shot.Muzzle));
+            // On the ground, water, a wall or a creature; not a ball stopped by the train's own body.
+            if (shot.Surface != ImpactSurface.Train)
+                ctx.Landed.Add(shot.Impact);
+        }
         _recentRounds.RemoveAll(r => Tick - r.Tick > t.CinderHounds.SuppressWindowSeconds * SimConstants.TickRate);
         // Rounds fired this tick land first.
         if (Combat is { } c)
@@ -1402,13 +1596,22 @@ public sealed class World
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
+            d.Census(this);
             Unmet(ctx, t.Director);
+            // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
+            d.Listen(this);
+            // Note 327: the crew afoot off the train, watched (the pressure they draw, and a sign now and then).
+            if (d.Watch(this) is { } sign)
+                Watcher = sign;
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
                 rule.Spawn(new SpawnContext(this, t, d));
+            // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
+            foreach (var (cause, actor) in d.TakeAnswers())
+                Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
             // Drawn by the heat (note 263): it boards at the tender, to cross to the firebox.
             if (d.Allows(EnemyKind.Stoker) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort)
@@ -1426,6 +1629,8 @@ public sealed class World
             }
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
+            // Note 328: a train run fast draws the hound run, the guns' wave.
+            d.Runs(this, Run is { Tuning.YardIsSafe: true } rs ? rs.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
         }
 
         foreach (var e in _enemies.ToList())

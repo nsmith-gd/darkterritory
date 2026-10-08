@@ -186,7 +186,8 @@ public static class IncidentLog
                 break;
             case DeathCause.Burned or DeathCause.Exploded:
                 actor = s.Parent > 0 ? a.LampLitBy(s.Parent) : -1;
-                action = actor >= 0 ? "Lamp lit by {actor}." : "Nobody lit that lamp.";
+                action = actor >= 0 ? "Lamp lit by {actor}." : s.Parent > 0 && s.Parent < train.Vehicles.Count && train.Vehicles[s.Parent].LampLit
+                    ? "Lamp lit since the yard." : "Lamp out.";
                 break;
             case DeathCause.Poisoned:
                 actor = a.Gasser;
@@ -229,7 +230,7 @@ public static class IncidentLog
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
-    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck;
+    public static bool IsEvent(IncidentKind kind) => kind >= IncidentKind.Struck && kind != IncidentKind.Drawn;
 
     /// <summary>
     /// A record of something that happened to the train, not to a crewmate (note 190: C.9's rows that aren't deaths): what,
@@ -254,6 +255,25 @@ public static class IncidentLog
         int driver = world.Attribution.Driver;
         string speed = Kmh(world.Train.Dynamics.Speed);
         return Event(world, IncidentKind.Struck, what, driver, driver >= 0 ? $"Throttle: {{actor}}, {speed}." : $"Nobody on the throttle, {speed}.");
+    }
+
+    /// <summary>
+    /// C.9's Fire Flies row, in the clerk's flat voice (T131, the director: "'Nobody lit that lamp' set car 2 alight": car lamps
+    /// start lit, note 269, so it always said that): what drew them, the car's lamp, and whether it had burned since the yard
+    /// or who relit it; and, as a shut car keeps them out (note 286), the way in it was left with. Returns the actor (who
+    /// relit it, or −1) and the line.
+    /// </summary>
+    public static (int Actor, string Action) FireFliesDrawn(World world, int car)
+    {
+        var train = world.Train;
+        int lit = world.Attribution.LampLitBy(car);
+        string drawn = lit >= 0 ? "Drawn by the car's lamp, relit by {actor}." : "Drawn by the car's lamp, lit since the yard.";
+        if (car <= 0 || car >= train.Vehicles.Count)
+            return (lit, drawn);
+        var v = train.Vehicles[car];
+        int doors = v.DoorsOpen & ~(1 << Train.CarShape.HatchBit);
+        string way = v.Breached ? " In through the breach." : doors != 0 ? " Door left open." : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
+        return (lit, drawn + way);
     }
 
     /// <summary>

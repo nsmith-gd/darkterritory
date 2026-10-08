@@ -148,6 +148,15 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
 /// closer, head tilting, the telegraph), and at its threshold it attacks the nearest player, hard. Talking to it holds it
 /// off. Kill it (a group job: it hits hard), or lead it to a car, where it takes the most valuable thing and leaves for the
 /// run. Rule: keep talking to it. It punishes silence while the Choir punishes noise.
+/// <para>
+/// Driven off by its rule (note 288, enemies.json <c>gaunt.drivenOff</c>; the director's clarification of 7 Oct 2026). With
+/// <c>talkingCalms</c>, talk brings its anger down as silence raises it (a step every <c>silenceSeconds</c>: GDD Part Eleven
+/// Q9's "does talking lower its aggro", answered yes for now); calmed under its threshold it stops attacking and follows
+/// again, and kept calm and talked to for <c>talkedDownSeconds</c> it loses interest and leaves, empty-handed (it may wake
+/// again somewhere else tonight). Killed only by the crew together while someone keeps talking to it: blows from two or
+/// more crewmates inside <c>coordinatedKill</c>'s window, with a voice near it; a blow struck in silence angers it instead.
+/// Killed, it drops what it carried and is gone for the night. A lone player's blows only break its crush on a friend.
+/// </para>
 /// </summary>
 /// <remarks>
 /// <see cref="Enemy.Extra"/> is its waker (−1 asleep), <see cref="Enemy.Extra2"/> its anger (the lean). Leaving
@@ -157,7 +166,7 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
 /// </remarks>
 public sealed class Gaunt(int id) : Enemy(id)
 {
-    double _silence, _hit;
+    double _silence, _hit, _talk, _calm;
 
     public override EnemyKind Kind => EnemyKind.Gaunt;
     public override PressureZone Zone => PressureZone.Outside;
@@ -222,17 +231,16 @@ public sealed class Gaunt(int id) : Enemy(id)
                     Follow(ctx, w, t);
                     if (Phase == SpinePhase.Telegraph && Takes(ctx, w, t))
                         return;
-                    // LISTEN: silence near it, and the anger climbs; a voice holds it where it is.
-                    var at = WorldPosition(train);
-                    bool talked = ctx.Crew.Any(c => c.Player.State.Alive && c.Intent.Voice >= t.TalkingAbove
-                        && (t.AnyVoiceCounts || c.Player.Id == who)
-                        && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);
+                    // LISTEN: silence near it, and the anger climbs; a voice holds it where it is (and talks it down: TalkedDown).
+                    bool talked = Talked(ctx, t);
                     _silence = talked ? 0 : _silence + SimConstants.TickSeconds;
                     if (_silence >= t.SilenceSeconds)
                     {
                         _silence = 0;
                         Extra2 = Math.Min(t.AttackAt, Extra2 + 1);
                     }
+                    if (t.DrivenOff && t.TalkingCalms && TalkedDown(ctx, t, talked))
+                        return;
                     if (Phase == SpinePhase.Telegraph && Extra2 >= t.AttackAt && PhaseSeconds >= ctx.Tuning.MinReactionSeconds)
                         Enter(ctx, SpinePhase.Commit);
                     if (Phase == SpinePhase.Commit)
@@ -248,6 +256,41 @@ public sealed class Gaunt(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick.</summary>
+    bool Talked(EnemyContext ctx, GauntTuning t)
+    {
+        var train = ctx.Train;
+        var at = WorldPosition(train);
+        int who = Waker ?? -1;
+        return ctx.Crew.Any(c => c.Player.State.Alive && c.Intent.Voice >= t.TalkingAbove
+            && (t.AnyVoiceCounts || c.Player.Id == who)
+            && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);
+    }
+
+    /// <summary>
+    /// KEEP TALKING (note 288): talk brings its anger down a step every <see cref="GauntTuning.SilenceSeconds"/>; calmed under
+    /// its threshold it stops attacking; held calm and talked to for <see cref="GauntTuning.TalkedDownSeconds"/>, it leaves
+    /// with nothing. True the tick it goes.
+    /// </summary>
+    bool TalkedDown(EnemyContext ctx, GauntTuning t, bool talked)
+    {
+        _talk = talked ? _talk + SimConstants.TickSeconds : 0;
+        if (_talk >= t.SilenceSeconds)
+        {
+            _talk = 0;
+            Extra2 = Math.Max(0, Extra2 - 1);
+        }
+        if (Phase == SpinePhase.Commit && Extra2 < t.AttackAt)
+            Enter(ctx, SpinePhase.Telegraph);
+        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds : Extra2 > 0 ? 0 : _calm;
+        if (_calm < t.TalkedDownSeconds)
+            return false;
+        Extra = -1; // carrying nothing
+        ctx.World.DrivenOff.Add(Kind);
+        Enter(ctx, SpinePhase.BreakOff);
+        return true;
     }
 
     /// <summary>
@@ -342,10 +385,36 @@ public sealed class Gaunt(int id) : Enemy(id)
             ctx.World.Bodies.LetGo(b);
     }
 
+    /// <summary>
+    /// Struck with a tool. Old rule (<c>drivenOff</c> false): hurt by any blow. Note 288: hurt only by the gang (two or more
+    /// crewmates inside the window) while someone's talking to it; a blow in silence angers it; a friend's blow breaks its crush.
+    /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
-        base.Struck(ctx, by, damage);
-        DropIfGone(ctx);
+        var t = ctx.Tuning.Gaunt;
+        if (!t.DrivenOff)
+        {
+            base.Struck(ctx, by, damage);
+            DropIfGone(ctx);
+            return;
+        }
+        Marked(ctx, by);
+        bool talked = Talked(ctx, t);
+        if (talked && Ganged(ctx, except: Holding))
+        {
+            Health -= damage;
+            if (Health <= 0)
+            {
+                ctx.World.DrivenOff.Remove(Kind);
+                Slay(ctx);
+                DropIfGone(ctx);
+                return;
+            }
+        }
+        else if (!talked && Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            Extra2 = Math.Min(t.AttackAt, Extra2 + 1);
+        if (Phase == SpinePhase.Grab && by != Holding)
+            Rescued(ctx, by);
     }
 
     /// <summary>At its waker's back, at arm's length: in their car's frame aboard, loose in the world off it.</summary>

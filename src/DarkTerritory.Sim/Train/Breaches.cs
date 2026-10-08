@@ -25,16 +25,29 @@ public static class Breaches
 
     /// <summary>
     /// The breached car this player can board up now, if any: inside it on its floor, within <see cref="BreachTuning.BoardReach"/>
-    /// of the hole across the floor (a headset's reaching hand, T29, measured from the hand), and carrying the repair kit if
-    /// boarding needs it (<see cref="BreachTuning.NeedsKit"/>; note 150).
+    /// of the hole across the floor (a headset's reaching hand, T29, measured from the hand), and with the wrench in hand
+    /// where it's the repair tool (train.json <c>repair.wrench</c>, note 301), else carrying the repair kit if boarding needs
+    /// it (<see cref="BreachTuning.NeedsKit"/>; note 150).
     /// </summary>
     public static int? Within(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (AtHole(s, train, hand) is not { } car)
+            return null;
+        // Note 301: where the wrench is the repair tool, it's the wrench in hand that boards it up.
+        if (Repairs.ByWrench(train) ? !Repairs.WrenchInHand(s) : train.Dynamics.Tuning.Breach.NeedsKit && !s.Has(PlayerFlags.RepairKit))
+            return null;
+        return car;
+    }
+
+    /// <summary>
+    /// The breached car this player's at the hole of, whatever's in hand: inside it on its floor, within
+    /// <see cref="BreachTuning.BoardReach"/> of it (<see cref="Within"/> adds what boarding it needs in hand).
+    /// </summary>
+    public static int? AtHole(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
     {
         if (!s.Alive || s.Parent <= 0 || s.Parent >= train.Frames.Count || !train.Vehicles[s.Parent].Breached || !PlayerMotor.Indoors(s, train))
             return null;
         var t = train.Dynamics.Tuning.Breach;
-        if (t.NeedsKit && !s.Has(PlayerFlags.RepairKit))
-            return null;
         var from = (hand is not null && s.Hand != default ? PlayerMotor.HandAt(s) : null) ?? s.Position;
         var hole = train.Vehicles[s.Parent].BreachAt;
         double dx = from.X - hole.X, dz = from.Z - hole.Z;

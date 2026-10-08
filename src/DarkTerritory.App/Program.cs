@@ -89,6 +89,10 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
+    // MODS (note 323): what Mount found installed, and whether --no-mods left it all off.
+    InstalledMods = [.. Mods.Installed.Mods.Select(m => new InstalledMod(m.Name, m.Version, m.Description))],
+    ModProblems = Mods.Installed.Problems,
+    ModsOff = Mods.Off,
     // The settings' MICROPHONE: what there is to choose from.
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
     // OUTFIT (note 298): the crew's looks by name.
@@ -441,6 +445,7 @@ Launch? MenuLoop()
                     SpareLamps = campaign.Stores.Lamps,
                     SpareExtinguishers = campaign.Stores.Extinguishers,
                     FirstChildReal = profile.FirstChildReal,
+                    LastTown = campaign.LastTown,
                 };
                 Console.WriteLine($"campaign slot {night.Slot} ({campaign.Name}): {campaign.Cars} cars, {campaign.Scrip:0} scrip, tonight {contract.Route} carrying {Cargoes.Name(contract.Cargo)} at {contract.PerCar:0} a car{(resume is not null ? $", resuming after facility {resume.Facility}" : "")}");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume,
@@ -635,7 +640,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
+        Town = session.World.Town,
         Vehicles = session.Train.Vehicles,
+        HotBoxTuning = session.Train.HotBoxTuning,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
@@ -650,6 +657,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Stands = session.World.Switches,
     };
     double last = timer.Elapsed.TotalSeconds, titleAt = 0;
+    // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
+    // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
+    var townTalk = new TownTalk();
+    bool useKept = false;
     double pendingYaw = 0, pendingPitch = 0;
     int pendingNotch = 0;
     bool pendingReverser = false;
@@ -838,6 +849,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         pendingCarLamp |= Hit(Control.CarLamp);
         // Dead (App. D.10), a bookmark of whom you're watching (D.12): sent on the press, as intent.
         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
+        if (Hit(Control.Use) && session.World.Town is { } town && townTalk.Use(town, Hud.TownTarget(session), now))
+            useKept = true;
+        if (!Held(Control.Use))
+            useKept = false;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
@@ -899,7 +914,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             var buttons = PlayerButtons.None;
             if (Held(Control.Run)) buttons |= PlayerButtons.Run;
             if (Held(Control.Jump)) buttons |= PlayerButtons.Jump;
-            if (Held(Control.Use)) buttons |= PlayerButtons.Use;
+            if (Held(Control.Use) && !useKept) buttons |= PlayerButtons.Use;
             if (Held(Control.Fire)) buttons |= PlayerButtons.Fire;
             if (Held(Control.Throw)) buttons |= PlayerButtons.Throw;
             if (proto is null)
@@ -1092,6 +1107,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
+        // The town's card closes once you've walked off; whoever you're talking to turns to you.
+        if (session.World.Town is { } here)
+        {
+            var eye = PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight;
+            townTalk.Step(here, eye, now);
+            scene.TownFacing = townTalk.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } talking ? (talking.Index, eye) : null;
+        }
         lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
@@ -1119,6 +1141,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.FireDoorOpen = session.Train.Boiler.FireDoorOpen;
         scene.SinceShovel = session.Train.Boiler.SinceShovel;
         scene.ChoirGathering = session.World.Choir.Present ? 1 : (float)session.World.Choir.Build;
+        // The dark answering a draw (note 287): eyes at the lamp's edge.
+        scene.Answer = session.World.Answer;
+        scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
+        // Watched afoot (note 327): eyes toward what lives at the stop.
+        scene.Watcher = session.World.Watcher;
+        scene.WatcherShowSeconds = session.World.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;
         scene.StokerLowFor = stokerSince < 0 ? -1 : scene.Time - stokerSince;
@@ -1130,6 +1158,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;
+        // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
+        scene.Breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
+        scene.Mending = scene.Breaks.Count > 0 ? GreyboxScene.MendingAt(scene.Breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
@@ -1164,7 +1195,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
@@ -1202,7 +1233,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         VrPanelContent? onPanel = null;
         if (vr is not null && showHud)
         {
-            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2);
+            Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, now: now);
             if (session.World.Run?.Over == true)
                 vrOverlay.TextCentred(240, 248, campaign is not null ? "A: BACK TO THE FORTRESS" : "A: BACK", new Vector4(1, 0.7f, 0.3f, 1));
             onPanel = new VrPanelContent(vrHud!, vrOverlay, 480, 270);
@@ -1256,7 +1287,8 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
     if (session.World.Run?.Report is { } report)
     {
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
-        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music };
+        // Note 281: and the town it left, so the next night's isn't the same custom again.
+        var settled = Campaign.Settle(campaign, report) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         saves.Save(settled);
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;

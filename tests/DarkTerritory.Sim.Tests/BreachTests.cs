@@ -48,6 +48,9 @@ public class BreachTests
             Health = P.Health,
             Yaw = Math.PI, // facing +Z, the car's rear end
             LineHint = Train.Cars[car].FrontDistance,
+            // The starting kit, the wrench in hand (note 301: it's what boards a breach up).
+            Kit = P.StartingKit,
+            HeldSlot = 1,
         };
 
         public void Run(double seconds, Func<int, PlayerIntent>? intent = null)
@@ -123,14 +126,22 @@ public class BreachTests
         Assert.Null(Breaches.Within(r.Crew[1], r.Train));
         r.Run(board + 1, _ => Use);
         Assert.True(r.Train.Vehicles[car].Breached);
-        // At the hole: most of the way, then let go, and that board's started over.
+        // At the hole with the crowbar in hand: nothing (note 301: it's the wrench that mends).
+        r.Crew[1] = r.Inside(car, room.Max.Z - 0.7) with { HeldSlot = 0 };
+        Assert.Null(Breaches.Within(r.Crew[1], r.Train));
+        Assert.Equal(car, Breaches.AtHole(r.Crew[1], r.Train));
+        r.Run(board + 1, _ => Use);
+        Assert.True(r.Train.Vehicles[car].Breached);
+        // The wrench in hand: most of the way, then let go, and what's done is kept while they're still at it (a few
+        // presses do it, Sea of Thieves style).
         r.Crew[1] = r.Inside(car, room.Max.Z - 0.7);
         Assert.Equal(car, Breaches.Within(r.Crew[1], r.Train));
         r.Run(board - 1, _ => Use);
         Assert.True(r.Train.Vehicles[car].Breached);
-        r.Run(0.1);
-        Assert.Equal(0, r.Crew[1].ActionProgress);
-        r.Run(board - 0.5, _ => Use);
+        double kept = r.Crew[1].ActionProgress;
+        r.Run(0.5);
+        Assert.Equal(kept, r.Crew[1].ActionProgress);
+        r.Run(0.5, _ => Use);
         Assert.True(r.Train.Vehicles[car].Breached);
         r.Run(0.6, _ => Use);
         Assert.False(r.Train.Vehicles[car].Breached);
@@ -161,7 +172,8 @@ public class BreachTests
     public void WithTheKitFlagOnlyTheRepairKitCarriedBoardsItUp()
     {
         // needsKit: only someone carrying the repair kit (note 150: an item) boards it up; a wrench in hand isn't it.
-        var kit = T with { Breach = T.Breach with { NeedsKit = true } };
+        // (Where the wrench isn't the repair tool: note 301's repair.wrench off.)
+        var kit = T with { Breach = T.Breach with { NeedsKit = true }, Repair = T.Repair with { Wrench = false } };
         var r = new Rig(speed: 0, train: kit);
         const int car = 2;
         var room = r.Train.Frames[car].Shape.Interior!.Value;
@@ -245,7 +257,8 @@ public class BreachTests
         // boarded up". Shut in a whole car, nobody's taken (EnemyTests); the same car breached, they are.
         foreach (bool breached in new[] { false, true })
         {
-            var n = new Night(6, speed: 10);
+            // (Who it takes, under the old rule: note 288's seize, broken by a hush, is DrivenOffTests'.)
+            var n = new Night(6, speed: 10, enemies: E with { Choir = E.Choir with { DrivenOff = false } });
             n.Crew[1] = new PlayerState { Parent = 3, Position = new Double3(-0.45, T.Geometry.Interior!.FloorHeight, 0), Surface = Surface.Deck, Health = P.Health };
             if (breached)
                 n.Train.Vehicles[3].Breach(Breaches.EndWall(n.Train.Frames[3].Shape)!.Value);
@@ -274,6 +287,7 @@ public class BreachTests
             Health = P.Health,
             Cold = P.Cold.OnsetSeconds * 0.8,
             LineHint = train.Cars[car].FrontDistance,
+            Kit = P.StartingKit,
         };
         for (uint tick = 0; tick < SimConstants.TickRate * 40 && train.Vehicles[car].Breached; tick++)
         {

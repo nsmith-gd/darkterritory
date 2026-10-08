@@ -119,6 +119,106 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice()
+    {
+        var m = Menu();
+        Choose(m, "CAMPAIGN");
+        Choose(m, "SLOT 2: EMPTY");
+        // Note 320: the crew's name is a field (note 267: typed into only once entered), kept to the slot at once.
+        Pick(m, "NAME");
+        Assert.Equal("NAME: CREW 2", m.Items[m.Selected].Label);
+        m.Type("wasd");
+        Assert.Equal("Crew 2", m.Open!.Name);
+        Assert.Null(m.Select());
+        Assert.Equal(TextField.CrewName, m.Editing);
+        for (int i = 0; i < 6; i++)
+            m.Erase();
+        m.Type("The Night Shift");
+        Assert.Equal("NAME: THE NIGHT SHIFT_", m.Items[m.Selected].Label);
+        Assert.Equal("The Night Shift", Saves.Load(2)!.Name);
+        Assert.Null(m.Select());
+        Assert.False(m.WantsText);
+        Assert.Equal(Screen.Fortress, m.Screen);
+        // Erased to nothing and left, it's the slot's name again.
+        m.Select();
+        for (int i = 0; i < 30; i++)
+            m.Erase();
+        Assert.Equal("NAME: _", m.Items[m.Selected].Label);
+        m.Back();
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.Equal("Crew 2", Saves.Load(2)!.Name);
+        // Typed into again, it carries on from the name shown, as the lobby's does.
+        m.Select();
+        m.Type("s");
+        Assert.Equal("Crew 2s", m.Open!.Name);
+        for (int i = 0; i < 7; i++)
+            m.Erase();
+        m.Type("Nightjars");
+        m.Select();
+        m.Back();
+        Assert.Contains(m.Items, i => i.Label == "SLOT 2: NIGHTJARS");
+
+        // Deleting asks first, KEEP IT selected; keeping it, or backing out, leaves the slot as it was.
+        m.ShowFortress(2);
+        Assert.Null(Choose(m, "DELETE THIS CREW"));
+        Assert.Equal(Screen.DeleteCrew, m.Screen);
+        Assert.Equal(["KEEP IT", "DELETE NIGHTJARS"], m.Items.Select(i => i.Label));
+        Assert.Equal(0, m.Selected);
+        Assert.Contains("gone for good", m.Items[1].Detail);
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Choose(m, "DELETE THIS CREW");
+        m.Back();
+        Assert.Equal(Screen.Fortress, m.Screen);
+        Assert.NotNull(Saves.Load(2));
+        // Confirmed, the slot's empty and the list says so.
+        Choose(m, "DELETE THIS CREW");
+        Assert.Null(Choose(m, "DELETE NIGHTJARS"));
+        Assert.Equal(Screen.Slots, m.Screen);
+        Assert.Null(m.Open);
+        Assert.Null(Saves.Load(2));
+        Assert.Equal("Slot 2 is empty.", m.Message);
+        Assert.Contains(m.Items, i => i.Label == "SLOT 2: EMPTY");
+    }
+
+    [Fact]
+    public void TheModsScreenListsWhatsInstalledInOrderAndWhatCouldntLoad()
+    {
+        // Note 323: nothing installed, and the title has no MODS.
+        var m = Menu();
+        Assert.DoesNotContain(m.Items, i => i.Label == "MODS");
+
+        m = Menu();
+        m.InstalledMods = [new("LateDispatch", "1.0.0", "Dispatch holds the main line ten minutes past dawn."), new("Fog_Banks", "0.3.1", "")];
+        m.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
+        Pick(m, "MODS");
+        Assert.Equal("2 laid over the game, 1 problem.", m.Items[m.Selected].Detail);
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        Assert.Equal(["LATE DISPATCH 1.0.0", "FOG BANKS 0.3.1", "NIGHTJAR-LONGER NIGHTS: NOT LOADED", "BACK"], m.Items.Select(i => i.Label));
+        Assert.Equal("Dispatch holds the main line ten minutes past dawn.", m.Items[0].Detail);
+        Assert.Equal("No description.", m.Items[1].Detail);
+        // A long description (Thunderstore allows 250 characters) wraps inside the frame.
+        var wordy = Menu();
+        wordy.InstalledMods = [new("LateDispatch", "1.0.0", string.Join(' ', Enumerable.Repeat("Dispatch holds the main line past dawn.", 6)))];
+        wordy.Show(Screen.Mods);
+        var o = new Overlay();
+        wordy.Draw(o, 480, 270);
+        Assert.All(o.Vertices, v => Assert.InRange(v.Position.X, -2, 482));
+        Assert.Contains("SharedCore", m.Items[2].Detail);
+        // Read, not changed: Enter on a mod does nothing; BACK and Esc go back to the title.
+        Assert.Null(m.Select());
+        Assert.Equal(Screen.Mods, m.Screen);
+        m.Back();
+        Assert.Equal(Screen.Title, m.Screen);
+
+        // Started with --no-mods: listed, and said to be off.
+        m.ModsOff = true;
+        Pick(m, "MODS");
+        Assert.Equal("2 installed, all off tonight (--no-mods), 1 problem.", m.Items[m.Selected].Detail);
+    }
+
+    [Fact]
     public void AContractStartsACampaignNightAloneOrHosted()
     {
         var m = Menu();
