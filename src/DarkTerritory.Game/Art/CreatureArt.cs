@@ -139,6 +139,27 @@ public sealed class CreatureArt
     /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
     public const double HoundRunOffSeconds = 4.0;
 
+    /// <summary>
+    /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
+    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark.
+    /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
+    /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
+    /// </summary>
+    public static (double Out, double Seconds)? Retreat(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Climber => (5.0, 3.0),        // outnumbered, held off, or given up on a fast train: down off it and away
+        EnemyKind.Whistler => (8.0, 2.0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
+        EnemyKind.Ribbit => (4.0, 3.0),         // the pack's eaten: off in hops
+        EnemyKind.Gaunt => (1.5, 6.0),          // its loot taken or talked down: on walking, out past its 30 m
+        EnemyKind.Switchman => (4.0, 3.0),      // the points thrown back, or the train gone by: off from the lever
+        EnemyKind.TippyToesie => (5.0, 2.5),
+        EnemyKind.SootChildren => (3.0, 3.0),
+        EnemyKind.Passenger => (3.0, 3.0),      // unmasked, off the back of the train
+        EnemyKind.Follower => (4.0, 3.0),
+        EnemyKind.CinderHound => (6.0, 3.0),    // one aboard (its car cut, or its kill made): over the side and away
+        _ => null,
+    };
+
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
 
@@ -1121,6 +1142,9 @@ public sealed class CreatureArt
             Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
         }, seed: seed);
 
+    /// <summary>The Follower's nest built up as it builds it (note 460): the follower_nest model's own pieces, grown in turn.</summary>
+    readonly NestBuild Nest = new();
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1601,11 +1625,15 @@ public sealed class CreatureArt
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
+                    // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the
+                    // lobes swelling up out of the heap one after another, the hollow last.)
                     if (nesting && PropArt.Of(Look).Get("follower_nest") is { } heap)
                     {
-                        float grown = 0.25f + 0.75f * swell;
-                        mesh.Append(heap, Matrix4x4.CreateScale(grown, grown * (0.6f + 0.4f * swell), grown) * model);
-                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * grown * (0.6f + 0.4f * swell), 0) * at;
+                        var (built, top) = Nest.At(heap, swell);
+                        mesh.Append(built, model);
+                        // (Swollen about itself, then set on the heap: lifted after the swell's scale, its 0.6 m went up
+                        // with it to 1.5 m, the Follower hanging in the air over its own nest.)
+                        at = Matrix4x4.CreateScale(1 + FollowerSwell * swell) * Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * model;
                     }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
