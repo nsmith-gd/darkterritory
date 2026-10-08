@@ -112,8 +112,9 @@
     "overfillDamagePerLoad": 0.6
   },
   // The mine head's tipple (spec D.2: "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur"; ARCHITECTURE
-  // §8 note 423). A cradle on the spur "back" from the buffer stop (or as far back as the standing track allows), at the toe end of
-  // where the cars stand, with the ore bin "binLateral" out on the site's side, its chute "binHeight" up, and the lever "leverAlong"
+  // §8 note 423). A cradle on the spur "behindLift" behind the steam lift's chute, one car's pitch (train.json carLength 14 and
+  // couplingGap 1.5), so with a car under the chute the one behind it is in the cradle and the two load at once (without a lift,
+  // "back" from the buffer stop, or as far back as the standing track allows), with the ore bin "binLateral" out on the site's side, its chute "binHeight" up, and the lever "leverAlong"
   // on from the cradle and "leverLateral" out, worked within "leverReach". A cargo car whose middle stands within "tolerance" of
   // the cradle is in it. Held "clampSeconds" at the lever with the train standing, the cradle clamps it: within "goodClamp" of
   // the cradle's middle, a good clamp; further off, a bad one (the car was stood carelessly). Held on, the cradle rolls the car
@@ -124,6 +125,7 @@
   // The train moving with a car clamped is a bad clamp at once. The roll is machinery, and loud.
   "tipple": {
     "back": 84,
+    "behindLift": 15.5,
     "binLateral": 7,
     "binHeight": 6,
     "leverAlong": 3.5,

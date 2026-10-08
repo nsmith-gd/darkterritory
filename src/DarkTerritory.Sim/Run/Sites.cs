@@ -209,6 +209,7 @@ public sealed record ConveyorTuning
 public sealed record TippleTuning
 {
     public double Back { get; init; } = 84;
+    public double BehindLift { get; init; } = 15.5;
     public double BinLateral { get; init; } = 7;
     public double BinHeight { get; init; } = 6;
     public double LeverAlong { get; init; } = 3.5;
@@ -491,11 +492,12 @@ public sealed class Site
         }
         if (Has(ModuleKind.Tipple))
         {
-            // The cradle on the track at the toe end of the standing cars (laid from the buffer stop, as the spout is), the ore
-            // bin out on the site's side with its chute over where a car rolled toward it would take it, the lever on from it.
+            // The cradle on the track a car's pitch behind the lift's chute, so a car under the chute and the one behind it in the
+            // cradle load at once (without a lift, laid from the buffer stop as the spout is); the ore bin out on the site's side
+            // with its chute over where a car rolled toward it would take it, the lever on from it.
             var tp = t.Tipple;
             double back = Math.Min(tp.Back, Math.Max(0, (room ?? track.Length - mid) - 4));
-            TippleAlong = room is null ? mid : Math.Max(0, track.Length - back);
+            TippleAlong = Has(ModuleKind.Lift) ? Math.Max(0, LiftAlong - tp.BehindLift) : room is null ? mid : Math.Max(0, track.Length - back);
             Cradle = At(TippleAlong - mid, 0);
             TippleBin = At(TippleAlong - mid, tp.BinLateral, tp.BinHeight);
             TippleLever = At(TippleAlong - mid + tp.LeverAlong, tp.LeverLateral, 0.9);
