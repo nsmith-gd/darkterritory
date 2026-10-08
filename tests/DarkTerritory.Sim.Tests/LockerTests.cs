@@ -340,7 +340,7 @@ public class LockerTests
     public void AFoundKitLyingUnclaimedCantStrandANight()
     {
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 1);
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(KitRule, 4, 0)), route.Build(), 3_000, Tuning.Boiler);
         var world = new World(train, Tuning.Combat);
         world.EnableBodies();
         world.EnableRun(Tuning.Run, route, 600, authority: true);
