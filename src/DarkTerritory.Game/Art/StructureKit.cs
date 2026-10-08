@@ -742,7 +742,30 @@ public static class StructureKit
             case FacilityKind.WreckYard:
                 {
                     // Heaps of what's left of trains: carbodies on their sides and on each other, wheelsets, scrap; the
-                    // sheds behind, rusted through.
+                    // sheds behind, rusted through. The modelled ones where they're built (facility_pieces dead_boxcar,
+                    // dead_gondola, loose_truck, yard_shed, note 427): the yard's older dead, from before the train's time
+                    // (the heaps the crew work are the train's own, SceneArt.Wreckage), off their trucks, tipped, one across
+                    // another, one on its side; trucks loose among them; the engine shed rusted through. Laid out clear of
+                    // the sim's heaps (facilities.json "wreck": their facility-frame z is fixed, whichever side the yard is
+                    // on) and of the winch's sled run at z -33.
+                    if (k.Look is { } built && PropArt.Of(built).Get("yard_shed") is not null)
+                    {
+                        Lying(k, "dead_boxcar", s * 11, 0, -20, 0.15f, 0.35f, 1.45f);
+                        Lying(k, "dead_gondola", s * 12.5f, 0, -6, -0.2f, 0, 1.5f);
+                        // Dumped half across the gondola: its -Z end up on the gondola's side, the other in the ground.
+                        Lying(k, "dead_boxcar", s * 14.5f, 0.75f, -1.5f, -0.55f, 0.12f, 1.45f, 0.24f);
+                        Lying(k, "dead_boxcar", s * 17, 0, 6, -0.1f, 1.45f, 1.45f);
+                        Lying(k, "dead_gondola", s * 20, 0, 18, 0.3f, -0.3f, 1.5f);
+                        Lying(k, "dead_boxcar", s * 9.5f, 0, 14, -0.1f, -0.5f, 1.45f);
+                        Piece(k, "loose_truck", s * 7, 20, 0.3f);
+                        Piece(k, "loose_truck", s * 23, -14, -0.8f);
+                        Piece(k, "loose_truck", s * 15, 26, 1.2f);
+                        Piece(k, "loose_truck", s * 6.5f, -12, 0.6f);
+                        // Its open end (+X: the rails in, a door down) toward +Z on either side, off the sleds' run at -33: turned
+                        // as for the right side wherever it is (its long walls are alike).
+                        Piece(k, "yard_shed", s * 34, 0, Facing(1));
+                        break;
+                    }
                     for (int i = 0; i < 6; i++)
                     {
                         float x = s * (10 + (i % 3) * 5.5f), z = -22 + i * 8.5f;
@@ -792,6 +815,22 @@ public static class StructureKit
 
     /// <summary>The yaw that turns a modelled piece (its front the model's +Z) to face the line from side <paramref name="s"/>.</summary>
     static float Facing(float s) => -s * MathF.PI / 2;
+
+    /// <summary>
+    /// A modelled piece lying wrecked: long along the line (its +X turned to Z), rolled about its length by
+    /// <paramref name="lean"/> onto its low edge (dug in a little), its -Z end tipped up by <paramref name="pitch"/> (one end
+    /// on the ground, the other up on something), turned by <paramref name="yaw"/>, at <paramref name="y"/> over the ground.
+    /// <paramref name="halfWidth"/> is how far its low edge is from its middle.
+    /// </summary>
+    static void Lying(Kit k, string name, float x, float y, float z, float yaw, float lean, float halfWidth, float pitch = 0)
+    {
+        if (k.Look is { } look && PropArt.Of(look).Get(name) is { } piece)
+        {
+            float lift = MathF.Abs(MathF.Sin(lean)) * halfWidth - 0.15f;
+            k.Append(piece, Matrix4x4.CreateRotationY(MathF.PI / 2) * Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationX(pitch)
+                * Matrix4x4.CreateRotationY(yaw) * Kit.At(x, y + lift - 0.3f, z));
+        }
+    }
 
     /// <summary>A modelled piece (tools/models facility_pieces) set among a facility's buildings where it's built.</summary>
     static void Piece(Kit k, string name, float x, float z, float yaw, float scale = 1)

@@ -1159,10 +1159,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 // that frame's +Z is back along the track.
                 var foot = site.Track.Sample(site.Mid - (site.Spur >= 0 ? 25 : 0) - Opt(args, "--shift", 0));
                 var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized * site.Side;
-                camera = Camera.LookAt(foot.Position + right * 5 + foot.Tangent * 50 * near + Double3.Up * 1.7, foot.Position + right * outM + Double3.Up * 15, 72);
-                // --aerial: the whole site from up over the far side of the track, its buildings and how they lie (note 410).
+                // --look h: up at h m on them instead of 15 (2: along the ground among a yard's wrecks, note 427).
+                camera = Camera.LookAt(foot.Position + right * 5 + foot.Tangent * 50 * near + Double3.Up * 1.7, foot.Position + right * outM + Double3.Up * Opt(args, "--look", 15), 72);
+                // --aerial: the whole site from up over the far side of the track, its buildings and how they lie (note 410); with
+                // --close, from half as far.
                 if (args.Contains("--aerial"))
-                    camera = Camera.LookAt(foot.Position - right * 30 + foot.Tangent * 25 + Double3.Up * 55, foot.Position + right * outM + Double3.Up * 2, 70);
+                    camera = Camera.LookAt(foot.Position + (foot.Tangent * 25 + Double3.Up * 55 - right * 30) * near, foot.Position + right * outM + Double3.Up * 2, 70);
             }
             else if (waiting is not null)
             {
