@@ -5623,3 +5623,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Walkers feeding: the gun stood dry 14.1, 9.8 and 15.4 s. Walkers filled every rack (7, 5, 7), and the gunner never left its seat. 21, 19 and 22 rounds.
         - `feedAt` -1 (the gunner fetching its own, note 374): dry 49.8, 49.9 and 86.5 s. The gunner filled all 3 racks itself, up out of its seat each time. 23, 23 and 24 rounds.
         - Both: no deaths, 5.4–5.5 km, 2 cars lost.
+
+407. **The freed survivors' finish (queue #143, E1; the art checklist's `survivor-prisoner` and `survivor-wildlander` "next"s; GDD App. D.8).** A freed player plays on as the Holdout's occupant (CrewActs.SurvivorOf), the crew figure redressed (tools/models/recipes survivor_*).
+    - **The prisoner:** the irons' scars at its wrists, a raw red-brown band between the cuff and the hand, ragged at its edges (`scars`, baked into the atlas). And a walk of its own, `shuffle` (crew_clips.py): short flat dragging steps that barely clear the ground, hunched over them, the head down, the hands held together low in front where the cuffs kept them, nodding with each step. `CreatureArt.Crewmate` plays it for the prisoner's walk (the crew's walk where a build lacks it); the run, the work and the rest are the crew's.
+    - **The wildlander:** its face blacked further with the box room's soot (only the eyes' whites and a lip spared), and the fur at its collar and shoulders standing off the coat in ragged tufts in the game mesh itself, not only in its shading (`ruff`, through crewfigure's new `low_shapes`: a part displaced before its high copy's made from it, so the silhouette is shaggy and the bake follows it).
+    - **The child's carried pose** (the checklist's `child-survivor` "next") was already there: soot_child's `clutch`, clinging to whoever carries it (SceneArt).
+    - **Verified:** `dt screenshot --act idle,walk --survivor prisoner --view crewside` (the scars, the shuffle); `--survivor wildlander`; `dt art clearance --only crew` adds no failures; `CreatureArtTests` carries `shuffle`. The bakes take 25–50 minutes each here.
+
