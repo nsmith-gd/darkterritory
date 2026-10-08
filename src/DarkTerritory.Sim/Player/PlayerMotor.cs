@@ -1055,7 +1055,7 @@ public static class PlayerMotor
     static void StepLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
     {
         var frame = train.Frames[s.Parent];
-        var ladder = NearestLadder(frame.Shape, s.Position);
+        var ladder = HeldLadder(frame.Shape, s.Position);
         var inward = ladder.Inward;
         if (intent.Has(PlayerButtons.Jump) || intent.Has(PlayerButtons.Use) && intent.MoveZ < -0.5)
         {
@@ -1106,6 +1106,26 @@ public static class PlayerMotor
         double dx = hand.X - ladder.Foot.X, dz = hand.Z - ladder.Foot.Z;
         return dx * dx + dz * dz <= grab * grab && hand.Y >= ladder.Foot.Y && hand.Y <= ladder.Top + 0.4;
     }
+
+    /// <summary>
+    /// The ladder a climber is on: the nearest, where it still is. Note 438: a car's shape changes under a climber when the car
+    /// behind it goes (the last car has no rear end ladder: there's no gap to go down to). The gunner on car 9's went over the
+    /// top by the nearest one left, a side ladder facing across, so sideways past the car's end onto nothing at 20 m/s. The
+    /// end it's on is still in its hands: a ladder there, up the face it's on, over the top onto the roof.
+    /// </summary>
+    static Ladder HeldLadder(CarShape shape, Double3 p)
+    {
+        var nearest = NearestLadder(shape, p);
+        double dx = nearest.Foot.X - p.X, dz = nearest.Foot.Z - p.Z;
+        if (dx * dx + dz * dz <= HeldReach * HeldReach)
+            return nearest;
+        var inward = Math.Abs(p.Z) > shape.HalfLength ? new Double3(0, 0, -Math.Sign(p.Z))
+            : Math.Abs(p.X) > shape.HalfWidth ? new Double3(-Math.Sign(p.X), 0, 0) : nearest.Inward;
+        return new Ladder(p with { Y = 0 }, shape.RoofHeight, inward);
+    }
+
+    /// <summary>How far a climber can be from a ladder's foot and still be on it (m): it's put at the foot's x and z.</summary>
+    const double HeldReach = 0.05;
 
     static Ladder NearestLadder(CarShape shape, Double3 p)
     {
