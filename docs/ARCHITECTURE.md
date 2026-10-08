@@ -6546,3 +6546,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `LetterboxTests` covers 16:9 (filled, 1366x768 included), 16:10, 21:9, 4:3 and a tall window, plus the mouse read inside the frame and off it on a bar.
       - The app's real window was captured under Xvfb at 1280x800, before (stretched 11% taller) and after (bars top and bottom), and at 2560x1080 after (bars at the sides). I looked at each.
     - **Not yet:** a wider view for ultrawides; a choice of 16:10 resolutions (the Deck draws 1280x720 inside its 1280x800).
+
+449. **Each stop's own modules (A1, queue #185; spec D intro: "POIs are procedurally assembled from a module grammar, so no two facilities operate identically"; D.1: "POI = SPUR TOPOLOGY + 2–4 LOADING MODULES + POWER STATE + SCALE").** The topology, power state and scale already varied by stop (the line plan and B4's stop layouts). The modules didn't: every facility of a kind had its kind's whole list every night (facilities.json `kinds`). A docs-vs-build audit found it (A1's log, 8 Oct).
+    - **The draw** (`FacilityTuning.ModulesFor`, called where `Run` builds its sites):
+        - A stop always has its kind's signature, the first in `kinds`: the spout, the rakes, the crane, the ramp, the wreck, the lift, the hose, the depot's crates.
+        - Each of the rest of its kind's list, and each of its kind's `extras`, comes with `draw.chance` (0.6). The coin is the night's seed and the stop's place in the night (`Pcg32`, its own stream).
+        - The draw is filled up to the fewest of `draw.count` ([2, 4]) and cut to the most, in that order, the kind's own before its extras.
+        - A route's own modules (T44, `dt edit`) are kept, drawn or not. With `draw.enabled` off, every stop has its kind's whole list, as before.
+        - The host and every client draw the same: nothing is sent, and the protocol's unchanged.
+    - **The extras** (`extras`, only ever drawn) are the modules a kind can take beyond its list, laid out clear of what it has. Measured with each kind's whole list and every extra drawn (`ModuleDrawTests.AnExtraModuleStandsClearOfWhatItsKindAlreadyHas`, 3 m or more on the flat, off the yard's other tracks):
+        - a winch at the switchyard (19.7 m from its crates) and at the slaughterhouse (18 m from the ramp);
+        - crates at the wreck yard (33 m from the heaps).
+        - Not the grain elevator: its crate stack would stand 0.4 m from the conveyor's belt and the winch's sled run 1.1 m from its drive house.
+        - Not the chemical works: the capstan would stand 4.1 m from the hose stand, the hose's run to the car between them.
+    - **What varies:** the mine head (its lift and one to three of the tipple, the winch and the crates once note 423's tipple lands), the foundry (its crane and the winch, the crates or both), the switchyard, the slaughterhouse and the wreck yard. The grain elevator (spout and conveyor), the chemical works (hose and crates) and the depot (crates and winch) have two, both kept.
+    - **Readings:**
+        - "2–4" is a stop's count, as D.1 says it.
+        - "Module grammar" keeps each kind's signature: GDD §18's table names each facility by it ("one spout", "overhead crane", "the herd"). So the kind is still what the stop is, and the rest is what it's like tonight.
+        - The kind's own modules always come before its extras, so a short draw keeps what GDD §18 gives the kind.
+        - It's a tuning flag; the tests that pin a kind's modules (`FacilityTests.F`, through `FacilityTests.Whole`) run with it off.
+    - **Bots:** they go by what a stop has (`Site.Has`), not its kind, and needed nothing new. `ModuleDrawTests.ABotCrewWorksAStopWhateverItDrew` drills five draws a kind never had alone: the switchyard's rakes and a winch, the slaughterhouse's ramp and a winch, the wreck yard's wreck and crates, the mine head's lift and crates, the foundry's crane and winch. Each departs loaded, its crew whole, with the winch cranked and the crates carried where there are any.
+    - **CLI:** `dt facility drill <kind>` prints the stop's modules as drawn. `--modules a,b,c` pins them, and `--all-modules` gives the kind's whole list (`FacilityWork.Find`'s `modules`).
+    - **Verified:**
+        - `ModuleDrawTests` (10). Every stop has its signature and two to four of its kind's, in order, the same twice; a kind with more than two to draw from varies (three or more sets over 800 draws); off, the whole list; a route's own are kept; a night's mine heads and foundries aren't all alike; a client draws what the host does; the extras' clearances; the five bot drills.
+        - The suites with the draw on for everything not pinning a kind's modules.
