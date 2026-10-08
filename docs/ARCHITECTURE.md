@@ -4935,5 +4935,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - **The cab, less a tram:** the roof's front corner cut back on a chamfer over the windows (`CabChamfer`) instead of a brow out over them; the windscreen's posts raked back with it; the side slits narrower (0.28 m).
       - **The guns' shields** (`TrainKit.GunShield`): riveted plate round each cannon's carriage, turning with it, low enough for the seated gunner to aim over, open behind: the reference's turret.
       - **Views:** `wayin` is now in the corridor, forward to the cab. The frame: the fireman view (VR, `dt perf`) 1,495,136 of 1,500,000; the engine 18,218 triangles and its dressing 1,800.
+      - **The Stella Maris in the headlamp** (the director, 8 Oct: "a cool symbol for the maritimes in this world, a world dominated by monsters, in the headlamp of the train"): the lamp's cage is the Acadian flag's gold star, the star of the sea sailors steered home by, five-pointed in brass on a ring across the lens (`TrainKit.Stella`), dark against the lamp's glow from up the line. `dt screenshot --view headlamp` (new, close on it).
     - **Not yet:** a gun car's casemate out of the reference; the bogies under plate; the rupture on the hood's side.
 
