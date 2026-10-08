@@ -2048,6 +2048,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return home;
         // Nothing more to carry: the village's houses, if there's time and a share of hands for it (note 326); else the doors
         // shut behind us (an open car is a cold one), and aboard.
+        // The site's crates in: the rest of the yard's, on foot (note 403); then the village.
+        // (On with one we've set out for, whoever else has a crate in their arms: that's a crate to load too.)
+        if (!heavy && _setDown is null && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
+            return fetch;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
             return errand;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
@@ -2129,6 +2133,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         }
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, side);
+        // A crate from elsewhere in the yard in our arms (note 403): back round the sheds, and round the train if it was
+        // across it, to these steps first.
+        if (mine is { Kind: Physics.BodyKind.Cargo }
+            && CrateHome(self, world, p, mine, frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 })) is { } back)
+            return back;
         // On the far side of the train from the steps there's no way round on foot: put it down, over the train (the
         // walker climbs the nearest car; off it, we get down on this side), and back to it.
         var (_, across) = TrackCoords(train.Line, p.Spur.Index, self.Position, self.LineHint);
