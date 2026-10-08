@@ -25,6 +25,35 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// A hot axle box (note 331): smoke curling off the bogie, thin as it starts to squeal and thick and dark as it's about to
+    /// catch (<paramref name="heat"/> 0..1), the train's wind dragging it back along the car; and the box glowing dull red
+    /// from a third of the way. <paramref name="box"/> the box, <paramref name="u"/>/<paramref name="b"/> the car's up and back.
+    /// </summary>
+    public void HotBoxSmoke(MeshBuilder mesh, Vector3 box, Vector3 u, Vector3 b, float heat, float speed, double t, int seed)
+    {
+        if (_smoke < 0 || heat <= 0.12f)
+            return;
+        float thick = Math.Clamp((heat - 0.12f) / 0.6f, 0, 1);
+        int puffs = 4 + (int)(thick * 10);
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(k * 1.71f + seed * 5.3f), period = 1.8f + h;
+            float age = (float)((t * (0.9 + 0.3 * h) + h * 7) % period), s = age / period;
+            var p = box + u * (age * 0.7f) + b * (MathF.Abs(speed) * age * 0.5f)
+                + new Vector3(MathF.Sin(age * 2.1f + h * 6) * 0.15f, 0, MathF.Cos(age * 1.7f + h * 4) * 0.15f) * s;
+            float a = (0.35f + 0.45f * thick) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.3f + 0.05f));
+            float grey = 0.72f - 0.22f * thick;
+            mesh.Billboard(p, 0.25f + s * (0.9f + thick * 1.1f), h * 6.28f + age * 0.3f, new Vector4(new Vector3(grey, grey * 0.97f, grey * 0.94f), a),
+                _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (heat > 0.35f && _spark >= 0)
+        {
+            float glow = (heat - 0.35f) / 0.65f * (0.75f + 0.25f * MathF.Sin((float)t * 7 + seed));
+            mesh.Billboard(box, 0.9f, 0, new Vector4(1.0f, 0.35f, 0.08f, 0.8f * glow), _spark, FxBlend.Additive, 0, 2);
+        }
+    }
+
+    /// <summary>
     /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
     /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
     /// </summary>

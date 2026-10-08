@@ -1834,6 +1834,20 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         var train = world.Train;
         if (!train.Boiler.Ruptured || !self.Alive)
             return null;
+        // Note 301: the wrench is the repair tool and everyone carries one, so it's mended where the bot stands, in the cab:
+        // the fireman, or the driver with nobody else there. The wrench into hand, at the firebox, and worked till it's whole.
+        if (Repairs.ByWrench(train))
+        {
+            if (!PlayerMotor.InCab(self, train) || !Fireman && Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train)) == true)
+                return null;
+            if (Repairs.WrenchKey(self) is var key and > 0)
+                return new PlayerIntent { Select = key };
+            if (!Repairs.WrenchInHand(self))
+                return null;
+            var fire = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+            var (step, there) = WarmUp.Steer(self, FiringSpot(fire, Fireman ? -1 : 1), FacingFire);
+            return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
+        }
         var vehicles = train.Dynamics.Consist.Vehicles;
         int kitCar = vehicles.Count > 1 ? vehicles[1].Id : -1;
         if (!Fireman && !self.Has(PlayerFlags.RepairKit)
@@ -2248,11 +2262,14 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                 // boarding needs it: out, and warm somewhere else.
                 if (train.Vehicles[_car].Breached)
                 {
-                    if (Barred?.Invoke(_car) == true || train.Dynamics.Tuning.Breach.NeedsKit && !self.Has(PlayerFlags.RepairKit))
+                    if (Barred?.Invoke(_car) == true || (Repairs.ByWrench(train) ? !Kit.Has(self.Kit, Tool.Wrench) : train.Dynamics.Tuning.Breach.NeedsKit && !self.Has(PlayerFlags.RepairKit)))
                     {
                         _outEnd = WayOut(self, train);
                         return Next(Step.Reopen);
                     }
+                    // Note 301: the wrench into hand first, where it's what boards it up.
+                    if (Repairs.ByWrench(train) && Breaches.AtHole(self, train) is not null && Repairs.WrenchKey(self) is var key and > 0)
+                        return new PlayerIntent { Select = key };
                     if (Breaches.Within(self, train) is not null)
                         return new PlayerIntent { Buttons = PlayerButtons.Use };
                     return Steer(self, Breaches.StandAt(train, _car), self.Yaw).Step;
@@ -2721,6 +2738,19 @@ public static class Heed
             && (tick + (uint)selfId * 37) % (4 * SimConstants.TickRate) < SimConstants.TickRate / 3)
             intent.LookYaw = (float)(Math.PI / 10);
         return intent;
+    }
+
+    /// <summary>
+    /// A hot axle box (note 331): a bot that finds itself in reach of one (a walker through the gap behind its car, a rider
+    /// down on the ground at a stop) stops and greases it. Not the crew on the engine (the driver's at the controls), and not
+    /// a bot busy with its hands. A rescue (<see cref="Rescue"/>, after this) comes first.
+    /// </summary>
+    public static PlayerIntent HotBox(PlayerIntent intent, in PlayerState self, World world)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent == 0 || intent.Buttons != PlayerButtons.None
+            || world.Train.HotBoxTuning is not { Enabled: true } t || HotBoxes.Within(self, world.Train, t) is null)
+            return intent;
+        return new PlayerIntent { Buttons = PlayerButtons.Use };
     }
 
     /// <summary>

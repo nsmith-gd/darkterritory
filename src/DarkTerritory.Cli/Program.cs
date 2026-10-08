@@ -161,6 +161,8 @@ object RunHarness(string[] args)
         WalkAboard = route is null || Opt(args, "--start", start) < route.GateOr(routeTuning.YardLength),
         Combat = args.Contains("--no-combat") ? null : combat,
         Enemies = args.Contains("--enemies") ? enemies : null,
+        // --upkeep: the jobs the train makes as it runs (upkeep.json, note 331: the hot boxes).
+        Upkeep = args.Contains("--upkeep") ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)) : null,
         Route = route,
         Udp = args.Contains("--udp"),
         Network = online,
@@ -992,6 +994,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Math.Max(Math.Min(rbt.RuptureCoastBelow, Opt(args, "--speed", 20)), Opt(args, "--speed", 20) - rbt.RuptureDecel * Opt(args, "--ruptured", 0.8));
         train.RefreshFrames();
     }
+    // --hotbox s: car 2's axle box that many seconds hot (note 331): the smoke off its rear bogie, and the glow near the end.
+    if (Opt(args, "--hotbox", -1) is var hotFor and >= 0)
+    {
+        train.HotBoxTuning = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).HotBox;
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].HotBox = hotFor;
+    }
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1249,6 +1257,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --searched (note 326): every open house's hiding spots searched, opened up, with what they kept out on the floor.
+    DarkTerritory.Sim.Physics.Bodies? searched = null;
+    if (args.Contains("--searched") && generated is not null)
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        if (run.HidingSpots.Count == 0)
+            run.EnableLoot(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), line, null);
+        searched = new();
+        foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
+            run.Stock(searched, k, searched: true);
+    }
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1310,6 +1329,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // show (4: open, before the blink); --answer-at ahead,lateral moves them (default 60,-12: left of the rail, in the driver's window).
         Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
             ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
+        // --watcher s,lateral,height: a sign shown a crewmate afoot (note 327), its eyes there in line coordinates (as --cam;
+        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink).
+        Watcher = Str(args, "--watcher", "") is { Length: > 0 } ws && ws.Split(',').Select(double.Parse).ToArray() is var wp
+            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5), DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
+            : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
@@ -1348,6 +1372,20 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
+    // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
+    if (Str(args, "--breached", "") is { Length: > 0 } holes)
+        foreach (int i in holes.Split(',').Select(int.Parse))
+            if (i > 0 && i < train.Vehicles.Count && Breaches.EndWall(train.Frames[i].Shape) is { } wall)
+                train.Vehicles[i].Breach(wall);
+    {
+        var breaks = RepairCallouts.Of(train);
+        if (scene.Ruptured && !train.Boiler.Ruptured && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { Kind: InteractableKind.Firebox } fire)
+            breaks.Insert(0, new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        scene.Breaks = breaks;
+        if (args.Contains("--mending"))
+            scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
+    }
     // --phase s: how far through a timed act the staged crew are (the cannon's reload: 1.5 s a beat; Crewmate.Phase).
     if (args.Contains("--phase") && scene.Crew is { } phased)
         scene.Crew = [.. phased.Select(c => c with { Phase = Opt(args, "--phase", 0) })];
@@ -1395,6 +1433,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         });
         scene.Bodies = [.. scene.Bodies ?? [], .. posed];
     }
+    if (searched is not null)
+        scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
     // come down there that long ago (its burst, debris, smoke, scorch or splash, and the light of it); "doll" on the staged
@@ -2036,7 +2076,7 @@ static object HudShot(string content, string[] args)
         // (--route; deepTerritory:2 if none: frontier:7 has no tunnel on its main line), warned.
         string roofWarning = Str(args, "--roof-warning", "");
         // --bend-warning [s] (note 265): in the cab, s seconds short of a bend the speed would derail the train on (0: on it),
-        // warned. deepTerritory:2 if no --route: frontier:7 has no such bend.
+        // warned. deepTerritory:2 if no --route (every night has such bends since note 278; frontier:7's first is at km 8.8).
         if (args.Contains("--bend-warning"))
             roofWarning = "bend-cab";
         var solo = roofWarning == "bend-cab"

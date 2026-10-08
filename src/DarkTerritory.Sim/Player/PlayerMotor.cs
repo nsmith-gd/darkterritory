@@ -797,10 +797,21 @@ public static class PlayerMotor
                     local = PushOut(local, door.Box, p);
             world = frame.ToWorld(local);
         }
-        // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame.
+        // The stops' buildings (T114) and the fortresses' (T124): pushed out of each wall in its own frame. Out of one can
+        // be into the next, in an inside corner or a doorway's jamb (note 326's open houses), so round again until nothing
+        // moves (a few passes; the walls in their fixed order, so every machine settles the same).
         if (train.Walls is { } walls)
-            foreach (var w in walls.Near(world))
-                world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
+        {
+            var near = walls.Near(world).ToList();
+            for (int pass = 0; pass < 4; pass++)
+            {
+                var was = world;
+                foreach (var w in near)
+                    world = w.ToWorld(PushOut(w.ToLocal(world), w.Box, p));
+                if ((world - was).Length < 1e-9)
+                    break;
+            }
+        }
         return world;
     }
 

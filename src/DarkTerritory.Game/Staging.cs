@@ -132,6 +132,14 @@ public static class Staging
     /// <paramref name="lateral"/> m to its right (enemies.json director.draw's answerDistance and answerLateral), at an animal's
     /// eye height off the ground, <paramref name="left"/> seconds still to show.
     /// </summary>
+    /// <summary>A point by line coordinates (as `dt screenshot --cam`): <paramref name="s"/> along the line, <paramref name="lateral"/> m to its right, <paramref name="height"/> m up.</summary>
+    public static Double3 LineAt(Sim.Rail.RailLine line, double s, double lateral, double height)
+    {
+        var t = line.Sample(s);
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        return t.Position + right * lateral + Double3.Up * height;
+    }
+
     public static DrawAnswer Answer(TrainOnLine train, double left, double ahead = 60, double lateral = 12, double height = 0.7) =>
         new(left, DrawCause.Whistle, Sim.World.DrawAnswerAt(train, ahead, lateral, height), 0);
 

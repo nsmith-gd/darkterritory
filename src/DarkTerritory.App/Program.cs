@@ -642,6 +642,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Vehicles = session.Train.Vehicles,
+        HotBoxTuning = session.Train.HotBoxTuning,
         Handrails = session.Train.Dynamics.Tuning.Composition.Handrails,
         Bodies = session.World.Bodies.All,
         Diverging = session.Train.Diverging,
@@ -1157,6 +1158,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;
+        // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
+        scene.Breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
+        scene.Mending = scene.Breaks.Count > 0 ? GreyboxScene.MendingAt(scene.Breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;

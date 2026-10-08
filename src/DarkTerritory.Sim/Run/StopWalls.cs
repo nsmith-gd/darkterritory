@@ -35,7 +35,7 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
 /// comes back out of it), nor a well. Built from the route alike on every machine, so a client predicts walking into one
 /// exactly as the host has it.
 /// </summary>
-public sealed class StopWalls
+public sealed partial class StopWalls
 {
     const double Cell = 32;
     readonly List<Wall> _walls = [];
@@ -100,6 +100,12 @@ public sealed class StopWalls
     /// </summary>
     public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> OpenWalls(StopBuilding b)
     {
+        if (Composite(b))
+        {
+            foreach (var w in CompositeWalls(b))
+                yield return w;
+            yield break;
+        }
         double hx = b.Length / 2, hy = b.Width / 2, t = WallThickness, door = DoorWidth / 2;
         var (fx, fy) = Front(b);
         // A wall from a to b along its run, less the doorway if it's the front.
@@ -120,6 +126,11 @@ public sealed class StopWalls
     /// </summary>
     public static (double X, double Y) InsideLocal(StopBuilding b, ContainerKind kind, int index)
     {
+        if (Composite(b))
+        {
+            var k = KeptComposite(b, kind, index);
+            return (k.FindX, k.FindY);
+        }
         var (fx, fy) = Front(b);
         // Out in the room in front of what it was kept in, which stands between it and the wall.
         double margin = WallThickness + FindOut;
@@ -136,6 +147,60 @@ public sealed class StopWalls
         // Along the front's outward direction f, across it s (a quarter turn from it).
         return (f * fx - s * fy, f * fy + s * fx);
     }
+
+    /// <summary>
+    /// What a find in an open house is kept in, in the house's own frame (note 326): the middle of the cupboard on the back
+    /// wall or the cabinet on a side wall (each with its find out in front of it), or the hatch or the boards (under it), and
+    /// the way it faces into the room (a unit vector). The art stands the furniture here, and a searched one is drawn opened.
+    /// </summary>
+    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index)
+    {
+        if (Composite(b))
+        {
+            var k = KeptComposite(b, kind, index);
+            return (k.X, k.Y, k.FaceX, k.FaceY);
+        }
+        var (x, y) = InsideLocal(b, kind, index);
+        var (fx, fy) = Front(b);
+        double sign = index % 2 == 0 ? 1 : -1;
+        return kind switch
+        {
+            ContainerKind.Cupboard => (x - fx * CupboardBack, y - fy * CupboardBack, fx, fy),
+            ContainerKind.Cabinet => (x - fy * sign * CabinetBack, y + fx * sign * CabinetBack, fy * sign, -fx * sign),
+            _ => (x, y, fx, fy),
+        };
+    }
+
+    /// <summary>
+    /// A cupboard's and a cabinet's half sizes (m): their depth out from the wall they stand against, and their width along
+    /// it. Not design numbers: a kitchen dresser and a sideboard.
+    /// </summary>
+    public const double CupboardDepth = 0.25, CupboardWidth = 0.5, CabinetDepth = 0.22, CabinetWidth = 0.42;
+
+    /// <summary>How far behind its find a cupboard's and a cabinet's middles stand (m): its find lies just out from its face.</summary>
+    public const double CupboardBack = FindOut - CupboardDepth, CabinetBack = FindOut - CabinetDepth;
+
+    /// <summary>
+    /// The furniture standing in an open house, as boxes in its own frame (middles and half sizes, x along its axis, y
+    /// across): a cupboard or a cabinet for each of <paramref name="kept"/> that's one, against its wall. Solid, so a crewmate
+    /// goes round it; and the art's, so what's drawn is what's walked into.
+    /// </summary>
+    public static IEnumerable<(ContainerKind Kind, double X, double Y, double HalfX, double HalfY)> Furniture(StopBuilding b, IEnumerable<StopContainer> kept)
+    {
+        foreach (var c in kept)
+        {
+            if (c.Kind is not (ContainerKind.Cupboard or ContainerKind.Cabinet))
+                continue;
+            // Its back to the wall it faces away from: its depth along the way it faces.
+            var (x, y, faceX, _) = Kept(b, c.Kind, c.Index);
+            (double depth, double width) = c.Kind == ContainerKind.Cupboard ? (CupboardDepth, CupboardWidth) : (CabinetDepth, CabinetWidth);
+            bool deepAlongX = Math.Abs(faceX) > 0.5;
+            yield return (c.Kind, x, y, deepAlongX ? depth : width, deepAlongX ? width : depth);
+        }
+    }
+
+    /// <summary>A stop-frame point in an open house's own frame, out to the world's (for the art and the hiding spots).</summary>
+    public static Pt InHouse(StopBuilding b, double x, double y) => Plan.World(b, x, y);
 
     /// <summary>Where a stop's container's find is put out: inside an open house, on a shut one's step, else where it is.</summary>
     public static Pt FindAt(StopLayout stop, StopContainer c)
@@ -167,9 +232,11 @@ public sealed class StopWalls
                 if (!Walled(stop, i))
                     continue;
                 var b = stop.Buildings[i];
-                // An open house stands as its four walls with a door (note 326); the rest as their footprints' boxes.
-                var boxes = b.Open
-                    ? OpenWalls(b).ToList()
+                // An open house stands as its four walls with a door, and its cupboards and cabinets (note 326); the rest as
+                // their footprints' boxes.
+                int index = i;
+                List<(double X, double Y, double HalfX, double HalfY)> boxes = b.Open
+                    ? [.. OpenWalls(b), .. Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY))]
                     : [.. (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)]).Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2))];
                 foreach (var (x, y, hx, hy) in boxes)
                 {

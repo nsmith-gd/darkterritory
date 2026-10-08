@@ -109,6 +109,8 @@ public sealed class Limits
         WeakBridges = R(c => c.WeakBridges);
         MomentumBanks = R(c => c.MomentumBanks);
         BrassFields = R(c => c.BrassFields);
+        Bends = R(c => c.Bends);
+        BendDerail = R(c => c.BendDerail);
         if (cfg.Demo.Enabled)
         {
             if (cfg.Demo.NoWashouts)
@@ -180,6 +182,9 @@ public sealed class Limits
     public double[] WeakBridges { get; }
     public double[] MomentumBanks { get; }
     public double[] BrassFields { get; }
+    /// <summary>Note 278: hard bends a night carries, and the speeds (m/s) they derail at.</summary>
+    public double[] Bends { get; }
+    public double[] BendDerail { get; }
     public double BudgetPerKm { get; }
     public double Corruption { get; }
     public double[] Fog { get; }
