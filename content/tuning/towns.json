@@ -60,7 +60,9 @@
   // along the line, in metres from the outer gate (negative is inside); wallOut: how far from the line its far wall
   // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
   // backed onto that wall, fronts to the line.
-  "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9 },
+  // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
+  "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
+    "greenAlong": [5, 17], "greenOut": [7, 17] },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the

@@ -45,8 +45,11 @@ public sealed partial class WorldArt
             var ground = Piece($"civic-green-{length:0}x{depth:0}", () => CivicKit.Green(_look, length, depth));
             mesh.Instances.Add(new MeshInstance(ground, Place(line, eye, town.World(gs, gd), gs, 0, -side)));
             var lamp = Piece("square-lamppost", () => SquareKit.LampPost(_look));
-            foreach (var (ls, ld) in new[] { (green.S0 + 1.5, green.Near + 1.2), (green.S1 - 1.5, green.Near + 1.2), (gs, (green.Near + green.Far) / 2 + 1.5),
-                (green.S0 + 1.5, green.Far - 1.2), (green.S1 - 1.5, green.Far - 1.2) })
+            // (A small town's green, in its square (note 490), two: by the way in and in the far corner.)
+            (double, double)[] lamps = length < 20 ? [(green.S1 - 1.5, green.Near + 1.2), (green.S0 + 1.5, green.Near + 1.2)]
+                : [(green.S0 + 1.5, green.Near + 1.2), (green.S1 - 1.5, green.Near + 1.2), (gs, (green.Near + green.Far) / 2 + 1.5),
+                    (green.S0 + 1.5, green.Far - 1.2), (green.S1 - 1.5, green.Far - 1.2)];
+            foreach (var (ls, ld) in lamps)
             {
                 var lm = Place(line, eye, town.World(ls, side * ld), ls, 0, -side);
                 mesh.Instances.Add(new MeshInstance(lamp, lm));
@@ -184,6 +187,9 @@ public sealed partial class WorldArt
         double mid = (sq.S0 + sq.S1) / 2, across = (sq.WallD + side * 3.2) / 2;
         foreach (var (s, d) in new[] { (sq.S0 + 2, side * 3.2), (mid, side * 3.2), (sq.S1 - 2, side * 3.2), (sq.S0 + 12, across), (sq.S1 - 12, across) })
         {
+            // (A small town's green in the square has its own lamps: note 490.)
+            if (plan.Green is { } green && green.Holds(s, d, 1))
+                continue;
             var m = Place(line, eye, town.World(s, d), s, 0, -side);
             mesh.Instances.Add(new MeshInstance(post, m));
             var flame = Vector3.Transform(SquareKit.LampTop, m);

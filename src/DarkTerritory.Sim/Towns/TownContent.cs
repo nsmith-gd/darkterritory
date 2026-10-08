@@ -60,6 +60,10 @@ public sealed record SquareTuning
     public double BuildingDepth { get; init; }
     public double HallWidth { get; init; }
     public double OfficeWidth { get; init; }
+    /// <summary>A small town's green (note 490): in its square's rear end, from the end along it and out from the line
+    /// (m), clear of the clerk's office, the stall and the first bench.</summary>
+    public double[] GreenAlong { get; init; } = [5, 17];
+    public double[] GreenOut { get; init; } = [7, 17];
 }
 
 public sealed record ExplorableTuning
