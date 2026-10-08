@@ -122,6 +122,16 @@ public sealed record StopCrewTuning
     public double VillageReach { get; init; } = 150;
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
+    /// <summary>Note 403: how far from where it stands a crate lying loose elsewhere in the yard may be for a hand to fetch it (m; 0: none).</summary>
+    public double YardReach { get; init; }
+    /// <summary>Note 413: how far the Choir's gathered (0 to 1) when a hand on foot at a stop gets behind a door (0: never).</summary>
+    public double ShelterAt { get; init; }
+    /// <summary>Gathered less than this, and not here, it comes out again.</summary>
+    public double ShelterOutAt { get; init; } = 0.25;
+    /// <summary>How far an open house's door may be for a hand to shelter in it rather than make for the train (m).</summary>
+    public double ShelterReach { get; init; } = 60;
+    /// <summary>A house is taken over the train while its door's no further than this many times the train's nearest car.</summary>
+    public double ShelterOverTrain { get; init; } = 2;
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>

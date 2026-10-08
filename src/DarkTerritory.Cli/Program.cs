@@ -1130,6 +1130,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // GDD §18's set pieces (note 185), each from out beyond it on its side, along the line a way, looking back at it.
             Double3 Out(Double3 from) => ((from - line.Sample(site.Spur, site.Spur >= 0 ? line.Branches[site.Spur].Toe + site.Mid : site.Mid).Position) with { Y = 0 }).Normalized;
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
+            // --close: the set pieces' cameras (the spout, the pen, the lift, the hose) half as far out (note 398).
+            double near = args.Contains("--close") ? 0.5 : 1;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
             var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
             // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
@@ -1168,21 +1170,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
                 var side = ((site.SpoutLever - site.Spout) with { Y = 0 }).Normalized;
-                camera = Camera.LookAt(site.Spout + side * 10 + Along() * 8 + Double3.Up * 3.5, site.Spout - Double3.Up * 1.5, 62);
+                camera = Camera.LookAt(site.Spout + (side * 10 + Along() * 8 + Double3.Up * 3.5) * near, site.Spout - Double3.Up * 1.5, 62);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Ramp))
-                camera = Camera.LookAt(site.Pen + Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6, (site.Pen + site.RampTop) * 0.5, 65);
+                camera = Camera.LookAt(site.Pen + (Out(site.Pen) * 6 - Along() * 14 + Double3.Up * 6) * near, (site.Pen + site.RampTop) * 0.5, 65);
             // The steam lift (note 368): from across the track, along the line toward the engine, back over the car at the bin
             // over it, the trough and the skip on the headframe beyond.
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Lift) && !args.Contains("--crank"))
             {
                 var out_ = ((site.Headframe - site.LiftChute) with { Y = 0 }).Normalized;
-                camera = Camera.LookAt(site.LiftChute - out_ * 15 + Along() * 9 + Double3.Up * 3.5, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
+                camera = Camera.LookAt(site.LiftChute + (Along() * 9 + Double3.Up * 3.5 - out_ * 15) * near, (site.LiftChute + site.Headframe) * 0.5 + Double3.Up * 3, 72);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose))
             {
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
-                camera = Camera.LookAt(site.HoseStand + side * 8 + Along() * 7 + Double3.Up * 5, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
+                camera = Camera.LookAt(site.HoseStand + (side * 8 + Along() * 7 + Double3.Up * 5) * near, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
             }
             else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
@@ -1394,7 +1396,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --scene-time s: the moment the scene's flickers are drawn at (a guttering lamp's, note 346); 0.37 as ever.
         Time = Opt(args, "--scene-time", 0.37),
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = args.Contains("--run") ? Staging.Run(train) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = args.Contains("--run") || args.Contains("--run-ahead") ? Staging.Run(train, args.Contains("--run-ahead")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
@@ -2216,6 +2218,10 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
+    // --menu crashed (note 411): the notice the game opens on after it stopped, two reports since it was last put away.
+    if (screen == DarkTerritory.Game.Screen.Crashed)
+        menu.Crash = new DarkTerritory.Game.CrashNotice("C:/Users/Nick/AppData/Local/DarkTerritory/crashes",
+            "C:/Users/Nick/AppData/Local/DarkTerritory/crashes/crash-20261008-031522.txt", 2);
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
@@ -2281,6 +2287,9 @@ static object HudShot(string content, string[] args)
     // --colours colourblind (note 348): the HUD in that palette.
     if (Str(args, "--colours", "") is { Length: > 0 } colours)
         Hud.Keys = Hud.Keys with { Colours = Enum.Parse<HudColours>(colours, ignoreCase: true) };
+    // --text-backing (note 404): the band behind the print in play.
+    if (args.Contains("--text-backing"))
+        Hud.Keys = Hud.Keys with { TextBacking = true };
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
