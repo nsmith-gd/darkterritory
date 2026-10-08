@@ -6259,3 +6259,48 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Measured** (the nine nights, main → this branch): Burned 8 → 6; crewmates home 32 → 37 of the nights' crews; all deaths 29 → 25 (Mauled 15 → 13, JumpedAtSpeed 1 → 0). The pack exclusion alone took Burned 8 → 7 and home 32 → 37; the steps fix the rest.
     - **Left for the director (not bot work):** about 13 pack fires a night on an 8-bot hot run. The bots fight what they can, but a pack left aboard keeps lighting its car, and the remaining burns are walkers fighting those fires. Note 269's ignition interval (`igniteEverySeconds`) and how often a pack is left alone are the levers.
     - **Verified:** `CarFireTests.WalkersOnASideDoorsStepsGoInAndPutTheFireOut` (three walkers on car 1's side door steps at its forward jamb, the train at 15 m/s; it fails without the step-in, a walker off the steps dead of the landing) and `PackFireTests` (no work under a pack from beside or on its car, cold or hurt; a fire with no pack is fought). PackFireTests pass on the old bots too: on their own, the pack fight and the hurt walkers' keeping clear already hold them off. They're kept as guards; the nine nights are the measure of the exclusion.
+
+458. **Nothing blinks out in sight of the crew (D1.2 for D1, queue #194; D1's #187, note 451: a scattered Cinder Hound was Gone the tick it broke off and vanished where it stood).** Every path to `SpinePhase.Gone` was audited, and the ones a crewmate could be watching are fixed in the scene, never in the Sim. The sim keeps letting go of a creature the tick it's done with it; the scene that saw it last frame draws it going.
+    - **How the scene already covered some:**
+        - `Deaths`: a `HitConfirm` with `Killed` (World.Confirm's `Killed: e.Gone`, after a melee `Struck` or a cannon `Hit`), for the kinds that `Falls`.
+        - `Leaving`: the Choir.
+        - `Vanishing`: the Track Doll.
+        - `Riding`: the Car Hugger whose car is adrift.
+        - `Fleeing`: a Cinder Hound on the line (note 451).
+        - Nearly every `BreakOff` → `Gone` pair runs in one tick (0 s). Only the Passenger (2.5 s, then a walk), the Stoker (8 s back to the tender) and the Gaunt (a walk out to 30 m) have a BreakOff the client sees.
+    - **The audit.** In sight and not covered, worst first. "Retreat" marks the ones this change covers:
+
+        | Who | Site (`Sim/Enemies`) | What | Now |
+        |---|---|---|---|
+        | Whistler | Flank.cs:301 | found in its gap by two crew within 2.5 m: "flees" | Retreat |
+        | Climber | Flank.cs:639 | outnumbered or held at the gap, last try | Retreat |
+        | Car Hugger | Enemy.cs:359 | clubbed to death from the rear platform (`Falls` excludes it) | **not yet** |
+        | Stoker | Interior.cs:112, 223 | back into the tender's coal; clubbed while boarding | **not yet** |
+        | Passenger | Corrupted.cs:147, 67 | unmasked, off the back; lingered among the crew | Retreat |
+        | Climber | Flank.cs:557 | gave up pacing a fast train | Retreat |
+        | any | World.cs:1836 | dismissed as the train rolls into a fort | Retreat (for the kinds below) |
+        | Ribbit | Outside.cs:133 | the pack, having eaten | Retreat |
+        | Cinder Hound aboard | Rear.cs:294, 95 | after its kill; its car cut loose | Retreat |
+        | Fire Flies | Interior.cs:421, 439 | the swarm round a lamp, the train pulling away | **not yet** |
+        | Gaunt | Outside.cs:376 | going with its loot, 30 m out | Retreat |
+        | Switchman | Corrupted.cs:341, 388 | the points thrown back by hand; 20 s after the derail | Retreat |
+        | Car Fire | Incidents.cs:196 | flames gone from a car cut loose | **not yet** |
+        | after a kill | Flank.cs:424, 738; Interior.cs:362; Outside.cs:764; Corrupted.cs:183 | off the body, a friend arriving | Retreat |
+
+        - **Not in sight:** outrun or left behind far off (Rear.cs:112, Flank.cs:544, Moose.cs:97), lingering hidden (Flank.cs:100, 264, Interior.cs:274), the Switchman's bad branch (Corrupted.cs:312, 326), the Drift and Sleepers (no body), a fire burnt out.
+        - **Drawn wrongly (a death fall when nothing died):** the Gannet giving up (Gannet.cs:347), a Whistler rescued by a blow (Flank.cs:431), a Climber's last try knocked off by a ball (Flank.cs:772). Each rides the "killed" `HitConfirm`. Left with the second batch.
+    - **Retreating** (`GreyboxScene.Retreating`, `Art.CreatureArt.Retreat`). Gone from the sim between frames, not killed, of a kind with a retreat:
+        - The scene keeps a copy (`Enemy.Blank`, the snapshot's factory, now public).
+        - It's drawn loose where it was last seen, in its break-off: down off the train under gravity, falling behind as the train it was going with runs on, and out from the line on its own side at the kind's speed, turned away. Then it's lost in the dark.
+        - Speeds and times by kind: Climber 5 m/s for 3 s, Whistler 8 for 2, Ribbit 4 for 3, Gaunt 1.5 for 6 (on past its 30 m), Switchman 4 for 3, Tippy Toesie 5 for 2.5, Soot Child 3 for 3, Passenger 3 for 3, Follower 4 for 3, a hound aboard 6 for 3.
+        - Existing clips only: each is its own break-off pose (the Climber's is its pacing scuttle). New ones for E1, if wanted: a Climber's drop and run, a Whistler's dart.
+    - **Staging:** `dt screenshot --threats [--gaunt angry] --view <v> --retreat kind:s [--speed v]`. Looked at: the Ribbit pack (`--view pack --retreat ribbit:1.5`, three toads backs turned, out across the field), the Gaunt (`--gaunt angry --view gaunt --retreat gaunt:3`, walking off), a Climber at the gap (`--view gapside --retreat climber:0.35`, down on the ballast, scuttling out).
+    - **Not yet (the second batch):**
+        - The Car Hugger clubbed to death: a fall off the car's end.
+        - The Stoker: back into the coal, or out of the firebox door.
+        - The Fire Flies: a swarm scattering.
+        - A fire on a car cut loose: `Riding`'s car, burning.
+        - The three drawn as deaths when nothing died.
+    - **Verified:**
+        - `CreatureArtTests.OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone` (Climber, Whistler, hound aboard, Ribbit, Gaunt, Switchman): drawn where it was; a second on, out from the line and further from the eye; gone after its time.
+        - `AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead`: gone between frames, a "retreated" beat; killed by a blow, a "killed" beat and the fall, not both.
