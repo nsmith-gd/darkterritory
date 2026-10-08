@@ -5453,3 +5453,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **Hotbox:** a dull knock at 150–900 Hz, one take a knock for the game to fire once a wheel turn. Never the hot box's 1–3 kHz squeal (`state-hotbox`, note 358). The glow is the knock gone ragged and wet with a sizzle; seized, a long grinding scrape.
     - **When they land:** each hook goes in `GameAudio.Creatures` off what the clients are sent, as G1's notes describe it, and AU1 asks on G1's PR for any event a sound needs. The Brakeman's steps limp only if the good-leg and bad-leg takes alternate on a long-short beat, so the hook fires them that way, or the cue splits in two.
     - **Not yet:** the hooks, tests and installs; the director's Keep or Redo; and real chain, rope and voice recordings (Sonniss, when the network allows).
+
+391. **Captions for the sounds since CAPTIONS (AU1, queue #128; F1's note 349, GDD §32 "Accessibility").** CAPTIONS captions a playing sound by its name from `content/ui/captions.json`, and the sounds added since it was written had no entries. A reader wasn't told the Moose's tells (note 334), the Gannet's (note 384), a loose coupling's knock (notes 356, 385) or a guttering lamp (notes 346, 358). The signs had captions under the fallback sounds (`cs-ribbits.hop-land`, `cs-grumbler.scuttle`), but since note 342 the signs play `sign.<kind>`, so a reader got nothing for them either.
+    - **Added, in F1's wording** (what the sound is, never the creature):
+        - the four signs (SOMETHING HOPPING, SMALL FEET IN THE CINDERS, SOMETHING IN THE BRUSH, SCUTTLING);
+        - the Moose (CHEWING, A COUGHING GRUNT, STAMPING AND SNORTING, HOOVES, CHARGING, A BOOM AGAINST THE CAR);
+        - the Gannet (HARSH CALLS ABOVE, WINGBEATS ABOVE, AIR WHISTLING, FALLING, A SCREAM, COMING IN, WINGBEATS, CLOSING);
+        - A LAMP SPUTTERING and KNOCKING AT A COUPLING.
+    - **Kept silent:** the Moose listening and the Gannet hanging over a walker have nothing, since silence is their tell. The fallback sign captions stay, because the creatures' own movement still plays where there's no sign sound, and when they're on you.
+    - **Not captioned:** the `tell-*` files of the older roster (`tell-hounds.howl-far` and the rest). The game plays those by their game names (`hound-howl`, `tippy-tiptoe`), which F1 captioned.
+    - **Pinned:** `CaptionsTests.TheTellsAndCallsSinceCaptionsAreCaptioned` (14 sounds). F1's rules hold: every caption is a sound that plays, and none names a creature.
