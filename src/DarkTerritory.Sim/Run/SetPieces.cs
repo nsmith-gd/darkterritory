@@ -87,6 +87,37 @@ public sealed partial class Run
         _facilityTuning is { } t && site.Has(ModuleKind.Lift) && train.Vehicles.FirstOrDefault(v => v.Kind == VehicleKind.Engine) is { } engine
         && engine.Id < train.Frames.Count && Flat(train.Frames[engine.Id].Origin - site.LiftChute) <= t.Lift.SteamReach;
 
+    /// <summary>The cargo car (in any rake) whose middle is under the conveyor's head, within its tolerance; null if none.</summary>
+    public Vehicle? CarUnderHead(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Conveyor) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.ConveyorHead) <= t.Conveyor.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.ConveyorHead)).FirstOrDefault();
+
+    /// <summary>A conveyor line with grain left, stopped, within reach of its drive house's starter (on foot).</summary>
+    public Site? StarterInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Grain: > 0, Running: false } && site.Has(ModuleKind.Conveyor)
+                && PlayerMotor.Grips(s, train, hand, site.ConveyorStarter, (at - site.ConveyorStarter).Length <= t.Conveyor.StarterReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>A jammed conveyor belt within reach of its jam, standing on the ground beside it (on foot).</summary>
+    public Site? JamInReach(in PlayerState s, TrainOnLine train)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Jam: >= 0 } && site.Has(ModuleKind.Conveyor) && Flat(at - site.JamAt) <= t.Conveyor.ClearReach)
+                return site;
+        return null;
+    }
+
     /// <summary>In the pen of a herd with head left in it (on foot): where you drive them from.</summary>
     public Site? InPen(in PlayerState s, TrainOnLine train)
     {
@@ -137,6 +168,10 @@ public sealed partial class Run
             spout.Pourer = playerId;
         if (use && LiftLeverInReach(s, train, hand) is { } lift && (lift.Winder < 0 || playerId < lift.Winder))
             lift.Winder = playerId;
+        if (use && StarterInReach(s, train, hand) is { } drive && (drive.Starter < 0 || playerId < drive.Starter))
+            drive.Starter = playerId;
+        if (use && JamInReach(s, train) is { } jammed && (jammed.Clearer < 0 || playerId < jammed.Clearer))
+            jammed.Clearer = playerId;
         if (use && InPen(s, train) is { } pen)
             pen.Herders.Add(playerId);
         if (AtHoseStand(s, train) is not { } stand)
@@ -228,6 +263,8 @@ public sealed partial class Run
                 Pour(train, site, t.Spout, cargo, dt);
             if (site.Has(ModuleKind.Lift))
                 Lift(train, site, t.Lift, cargo);
+            if (site.Has(ModuleKind.Conveyor))
+                Convey(world, site, t, cargo, dt);
             if (site.Has(ModuleKind.Ramp))
                 Drive(train, site, t.Ramp, cargo, dt);
             if (site.Has(ModuleKind.Hose))
@@ -297,6 +334,98 @@ public sealed partial class Run
         }
         car.Integrity = Math.Max(0, car.Integrity - (skip - taken) * l.OverfillDamagePerLoad);
     }
+
+    /// <summary>
+    /// The conveyor line (spec D.2: "start machinery at a powerhouse, then clear jams as they occur. 1 + 1 roaming. Jams every
+    /// 30–60s; unattended jam stops the line"; note 400). Someone holding its drive house's starter long enough starts it, the
+    /// yard's power on. Running, it carries grain into the car under its head (the head's gate opens only over a car with
+    /// room), the slower on Low power. Every so many seconds of carrying (drawn from the night's seed) it jams somewhere along
+    /// its low run and carries nothing till someone holds Use beside the jam long enough; a jam left too long stalls the drive,
+    /// and it has to be started again.
+    /// </summary>
+    void Convey(World world, Site site, FacilityTuning ft, CargoKind cargo, double dt)
+    {
+        var c = ft.Conveyor;
+        var train = world.Train;
+        int starter = site.Starter, clearer = site.Clearer;
+        site.Starter = site.Clearer = -1;
+        site.Carrying = false;
+        if (Over)
+        {
+            site.Running = false;
+            return;
+        }
+        // Started at the drive house, while the yard's powerhouse is going (a dead yard's restarted first, spec D.1). Letting go
+        // starts it over.
+        if (!site.Running && starter >= 0 && site.Grain > 0 && site.Power != Sim.Stops.PowerState.Dead)
+        {
+            site.Start += dt;
+            if (world.Combat is { } cb)
+                world.Choir.Loud(cb.Choir, c.StartRounds, dt);
+            if (site.Start >= c.StartSeconds)
+            {
+                site.Running = true;
+                site.Start = 0;
+                site.JamFor = 0;
+            }
+        }
+        else
+            site.Start = 0;
+        // A jam's cleared by someone beside it, running or stalled.
+        if (site.Jam >= 0 && clearer >= 0)
+        {
+            site.Clear += dt;
+            if (site.Clear >= c.ClearSeconds)
+            {
+                site.Jam = -1;
+                site.JamFor = 0;
+                site.Clear = 0;
+            }
+        }
+        else
+            site.Clear = 0;
+        if (!site.Running)
+            return;
+        if (site.Jam >= 0)
+        {
+            // Left too long, the jam stalls the drive: back to the drive house (D.2 "unattended jam stops the line").
+            site.JamFor += dt;
+            if (site.JamFor >= c.StallSeconds)
+            {
+                site.Running = false;
+                site.JamFor = 0;
+            }
+            return;
+        }
+        if (site.Grain <= 1e-9 || site.Power == Sim.Stops.PowerState.Dead)
+            return;
+        if (CarUnderHead(train, site) is not { } car || car.Load >= 1 - 1e-9)
+            return; // the head's gate stays shut
+        if (site.NextJam < 0)
+            site.NextJam = JamIn(site, c);
+        double rate = c.PerSecond * (site.Power == Sim.Stops.PowerState.Low ? ft.Power.LowSpeed : 1);
+        double carried = Math.Min(Math.Min(rate * dt, site.Grain), 1 - car.Load);
+        site.Grain = Math.Max(0, site.Grain - carried);
+        car.Load += carried;
+        car.Cargo = cargo;
+        site.Carrying = true;
+        site.NextJam -= dt;
+        if (site.NextJam <= 0)
+        {
+            site.Jam = JamWhere(site, c);
+            site.JamFor = 0;
+            site.Jams++;
+            site.NextJam = -1;
+        }
+    }
+
+    /// <summary>Seconds of carrying till a conveyor's next jam (spec D.2 "every 30–60s"), from the night's seed and the jam's count.</summary>
+    double JamIn(Site site, ConveyorTuning c) =>
+        new Pcg32(_route.Seed ^ 0xC0E7E1, (ulong)(site.Index * 1024 + site.Jams * 2)).Range(c.JamEvery[0], c.JamEvery[^1]);
+
+    /// <summary>Where along its low run the jam is (0 the tail, 1 the knee), from the night's seed and the jam's count.</summary>
+    double JamWhere(Site site, ConveyorTuning c) =>
+        new Pcg32(_route.Seed ^ 0xC0E7E1, (ulong)(site.Index * 1024 + site.Jams * 2 + 1)).Range(c.JamFrom, c.JamTo);
 
     /// <summary>
     /// The livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew"): with enough in the pen driving

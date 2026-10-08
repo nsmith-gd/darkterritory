@@ -140,6 +140,45 @@
     "ore": 3.0,
     "overfillDamagePerLoad": 0.6
   },
+  // The grain elevator's conveyor line (spec D.2: "start machinery at a powerhouse, then clear jams as they occur. 1 + 1 roaming.
+  // Jams every 30–60s; unattended jam stops the line"; D.3: "conveyor fails through attention split — someone has to roam";
+  // ARCHITECTURE §8 note 400). Its head hangs over the track "headHeight" up, "ahead" of the spout toward the buffer stop: one
+  // car's pitch (train.json carLength 14 and couplingGap 1.5), so with a car under the spout the one ahead of it is under the
+  // head and the two load at once (without a spout, "back" from the buffer stop, or as far back as the standing track allows).
+  // From the head a riser comes down to a knee "kneeLateral" out, and the belt runs on low ("beltHeight") on trestles "run"
+  // along the track toward the elevator's bins, out to its tail "tailLateral" out, where its drive
+  // house is: the starter "starterAlong" on past the tail and "starterLateral" out, held within "starterReach" for
+  // "startSeconds" to start it (loud: "startRounds" a second while it's held, as the powerhouse restart is). Running, it
+  // carries grain into the cargo car whose middle is within "tolerance" of the head at "perSecond" car-loads a second (the
+  // head's gate opens only over a car with room), out of "grain" car-loads; Low power runs it at power.lowSpeed, and a dead
+  // yard's powerhouse has to be restarted before it'll start. Every "jamEvery" seconds of carrying (drawn from the night's
+  // seed) the belt jams somewhere along its low run ("jamFrom".."jamTo" of the way from the tail to the knee) and carries
+  // nothing; held within "clearReach" of the jam (on the ground beside it) for "clearSeconds", it's free. A jam left
+  // "stallSeconds" stalls the drive, and it's back to the drive house to start it again. The machinery's loud while it runs
+  // (combat.json machineryLoudness), as the other machinery is.
+  "conveyor": {
+    "ahead": 15.5,
+    "back": 64.5,
+    "headHeight": 4.8,
+    "kneeLateral": 4.6,
+    "beltHeight": 1.0,
+    "run": 26,
+    "tailLateral": 9,
+    "starterAlong": 2.5,
+    "starterLateral": 6.5,
+    "starterReach": 1.4,
+    "startSeconds": 4,
+    "startRounds": 0.25,
+    "tolerance": 1.5,
+    "perSecond": 0.04,
+    "grain": 3.0,
+    "jamEvery": [30, 60],
+    "jamFrom": 0.1,
+    "jamTo": 1.0,
+    "clearReach": 1.6,
+    "clearSeconds": 2.5,
+    "stallSeconds": 20
+  },
   // The slaughterhouse's livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew. Constant noise. Raises
   // Choir floor while active"). The ramp's top is "rampLateral" out from the track at "along"; the pen "penLateral" out,
   // "penRadius" across, with "head" animals in it. With "herders" or more in the pen holding Use and a cargo car with room
@@ -267,7 +306,8 @@
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
-    "grainElevator": ["spout"],
+    // The conveyor line (note 400) behind the spout: two modules (spec D.1), the spout's lever and the belt's roaming.
+    "grainElevator": ["spout", "conveyor"],
     "switchyard": ["rakes", "crates"],
     "foundry": ["crane", "winch", "crates"],
     "slaughterhouse": ["ramp", "crates"],
