@@ -21,6 +21,11 @@ public sealed record LootTuning
     /// as bought): every village container and yard crate stack and strongroom, each rolled on its own stream.
     /// </summary>
     public double RepairKitChance { get; init; }
+    /// <summary>
+    /// How far out along the main line (m) a stop's loot, and its facility's crates, come out (the director, 8 Oct 2026:
+    /// he watched it appear after he'd stopped; note 352). 0: when the train first stops there.
+    /// </summary>
+    public double StockAhead { get; init; }
     /// <summary>Toys found at the stops (note 264: none ride from the fortress now). Unset, none.</summary>
     public ToyLootTuning? Toys { get; init; }
     /// <summary>The finds that heal when used (GDD App. F.1, the damage model; note 272). Unset, none do.</summary>

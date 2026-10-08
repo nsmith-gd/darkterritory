@@ -2152,6 +2152,15 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
 
+## F.4 2026-10-08 — main's test builds, the night of 7–8 Oct
+
+**Played:** the director, the night's test builds of main.
+
+**Yards and loot**
+- Pulling into a yard's siding took real work (the switch thrown, the cut eased in), and the siding had no loot; then the loot appeared in the yard after the train had already stopped. Loot should be on every yard line in the early and mid game. *Done (queue #89, ARCHITECTURE §8 note 352): on local, frontier and dead-lines yards every siding has something to load beside its loading face (before, about one yard in thirteen had a bare one); and a stop's loot, and a facility's crates, are out 800 m before the train gets there, so nothing appears in front of the crew.*
+
+**Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
+
 ## F.3 2026-10-07 — main at 8442eee, and the integration test builds
 
 *Numbered F.3 so that "App. F.1" stays the build 1121 review it has always meant; newest first all the same.*
