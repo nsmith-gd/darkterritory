@@ -430,8 +430,11 @@ public static class StructureKit
         k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
         k.Box(new Vector3(-t / 2 - 0.3f, -0.5f, -len), new Vector3(t / 2 + 0.3f, 1.2f, 0), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Box(new Vector3(-t / 2, 1.2f, -len), new Vector3(t / 2, h, 0), Kit.Faces.All & ~Kit.Faces.NegY);
+        // The merlons on the outer half (away from the line: +x on the right-hand wall), the walk behind them open, so the
+        // watch walking it shows over the parapet from inside (B2's towns, note 335).
+        float out0 = side > 0 ? 0 : -t / 2, out1 = side > 0 ? t / 2 : 0;
         for (float z = -0.3f; z > -len; z -= 1.25f)
-            k.Box(new Vector3(-t / 2, h, z - 0.7f), new Vector3(t / 2, h + 0.9f, z), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Box(new Vector3(out0, h, z - 0.7f), new Vector3(out1, h + 0.9f, z), Kit.Faces.All & ~Kit.Faces.NegY);
         // Soot and seep stains run down it from the walk: the texture's, darkened low on the side facing the line.
         k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.3f);
         for (float z = -2.5f; z > -len; z -= 5f)
