@@ -51,6 +51,8 @@ public sealed partial class GameAudio
     // Note 266: the worst stress any car's bend has this tick (0 at its board, 1 at its derailing speed), and when the
     // cab's bell rings again while the warning's up.
     double _bendStress, _bellAgain;
+    // Each car's strain on the bend under it (BendWheels, as BendStrain.PerCar works it): the crew on it stumble (GameAudio.Crew).
+    readonly Dictionary<int, double> _carStress = new();
     double _trainClock = double.NaN, _chuffBeats, _slackAccel, _valveLiftedAt = double.NegativeInfinity, _derailedAt;
     // The wreck as heard (Derailing): each car's state, the couplings as they were when it came off (with their gaps then),
     // the ones torn since, and the synthesised grind standing in where the recorded ones aren't installed.
@@ -253,6 +255,7 @@ public sealed partial class GameAudio
     void BedWheels(World world, TrainOnLine train, double dt, bool derailed)
     {
         _bendStress = 0;
+        _carStress.Clear();
         if (derailed)
             return;
         var ear = Mixer.Listener.Position;
@@ -275,6 +278,7 @@ public sealed partial class GameAudio
                 // full from the derailing speed (was from 0.85 of its pull: 8% of the speed short of coming off).
                 double stress = Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
                 _bendStress = Math.Max(_bendStress, stress);
+                _carStress[v.Id] = stress;
                 double scream = Math.Max(Math.Clamp((stress - 0.5) / 0.5, 0, 1), BoardScream(world, train, rake, v, pose));
                 if (scream > 0)
                 {

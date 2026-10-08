@@ -68,7 +68,8 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
 
 /// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
-public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9);
+public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9, double LinesideReachM = 40,
+    double HouseDoorSeconds = 0.6, double HouseDoorReachM = 1.2);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
@@ -278,7 +279,9 @@ public sealed partial class Run
         // §23.2: the check runs every tick. Ruptured with the kit lost, the night ends once the train comes to rest (the
         // crew get the whole coast to work out what just happened).
         _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed);
-        Kit = EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
+        // Note 301: where the wrench is the repair tool, it's the last wrench aboard that §23.2 reads (the director, 8 Oct).
+        bool wrench = Train.Repairs.ByWrench(train);
+        Kit = wrench ? EngineeringKit.Wrench(world, crew, Tuning.Stranded) : EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
         // App. C.9: a rupture, with who last fired or vented it, and how long it sat at 100 (the spec's hold, by then).
         if (train.Boiler.Ruptured && !_wasRuptured && train.BoilerTuning is { } bt)
         {
@@ -289,9 +292,7 @@ public sealed partial class Run
         }
         _wasRuptured = train.Boiler.Ruptured;
         _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
-        // Note 301: where the wrench mends the boiler (and everyone carries one), a lost kit strands nobody.
-        bool stranded = !Train.Repairs.ByWrench(train) && train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds
-            && engine.Speed < Tuning.StopBelowSpeed;
+        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
 
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
@@ -681,8 +682,10 @@ public sealed partial class Run
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
             string pulled = coupler >= 0 ? $" Coupler: {IncidentLog.NameOf(world, coupler)}." : "";
-            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, a.KitHolder,
-                $"{Capital(EngineeringKit.Line(Kit.Loss).ToLowerInvariant())}. Last held: {{actor}}.{pulled}"));
+            // Note 301: the last wrench has no one holder to name.
+            bool byWrench = Train.Repairs.ByWrench(world.Train);
+            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, byWrench ? -1 : a.KitHolder,
+                $"{Capital(EngineeringKit.Line(Kit.Loss, byWrench).ToLowerInvariant())}.{(byWrench ? "" : " Last held: {actor}.")}{pulled}"));
         }
         // D.12: a derailment's still of each crew member, or the outro's last frame.
         if (world.Authority)

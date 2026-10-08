@@ -39,7 +39,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
     /// when there are guns, labourers the rest, each with its part at a stop (a shunter, the winch pair, then crates). The
     /// crew is the driver, gunners and labourers; there's no fireman (T75's went with note 280).
     /// </summary>
-    public static IBot Make(int i, int count, CrewCalls? calls, CombatTuning? combat, PlayerTuning player, int seed)
+    /// <param name="express">A driver that runs hot at this speed and takes no stops (note 376, <see cref="ConductorBot.Express"/>); null as usual.</param>
+    public static IBot Make(int i, int count, CrewCalls? calls, CombatTuning? combat, PlayerTuning player, int seed, double? express = null)
     {
         bool gunner = combat is not null;
         var hands = Enumerable.Range(1, Math.Max(0, count - 1)).OrderBy(h => h == 1 && gunner ? 1 : 0).ToList();
@@ -51,7 +52,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
         StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? new ConductorBot(calls, i)
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
             : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
             : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
     }
@@ -73,8 +74,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         if (bot is RoofWalkerBot rw)
         {
             rw.Me = session.PlayerId ?? -1;
-            // Note 377: a walker says when it's free to bring the guns their powder (RoofWalkerBot.Decide).
-            rw.Calls = calls;
+            rw.Calls = calls; // the powder's carrier (note 377), the relief driver's claim (note 399)
         }
         else if (bot is GunnerBot gb)
         {

@@ -22,8 +22,10 @@ public class HazardTests
         public double Wind(int path, double distance) => wind;
     }
 
-    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5) =>
-        new(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = conditions }, 2_000);
+    /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench mends a radio. Off, the repair kit does (note 200).</param>
+    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5, bool wrench = true) =>
+        new(new TrainDynamics(Consist.Uniform(Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } }, cars, 1)),
+            new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = conditions }, 2_000);
 
     static double ColdAfter(ITrackConditions? conditions, double seconds)
     {
@@ -99,9 +101,9 @@ public class HazardTests
         Assert.False(w.Train.Vehicles[0].Gun.Jammed);
     }
 
-    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1)
+    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1, bool wrench = true)
     {
-        var world = new World(Train(null, 6));
+        var world = new World(Train(null, 6, wrench));
         world.EnableBodies();
         world.Stock();
         var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio);
@@ -218,7 +220,7 @@ public class HazardTests
 
     static (World World, Body Radio, Body Kit, PlayerState Mender) Mending()
     {
-        var (world, radio, s) = Wearing();
+        var (world, radio, s) = Wearing(wrench: false);
         radio.Broken = true;
         var kit = world.Bodies.All.First(b => b.Kind == BodyKind.RepairKit);
         (kit.Carrier, kit.Locker) = (1, -1);
@@ -257,6 +259,25 @@ public class HazardTests
         // On the body record as the host has it.
         Act(w, ref s, default, 0.1);
         Assert.Null(w.Bodies.MendableRadio(s, w.Train, null, 1));
+    }
+
+    [Fact]
+    public void TheWrenchHeldAtABrokenRadioMendsItAndATapDoesNothing()
+    {
+        // Note 301: the kit's gone (none stowed); the wrench in empty hands mends a radio, held still as long as the kit took.
+        var (w, radio, s) = Wearing();
+        Assert.DoesNotContain(w.Bodies.All, b => b.Kind == BodyKind.RepairKit);
+        radio.Broken = true;
+        // The crowbar in hand: it's no mending tool.
+        Assert.False(Bodies.Mends(s, w.Train, null));
+        s.HeldSlot = 1;
+        Assert.True(Bodies.Mends(s, w.Train, null));
+        Act(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Use }, 0.1);
+        Act(w, ref s, default, 0.1);
+        Assert.True(radio.Broken);
+        Assert.Equal(Tool.Wrench, Kit.Held(s));
+        Act(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Use }, Tuning.Train.Kit.RadioMendSeconds + 0.1);
+        Assert.False(radio.Broken);
     }
 
     [Fact]

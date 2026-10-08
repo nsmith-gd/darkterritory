@@ -98,6 +98,20 @@ public static class ArtCatalog
             list.Add(new($"pine-{v}", LargeProp, () => WorldKit.Pine(look, variant, 12)));
             list.Add(new($"pinecard-{v}", SmallProp, () => WorldKit.PineCard(look, variant, 12)));
         }
+        // The trees' forms (note 395): the near spruce modelled, the far field's cards; and the forest floor.
+        foreach (var form in new[] { NovaKit.TreeForm.Flagged, NovaKit.TreeForm.Broken, NovaKit.TreeForm.Forked })
+        {
+            var f = form;
+            list.Add(new($"spruce3d-{f.ToString().ToLowerInvariant()}", LargeProp, () => WorldKit.Spruce(look, 1, 12, f)));
+            list.Add(new($"spruce-{f.ToString().ToLowerInvariant()}", SmallProp, () => NovaKit.Conifer(look, 1, 12, 0.3f, f)));
+            list.Add(new($"fir-{f.ToString().ToLowerInvariant()}", SmallProp, () => NovaKit.Conifer(look, 1, 12, 0.46f, f)));
+        }
+        foreach (var kind in Enum.GetValues<NovaKit.FloorKind>())
+            for (int v = 0; v < 3; v++)
+            {
+                var (fk, fv) = (kind, v);
+                list.Add(new($"floor-{fk.ToString().ToLowerInvariant()}-{fv}", SmallProp, () => NovaKit.Floor(look, fk, fv)));
+            }
         list.Add(new("dead-tree", SmallProp, () => WorldKit.DeadTree(look, 0, 10)));
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));
@@ -130,7 +144,7 @@ public static class ArtCatalog
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
         // The village finds, each its own (FindKit; the director, 8 Oct).
         foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
-                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope" })
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead" })
             list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)

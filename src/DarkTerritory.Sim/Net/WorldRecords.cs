@@ -7,7 +7,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -221,6 +221,12 @@ public static class WorldRecords
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Search, k),
                         [done.Count, .. done.Select(c => (long)c), .. under.SelectMany(u => new long[] { u.Container, Q(u.Progress, Fine) })]));
                 }
+        // The village houses' doors shut (note 401): a count, then each door's key. One record, while there are doors.
+        if (world.Train.Walls is { HouseDoors.Count: > 0 } doored)
+        {
+            var shut = doored.ShutDoors.ToList();
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Door, 0), [shut.Count, .. shut.Select(k => (long)k)]));
+        }
         // GDD App. D: each Holdout's state, who's in it and how far the breach is, and whether it's the repair kit's (the
         // lamps and the HUD).
         if (world.Holdouts is { } holdouts)
@@ -437,6 +443,9 @@ public static class WorldRecords
                     searchRun.MirrorSearch(r.Id, f.Skip(1).Take(searched).Select(c => (int)c),
                         Enumerable.Range(0, (f.Length - 1 - searched) / 2).Select(i => ((int)f[1 + searched + i * 2], D(f[2 + searched + i * 2], Fine))));
                     break;
+                case RecordKind.Door when !world.Authority && world.Train.Walls is { } doorWalls && f.Length > 0:
+                    doorWalls.MirrorShut(f.Skip(1).Take((int)Math.Min(f[0], f.Length - 1)).Select(k => (int)k));
+                    break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
                     queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));
                     break;
@@ -546,6 +555,7 @@ public static class WorldRecords
             EnemyKind.Ribbit => new Ribbit(r.Id, 0),
             EnemyKind.Grumbler => new Grumbler(r.Id),
             EnemyKind.Moose => new Moose(r.Id),
+            EnemyKind.Gannet => new Gannet(r.Id),
             _ => new ChoirGhost(r.Id),
         };
 

@@ -38,7 +38,7 @@ public static class GrabAudit
     [
         EnemyKind.CarHugger, EnemyKind.Dragger, EnemyKind.Whistler, EnemyKind.TippyToesie, EnemyKind.Ribbit, EnemyKind.SootChildren,
         EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Climber, EnemyKind.Gaunt, EnemyKind.CinderHound, EnemyKind.Grumbler,
-        EnemyKind.Moose,
+        EnemyKind.Moose, EnemyKind.Gannet,
     ];
 
     const int Cars = 6;
@@ -252,6 +252,16 @@ public static class GrabAudit
                     double off = Off(c, e.Gaunt.StirAt);
                     Friends(n, crew, off, (d, i) => n.Ground(2, 4 + (i % 2) * 1.5, -d - i / 2 * 1.2));
                     return new(n, v, "woken, hurt, and nobody talking", Still);
+                }
+            case EnemyKind.Gannet:
+                {
+                    // A crewmate who's hit it, out on car 2's roof at speed; friends along the same roof (note 340).
+                    var n = new AuditNight(c, Cars, 20, crew);
+                    int v = n.Add(n.Roof(2, 0));
+                    n.World.AddEnemy(id => Gannet.Marking(id, n.Train, e.Gannet, e.Gannet.SoarHeight[0], v));
+                    double off = Off(c, 0);
+                    Friends(n, crew, off, (d, i) => n.Roof(2, (i % 2 == 0 ? 1 : -1) * (d + i / 2 * 0.7)));
+                    return new(n, v, "on the roofs at 20 m/s, its mark", Still);
                 }
             case EnemyKind.Moose:
                 {

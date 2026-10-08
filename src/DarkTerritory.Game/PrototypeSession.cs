@@ -104,7 +104,7 @@ public sealed class PrototypeSession : IPlaySession
         World.Step(Controls);
         World.ApplyDamage(id => id == 1 ? Player : null, (_, s) => Player = s, [1]);
         foreach (var e in World.EnemyEvents)
-            if (Cue(e) is { } cue)
+            if (Cue(e, e.Kind == EnemyKind.Gannet ? World.ActiveEnemies.OfType<Sim.Enemies.Gannet>().FirstOrDefault(g => g.Id == e.EnemyId)?.Mode : null) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
         foreach (var sign in World.Lineside?.ReadThisTick ?? [])
             _cues.Add((ElapsedSeconds, Board(sign)));
@@ -237,6 +237,18 @@ public sealed class PrototypeSession : IPlaySession
         _ => "hooked a bag of spares: the worst car's patched up",
     };
 
+    /// <summary>
+    /// The Gannet's cues by what it's doing (note 340; docs/design/creatures/gannet.md §5), where one spine phase means two
+    /// things: its ALERT is the hang over a walker (the calls stop) or the start of its bank; its TELEGRAPH the fold (break
+    /// your stride) or the bank for whoever hit it (get inside). The rest are the kind's own (<see cref="Cue(in EnemyEvent)"/>).
+    /// </summary>
+    public static string? Cue(in EnemyEvent e, Sim.Enemies.GannetMode? gannet) => (e.To, gannet) switch
+    {
+        (SpinePhase.Alert, Sim.Enemies.GannetMode.Bank) => null,
+        (SpinePhase.Telegraph, Sim.Enemies.GannetMode.Bank) => "it's coming for whoever hit it: get inside",
+        _ => Cue(e),
+    };
+
     static string? Cue(in EnemyEvent e) => (e.Kind, e.To) switch
     {
         // GDD v1.1 §21-22: each line is what the crew would say they saw or heard, and the rule that answers it.
@@ -308,6 +320,12 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Moose, SpinePhase.Telegraph) => "ears flat, rack down: it's coming, get somewhere narrow",
         (EnemyKind.Moose, SpinePhase.Grab) => "it's got someone under its rack: hit it to take it off them",
         (EnemyKind.Moose, SpinePhase.BreakOff) => "the moose wanders off",
+        // The Gannet (note 340; docs/design/creatures/gannet.md §5): its calls stop over whoever it's going to dive at; the fold
+        // is the rule's moment (break your stride); the bank is the mark's (whoever hit it: get inside).
+        (EnemyKind.Gannet, SpinePhase.Alert) => "its calls stop over someone: they're its prey",
+        (EnemyKind.Gannet, SpinePhase.Telegraph) => "it's folded: break your stride!",
+        (EnemyKind.Gannet, SpinePhase.Grab) => "it's got someone under its foot: three blows drive it off",
+        (EnemyKind.Gannet, SpinePhase.BreakOff) => "it climbs away",
         (EnemyKind.CarFire, SpinePhase.Telegraph) => "smoke and a crackle from a car: get the extinguisher (Fire)",
         (EnemyKind.CarFire, SpinePhase.Punish) => "a car's alight: it'll take the next one",
         (EnemyKind.CarFire, SpinePhase.BreakOff) => "the fire's out",

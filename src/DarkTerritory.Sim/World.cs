@@ -27,6 +27,9 @@ public sealed class World
         Combat = combat;
         // A roof hatch isn't shut down onto a casting the crane has hanging in it (T99).
         train.HatchBlocked = car => Run?.CurrentSite?.Cranes.Any(c => c.InHatch(train, car)) == true;
+        // Note 301: a smashed lamp's glass is the wrench's work (repair.lampMendRate seconds of it to each second worked).
+        train.LampOut = () => Derailed ? 0 : LampOutSeconds; // derailed, the night's over: nothing to call out
+        train.MendLamp = dt => LampOutSeconds = Math.Max(0, LampOutSeconds - dt * train.Dynamics.Tuning.Repair.LampMendRate);
         Choir = ChoirState.Quiet;
         if (combat is not null)
             Guns.Arm(train, combat.Guns);
@@ -500,7 +503,8 @@ public sealed class World
             return;
         var shape = Train.Frames[car].Shape;
         var kit = Train.Dynamics.Tuning.Kit;
-        int kits = kit.RepairKits + kit.SpareKits;
+        // Note 301: where the wrench is the repair tool, the kit's gone: none rides in locker 8.
+        int kits = Repairs.ByWrench(Train) ? 0 : kit.RepairKits + kit.SpareKits;
         int first = Math.Max(0, shape.KitLocker);
         // From the kit's locker on down the row, then round from the front.
         var order = Enumerable.Range(0, shape.Lockers.Count).Select(i => (first + i) % shape.Lockers.Count).ToList();
@@ -684,7 +688,7 @@ public sealed class World
         Bookmarks.Tuning = tuning.Bookmarks;
         Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
         _walls = tuning.Walls;
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls);
+        Train.Walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
@@ -694,13 +698,26 @@ public sealed class World
         }
         if (loot is not null)
         {
-            Run.EnableLoot(loot, Train.Line, facilities);
+            // Note 301: where the wrench is the repair tool, the kit's gone, and none turns up at the stops either. (Kits are
+            // rolled on their own stream, so the rest of a stop's loot is the same.)
+            Run.EnableLoot(Repairs.ByWrench(Train) ? loot with { RepairKitChance = 0 } : loot, Train.Line, facilities);
             // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
         }
         Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
+    }
+
+    /// <summary>
+    /// Note 371: a generated line's trees, boulders and telegraph poles stand beside the stops' walls, out to
+    /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.LinesideProps"/>).
+    /// </summary>
+    Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
+    {
+        if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
+            walls.Add(side.Walls(Forts ?? [], t.LinesideReachM));
+        return walls;
     }
 
     /// <summary>Note 279: the stops' walls less where a facility's modules are worked (<see cref="Sim.Run.Site.WorkPoints"/>), its yard cranes too.</summary>
@@ -728,12 +745,48 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
-        Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
+        Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
         Train.Walls.Add(Town.Walls);
     }
 
     /// <summary>Note 279: the stops' buildings' walls by their doors, kept for the town's rebuild of the walls.</summary>
     Sim.Run.WallTuning? _walls;
+
+    // Host: who's holding Use at which house door, how long, and whether this hold has already worked it (note 401).
+    readonly Dictionary<int, (int Key, double Held, bool Done)> _atDoor = [];
+
+    /// <summary>
+    /// The door an open house's doorway has that a crewmate could work (note 401): on foot, alive, within run.json
+    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). Alike on host and client,
+    /// for the HUD.
+    /// </summary>
+    public Sim.Run.HouseDoor? DoorInReach(in PlayerState s)
+    {
+        if (!s.Alive || s.Parent != PlayerState.World || Train.Walls is not { HouseDoors.Count: > 0 } walls || Run?.SpotInReach(s, Train) is not null)
+            return null;
+        return walls.DoorInReach(PlayerMotor.WorldPosition(s, Train), (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM);
+    }
+
+    /// <summary>
+    /// Host: a crewmate's hands on a house door this tick. Use held <c>walls.houseDoorSeconds</c> shuts an open one or opens a
+    /// shut one, once a hold; let go and hold again to work it again. As a car's door is worked (CrewActions).
+    /// </summary>
+    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    {
+        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
+        {
+            _atDoor.Remove(playerId);
+            return;
+        }
+        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Key ? was : (door.Key, 0.0, false);
+        held += SimConstants.TickSeconds;
+        if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        {
+            Train.Walls!.SetShut(key, !Train.Walls.Shut(key));
+            done = true;
+        }
+        _atDoor[playerId] = (key, held, done);
+    }
 
     /// <summary>The night's fortresses (<see cref="Sim.Run.Fortresses.Of"/>; T124), the departure one's town square on it once there's a town.</summary>
     public IReadOnlyList<Sim.Run.Fort>? Forts { get; private set; }
@@ -927,6 +980,9 @@ public sealed class World
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
     Couplings? _couplings;
+    /// <summary>Host: the guns' racks filled from the powder locker tonight (note 374), for the harness.</summary>
+    public int RacksFilled { get; private set; }
+
     /// <summary>The gun this player's at whose ready rack wants powder from the lockers (note 374), or null.</summary>
     int? Charging(in PlayerState s, GunTuning t) =>
         Guns.MannedGun(s, Train, t) is { } g && Guns.Ready(Train.Vehicles[g].Gun, t) < t.Rack && Guns.Stowed(Train, t) > 0 ? g : null;
@@ -949,6 +1005,7 @@ public sealed class World
         if (Guns.Fill(Train, gun, t) > 0)
         {
             Bodies.Remove(charge);
+            RacksFilled++;
             RacksFilledBy[playerId] = RacksFilledBy.GetValueOrDefault(playerId) + 1;
         }
         else
@@ -1011,8 +1068,10 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+        // Note 301: where the wrench is the repair tool, it's the wrench in hand that opens a lock quietly, as the kit did.
+        bool picks = Repairs.ByWrench(Train) ? Authority && Repairs.WrenchInHand(s) && Bodies.CarriedBy(playerId) is null : kit;
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
-        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, picks, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Powder to the guns (note 374): a charge in hand at a gun whose rack wants it is being loaded, not put down; empty
         // hands at a powder locker with powder in it take a charge.
         var gunTuning = Combat?.Guns;
@@ -1032,6 +1091,9 @@ public sealed class World
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
         if (Authority && Run is { } searching)
             searching.SearchAct(s, intent, playerId, this, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+        // An open house's door (note 401), empty-handed, with a Use neither the hands nor a hiding spot took.
+        if (Authority)
+            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -1399,7 +1461,9 @@ public sealed class World
         if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
             && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
             Train.Boiler.ShovelOut = false;
-        LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // Note 301: where the wrench is the repair tool, the glass goes in only when someone mends it (Repairs.Lamp).
+        if (!Repairs.ByWrench(Train))
+            LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
         {
             _relight = false;
@@ -1677,6 +1741,8 @@ public sealed class World
         }
         else
             StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
+        // How long the train's run at the Gannet's speed (note 340): its arrival rule.
+        FastSeconds = Train.Dynamics.Speed >= t.Gannet.ArriveAbove ? FastSeconds + SimConstants.TickSeconds : 0;
         _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
@@ -1788,6 +1854,9 @@ public sealed class World
     readonly Dictionary<int, Ballast.Double3> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
+
+    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.ArriveAbove"/> without a break (note 340).</summary>
+    public double FastSeconds { get; private set; }
 
     double _mooseNext = double.NaN;
     Ballast.Pcg32 _mooseDice;

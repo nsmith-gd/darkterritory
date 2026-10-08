@@ -31,6 +31,25 @@ public sealed class TextSizeTests : IDisposable
         Assert.True(outside.Count == 0, $"{what} at {w}x{h}: {outside.Count} vertices outside, the first at {outside.FirstOrDefault().Position}");
     }
 
+    [Theory]
+    [InlineData(540)]
+    [InlineData(720)]
+    [InlineData(1080)]
+    [InlineData(1440)]
+    public void TheFinePrintNeverShrinksAsTheTextGrows(int screen)
+    {
+        // Note 351: on a 720p window 150% drew the prompts and the corner smaller than 100% did (the half step).
+        float was = 0;
+        foreach (double size in Settings.TextSizes)
+        {
+            var (_, h) = new Settings { TextSize = size }.Canvas;
+            float pixels = (float)screen / h, onScreen = Hud.PromptScaleAt(pixels, (float)size) * pixels;
+            Assert.True(onScreen >= was, $"{screen}p at {size:0%}: {onScreen:0.##} screen pixels a font pixel, under {was:0.##}");
+            Assert.True(onScreen >= 2, $"{screen}p at {size:0%}: {onScreen:0.##}");
+            was = onScreen;
+        }
+    }
+
     [Fact]
     public void EachSizeIsASmallerCanvasOfTheSameShape()
     {
@@ -41,16 +60,24 @@ public sealed class TextSizeTests : IDisposable
         Assert.Equal((480, 270), new Settings { TextSize = 3 }.Canvas);
     }
 
+    // Every size on the windows a player draws at (note 351: a 720p window has the prompts' fine print a whole step bigger).
+    public static TheoryData<double, int> SizesAndScreens() =>
+        [.. Settings.TextSizes.SelectMany(s => new[] { 540, 720, 1080, 1440 }.Select(screen => (s, screen)))];
+
     [Theory]
-    [MemberData(nameof(Sizes))]
-    public void TheHudItsPanelsAndTheReportFitAtEverySize(double size)
+    [MemberData(nameof(SizesAndScreens))]
+    public void TheHudItsPanelsAndTheReportFitAtEverySize(double size, int screen)
     {
         var (w, h) = new Settings { TextSize = size }.Canvas;
         var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 1);
         var s = new PrototypeSession(Content, route, 6, enemies: false);
         var o = new Overlay();
-        Hud.Build(o, w, h, s, pixels: 1080f / h);
+        Hud.Build(o, w, h, s, pixels: (float)screen / h);
         Inside(o, w, h, "the HUD");
+        // A new player's first nights' card in the yard (note 350), and what's heard (note 349).
+        o = new Overlay();
+        Hud.Build(o, w, h, s, pixels: (float)screen / h, firstNight: true, captions: ["[A SQUEAL AT THE WHEELS, BEHIND]", "[A CHILD CALLING, LEFT]"]);
+        Inside(o, w, h, "the first nights' card");
         o = new Overlay();
         Hud.Supplies(o, w, h, s);
         Inside(o, w, h, "the supplies");
@@ -61,7 +88,7 @@ public sealed class TextSizeTests : IDisposable
         // The run's end: the report, its settlement line and all (it wraps now, where it ran off the plate at 125%).
         s.World.Run!.MirrorReport(Staging.Report(s.World, RunEnd.Derailed));
         o = new Overlay();
-        Hud.Build(o, w, h, s, pixels: 1080f / h);
+        Hud.Build(o, w, h, s, pixels: (float)screen / h);
         Inside(o, w, h, "the report");
     }
 
@@ -95,7 +122,7 @@ public sealed class TextSizeTests : IDisposable
             DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)), new SaveSlots(Path.Combine(_dir, "saves"), 3),
             Path.Combine(_dir, "settings.json"), () => 42);
         m.Show(Screen.Settings);
-        int at = m.Items.ToList().FindIndex(i => i.Label.StartsWith("TEXT SIZE", StringComparison.Ordinal));
+        int at = m.Items.ToList().FindIndex(i => !i.Heading && i.Label.StartsWith("TEXT SIZE", StringComparison.Ordinal));
         Assert.True(at >= 0);
         while (m.Selected != at)
             m.Down();

@@ -18,6 +18,12 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
     public int Owner { get; init; }
 
+    /// <summary>
+    /// An open house's door (note 401), by its key (<see cref="StopWalls.DoorKey"/>; 0 for any other wall): it stands only
+    /// while the door's shut (<see cref="StopWalls.Near"/>).
+    /// </summary>
+    public int Door { get; init; }
+
     /// <summary>A world point in the wall's own frame: x along its axis, z across, y as is.</summary>
     public Double3 ToLocal(Double3 p)
     {
@@ -57,11 +63,15 @@ public sealed partial class StopWalls
 
     public IReadOnlyList<Wall> All => _walls;
 
-    /// <summary>The walls that may touch a point (its cell's: each wall is listed in every cell it reaches).</summary>
+    /// <summary>
+    /// The walls that may touch a point (its cell's: each wall is listed in every cell it reaches). An open house's door is
+    /// one of them only while it's shut (note 401).
+    /// </summary>
     public IEnumerable<Wall> Near(Double3 p)
     {
         foreach (int i in _cells.TryGetValue(CellOf(p.X, p.Z), out var list) ? list : None)
-            yield return _walls[i];
+            if (_walls[i].Door == 0 || _shut.Contains(_walls[i].Door))
+                yield return _walls[i];
     }
 
     static (int, int) CellOf(double x, double z) => ((int)Math.Floor(x / Cell), (int)Math.Floor(z / Cell));
@@ -261,8 +271,11 @@ public sealed partial class StopWalls
     /// <summary>The side of a shed its doors face: the track it serves (its first), or the main line.</summary>
     static int DoorSide(StopLayout stop, StopBuilding b) => (b.Tracks.Count > 0 ? stop.Tracks[b.Tracks[0]].FaceStart.D : 0) >= b.D ? 1 : -1;
 
-    /// <summary>A shed's roofed lengths along its axis: the whole of it, or either side of a gantry's cut (3 m or more).</summary>
-    static IEnumerable<(double Lo, double Hi)> Roofed(StopLayout stop, int building)
+    /// <summary>
+    /// A shed's roofed lengths along its axis: the whole of it, or either side of a gantry's cut (3 m or more). The art roofs
+    /// these (WorldArt.ShedShell, note 387).
+    /// </summary>
+    public static IEnumerable<(double Lo, double Hi)> Roofed(StopLayout stop, int building)
     {
         var b = stop.Buildings[building];
         double half = b.Length / 2;
@@ -332,8 +345,9 @@ public sealed partial class StopWalls
             foreach (var w in Fortresses.Solids(fort, line))
                 walls.Add(w with { Fort = true });
         int owner = 0;
-        foreach (var f in route.Features)
+        for (int fi = 0; fi < route.Features.Count; fi++)
         {
+            var f = route.Features[fi];
             if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
                 continue;
             for (int i = 0; i < stop.Buildings.Count; i++)
@@ -352,7 +366,7 @@ public sealed partial class StopWalls
                             .Select(w => (w.X, w.Y, w.HalfX, w.HalfY, t.TopM))
                         : (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)])
                             .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, b.Kind == BuildingKind.Well ? t.WellTopM : t.TopM));
-                foreach (var (x, y, hx, hy, top) in boxes)
+                Wall Placed(double x, double y, double hx, double hy, double top)
                 {
                     var centre = Plan.World(b, x, y);
                     var at = Run.StopWorld(line, f, centre);
@@ -360,8 +374,13 @@ public sealed partial class StopWalls
                     var right = Double3.Cross(tg.Tangent, Double3.Up).Normalized;
                     var tangent = new Double3(tg.Tangent.X, 0, tg.Tangent.Z).Normalized;
                     var axis = (tangent * DMath.Cos(b.Yaw) + right * DMath.Sin(b.Yaw)).Normalized;
-                    walls.Add(new Wall(at with { Y = 0 }, axis, hx, hy, at.Y - 3, at.Y + top) { Owner = owner });
+                    return new Wall(at with { Y = 0 }, axis, hx, hy, at.Y - 3, at.Y + top) { Owner = owner };
                 }
+                foreach (var (x, y, hx, hy, top) in boxes)
+                    walls.Add(Placed(x, y, hx, hy, top));
+                // Its doors (note 401): each a wall in its doorway that stands only while it's shut.
+                if (Walled(stop, i) && b.Open)
+                    walls.AddHouse(fi, i, b, line, f, (x, y, hx, hy, key) => Placed(x, y, hx, hy, t.TopM) with { Door = key });
             }
         }
         return walls;
@@ -402,6 +421,7 @@ public sealed partial class StopWalls
         foreach (var w in _walls)
             if (w.Fort || (w.Owner > 0 ? !gone.Contains(w.Owner) : !at.Any(p => Within(w, p, reach))))
                 kept.Add(w);
+        kept.KeepDoors(this);
         return kept;
     }
 

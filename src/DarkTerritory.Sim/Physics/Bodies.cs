@@ -530,11 +530,13 @@ public sealed class Bodies
     /// anything Use works, and a broken radio on your belt or lying in reach. Use held there, standing, for train.json
     /// <c>kit.radioMendSeconds</c> mends it; moving or letting go starts it over. Like a locker's tap and hold, the hands
     /// wait for the release: a tap still puts the kit down. Returns whether it had the hands this tick.
+    /// <para>Note 301: where the wrench is the repair tool, it's the wrench in empty hands that mends it (<see cref="Mends"/>),
+    /// and a tap does nothing.</para>
     /// </summary>
     bool Mend(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
         bool use, bool usePressed, bool throwPressed)
     {
-        var radio = carried is { Kind: BodyKind.RepairKit } && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
+        var radio = Mends(s, train, carried) && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
         bool had = _mending.TryGetValue(playerId, out var was);
         if (had && (radio is null || radio.Id != was.Radio))
         {
@@ -553,9 +555,9 @@ public sealed class Bodies
         {
             _mending.Remove(playerId);
             radio.MendTicks = 0;
-            // A tap: it was the hands', putting the kit down.
-            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
-                Release(carried!, s, train, 0);
+            // A tap: it was the hands', putting the kit down (the wrench stays in hand).
+            if (carried is not null && was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(carried, s, train, 0);
             return true;
         }
         if (!use || !_mending.ContainsKey(playerId))
@@ -616,6 +618,13 @@ public sealed class Bodies
         }
         return true;
     }
+
+    /// <summary>
+    /// Whether these hands mend a broken radio (note 201): the wrench in otherwise empty hands where it's the repair tool
+    /// (note 301), else the repair kit carried.
+    /// </summary>
+    public static bool Mends(in PlayerState s, TrainOnLine train, Body? carried) =>
+        Repairs.ByWrench(train) ? carried is null && Repairs.WrenchInHand(s) : carried is { Kind: BodyKind.RepairKit };
 
     /// <summary>
     /// The broken radio a player with the repair kit would mend (note 201): their own, on their belt, or else the nearest one

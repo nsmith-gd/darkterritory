@@ -10,6 +10,8 @@ namespace DarkTerritory.Game.Tests;
 /// (Machado, Oliveira and Fernandes 2009, full severity, on linear sRGB) and measured in CIELAB, where under 20 apart reads
 /// as one colour.
 /// </summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public class HudPaletteTests
 {
     static readonly string Content = DataFile.FindContentRoot();
