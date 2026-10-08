@@ -65,6 +65,8 @@ public sealed partial class GameAudio
         _livestockAccel = double.NaN;
         _craneMoved.Clear();
         _castings.Clear();
+        _beltStarted.Clear();
+        _jamWas.Clear();
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
@@ -507,9 +509,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain), the cranes
-    /// (place-crane), the wreck yard's winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their
-    /// buildings, the dead towns (place-villages), and the mine underground (place-mine).
+    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain) and conveyor line
+    /// (place-conveyor, note 466), the cranes (place-crane), the wreck yard's winch and its wrecks (place-wreck), the
+    /// slaughterhouse and the chemical works near their buildings, the dead towns (place-villages), and the mine underground
+    /// (place-mine).
     /// </summary>
     void PlaceWorks(World world, Run? run, TrainOnLine train, Places places, Double3 ear, bool underground, double dt, bool primed)
     {
@@ -562,8 +565,13 @@ public sealed partial class GameAudio
                 Cue("place-grain.spout-stop", _spoutAt, outside);
 
             foreach (var site in run.Sites)
-                if (site is not null)
-                    PlaceSite(site, train, ear, dt, primed);
+            {
+                if (site is null)
+                    continue;
+                PlaceSite(site, train, ear, dt, primed);
+                if (site.Has(ModuleKind.Conveyor))
+                    ConveyorSounds(site, run.FacilityTuning?.Conveyor, ear, outside, primed);
+            }
             if (underground)
             {
                 HoldLevel("place-mine.underground", 0, ear, 0, 1);
