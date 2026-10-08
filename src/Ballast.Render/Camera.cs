@@ -99,6 +99,8 @@ public struct FrameLighting
     public Vector3 MoonColour;
     public float MoonStrength;
     public float Ambient;
+    /// <summary>Inside a room (<see cref="Room"/>), the fill in the moon's place (rgb); zero: the ambient times a warm tint.</summary>
+    public Vector3 IndoorFill;
     public Double3 LampPosition;
     public Vector3 LampDirection;
     public float LampRange;
