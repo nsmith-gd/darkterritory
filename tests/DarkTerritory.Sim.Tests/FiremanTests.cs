@@ -194,7 +194,7 @@ public class FiremanTests
     [Fact]
     public void WithTheDriverDeadAWalkerGoesForwardAndTakesTheControls()
     {
-        // Note 396 (a harness night's driver taken by a Climber at km 3, and the train stood the rest of the night: nobody
+        // Note 399 (a harness night's driver taken by a Climber at km 3, and the train stood the rest of the night: nobody
         // else drives since the fireman went, note 280): a walker on the roofs hears the driver's gone, goes forward over the
         // engine's hood and down its roof hatch into the cab, and drives on.
         var n = new DriverAndWalker();
@@ -215,7 +215,7 @@ public class FiremanTests
     [Fact]
     public void AClimberInTheCabBringsAWalkerForwardAndTheTwoClubItOut()
     {
-        // Note 396: alone in the cab with a Climber, the driver keeps clear of it (a lone blow doesn't hurt it, note 288), and
+        // Note 399: alone in the cab with a Climber, the driver keeps clear of it (a lone blow doesn't hurt it, note 288), and
         // its fire goes unworked till the train stands. A walker comes forward into the cab, and the two of them club it;
         // then the walker goes back to the train.
         var n = new DriverAndWalker();

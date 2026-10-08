@@ -74,7 +74,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         if (bot is RoofWalkerBot rw)
         {
             rw.Me = session.PlayerId ?? -1;
-            rw.Calls = calls; // note 396: the relief driver's claim
+            rw.Calls = calls; // note 399: the relief driver's claim
         }
         else if (bot is GunnerBot gb)
             gb.Me = session.PlayerId ?? -1;

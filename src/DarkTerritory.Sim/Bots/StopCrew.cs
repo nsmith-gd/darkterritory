@@ -315,7 +315,7 @@ public sealed partial class CrewCalls
     public bool IsBot(int playerId) => _bots.Contains(playerId);
 
     /// <summary>
-    /// The walker gone forward to the cab (note 396, <see cref="ReliefDriver"/>): to take the controls from a dead driver, or to
+    /// The walker gone forward to the cab (note 399, <see cref="ReliefDriver"/>): to take the controls from a dead driver, or to
     /// club a Climber in there with the driver. Claimed by the first to hear of it, and held while it lives and it's needed.
     /// Instant, like the claims: it's who goes where.
     /// </summary>

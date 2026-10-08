@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Bots;
 
 /// <summary>
-/// The relief driver (note 396): the driver's dead, and the train stands where it fell, or runs on with nobody at the
+/// The relief driver (note 399): the driver's dead, and the train stands where it fell, or runs on with nobody at the
 /// controls. A walker goes forward and takes them. Who goes is a claim on the crew's calls (<see cref="CrewCalls.Relief"/>):
 /// the first free walker to hear the driver's gone, and it holds it while it lives. It goes along the roofs to car 1, a
 /// running jump onto the engine's hood (note 338: level with the cars' roofs and the cab's), round the stack, and down the

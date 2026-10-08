@@ -327,17 +327,17 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 212); null otherwise.</summary>
     public LookErrand? Errand { get; set; }
 
-    /// <summary>The crew's calls (who's driving, and who's gone forward to relieve a dead driver: note 396), or null.</summary>
+    /// <summary>The crew's calls (who's driving, and who's gone forward to relieve a dead driver: note 399), or null.</summary>
     public CrewCalls? Calls { get; set; }
 
-    /// <summary>Gone forward to take the controls from a dead driver, or at them (note 396, for tests and the harness).</summary>
+    /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
     public bool Relieving { get; private set; }
 
     ConductorBot? _relief;
     bool _sawDriver;
 
     /// <summary>
-    /// The relief driver (note 396, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
+    /// The relief driver (note 399, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
     /// living gone forward for it: claimed, and forward to the cab (along the roofs, onto the engine, down its roof hatch),
     /// then the controls as a <see cref="ConductorBot"/> in the dead driver's place (member 0). Null otherwise, or with the
     /// legs walking it forward (<see cref="Relieving"/> still set).
@@ -847,7 +847,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
         }
-        // The driver's dead (note 396): forward to take the controls, before anything else.
+        // The driver's dead (note 399): forward to take the controls, before anything else.
         if (Relieve(self, world, tick, out aimed) is { } relieving)
             return relieving;
         if (Relieving)
@@ -1886,14 +1886,14 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// (the Deadman's there for an empty one). So nobody leaves: the driver and a second hand keep to the cab's free corners
     /// (<paramref name="side"/>: +1 the driver's, the front right by the console; −1 the back left by the doorway, the front
     /// left being the coal's, note 280), out of its reach. The controls as the intent had them; only where it stands changes.
-    /// With another crewmate in the cab, they club it together instead (note 396).
+    /// With another crewmate in the cab, they club it together instead (note 399).
     /// </summary>
     PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
     {
         var train = world.Train;
         if (!self.Alive || !PlayerMotor.InCab(self, train) || world.ActiveEnemies.FirstOrDefault(e => e is Climber { Inside: true } c && c.Attached == 0) is not { } climber)
             return intent;
-        // A crewmate come forward into the cab for it (note 396): the two of them club it (only a gang's blows hurt it, note
+        // A crewmate come forward into the cab for it (note 399): the two of them club it (only a gang's blows hurt it, note
         // 288), the controls as they were.
         var me = self;
         if (Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train) && (c.Position - me.Position).Length > 0.01) == true
