@@ -35,7 +35,7 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
 /// comes back out of it), nor a well. Built from the route alike on every machine, so a client predicts walking into one
 /// exactly as the host has it.
 /// </summary>
-public sealed class StopWalls
+public sealed partial class StopWalls
 {
     const double Cell = 32;
     readonly List<Wall> _walls = [];
@@ -100,6 +100,12 @@ public sealed class StopWalls
     /// </summary>
     public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> OpenWalls(StopBuilding b)
     {
+        if (Composite(b))
+        {
+            foreach (var w in CompositeWalls(b))
+                yield return w;
+            yield break;
+        }
         double hx = b.Length / 2, hy = b.Width / 2, t = WallThickness, door = DoorWidth / 2;
         var (fx, fy) = Front(b);
         // A wall from a to b along its run, less the doorway if it's the front.
@@ -120,6 +126,11 @@ public sealed class StopWalls
     /// </summary>
     public static (double X, double Y) InsideLocal(StopBuilding b, ContainerKind kind, int index)
     {
+        if (Composite(b))
+        {
+            var k = KeptComposite(b, kind, index);
+            return (k.FindX, k.FindY);
+        }
         var (fx, fy) = Front(b);
         // Out in the room in front of what it was kept in, which stands between it and the wall.
         double margin = WallThickness + FindOut;
@@ -144,6 +155,11 @@ public sealed class StopWalls
     /// </summary>
     public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index)
     {
+        if (Composite(b))
+        {
+            var k = KeptComposite(b, kind, index);
+            return (k.X, k.Y, k.FaceX, k.FaceY);
+        }
         var (x, y) = InsideLocal(b, kind, index);
         var (fx, fy) = Front(b);
         double sign = index % 2 == 0 ? 1 : -1;
@@ -171,15 +187,14 @@ public sealed class StopWalls
     /// </summary>
     public static IEnumerable<(ContainerKind Kind, double X, double Y, double HalfX, double HalfY)> Furniture(StopBuilding b, IEnumerable<StopContainer> kept)
     {
-        bool endOn = Front(b).X != 0;
         foreach (var c in kept)
         {
             if (c.Kind is not (ContainerKind.Cupboard or ContainerKind.Cabinet))
                 continue;
-            var (x, y, _, _) = Kept(b, c.Kind, c.Index);
-            // A cupboard's back is to the back wall (across the house from the door), a cabinet's to a side wall.
+            // Its back to the wall it faces away from: its depth along the way it faces.
+            var (x, y, faceX, _) = Kept(b, c.Kind, c.Index);
             (double depth, double width) = c.Kind == ContainerKind.Cupboard ? (CupboardDepth, CupboardWidth) : (CabinetDepth, CabinetWidth);
-            bool deepAlongX = c.Kind == ContainerKind.Cupboard ? endOn : !endOn;
+            bool deepAlongX = Math.Abs(faceX) > 0.5;
             yield return (c.Kind, x, y, deepAlongX ? depth : width, deepAlongX ? width : depth);
         }
     }
