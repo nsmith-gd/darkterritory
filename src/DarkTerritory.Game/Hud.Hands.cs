@@ -199,10 +199,12 @@ public static partial class Hud
         {
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
-            if (!gun.Jammed && gun.ReloadNeeded == 0 && gun.Ammo > 0 && steam)
+            int ready = Guns.Ready(gun, combat.Guns);
+            if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
-            return ($"THE GUN: {gun.Ammo} SHOT", lines);
+            // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
+            return (combat.Guns.Rack > 0 ? $"THE GUN: {ready} IN THE RACK, {Guns.Stowed(train, combat.Guns)} BELOW" : $"THE GUN: {gun.Ammo} SHOT", lines);
         }
         // The crane (T48), from its cab.
         if (p.Has(PlayerFlags.Operating) && world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)

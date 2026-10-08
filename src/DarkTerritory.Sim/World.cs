@@ -927,6 +927,31 @@ public sealed class World
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
     Couplings? _couplings;
+    /// <summary>The gun this player's at whose ready rack wants powder from the lockers (note 374), or null.</summary>
+    int? Charging(in PlayerState s, GunTuning t) =>
+        Guns.MannedGun(s, Train, t) is { } g && Guns.Ready(Train.Vehicles[g].Gun, t) < t.Rack && Guns.Stowed(Train, t) > 0 ? g : null;
+
+    /// <summary>
+    /// Host: a charge in hand at a gun that wants it, Use held (standing) <see cref="GunTuning.ChargeSeconds"/>: the rack's
+    /// filled and the charge is spent. Let go, and it starts again.
+    /// </summary>
+    void Charge(in PlayerState s, in PlayerIntent intent, int playerId, GunTuning t)
+    {
+        if (Bodies.CarriedBy(playerId) is not { Kind: Physics.BodyKind.Powder } charge || Charging(s, t) is not { } gun)
+            return;
+        if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
+        {
+            charge.MendTicks = 0;
+            return;
+        }
+        if (++charge.MendTicks * SimConstants.TickSeconds < t.ChargeSeconds)
+            return;
+        if (Guns.Fill(Train, gun, t) > 0)
+            Bodies.Remove(charge);
+        else
+            charge.MendTicks = 0;
+    }
+
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
@@ -983,11 +1008,20 @@ public sealed class World
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
+        // Powder to the guns (note 374): a charge in hand at a gun whose rack wants it is being loaded, not put down; empty
+        // hands at a powder locker with powder in it take a charge.
+        var gunTuning = Combat?.Guns;
+        bool charging = Authority && gunTuning is { Rack: > 0 } && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Powder } && Charging(s, gunTuning) is not null;
+        var fetch = Authority && gunTuning is { Rack: > 0 } && Guns.AtLocker(s, Train, gunTuning) is not null && Guns.Stowed(Train, gunTuning) > 0
+            ? Physics.BodyKind.Powder : (Physics.BodyKind?)null;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)), lever: lever);
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand,
+            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
+        if (charging && gunTuning is not null)
+            Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
