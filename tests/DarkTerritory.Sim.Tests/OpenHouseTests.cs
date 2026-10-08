@@ -78,6 +78,41 @@ public class OpenHouseTests
             $"{spec}: {open} open houses ({composite} of parts, {pairs} pairs), {inside} finds inside, {furniture} cupboards and cabinets");
     }
 
+    [Fact]
+    public void EveryOpenHouseIsRansackedTheSameOnEveryMachine()
+    {
+        // The director, 8 Oct: "furniture scattered about, like the place has been ransacked many times before". Every open
+        // house has its heavy furniture against a wall and things underfoot, from the stop's seed (twice over, the same); the
+        // heavy pieces are walls (the walk-in test goes round them), the nest's ground is clear, and the stop is laid as before.
+        var a = Routes.Generate(Content, "frontier:7", 6);
+        var b2 = Routes.Generate(Content, "frontier:7", 6);
+        int houses = 0, heavy = 0, loose = 0, nests = 0;
+        foreach (var (f, g) in a.Features.Zip(b2.Features).Where(x => x.First.Stop is not null))
+        {
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                if (!stop.Buildings[i].Open || !StopWalls.Walled(stop, i))
+                    continue;
+                houses++;
+                var clutter = StopWalls.ClutterOf(stop, i);
+                Assert.Equal(clutter, StopWalls.ClutterOf(g.Stop!, i));
+                heavy += clutter.Count(c => c.Solid);
+                loose += clutter.Count(c => !c.Solid);
+                Assert.True(clutter.Count(c => !c.Solid) >= 2, $"house {i} at {f.Start:0} is hardly touched");
+                foreach (var c in clutter)
+                    Assert.True(StopWalls.InParts(stop.Buildings[i], c.X, c.Y), $"a {c.Kind} outside house {i}");
+                if (StopWalls.Nest(stop, i) is { } nest)
+                {
+                    nests++;
+                    Assert.True(StopWalls.InParts(stop.Buildings[i], nest.X, nest.Y), $"house {i}'s nest is outside it");
+                    Assert.All(clutter.Where(c => c.Solid), c => Assert.True(Math.Abs(c.X - nest.X) > c.Box.HalfX + 1 || Math.Abs(c.Y - nest.Y) > c.Box.HalfY + 1));
+                }
+            }
+        }
+        Assert.True(houses > 0 && heavy >= houses && loose >= 3 * houses && nests > 0, $"{houses} houses: {heavy} heavy, {loose} loose, {nests} nests");
+    }
+
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     sealed record Walk(double X0, double Y0, bool[,] Grid, List<(double X, double Y)> Crossings)
     {

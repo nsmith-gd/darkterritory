@@ -129,6 +129,7 @@ public sealed partial class WorldArt
                     continue;
                 k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
                 Building(k, line, route, f, stop, i, eye, valleyDepth);
+                YardLeavings(mesh, line, route, f, stop, i, eye, valleyDepth);
             }
             if (stop.Halt is { } halt && f.Start + halt.S >= from && f.Start + halt.S < to)
                 Halt(k, line, f, halt, stop.HaltLength, eye);
@@ -279,7 +280,8 @@ public sealed partial class WorldArt
                     // An open house (note 326): its walls, its door and what's inside, as the sim stands them.
                     if (b.Open)
                     {
-                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index)));
+                        k.With(frame, () => TownKit.OpenHouse(k, b, stop.Containers.Where(c => c.Building == index),
+                            Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index)));
                         break;
                     }
                     // The layout's footprint parts are (x along its axis, y across); the kit's frame has its axis on −Z.

@@ -11,6 +11,13 @@
     "strongroom": { "heavy": 1 }
   },
 
+  // When a stop's loot comes out (ARCHITECTURE §8 note 352). The director, 8 Oct 2026: "[I] watched the loot spawn in the
+  // yard after I'd already stopped the train." It's out once the engine is on the main line within this many metres of the
+  // stop's zone, whatever its speed: further than enemies.json interestRadius (520), the furthest a client is sent a body
+  // from, and the lamp and the fog, so nobody sees it appear. A facility's own crates (facilities.json) come out with it.
+  // 0: when the train first stops there (the old rule). Stops passed at speed keep theirs lying out, asleep and unsent.
+  "stockAhead": 800,
+
   // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
   // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
   // between them, split by each container's weight; an outlier's weigh this much more (P11).

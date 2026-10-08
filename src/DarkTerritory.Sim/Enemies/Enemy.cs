@@ -183,7 +183,17 @@ public abstract class Enemy
             return Local;
         var t = OnMainLine ? train.Line.Sample(LineDistance) : train.Line.Sample(train.Dynamics.Path, LineDistance);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        return t.Position + right * Lateral + Double3.Up * Height;
+        double lateral = Lateral, lift = 0;
+        // The world is solid (note 279): beside the train in a tunnel it runs inside the bore, on a bridge on the deck (not in
+        // the rock or the air), and out past the formation on the land (not through a cutting's wall).
+        if (Lateral != 0 && train.Line.Conditions is { } land)
+        {
+            double room = land.LateralRoom(OnMainLine ? Rail.RailLine.MainPath : train.Dynamics.Path, LineDistance);
+            lateral = Math.Clamp(Lateral, -room, room);
+            if (Math.Abs(lateral) > land.FormationM)
+                lift = land.Ground(t.Position + right * lateral) - t.Position.Y;
+        }
+        return t.Position + right * lateral + Double3.Up * (Height + lift);
     }
 
     /// <summary>Advances the enemy one tick. A grab's rescue and its end are the spine's, the same for every enemy (App. A.9).</summary>

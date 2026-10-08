@@ -994,6 +994,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.Dynamics.Velocity = Math.Max(Math.Min(rbt.RuptureCoastBelow, Opt(args, "--speed", 20)), Opt(args, "--speed", 20) - rbt.RuptureDecel * Opt(args, "--ruptured", 0.8));
         train.RefreshFrames();
     }
+    // --gutter s: car 2's lamp guttering that many seconds (note 346): drawn out for this moment of its flicker, or not.
+    if (Opt(args, "--gutter", -1) is var gutterFor and >= 0)
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Gutter = gutterFor;
     // --hotbox s: car 2's axle box that many seconds hot (note 331): the smoke off its rear bogie, and the glow near the end.
     if (Opt(args, "--hotbox", -1) is var hotFor and >= 0)
     {
@@ -1290,7 +1293,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --burnt car,s: that car gutted by a fire that went out s seconds ago (its char, its smoulder).
         StagedBurnt = Str(args, "--burnt", "") is { Length: > 0 } burnt && burnt.Split(',') is var bp
             ? (int.Parse(bp[0]), bp.Length > 1 ? double.Parse(bp[1]) : 30) : null,
-        Time = 0.37,
+        // --scene-time s: the moment the scene's flickers are drawn at (a guttering lamp's, note 346); 0.37 as ever.
+        Time = Opt(args, "--scene-time", 0.37),
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
         Enemies = args.Contains("--run") ? Staging.Run(train) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
@@ -1916,12 +1920,16 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     new GreyboxScene { Time = 0.37, Look = look }.Build(mesh, standing, view.Position);
     var light = Views.Lighting(standing, look);
     using var gpu = new GpuContext("dt screenshot");
-    using var renderer = new GreyboxRenderer(gpu, 480, 270);
+    // --text-size s (note 347): the menus on the smaller canvas TEXT SIZE draws them on, stretched over 1080p as the app does.
+    var canvas = args.Contains("--text-size") ? new Settings { TextSize = Opt(args, "--text-size", 1) }.Canvas : (480, 270);
+    bool sized = args.Contains("--text-size");
+    using var renderer = sized ? new GreyboxRenderer(gpu, 1920, 1080) { OverlaySize = new System.Numerics.Vector2(canvas.Item1, canvas.Item2) }
+        : new GreyboxRenderer(gpu, 480, 270);
     look?.Dress(renderer);
     var overlay = new Overlay();
-    menu.Draw(overlay, renderer.Width, renderer.Height);
+    menu.Draw(overlay, canvas.Item1, canvas.Item2);
     string output = Str(args, "--out", $"out/shots/menu-{screen.ToString().ToLowerInvariant()}.png");
-    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, (int)Opt(args, "--scale", 2));
+    PngWriter.Write(output, renderer.Render(mesh, view, light, light.FogColor, overlay), renderer.Width, renderer.Height, sized ? 1 : (int)Opt(args, "--scale", 2));
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
 
@@ -2030,6 +2038,9 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
 static object HudShot(string content, string[] args)
 {
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
+    // --colours colourblind (note 348): the HUD in that palette.
+    if (Str(args, "--colours", "") is { Length: > 0 } colours)
+        Hud.Keys = Hud.Keys with { Colours = Enum.Parse<HudColours>(colours, ignoreCase: true) };
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
@@ -2168,6 +2179,11 @@ static object HudShot(string content, string[] args)
         talkNow = 30;
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
+    // --text-size s (note 347): the HUD on TEXT SIZE's smaller canvas, at 1080p (each canvas pixel 4, 5 or 6 of the screen's).
+    if (args.Contains("--text-size"))
+        ((width, height), scale) = (new Settings { TextSize = Opt(args, "--text-size", 1) }.Canvas, 0);
+    if (scale == 0)
+        scale = 1080 / height;
     string output = Str(args, "--out", "out/shots/hud.png");
     // --report [derailed]: the night over, and its incident report as the run-end screen shows it (GDD v1.4 App. D.12).
     if (args.Contains("--report") && session.World.Run is { } over)

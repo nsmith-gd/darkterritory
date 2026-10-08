@@ -2925,6 +2925,22 @@ public static class Heed
     }
 
     /// <summary>
+    /// A lamp guttering (note 346): a bot in the car trims it with the lamp key. A press every half second while it's guttering
+    /// and nothing else is: the host's trim reaches this client a snapshot later, and a second press on a lamp burning steady
+    /// would put it out.
+    /// </summary>
+    public static PlayerIntent Gutter(PlayerIntent intent, in PlayerState self, World world, uint tick)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent <= 0 || self.Parent >= world.Train.Vehicles.Count
+            || world.Train.Vehicles[self.Parent] is not { LampLit: true, Gutter: > 0 } || !PlayerMotor.Indoors(self, world.Train)
+            || intent.Has(PlayerActions.CarLamp))
+            return intent;
+        if (tick % (SimConstants.TickRate / 2) == 0)
+            intent.Actions |= PlayerActions.CarLamp;
+        return intent;
+    }
+
+    /// <summary>
     /// The voice (v1.1 App. C.7-C.8): a bot talks as it works (crews do; the Passenger never does), talks to the Gaunt when
     /// it's near one, and goes quiet while the Choir gathers or is here.
     /// </summary>
