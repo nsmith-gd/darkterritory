@@ -237,7 +237,7 @@ public sealed partial class GameAudio
         if (run is null || run.Phase is not (RunPhase.Underway or RunPhase.AtFacility))
             return;
         double dawn = Math.Clamp(run.DawnIn / 300, 0.35, 1);
-        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Occlusion(PlayerMotor.Outside), (tunnel || underground ? 0.2 : 1) * dawn);
+        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn);
         if (tunnel || underground || _time < _nextFar)
             return;
         if (_nextFar > 0)
@@ -365,18 +365,18 @@ public sealed partial class GameAudio
                 }
         double wind = weather.Wind * exposure;
         if (wind > 0.4)
-            HoldLevel("world-wind.gale", 0, ear + Double3.Up, 0, Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));
+            HoldLevel("world-wind.gale", 0, ear + Double3.Up, AirWalls(), Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));
         if (train.Line.Conditions is not null && PlayerTuning is { } pt && !double.IsNaN(earMain))
         {
             // The line's own gusts (note 201: the same field the sim pushes roof standers with), each heard as it rises,
             // from the side it blows from: a gust from the left comes off the train's left (note 241).
             double gust = PlayerMotor.Gust(earMain, pt.Wind.GustMetres);
             if (wind > 0.15 && Math.Abs(gust) > GustRises && Math.Abs(_gustWas) <= GustRises)
-                Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, 0, (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));
+                Cue("world-wind.gust", ear - train.Frames[0].Right * (Math.Sign(gust) * 4) + Double3.Up, AirWalls(), (float)Math.Clamp((0.5 + 0.5 * wind) * Math.Abs(gust), 0.4, 1));
             _gustWas = gust;
         }
         else if (wind > 0.15 && Sometimes(0.02 + 0.15 * wind, dt))
-            Cue("world-wind.gust", ear + Mixer.Listener.Right * (OutsideOdds() < 0.5 ? -4 : 4) + Double3.Up, 0, (float)Math.Clamp(0.5 + 0.5 * wind, 0.5, 1));
+            Cue("world-wind.gust", ear + Mixer.Listener.Right * (OutsideOdds() < 0.5 ? -4 : 4) + Double3.Up, AirWalls(), (float)Math.Clamp(0.5 + 0.5 * wind, 0.5, 1));
     }
 
     // How strong (of PlayerMotor.Gust's ±1) a gust is as it's heard rising.
@@ -593,7 +593,7 @@ public sealed partial class GameAudio
         var houses = places.Houses.Where(h => (h - ear).Length < 120).ToList();
         if (houses.Count > 0 || world.InSettlement)
         {
-            HoldLevel("place-villages.dead-town", 0, ear + Double3.Up * 2, outside, houses.Count > 0 ? 1 : 0.6);
+            HoldLevel("place-villages.dead-town", 0, ear + Double3.Up * 2, Math.Max(outside, AirWalls()), houses.Count > 0 ? 1 : 0.6);
             if (houses.Count > 0 && Sometimes(0.08, dt))
                 Cue("place-villages.shutter", houses[(int)(OutsideOdds() * houses.Count) % houses.Count] + Double3.Up * 2.5, outside, (float)(0.5 + 0.5 * OutsideOdds()));
             if (houses.Count > 0 && Sometimes(0.06, dt))
