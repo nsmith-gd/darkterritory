@@ -7652,6 +7652,69 @@
   "takes": 2,
   "sha": "ccc206583de8ec31"
  },
+ "crew-upkeep/grease": {
+  "cue": "crew-upkeep.grease",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Greasing a hot axle box: the grease gun's strokes, the grease spitting on hot iron",
+    "key": "gun",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "3c86bddf27bb740e"
+ },
+ "crew-upkeep/greased": {
+  "cue": "crew-upkeep.greased",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The box greased: the last of the grease hissing off as the iron cools",
+    "key": "hiss",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7cad942f1e4b3a8e"
+ },
+ "crew-upkeep/trim": {
+  "cue": "crew-upkeep.trim",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A guttering lamp trimmed: the wick's brass screw clicked up, the flame catching steady",
+    "key": "wick",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "992ff3090e43e9b8"
+ },
  "cs-car-hugger/break-away": {
   "cue": "cs-car-hugger.break-away",
   "surface": null,
@@ -10411,6 +10474,104 @@
   "takes": 3,
   "sha": "b921e0bc4893394f"
  },
+ "sign/grumbler": {
+  "cue": "sign.grumbler",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A Grumbler out there: something heavy scuttling behind a tin fence, a hand booming on the sheets, a mutter",
+    "key": "fence",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f263a3236d60e778"
+ },
+ "sign/ribbits": {
+  "cue": "sign.ribbits",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A Ribbit out in the dark: its fat wet body shifting in the grass, then one soft hop away and a soft landing",
+    "key": "hop",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_impact-sounds:footstep_grass_000",
+     "kenney_impact-sounds:footstep_grass_001",
+     "kenney_impact-sounds:footstep_grass_002",
+     "kenney_impact-sounds:footstep_grass_003",
+     "kenney_impact-sounds:footstep_grass_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "dc0b515eda2332c9"
+ },
+ "sign/sootChildren": {
+  "cue": "sign.sootChildren",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A Soot Child out there: small bare feet running off over cinders, a puff of soot where it stood",
+    "key": "barefoot",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8dd38d926458b515"
+ },
+ "sign/whistler": {
+  "cue": "sign.whistler",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Whistler out there: four metres of coil rushing off through the scrub, stems snapping down its length",
+    "key": "wake",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "532378d91279ddf9"
+ },
  "state-brake-fade/fade": {
   "cue": "state-brake-fade.fade",
   "surface": null,
@@ -10935,6 +11096,75 @@
   ],
   "takes": 1,
   "sha": "6a74bfc972b01ae5"
+ },
+ "state-gutter/flutter": {
+  "cue": "state-gutter.flutter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lamp's flame fluttering low and tearing as it starves",
+    "key": "flame",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad88a927ac0f8148"
+ },
+ "state-gutter/sputter": {
+  "cue": "state-gutter.sputter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car's lamp guttering: the wick spitting as it runs short of oil, quick and uneven",
+    "key": "wick",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f5ecbc760014d383"
+ },
+ "state-hotbox/smoke": {
+  "cue": "state-hotbox.smoke",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The box smoking: the grease in it cooking off, crackling and spitting, a thin hiss",
+    "key": "cooking",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "186111f4d48e54b7"
+ },
+ "state-hotbox/squeal": {
+  "cue": "state-hotbox.squeal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car's axle box running dry: the bearing's dry squeal, catching once a wheel turn",
+    "key": "journal",
+    "sources": [
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "fb4fa00f1fbda4d7"
  },
  "state-rupture/burst": {
   "cue": "state-rupture.burst",

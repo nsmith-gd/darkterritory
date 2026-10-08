@@ -21,7 +21,27 @@ public sealed record TownPlan(
     IReadOnlyList<TownHouse> Houses,
     IReadOnlyList<Townsperson> People,
     IReadOnlyList<TownPaper> Papers,
-    IReadOnlyList<TownFixture> Fixtures);
+    IReadOnlyList<TownFixture> Fixtures,
+    string Character = "",
+    TownBounds? Bounds = null);
+
+/// <summary>
+/// A walled town's extent and streets (queue #74, note 335), in the rail frame: the wall along the line from
+/// <see cref="Rear"/> to <see cref="Gate"/> and out to <see cref="Left"/> (the −D side) and <see cref="Right"/> (+D), the
+/// streets beside the line and the lanes across them. Null on a town that's still the yard's corridor (its houses on the
+/// line's own street only), whose walls are the fortress's two (T124).
+/// </summary>
+public sealed record TownBounds(double Rear, double Gate, double Left, double Right, IReadOnlyList<TownStreet> Streets, IReadOnlyList<TownLane> Lanes)
+{
+    /// <summary>Whether a point (along the line, across it) is inside the wall, give or take <paramref name="pad"/>.</summary>
+    public bool Holds(double s, double d, double pad = 0) => s >= Rear - pad && s <= Gate + pad && d >= -Left - pad && d <= Right + pad;
+}
+
+/// <summary>A street beside the line: its middle (D), from <see cref="S0"/> to <see cref="S1"/> along it, its width.</summary>
+public sealed record TownStreet(double D, double S0, double S1, double Width);
+
+/// <summary>A lane across the streets at <see cref="S"/>, from <see cref="D0"/> to <see cref="D1"/>, its width.</summary>
+public sealed record TownLane(double S, double D0, double D1, double Width);
 
 /// <summary>Where the walls step back for the square: along the line from <see cref="S0"/> to <see cref="S1"/>, out to
 /// <see cref="WallD"/> on <see cref="Side"/>.</summary>

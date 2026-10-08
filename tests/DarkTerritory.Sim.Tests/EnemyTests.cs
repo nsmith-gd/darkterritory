@@ -228,6 +228,9 @@ public class EnemyTests
             // Held, they do nothing (a Use held would be a solo struggle).
             if (n.Crew[id].Has(PlayerFlags.Held))
                 return default;
+            // Its rack kept fed (note 374): a walker bringing the powder up as it goes.
+            if (Guns.Ready(n.Train.Vehicles[guard].Gun, Tuning.Combat.Guns) == 0)
+                Guns.Fill(n.Train, guard, Tuning.Combat.Guns);
             // GDD v1.1 App. C.3: powder, ball, ram between shots (Use held at the gun).
             if (n.Train.Vehicles[guard].Gun.ReloadNeeded > 0 || n.Train.Vehicles[guard].Gun.Jammed)
                 return new PlayerIntent { Buttons = PlayerButtons.Use };

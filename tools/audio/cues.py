@@ -218,6 +218,12 @@ CUES = {
         O("knuckle-close", "Knuckles slamming together on a recouple", vars=3),
         O("pin-drop", "Coupling pin dropping home", vars=3),
     ],
+    # The upkeep (queue #95, note 358; D1's notes 331 and 346): the hands on the jobs the train makes as it runs.
+    "crew-upkeep": [
+        L("grease", "Greasing a hot axle box: the grease gun worked, the grease spitting on hot iron (held while at it)"),
+        O("greased", "The box greased: the last of it hissing off as the iron cools", vars=3),
+        O("trim", "A guttering lamp trimmed: the wick screwed up a few clicks, the flame catching steady", vars=3),
+    ],
     "crew-repair": [
         O("kit-open", "Repair kit opened"),
         L("ratchet", "Wrench ratcheting on the boiler, held", cand={"_": S("misc_20")}),
@@ -360,6 +366,16 @@ CUES = {
     ],
     "state-brake-fade": [
         L("fade", "Hot brakes glazing and losing their bite (replaces drag-hot as they go)"),
+    ],
+    # The train's faults while it runs (queue #95, note 358): D1's hot box (note 331) and lamp guttering (note 346), the
+    # synths `hotbox` and `lamp-gutter` swapped for these (install.py TELL_SOUNDS), their params kept ("heat", "gutter").
+    "state-hotbox": [
+        L("squeal", "A car's axle box running dry: the bearing's dry squeal, catching once a wheel turn, rising as it heats"),
+        L("smoke", "The box smoking: the grease in it cooking off, crackling, a thin hiss (from halfway hot)"),
+    ],
+    "state-gutter": [
+        L("sputter", "A car's lamp guttering: the wick spitting, quick and uneven, worse as it goes"),
+        L("flutter", "The flame fluttering low and tearing as it starves"),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
@@ -622,6 +638,18 @@ CUES = {
     "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
+    # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
+    # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
+    # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
+    # are silent till they're on you: their sign is the eyes alone.
+    "sign": [
+        O("ribbits", "A Ribbit out in the dark: a wet shift in the grass and one soft hop away, not its croak", vars=3),
+        O("sootChildren", "A Soot Child out there: small bare feet running off over cinders, a breath of soot, never its call", vars=3),
+        O("whistler", "The Whistler out there: something long-legged moving off fast through brush, never its whistle", vars=3),
+        O("grumbler", "A Grumbler out there: a heavy scuttle behind a wall and a low mutter, not its gnaw", vars=3),
+        O("gaunt", "The Gaunt: silent, the eyes alone (its silence is its tell)", vars=1, silent=True),
+        O("followers", "The Followers: silent, the eyes alone", vars=1, silent=True),
+    ],
     "tell-hounds": [O("howl-far", "A distant howl", vars=4, cand={"_": [old("audio/tell-hounds--far.mp3")]}),
                     O("howl-near", "The pack howling close behind (40-100 m), as it closes", vars=4)],
     "tell-climbers": [O("scrabble", "Scrabbling at the gap", vars=4)],

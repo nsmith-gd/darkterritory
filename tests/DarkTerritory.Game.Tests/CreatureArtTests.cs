@@ -80,6 +80,10 @@ public class CreatureArtTests
         // a side, the velvet, the sac ridge, the bell); every clip the brief asks for.
         ["moose"] = new(8000, 16000, 30, 55, ["graze", "listen", "warn", "walk", "strut", "search", "trot", "charge", "snag", "ram", "pin", "trainPass"],
             ["squareUp", "overrun", "hit"]),
+        // A large monster (GDD §27: 8-16k; docs/design/creatures/gannet.md §3), on its own bird rig (SK_Gannet: five bones a
+        // wing, three sacs that swell, a jaw that gapes, the spear's tip a socket); every clip the brief asks for.
+        ["gannet"] = new(8000, 16000, 25, 45, ["soar", "circle", "hang", "dive", "stuck", "climb", "bank", "pin"],
+            ["fold", "stab", "tearFree", "swoop", "land", "peckWindup", "peck", "driven", "hit", "death"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -129,8 +133,14 @@ public class CreatureArtTests
         var hound = Get("cinder_hound");
         Assert.InRange(hound.Max.Z - hound.Min.Z, 1.25f, 1.9f); // nose to tail's root and beyond
         Assert.True(hound.Min.Z < -0.5f, "the hound's head is forward (−Z)");
+        // The Gannet (gannet.md §3): a 7 m wingspan, the widest thing in the roster, and 2.3 m tall stood on a roof; its
+        // metre of spear forward (−Z).
+        var gannet = Get("gannet");
+        Assert.InRange(gannet.Max.X - gannet.Min.X, 6.8f, 7.2f);
+        Assert.InRange(Height(gannet), 2.2f, 2.45f);
+        Assert.True(gannet.Min.Z < -2.1f, "the gannet's spear is forward (−Z)");
         // The Moose (moose.md §3): 2.4 m at the shoulder, about 3.4 m to the top of its rack, and the rack 3.2 m across, the
-        // widest thing in the roster; its head forward (−Z).
+        // widest thing on the ground; its head forward (−Z).
         var moose = Get("moose");
         Assert.InRange(Height(moose), 3.2f, 3.5f);
         Assert.InRange(moose.Max.X - moose.Min.X, 3.1f, 3.35f);
@@ -526,6 +536,102 @@ public class CreatureArtTests
         Assert.Equal(CrewPose.HeldPinned, CrewActs.HeldPose(EnemyKind.Moose));
     }
 
+    /// <summary>
+    /// The Gannet (note 340, docs/design/creatures/gannet.md §5): what it does is the sim's mode, and its clips play it out.
+    /// Folding, the fold then the dive, its spear's tip the sim's dive point; stuck, thrashing with the spear in the planks,
+    /// then the tear free ending with stuckSeconds; out of a dive it stabs, off a pin it's driven, else it climbs; the bank
+    /// ends in the swoop; and pinning, each peck strikes on the beat Gannet.PecksLanded counts, its wind-up before it. No
+    /// part of it goes through another in any clip.
+    /// </summary>
+    [Fact]
+    public void TheGannetFoldsStrikesAndPecksOnTheSimsBeat()
+    {
+        var t = Art.GannetTuning;
+        var model = Get("gannet");
+        string Clip(GannetMode mode, double seconds, GannetMode? was = null) => CreatureArt.GannetClip(mode, was, seconds, seconds, t).Clip;
+        // The lengths GannetClip times things by are the clips'.
+        foreach (var (clip, seconds) in new[] { ("fold", CreatureArt.GannetFoldSeconds), ("stab", CreatureArt.GannetStabSeconds),
+            ("tearFree", CreatureArt.GannetTearFreeSeconds), ("swoop", CreatureArt.GannetSwoopSeconds), ("land", CreatureArt.GannetLandSeconds),
+            ("peckWindup", CreatureArt.GannetWindupSeconds), ("peck", CreatureArt.GannetPeckSeconds), ("driven", CreatureArt.GannetDrivenSeconds),
+            ("circle", CreatureArt.GannetCircleSeconds) })
+            Assert.Equal(seconds, model.Clip(clip)!.Duration, 3);
+        foreach (var mode in Enum.GetValues<GannetMode>().Where(m => m != GannetMode.Away))
+            foreach (var was in new GannetMode?[] { null, GannetMode.Fold, GannetMode.Pin })
+                foreach (double s in new[] { 0, 0.3, 1, 2.9, 3.0, 5.95, 11.95, 20 })
+                    Assert.Contains(CreatureArt.GannetClip(mode, was, s, s, t).Clip, model.ClipNames);
+        Assert.Equal("soar", Clip(GannetMode.Soar, 1));
+        Assert.Equal("circle", Clip(GannetMode.Soar, CreatureArt.GannetSoarHold + 1));
+        Assert.Equal("hang", Clip(GannetMode.Hang, 1));
+        Assert.Equal("fold", Clip(GannetMode.Fold, 0.1));
+        Assert.Equal("dive", Clip(GannetMode.Fold, t.FoldSeconds - 0.1));
+        Assert.Equal("stuck", Clip(GannetMode.Stuck, 1));
+        Assert.Equal("tearFree", Clip(GannetMode.Stuck, t.StuckSeconds - 0.1));
+        Assert.Equal("stab", Clip(GannetMode.Climb, 0.1, GannetMode.Fold));
+        Assert.Equal("driven", Clip(GannetMode.Climb, 0.1, GannetMode.Pin));
+        Assert.Equal("climb", Clip(GannetMode.Climb, 0.1, GannetMode.Stuck));
+        Assert.Equal("bank", Clip(GannetMode.Bank, 1));
+        Assert.Equal("swoop", Clip(GannetMode.Bank, t.BankSeconds - 0.1));
+        Assert.Equal("land", Clip(GannetMode.Pin, 0.1));
+        Assert.Equal("pin", Clip(GannetMode.Pin, 1.5));
+        var g = new Gannet(1);
+        for (int k = 1; k <= t.Pecks; k++)
+        {
+            double beat = k * t.PeckEvery;
+            g.Restore(SpinePhase.Grab, beat + 0.01, t.Health, 2, default, 0, 0, (double)GannetMode.Pin, -1, 1, holding: 1);
+            Assert.Equal(k, g.PecksLanded(t));
+            // The strike's contact frame lands on the beat the sim counts the peck on; the wind-up's before it.
+            var (clip, at, loop) = CreatureArt.GannetClip(GannetMode.Pin, null, beat, beat, t);
+            Assert.Equal(("peck", CreatureArt.GannetPeckStrike, false), (clip, Math.Round(at, 6), loop));
+            Assert.Equal("peckWindup", Clip(GannetMode.Pin, beat - CreatureArt.GannetPeckStrike - 0.3));
+        }
+        // The spear's tip is where the sim has it in the dive (its origin) and buried in the planks under it when stuck.
+        int tip = model.Skeleton.IndexOf("beak_tip");
+        Vector3 Tip(string clip, double time, bool loop = true) => Art.Joints("gannet", clip, time, loop).ElementAt(tip);
+        Assert.InRange(Tip("dive", 0.2).Length(), 0, 0.06f);
+        Assert.InRange(Tip("fold", CreatureArt.GannetFoldSeconds, loop: false).Length(), 0, 0.06f);
+        Assert.InRange(Tip("stuck", 0.5).Y, -0.45f, -0.2f);
+        var through = Clearance.Mesh(model).Where(o => o.Depth > Clearance.Touching).ToList();
+        Assert.True(through.Count == 0, string.Join("; ", through.Select(o => $"{o.Clip} {o.Pair} {o.Depth:0.000} at {o.At:0.00} s")));
+    }
+
+    [Fact]
+    public void TheOneTheGannetPinsIsUnderItsFootAndItsPecksLandOnTheirHead()
+    {
+        // GreyboxScene: the sim has it stood on them where it came down; the scene stands it with its right foot's web on their
+        // chest, turned along their car, and lays them on their back along its heading, their head out in front of it
+        // (CreatureArt.Pins, held_pinned).
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var threats = Staging.Gannet([], train, "pin");
+        var pinned = Staging.GannetWalker(train, "pin");
+        var eye = pinned.Feet + new Double3(4, 2, 1);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = threats, Crew = [pinned with { Act = null }] };
+        var mesh = new MeshBuilder();
+        scene.Build(mesh, train, eye);
+        Assert.True(Look.Art.Creatures!.Pins.TryGetValue(pinned.Id, out var pin));
+        var ahead = train.Frames[Staging.GannetCar].Back * -1;
+        Assert.True(Vector3.Dot(pin.Forward, -new Vector3((float)ahead.X, (float)ahead.Y, (float)ahead.Z)) > 0.99f,
+            "laid along the car, their head out ahead of it under its spear");
+        Assert.Equal(CrewPose.HeldPinned, CrewActs.HeldPose(EnemyKind.Gannet));
+        // Their chest and head as held_pinned lays them (behind where the sim has them, their feet ahead): under the web of
+        // its right foot, and their face where the peck's strike lands.
+        var crew = Get("crew");
+        var lying = Art.Joints("crew", "held_pinned", 0.3, true).ToList();
+        float chest = lying[crew.Skeleton.IndexOf("spine_03")].Z, head = lying[crew.Skeleton.IndexOf("head")].Z;
+        Assert.InRange(chest, CreatureArt.PinnedChest - 0.05f, CreatureArt.PinnedChest + 0.05f);
+        var model = Get("gannet");
+        var foot = Art.Joints("gannet", "pin", 0.5, true).ElementAt(model.Skeleton.IndexOf("toes_r"));
+        Assert.InRange(foot.X, CreatureArt.GannetPinChest.X - 0.05f, CreatureArt.GannetPinChest.X + 0.05f);
+        Assert.InRange(-foot.Z, CreatureArt.GannetPinChest.Y - 0.25f, CreatureArt.GannetPinChest.Y + 0.05f);
+        var strike = Art.Joints("gannet", "peck", CreatureArt.GannetPeckStrike, false).ElementAt(model.Skeleton.IndexOf("beak_tip"));
+        // (The face a hand on from the head's joint, at the skull's base.)
+        float headAhead = CreatureArt.GannetPinChest.Y + (head - chest) + 0.1f;
+        Assert.InRange(strike.X, CreatureArt.GannetPinChest.X - 0.1f, CreatureArt.GannetPinChest.X + 0.1f);
+        Assert.InRange(-strike.Z, headAhead - 0.15f, headAhead + 0.15f);
+        Assert.InRange(strike.Y, 0, 0.4f);
+    }
+
     [Fact]
     public void TheTippyToesiePulledOffRecoilsWhereItWasThenScuttles()
     {
@@ -821,6 +927,7 @@ public class CreatureArtTests
         "climber" => (Vector3.Zero, 1.9f),
         "fire_fly" => (Vector3.Zero, 0.16f),
         "moose" => (Vector3.Zero, 3.4f),
+        "gannet" => (Vector3.Zero, 3.6f),
         _ => (Vector3.Zero, 1.9f),
     };
 

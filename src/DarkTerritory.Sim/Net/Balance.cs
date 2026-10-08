@@ -17,6 +17,20 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     public Audit.GrabAuditTuning Grabs { get; init; } = new();
     /// <summary>GDD App. F.1's solo target: a few runs, then friends (note 300).</summary>
     public SoloTuning Solo { get; init; } = new();
+    /// <summary>The orchestrator's pacing targets (orchestrator.md §4; note 379).</summary>
+    public PacingTargets Pacing { get; init; } = new();
+}
+
+/// <summary>
+/// The orchestrator's pacing targets (docs/design/orchestrator.md §4; note 379): P1, nobody slack past the census's press for
+/// long; P3, something engaged for this share of the night on the line. Advisory checks don't fail the sweep. Field docs
+/// live in balance.json.
+/// </summary>
+public sealed record PacingTargets
+{
+    public bool Advisory { get; init; } = true;
+    public double SlackOverSeconds { get; init; } = 30;
+    public double[] Engaged { get; init; } = [0.45, 0.60];
 }
 
 /// <summary>
@@ -33,12 +47,19 @@ public sealed record BalanceNight(RouteTier Tier, ulong Seed, int Crew, int Cars
 /// <summary>How a night went, in the terms the sweep is judged by.</summary>
 public sealed record BalanceRow(RouteTier Tier, ulong Seed, int Crew, int Cars, string End, bool Delivered, double Net, int CrewLost,
     IReadOnlyDictionary<string, int> DeathsByCause, int Punishes, int FairnessViolations, double Seconds, double DistanceKm,
-    double LongestQuietSeconds = 0, double MeanQuietSeconds = 0);
+    double LongestQuietSeconds = 0, double MeanQuietSeconds = 0)
+{
+    /// <summary>The most seconds any crewmate spent at or past the census's slackPress (note 345); 0 with no census.</summary>
+    public double SlackOver { get; init; }
+    /// <summary>The share of the night out on the line that was quiet (the harness's pacing quietShare).</summary>
+    public double QuietShare { get; init; }
+}
 
 /// <summary>The nights with one crew size (or train length) together.</summary>
 public sealed record BalanceGroup(int Value, int Nights, double DeliveredRate, double MeanNet, double MeanCrewLost, double MeanPunishes);
 
-public sealed record BalanceCheck(string Name, bool Pass, string Detail);
+/// <param name="Advisory">Reported but never failing the sweep (note 379's pacing targets, until the director sets them).</param>
+public sealed record BalanceCheck(string Name, bool Pass, string Detail, bool Advisory = false);
 
 public sealed record BalanceReport(IReadOnlyList<BalanceRow> Nights, IReadOnlyList<BalanceGroup> ByCrew, IReadOnlyList<BalanceGroup> ByCars,
     IReadOnlyList<BalanceCheck> Checks, bool Pass);
@@ -61,7 +82,11 @@ public static class Balance
         return new BalanceRow(n.Tier, n.Seed, n.Crew, n.Cars, run?.End.ToString() ?? "none", run?.End == Run.RunEnd.Delivered,
             run?.Net ?? 0, run?.CrewLost ?? r.Deaths, threats?.DeathsByCause ?? new Dictionary<string, int>(),
             threats?.Punishes.Values.Sum() ?? 0, threats?.FairnessViolations ?? 0, r.Seconds, run?.DistanceKm ?? r.TrainDistance / 1000,
-            r.Pacing?.LongestQuietSeconds ?? 0, r.Pacing?.MeanQuietSeconds ?? 0);
+            r.Pacing?.LongestQuietSeconds ?? 0, r.Pacing?.MeanQuietSeconds ?? 0)
+        {
+            SlackOver = threats?.Slack.Values.Select(v => v.Over).DefaultIfEmpty(0).Max() ?? 0,
+            QuietShare = r.Pacing?.QuietShare ?? 0,
+        };
     }
 
     public static BalanceReport Judge(IReadOnlyList<BalanceRow> rows, BalanceTuning t)
@@ -99,8 +124,19 @@ public static class Balance
         if (Alone(solo.HardTier, solo.HardCars) is { Count: > 0 } hard)
             checks.Add(new BalanceCheck($"solo is hard on {solo.HardTier} at {solo.HardCars} cars", Rate(hard) <= solo.HardDelivered,
                 $"{Rate(hard):P0} of {hard.Count} nights delivered (at most {solo.HardDelivered:P0})"));
+        // The orchestrator's pacing targets (orchestrator.md §4; note 379), on crews the census steers (two or more).
+        var p = t.Pacing;
+        if (rows.Where(r => r.Crew >= 2).ToList() is { Count: > 0 } crewed)
+        {
+            var slackest = crewed.MaxBy(r => r.SlackOver)!;
+            checks.Add(new BalanceCheck($"P1: nobody slack for long (≤ {p.SlackOverSeconds:0} s past the press)", slackest.SlackOver <= p.SlackOverSeconds,
+                $"most {slackest.SlackOver:0} s ({slackest.Tier}:{slackest.Seed}, crew {slackest.Crew})", p.Advisory));
+            double engaged = crewed.Average(r => 1 - r.QuietShare);
+            checks.Add(new BalanceCheck($"P3: something engaged {p.Engaged[0]:P0}–{p.Engaged[1]:P0} of the night", engaged >= p.Engaged[0] && engaged <= p.Engaged[1],
+                $"{engaged:P0} on average", p.Advisory));
+        }
         int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));
-        return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass));
+        return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass || c.Advisory));
     }
 }

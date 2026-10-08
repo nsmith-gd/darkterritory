@@ -19,6 +19,9 @@ public static class CrewActs
     /// <summary>Falling faster than this (m/s down), someone in the air is falling, not at the top of a jump.</summary>
     const double Falling = 3;
 
+    /// <summary>Rising faster than this (m/s up), someone in the air has jumped (a step off a ledge never rises).</summary>
+    const double Rising = 0.5;
+
     /// <summary>
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
@@ -81,8 +84,9 @@ public static class CrewActs
             EnemyKind.Whistler => CrewPose.HeldCarried,
             EnemyKind.TippyToesie => CrewPose.HeldCover,
             EnemyKind.Ribbit => CrewPose.HeldFrozen,
-            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311.)
-            EnemyKind.SootChildren or EnemyKind.Moose => CrewPose.HeldPinned,
+            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311. Flat on the roof under the
+            // Gannet's foot, the same: note 340.)
+            EnemyKind.SootChildren or EnemyKind.Moose or EnemyKind.Gannet => CrewPose.HeldPinned,
             EnemyKind.Choir => CrewPose.HeldSeized,
             EnemyKind.Passenger => CrewPose.HeldDragged,
             _ => CrewPose.Held,
@@ -214,8 +218,9 @@ public static class CrewActs
             return CrewPose.GetUp;
         if (s.Surface == Surface.Ladder)
             return s.Has(PlayerFlags.SoloCarry) ? CrewPose.ClimbCarry : CrewPose.Climb;
+        // In the air: going up off a jump, the leap (note 375; SceneArt holds it over the top); coming down hard, falling.
         if (s.Surface == Surface.Air)
-            return s.Velocity.Y < -Falling ? CrewPose.Fall : null;
+            return s.Velocity.Y < -Falling ? CrewPose.Fall : s.Velocity.Y > Rising ? CrewPose.Jump : null;
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
@@ -251,7 +256,7 @@ public static class CrewActs
             if (world.Run is { } run && run.LeverInReach(s, train))
                 return CrewPose.Chute;
         }
-        if (world.Run is { } r && r.SpoutLeverInReach(s, train) is not null)
+        if (world.Run is { } r && (r.SpoutLeverInReach(s, train) is not null || r.LiftLeverInReach(s, train) is not null))
             return CrewPose.Spout;
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return null;

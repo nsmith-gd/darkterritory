@@ -19,6 +19,8 @@ public sealed class PlayerProfile(string path)
         /// always real"; note 182). Until then, the first call on a night they host is a real child.
         /// </summary>
         public bool ChildCalled { get; init; }
+        /// <summary>Nights this player has seen to their end (note 350): the first ones show the yard's controls card.</summary>
+        public int Nights { get; init; }
     }
 
     public string Path { get; } = path;
@@ -48,6 +50,15 @@ public sealed class PlayerProfile(string path)
                 string name = Sim.Run.Commendations.StarterSet[which];
                 data.Commendations[name] = data.Commendations.GetValueOrDefault(name) + 1;
             }
+        Save(data);
+        return data;
+    }
+
+    /// <summary>A night this player saw to its end (note 350), counted and saved.</summary>
+    public Data CountNight()
+    {
+        var was = Load();
+        var data = was with { Nights = was.Nights + 1 };
         Save(data);
         return data;
     }
