@@ -751,7 +751,7 @@ public sealed partial class GameAudio
             return;
         foreach (var d in walls.HouseDoors)
             if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
-                Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d));
+                AtADoor(Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d)));
     }
 
     /// <summary>

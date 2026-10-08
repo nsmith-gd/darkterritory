@@ -6029,6 +6029,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - "In it" is in its footprint and between 3 m under the rail (a cellar) and 8 m over it (`EarRoom.ShutsIn`). It must also still be in the footprint 0.5 m (`roomEdge`) nearer the ear. A sound that close to the face on the ear's side is at the door or a window and is heard out of it: a door shut in a house's doorway, a crewmate at a window.
         - An ear in one building, hearing a sound in another, hears it through the greater of the two walls.
         - The train's bed (tier 5) is never in a building. A sound its caller has already put part-way behind something (a prisoner's call through a Holdout's door, a town house's range) keeps its caller's judgement, as before.
+        - A house's door is heard at the doorway as the house and the street both (note 409): its shutting and opening, and the Choir beating on it, pass no building's walls. Fixed since: the door's sound sits 0.5 m inside the house's footprint (so an ear inside hears it clear), and from along the street, off to the door's side, the 0.5 m `roomEdge` didn't reach the face, so the door came through a whole room's wall (0.8). `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp` hears it from there too.
     - **The night's air, walled:** `world-night.night`, the gale, its gusts and a dead town's quiet are played at the ear. Now they're behind the walls of the room or shed the ear is in (`GameAudio.AirWalls`). The rain already moved onto the roof indoors (note 392). The far cries and the thunder, placed out in the night, were already walled by note 396.
     - **No new sounds and no new mix numbers:** `roomEdge` is the one new tuning value.
     - **Pinned:** `WorldSoundTests.AStopsBuildingsWallsAreBetweenAnEarOutsideItAndASoundInIt`, on a client night with a Holdout's room and a shed:
@@ -6351,6 +6352,71 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `battered`: a worn, dipped joint. The wheel drops into the dip with a dull clunk and cracks onto the far end 15-25 ms later.
     - **Kept under 2 kHz.** Spec A.4 rule 1 gives the tells 2-6 kHz and the bed the low mids, and the joint is rhythmic, which is the other way a tell is told apart. Both new joints are cut steeply above 1.9 kHz: crack has none of its energy in 2-6 kHz, and battered 2 %. They're crisper than the old thunk without crowding the tells.
     - **Verified:** with crack installed, `AudioTests.EveryTellCutsThroughTheBedForWhoeverHasToHearIt` (chaos and tells: 20 cars at 22 m/s, every tell at least 6 dB over the bed for every listener) passes, and so do the WorldSound and Credits classes (88). Only the six joint takes changed.
+444. **The truss Dragger's drop heard (AU1, queue #180; D1's #171, note 435).** A Dragger perched on a through-truss's top chord scrapes (`dragger-scrape`, the tell), then drops 7 m onto the roof of the car passing under with someone on it and grabs them. With nobody up there, it drops onto the ballast behind and is gone. Neither fall made a sound: the grab came out of the scrape with nothing between, and the miss was silent.
+    - **How** (`GameAudio.DraggerSounds`, `Vanished`): a client's mirrored Dragger never knows it was `Perched`. So the drop is read off its record: a Dragger in its tell with no car of its own (`Attached < 0`), its height over the line.
+        - When it has a car in the next record, that's the landing. `cs-draggers.drop` plays on that car's roof, heard clear inside the car under it and through the walls from another. The grab follows 0.3 s later (`DropToGrab`) as it reaches the edge, not on top of the landing.
+        - When it's gone while still perched in its tell, that's the fall. `cs-draggers.fall` plays under the chord, at the line.
+    - **The sounds** (`tools/audio/recipes/dragger_drop.py`, from boarders.py's Dragger pieces, so it's the creature of the grab): three candidates on the Audio Checklist's Dragger line.
+        - The landing, `slam` (installed): its whole weight on the tin, which booms and flexes (the packs' tin hit pitched far down, the sheet's modes), a body thud, a second limb a beat after, then its claws skating and joints popping as it gathers itself.
+        - The landing, `limbs`: lighter, on all its limbs, a rattle of hard tips on the tin before its body settles.
+        - The fall, `ballast` (installed): a deep thud and a heavy crunch of ballast, stones scattering, its limbs scrabbling a moment. It's heard drawing away from the train (`recede`), so it sits behind you.
+    - **Captioned:** "SOMETHING HEAVY LANDING ON THE ROOF" and "SOMETHING FALLING ONTO THE TRACK BEHIND".
+    - **Pinned:** `CreatureSoundTests.ATrussDraggerLandsOnTheRoofBeforeItsGrabOrFallsOnTheBallastBehind`, on records mirrored as a client gets them:
+        - perched, then on car 2's roof in its grab: the landing at once, and the grab once within half a second;
+        - another perched, then gone: its fall, 7.2 m under where it hung.
+446. **The townsfolk heard on their rounds (AU1, queue #182; B2's #389, note 353: towns that are lived in; AU1's note 415 heard the town standing still).** Since #389 everyone in a walled town has a round: from their post to a bench, a fire, the board, a vigil and back, a household round its rooms, the watch along the wall with their lanterns. Each of them breathes through their gear (a respirator, an oxygen cup, a rebreather, a wrapped can). None of it was heard but the murmur: nobody's feet, nobody's breath.
+    - **How** (`GameAudio.FolkOnTheirRounds`): with the rest of the town, every 0.25 s, each person's feet are found once (`Town.Feet`). The lookup keeps the nearest four within 20 m, the nearest out of doors within 4 m and the nearest two of the watch (`Pose` "lantern") within 25 m. Then, every tick, off `Town.Now`:
+        - **Steps:** a walker's step each 0.7 m they cover (`TownPose.Walking`), on what's under them. That's the street's cobbles or dirt as `Footing.Ground` has the town, a house's boards indoors, or the wall-walk's planks up on it. It's the crew's own `crew-footsteps.walk` set, a little softer (0.6).
+        - **Gear:** the breath of whoever's close enough, out of doors, by the gear they wear (`Townsperson.Gear`: `place-town.gear-respirator`, `-oxygen`, `-rebreather`, `-wrap`), at their head.
+        - **The watch's lanterns:** `place-town.lantern` at the hand, swinging as they walk and quieter hanging still as they stand.
+        - Indoors and out are walled as the rest of the town is (note 415's `TownWall`).
+    - **The sounds** (`tools/audio/recipes/townsfolk.py`): five loops on the Audio Checklist's `place-town` line, all installed. Each gear loop is two slow breaths of heard_foley's modelled breath, the stand-in until recorded ones, with a smooth swell on each.
+        - The respirator, `valves`: drawn muffled through its filters, the valves ticking, the exhalation flap buzzing and clapping shut.
+        - The oxygen cup, `cup`: a thin steady hiss of gas, and the breath hollow in the cup.
+        - The rebreather, `bag`: the mouthpiece's valves clicking, the rubber bag crinkling as it fills and empties.
+        - The wrap, `can`: thick through the wool, the can ringing faintly hollow.
+        - The lantern, `bail`: the wire bail squeaking each swing, the glass chimney ticking, the flame behind.
+    - **Not yet:** the townsfolk's voices in a word with you are the talk's (B2's lines, not heard). A townsperson indoors with the mask down breathes unheard.
+    - **Pinned:** `WorldSoundTests.TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns`, in a town of 3000 with its clock run:
+        - followed a pace off through four seconds of walking, a walker's steps fall on their own way, one about each 0.7 m they cover;
+        - a pace from somebody out of doors, their own gear's breathing;
+        - near the watch, their lantern, at their hand.
+
+461. **The switchyard's goods shed and the military depot's huts, wire and magazine modelled (queue #197, C1; the art checklist's `switchyard` and `military-depot`; GDD §18 "the switchyard: six sidings of scattered cars", "the military depot: gunpowder and shot. Best payout, worst cargo", §30 "oversized, partially abandoned, barely operable, dimly lit").** The switchyard's goods shed was the structure kit's flat works box. The depot's huts were flat half-round prisms behind a line of rods for wire. They are now modelled in facility_pieces.py and placed by `StructureKit.Facility` where the kit's stood; the kit is kept as the fallback.
+    - **`goods_shed`** (690 triangles, a 1024 layer like the other big buildings):
+        - 30 m of weatherboarded shed on a brick plinth under slate;
+        - its loading dock along the front at a car's floor, under a corrugated canopy on iron brackets;
+        - three sliding doors: one open on the dark, one half across, one shut and barred;
+        - a hand crane at the dock's end, crates and sacks left on it, GOODS on a board over the middle door;
+        - the office at its end, its lamp still lit (`_Glow`, the foundry's mask).
+    - **`nissen_hut`** (158):
+        - a corrugated half-round 9 m across, its sheets lapped in rings, rusting, a few gone;
+        - boarded end walls, the door behind a sandbag blast wall, windows (one boarded), the stovepipe.
+        - Three stand where the kit's did, along the line.
+    - **`wire_fence`** (128): a 6 m panel of angle-iron pickets cranked toward the line, barbed wire between them, one strand let go and hanging.
+        - The panels run 60 m along the depot's front.
+        - The gate by the watchtower is 12 m wide, where the sim stacks the depot's crates (facilities.json "crates": the stack 3 m out at −10 to −13, the heavy ones at −4). The kit's rods had stood on the stack.
+    - **`powder_magazine`** (196): a squat brick house under a concrete vault, half buried behind its earth traverse on three sides.
+        - Its red steel door is stencilled DANGER EXPLOSIVES, behind a blast wall; vents low in its walls, the lightning conductor's mast and the red flag.
+        - It stands behind the huts, 31 m out.
+    - **Two recipe helpers:**
+        - `_vault`, a barrel vault's shell (the hut, the magazine's roof);
+        - `_solid`, a convex piece from its own faces, each turned outward (the traverse's banks).
+    - **Pinned:**
+        - `FacilityBuildingArtTests.TheMilitaryDepotsHutsWireAndMagazineStandOffItsCratesAndTheWinchsRun`, from either side of the spur:
+            - nothing within 0.9 m of a crate, and nothing on the sleds' run;
+            - the wire there and open at the gate.
+        - `TheSwitchyardsGoodsShedIsTheModelClearOfItsTracksAndItsOfficeLampIsLit`:
+            - the lamp is the bake's emissive mask;
+            - nothing above 0.3 m within 2.5 m of a yard track or the spur, on four nights' switchyards.
+    - **Verified:**
+        - `dt art check`: every piece well under the large prop's 8,000.
+        - `dt credits --write`: unchanged.
+        - Looked at before and after:
+            - the depot from the air, along its wire, at a hut, and its magazine from the air;
+            - the switchyard from the air, at its shed in dawn light and at night;
+            - each piece on the turntable.
+        - Two bake faults caught by looking: the vault wound inward (the hut had no shell), and the blast wall's game mesh around its bags (the bake missed them: a black box at the gate).
 
 459. **The picture keeps its shape in any window (B3, queue #195; T83's display settings; the HUD's 480x270 canvas, note 347).** The frame is always 16:9: every resolution on offer is (`Settings.Resolutions`), and the HUD and menus are laid out on a 16:9 canvas. `Swapchain.Present` blitted it over the window's whole extent, though. The window is resizable, and its fullscreen is the desktop's (SDL's borderless). So on a 16:10 screen (the Steam Deck's 1280x800, a 1920x1200 laptop), an ultrawide, or a window dragged to any shape, the night and the HUD were stretched: 11% taller on the Deck, a third wider on a 21:9 screen, the pixel font, the crosshair dot and the round gauges with them. The menus read the mouse over the whole window as well.
     - **The frame at its own shape.** `Letterbox.Fit` gives the largest rectangle of the frame's shape that fits the window, centred. The blit goes there, and the rest of the swapchain's image is cleared to black: bars top and bottom on 16:10 (40 px at 1280x800), at the sides on an ultrawide (320 px at 2560x1080). A window within a pixel of 16:9 (1366x768) is filled, with no one-pixel bar. The VR mirror's part of an eye is fitted by its own shape.

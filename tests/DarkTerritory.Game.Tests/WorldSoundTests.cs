@@ -572,6 +572,81 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns()
+    {
+        // Note 446 (B2's #389): somebody out of doors walking their round is heard step by step beside them, on the street;
+        // close to somebody out of doors, the breathing gear they wear; near the watch, their lantern. A town of 3000, its
+        // clock run here as World.Step would run it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.gear-respirator", "place-town.gear-oxygen", "place-town.gear-rebreather", "place-town.gear-wrap", "place-town.lantern");
+        Stand(audio, [.. new[] { "cobbles", "dirt", "grass", "concrete", "wood", "ballast", "mud", "coal", "plate", "grate" }.Select(m => $"crew-footsteps.walk.{m}")]);
+        var ears = new Ears(audio, world);
+        void Run(double seconds, Func<Double3> ear)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                town.Clock += SimConstants.TickSeconds;
+                ears.Tick(ear());
+            }
+        }
+
+        // Somebody out of doors three seconds into a walk of four or more: followed a pace off, their steps heard there.
+        double start = town.Clock;
+        (Sim.Towns.Townsperson P, double At)? walk = null;
+        foreach (var p in town.Plan.People.Where(p => p.House < 0 && town.Rounds[p.Id] is not null).Take(200))
+        {
+            for (double t = start; t < start + 600 && walk is null; t += 0.5)
+            {
+                town.Clock = t;
+                if (!town.Now(p).Walking)
+                    continue;
+                bool on = true;
+                for (double u = t; u <= t + 4 && on; u += 0.25)
+                {
+                    town.Clock = u;
+                    on = town.Now(p).Walking;
+                }
+                if (on)
+                    walk = (p, t);
+            }
+            if (walk is not null)
+                break;
+        }
+        Assert.NotNull(walk);
+        var (walker, from) = walk.Value;
+        town.Clock = from;
+        int before = ears.Started.Count;
+        var path = new List<Double3>();
+        Run(4, () =>
+        {
+            path.Add(town.Feet(walker));
+            return path[^1] + new Double3(1.2, 1.6, 0);
+        });
+        // Theirs are the steps on their own way (others walking near are heard too): about a step each 0.7 m they cover.
+        var theirs = ears.Started.Skip(before).Where(v => v.Name.StartsWith("crew-footsteps.walk.") && path.Min(f => (v.Position - f).Length) < 0.2).ToList();
+        double covered = path.Zip(path.Skip(1), (a, b) => (b - a).Length).Sum();
+        Assert.InRange(theirs.Count, (int)(covered / 0.7) - 1, (int)(covered / 0.7) + 1);
+
+        // A pace from somebody out of doors, going along with them: their gear's breathing, whichever it is.
+        var close = town.Plan.People.First(p => p.House < 0 && p.Id != walker.Id);
+        Run(0.5, () => town.Feet(close) + new Double3(1.0, 1.6, 0));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == $"place-town.gear-{close.Gear}" && !v.Finished && !v.Stopped);
+
+        // Near the watch, or a lamp-carrier: their lantern.
+        var watch = town.Plan.People.First(p => p.Pose == "lantern");
+        Run(0.5, () => town.Feet(watch) + new Double3(3, 1.6, 0));
+        Assert.Contains(audio.Mixer.Voices, v => v.Name == "place-town.lantern" && !v.Finished && !v.Stopped && (v.Position - town.Feet(watch)).Length < 3);
+    }
+
+    [Fact]
     public void AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough()
     {
         // Note 412 (note 326): each kind of hiding spot its own sound, held where it's kept while the search is under way as
@@ -678,6 +753,16 @@ public class WorldSoundTests
         Assert.True((shut.Position - GameAudio.DoorSound(door)).Length < 1e-6);
         Assert.Equal(0, shut.Occlusion);
         Assert.Equal(0, shut.Walls);
+
+        // And from along the street, off to the door's side (note 428's walls round a house): still the door itself, clear.
+        heard.Clear();
+        walls.MirrorShut([]);
+        var along = street + Double3.Cross(door.Out, Double3.Up).Normalized * 4;
+        Tick(along, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(along, 2);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
 
         // Opened again and shut from inside: in the room with the ear, nothing between them.
         heard.Clear();
