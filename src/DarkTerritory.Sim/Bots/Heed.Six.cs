@@ -33,9 +33,19 @@ public static partial class Heed
 
     static double Flat(Double3 v) => (v with { Y = 0 }).Length;
 
-    /// <summary>Down off the standing train and on foot to within a step of a point on the ground, then a swing at it.</summary>
-    static PlayerIntent? Club(in PlayerState self, World world, StopHand hand, Double3 at, double reach) =>
-        hand.Afoot(self, world, at, reach + 1) ?? Strike(self, world.Train, at, reach);
+    /// <summary>
+    /// Down off the standing train and on foot toward a point on the ground; within <see cref="RunAt"/> of it, straight at it
+    /// at a run (what's being clubbed may be backing off: the Mourners at their <c>scatter</c>, under a run) and a swing.
+    /// </summary>
+    static PlayerIntent? Club(in PlayerState self, World world, StopHand hand, Double3 at, double reach)
+    {
+        if (self.Parent == PlayerState.World && Flat(at - PlayerMotor.WorldPosition(self, world.Train)) <= RunAt)
+            return Strike(self, world.Train, at, reach);
+        return hand.Afoot(self, world, at, RunAt - 1) ?? Strike(self, world.Train, at, reach);
+    }
+
+    /// <summary>m: nearer than this on the ground, a bot runs straight at what it's clubbing (the way round is for further).</summary>
+    const double RunAt = 8;
 
     /// <summary>Turned to a point, standing (a press of Use, a hold, a look).</summary>
     static PlayerIntent Facing(in PlayerState self, TrainOnLine train, Double3 at)
@@ -45,8 +55,8 @@ public static partial class Heed
         return new PlayerIntent { LookYaw = (float)Math.IEEERemainder(yaw - PlayerMotor.WorldYaw(self, train), 2 * Math.PI) };
     }
 
-    /// <summary>A Mourner is frail (health 1, <c>meleeRadius</c> 0.9): this near it on the flat, a swing (m).</summary>
-    const double MournerReach = 1.2;
+    /// <summary>A Mourner is frail (health 1, <c>meleeRadius</c> 0.9, a blow reaching 3.1 m): this near it on the flat, a swing (m).</summary>
+    const double MournerReach = 2.4;
 
     /// <summary>
     /// The Mourners (note 362: "stand over your dead, or carry them home"). A bot that can get down, within
@@ -79,7 +89,7 @@ public static partial class Heed
             return intent;
         var near = world.ActiveEnemies.OfType<Mourner>().Where(m => !m.Gone && m.BodyId == body.Id && m.Mode != MournerMode.Leave)
             .Select(m => (m, At: m.WorldPosition(train))).Where(x => Flat(x.At - bodyAt) <= b.MournersLeash)
-            .OrderBy(x => Flat(x.At - me)).ThenBy(x => x.m.Id).FirstOrDefault();
+            .OrderBy(x => x.m.Mode is MournerMode.Drag or MournerMode.Creep ? 0 : 1).ThenBy(x => Flat(x.At - me)).ThenBy(x => x.m.Id).FirstOrDefault();
         var go = near.m is not null ? Club(self, world, hand, near.At, MournerReach)
             : hand.Afoot(self, world, bodyAt, et.Mourners.DropWithin - 1) ?? new PlayerIntent();
         return go is { } going ? Up(self, going) : intent;
