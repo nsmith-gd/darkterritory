@@ -68,6 +68,11 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// </summary>
     public double FeedWhileFiring { get; init; } = 20;
     /// <summary>
+    /// A bot crew this big or bigger (bots and all) has a second gunner on the engine's forward gun (note 414), for the lane
+    /// ahead (note 405), the Track Doll and the Switchman: its last place. 0: never.
+    /// </summary>
+    public int ForwardGunnerFrom { get; init; } = 6;
+    /// <summary>
     /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
     /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.
     /// </summary>
