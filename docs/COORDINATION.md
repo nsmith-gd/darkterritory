@@ -293,7 +293,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
-| The top rung leaves a climber in the air at speed: a climber on a car's rear end ladder when the car behind is lost (the last car has none) topped out by a side ladder, past the car's end onto nothing; now over the end it holds (queue #174) | #PR | 438 |
+| The top rung leaves a climber in the air at speed: a climber on a car's rear end ladder when the car behind is lost (the last car has none) topped out by a side ladder, past the car's end onto nothing; now over the end it holds (queue #174) | [#472](https://github.com/nsmith-gd/darkterritory/pull/472) | 438 |
 | The driver left on the ground: it went to a far Holdout (a facility's lockup, up to 186 m off) by the track-side walk and got lost in the lineside trees; now by FootPath there and back to the cab, the track-side walk where FootPath finds no way (queue #142) | [#430](https://github.com/nsmith-gd/darkterritory/pull/430) | 406 |
 | Walkers who live through a hot run (queue #117, D1.2 for D1) | [#425](https://github.com/nsmith-gd/darkterritory/pull/425) | 380 |
 | Water with life in it: ripples, swell, the rivers running and the moon's road in the shader, a lap at the waterline; lakes drawn to their shores and held in by a rim, the land finer round them; the shore's ground to its waterline (queue #160) | [#441](https://github.com/nsmith-gd/darkterritory/pull/441) | 424 |
