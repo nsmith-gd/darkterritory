@@ -180,6 +180,10 @@ public static class Views
             // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
             "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
                 target.ToWorld(new Double3(0.9, Floor(train) + 0.45, -target.Shape.HalfLength + 2.2)), 70),
+            // (Not one of Names.) Crouched in the aisle at the pen's rail, at the sheep's faces: who they're looking at (note
+            // 455; --unseen for them not looking).
+            "penclose" => Camera.LookAt(target.ToWorld(new Double3(-0.55, Floor(train) + 1.1, -target.Shape.HalfLength + 3.6)),
+                target.ToWorld(new Double3(0.7, Floor(train) + 0.6, -target.Shape.HalfLength + 3.0)), 75),
             // From over the car behind, down at a cargo car's roof hatch (T99): its lid, shut, or open down the side.
             "hatch" => Camera.LookAt(target.ToWorld(new Double3(4.2, roof + 2.2, 9.5)), target.ToWorld(new Double3(0.6, roof - 1.4, 3.2)), 70),
             // Over the last car's roof, looking back at its gun on its rail (T93).
