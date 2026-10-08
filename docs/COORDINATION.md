@@ -48,6 +48,17 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
   (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu), the Audio Checklist (claude.ai/artifact/F5szjdzd8Svn3nfH3mDWMN) and the Look
   Review (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm). Read the live version first and change only your own rows or sections.
 
+## Keeping the artifacts current (the director, 8 Oct 2026: "It feels like nothing is updating the Art checklist and look review artifacts anymore")
+
+- **The art checklist** (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu): when your work on a line lands (or is up for review), write
+  the line's `current` (what's there now, with PR and note), `status` and `notes` on its `items` row, not only `assignee`,
+  `queue` and `assignedAt`; and add its shots (`shots`, the image uploaded to the artifact's assets).
+- **The Look Review** (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm): post a round for visual work the director should judge, as
+  E1 did on 8 Oct (rounds `r-armour-276`, `r-hound-312`, `r-leavings-325`): its page is near the 16 MB cap with the older
+  rounds' images inline, so a new round's images go up as files (`stills/<name>.jpg`, 960 wide, `files` on the publish) and
+  the page only gains the `<article class="shot">` entries (Latest, "Awaiting the director", a `.nb` notes box) and a
+  `<section class="round">` in the log. Build from a fresh `read` of it (others publish it too).
+
 ## UI/UX notes and assignments (the director, 7 Oct 2026)
 
 "The notes should be accessible to all UI/UX workers who should then read logs in the coordination md and assign work
