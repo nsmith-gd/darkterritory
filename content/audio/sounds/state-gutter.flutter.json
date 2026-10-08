@@ -1,0 +1,20 @@
+// A lamp guttering: The flame fluttering low and tearing as it starves. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 5,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 4,
+ "maxDistance": 300,
+ "rolloff": 0.8,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "state-gutter/flutter",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}
