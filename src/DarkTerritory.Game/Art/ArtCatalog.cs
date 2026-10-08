@@ -128,6 +128,10 @@ public static class ArtCatalog
         list.Add(new("stop-shed", LargeProp, () => { var k = new Kit(look, 1400); StructureKit.Shed(k, 12, 30, 7, "wood_grey", 1); return k.Build("stop-shed"); }));
         list.Add(new("stop-hero", LargeProp, () => { var k = new Kit(look, 1401); StructureKit.Shed(k, 12, 22, 11, "brick_soot", 1); return k.Build("stop-hero"); }));
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
+        // The village finds, each its own (FindKit; the director, 8 Oct).
+        foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope" })
+            list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)
         {

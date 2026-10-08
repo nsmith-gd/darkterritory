@@ -52,7 +52,10 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
         Assert.Equal("SIT : [E]   PUSH ALONG : [E] + WALK", Hud.Prompt(s));
         train.Vehicles[0].Gun.Jammed = true;
-        Assert.Equal("CLEAR THE GUN : HOLD [E] (0%)", Hud.Prompt(s));
+        // Note 344: nothing done yet, no percentage; part done, how far.
+        Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
+        train.Vehicles[0].Gun.ReloadProgress = s.World.Combat!.Guns.ClearSeconds / 4;
+        Assert.Equal("CLEAR THE GUN : HOLD [E] (25%)", Hud.Prompt(s));
         // Decided 1 Oct: in a breached car, board up the hole; at it, hold Use.
         var room = train.Frames[2].Shape.Interior!.Value;
         train.Vehicles[2].Breach(Breaches.EndWall(train.Frames[2].Shape)!.Value);
@@ -62,7 +65,7 @@ public class HudTests
         s.Player = s.Player with { Position = Breaches.StandAt(train, 2) };
         Assert.Equal("THE CAR'S BREACHED   WRENCH : [2]", Hud.Prompt(s));
         s.Player = s.Player with { HeldSlot = 1 };
-        Assert.Equal("BOARD IT UP : HOLD [E] (0%)", Hud.Prompt(s));
+        Assert.Equal("BOARD IT UP : HOLD [E]", Hud.Prompt(s));
         // A battered car: mended at its dent (note 301).
         train.Vehicles[3].Integrity = 0.5;
         var dent = Repairs.DentAt(train.Frames[3].Shape)!.Value;
