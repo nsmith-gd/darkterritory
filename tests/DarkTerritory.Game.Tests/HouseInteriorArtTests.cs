@@ -112,7 +112,7 @@ public class HouseInteriorArtTests
                 // (Camera-relative: the eye's at the origin.)
                 Assert.Contains(mesh.Rooms, r => Inside(r, Vector3.Zero));
                 // Its lantern: a light inside its walls, under its eaves.
-                Assert.Contains(mesh.PointLights, l => StopWalls.InParts(b, Along(l.Position), Across(l.Position)) 
+                Assert.Contains(mesh.PointLights, l => StopWalls.InParts(b, Along(l.Position), Across(l.Position))
                     && l.Position.Y > -1.6f && l.Position.Y < WorldArt.OpenShedHeight(b.Kind) - 1.6f);
                 seen++;
 
