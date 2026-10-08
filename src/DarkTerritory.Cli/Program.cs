@@ -154,6 +154,10 @@ object RunHarness(string[] args)
             lastTrace = now;
         },
         Bots = (int)Opt(args, "--bots", 8),
+        // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
+        Express = Array.IndexOf(args, "--express") is var ex and >= 0
+            ? ex + 1 < args.Length && double.TryParse(args[ex + 1], System.Globalization.CultureInfo.InvariantCulture, out double fast) ? fast : 21
+            : null,
         Cars = (int)Opt(args, "--cars", 10),
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
@@ -1199,12 +1203,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
     if (args.Contains("--ps2"))
         renderer.Post = renderer.Post with { Ps2 = true };
+    // The guns loaded as a night arms them (Guns.Arm): the powder and shot locker full, as aboard. Before --muzzle: arming
+    // sets each gun's state afresh, so a shot staged first was wiped and the flash and smoke never drawn.
+    DarkTerritory.Sim.Combat.Guns.Arm(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Guns);
     // --muzzle: the guns fired a tick ago (their flash, and its light).
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
-    // The guns loaded as a night arms them (Guns.Arm): the powder and shot locker full, as aboard.
-    DarkTerritory.Sim.Combat.Guns.Arm(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Guns);
     // --lamps-out i[,j,...]: those cars' lamps put out (Vehicle.LampLit: dark inside, their lanterns unlit).
     if (Str(args, "--lamps-out", "") is { Length: > 0 } outs)
         foreach (int i in outs.Split(',').Select(int.Parse))
@@ -1416,6 +1421,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var breaks = RepairCallouts.Of(train);
         if (scene.Ruptured && !train.Boiler.Ruptured && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { Kind: InteractableKind.Firebox } fire)
             breaks.Insert(0, new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        // --smashed: the headlamp smashed, its glass the wrench's to mend (note 301, slice 2): its callout on the cab's nose.
+        if (args.Contains("--smashed"))
+        {
+            breaks.Add(new BreakCallout(BreakKind.Lamp, 0, Repairs.LampAt(train)));
+            if (Repairs.LampSillAt(train) is { } sill)
+                breaks.Add(new BreakCallout(BreakKind.Lamp, 0, sill));
+        }
         Couplings.Callouts(train, breaks);
         scene.Breaks = breaks;
         if (args.Contains("--mending"))

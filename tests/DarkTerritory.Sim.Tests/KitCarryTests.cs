@@ -74,9 +74,9 @@ public class KitCarryTests
         // Brought as far as car 1, the cab fetches it the rest of the way.
         KitTo(world, 1);
         Assert.Null(KitCarry.Lying(world));
-        // Note 301: where the wrench mends the boiler, the kit's nobody's to bring.
+        // Note 301: where the wrench mends the boiler, the kit's nobody's to bring (and none rides now).
         var wrenched = Stocked(wrench: true);
-        KitTo(wrenched, 4);
+        wrenched.Bodies.SpawnCrate(wrenched.Train, Car(wrenched, 4), Double3.Zero with { Y = 1.2 }, BodyKind.RepairKit);
         Assert.Null(KitCarry.Lying(wrenched));
     }
 
