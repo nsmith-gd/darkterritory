@@ -527,6 +527,8 @@ public sealed class Site
     /// <summary>Host: seconds of carrying till the next jam (drawn as each comes), and how many there have been.</summary>
     internal double NextJam = -1;
     internal int Jams;
+    /// <summary>How many times it's jammed this night (host only).</summary>
+    public int JamCount => Jams;
     /// <summary>Who's at the starter, and at the jam, this tick (−1 for nobody). Host only.</summary>
     internal int Starter = -1, Clearer = -1;
     /// <summary>Where the jam is: on the low run, from the tail to the knee.</summary>

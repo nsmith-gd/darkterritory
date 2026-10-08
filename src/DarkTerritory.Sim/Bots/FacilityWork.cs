@@ -24,6 +24,9 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     public IReadOnlyList<int> Order { get; init; } = [];
     /// <summary>The wreck yard's heaps (note 187): found by a lamp or not, salvage left unfound, how often each shifted.</summary>
     public IReadOnlyList<(bool Found, int Unfound, int Shifts, double Stability)> Heaps { get; init; } = [];
+    /// <summary>The conveyor line's (note 400): the grain left for it, and how often it jammed.</summary>
+    public double Grain { get; init; }
+    public int Jams { get; init; }
     /// <summary>Every stop the driver made (a switchyard's pick-ups are stops of their own).</summary>
     public IReadOnlyList<StopRecord> Stops { get; init; } = [];
 }
@@ -113,6 +116,8 @@ public static class FacilityWork
             StillStanding = world.Run.YardTracks(facility).Sum(b => Sim.Run.Run.StandingOn(train, b)),
             Order = [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)],
             Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
+            Grain = Math.Round(site.Grain, 3),
+            Jams = site.JamCount,
             Stops = driver.Stops?.Log ?? [],
         };
     }
