@@ -5840,3 +5840,10 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The landings, the drops and a few hits peak over 0 dBFS once decoded from Opus. The engine mixes in float, so nothing clips before the master, but `install.py` could leave a decibel of headroom.
         - Some sets' takes are near-copies by spectrum, though not by ear.
     - **Pinned:** `CrewAudioTests.BootsOnTheRoofsTinAreTheSheetNotABoom` (walk, run, land): as much over 1 kHz as at 100-500 Hz, within 3 dB, as note 354 asks of stone.
+
+421. **The installed sounds' headroom (AU1, queue #157; note 419's "not yet").** The engine decodes a take to 16-bit (`Ballast.Audio.OggOpus.Decode`, `short[]`). `install.py` levels each take to its loudness, clips it to full scale and encodes it at 64 kbps, and Opus overshoots on the way through: a transient at full scale comes back up to 1.8 dB over it. 78 installed takes did, mostly impacts: the landings, the cannon's shot, the coupling's knuckles, the trimmed lamp. Their transients were clipped in the decode, a hard flat-topped crack on exactly the hits that matter.
+    - **How:** `install.py`'s `encode` puts a take through the codec as before, then decodes it. Only if it would reach full scale (`DECODED_PEAK`, 0.995) is it encoded again, `HEADROOM_DB` (3 dB) under full scale, with the Opus header's output gain (OpusHead's Q7.8 dB, `set_output_gain`, the first page's CRC recomputed) set to put the level back.
+        - The engine already applies that gain, in float, after decoding (`SampleClip.Scale`), so nothing clips and nothing's quieter.
+        - Measured on the 87 re-encoded takes, decoded with their gain: RMS within ±0.17 dB of before.
+        - Every other take encodes byte-identical, so the rebuild touched only the takes that clipped.
+    - **Pinned:** `AudioTests.NoInstalledTakeClipsOnceItsDecoded`. Every installed take is decoded as the engine does, and none comes within 0.2 % of 16-bit full scale. It failed on main (78 takes at the audit); it passes now.
