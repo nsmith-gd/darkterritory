@@ -404,6 +404,17 @@ public static partial class Hud
     /// lobby"); out on the line only once it's bad (hud.json <c>pingWarnMs</c>) or gone, and then what's being done about it.
     /// The host has no ping to show; the crew's count and roles are the roster's (Q).
     /// </summary>
+    /// <summary>
+    /// The link's line under NO LINK in the top-right corner, or null. Note 253: a joiner whose link went tries to get back, and
+    /// says how it's going; out of tries, F5 tries again. Note 254: turned away on the way back (the place ran out, and the
+    /// crew's full). Note 476: in note 285's form, ACTION : [KEY], as the alarm in the middle says it (it was "[F5] RECONNECT").
+    /// </summary>
+    public static string? LinkLine(LinkInfo link) =>
+        !link.Lost ? null
+        : link.Attempt > 0 ? $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}"
+        : link.Refused is { } refused ? $"{refused}   TRY AGAIN : [F5]"
+        : link.CanReconnect ? "RECONNECT : [F5]" : null;
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
@@ -413,11 +424,7 @@ public static partial class Hud
         if (link.Lost)
         {
             o.TextRight(right, 5, "NO LINK", Red, 1);
-            // Note 253: a joiner whose link went tries to get back, and says how it's going; out of tries, F5 tries again.
-            // Note 254: turned away on the way back (the place ran out, and the crew's full).
-            string? how = link.Attempt > 0 ? $"RECONNECTING: TRY {link.Attempt} OF {link.Attempts}"
-                : link.Refused is { } refused ? $"{refused}: [F5] TRY AGAIN" : link.CanReconnect ? "[F5] RECONNECT" : null;
-            if (how is not null)
+            if (LinkLine(link) is { } how)
                 UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }

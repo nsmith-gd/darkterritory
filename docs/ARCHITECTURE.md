@@ -6532,3 +6532,8 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `LetterboxTests` covers 16:9 (filled, 1366x768 included), 16:10, 21:9, 4:3 and a tall window, plus the mouse read inside the frame and off it on a bar.
       - The app's real window was captured under Xvfb at 1280x800, before (stretched 11% taller) and after (bars top and bottom), and at 2560x1080 after (bars at the sides). I looked at each.
     - **Not yet:** a wider view for ultrawides; a choice of 16:10 resolutions (the Deck draws 1280x720 inside its 1280x800).
+
+476. **The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441 and 459).**
+    - **The corner.** With the link lost, the HUD's top-right corner said "[F5] RECONNECT", and "CREW FULL (8/8): [F5] TRY AGAIN" when turned away. That's key first. The ballot's menu keys aside (note 285 kept them), it was the only line in play not in note 285's ACTION : [KEY] form, and it sat right over the centre's alarm saying the same thing as RECONNECT : [F5]. It now says it as the alarm does: RECONNECT : [F5], and CREW FULL (8/8)   TRY AGAIN : [F5] (`Hud.LinkLine`).
+    - **The staged report.** `dt screenshot --radio tally` on the default test loop crashed on a null: its staged report (`Staging.Report`) needs a night's run, and the test loop has none. It now says so: "give it a --route (e.g. --route frontier:7)".
+    - **Verified.** `QuietHudTests.TheLinksCornerSaysWhatToDoAsTheAlarmDoes` checks each line of the corner, and that none is key first or has words after a key. There's no screenshot: no `dt` staging draws a lost link, and the line is the same print in the same place.
