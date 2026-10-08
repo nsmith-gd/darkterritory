@@ -526,7 +526,11 @@ public sealed partial class SceneArt(Look look)
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
         };
-        mesh.Append(piece, m);
+        if (b.Kind == Sim.Physics.BodyKind.Lamp)
+            // (Its light's inside it, and may cast shadows: its cage casts none, or it would shut its own light in.)
+            mesh.Instances.Add(new MeshInstance(piece, m, Shadowless: true));
+        else
+            mesh.Append(piece, m);
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {
             // A hand lamp's glow round it, flickering a little (pipeline: "dynamic point lights with flicker curves").
@@ -826,6 +830,18 @@ public sealed partial class SceneArt(Look look)
     {
         double t = time * 7 + id * 13.7;
         return (float)(0.95 + 0.05 * Math.Sin(t) + 0.03 * Math.Sin(t * 2.7 + 1.3) + 0.02 * Math.Sin(t * 5.3 + 0.4));
+    }
+
+    /// <summary>
+    /// How far a lamp's flame has shivered off its wick (metres, a centimetre or so): its light moves with it, so the hand
+    /// lamp's shadows (MeshBuilder.ShadowLight) tremble at their edges on the flicker as well as swinging with the walk.
+    /// On the same beat as <see cref="Flicker"/>: the flame leans as it gutters.
+    /// </summary>
+    public static Vector3 FlameDrift(double time, int id)
+    {
+        double t = time * 7 + id * 13.7;
+        return new Vector3((float)(0.008 * Math.Sin(t * 1.9 + 0.7) + 0.004 * Math.Sin(t * 4.1)),
+            (float)(0.006 * Math.Sin(t * 2.7 + 1.3)), (float)(0.008 * Math.Sin(t * 1.3 + 2.1) + 0.004 * Math.Sin(t * 3.7 + 0.2)));
     }
 
     /// <summary>
