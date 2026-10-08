@@ -232,6 +232,9 @@ public static class CrewActs
                 BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
                 _ => CrewPose.Carry,
             };
+        // The wrench at work on a break (note 301): down at it, mending.
+        if (s.ActionProgress > 0 && Repairs.WrenchInHand(s) && Repairs.ByWrench(train) && Repairs.At(s, train) != BreakKind.None)
+            return CrewPose.Mend;
         if (s.Has(PlayerFlags.Shovelful))
             return CrewPose.Shovel;
         if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)

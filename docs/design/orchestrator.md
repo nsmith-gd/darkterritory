@@ -83,17 +83,21 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 1. **The crew multiplier is live.** The budget's crew multiplier uses `active`, not the crew the night started with,
    recomputed each second (`0.7 + 0.12 × active`, cap 1.6 as now). A crew that loses two players gets a director that
    spends like a smaller crew's. The relief valve (alive share squared) stays: the two compound, which is the point.
+   **Built (note 336).**
 2. **Who's next.** When the director's pressure passes its threshold, it weighs its options as now, then multiplies
    each by how well it answers the post with the most slack: ×`slackWeight` (2) for a threat whose answer is at that
    post, ×1 otherwise. A threat whose answer is at a post nobody holds is weighed ×`emptyPostWeight` (0.5) unless its rule is
    to punish an empty post (the Track Doll's empty cab, B.2).
 3. **Per-player caps.** At most `perPlayer` (1) threat engaging any one player at once, and at most
    `ceil(active × 0.75)` engaged in all (1 at crew 1, 2 at crew 2, 3 at crew 4, 6 at crew 8). That's under App. B.1's
-   flat 4/6, which stay as the ceiling.
+   flat 4/6, which stay as the ceiling. **Built (note 336)**, as a count: the cap is the least of the flat cap,
+   `ceil(active × 0.75)` and `perPlayer × active`. The director doesn't yet know which player a threat is on (that's the
+   census of §3.1 2, item 4 below), so "one on any one player" holds only as the total.
 4. **Slack presses.** A player at `slackPress` (150 s) of slack adds `slackPerSecond` (0.05) a second to the director's
    pressure, for each such player, so a crew with several people idle fills faster than one with one idle.
 5. **Solo and crew 2.** `active` 1: one threat at a time, never two. `active` 2: two, never both on one player. The
-   per-player cap means note 305's crew-2 answers still hold.
+   per-player cap means note 305's crew-2 answers still hold. **Built (note 336):** the hound run waits while the crew
+   is at its cap.
 
 ### 3.3 Tuning (enemies.json `director.orchestrator`, first pass)
 
@@ -101,6 +105,8 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 "orchestrator": { "on": true, "liveCrew": true, "slackWeight": 2, "emptyPostWeight": 0.5, "perPlayer": 1,
   "engagedPerActive": 0.75, "slackPress": 150, "slackPerSecond": 0.05 }
 ```
+
+Built so far (note 336): `on`, `liveCrew`, `engagedPerActive` and `perPlayer`. The slack fields come with §3.1's census.
 
 ## 4. Pacing targets
 
@@ -194,7 +200,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness ni
 
 ### 6.2 Next, in order
 
-1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): small, testable in the existing harness.
+1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): **built (note 336, queue #75).**
 2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
 3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train.
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next; the bots' `posts` already compute most of it.
