@@ -6717,6 +6717,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at, before and after: a prison car's lock on the blow, its sparks falling, late in the breach, and picked; a lockup's on the blow; a shelter's barricade early, mid-heave and late.
         - The Game suite.
+
 468. **The capstan winch heard wherever it stands (AU1, queue #204; spec D.2 "Capstan winch: two players hand-crank in rhythm to drag cargo from distance. 2 mandatory. Desync stalls"; T43).** A winch stands at the foundry, the mine head, the military depot and the wreck yard (facilities.json `kinds`). Only the wreck yard's was heard, and only its cargo dragged out of a wreck (`place-wreck.cargo-pull`). Nowhere was the capstan heard turning, its sled coming in over the ground, or D.2's desync stall.
     - **How** (`GameAudio.WinchSounds`, from `PlaceSite` for every site with a winch; off the site's replicated record: `Turning`, `OutOfRhythm`, `Progress`, `SledsLeft`):
         - **The drum:** `place-winch.capstan` at the drum while it's cranked in rhythm (`Turning`).
@@ -6850,3 +6851,18 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `HouseInteriorArtTests.AYardsShedsAndItsStrongroomAreRoomsAlongTheirRoofedLengthsAndAGantrysCutIsOpenAir` now also checks each roofed length for a lantern inside its walls, and none in the roost's.
         - Screenshots: frontier:7's roost outbuilding from outside its door and from its back wall (`--barn 0 --roost`, `--back`), against a lit barn (`--barn 0`): the lit one's door glows, the roost's is a black mouth with its nest on the boards. Its roost yard shed (`--shed 0 --roost --inside`) is dark, its walls just showing by the room's fill.
         - InteriorLightTests and StopShellArtTests pass.
+
+482. **The comet's green out of its car's seams (queue #219, C1; the art checklist's `comet` "next": "the green leaking out of the car's seams at night"; GDD §19 "attracts everything; should look like it").** A comet-loaded car's sick green was all inside it: a point light and a glow over each stack, which read from the aisle. From outside, the car was as dark as any other. Now its light gets out where the car isn't tight:
+    - **The seams** (`SceneArt.CometSeams`: where, in the car's frame):
+        - round every shut door (the end doors and the sliding side doors), the leaf's edges on the wall's outer face;
+        - round the roof hatch while it's shut.
+        - Each seam is drawn in short emissive lengths, some sealed dark where the leaf sits tight and the rest bright and wide by how far the gap there has warped (hashed by where it is, so it's the same every frame). It breathes with the light inside.
+    - **A door left open:** a wash of the green in the opening.
+    - **At the foot of each side door,** open or shut, a little of it on the step and the ballast: a 3 m point light, faint shut and stronger open, only within 60 m of the eye.
+    - **`dt screenshot --view carside --car n --cargo comet [--doors-open]`:** off a car's right side at a crewman's eye, its side door ahead.
+    - **Pinned:** `CometArtTests`.
+        - Every shut door has its four seams on the wall's outer face, and the shut hatch its own.
+        - An open door has none, and an open hatch neither.
+    - **Verified:**
+        - Looked at down the line (trackside), in the coupling gap (gapside), and off a car's side with its doors shut and open.
+        - The Game suite.
