@@ -31,7 +31,7 @@ public sealed class FirstNightsTests : IDisposable
     /// <summary>Selects the settings entry named <paramref name="name"/> and steps it from one value to the next.</summary>
     internal static void Toggle(FrontEnd m, string name, string from, string to)
     {
-        int at = m.Items.ToList().FindIndex(i => i.Label.StartsWith(name + ":", StringComparison.Ordinal));
+        int at = m.Items.ToList().FindIndex(i => !i.Heading && i.Label.StartsWith(name + ":", StringComparison.Ordinal));
         Assert.True(at >= 0, name);
         while (m.Selected != at)
             m.Down();

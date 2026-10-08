@@ -62,6 +62,21 @@ public static partial class Hud
         _commendations = commendations;
         _stills = stills;
         o.Clear();
+        // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
+        o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
+        try
+        {
+            Draw(o, width, height, s, crosshair, talk, now, firstNight, captions);
+        }
+        finally
+        {
+            o.Backing = default;
+        }
+    }
+
+    static void Draw(Overlay o, int width, int height, IPlaySession s, bool crosshair, TownTalk? talk, double now,
+        bool firstNight, IReadOnlyList<string>? captions)
+    {
         int line = o.Font.LineHeight;
         var p = s.Player;
         // The derailment's sequence (T117, T121) has the screen: first-hand, the replay with its cause, the orbit. Nothing
@@ -277,6 +292,7 @@ public static partial class Hud
     /// </summary>
     public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
     {
+        using var plate = UiStyle.OnPlate(o);
         const string title = "THE CREW. ROLL CALL IS SHOUTED";
         float k = Fine;
         float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
@@ -318,6 +334,7 @@ public static partial class Hud
     /// </summary>
     public static void Supplies(Overlay o, int width, int height, IPlaySession s)
     {
+        using var plate = UiStyle.OnPlate(o);
         var lines = SuppliesLines(s.World, s.PlayerId);
         const string title = "SUPPLIES ABOARD";
         string close = Bound("CLOSE : [I]");
@@ -958,6 +975,7 @@ public static partial class Hud
     /// </summary>
     static void BallotPlate(Overlay o, int width, IPlaySession s, int line)
     {
+        using var plate = UiStyle.OnPlate(o);
         if (BallotRows(s) is not { } rows)
             return;
         // Note 285: fine print on a dark backing, lit along its top while there's a vote to cast; no rivets.
@@ -1040,6 +1058,7 @@ public static partial class Hud
     /// </summary>
     public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
     {
+        using var plate = UiStyle.OnPlate(o);
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
         float glyph = Math.Max(1, o.Font.Measure("M") + 1);
         int chars = Math.Max(20, (int)((w - 16) / glyph));
@@ -1165,6 +1184,7 @@ public static partial class Hud
     /// </summary>
     static void Film(Overlay o, int width, int height, IPlaySession s)
     {
+        using var plate = UiStyle.OnPlate(o);
         var t = s.SequenceTuning;
         if (s.Film is not { } film || DerailSequence.Beat(t, s.WreckSeconds, film) != DerailBeat.Film
             || film.CutAt(DerailSequence.FilmSeconds(t, s.WreckSeconds)) is not { } at)
@@ -1215,6 +1235,7 @@ public static partial class Hud
     public static void RadioCard(Overlay o, int width, int height, IReadOnlyList<string> lines, double seconds, RadioTuning t,
         IReadOnlyList<double>? times = null)
     {
+        using var plate = UiStyle.OnPlate(o);
         var (shown, typed) = Sim.Run.Radio.Reading(lines, seconds, t, times);
         if (shown == 0)
             return;
@@ -1307,6 +1328,7 @@ public static partial class Hud
     /// </summary>
     static void TownCardOn(Overlay o, int width, int height, TownCard card, int line)
     {
+        using var plate = UiStyle.OnPlate(o);
         bool paper = card.Kind == TownCardKind.Paper;
         float w = paper ? Math.Min(width - 16, 260) : Math.Min(width - 24, 340);
         int chars = Math.Max(16, (int)((w - 12) / o.Font.Advance));
@@ -1503,7 +1525,10 @@ public static partial class Hud
     public static float PromptScaleAt(float pixels, float textScale) =>
         Math.Clamp(MathF.Ceiling(2 * 2 * textScale / MathF.Max(1, pixels)) / 2, 0.5f, 1);
 
-    static float _promptScale = 0.5f;
+    // Per thread: each Build sets it for its own canvas, and the tests build HUDs on parallel threads at their own sizes; one
+    // build's scale landing in another's moved its print (note 390, CaptionsTests on Windows CI). 0 until this thread builds one.
+    [ThreadStatic]
+    static float _promptScale;
 
     /// <summary>How far under the screen's middle (the crosshair) the prompt's strip sits, in canvas pixels.</summary>
     public const float PromptDrop = 16;
@@ -1511,7 +1536,8 @@ public static partial class Hud
     /// <summary>The prompt, small, under the crosshair; a hold under way ("... (40%)") as a bar along its foot.</summary>
     static void PromptPlate(Overlay o, int width, int height, string prompt)
     {
-        float k = _promptScale;
+        using var plate = UiStyle.OnPlate(o);
+        float k = Fine;
         float w = UiStyle.MeasureKeyed(o, prompt, k) + 8 * k, h = (o.Font.LineHeight + 6) * k;
         float px = MathF.Round((width - w) / 2), py = MathF.Round(height / 2f + PromptDrop);
         o.Rect(px, py, w, h, UiStyle.Iron with { W = 0.55f });
@@ -1764,6 +1790,9 @@ public static partial class Hud
             return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
                 ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
+        // An open house's door (note 401), empty-handed, as the hands and the search leave it.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
+            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.

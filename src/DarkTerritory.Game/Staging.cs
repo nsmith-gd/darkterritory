@@ -1327,10 +1327,30 @@ public static class Staging
     /// alternating flanks, the nearest closing on the rear car, the furthest still howling. Only them, so the gun's view of
     /// the line behind is clear.
     /// </summary>
-    public static List<Enemy> Run(TrainOnLine train)
+    /// <remarks>
+    /// <paramref name="ahead"/> (<c>dt screenshot --run-ahead --view ahead</c>): the lane ahead instead (note 405), three pairs
+    /// in front of the engine in the headlamp's beam: the furthest still howling off to the flank, the next coming in, the
+    /// nearest crossing the line.
+    /// </remarks>
+    public static List<Enemy> Run(TrainOnLine train, bool ahead = false)
     {
         double rear = train.Dynamics.RearDistance;
         var runners = new List<Enemy>();
+        if (ahead)
+        {
+            double front = train.Dynamics.Distance;
+            (double Ahead, double Lateral, SpinePhase Phase)[] lane = [(70, -1.5, SpinePhase.Commit), (115, 6, SpinePhase.Commit), (170, 13, SpinePhase.Telegraph)];
+            int n = 60;
+            foreach (var (along, lateral, phase) in lane)
+                for (int k = 0; k < 2; k++)
+                {
+                    var hound = new CinderHound(n, 60) { Runner = true, Ahead = true };
+                    hound.Restore(phase, 1.5 + k * 0.4, 3, -1, default, front + along + k * 3, lateral + k * 2.5, 0.6, 60, 0);
+                    runners.Add(hound);
+                    n++;
+                }
+            return runners;
+        }
         (double Behind, double Side, SpinePhase Phase)[] pairs = [(8, 1, SpinePhase.Commit), (20, -1, SpinePhase.Commit), (34, 1, SpinePhase.Telegraph)];
         int id = 60;
         foreach (var (behind, side, phase) in pairs)

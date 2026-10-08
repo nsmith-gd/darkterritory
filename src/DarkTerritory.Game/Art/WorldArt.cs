@@ -478,11 +478,19 @@ public sealed partial class WorldArt(Look look)
                 float g = Gorge(route, along);
                 if (g > 0.3f && Math.Abs(offset) < 45)
                     continue;
+                // Its form and lean (note 395), from a stream of its own so the stands are where they were.
+                var shape = new Random(unchecked(seed * 668265263 ^ (int)(along * 7) ^ (int)(offset * 13) * 374761393));
+                double pick = shape.NextDouble();
+                var form = pick < 0.07 ? NovaKit.TreeForm.Flagged : pick < 0.2 ? NovaKit.TreeForm.Broken : pick < 0.28 ? NovaKit.TreeForm.Forked : NovaKit.TreeForm.Plain;
+                float lean = shape.NextDouble() < 1 / 6.0 ? (float)(4 + 6 * shape.NextDouble()) * MathF.PI / 180 : 0, toward = (float)(shape.NextDouble() * MathF.Tau);
                 // Near the line, the modelled spruce; out in the fog, where it's a silhouette, the crossed cards.
                 var piece = dead ? Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                    : Math.Abs(offset) < NearTrees ? Piece($"pine-{variant}", () => WorldKit.Pine(_look, variant, 12))
+                    : Math.Abs(offset) < NearTrees ? Piece($"pine-{variant}-{form}", () => WorldKit.Pine(_look, variant, 12, form))
                     : Piece($"pinecard-{variant}", () => WorldKit.PineCard(_look, variant, 12));
-                mesh.Append(piece, Place(along, offset, yaw, (dead ? 0.8f : 1) * height / (dead ? 10 : 12), 0.15f), new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                var at = Place(along, offset, yaw, (dead ? 0.8f : 1) * height / (dead ? 10 : 12), 0.15f);
+                if (lean > 0 && !dead)
+                    at = Matrix4x4.CreateRotationZ(lean) * Matrix4x4.CreateRotationY(toward) * at;
+                mesh.Append(piece, at, new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
             }
         }
 

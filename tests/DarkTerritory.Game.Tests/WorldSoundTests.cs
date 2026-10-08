@@ -2,6 +2,8 @@ using Ballast;
 using Ballast.Audio;
 using DarkTerritory.Game.Sound;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
@@ -402,6 +404,86 @@ public class WorldSoundTests
         Assert.Equal((float)walls.ShedWall, outside.Walls, 3);
         ears.Tick(Run.StopWorld(line, f, new Sim.Stops.Pt(room.S, 2), 1.6));
         Assert.Equal(0, outside.Walls);
+    }
+
+    [Fact]
+    public void AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp()
+    {
+        // Note 409 (B4's note 401): a house door shut or opened, off the replicated state, once a change, in its doorway: in
+        // the room with an ear inside the house (no walls, nothing muffled) and clear from the street. A house shut up with
+        // someone in it is a space of its own, and the Choir's BESIEGE beats on its door as on a shut car's.
+        var routes = RouteTuning.Load(Content);
+        var combat = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File));
+        World? world = null;
+        HouseDoor door = default;
+        for (ulong seed = 1; world is null; seed++)
+        {
+            Assert.True(seed <= 40, "no open house with one door on 40 nights");
+            var route = RouteGenerator.Generate(routes, RouteTier.Frontier, seed);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), route.Build(), 900, Boilers);
+            train.Walls = StopWalls.Of(route, train.Line, tuning: Runs.Walls);
+            var single = train.Walls.HouseDoors.Where(d => train.Walls.HouseDoors.Count(o => o.House == d.House) == 1).ToList();
+            if (single.Count == 0)
+                continue;
+            door = single[0];
+            world = new World(train, combat);
+            world.EnableRun(Runs, route, 600, authority: false);
+        }
+        var walls = world.Train.Walls!;
+        var audio = new GameAudio(Content);
+        Stand(audio, "crew-house-door.shut", "crew-house-door.open", "cs-choir.bang-door.wood", "cs-choir.disperse");
+        Held(audio, "cs-choir.arrive");
+        var heard = new List<SoundInstance>();
+        var seen = new HashSet<int>();
+        void Tick(Double3 ear, int ticks = 1, params Enemy[] enemies)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                world.BeginTick();
+                world.MirrorEnemies(enemies);
+                var state = new PlayerState { Parent = PlayerState.World, Position = ear };
+                audio.Update(world, world.Controls, Listener.At(ear + Double3.Up * 1.6, 0), exposed: true, SimConstants.TickSeconds,
+                    PlayerMotor.Space(state, world.Train));
+                audio.Mixer.Render(new float[Audio.Block * 2]);
+                heard.AddRange(audio.Mixer.Voices.Where(v => seen.Add(v.Id) && v.Name.StartsWith("crew-house-door") | v.Name.StartsWith("cs-choir.bang")));
+            }
+        }
+        var street = door.At + door.Out * 5;
+        var inside = door.At - door.Out * 2.5;
+        Tick(street, 3);
+        Assert.Empty(heard);
+
+        // Shut from the street (the host's word, as a client gets it): once, in the doorway, clear.
+        walls.MirrorShut([door.Key]);
+        Tick(street, SimConstants.TickRate);
+        var shut = Assert.Single(heard);
+        Assert.Equal("crew-house-door.shut", shut.Name);
+        Assert.True((shut.Position - GameAudio.DoorSound(door)).Length < 1e-6);
+        Assert.Equal(0, shut.Occlusion);
+        Assert.Equal(0, shut.Walls);
+
+        // Opened again and shut from inside: in the room with the ear, nothing between them.
+        heard.Clear();
+        walls.MirrorShut([]);
+        Tick(inside, 2);
+        walls.MirrorShut([door.Key]);
+        Tick(inside, 2);
+        Assert.Equal(["crew-house-door.open", "crew-house-door.shut"], heard.Select(v => v.Name));
+        Assert.Equal(PlayerMotor.HouseSpace(door.House), PlayerMotor.Space(new PlayerState { Parent = PlayerState.World, Position = inside }, world.Train));
+        Assert.Equal("room", audio.Space);
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
+
+        // Shut up in it while the Choir besieges: they beat on its door, now and then.
+        heard.Clear();
+        audio.CrewStates = [(1, new PlayerState { Parent = PlayerState.World, Position = inside, Health = 100 })];
+        world.Choir = new ChoirState { Present = true, Build = 1 };
+        var ghost = new ChoirGhost(70);
+        ghost.Restore(SpinePhase.Commit, 2, 6, Enemy.Loose, inside + Double3.Up * 6, 0, 0, 0, -1, 0, -1, 0);
+        Tick(inside, 90, ghost);
+        Assert.InRange(heard.Count, 2, 5);
+        Assert.All(heard, v => Assert.Equal("cs-choir.bang-door.wood", v.Name));
+        Assert.All(heard, v => Assert.True((v.Position - GameAudio.DoorSound(door)).Length < 1e-6));
+        Assert.All(heard, v => Assert.Equal(0, Math.Max(v.Occlusion, v.Walls)));
     }
 
     [Fact]

@@ -172,6 +172,12 @@ CUES = {
         O("locker-open", "Locker or tool rack opened"),
         O("locker-shut", "Locker or tool rack shut"),
     ],
+    # The village houses' doors (B4's note 401; queue #145, note 409): a held Use at an open house's doorway shuts its door,
+    # or opens it again. The Choir's rule ("behind a closed door"): the shut must be heard and trusted from either side.
+    "crew-house-door": [
+        O("shut", "A house door shut: a swollen plank door shoved home into its frame, the thumb latch dropping", vars=3),
+        O("open", "A house door opened: the latch lifted, the leaf jerked free and creaking in on its strap hinges", vars=3),
+    ],
     "crew-lamps": [
         O("car-lamp-on", "A car's lamp switched on", cand={"_": S("switch_01", "switch_02")}),
         O("car-lamp-off", "A car's lamp switched off", cand={"_": S("switch_01", "switch_02")}),
