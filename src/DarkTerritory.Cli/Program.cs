@@ -1683,6 +1683,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
         }
     }
+    // --scattered s (with --run, --run-ahead or --run-flank): the staged runners nearest the train scattered by a ball s seconds
+    // ago, at --speed (21 m/s), running off into the dark (note 451, GreyboxScene.Fleeing).
+    if (args.Contains("--scattered") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> runners)
+    {
+        foreach (var hound in runners.OfType<DarkTerritory.Sim.Enemies.CinderHound>().Where(h => h.Phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit).ToList())
+        {
+            runners.Remove(hound);
+            scene.Scattered(hound, Staging.StrikeTick, Opt(args, "--speed", 21));
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--scattered", 1) * SimConstants.TickRate);
+    }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
     {
