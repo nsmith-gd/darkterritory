@@ -276,6 +276,35 @@ public class DraggerTests
     }
 
     [Fact]
+    public void AWalkerHearsTheScrapeAndIsOffTheRoofBeforeItDrops()
+    {
+        // Note 442 (note 435's "not yet"): a bot walker on car 2's roof at 20 m/s, a Dragger on the chord 150 m ahead. The scrape
+        // is a roof warning, as a tunnel's mouth is: off the roof (into the gap or a car) before the car's under it, so it
+        // drops on nobody (on its own, it's into car 1 and the door shut); and back up on the roofs after.
+        var n = new Night(speed: 20);
+        int id = n.OnRoof(0, z: 3);
+        var walker = new Bots.RoofWalkerBot(5, Tuning.Player.Cold, new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), 1, Tuning.Player.Cold)) { Me = id };
+        var dragger = OnTruss(n, 150);
+        bool grabbed = false, off = false, backUp = false;
+        double through = 150 / 20.0 + n.Train.Dynamics.Consist.LengthMetres / 20 + 2;
+        for (int i = 0; i < (through + 20) * SimConstants.TickRate; i++)
+        {
+            walker.Crew = [(id, n.Crew[id - 1])];
+            n.Intents[id - 1] = walker.Decide(n.Crew[id - 1], n.World, (uint)i, out _);
+            n.Run(SimConstants.TickSeconds);
+            grabbed |= dragger.Target == id || n.Crew[id - 1].Has(PlayerFlags.Held);
+            off |= dragger.Phase == SpinePhase.Telegraph && n.Crew[id - 1].Surface != Surface.Roof;
+            backUp |= dragger.Gone && n.Crew[id - 1] is { Surface: Surface.Roof, Parent: > 0 };
+        }
+        var s = n.Crew[id - 1];
+        Assert.False(grabbed, "the Dragger dropped on the walker");
+        Assert.True(off, "never off the roof while it scraped");
+        Assert.True(dragger.Gone);
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.True(backUp, $"not back up on the roofs after: {s.Surface} on {s.Parent}");
+    }
+
+    [Fact]
     public void NobodyOnTheRoofsAndItDropsOnTheBallastAndIsGone()
     {
         var n = new Night(speed: 20);
