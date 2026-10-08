@@ -588,9 +588,11 @@ public class WorldSoundTests
             Sim.Stops.ContainerKind.Cupboard => "crew-search.cupboard",
             Sim.Stops.ContainerKind.Cabinet => "crew-search.cabinet",
             Sim.Stops.ContainerKind.Cellar => "crew-search.cellar",
+            Sim.Stops.ContainerKind.Hayloft => "crew-search.hayloft",
+            Sim.Stops.ContainerKind.Bench => "crew-search.bench",
             _ => "crew-search.boards",
         };
-        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards");
+        Held(audio, "crew-search.cupboard", "crew-search.cabinet", "crew-search.cellar", "crew-search.boards", "crew-search.hayloft", "crew-search.bench");
         Stand(audio, "crew-search.found");
         bool Sounding(string name) => audio.Mixer.Voices.Any(v => v.Name == name && !v.Finished && !v.Stopped);
         var ears = new Ears(audio, world);
