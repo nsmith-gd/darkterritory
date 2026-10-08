@@ -46,4 +46,22 @@ public class HotWalkerTests
         n.Run(1);
         Assert.All(pack, h => Assert.True(h.Gone));
     }
+
+    [Theory]
+    [InlineData(15, true)]
+    [InlineData(1, false)]
+    public void DownALadderAtSpeedAWalkerHoldsOnAboveTheBallast(double speed, bool holds)
+    {
+        // frontier:3's hot run: a walker went down car 9's ladder at 21 m/s and the motor stepped it off the bottom rung
+        // onto the ballast (dead of the landing). Faster than anyone runs, the last rungs stay climbed; slow, it's off.
+        var n = new Night(4, speed);
+        int car = 2;
+        var shape = n.Train.Frames[car].Shape;
+        var ladder = shape.Ladders.First(l => l.Foot.Y <= 0);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Position = ladder.Foot with { Y = 2 }, Surface = Surface.Ladder };
+        n.Run(4, id => RoofWalkerBot.HoldOn(n.Crew[id], n.Train, new PlayerIntent { MoveZ = -1 }));
+        var s = n.Crew[1];
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.Equal(holds, s.Surface == Surface.Ladder && s.Parent == car);
+    }
 }

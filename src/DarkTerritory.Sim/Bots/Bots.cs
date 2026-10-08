@@ -55,7 +55,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     public PlayerIntent Decide(in PlayerState self, TrainOnLine train, uint tick) => default;
 
-    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed) =>
+        RoofWalkerBot.HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+
+    PlayerIntent Decided(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         var intent = Gun(self, world, tick, out aimed);
         // Off the gun for anything else, it gets up out of the seat first (T112: Jump, seated, is getting up).
@@ -766,7 +769,35 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// </summary>
     public static bool RoofWarned(World world) => world.Lineside?.Warning(world.Train) is not null;
 
-    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed) =>
+        HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
+
+    /// <summary>Above the ballast, a climber going down a ladder that reaches it stops this high (m) at speed.</summary>
+    const double LowestRung = 0.6;
+
+    /// <summary>
+    /// Note 380: never down off a ladder's bottom rung onto the ballast with the train going faster than anyone runs. The
+    /// motor steps a climber off it at whatever speed the train is doing (<see cref="PlayerMotor"/>'s ladder step), and the
+    /// walkers' ladder work (the hot box and the pin, the Car Hugger's beating, down for shelter) holds "down" to reach a
+    /// plate. On frontier:3's hot run a walker went down car 9's ladder at 21 m/s, past where the plate was, and onto the
+    /// ballast: dead of the landing (player.json's `landing.lethalAbove`, 16.5 m/s), and slower than that, left behind.
+    /// On the ladder, hold on: whatever it was after comes back to it, or it climbs again.
+    /// </summary>
+    public static PlayerIntent HoldOn(in PlayerState self, TrainOnLine train, PlayerIntent intent)
+    {
+        if (self.Surface != Surface.Ladder || intent.MoveZ >= 0 || self.Parent <= 0 || self.Parent >= train.Frames.Count
+            || self.Position.Y > LowestRung || SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed))
+            return intent;
+        // The ladder it's on: the nearest along the car (the motor's own pick), and only one whose foot is the ballast.
+        var shape = train.Frames[self.Parent].Shape;
+        if (shape.Ladders.Count == 0)
+            return intent;
+        var at = self.Position;
+        var on = shape.Ladders.MinBy(l => (l.Foot.X - at.X) * (l.Foot.X - at.X) + (l.Foot.Z - at.Z) * (l.Foot.Z - at.Z));
+        return on.Foot.Y > 0 ? intent : intent with { MoveZ = 0 };
+    }
+
+    PlayerIntent Decided(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
         _tick = tick;
@@ -807,8 +838,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // under the hounds' speed, and a run behind boards the same car). The Hugger's rule keeps everyone off that car and the
         // one ahead; the pack's sends the fit at it. On frontier:3 the walkers went back and forth between cars 8 and 9 for a
         // minute while the pack mauled the gunner. Both go with the car cut loose (App. A.3), so with nobody of the crew on it,
-        // a walker cuts it: along the roofs to the gap ahead of it (behind the car ahead), and Uncouple there.
-        if (HeldAndBoarded(self, world) is { } held && job?.CutLoose(self, world, train.VehicleAhead(held)) is { } cuttingHeld)
+        // a walker cuts it: along the roofs to the gap ahead of it (behind the car ahead), and Uncouple there. Running, by
+        // the roofs only (in a car, it comes out and up as ever first); the ballast way round is for a standing train.
+        if (HeldAndBoarded(self, world) is { } held && job is not null
+            && (SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed)
+                ? job.CutLoose(self, world, train.VehicleAhead(held))
+                : job.CutFromTheRoofs(self, world, train.VehicleAhead(held))) is { } cuttingHeld)
             return cuttingHeld;
         int on = self.Parent;
         var here = PlayerMotor.WorldPosition(self, train);
