@@ -182,6 +182,7 @@ public sealed class Gannet(int id) : Enemy(id)
             Extra = walkers[0].Id;
             _stillFor = 0;
             SetMode(GannetMode.Hang);
+            ctx.World.Director?.GannetPass(0);
             Enter(ctx, SpinePhase.Alert);
         }
     }
@@ -212,6 +213,7 @@ public sealed class Gannet(int id) : Enemy(id)
         _from = Local;
         Turn(_aim - _from);
         SetMode(GannetMode.Fold);
+        ctx.World.Director?.GannetPass(1);
         Enter(ctx, SpinePhase.Telegraph);
     }
 
@@ -233,6 +235,8 @@ public sealed class Gannet(int id) : Enemy(id)
             if (off.Length > t.StrikeRadius || Math.Abs(s.Position.Y - _aim.Y) > 2.5)
                 continue;
             ctx.Bite(p.Id, t.StabDamage, DeathCause.Pecked);
+            if (!hit)
+                ctx.World.Director?.GannetPass(2);
             hit = true;
         }
         _nextDive = Next(ctx, t);

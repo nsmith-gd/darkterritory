@@ -228,7 +228,12 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
     /// <summary>Draggers put on a truss's top chord ahead of the fast train (note 435).</summary>
     public int TrussDraggers { get; init; }
+    /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
+    public GannetReport Gannet { get; init; } = new(0, 0, 0);
 }
+
+/// <summary>The Gannet's passes over a night (note 454): how often it hung over a walker, folded on one, and stabbed one.</summary>
+public sealed record GannetReport(int Hangs, int Folds, int Stabs);
 
 /// <summary>
 /// The night's upkeep (orchestrator.md §5.1): hot boxes come and caught (note 331), lamps guttering and gone out (note 346),
@@ -584,6 +589,7 @@ public static class Harness
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
                     d.FlankEngineRunners(r.Pack)))],
                 TrussDraggers = d.TrussDraggers,
+                Gannet = new GannetReport(d.GannetPasses.Hangs, d.GannetPasses.Folds, d.GannetPasses.Stabs),
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),

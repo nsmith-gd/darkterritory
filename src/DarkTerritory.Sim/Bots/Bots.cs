@@ -3260,6 +3260,20 @@ public static class Heed
         return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
     }
 
+    /// <summary>
+    /// The Gannet (note 340; note 454): "when it folds, break your stride". It hangs over someone walking a roof (its calls
+    /// stopped, head down) and folds onto where they'll be; whoever stops walking is let be, and a fold onto a stopped walker
+    /// misses. A bot on a roof it's hanging or folding over stops dead, as a crewmate who's learned it does, and walks on once
+    /// it's climbed away. (Read off what every client has: its mode and its prey.)
+    /// </summary>
+    public static PlayerIntent Gannet(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Surface != Surface.Roof || self.Has(PlayerFlags.Held)
+            || !world.ActiveEnemies.OfType<Gannet>().Any(g => g.Prey == selfId && g.Mode is GannetMode.Hang or GannetMode.Fold))
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = intent.Buttons & ~(PlayerButtons.Run | PlayerButtons.Jump) };
+    }
+
     public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)
     {
         if (!self.Alive || !world.ActiveEnemies.OfType<Drift>().Any(d => d.Target == selfId && d.Phase is SpinePhase.Telegraph or SpinePhase.Punish))
