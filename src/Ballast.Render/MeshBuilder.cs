@@ -85,8 +85,10 @@ public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Ve
 /// drawn or shadowed, and along it it's gnawed. Its ragged edge is seeded by <see cref="Scar"/>.y.
 /// </param>
 /// <param name="BiteFloor">Below this height (the piece's own y) nothing is eaten.</param>
+/// <param name="Shadowless">Drawn in the scene but casting no shadow (the lamp's or the moon's): fine dressing over a piece
+/// that casts its own (a train's pipes, rivets and grilles), which a shadow map wouldn't resolve, at a third of the cost.</param>
 public readonly record struct MeshInstance(MeshAsset Asset, Matrix4x4 Model, float Glow = 1, Vector3 Tint = default, Vector2 Scar = default,
-    int Bones = -1, Vector3 SurfaceOffset = default, Vector4 Bite = default, float BiteFloor = 0);
+    int Bones = -1, Vector3 SurfaceOffset = default, Vector4 Bite = default, float BiteFloor = 0, bool Shadowless = false);
 
 /// <summary>A skinned vertex's bones (indices into its model's skeleton, as floats) and their weights.</summary>
 public struct SkinWeights(Vector4 joints, Vector4 weights)

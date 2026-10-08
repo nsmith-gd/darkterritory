@@ -49,8 +49,9 @@ public class ShovelTests
     [Fact]
     public void TheStartingKitIsTheCrowbarAndTheShovelIsTheBoilers()
     {
-        // player.json: everyone's crowbar. The shovel isn't anyone's: it starts the night home, on the cab's rack.
-        Assert.Equal(Kit.Of([Tool.Crowbar]), Tuning.Player.StartingKit);
+        // player.json: everyone's crowbar, and a wrench (note 301: it's the repair tool). The shovel isn't anyone's: it starts
+        // the night home, on the cab's rack.
+        Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Wrench]), Tuning.Player.StartingKit);
         Assert.True(Tuning.Boiler.ShovelInHand);
         Assert.False(World().Train.Boiler.ShovelOut);
     }
@@ -65,7 +66,7 @@ public class ShovelTests
         Assert.Equal(Tool.Crowbar, Kit.Held(s));
         Hold(world, ref s, Tuning.Boiler.ShovelSeconds * 2 + 0.1);
         Assert.Equal(Tool.Shovel, Kit.Held(s));
-        Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Shovel]), s.Kit);
+        Assert.Equal(Kit.Of([Tool.Crowbar, Tool.Wrench, Tool.Shovel]), s.Kit);
         Assert.True(train.Boiler.ShovelOut);
         Assert.True(train.Boiler.Firebox >= 1.5, $"firebox {train.Boiler.Firebox}");
     }
@@ -119,8 +120,8 @@ public class ShovelTests
         Hold(world, ref s, 0.5);
         Assert.False(Kit.Has(s.Kit, Tool.Shovel));
         Assert.False(train.Boiler.ShovelOut);
-        // Hung back, not the wrench taken in its place.
-        Assert.False(Kit.Has(s.Kit, Tool.Wrench));
+        // Hung back, not the rack's wrench taken in its place: the kit's as it started (a crowbar and their own wrench).
+        Assert.Equal(Tuning.Player.StartingKit, s.Kit);
         var next = At(world, InteractableKind.Firebox);
         Hold(world, ref next, 0.1, id: 2);
         Assert.Equal(Tool.Shovel, Kit.Held(next));
@@ -174,7 +175,7 @@ public class ShovelTests
         world.Train.Boiler.ShovelOut = true;
         var s = At(world, InteractableKind.Firebox);
         Hold(world, ref s, Tuning.Boiler.ShovelSeconds + 0.1);
-        Assert.Equal(Kit.Of([Tool.Crowbar]), s.Kit);
+        Assert.Equal(Tuning.Player.StartingKit, s.Kit);
         Assert.True(world.Train.Boiler.Firebox > 0.5);
     }
 }

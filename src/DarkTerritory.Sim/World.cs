@@ -891,6 +891,25 @@ public sealed class World
     /// <summary>The wreck's numbers (wreck.json): the default until the session loads them.</summary>
     public WreckTuning WreckTuning { get; set; } = new();
 
+    /// <summary>
+    /// The jobs the train makes as it runs (upkeep.json; orchestrator.md §5.1): null, none. Set on every machine (the hot
+    /// boxes' seconds and drag are predicted); the host brings them on and sets the fires (<see cref="Train.HotBoxes"/>).
+    /// </summary>
+    public UpkeepTuning? Upkeep
+    {
+        get => _upkeep;
+        set
+        {
+            _upkeep = value;
+            Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
+            _hotBoxes = null;
+        }
+    }
+    UpkeepTuning? _upkeep;
+    HotBoxes? _hotBoxes;
+    /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
+    public (int Came, int Caught) HotBoxCount => _hotBoxes is { } h ? (h.Came, h.Caught) : (0, 0);
+
     double _groundHint;
 
     /// <summary>The land's height under a point (the line's terrain, or the ballast by a hand-laid line).</summary>
@@ -1277,6 +1296,17 @@ public sealed class World
         }
         if (Authority && Lineside is { } lineside)
             lineside.Hazards(this, _actors, Damage);
+        // The hot boxes (note 331): one open for each crewmate at most, none in the yard or a fort; one left too long
+        // catches, and the car's alight (App. C.5).
+        // Made on the first step, when the night's route (its seed) is known: the host's enemies come after its run.
+        if (Authority && _hotBoxes is null && Train.HotBoxTuning is { } hbt)
+            _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
+        if (Authority && !Derailed && _hotBoxes is { } boxes)
+        {
+            int open = Math.Max(1, _actors.Count(a => a.State.Alive));
+            if (boxes.Step(Train, open, SafeYard || TrainInFort) is var caught and >= 0 && Enemies is { } ht)
+                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire));
+        }
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
                 Fumes(shot, fumes);
@@ -1570,6 +1600,7 @@ public sealed class World
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
+            d.Census(this);
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
             d.Listen(this);
