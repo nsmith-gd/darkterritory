@@ -6184,6 +6184,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The rocky coast's surf is a candidate. Every sea shore takes the shingle's, until the plan says which coast is rock.
     - **Pinned:** `WorldSoundTests.TheLinesWaterIsHeardWhereItsWaterIs` covers each kind, on a night that has it: deadLines:2's sea and river valley, frontier:7's Fundy flats and tidal river, and frontier:3's lakes. By an ear beside it, the sound is held on water the terrain says is that kind, and nothing of it is heard a kilometre up.
 
+442. **Bots off the roofs for a truss Dragger (queue #178, D1.3 for D1; note 435's "not yet").** Since note 435, a Dragger can sit on a main-line through-truss's top chord. It scrapes on the steel for `draggers.drop.tellSeconds` (3 s) before the engine is under it, then drops on whoever's on the roof of the car passing under. The counter is to be off the roofs over the span. The bots heeded a tunnel's mouth (T81, note 260) but not a truss. On frontier:7's hot run (`harness --bots 4 --enemies --upkeep --express 21 --seconds 900`, seed 2) the truss Dragger took a walker.
+    - **The heed** (`RoofWalkerBot.TrussScrape`): the scrape is a roof warning, like the lineside's tunnel mouth. `RoofWarned` covers both, so `WarmUp.Shelter` takes the walker off the roof the same way: into a car with the door shut, or down into the gap, until it's quiet. Then it goes back up.
+        - It's heard, as a player hears it, not seen where it sits: the cue is the scrape (the Dragger's Telegraph), not the Dragger on the chord ahead.
+        - Telling it's a truss's: it's the only Dragger with no car under it. A client isn't told a Dragger is perched, but sees it unattached.
+        - A walker on a car near the front has the 3 s of the scrape. Further back, the train's length at speed adds to that.
+    - **The gunners** keep their guns. A seated gunner's `Look` is `safe` (down behind its shield), so the scrape doesn't take it off the gun for every bridge, and it stays on hand for a hound pair. GunnerBot is unchanged (D1's).
+    - **Verified.** `DraggerTests.AWalkerHearsTheScrapeAndIsOffTheRoofBeforeItDrops`: a bot walker on car 2's roof at 20 m/s, a Dragger on the chord 150 m ahead. The walker is into car 1 with the door shut before car 2 is under it. The Dragger drops on nobody and is gone, and the walker is back up on the roofs. Without the heed, the Dragger dropped on it.
+    - **The sweep** (frontier:7, 4 bots, express 21, 900 s; main against this branch):
+
+      | Seed | Truss Draggers | Grabs by it, main | Grabs by it, with the heed | Deaths, main / with | km, main / with |
+      |---|---|---|---|---|---|
+      | 1 | 1 | 0 | 0 | 1 / 1 | 13.4 / 13.4 |
+      | 2 | 1 | 1 | 0 | 0 / 0 | 19.2 / 19.2 |
+      | 3 | 1 | 0 | 0 | 3 / 3 | 8.3 / 8.3 |
+    - **Not yet:**
+        - A seated gunner on the car going under is still the Dragger's. On the guard van, that's the rear gun's crew on a long truss. Getting it down would be GunnerBot's (D1's) call.
+        - A walker already on its way to a truss's span before the scrape doesn't avoid it by sight.
+
 436. **The hand lamp's shadows (queue #172, E1; the art checklist's `crew-lantern` "next", "the light's flicker swinging its shadows"; GDD §31, §27).** A carried lantern swung in its carrier's fist and its light went with it (PR #133), but its light was one of the practical lights, lit per pixel and unshadowed: nothing it lit threw a shadow, so the swing showed only as a pool of light sliding about.
     - **One lamp casts:** the hand lamp nearest the eye, carried or lying (`GreyboxScene.HandLamp`), is the frame's `MeshBuilder.ShadowLight`; the rest stay practical lights. One is what's seen: the lamp in your own hand or the crewmate's beside you, and a second would cost a second cube for shadows mostly lost behind the first's light.
     - **Its cube:** the renderer's `handShadow` pass draws six 512² faces (+X, −X, +Y, −Y, +Z, −Z, each 96° so the filter's taps at an edge stay on its face) into the layers of one depth array, a pass a face, the face each draw's first instance (`shadow_hand.vert`). `scene.frag`'s `handShadowAt` takes the face by the axis a point lies furthest along from the flame, four taps of its layer. Near plane 0.1 m, and the lantern itself drawn `Shadowless`: its cage and cap round the flame would otherwise shut its own light in.
