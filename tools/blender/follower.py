@@ -11,7 +11,8 @@ swells over the loot it's feeding on, pulsing, the legs kneading.
 SK_Follower: root, the sac, the shield, the mouthparts, and the ten legs' two bones each. Faces +Y (the engine's -Z),
 belly down. Clips (§31: still, then too fast): cling (on a back: flat, gripping, dead still but the sac's slow pulse,
 then the twitch), crawl (scuttling, the legs in two alternating sets, too fast), nest (spread flat over what it's
-feeding on, the sac swelling and easing, the legs kneading, the mouthparts working), hit.
+feeding on, the sac swelling and easing, the legs kneading, the mouthparts working), drop (off a back aboard: flung,
+over, and down on its hooks), hit.
 
     tools/models/build.sh follower        # this, its high copy and the bake -> content/art/models/follower.glb
 """
@@ -184,6 +185,18 @@ for f in range(0, 90, 9):
     nest.key(f, p, "BEZIER")
 nest.close(90)
 
+# Drop (0.6 s, once: Follower.DropSeconds, its fall off a back aboard, note 504): it lets go of the back it rode flat on
+# (the root turned as Enemy() lays it there, its face up and its belly to them), every leg flung out as it goes, turning
+# over backwards in the air, and lands on its hooks splayed flat, the sac squashed, before it gathers itself to scuttle.
+drop = Clip("drop", loop=False)
+FLUNG = legs_pose(lift=lambda k: 34, bend=lambda k: -10, swing=lambda k: 10 if k < 2 else -10)
+drop.key(0, FLAT | {"root": (90, 0, 0), "sac@scale": (1, 1, 1)}, "BEZIER")
+drop.key(4, FLUNG | {"root": (140, 0, 6), "sac@scale": (0.96, 1.04, 1.04)}, "BEZIER")
+drop.key(9, FLUNG | {"root": (250, 0, -6), "sac@scale": (1, 1, 1)}, "BEZIER")
+drop.key(14, legs_pose(lift=lambda k: 8, bend=lambda k: 20) | {"root": (345, 0, 0)}, "LINEAR")
+drop.key(16, legs_pose(lift=lambda k: -22, bend=lambda k: -40) | {"root": (360, 0, 0), "sac@scale": (1.12, 1.06, 0.78)}, "BEZIER")
+drop.key(18, STAND | {"root": (360, 0, 0), "sac@scale": (1, 1, 1)}, "BEZIER")
+
 hit = Clip("hit", loop=False)
 hit.key(0, FLAT | {"sac@scale": (1, 1, 1)}, "CONSTANT")
 hit.key(2, legs_pose(lift=lambda k: 40, bend=lambda k: -20) | {"sac@scale": (1.15, 0.9, 0.8), "root": (-20, 10, 0)}, "CONSTANT")
@@ -191,6 +204,6 @@ hit.key(8, legs_pose(lift=lambda k: -10, bend=lambda k: 70) | {"sac@scale": (0.9
 hit.key(14, FLAT | {"sac@scale": (1, 1, 1)}, "CONSTANT")
 
 kit.build()
-rig.bake(sk, [cling, crawl, nest, hit], plant=rig.feet_planter(sk, bones=tuple(TIPS), lowest=0.002))
+rig.bake(sk, [cling, crawl, nest, drop, hit], plant=rig.feet_planter(sk, bones=tuple(TIPS), lowest=0.002))
 print("[dt] follower", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "follower.glb", kit)

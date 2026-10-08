@@ -7061,3 +7061,12 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - all six alive, and no lamp left behind.
       - With the cars part full (no `--empty`), the cars fill either way.
     - Protocol unchanged (bots act through intent). Tests: `StopCrewTests.AtTheWreckYardAHandTakesALampOutToTheDarkHeapsAndPutsItBackAboard` (stocked: away whole, every heap found, a lamp put back inside a car and none left in the yard, salvage aboard, nobody under a shift); `AtTheWreckYardTheHandsCarryOutWhatTheHeadlampFindsAndKeepClearWhenItGroans` unchanged (unstocked, no lamp aboard: the headlamp's heaps only).
+
+504. **The Follower drops off its carrier aboard (queue #241, C1; the art checklist's `followers-anim` "still to do: the drop off its carrier aboard"; GDD App. A.6 "It drops off aboard and nests in your best loot car").** Once its host was aboard, a Follower let go of their back and made straight for its car: from 1.35 m up, through the air, at its crawl's 0.8 m/s, drawn crawling the whole way. It hung in the air beside them for metres, sinking slowly as it went.
+    - **The drop** (`Follower`, `followers.dropGravity`, 9.81, player.json's gravity: it falls as anything does): where it lets go, in its host's car (so a moving train carries it), it falls straight down to the floor under their feet, in `Follower.DropSeconds` (about half a second from `Follower.BackUp`, 1.35 m). Only then does it crawl, as before. A Follower restored mid-crawl (a staged one, a resumed night) has no drop to finish.
+    - **Seen falling** (tools/blender/follower.py `drop`, 0.6 s, once): it lets go flat as it rode (face up, belly to their back), every leg flung out, turning over backwards in the air, and lands on its hooks splayed flat with the sac squashed, then gathers itself to scuttle. `CreatureArt` plays it over the first 0.6 s of its crawl, then the crawl.
+    - **Headless:** `dt screenshot --threats --follower drop:s --view inside` (s seconds into the drop, in car 2's aisle); `dt art clip follower drop --once`.
+    - **Verified:**
+        - `FollowerDropTests`, on a standing train and one at 8 m/s: it lets go at its host's back, in their car; halfway through the drop it's in the air, straight down from there; by the end it's on the floor under their feet; and it still crawls to its car and nests.
+        - `IncidentEventTests` (who carried it aboard) and `HitConfirmTests` pass unchanged.
+        - Looked at the clip's frames, and the staged drop in a car's aisle at 0.15 s and 0.4 s.
