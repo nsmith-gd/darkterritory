@@ -84,4 +84,32 @@ public class SetPieceArtTests
         Assert.All(panels, p => Assert.InRange(Origin(p).Length(), 3.6f, 3.8f));
         Assert.Single(pen, i => i.Asset.Name.Contains("cattle_ramp"));
     }
+
+    [Fact]
+    public void TheConveyorIsTheArtsWhereTheSimLaysItAndTurnsOnlyWhileItRuns()
+    {
+        // Note 430: A1's conveyor (note 400) drawn by the art pass: its head's gantry on the track under the sim's head, its low
+        // run's sections filling the run from the tail to the knee, the drive's flywheel still while it's stopped and turning
+        // while it runs, its lamp red then green.
+        var site = SiteOf("frontier:7", FacilityKind.GrainElevator);
+        Assert.True(site.Has(ModuleKind.Conveyor));
+        var eye = site.ConveyorHead;
+        List<MeshInstance> At(double time, out Vector3 lamp)
+        {
+            var mesh = new MeshBuilder();
+            Assert.True(Art.Conveyor(mesh, site, eye, time));
+            lamp = mesh.Vertices.ToArray().Where(v => v.Emissive >= 1).Select(v => v.Color).FirstOrDefault();
+            return [.. mesh.Instances];
+        }
+        var drawn = At(0, out var stopped);
+        Assert.True(Vector3.Distance(Origin(drawn.Single(i => i.Asset.Name.Contains("belt_head"))), new Vector3(0, -4.8f, 0)) < 0.01f);
+        double run = ((site.ConveyorKnee - site.ConveyorTail) with { Y = 0 }).Length;
+        Assert.InRange(drawn.Count(i => i.Asset.Name.Contains("belt_section")) * 3.0, run - 3, run + 3);
+        Matrix4x4 Wheel(List<MeshInstance> d) => d.Single(i => i.Asset.Name.Contains("drive_flywheel")).Model;
+        Assert.Equal(Wheel(drawn), Wheel(At(0.3, out _)));
+        site.Mirror(new SiteState(true, 0, 0, false, false, 0) { Grain = 3, Running = true, Carrying = true, Jam = -1 });
+        var running = At(0.3, out var going);
+        Assert.NotEqual(Wheel(running), Wheel(At(0.6, out _)));
+        Assert.True(going.Y > going.X && stopped.X > stopped.Y, $"the lamp {stopped} stopped, {going} running");
+    }
 }

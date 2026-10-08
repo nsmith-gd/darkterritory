@@ -119,6 +119,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Gutter(intent, session.Predicted, session.World, t);
         intent = Heed.Followers(intent, session.Predicted, session.World, me, calls, t);
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
+        intent = Heed.Gannet(intent, session.Predicted, session.World, me);
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
         return Vote(intent, session, me);
     }
