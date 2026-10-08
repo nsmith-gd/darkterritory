@@ -393,7 +393,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | **Wreck yard** | Salvage, high value | Pull cargo off derailed trains. Unstable, unlit, already occupied. |
 | **Slaughterhouse** | Livestock, food | Animals are loud, and something already lives here. |
 | **Chemical works** | Volatile, top payout | Leaks. Do not fire indoors. |
-| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. |
+| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. Its steam lift runs off the engine's own boiler: the engine stands by the headframe and vents into it while someone holds the lever, and loading empties the gauge (spec D.2; note 368). |
 | **Military depot** | Gunpowder and shot | Best payout, worst cargo to be carrying when something boards. |
 
 **Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.

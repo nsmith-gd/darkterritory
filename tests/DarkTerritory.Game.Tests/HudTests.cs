@@ -361,6 +361,31 @@ public class HudTests
     }
 
     [Fact]
+    public void AtTheSteamLiftsLeverThePromptSaysTheCarUnderTheChuteAndTheCabSaysWhereTheSteamsGoing()
+    {
+        // Queue #105 (note 368): the lever, the car under the chute, the skip winding while the engine vents into it.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var spur = s.Train.Line.Branches[site.Spur];
+        var consist = s.Train.Dynamics.Consist;
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.Toe + site.LiftAlong + consist.OffsetOf(1) + consist.Vehicles[1].Length(s.TrainTuning) / 2, Velocity = 0 }] });
+        s.Train.RefreshFrames();
+        consist.Vehicles[1].Load = 0.25;
+        s.Player = PlayerMotor.SpawnOnGround(site.LiftLever - Double3.Up * 0.9, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        Assert.Equal("LIFT : HOLD [E]   CAR 25% FULL", Hud.Prompt(s));
+        site.Mirror(site.State with { Winding = true });
+        Assert.Equal("WINDING   CAR 25% FULL", Hud.Prompt(s));
+        // In the cab with the vent open, the steam's said to be going to the lift, not into the air.
+        s.World.Run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, facility, false,
+            [.. Enumerable.Repeat(0.0, s.World.Run.FacilityCount)], [.. s.World.Run.Sites.Select(x => x?.State ?? default)]);
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Train.Boiler.Vented = true;
+        Assert.Equal("STEAM TO THE LIFT", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void AtAnAlternatesStandThePromptNamesTheRouteCardsLineNotADeadLine()
     {
         // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead

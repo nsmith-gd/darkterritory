@@ -396,6 +396,9 @@ public sealed class PrototypeSession : IPlaySession
         // GDD §18's set pieces (note 185).
         if (site.Has(ModuleKind.Spout))
             parts.Add(site.Bin <= 0 ? "the elevator's bin is empty" : site.Pouring ? $"spout POURING ({site.Bin:0.0} loads left)" : $"the elevator's bin: {site.Bin:0.0} loads");
+        // The mine head's steam lift (note 368).
+        if (site.Has(ModuleKind.Lift))
+            parts.Add(site.Ore <= 0 ? "the shaft's worked out" : site.Winding ? $"the lift WINDING ({site.Ore:0.0} loads left)" : $"a steam lift: {site.Ore:0.0} loads");
         if (site.Has(ModuleKind.Ramp))
             parts.Add(site.Head == 0 ? "the herd's aboard" : site.Herding ? $"herd going up the ramp ({site.Head} left)" : $"{site.Head} head in the pen");
         if (site.Has(ModuleKind.Hose))
