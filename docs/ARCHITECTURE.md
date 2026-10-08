@@ -6252,11 +6252,11 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 
       | Seed | Rounds, main / now | Deaths, main / now | km, main / now | Runs, main | Runs, now |
       |---|---|---|---|---|---|
-      | 1 | 8 / 20 | 4 / 0 | 9.6 / 16.9 | 3.3 s1/k2/b3; 7.7 s0/k2/b4 | 3.3 s2/k4/b0; 5.5 s3/k3/b0; 7.6 s1/k3/b2; 11.0 s0/k0/b6 |
+      | 1 | 8 / 20 | 4 / 4 | 9.6 / 13.3 | 3.3 s1/k2/b3; 7.7 s0/k2/b4 | 3.3 s2/k4/b0; 5.5 s3/k3/b0; 7.6 s1/k3/b2; 11.0 s0/k0/b6 |
       | 2 | 8 / 22 | 0 / 0 | 11.2 / 15.8 | 3.3 s2/k2/b2; 7.7 s1/k1/b4 | 3.3 s3/k2/b1; 6.9 s0/k4/b2; 12.7 s1/k3/b2; 15.3 s2/k4/b0 |
-      | 3 | 3 / 14 | 1 / 1 | 9.6 / 9.2 | 4.3 s1/k1/b4; 8.1 s0/k0/b6 | 4.3 s2/k4/b0; 6.5 s1/k5/b0 |
+      | 3 | 3 / 14 | 1 / 4 | 9.6 / 9.2 | 4.3 s1/k1/b4; 8.1 s0/k0/b6 | 4.3 s2/k4/b0; 6.5 s1/k5/b0 |
 
-      Aboard: 23 of 36 hounds on main; 15 of 66 now, from nearly twice as many runs, as the trains now get further. Seed 3 ends sooner. Fire Flies set car 1 alight at about 513 s, and the train stood with its fire out until the night's end; that's the fire and the firebox, not the guns.
+      Aboard: 23 of 36 hounds on main; 15 of 66 now, from nearly twice as many runs, as the trains now get further. The deaths now aren't the guns': seed 1's four are two Mauled and two Climbed after 11 km, and seed 3's four are Burned. In seed 3 the driver stops firing at about 320 s with the tender full (a Gannet at the engine, a Dragger's grab there; ConductorBot's, not looked into here), the train stands with its fire out, and Fire Flies set car 1 alight at about 513 s.
     - **Not yet:**
         - Seed 1's fourth run all boarded. The guard gunner had gone in to warm before the howl and wasn't seated, so the cold hold-out didn't hold it.
         - The forward gun's rack is filled by the roof walkers. Its powder rarely comes: seed 3 stood dry 587 s with 1 rack filled.
