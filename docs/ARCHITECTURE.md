@@ -5292,6 +5292,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Plate over the bogies** (`TrainKit.BogieSkirt`, every car): a riveted skirt from the underframe to 0.32 m above the rail, the wheelbase long and a little more, with its foot bevelled back to the ends. A slot at axle height keeps the journal boxes in sight, so the hot box (note 331) still shows, and the wheels still read turning under it. Braced with straps, like the hood.
     - **The gun car's casemate: the shield is it.** The guns slide along their roof rail (T93) from car to car, so a fixed casemate on the gun car would pin them or fight them. Each gun's riveted shield (note 338, `GunShield`) turns and slides with it, which is the casemate the reference's turret was.
     - **Verified:** shots: `dt screenshot --view rupture --ruptured 30` (the tear in the hood, hissing), `--integrity 0.2,1 --view rupture` (a leak out of the hood's side), `--integrity 0.05,1 --view headlamp` (the cracked lamp), `--upgrades secondGuardCar --survey --view hotbox --car 3` (the skirts under the gun car and the next). `EffectsTests` holds the seam on the hood's outer face, between its deck and roof; `PerfBudgetTests` and the Game suite are green.
+
+361. **The Ribbit rebuilt organically (G1, queue #98; the director, 8 Oct 2026: "Redo the Ribbit the way you did the Gannet").**
+    E1's #29 (note 291) had fused the Ribbit's body, but the director's call on the Gannet's first pass ("boxy and rigid, not
+    organic at all") held for it too. Rebuilt the Gannet's way (note 340):
+    - **One skin** (`tools/blender/ribbit.py`): smooth volumes (rump, loins, chest, a slung belly, the haunches folded over
+      the hind legs, hare's feet, a toad's shoulders and arms to the palms, the neck's folds, the skull with eye mounds,
+      lids, glands, nostrils and a rolled lip, the ears' fleshy stalks, the throat's sac, hip bones, spine knuckles, warts),
+      each a solid for `rig.fuse`'s union and a term in a signed-distance field blended over its own radius. The union's
+      voxels are settled onto that field before QuadriFlow (`rig.fuse`'s new optional `settle`, off for every other model),
+      so limbs grow out of the body with flesh in the creases. The jaw is a second skin made the same way; eyes, teeth,
+      tongue, ear blades, fingers and toes sit over them.
+    - **Its colour baked** (`tools/models/recipes/ribbit.py`): warts, wrinkles, the sac's folds and the veins from a sculpted
+      high copy into one 2048 atlas's normals and occlusion; wet grey-white skin, grey-green down the back, a paler
+      pink-veined belly and sac, pink ears with red veins, milky eyes.
+    - **Unchanged:** every bone (the tongue's stretch and the throat's swell, `CreatureArt`), the seven clips, pivot, scale and
+      facing; nothing in the sim. 7,792 triangles (distance copy 3,329), inside the beast's budget.
+    - **Verified:** `art clearance --only ribbit` clean, `art check`, `CreatureArtTests`, `CreatureBodyTests`; stills
+      `docs/design/creatures/ribbit-{closeup,swell,tongue,devour}.png`.
 374. **Powder to the guns, the fourth upkeep job (queue #111, D1; GDD App. F.3, the director, 7 Oct 2026: "on the train, still relatively boring from point A to point B ... threats attacking the train tower-defense style, to give the gunners something to do"; [orchestrator.md](design/orchestrator.md) §5.1 U4, §8 question 3: U4 was the outline's proposed first).**
     - **What it is.** A gun fires what's in its ready rack (`GunState.Rack`, combat.json `guns.rack` 6), not its whole stock. `Ammo` keeps its meaning, the gun's rounds for the night (24), so the stores, the lineside drops, the upgrade, the save, the run's cost and the radio all go on counting it unchanged; the rest of it (`Guns.Stowed`) is down in the powder locker, the shot locker the art already draws in the guard van's front corner (App. C.3: "an iron-bound chest in the gun car's front corner"). The engine has no locker: its gun's share is in the guard van's too, a walk down the train. `rack` 0 is the gun as before (its whole stock at it).
     - **The carry.** Empty hands within 1.3 m of the locker (`Guns.AtLocker`), a Use press: a charge (`BodyKind.Powder`, the powder bag prop) in the hands (`Bodies.Handle`'s `fetch`). Light: ladders are climbed with it. At a gun whose rack isn't full, Use held 2 s (`chargeSeconds`) fills it (`Guns.Fill`) and the charge is spent; Use there doesn't put it down (`keep`). The rack fills from that gun's stock first, then from the other guns' (a pool, in the order they stand; their stocks move with it). A rack run dry leaves nothing to load (its last shot sets no reload); filled, it wants powder, ball and ram again.
