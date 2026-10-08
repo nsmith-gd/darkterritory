@@ -1503,7 +1503,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var part = Part(p, world);
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
-        // The Choir gathering (note 413): behind a house's door, or aboard (the walker's way), before any of the work.
+        // The Choir gathering: on a car's floor, shut into it (note 439); on the ground, behind a house's door, or aboard (the
+        // walker's way, note 413); before any of the work.
+        if (job != StopJob.Driver && (_carHiding != CarHiding.Off || self.Surface == Surface.Deck && self.Parent > 0) && ShutIn(self, world, p) is var shut
+            && (shut is not null || _carHiding != CarHiding.Off))
+            return shut;
         if (job != StopJob.Driver && (_hiding != Hiding.Off || self.Surface == Surface.Ground) && Shelter(self, world, p) is var hiding
             && (hiding is not null || _hiding != Hiding.Off))
             return hiding;

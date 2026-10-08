@@ -2616,6 +2616,10 @@ public sealed partial class CreatureArt
                 m = Matrix4x4.CreateTranslation(0, 0, -bite.Advance) * model;
                 _biteGrip = bite.Grip;
                 break;
+            case EnemyKind.Dragger when e.Attached < 0:
+                // On a truss's top chord (note 435): upside down on the steel, its limb reaching down for the roofs.
+                m = Matrix4x4.CreateRotationZ(MathF.PI) * (e.Lateral > 0 ? Matrix4x4.Identity : Matrix4x4.CreateRotationY(MathF.PI)) * model;
+                break;
             case EnemyKind.Dragger when e.Local.X > 0:
                 m = Matrix4x4.CreateRotationY(MathF.PI) * model;
                 break;

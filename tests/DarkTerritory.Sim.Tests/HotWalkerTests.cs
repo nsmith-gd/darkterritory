@@ -65,6 +65,28 @@ public class HotWalkerTests
         Assert.Equal(holds, s.Surface == Surface.Ladder && s.Parent == car);
     }
 
+    [Fact]
+    public void UpACarsRearLadderWithTheCarBehindItGoneAClimberTopsOutOntoTheRoof()
+    {
+        // Note 438 (queue #174): frontier:6's hot run. The forward gunner went down car 9's rear end ladder to grease its hot
+        // box, car 10 was lost behind it, and the last car has no rear end ladder (there's no gap to go down to). The motor
+        // climbed it by the nearest ladder left, a side ladder facing across: over the top sideways, past the car's end, onto
+        // nothing at 20 m/s, and dead of the landing. The car's end face is still in its hands: over the end onto the roof.
+        var n = new Night(4, 20.4);
+        int car = 3;
+        var ladder = n.Train.Frames[car].Shape.Ladders.Single(l => l.Foot.Z > n.Train.Frames[car].Shape.HalfLength);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Position = ladder.Foot with { Y = 2.5 }, Surface = Surface.Ladder, Yaw = Math.PI };
+        Assert.True(n.Train.Uncouple(car));
+        Assert.DoesNotContain(n.Train.Frames[car].Shape.Ladders, l => l.Foot.Z > n.Train.Frames[car].Shape.HalfLength);
+        // Facing back down the train, as the gunner was, Use held: up, and then nothing more asked of the legs.
+        n.Run(1.2, _ => new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use });
+        n.Run(2);
+        var s = n.Crew[1];
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.Equal((Surface.Roof, car), (s.Surface, s.Parent));
+        Assert.True(Math.Abs(s.Position.Z) < n.Train.Frames[car].Shape.HalfLength, $"on the roof's end at z {s.Position.Z:0.00}");
+    }
+
     [Theory]
     [InlineData(15, true)]
     [InlineData(1, false)]

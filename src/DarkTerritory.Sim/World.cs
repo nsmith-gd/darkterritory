@@ -1824,6 +1824,8 @@ public sealed class World
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
             d.Runs(this, Run is { Tuning.YardIsSafe: true } rs ? rs.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
+            // Note 435: a Dragger on a truss's top chord, ahead of a fast train.
+            d.Drops(this, Run is { Tuning.YardIsSafe: true } rd ? rd.Seconds : ElapsedSeconds, NoSpawnFinalApproach);
         }
 
         foreach (var e in _enemies.ToList())

@@ -881,6 +881,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
+    // --truss (note 435): stood 30 m short of the night's first through-truss, a Dragger on its top chord 10 m in, scraping.
+    var truss = args.Contains("--truss") ? generated?.Plan?.Structures.FirstOrDefault(st => st.Type == DarkTerritory.Sim.LineGen.StructureType.Truss && st.Edge == "main") : null;
+    if (truss is not null)
+        at = truss.S0 - 30;
     RouteFeature? tower = generated?.Of(FeatureKind.Facility).FirstOrDefault(f => f.Facility == FacilityKind.CoalingTower);
     if (args.Contains("--coaling") && generated is not null && tower is not null)
     {
@@ -1356,14 +1360,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --shed n [--inside | --bay]: the night's nth yard shed or hero (note 387's walk-in shells), from 7 m out before its first bay
     // door and off to one side, looking in through it; --inside, from by its back wall at a crewman's eye, out through it.
-    if (Opt(args, "--shed", -1) is var shedAt and >= 0 && generated is not null)
+    // --barn n: the same for the nth open barn, outbuilding or goods shed (note 417), its hayloft or workbench at its back;
+    // --back, from just in at its door at the back wall; --find, close to where its first find is kept.
+    bool barns = Opt(args, "--barn", -1) >= 0;
+    if (Opt(args, barns ? "--barn" : "--shed", -1) is var shedAt and >= 0 && generated is not null)
     {
         var walls = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Walls;
         var sheds = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
-            .Where(x => x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
+            .Where(x => (barns ? DarkTerritory.Sim.Run.StopWalls.OpenShed(x.Building) && x.Feature.Stop!.Containers.Any(c => c.Building == x.Index)
+                    : x.Building.Kind is BuildingKind.Shed or BuildingKind.Hero)
+                && DarkTerritory.Sim.Run.StopWalls.Doors(x.Feature.Stop!, x.Index, walls).Any()).ToList();
         if (sheds.Count == 0)
-            return Print(new { error = $"{Str(args, "--route", "")} has no yard sheds" });
+            return Print(new { error = $"{Str(args, "--route", "")} has no {(barns ? "open barns or sheds with a find" : "yard sheds")}" });
         var (f, b, i) = sheds[(int)shedAt % sheds.Count];
         var door = DarkTerritory.Sim.Run.StopWalls.Doors(f.Stop!, i, walls).First();
         // The door's middle and the way out of it, in the building's frame (x along it, y across).
@@ -1385,6 +1394,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             double cx = (open.Lo + open.Hi) / 2, side = door.Side != 0 ? door.Side : 1;
             camera = Camera.LookAt(At(cx + 6, side * (b.Width / 2 + 9), 2.2), At(cx - 2, -side * b.Width / 2, 1.0), 72);
         }
+        else if (args.Contains("--find") && f.Stop!.Containers.FirstOrDefault(c => c.Building == i) is { } kept)
+        {
+            // --find: standing back from where the barn's or shed's first find is kept (its bench, its loft's ladder), looking at it.
+            var (kx, ky, fx, fy) = DarkTerritory.Sim.Run.StopWalls.ShedKept(b, kept.Index);
+            camera = Camera.LookAt(At(kx + fx * 3.2 + fy * 0.8, ky + fy * 3.2 - fx * 0.8, 1.8), At(kx, ky, kept.Kind == ContainerKind.Hayloft ? 2.4 : 1.2), 75);
+        }
+        else if (args.Contains("--back"))
+            // --back: from just in at the door, at the back wall across from it (an open barn's hayloft or workbench, note 417).
+            camera = Camera.LookAt(At(x - ox * 0.6, y - oy * 0.6, 2.0), At(x - ox * (deep + 0.4), y - oy * (deep + 0.4), 1.2), 80);
         else
             camera = args.Contains("--inside")
                 ? Camera.LookAt(At(x - ox * 2.5 - ax * 1.5, y - oy * 2.5 - ay * 1.5, 1.7), At(x - ox * deep * 0.5 + ax * 10, y - oy * deep * 0.5 + ay * 10, 2.6), 75)
@@ -1456,7 +1474,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --scene-time s: the moment the scene's flickers are drawn at (a guttering lamp's, note 346); 0.37 as ever.
         Time = Opt(args, "--scene-time", 0.37),
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = truss is not null ? Staging.Truss(truss.S0 + 10) : args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All

@@ -43,7 +43,7 @@ public sealed partial class Run
     /// <summary>Whether a container is a hiding spot: in an open house, of a kind that's searched.</summary>
     static bool Hides(LootTuning t, StopLayout stop, StopContainer c) =>
         t.Search?.Of(c.Kind) is not null && c.Building >= 0 && c.Building < stop.Buildings.Count
-        && stop.Buildings[c.Building].Open && StopWalls.Walled(stop, c.Building);
+        && stop.Buildings[c.Building].Open && (StopWalls.Walled(stop, c.Building) || StopWalls.Shelled(stop, c.Building) && StopWalls.OpenShed(stop.Buildings[c.Building]));
 
     /// <summary>Still to search: a hiding spot nobody's been through.</summary>
     bool Hidden(int stop, StopContainer c) =>
