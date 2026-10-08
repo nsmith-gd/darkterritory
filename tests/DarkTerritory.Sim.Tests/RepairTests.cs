@@ -172,7 +172,7 @@ public class RepairTests
         // At the back of the cab (the fire door), nothing; at the front windows with the crowbar, nothing.
         var cab = train.Frames[0].Shape.Cab!.Value;
         var front = PlayerMotor.SpawnInCab(train, P) with { HeldSlot = 0 };
-        front.Position = front.Position with { Z = cab.Min.Z + 0.6 };
+        front.Position = front.Position with { Z = PlayerMotor.CabFloorZ(train.Frames[0].Shape) };
         Assert.Equal(BreakKind.Lamp, Repairs.At(front, train));
         Hold(world, ref front, 2);
         Assert.Equal(Tuning.Enemies.Climbers.LampOutSeconds, world.LampOutSeconds, 6);

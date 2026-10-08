@@ -86,6 +86,16 @@ public static class CrewActions
         double before = s.ActionProgress;
         var couplings = train.Dynamics.Tuning.Couplings;
         var near = NearestInteractable(s, train, hand);
+        // The smashed forward lamp from the front of the cab, the wrench in hand (note 301, slice 2): the glass goes in. It's
+        // mended from where the fire and the coal are worked (note 280's cab), so the wrench in hand there is the lamp's, not
+        // the shovel's; a ruptured boiler's fire door is still the rupture's, and the vent still vents.
+        if (Repairs.Lamp(s, train) && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null
+            && !(near?.Thing.Kind == InteractableKind.Firebox && train.Boiler.Ruptured))
+        {
+            s.ActionProgress += dt;
+            train.MendLamp?.Invoke(dt);
+            return;
+        }
         if (Hand(s, hand) && train.BoilerTuning is { } boiler && PlayerMotor.InCab(s, train)
             && near?.Thing.Kind is InteractableKind.Coal or InteractableKind.Firebox or null)
         {
@@ -179,11 +189,6 @@ public static class CrewActions
                 s.ActionProgress += dt;
                 if (before < couplings.HandbrakeSeconds && s.ActionProgress >= couplings.HandbrakeSeconds)
                     train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
-                break;
-            // The smashed forward lamp from the cab's front windows, the wrench in hand (note 301, slice 2): the glass goes in.
-            case null when Repairs.Lamp(s, train):
-                s.ActionProgress += dt;
-                train.MendLamp?.Invoke(dt);
                 break;
             // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
             case null when Repairs.Dent(s, train, hand) is { } dented:

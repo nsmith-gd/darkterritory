@@ -1984,7 +1984,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             return null;
         // Forward to the windows first (the driver works the controls from anywhere in the cab).
         if (!Repairs.AtLamp(self, train))
-            return WarmUp.Steer(self, new Double3(0, 0, cab.Min.Z + 0.6), 0).Step;
+            return WarmUp.Steer(self, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
         if (Repairs.WrenchKey(self) is var key and > 0)
             return new PlayerIntent { Select = key };
         return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : null;

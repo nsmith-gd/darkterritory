@@ -114,12 +114,13 @@ public static class Repairs
         train.Frames[0].Shape.Cab is { } cab ? new Double3(-0.55, cab.Min.Y + 1.5, cab.Min.Z + 0.15) : null;
 
     /// <summary>
-    /// At the smashed lamp, whatever's in hand: in the cab, at its front windows (within <see cref="RepairTuning.DentReach"/>
-    /// of them), the lamp just the other side of the glass.
+    /// At the smashed lamp, whatever's in hand: in the cab, at its front (note 280 put the bunker, the firebox and the console
+    /// under the front windows, so it's from the floor behind them, within <see cref="RepairTuning.DentReach"/> of where a
+    /// crewmate stands at them), the lamp just the other side of the glass.
     /// </summary>
     public static bool AtLamp(in PlayerState s, TrainOnLine train) =>
-        s.Alive && s.Parent == 0 && LampSmashed(train) && train.Frames[0].Shape.Cab is { } cab && PlayerMotor.InCab(s, train)
-        && s.Position.Z - cab.Min.Z <= train.Dynamics.Tuning.Repair.DentReach;
+        s.Alive && s.Parent == 0 && LampSmashed(train) && train.Frames[0].Shape.Cab is not null && PlayerMotor.InCab(s, train)
+        && s.Position.Z - PlayerMotor.CabFloorZ(train.Frames[0].Shape) <= train.Dynamics.Tuning.Repair.DentReach;
 
     /// <summary>Mending the smashed lamp now: at it with the wrench in hand.</summary>
     public static bool Lamp(in PlayerState s, TrainOnLine train) => WrenchInHand(s) && AtLamp(s, train);

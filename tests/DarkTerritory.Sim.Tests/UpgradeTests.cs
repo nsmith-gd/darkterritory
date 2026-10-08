@@ -55,7 +55,6 @@ public class UpgradeTests
             // A Climber coming over the tender into the cab (Flank.cs) smashes it for its tuning's time.
             world.SmashLamp(l.Enemies!.Climbers.LampOutSeconds);
             var driver = PlayerMotor.SpawnInCab(world.Train, P) with { HeldSlot = 1 };
-            driver.Position = driver.Position with { Z = world.Train.Frames[0].Shape.Cab!.Value.Min.Z + 0.6 };
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
                 world.BeginTick();
