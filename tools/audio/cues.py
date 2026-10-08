@@ -614,8 +614,11 @@ CUES = {
         O("drip", "Something dripping", vars=3),
     ],
     "place-breach": [
-        O("smash", "A lock smashed (3 s of it: loud as a cannon)", vars=4),
-        L("pry", "A barricade pried (6 s: loud as machinery)"),
+        # On the crew's clips' beats (queue #234, note 497; C1's #200): each blow, each heave, each board off as it goes.
+        O("smash", "One blow of the sledge on a lock (3 s of them: loud as a cannon), on the smash clip's beat", vars=5),
+        O("smash-give", "The last blow: the hasp torn out, the lock clattering down", vars=2),
+        O("pry", "One heave on the bar at a barricade (6 s of them: loud as machinery), on the pry clip's beat", vars=4),
+        O("board", "A board torn off the barricade, at each fifth of the breach", vars=3),
         O("pry-give", "The barricade giving way", vars=2),
         # A lock opened quietly with the wrench (D.7; note 301's slice 2; queue #122, note 385): it was heard as the smash.
         L("pick", "A lock worked open with a wrench: the hasp levered, the wards scraping, quiet (held while at it)"),
