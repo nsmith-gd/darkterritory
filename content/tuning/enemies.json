@@ -409,7 +409,7 @@
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
   },
 
-  // THE BRAKEMAN · sight · flank (GDD §21, App. A.4, B.4; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 364;
+  // THE BRAKEMAN · sight · corrupted human (GDD §21, App. A.8, B.8; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 364;
   // docs/design/creatures/brakeman.md). A dead railwayman winding the brakes on. He climbs up (climbSeconds) at the end of
   // the moving train furthest from the crew on the roofs and works toward the other end at walk m/s, winding each car's
   // handbrake on at its wheel (windSeconds): a wound car's own handbrake drags the train (train.json couplings.handbrakeDecel

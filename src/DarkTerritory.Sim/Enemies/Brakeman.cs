@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Enemies;
 public enum BrakemanMode : byte { Climb, Walk, Wind, Flee, Hidden, Cornered }
 
 /// <summary>
-/// THE BRAKEMAN · sight · flank (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 364; the director's brief of 8 Oct 2026,
+/// THE BRAKEMAN · sight · corrupted human (GDD §21, App. A.8, B.8; ARCHITECTURE §8 note 364; the director's brief of 8 Oct 2026,
 /// docs/design/creatures/brakeman.md). A dead railwayman still doing his job: up at one end of a moving train, he walks the
 /// roofs toward the other end car by car, winding each car's handbrake on (a wound car's own handbrake drags the train:
 /// on a climb it stalls you). One crewmate on the roofs can chase him off: he runs from them along the roofs, faster than a
@@ -30,7 +30,8 @@ public sealed class Brakeman(int id) : Enemy(id)
     int _hides;
 
     public override EnemyKind Kind => EnemyKind.Brakeman;
-    public override PressureZone Zone => PressureZone.Flank;
+    /// <summary>A corrupted railwayman still at his job (GDD §21's corrupted humans: one of them about at a time).</summary>
+    public override PressureZone Zone => PressureZone.Corrupted;
     public override Sense Sense => Sense.Sight;
     /// <summary>He stops the train: what stalls it on a climb leaves it standing in the dark.</summary>
     public override Want Want => Want.Split;

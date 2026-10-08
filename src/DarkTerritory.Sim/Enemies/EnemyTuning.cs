@@ -992,7 +992,7 @@ public sealed record FreightBeetleTuning
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
 }
 
-/// <summary>The Brakeman (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 364). Field docs live in enemies.json.</summary>
+/// <summary>The Brakeman (GDD §21, App. A.8, B.8; ARCHITECTURE §8 note 364). Field docs live in enemies.json.</summary>
 public sealed record BrakemanTuning
 {
     public int MinCrew { get; init; } = 2;

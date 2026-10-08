@@ -425,6 +425,76 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Trophy | its head: **1.5** of the tier's car-loads (loot.json `trophies`) |
 | Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
 
+## B.14 The Mourners
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `mourners` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 362). `SpecTableTests.TheMournersMatchB14` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Come** | **15 s** after a body's left lying off the train; **3 · 4 · 5 · 6** of them by tier, 40 m off it, away from the line |
+| Shy | a crewmate within **6 m** starts one back to 12 m; back in 4 s |
+| **Take** | nobody within 6 m of the body: two take it and drag it straight off the line at **1.6 m/s** |
+| Drop | a crewmate within **3 m** of the body, or a blow on any of them; the rest scatter **6 s** |
+| Health | **1** blow each |
+| **Gone** | hauled **120 m** from the track: the body, its refund and its kit |
+
+## B.15 Tower Jaw
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `towerJaw` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 363). `SpecTableTests.TowerJawMatchesB15` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Gnaws through** | **150 · 120 · 100 · 90 s** by tier; already 20% through when the train comes |
+| Threat, bite | a crewmate within **10 m**: it rears (1.5 s); within **3 m** a bite of **35** (never a kill) |
+| **Driven off** | **4 blows in 15 s**: away 120 s, its gnawing kept; **12** blows kill it |
+| **Down** | crushes within 3.5 m (**45**); the coaling tower's chute empty; its wreck closes the line ±3 m of the spout |
+| **Cleared** | **30** crew-seconds of Use held within 4 m |
+
+## B.16 The Brakeman
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.8, B.8; `brakeman` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 364). `SpecTableTests.TheBrakemanMatchesB16` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | never with fewer than **2** alive; a train of 4 cars or more over 3 m/s |
+| Works | **2.5 m/s** along the roofs, **4 s** a wheel; a wound car's handbrake drags (train.json `handbrakeDecel` of its mass) |
+| **Runs** | from a crewmate on the roofs within **12 m**, at **5 m/s** (a roof run is 3.5); lost **20 m** clear: hides **30–60 s** |
+| **Cornered** | crewmates within **10 m** on both sides: blows land (**4**); he lashes the nearer every 2.5 s for **30** |
+| Spawn weight by tier | 1 · 1.5 · 2 · 2.5; × cars ÷ 6; ×2 with a 2% climb within 1 km |
+
+## B.17 The Knotter
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.7, B.7; `knotter` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 365). `SpecTableTests.TheKnotterMatchesB17` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | a train of 3 or more at **8 m/s** or more; **4 s** of creaking before it clamps |
+| **The gap** | forced to **5 m** over 6 s (a roof jump carries about 2.8) |
+| **Slip** | **45%** a second on its back over 2 m/s; its coil **1.5 s** for a friend to pull them up |
+| Health | **8** blows, only at a stand |
+
+## B.18 The Freight Beetle
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.6, B.6; `freightBeetle` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 366). `SpecTableTests.TheFreightBeetleMatchesB18` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Notices** | a player within **25 m** |
+| **Pushes** | directly away from the nearest player at **1.2 m/s** (a heavy crate 0.8), turning **90°/s** |
+| Startled | a player within 1.5 m of its head: 2 s |
+| Health | **6** blows; **3 in 10 s** drive it off its load for 30 s |
+
+## B.19 Hotbox
+
+*The director's brief, 2026-10-08* (GDD §21, App. A.7, B.7; `hotbox` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 367). `SpecTableTests.HotboxMatchesB19` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Boards** | the train at **10 m/s** or more |
+| Heat | **90 s** knocking, then **90 s** glowing, at 18 m/s (in proportion to the speed) |
+| **Seized** | the train held to **7 m/s** while the car's in it; repaired with a wrench, **10 s** |
+| **Exposed** | at a stand for **2 s**: **6** blows kill it, or a crowbar or wrench held **4 s** prises it out; it bites **30** every 3 s |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.

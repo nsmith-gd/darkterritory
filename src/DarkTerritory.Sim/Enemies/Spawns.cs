@@ -389,7 +389,7 @@ public static class Spawns
             c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
             return true;
         }),
-        // B.4 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
+        // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>
         {
