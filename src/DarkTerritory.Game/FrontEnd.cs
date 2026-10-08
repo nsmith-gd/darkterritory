@@ -815,7 +815,7 @@ public sealed class FrontEnd
                 Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
                     : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName)],
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
-            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK (HOLD {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             // The audio checklist's mix-settings: the volumes, the microphone and its level.
             Volume("MASTER VOLUME", "Everything you hear.", Settings.MasterVolume, (s, v) => s with { MasterVolume = v }),
             Volume("EFFECTS VOLUME", "The train, the world, the things in the dark, your own hands.", Settings.EffectsVolume, (s, v) => s with { EffectsVolume = v }),
@@ -836,6 +836,11 @@ public sealed class FrontEnd
             // Note 349: what's heard, named, and where.
             new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
                 Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 383: holds as toggles.
+            new(new($"HOLD KEYS: {(Settings.ToggleHolds ? "TOGGLE" : "HOLD")}", Settings.ToggleHolds
+                    ? "Run, the brake, talk, the radio and the crew: press once for on, again for off."
+                    : "Run, the brake, talk, the radio and the crew: held down. TOGGLE makes each a press for on and off."),
+                Toggle(s => s with { ToggleHolds = !s.ToggleHolds }), _ => Change(Settings with { ToggleHolds = !Settings.ToggleHolds })),
             // Note 350: a new player's first nights.
             new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
                 Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
