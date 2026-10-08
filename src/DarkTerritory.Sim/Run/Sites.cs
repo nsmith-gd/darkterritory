@@ -18,6 +18,8 @@ public sealed record FacilityTuning(CrateTuning Crates, WinchTuning Winch, Dicti
     public KegTuning Kegs { get; init; } = new();
     /// <summary>The mine head's steam lift (spec D.2; queue #105, note 368).</summary>
     public LiftTuning Lift { get; init; } = new();
+    /// <summary>The grain elevator's conveyor line (spec D.2; queue #136, note 400).</summary>
+    public ConveyorTuning Conveyor { get; init; } = new();
     /// <summary>GDD §18's switchyard and wreck yard (WP15b, note 187): the yard's standing cars, and the wreck to salvage.</summary>
     public RakesTuning Rakes { get; init; } = new();
     public DerelictsTuning Derelicts { get; init; } = new();
@@ -168,6 +170,36 @@ public sealed record LiftTuning
     public double OverfillDamagePerLoad { get; init; } = 0.6;
 }
 
+/// <summary>
+/// The grain elevator's conveyor line (spec D.2: "start machinery at a powerhouse, then clear jams as they occur. 1 + 1
+/// roaming"; queue #136, note 400). Field docs in facilities.json.
+/// </summary>
+public sealed record ConveyorTuning
+{
+    public double Ahead { get; init; } = 15.5;
+    public double Back { get; init; } = 64.5;
+    public double HeadHeight { get; init; } = 4.8;
+    public double KneeLateral { get; init; } = 4.6;
+    public double BeltHeight { get; init; } = 1.0;
+    public double Run { get; init; } = 26;
+    public double TailLateral { get; init; } = 9;
+    public double StarterAlong { get; init; } = 2.5;
+    public double StarterLateral { get; init; } = 6.5;
+    public double StarterReach { get; init; } = 1.4;
+    public double StartSeconds { get; init; } = 4;
+    public double StartRounds { get; init; } = 0.25;
+    public double Tolerance { get; init; } = 1.5;
+    public double PerSecond { get; init; } = 0.04;
+    public double Grain { get; init; } = 3;
+    public double[] JamEvery { get; init; } = [30, 60];
+    public double JamFrom { get; init; } = 0.1;
+    public double JamTo { get; init; } = 1.0;
+    public double ClearReach { get; init; } = 1.6;
+    public double ClearSeconds { get; init; } = 2.5;
+    public double StallSeconds { get; init; } = 20;
+    public double NearBelt { get; init; } = 25;
+}
+
 /// <summary>The slaughterhouse's livestock ramp (GDD §18; spec D.2 livestock ramp). Field docs in facilities.json.</summary>
 public sealed record RampTuning
 {
@@ -309,10 +341,22 @@ public readonly record struct SiteState(bool Stocked, double Progress, int Sleds
     public double Ore { get; init; }
     public double Wind { get; init; }
     public bool Winding { get; init; }
+    /// <summary>
+    /// The conveyor line's (note 400): the grain left in the elevator for it, whether its drive's running and whether it's
+    /// carrying grain into a car, where along its low run it's jammed (0..1 from the tail; −1 not), how long it's been jammed,
+    /// and how far through starting it and clearing the jam whoever's at them are (seconds held).
+    /// </summary>
+    public double Grain { get; init; }
+    public bool Running { get; init; }
+    public bool Carrying { get; init; }
+    public double Jam { get; init; } = -1;
+    public double JamFor { get; init; }
+    public double Start { get; init; }
+    public double Clear { get; init; }
 }
 
 /// <summary>Spec D.2 loading modules built so far.</summary>
-public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift }
+public enum ModuleKind : byte { Crates, Winch, Crane, Spout, Ramp, Hose, Rakes, Wreck, Lift, Conveyor }
 
 /// <summary>
 /// One facility's loading modules and where they stand, laid out beside its track from the route (so every machine
@@ -391,6 +435,20 @@ public sealed class Site
             LiftLever = At(LiftAlong - mid + l.LeverAlong, l.LeverLateral, 0.9);
             Ore = l.Ore;
         }
+        if (Has(ModuleKind.Conveyor))
+        {
+            // Its head over the track a car ahead of the spout (or laid as the spout is, from the buffer stop), the riser down to
+            // the knee beside the track, and the low run on along it toward the elevator, out to the tail and its drive house:
+            // whoever starts it there sees down the belt to the head, and whoever roams it walks beside the low run.
+            var c = t.Conveyor;
+            double back = Math.Min(c.Back, Math.Max(0, (room ?? track.Length - mid) - 4));
+            ConveyorAlong = Has(ModuleKind.Spout) ? Math.Min(track.Length, SpoutAlong + c.Ahead) : room is null ? mid : Math.Max(0, track.Length - back);
+            ConveyorHead = At(ConveyorAlong - mid, 0, c.HeadHeight);
+            ConveyorKnee = At(ConveyorAlong - mid, c.KneeLateral, c.BeltHeight);
+            ConveyorTail = At(ConveyorAlong - mid + c.Run, c.TailLateral, c.BeltHeight);
+            ConveyorStarter = At(ConveyorAlong - mid + c.Run + c.StarterAlong, c.StarterLateral, 0.9);
+            Grain = c.Grain;
+        }
         if (Has(ModuleKind.Ramp))
         {
             var r = t.Ramp;
@@ -457,6 +515,35 @@ public sealed class Site
     internal int Winder = -1;
     /// <summary>Someone was on the lift's lever last tick, steam or none (host only): what the driver's told to vent for ("steam!").</summary>
     public bool LeverHeld { get; internal set; }
+
+    /// <summary>
+    /// The conveyor line (note 400): its head over the track and how far along the track it is, the knee where the riser
+    /// comes down beside the track, the tail out by the elevator, and the drive house's starter; the grain left for it.
+    /// </summary>
+    public Double3 ConveyorHead { get; }
+    public double ConveyorAlong { get; }
+    public Double3 ConveyorKnee { get; }
+    public Double3 ConveyorTail { get; }
+    public Double3 ConveyorStarter { get; }
+    public double Grain { get; internal set; }
+    /// <summary>The drive's on (started, and not stalled since); carrying grain into a car this tick.</summary>
+    public bool Running { get; internal set; }
+    public bool Carrying { get; internal set; }
+    /// <summary>Where along the low run it's jammed (0 the tail, 1 the knee), or −1; how long it has been (s).</summary>
+    public double Jam { get; internal set; } = -1;
+    public double JamFor { get; internal set; }
+    /// <summary>Seconds someone's held the starter (it starts at <see cref="ConveyorTuning.StartSeconds"/>), and the jam.</summary>
+    public double Start { get; internal set; }
+    public double Clear { get; internal set; }
+    /// <summary>Host: seconds of carrying till the next jam (drawn as each comes), and how many there have been.</summary>
+    internal double NextJam = -1;
+    internal int Jams;
+    /// <summary>How many times it's jammed this night (host only).</summary>
+    public int JamCount => Jams;
+    /// <summary>Who's at the starter, and at the jam, this tick (−1 for nobody). Host only.</summary>
+    internal int Starter = -1, Clearer = -1;
+    /// <summary>Where the jam is: on the low run, from the tail to the knee.</summary>
+    public Double3 JamAt => Double3.Lerp(ConveyorTail, ConveyorKnee, Math.Clamp(Jam, 0, 1));
 
     /// <summary>The ramp's top by the cars, the pen out beyond it, the head penned at the start and left.</summary>
     public Double3 RampTop { get; }
@@ -526,6 +613,14 @@ public sealed class Site
             yield return LiftChute;
             yield return Headframe;
             yield return LiftLever;
+        }
+        if (Has(ModuleKind.Conveyor))
+        {
+            // The belt's whole low run (anywhere a jam can be cleared from), the riser and the drive house.
+            for (int i = 0; i <= 4; i++)
+                yield return Double3.Lerp(ConveyorTail, ConveyorKnee, i / 4.0);
+            yield return ConveyorHead;
+            yield return ConveyorStarter;
         }
         if (Has(ModuleKind.Winch))
         {
@@ -640,6 +735,13 @@ public sealed class Site
         Ore = Ore,
         Wind = Wind,
         Winding = Winding,
+        Grain = Grain,
+        Running = Running,
+        Carrying = Carrying,
+        Jam = Jam,
+        JamFor = JamFor,
+        Start = Start,
+        Clear = Clear,
     };
 
     /// <summary>Client side: adopts the host's state.</summary>
@@ -664,5 +766,12 @@ public sealed class Site
         Ore = s.Ore;
         Wind = s.Wind;
         Winding = s.Winding;
+        Grain = s.Grain;
+        Running = s.Running;
+        Carrying = s.Carrying;
+        Jam = s.Jam;
+        JamFor = s.JamFor;
+        Start = s.Start;
+        Clear = s.Clear;
     }
 }
