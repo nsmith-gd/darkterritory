@@ -9,6 +9,15 @@ namespace DarkTerritory.Sim.Run;
 /// <summary>A building's wall, standing in the world: an upright box turned to the building's axis (horizontal).</summary>
 public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLength, double HalfWidth, double Bottom, double Top)
 {
+    /// <summary>
+    /// A fortress's (note 274): the crew and the balls meet it as any wall, but a creature doesn't need holding out of one (note
+    /// 279): a fort drives off whatever comes into it (note 273), and a pack held at a gate pier never came in to be driven off.
+    /// </summary>
+    public bool Fort { get; init; }
+
+    /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
+    public int Owner { get; init; }
+
     /// <summary>A world point in the wall's own frame: x along its axis, z across, y as is.</summary>
     public Double3 ToLocal(Double3 p)
     {
@@ -266,7 +275,7 @@ public sealed partial class StopWalls
     /// <summary>
     /// A shelled building's walls as boxes in its own frame (x along its axis, y across), each with its height over the
     /// ground: four walls round each roofed length (a shed either side of a gantry's cut), its door left open (<see cref="Doors"/>);
-    /// the cut open to the track, its back wall the shell's height, as StructureKit.Shed draws it.
+    /// the cut left open (the gantry's legs and its operator's stand are in it).
     /// </summary>
     public static IEnumerable<(FootprintPart Part, double Top)> Shell(StopLayout stop, int building, WallTuning t)
     {
@@ -300,16 +309,8 @@ public sealed partial class StopWalls
             foreach (var wall in Face(0, 1, -w2, w2, hi - th / 2))
                 yield return wall;
         }
-        if (!holdout && CraneCut(stop, building) is { } open && Math.Min(open.To - b.S, b.Length / 2) - Math.Max(open.From - b.S, -b.Length / 2) is var length and > 0)
-        {
-            int door = DoorSide(stop, b);
-            double lo = Math.Max(open.From - b.S, -b.Length / 2), hi = lo + length;
-            yield return (new FootprintPart((lo + hi) / 2, -door * sideAt, length, th), t.CutShellM);
-            if (hi >= b.Length / 2 - 0.01)
-                yield return (new FootprintPart(hi - th / 2, 0, th, b.Width), t.CutShellM * 0.7);
-            if (lo <= -b.Length / 2 + 0.01)
-                yield return (new FootprintPart(lo + th / 2, 0, th, b.Width), t.CutShellM * 0.7);
-        }
+        // A gantry's cut stays open: its legs stand in it, the operator at the foot of one (Crane.Controls), and the castings
+        // lie in the open under the hook. The art's low wall behind it is drawn, not stood.
     }
 
     /// <summary>Where a yard gantry's runway cuts through a shed (zone S, its legs either side), as the art lays it; null if none does.</summary>
@@ -329,7 +330,8 @@ public sealed partial class StopWalls
         var walls = new StopWalls();
         foreach (var fort in forts ?? [])
             foreach (var w in Fortresses.Solids(fort, line))
-                walls.Add(w);
+                walls.Add(w with { Fort = true });
+        int owner = 0;
         foreach (var f in route.Features)
         {
             if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
@@ -337,6 +339,7 @@ public sealed partial class StopWalls
             for (int i = 0; i < stop.Buildings.Count; i++)
             {
                 var b = stop.Buildings[i];
+                owner++;
                 // An open house stands as its four walls with a door, and its cupboards and cabinets (note 326); the rest of the
                 // shut ones as their footprints' boxes; a shed, the hero and a Holdout as their shells by their doors (note 279).
                 int index = i;
@@ -355,7 +358,7 @@ public sealed partial class StopWalls
                     var right = Double3.Cross(tg.Tangent, Double3.Up).Normalized;
                     var tangent = new Double3(tg.Tangent.X, 0, tg.Tangent.Z).Normalized;
                     var axis = (tangent * DMath.Cos(b.Yaw) + right * DMath.Sin(b.Yaw)).Normalized;
-                    walls.Add(new Wall(at with { Y = 0 }, axis, hx, hy, at.Y - 3, at.Y + top));
+                    walls.Add(new Wall(at with { Y = 0 }, axis, hx, hy, at.Y - 3, at.Y + top) { Owner = owner });
                 }
             }
         }
@@ -367,6 +370,44 @@ public sealed partial class StopWalls
     {
         foreach (var w in walls)
             Add(w);
+    }
+
+    /// <summary>
+    /// These walls less every stop building that has one of <paramref name="points"/> in it or within <paramref name="reach"/>
+    /// of it (note 279): a facility's modules are laid from the spur, not round the stop's buildings, and where one stands in a
+    /// building's footprint (a crane's stand in a shed) the building gives way, so the crew can work it. A fortress's stand.
+    /// </summary>
+    public StopWalls Clear(IEnumerable<Double3> points, double reach)
+    {
+        var at = points.ToList();
+        var gone = new HashSet<int>();
+        foreach (var group in _walls.Where(w => w.Owner > 0 && !w.Fort).GroupBy(w => w.Owner))
+        {
+            // The building's footprint, in its first wall's frame (they all share its axis).
+            var w0 = group.First();
+            double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
+            foreach (var w in group)
+            {
+                var c = w0.ToLocal(w.Centre);
+                bool along = Math.Abs(w.Axis.X * w0.Axis.X + w.Axis.Z * w0.Axis.Z) > 0.5;
+                double hx = along ? w.HalfLength : w.HalfWidth, hz = along ? w.HalfWidth : w.HalfLength;
+                (x0, x1, z0, z1) = (Math.Min(x0, c.X - hx), Math.Max(x1, c.X + hx), Math.Min(z0, c.Z - hz), Math.Max(z1, c.Z + hz));
+            }
+            if (at.Any(p => w0.ToLocal(p) is var l && l.X > x0 - reach && l.X < x1 + reach && l.Z > z0 - reach && l.Z < z1 + reach))
+                gone.Add(group.Key);
+        }
+        var kept = new StopWalls();
+        foreach (var w in _walls)
+            if (w.Fort || (w.Owner > 0 ? !gone.Contains(w.Owner) : !at.Any(p => Within(w, p, reach))))
+                kept.Add(w);
+        return kept;
+    }
+
+    static bool Within(Wall w, Double3 p, double reach)
+    {
+        var l = w.ToLocal(p);
+        double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
+        return dx * dx + dz * dz < reach * reach;
     }
 
     /// <summary>Walls as given (a test's, a mod's).</summary>

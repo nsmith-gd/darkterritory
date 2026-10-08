@@ -198,7 +198,7 @@ public class SolidWorldTests
     public void WhatsLooseIsOutOfTheBuildingsAndOnTheLand()
     {
         var (route, train) = Night("frontier:7");
-        var (f, stop, i) = Buildings(route, (s, i) => s.Buildings[i].Kind == BuildingKind.House && StopWalls.Walled(s, i)).First();
+        var (f, stop, i) = Buildings(route, (s, i) => StopWalls.Walled(s, i) && !s.Buildings[i].Open && s.Buildings[i].Kind != BuildingKind.Well).First();
         var centre = Run.Run.StopWorld(train.Line, f, stop.Buildings[i].Centre);
         var ribbit = Ribbit.At(1, 1, centre + Double3.Up * 6, Tuning.Enemies.Ribbits);
         var choir = ChoirGhost.Around(2, centre + Double3.Up * 2, Tuning.Enemies.Choir);
@@ -214,9 +214,9 @@ public class SolidWorldTests
     public void AGauntSleepsInItsRoostAndWalksOutOfItAwake()
     {
         // B4's roost (note 309): asleep in the building, curled up where the stop put it. Awake, it's held out of the walls
-        // like anything else that walks.
+        // like anything else that walks: put down in a shut building (every house stands open since note 326; a barn doesn't).
         var (route, train) = Night("frontier:7");
-        var (f, stop, i) = Buildings(route, (s, i) => s.Buildings[i].Kind == BuildingKind.House && StopWalls.Walled(s, i) && !s.Buildings[i].Open).First();
+        var (f, stop, i) = Buildings(route, (s, i) => StopWalls.Walled(s, i) && !s.Buildings[i].Open && s.Buildings[i].Kind != BuildingKind.Well).First();
         var centre = Run.Run.StopWorld(train.Line, f, stop.Buildings[i].Centre);
         var asleep = Gaunt.Asleep(1, centre, Tuning.Enemies.Gaunt);
         var awake = Gaunt.WokenBy(2, centre, 1, Tuning.Enemies.Gaunt);

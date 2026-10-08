@@ -6,8 +6,9 @@ namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>
 /// The world is solid for what's loose in it (the director, 6 Oct 2026: "creatures, carries and players must respect the
-/// terrain and geometry"; ARCHITECTURE §8 note 279). Once the creatures have stepped, none stands in a stop's or a
-/// fortress's building or in a tunnel's lining, and what walks is on the land: a Ribbit's hop no longer keeps the height it
+/// terrain and geometry"; ARCHITECTURE §8 note 279). Once the creatures have stepped, none stands in a stop's building or
+/// in a tunnel's lining (a fortress drives off what comes into it instead, note 273), and what walks is on the land: a
+/// Ribbit's hop no longer keeps the height it
 /// was put down at, a Gaunt walking up after its waker or a feral Grumbler goes round a house, not through it. By kind
 /// (enemies.json <c>solidity</c>), with each body's widest sphere (<c>bodies</c>). From the creatures' replicated state and
 /// the route alone, so every machine settles one the same way. The creatures' own steps are untouched.
@@ -34,7 +35,8 @@ public static class Solidity
                 {
                     var was = p;
                     foreach (var w in walls.Near(p))
-                        p = Out(w, p, r);
+                        if (!w.Fort)
+                            p = Out(w, p, r);
                     if (p == was)
                         break;
                 }

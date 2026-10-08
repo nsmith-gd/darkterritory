@@ -283,13 +283,16 @@ public static partial class StopGenerator
         // snatches from the train's gaps and runs there).
         int empty = g.Buildings.Count(b => b.D > 0) <= g.Buildings.Count(b => b.D < 0) ? 1 : -1;
         double along = lt.WhistlerNestAlong;
+        // Its run there in the open: every building stands solid now (note 279), the sheds and Holdouts too, so the way from the
+        // front of the stopped train misses each by a metre (the Whistler keeps half a metre clear of a wall).
+        var clear = g.Buildings.Select(b => b with { Length = b.Length + 2, Width = b.Width + 2 }).ToList();
         for (int tries = 0; tries < 60; tries++)
         {
             double s = along > 0
                 ? Math.Clamp(stopPoint.S + R.Range(-along, along), 0, g.ZoneLength)
                 : R.Range(g.ZoneLength * 0.15, g.ZoneLength * 0.85);
             var p = new Pt(s, empty * R.Range(lt.WhistlerNest));
-            if (!Open(p, 6))
+            if (!Open(p, 6) || !new[] { 20.0, 50.0 }.All(back => StopWalk.Seen(new Pt(stopPoint.S - back, 0), p, clear, -1, g.ZoneLength)))
                 continue;
             lairs.Add(new StopLair(LairKind.WhistlerNest, g.Tracks.Count > 0 ? StopZone.Yard : StopZone.Village, p, 4));
             break;

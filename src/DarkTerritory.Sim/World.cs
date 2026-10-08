@@ -700,8 +700,16 @@ public sealed class World
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
         }
+        Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
     }
+
+    /// <summary>Note 279: the stops' walls less where a facility's modules are worked (<see cref="Sim.Run.Site.WorkPoints"/>), its yard cranes too.</summary>
+    Sim.Run.StopWalls ClearSiteWork(Sim.Run.StopWalls walls) =>
+        Run?.Sites is { Count: > 0 } sites ? walls.Clear(sites.Where(s => s is not null).SelectMany(s => s!.WorkPoints()), SiteWorkReachM) : walls;
+
+    /// <summary>How far round a module's work point a stop's wall gives way: a crewmate's body and reach (m). Not a design number.</summary>
+    const double SiteWorkReachM = 1.5;
 
     /// <summary>
     /// The departure fortress's town (GDD §3.1; note 281): its square, its people and papers, and their walls, built alike
@@ -721,7 +729,7 @@ public sealed class World
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
             Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
-        Train.Walls = Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls);
+        Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
         Train.Walls.Add(Town.Walls);
     }
 
