@@ -53,6 +53,15 @@ public sealed class Crane
     public int Operator { get; internal set; } = -1;
     /// <summary>How fast it runs, of its full speed: its yard's power (level-design D.2), 0 when the power's dead.</summary>
     public double SpeedScale { get; internal set; } = 1;
+    /// <summary>Its gantry brought down (Tower Jaw, note 363): dead for the night, whatever powers it.</summary>
+    public bool Wrecked { get; private set; }
+
+    /// <summary>Brought down: it moves no more.</summary>
+    public void Wreck()
+    {
+        Wrecked = true;
+        SpeedScale = 0;
+    }
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
     bool _releaseWas;

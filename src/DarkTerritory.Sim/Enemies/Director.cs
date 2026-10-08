@@ -1097,6 +1097,7 @@ public sealed class Director
                 EnemyKind.Moose => new Moose(0),
                 EnemyKind.Gannet => new Gannet(0),
                 EnemyKind.Mourners => new Mourner(0),
+                EnemyKind.TowerJaw => new TowerJaw(0),
                 EnemyKind.FreightBeetle => new FreightBeetle(0),
                 EnemyKind.Brakeman => new Brakeman(0),
                 EnemyKind.Hotbox => new Hotbox(0),

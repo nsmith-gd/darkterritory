@@ -130,6 +130,8 @@
     "gannet": [[1.0, 0.7], [0.6, 1.6]],
     // Child-high, hunched over (note 362).
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
+    // A bear-sized beaver, its shoulders over its head (note 363).
+    "towerJaw": [[0.8, 0.7], [0.6, 1.3]],
     // Its plated back, a handcart's bulk (note 366).
     "freightBeetle": [[0.75, 0.7], [0.6, 0.7]],
     // A stooped man (note 364); Hotbox half out of its truck, low (note 367).
@@ -214,7 +216,7 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground", "freightBeetle": "ground" }
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -369,6 +371,26 @@
     "arriveAt": 40, "comeSeconds": 6, "waitAt": 10, "shy": 6, "startleTo": 12, "dropWithin": 3, "takeReach": 0.9,
     "creep": 1.4, "approach": 3, "drag": 1.6, "scatter": 4, "holdAt": 0.7, "holdHeight": 0.5,
     "returnAfter": 4, "scatterOnDeath": 6, "lostAt": 120, "leaveSeconds": 30, "health": 1
+  },
+
+  // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
+  // docs/design/creatures/tower-jaw.md). A corrupted beaver gnawing a structure's support: a coaling tower's leg (towerLegOut
+  // m out from the line, on the lever's side) or the loading crane's gantry leg; never a bridge. It's at work when the train
+  // comes (startGnawed through, the train within approachReach m of the facility or stopped at it), gnawAt m off the leg;
+  // through in gnawSeconds (by tier). The structure leans from leanFrom gnawed and groans its last groanSeconds. A crewmate
+  // within notice m: it rears (threatSeconds, the telegraph); within lungeWithin m, a bite of bite (never a kill). driveOffBlows
+  // blows inside driveOffSeconds drive it awayTo m off (lope m/s) for awaySeconds, its gnawing kept; health in blows. Through:
+  // the structure falls; anyone within crushRadius m of where takes crush (never a kill); a coaling tower's chute is empty and
+  // its wreck closes the main line wreckHalf m either side of the spout (a train run into it stops there, the end car hurt
+  // (speed − safeSpeed)² × damagePerSpeed); the gantry's crane is dead. Use held within clearReach m clears the wreck:
+  // clearCrewSeconds of the crew's seconds in all. Spawns (B.6): every tier, tierWeights; one at a stop.
+  "towerJaw": {
+    "gnawSeconds": { "local": 150, "frontier": 120, "deadLines": 100, "deepTerritory": 90 },
+    "startGnawed": 0.2, "approachReach": 800, "towerLegOut": 2.6, "gnawAt": 0.9, "leanFrom": 0.5, "groanSeconds": 5,
+    "notice": 10, "lungeWithin": 3, "threatSeconds": 1.5, "bite": 35,
+    "driveOffBlows": 4, "driveOffSeconds": 15, "awaySeconds": 120, "awayTo": 40, "lope": 4, "health": 12,
+    "crush": 45, "crushRadius": 3.5, "clearCrewSeconds": 30, "clearReach": 4, "wreckHalf": 3, "safeSpeed": 1, "damagePerSpeed": 0.06,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2 }
   },
 
   // THE FREIGHT BEETLE · sight · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note
@@ -847,7 +869,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "brakeman": 3, "hotbox": 2, "knotter": 3 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -889,6 +911,10 @@
       // overhead.
       ["freightBeetle", "facilityLoading"],
       ["grumbler", "freightBeetle"],
+      // Tower Jaw (note 363): crowd the beaver to drive it off vs. crowding is what the Moose minds; load and go vs. the
+      // coaling tower's coming down.
+      ["moose", "towerJaw"],
+      ["towerJaw", "facilityLoading"],
       // The Brakeman (note 364): up on the roofs after him vs. walking the roofs is what the Gannet dives at; run the roofs vs.
       // the edges the Draggers hold; keep the speed up for the hounds vs. he's winding the brakes on.
       ["brakeman", "gannet"],

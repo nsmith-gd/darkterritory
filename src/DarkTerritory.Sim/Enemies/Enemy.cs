@@ -18,6 +18,8 @@ public enum EnemyKind : byte
     Gannet = 32,
     // The Mourners (GDD §21, the director's brief of 8 Oct 2026; note 362).
     Mourners = 33,
+    // Tower Jaw (GDD §21, the director's brief of 8 Oct 2026; note 363).
+    TowerJaw = 34,
     // The Brakeman (GDD §21, the director's brief of 8 Oct 2026; note 364).
     Brakeman = 35,
     // The Knotter (GDD §21, the director's brief of 8 Oct 2026; note 365).

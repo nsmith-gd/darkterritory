@@ -35,6 +35,7 @@ public sealed record EnemyTuning(
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
+    public TowerJawTuning TowerJaw { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -1057,4 +1058,38 @@ public sealed record KnotterTuning
     public double CoilSeconds { get; init; } = 1.5;
     public double Health { get; init; } = 8;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+}
+
+/// <summary>Tower Jaw (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 363). Field docs live in enemies.json.</summary>
+public sealed record TowerJawTuning
+{
+    public Dictionary<string, double> GnawSeconds { get; init; } = new() { ["local"] = 150, ["frontier"] = 120, ["deadLines"] = 100, ["deepTerritory"] = 90 };
+    public double StartGnawed { get; init; } = 0.2;
+    public double ApproachReach { get; init; } = 800;
+    public double TowerLegOut { get; init; } = 2.6;
+    public double GnawAt { get; init; } = 0.9;
+    public double LeanFrom { get; init; } = 0.5;
+    public double GroanSeconds { get; init; } = 5;
+    public double Notice { get; init; } = 10;
+    public double LungeWithin { get; init; } = 3;
+    public double ThreatSeconds { get; init; } = 1.5;
+    public int Bite { get; init; } = 35;
+    public int DriveOffBlows { get; init; } = 4;
+    public double DriveOffSeconds { get; init; } = 15;
+    public double AwaySeconds { get; init; } = 120;
+    public double AwayTo { get; init; } = 40;
+    public double Lope { get; init; } = 4;
+    public double Health { get; init; } = 12;
+    public int Crush { get; init; } = 45;
+    public double CrushRadius { get; init; } = 3.5;
+    public double ClearCrewSeconds { get; init; } = 30;
+    public double ClearReach { get; init; } = 4;
+    public double WreckHalf { get; init; } = 3;
+    public double SafeSpeed { get; init; } = 1;
+    public double DamagePerSpeed { get; init; } = 0.06;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2 };
+
+    /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
+    public double GnawFor(Route.RouteTier tier) =>
+        GnawSeconds.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 120);
 }

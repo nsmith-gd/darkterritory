@@ -550,6 +550,7 @@ public static class WorldRecords
             EnemyKind.Moose => new Moose(r.Id),
             EnemyKind.Gannet => new Gannet(r.Id),
             EnemyKind.Mourners => new Mourner(r.Id),
+            EnemyKind.TowerJaw => new TowerJaw(r.Id),
             EnemyKind.FreightBeetle => new FreightBeetle(r.Id),
             EnemyKind.Brakeman => new Brakeman(r.Id),
             EnemyKind.Hotbox => new Hotbox(r.Id),

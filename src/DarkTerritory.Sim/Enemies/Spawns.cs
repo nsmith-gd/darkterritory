@@ -345,6 +345,23 @@ public static class Spawns
             }
             return false;
         }),
+        // B.6 · Tower Jaw (note 363): at work on a facility's coaling tower or crane gantry as the train comes to it (or stands
+        // at it); every tier, more the harder; one at a stop, and not at a structure already down.
+        new(EnemyKind.TowerJaw, c =>
+        {
+            var t = c.Tuning.TowerJaw;
+            if (!c.None(EnemyKind.TowerJaw) || TowerJaw.Structure(c.World, t) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            var t = c.Tuning.TowerJaw;
+            if (TowerJaw.Structure(c.World, t) is not { } at)
+                return false;
+            c.Add(i => at.Crane is { } crane ? TowerJaw.AtGantry(i, c.World, at.Facility, crane, t, t.StartGnawed)
+                : TowerJaw.AtCoalingTower(i, c.World, at.Facility, t, t.StartGnawed));
+            return true;
+        }),
         // B.6 · The Freight Beetle (note 366): at a facility the train's stopped at, among its loose freight; every tier, more
         // the harder; one at a stop.
         new(EnemyKind.FreightBeetle, c =>

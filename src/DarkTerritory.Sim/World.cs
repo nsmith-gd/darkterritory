@@ -1763,6 +1763,9 @@ public sealed class World
     public double FastSeconds { get; private set; }
 
     readonly Sim.Enemies.Mourning _mourning = new();
+    /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
+    public int TowersDown { get; set; }
+    public int TowersCleared { get; set; }
     /// <summary>Bodies the Mourners hauled off past finding (note 362): their refunds gone with them.</summary>
     public int MournersTook { get; set; }
     double _mooseNext = double.NaN;
