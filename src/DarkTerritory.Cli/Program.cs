@@ -456,6 +456,9 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         bin = r.Bin,
         head = r.Head,
         hoseOn = r.HoseCar >= 0,
+        // The conveyor line's (note 400): the grain left for it, and how often it jammed.
+        grain = r.Grain,
+        jams = r.Jams,
         leaking = r.Leaking,
         rakes = r.Rakes,
         switchBack = r.SwitchBack,

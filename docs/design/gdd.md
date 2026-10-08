@@ -403,7 +403,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | Facility | Cargo | The coordination problem |
 |---|---|---|
 | **Coaling tower** | Fuel | Gravity chute. Fast, deafening, fills whether you're ready or not. |
-| **Grain elevator** | Bulk, cheap | One spout, one car at a time. Endless repositioning and switch calls. |
+| **Grain elevator** | Bulk, cheap | One spout, one car at a time. Endless repositioning and switch calls. A conveyor line a car ahead of the spout: started at its drive house, it jams every 30–60 s somewhere along its belt, and someone has to roam it to clear them (spec D.2; note 400). |
 | **Foundry** | Heavy, valuable | Overhead crane run from a gantry. The operator can't see the ground crew. |
 | **Switchyard** | Mixed | Cars scattered across six sidings. A live track puzzle solved by shouting. |
 | **Wreck yard** | Salvage, high value | Pull cargo off derailed trains. Unstable, unlit, already occupied. |
