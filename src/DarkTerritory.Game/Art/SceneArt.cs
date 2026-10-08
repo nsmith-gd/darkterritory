@@ -80,6 +80,15 @@ public sealed partial class SceneArt(Look look)
             pose = CrewPose.HangUp;
         else if (before.Pose == CrewPose.HangUp && pose is CrewPose.Idle or CrewPose.Walk && time - before.Time < HangUpSeconds)
             pose = CrewPose.HangUp;
+        // Over the top of a jump (rising it's the sim's Jump, then nothing till they're falling fast): the leap held through
+        // it, so the walk doesn't flicker in between.
+        if (before.Pose == CrewPose.Jump && pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Hurry && time - before.Time < JumpHoldSeconds)
+            pose = CrewPose.Jump;
+        // Stood or walking on a car straining on a bend taken too fast (BendStrain; App. F.1's overspeed telegraph), past the
+        // judder: fighting for footing, arms out (note 375). The sim's lurch throws them off later still (Lineside).
+        if (pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Hurry or CrewPose.Gap or CrewPose.GapStep
+            && BendStrain is { } bends && c.Car >= 0 && c.Car < bends.Count && bends[c.Car].Stress >= StumbleAt)
+            pose = CrewPose.Stumble;
         LastPose = pose;
         // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
@@ -107,6 +116,8 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
+            // A staged leap says how far into it they are (dt screenshot --act jump); a lived one, from the spring.
+            CrewPose.Jump => c.Phase > 0 ? c.Phase : time - since.Time,
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
@@ -261,6 +272,16 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
+
+    /// <summary>Each car's strain on a bend taken too fast (GreyboxScene's, BendStrain.PerCar), by frame: the crew on it stumble.</summary>
+    public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
+
+    // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
+    // (BendStrain.Offset starts at 0.2) and the flanges' haze comes on.
+    const float StumbleAt = 0.5f;
+
+    // How long a jump's leap is held from its start (s): over the top, until they're falling or down (crew_clips.py's jump).
+    const double JumpHoldSeconds = 0.75;
 
     // How long hanging the extinguisher back on its bracket takes (s): crew_clips.py's hang_up, 40 frames at 30.
     const double HangUpSeconds = 40 / 30.0;

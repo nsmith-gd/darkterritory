@@ -31,6 +31,9 @@ public enum CrewPose
     // Emotes (GDD §9's yard, note 298): a dance, a wave, a point. Clips of their own when crew_clips has them ("dance",
     // "wave", "point"); until then posed by the arms' IK over a stepping or standing clip (CreatureArt.EmoteArms).
     Dance, Wave, Point,
+    // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
+    // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
+    Jump, Stumble,
 }
 
 /// <summary>
@@ -659,6 +662,8 @@ public sealed class CreatureArt
         CrewPose.HeldSeized => "held_seized",
         CrewPose.HeldDragged => "held_dragged",
         CrewPose.Reload => "reload",
+        CrewPose.Jump => "jump",
+        CrewPose.Stumble => "stumble",
         _ => "idle",
     };
 
@@ -704,7 +709,7 @@ public sealed class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing;
+            or CrewPose.Swing or CrewPose.Jump;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);
@@ -769,7 +774,7 @@ public sealed class CreatureArt
     /// <summary>What a crewmate can do with a tool still in their fist: get about, crouch, fall, swing it, mend with it, smash or pry a Holdout open.</summary>
     static bool OneHanded(CrewPose pose) =>
         pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Fall or CrewPose.Swing or CrewPose.Mend or CrewPose.Door
-            or CrewPose.Smash or CrewPose.Pry;
+            or CrewPose.Smash or CrewPose.Pry or CrewPose.Jump or CrewPose.Stumble;
 
     /// <summary>
     /// A hand tool's axes (tools/models hand_tools: its haft along −Z through the fist, its face up +Y) onto the
@@ -829,7 +834,7 @@ public sealed class CreatureArt
     {
         if (!_models.TryGetValue("crew", out var m))
             return false;
-        bool working = act is { } a && a is not (CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch);
+        bool working = act is { } a && a is not (CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Crouch or CrewPose.Jump or CrewPose.Stumble);
         (string clip, double t, bool loop, bool follow) = swing >= 0 ? ("fp_swing", swing, false, true)
             : working ? (ClipOf(act!.Value), time, act != CrewPose.Swing, false)
             : inHand is not null ? (moving ? "fp_walk" : "fp_hold", time, true, true)
