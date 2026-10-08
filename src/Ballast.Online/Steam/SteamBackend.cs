@@ -158,6 +158,14 @@ public sealed class SteamBackend : IOnlineBackend
     public void ShowInviteDialog(LobbyId lobby) => SteamFriends.ActivateGameOverlayInviteDialog(Steam(lobby));
     public void Invite(LobbyId lobby, UserId user) => SteamMatchmaking.InviteUserToLobby(Steam(lobby), Steam(user));
 
+    public bool ShowStorePage(uint app)
+    {
+        if (!SteamUtils.IsOverlayEnabled())
+            return false;
+        SteamFriends.ActivateGameOverlayToStore(new AppId_t(app), EOverlayToStoreFlag.k_EOverlayToStoreFlag_None);
+        return true;
+    }
+
     void OnCreated(LobbyCreated_t e, bool ioFailure)
     {
         if (ioFailure || e.m_eResult != EResult.k_EResultOK)

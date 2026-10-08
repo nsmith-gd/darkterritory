@@ -224,6 +224,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<int, SlackReport> Slack { get; init; } = new Dictionary<int, SlackReport>();
     /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
+    /// <summary>Draggers put on a truss's top chord ahead of the fast train (note 435).</summary>
+    public int TrussDraggers { get; init; }
 }
 
 /// <summary>
@@ -578,6 +580,7 @@ public static class Harness
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack)))],
+                TrussDraggers = d.TrussDraggers,
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),

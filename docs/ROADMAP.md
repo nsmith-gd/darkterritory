@@ -100,7 +100,7 @@ M3 is done but for a test with eight people.
 - **The demo edition (T79, GDD §21, §35):**
   - the demo roster of GDD §21 (Track Doll, Car Hugger, Whistler, Tippy Toesie, Ribbits, the Choir underneath; `editions/demo/tuning/enemies.json`), the trouble in the cars, and the Frontier with two facilities;
   - it's an overlay, `editions/demo`, laid over the content like a mod: `--edition demo` plays it from the repo, and `tools/package.sh --demo` bakes it into `DarkTerritory-Demo-<rid>` beside the game;
-  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line; asked for another tier, it plays the Frontier;
+  - its title says DEMO, its menu is a quick night on the Frontier (no campaign), and a night over ends on a wishlist line, with WISHLIST ON STEAM lit under it once the edition names the store's app (note 434); asked for another tier, it plays the Frontier;
   - `tools/upload.sh --demo` sends only a demo build, and the game's upload refuses one.
 - **Store uploads (T38):**
   - `tools/upload.sh steam|itch [--demo]` sends them through `steamcmd` or `butler`, and never sets Steam's default branch live;

@@ -42,7 +42,16 @@ public sealed class VrView : IDisposable
                 new(gpu, session.EyeWidth, session.EyeHeight, session.EyeFormat, moonShadowSize: 1024)];
             _eyes[1].ShadowsFrom = _eyes[0];
         }
+        foreach (var eye in _eyes)
+            eye.HandShadows = HandShadows;
     }
+
+    /// <summary>
+    /// A headset's hand lamp lights unshadowed (ARCHITECTURE §8 note 436): both eyes on the roof already draw 1.4M of
+    /// tuning/perf.json's 1.5M triangles, and the lamp's cube there is near 0.3M more. VR is on the backburner (the
+    /// director, 5-7 Oct); this is for when its budget's looked at again.
+    /// </summary>
+    public const bool HandShadows = false;
 
     /// <summary>The path the eyes are drawn by: the one asked for, unless that's multiview and the device hasn't got it.</summary>
     public static StereoPath Choose(StereoPath wanted, GpuContext gpu) =>
