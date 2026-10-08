@@ -113,6 +113,9 @@ public sealed class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
+    public Sim.Train.HotBoxTuning? HotBoxTuning { get; set; }
+    static readonly Sim.Train.HotBoxTuning DefaultHotBox = new();
     /// <summary>Loose bodies: crates, lamps, the dead.</summary>
     public IReadOnlyList<Sim.Physics.Body>? Bodies { get; set; }
     /// <summary>
@@ -181,6 +184,12 @@ public sealed class GreyboxScene
     /// seized, not turning, sliding on the rail in sparks.
     /// </summary>
     public bool Ruptured { get; set; }
+    /// <summary>
+    /// The breaks the crew can mend, each called out where it is (note 301: <see cref="RepairCallouts.Of"/>), and which of them
+    /// (by index) someone's wrench is at now. Null, none.
+    /// </summary>
+    public IReadOnlyList<BreakCallout>? Breaks { get; set; }
+    public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
     /// <summary>The cylinders seized and the train still dragging down to coasting speed (boiler.json ruptureCoastBelow).</summary>
@@ -299,6 +308,12 @@ public sealed class GreyboxScene
                         mesh.PointLights.Add(new PointLight(at, Palette.LampAmber * 1.2f, 10));
                         mesh.Billboard(at, 0.3f, 0, new Vector4(Palette.LampAmber * 1.2f, 1), -1, FxBlend.Additive);
                     }
+            // The open houses' insides (note 326; the director, 8 Oct): the night kept out, and each one's dim light.
+            if (Look is not null)
+                HouseInteriors(mesh, line, Route, eye);
+            // An open house's hiding spots once searched (note 326): opened up, so a crew sees what's been gone through.
+            if (Run is not null)
+                SearchedSpots(mesh, line, Run, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
@@ -388,6 +403,14 @@ public sealed class GreyboxScene
             }
             else
                 _rupturedAt = null;
+            // Every break to mend, called out (note 301), with a small hot light so the glow reads on the wall round it.
+            if (Breaks is { Count: > 0 } breaks)
+            {
+                Look.Art.Effects.Repairs(mesh, frames, eye, Time, breaks, Mending);
+                foreach (var b in breaks)
+                    if (frames.FirstOrDefault(f => f.Index == b.Vehicle) is { Shape: not null } bf && (bf.Origin - eye).Length < 60)
+                        mesh.PointLights.Add(new PointLight(V(bf.ToWorld(b.At), eye), Palette.LampAmber * (2.2f + 0.8f * (float)Math.Sin(Time * 6.9)), 4f));
+            }
             // Derailed (GDD §14): timed from the frame the scene first saw it (presentation only; the sim just stops the train).
             if (Derailed)
             {
@@ -521,6 +544,8 @@ public sealed class GreyboxScene
                     b.Pbd.Particles[0].Position = HeldHere!.Value.Hands;
                     b.Yaw = HeldHere.Value.Yaw;
                 }
+                if (Look is not null)
+                    Look.Art.FindItem ??= body => Run?.FindOf(body)?.Item;
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
                 if (held)
@@ -1613,6 +1638,22 @@ public sealed class GreyboxScene
 
     static Vector3 V(Double3 p, Double3 eye) => p.RelativeTo(eye);
 
+    /// <summary>Which of <paramref name="breaks"/> someone's wrench is at now (note 301): its callout showers sparks off each strike.</summary>
+    public static HashSet<int>? MendingAt(IReadOnlyList<BreakCallout> breaks, IEnumerable<Sim.Player.PlayerState> crew, TrainOnLine train)
+    {
+        HashSet<int>? at = null;
+        foreach (var s in crew)
+        {
+            if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
+                continue;
+            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            for (int i = 0; i < breaks.Count; i++)
+                if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
+                    (at ??= []).Add(i);
+        }
+        return at;
+    }
+
     /// <summary>
     /// A car the film cuts away (E.4 O2) keeps its floor: someone tumbling inside it is seen lying in a car with its shell
     /// lifted off, not on the track under nothing (note 251's "a cutaway that keeps the floor").
@@ -2317,6 +2358,133 @@ public sealed class GreyboxScene
         }
     }
 
+    /// <summary>An open house in the world: its frame's origin on its floor, its axes, its parts, and its light.</summary>
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3 Light, bool Lamp, int Id);
+
+    (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
+
+    /// <summary>
+    /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
+    /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
+    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. Only the houses near the eye.
+    /// </summary>
+    void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
+    {
+        if (_openHouses is not { } cached || cached.Route != route || cached.Line != line)
+        {
+            var houses = new List<OpenHouse>();
+            foreach (var f in route.Features)
+            {
+                if (f.Stop is not { } stop || f.Start < 0 || f.End > line.Length)
+                    continue;
+                for (int i = 0; i < stop.Buildings.Count; i++)
+                {
+                    var b = stop.Buildings[i];
+                    if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
+                        continue;
+                    // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
+                    // the boards 0.17 over that).
+                    double floor = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y;
+                    Double3 At(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = floor };
+                    var o = At(0, 0);
+                    int index = i;
+                    var (lx, ly, height, lamp) = Art.TownKit.HouseLight(b, stop.Containers.Where(c => c.Building == index));
+                    var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                    houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts, At(lx, ly) + Double3.Up * height, lamp,
+                        (int)(f.Start * 7 + i)));
+                }
+            }
+            _openHouses = cached = (route, line, houses);
+        }
+        const double Near = 40;
+        const float WallHeight = 3.0f;
+        foreach (var h in cached.Houses)
+        {
+            if ((h.Origin - eye).Length > Near)
+                continue;
+            var right = ToF(h.X);
+            var back = ToF(h.Y);
+            // The shader's frame has up = back x right.
+            if (Vector3.Cross(back, right).Y < 0)
+                back = -back;
+            foreach (var part in h.Parts)
+            {
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (WallHeight / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, WallHeight / 2, (float)part.Width / 2)));
+            }
+            // Dim and warm, a candle's guttering more than a lamp's.
+            double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
+            float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
+            mesh.PointLights.Add(new PointLight(V(h.Light, eye), Palette.LampAmber * (h.Lamp ? 0.8f : 0.9f) * gutter, h.Lamp ? 6.5f : 5.5f));
+            // The flame's own small halo, so the light reads as coming from it.
+            mesh.Billboard(V(h.Light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
+        }
+    }
+
+    /// <summary>
+    /// An open house's hiding spots that have been searched (note 326), drawn over the house's own furniture (TownKit.OpenHouse,
+    /// which stands it shut): a cupboard with its doors swung back and its inside dark, a cabinet with its drawer out, the
+    /// cellar's hatch up on its hinge over a black hole, the boards lifted out and laid by the gap. From the sim's spots and
+    /// what's searched, so a client sees what the host has.
+    /// </summary>
+    void SearchedSpots(MeshBuilder mesh, RailLine line, Sim.Run.Run run, Double3 eye)
+    {
+        // Weathered deal, paler than the furniture's faces so an opened door or a lifted board reads by a lamp.
+        var wood = new Vector3(0.26f, 0.19f, 0.12f);
+        var dark = new Vector3(0.012f, 0.01f, 0.008f);
+        IReadOnlyList<Sim.Route.RouteFeature>? stops = null;
+        foreach (var spot in run.HidingSpots)
+        {
+            if ((spot.Kept - eye).Length > 60 || !run.Searched(spot.Stop, spot.Container.Index))
+                continue;
+            stops ??= run.Stops;
+            if (stops[spot.Stop] is not { Stop: { } stop } f)
+                continue;
+            // The house's floor, as the art stands it: its frame 0.15 m under the ground at its middle, the boards 0.17 over that.
+            var b = stop.Buildings[spot.Container.Building];
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y);
+            var into = new Vector3((float)spot.Facing.X, 0, (float)spot.Facing.Z);
+            var up = Vector3.UnitY;
+            var side = Vector3.Cross(up, into);
+            Vector3 At(float out_, float height, float across = 0) =>
+                V(new Double3(spot.Kept.X, floor + height, spot.Kept.Z) + ToD(into * out_ + side * across), eye);
+            switch (spot.Container.Kind)
+            {
+                case Sim.Stops.ContainerKind.Cupboard:
+                    // Its face is 0.25 out from its middle, 1 m wide and up to 1.9: inside dark, a door swung back from each side
+                    // past square (115°), so it reads from in front, not edge on.
+                    mesh.Box(At(0.255f, 0.86f), side, up, into, new Vector3(0.46f, 0.66f, 0.005f), dark);
+                    foreach (float s in new[] { -1f, 1f })
+                    {
+                        float swing = 115 * MathF.PI / 180;
+                        // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about the hinge.
+                        var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
+                        var face = Vector3.Cross(up, along);
+                        var hinge = side * (s * 0.5f) + into * 0.25f;
+                        var middle = hinge + along * 0.25f;
+                        mesh.Box(V(new Double3(spot.Kept.X, floor + 0.88, spot.Kept.Z) + ToD(middle), eye), face, up, along, new Vector3(0.015f, 0.7f, 0.24f), wood);
+                    }
+                    break;
+                case Sim.Stops.ContainerKind.Cabinet:
+                    // A drawer pulled out of its face (0.22 out, up to 1.0), the slot it came from dark.
+                    mesh.Box(At(0.225f, 0.72f), side, up, into, new Vector3(0.36f, 0.09f, 0.005f), dark);
+                    mesh.Box(At(0.22f + 0.2f, 0.72f), side, up, into, new Vector3(0.36f, 0.08f, 0.2f), Palette.RustRed * 0.6f);
+                    break;
+                case Sim.Stops.ContainerKind.Cellar:
+                    // The hatch (1 m square, flush) gone: a black hole, and the lid stood up on its back edge.
+                    mesh.Box(At(0, 0.056f), side, up, into, new Vector3(0.46f, 0.004f, 0.46f), dark);
+                    mesh.Box(At(-0.52f, 0.5f), side, up, into, new Vector3(0.5f, 0.5f, 0.025f), Palette.SootBlack * 0.8f + wood * 0.3f);
+                    break;
+                case Sim.Stops.ContainerKind.UnderFloor:
+                    // The boards lifted out and laid beside the gap they came from.
+                    mesh.Box(At(0, 0.004f), side, up, into, new Vector3(0.3f, 0.004f, 0.55f), dark);
+                    for (int i = 0; i < 3; i++)
+                        mesh.Box(At(-0.15f + i * 0.17f, 0.02f + i * 0.004f, 0.75f + (i % 2) * 0.05f), side, up, into, new Vector3(0.08f, 0.015f, 0.55f), wood);
+                    break;
+            }
+        }
+    }
+
     /// <summary>
     /// The wreck yard's heaps (GDD §18 "pull cargo off derailed trains. Unstable, unlit"; note 187), drawn from the sim's state:
     /// each a car on its side, its roof towards the line and its wheelsets in the air, tipped further each time it's shifted;
@@ -2522,6 +2690,16 @@ public sealed class GreyboxScene
             ? 1u << kitBay.Index : 0;
         if (Look is not null && burnt is { } fire)
             Look.Art.Effects.CarSmoke(mesh, o, right, up, back, shape, fire, (float)_speed, Time, frame.Index);
+        // A hot axle box (note 331): smoke off its rear bogie, on both sides (a box on each rail).
+        if (Look is not null && vehicle is { HotBox: > 0 } hotCar)
+        {
+            var hb = HotBoxTuning ?? DefaultHotBox;
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, hb);
+            float heat = (float)Math.Clamp(hotCar.HotBox / hb.FireAfter, 0, 1);
+            foreach (int side in (ReadOnlySpan<int>)[1, -1])
+                Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
+                    (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))

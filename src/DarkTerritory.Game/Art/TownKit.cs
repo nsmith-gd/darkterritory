@@ -216,6 +216,82 @@ public static class TownKit
     /// against the back wall, a cabinet against a side, the cellar's hatch, a loose run of floorboards. In the building's
     /// frame: its axis (x) to −Z, across it (y) to +X.
     /// </summary>
+    /// <summary>
+    /// The one dim light in an open house (the director, 8 Oct: "some lighting inside, dim to keep it scary"), in its own
+    /// frame: a candle stub left guttering on the floor in a corner, clear of what's kept there, or (one house in three) an
+    /// oil lamp turned right down, hung from the middle of the ceiling. Its flame's height over the floor. The scene lights
+    /// it; the art stands it there.
+    /// </summary>
+    public static (double X, double Y, float Height, bool Lamp) HouseLight(Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept)
+    {
+        var o = Sim.Run.StopWalls.Outline(b);
+        if (b.Variant % 3 == 0)
+        {
+            var (x0, y0, x1, y1) = o.Cells.MaxBy(c => (c.X1 - c.X0) * (c.Y1 - c.Y0));
+            return ((x0 + x1) / 2, (y0 + y1) / 2, 2.25f, true);
+        }
+        // Every inside corner by a wall with no door, in the outline's order turned by the house's variant; the first clear of
+        // the furniture and the finds.
+        double t = Sim.Run.StopWalls.WallThickness, inset = t + 0.2;
+        var taken = kept.SelectMany(c =>
+        {
+            var (kx, ky, _, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+            var (fx, fy) = Sim.Run.StopWalls.InsideLocal(b, c.Kind, c.Index);
+            return new[] { (kx, ky), (fx, fy) };
+        }).ToList();
+        var corners = new List<(double, double)>();
+        for (int k = 0; k < o.Runs.Count; k++)
+        {
+            if (o.Doors.Contains(k))
+                continue;
+            var r = o.Runs[k];
+            var (nx, ny) = (-r.Normal.X, -r.Normal.Y);
+            foreach (var (end, dir) in new[] { (0.0, 1.0), (1.0, -1.0) })
+            {
+                var (px, py) = r.Point(end);
+                var (ax, ay) = r.AlongX ? (dir, 0.0) : (0.0, dir);
+                double x = px + ax * inset + nx * inset, y = py + ay * inset + ny * inset;
+                if (Sim.Run.StopWalls.InParts(b, x, y))
+                    corners.Add((x, y));
+            }
+        }
+        for (int i = 0; i < corners.Count; i++)
+        {
+            var (x, y) = corners[(i + b.Variant) % corners.Count];
+            if (taken.All(p => Math.Abs(p.Item1 - x) + Math.Abs(p.Item2 - y) > 1.4))
+                return (x, y, 0.16f, false);
+        }
+        var c0 = o.Cells[0];
+        return ((c0.X0 + c0.X1) / 2, (c0.Y0 + c0.Y1) / 2, 2.25f, true);
+    }
+
+    /// <summary>
+    /// A gabled roof on walls <paramref name="eaves"/> high, in the kit's frame: centred at (<paramref name="cx"/>,
+    /// <paramref name="cz"/>), <paramref name="span"/> across the ridge and <paramref name="length"/> along it, the ridge along
+    /// Z (or X); the gable ends in plaster, both faces, so they read from inside too, then the slate.
+    /// </summary>
+    static void Gabled(Kit k, float cx, float cz, float span, float length, bool ridgeAlongZ, float eaves)
+    {
+        // (across, up, along) the ridge, out to the kit's frame.
+        Vector3 M(float u, float h, float v) => ridgeAlongZ ? new(cx + u, h, cz + v) : new(cx + v, h, cz + u);
+        float w = span, d = length, ridge = eaves + w * 0.42f;
+        k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
+        foreach (float z in new[] { -d / 2, d / 2 })
+        {
+            var a = M(-w / 2, eaves, z);
+            var c = M(w / 2, eaves, z);
+            var top = M(0, ridge, z);
+            // Texture across the gable (u) and up it, as the plain house's had it.
+            Vector2 Uv(float u, float h, float sign) => new(sign * u, -h);
+            k.Tri(a, top, c, Uv(-w / 2, eaves, 1), Uv(0, ridge, 1), Uv(w / 2, eaves, 1));
+            k.Tri(c, top, a, Uv(w / 2, eaves, -1), Uv(0, ridge, -1), Uv(-w / 2, eaves, -1));
+        }
+        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
+        float over = 0.35f, z0 = -d / 2 - over, z1 = d / 2 + over;
+        k.Quad(M(0, ridge + 0.05f, z1), M(0, ridge + 0.05f, z0), M(-w / 2 - over, eaves - over * 0.9f, z0), M(-w / 2 - over, eaves - over * 0.9f, z1), twoSided: true);
+        k.Quad(M(0, ridge + 0.05f, z0), M(0, ridge + 0.05f, z1), M(w / 2 + over, eaves - over * 0.9f, z1), M(w / 2 + over, eaves - over * 0.9f, z0), twoSided: true);
+    }
+
     public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept)
     {
         static Vector3 K(double x, double y, float h) => new((float)y, h, (float)-x);
@@ -230,55 +306,88 @@ public static class TownKit
         double hx = b.Length / 2, hy = b.Width / 2, t = Sim.Run.StopWalls.WallThickness;
         var (fx, fy) = Sim.Run.StopWalls.Front(b);
 
+        bool composite = Sim.Run.StopWalls.Composite(b);
+        var outline = composite ? Sim.Run.StopWalls.Outline(b) : null;
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
-        // The frame stands 0.15 m under the ground (WorldArt.Building), so the boards are just over it.
-        Box(0, 0, hx - t, hy - t, -0.4f, Floor);
+        // The frame stands 0.15 m under the ground (WorldArt.Building), so the boards are just over it. An L's or a cross's
+        // floor is its outline's cells, which don't overlap.
+        if (outline is null)
+            Box(0, 0, hx - t, hy - t, -0.4f, Floor);
+        else
+            foreach (var (x0, y0, x1, y1) in outline.Cells)
+                Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
         k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
         foreach (var (x, y, wx, wy) in Sim.Run.StopWalls.OpenWalls(b))
             Box(x, y, wx, wy, -0.4f, H);
-        // Over the doorway.
+        // Over the doorway (each unit's).
         double door = Sim.Run.StopWalls.DoorWidth / 2;
-        if (fx != 0)
+        if (outline is not null)
+            foreach (var r in outline.Doors.Select(i => outline.Runs[i]))
+            {
+                double mid = (r.A + r.B) / 2, across = r.At - r.Out * t / 2;
+                if (r.AlongX)
+                    Box(mid, across, door, t / 2, Lintel, H);
+                else
+                    Box(across, mid, t / 2, door, Lintel, H);
+            }
+        else if (fx != 0)
             Box(fx * (hx - t / 2), 0, t / 2, door, Lintel, H);
         else
             Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
 
-        // Gables at the ends (the building's x), the ridge along it; both faces, so they read from inside too.
-        float w = (float)b.Width, d = (float)b.Length, ridge = H + w * 0.42f;
-        foreach (float z in new[] { -d / 2, d / 2 })
+        // A gabled roof over each part, its ridge along the part's longer side (a plain house's along its axis).
+        if (outline is null)
+            Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, H);
+        else
+            foreach (var part in b.Parts)
+                Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
+
+        // Its light (HouseLight): a candle stub on a saucer, the wax run down it, its flame; or a tin lamp on a chain, its
+        // glass barely lit.
         {
-            var a = new Vector3(-w / 2, H, z);
-            var c = new Vector3(w / 2, H, z);
-            var top = new Vector3(0, ridge, z);
-            k.Tri(a, top, c, new(a.X, -a.Y), new(top.X, -top.Y), new(c.X, -c.Y));
-            k.Tri(c, top, a, new(-c.X, -c.Y), new(-top.X, -top.Y), new(-a.X, -a.Y));
-        }
-        k.Use("roof_slate", Palette.Charcoal, 0.9f, 0.15f, tile: 1.5f);
-        {
-            float over = 0.35f, z0 = -d / 2 - over, z1 = d / 2 + over;
-            var el = new Vector3(-w / 2 - over, H - over * 0.9f, 0);
-            var er = new Vector3(w / 2 + over, H - over * 0.9f, 0);
-            var top = new Vector3(0, ridge + 0.05f, 0);
-            k.Quad(top with { Z = z1 }, top with { Z = z0 }, el with { Z = z0 }, el with { Z = z1 }, twoSided: true);
-            k.Quad(top with { Z = z0 }, top with { Z = z1 }, er with { Z = z1 }, er with { Z = z0 }, twoSided: true);
+            var (lx, ly, height, lamp) = HouseLight(b, kept);
+            var at = K(lx, ly, Floor);
+            if (lamp)
+            {
+                k.Use("rust_heavy", Palette.SootBlack, 0.7f, 0.4f);
+                k.Rod(at + new Vector3(0, H, 0), at + new Vector3(0, height + 0.16f, 0), 0.006f);
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                k.Lathe(at + new Vector3(0, height - 0.12f, 0), [new(0.07f, 0), new(0.08f, 0.03f), new(0.06f, 0.06f)], 8, smooth: false);
+                k.Lathe(at + new Vector3(0, height + 0.06f, 0), [new(0.06f, 0), new(0.04f, 0.05f), new(0.015f, 0.1f)], 8, smooth: false);
+                k.Use("lamp_lens", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
+                k.Emissive = 1;
+                k.Cylinder(at + new Vector3(0, height - 0.06f, 0), at + new Vector3(0, height + 0.06f, 0), 0.045f, 8, caps: false);
+                k.Emissive = 0;
+            }
+            else
+            {
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                k.Cylinder(at, at + new Vector3(0, 0.012f, 0), 0.06f, 8);
+                k.Use("plaster_ruin", new Vector3(0.62f, 0.58f, 0.48f), 0.6f, 0, tile: 0.2f);
+                k.Cylinder(at + new Vector3(0, 0.012f, 0), at + new Vector3(0, height - 0.05f, 0), 0.022f, 7);
+                k.Cylinder(at + new Vector3(0.012f, 0.012f, 0.008f), at + new Vector3(0.012f, 0.05f, 0.008f), 0.016f, 5);
+                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Emissive = 1;
+                k.Cylinder(at + new Vector3(0, height - 0.05f, 0), at + new Vector3(0, height, 0), 0.008f, 5, radiusB: 0.001f);
+                k.Emissive = 0;
+            }
         }
 
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
         {
-            var (x, y) = Sim.Run.StopWalls.InsideLocal(b, c.Kind, c.Index);
-            bool endOn = fx != 0;
-            // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side.
-            double sign = c.Index % 2 == 0 ? 1 : -1, back = Sim.Run.StopWalls.FindOut - 0.25, side = Sim.Run.StopWalls.FindOut - 0.22;
+            // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side,
+            // as solid as the walls (StopWalls.Furniture; the scene draws a searched one opened).
+            var (x, y, faceX, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+            // The boards run the way the spot faces into the room (a plain house's toward its door).
+            bool endOn = Math.Abs(faceX) > 0.5;
             switch (c.Kind)
             {
-                case Sim.Stops.ContainerKind.Cupboard:
-                    k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
-                    Box(x - fx * back, y - fy * back, endOn ? 0.25 : 0.5, endOn ? 0.5 : 0.25, Floor, 1.9f);
-                    break;
-                case Sim.Stops.ContainerKind.Cabinet:
-                    k.Use("wood_grey", Palette.RustRed, 0.8f, 0.1f, tile: 1);
-                    Box(x - fy * sign * side, y + fx * sign * side, endOn ? 0.42 : 0.22, endOn ? 0.22 : 0.42, Floor, 1.0f);
+                case Sim.Stops.ContainerKind.Cupboard or Sim.Stops.ContainerKind.Cabinet:
+                    var piece = Sim.Run.StopWalls.Furniture(b, [c]).Single();
+                    bool cupboard = c.Kind == Sim.Stops.ContainerKind.Cupboard;
+                    k.Use("wood_grey", cupboard ? Palette.DeepBrown : Palette.RustRed, 0.8f, cupboard ? 0.05f : 0.1f, tile: 1);
+                    Box(piece.X, piece.Y, piece.HalfX, piece.HalfY, Floor, cupboard ? 1.9f : 1.0f);
                     break;
                 case Sim.Stops.ContainerKind.Cellar:
                     k.Use("wood_grey", Palette.SootBlack, 0.9f, 0, tile: 1);

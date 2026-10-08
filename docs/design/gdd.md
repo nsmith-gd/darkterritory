@@ -1,11 +1,32 @@
 # DARK TERRITORY
-## Game Design Document — v1.4, October 2026
+## Game Design Document — v1.5, October 2026
 
 **Two to eight players crew an armoured freight train through a corrupted wilderness. Load what you can. Deliver what survives.**
 
 *Dark territory is a real railroad term: track with no functioning signal system, where trains move on verbal authority alone. When communication fails, people die.*
 
 Interactive version, with the roster explorer and director tools: [claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx). It opens only for people it has been shared with.
+
+**v1.5 changes — the director's play-tests of 5–7 October.**
+- **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
+- **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. The Switchman sends you down a dead line, and only running off its end derails you (§21, §22, A.8).
+- **A derailment commits.** However slow it comes off, the first car is thrown and every car after goes over, one after another (App. E, F.3).
+- **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
+- **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
+- **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep job, the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches (B.3, F.3).
+- **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
+- **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
+- **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
+- **The wrench repairs, Sea of Thieves style.** Everyone carries one; in hand, Use at a break mends it: the burst boiler, a breach, a battered car. Stranding is to follow the wrench, not the kit: every wrench lost, then a rupture (the director, 8 Oct; §12, §23, §23.2).
+- **Fire is a grid** of cells on a car's floor, walls and roof; the extinguisher puts out the cell you aim at, and burnt cells char (C.5).
+- **Stoker v3:** drawn by a hot firebox, it boards at the coal bunker and can be caught there; in the firebox it's territorial, and venting starves it out (§21, A.5). **The Track Doll** escalates only when ignored (A.2).
+- **The fortress is safe** until the gate, and the forts all night (§9). **Fortress towns:** each a Maritime town with its own custom, people who talk, and houses to walk into (§3.1).
+- **Village houses to search:** they stand open, and a held search of each cupboard, cabinet, cellar or loose board turns up the finds (F.3).
+- **The HUD is your hands and the dark:** only the crosshair and the hotbar always; prompts say the action and its key and never foretell (§32).
+- **The film:** each player is alive until the hit that kills them, and skips their own film whenever they want (E.2, E.5, E.12).
+- **Solo is tested** (F.1); open question 12 (crew 2) is swept (Part Eleven).
+- Touches §3.1, §9, §11, §12, §21, §22, §23, §32, Part Eleven, A.2, A.5, A.8, B.1, B.3, C.5, E.2, E.5, E.12 and App. F, where the play-tests are logged.
 
 **v1.4 changes — the boiler, stranding and the derailment cinematic.**
 - **Boiler rupture no longer kills.** It catches up with the build (T109): the engine seizes, the train slows hard and coasts, and the engineering kit held at the firebox for 25s mends it. The train restarts from cold (§23).
@@ -619,6 +640,8 @@ Nobody dies. The cost is the clock, a stopped train with everything that means (
 
 ### 23.2 Stranded, unable to repair
 
+*With the wrench as the repair tool (ARCHITECTURE §8 note 301), the director, 8 Oct 2026: "If every crew member drops their wrench off the train then leaves them behind and then the train breaks down they could be stranded."* **A ruptured boiler with no wrench left to mend it ends the night:** every crewmate's wrench and the cab's rack wrench gone, dropped off the train and left behind, in a car cut loose or taken, or on a body carried off. Queue #39's second slice (D1.3) moves this section's rules from the kit to the wrench; until it lands, the build strands nobody, and what follows is the kit's rule as it was.
+
 **A ruptured boiler with the engineering kit lost ends the night.** Nothing else mends a boiler. With spares (§12), it takes losing **every** kit the crew has. A kit found at a stop counts once someone has picked it up.
 
 **The kit is lost** only when the Territory has taken it. A kit lying on the line, on a body, or in a reachable car (on its floor or in a locker) is never lost, however far back it is. Somebody walks.
@@ -878,6 +901,12 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
 
 The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 285.
+
+### Accessibility
+
+*The director, 8 Oct 2026, on the list of what's next for the UI: a text size, a colourblind-safe palette, captions, a light first-night onboarding and a polish pass in the real window: "these are all quite important".* Each is a setting, and none of them tells a player what an action will do: the rules above still hold.
+
+- **TEXT SIZE** (100%, 125%, 150%): the HUD's print and the menus', bigger. The whole overlay is drawn on a smaller canvas and stretched over the window, so everything on it grows together. A long line wraps or is cut short where it would leave the frame (ARCHITECTURE §8 note 347).
 
 ### The screenshot test
 
@@ -1334,7 +1363,7 @@ RUN BUDGET = base(route tier) × length multiplier × crew multiplier
 These match the build (`director.baseBudget` in `content/tuning/enemies.json`). They are about twice the v1.1 figures, to pay for the build's pressed spawns: after the 100-night playtest the director would not let the line go quiet for long, and under the pressure model (below) a long quiet still presses it to send something.
 
 **Length multiplier:** `1.0 + (0.15 × cars beyond the third)`
-**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6
+**Crew multiplier:** `0.7 + (0.12 × crew)` — capped at 1.6. *The crew counted is the crew alive now, each second, not the crew the night started with (the orchestrator, 7 Oct 2026, App. F.3; ARCHITECTURE §8 note 336): a crew that has lost players spends like the smaller crew it is.*
 
 Budget is spent across the run against a rising curve, not evenly. Roughly 15% before the first facility, 45% across the middle, 40% in the final approach.
 
@@ -1398,7 +1427,7 @@ Enforced regardless of budget:
 | Concurrent interior threats | 2 |
 | Concurrent outside threats | 2 |
 | Corrupted humans | **1** active at a time |
-| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 |
+| Total concurrent active | 4 at crew ≤4 · 6 at crew ≥6 · and never more than ceil(0.75 × the crew alive), one a player: 1 at crew 1, 2 at crew 2, 3 at crews 3–4 (*the orchestrator, 7 Oct 2026*; note 336) |
 | Same tell type, overlapping range | **1** — tells must stay distinguishable |
 
 ### Pacing rules
@@ -2137,18 +2166,19 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the plain village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. Searched cupboards that look it, bots that search and solid furniture are next.*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Every house stands open, the L, cross and paired ones too. Bots that search are next.*
+  - *The director, 8 Oct, on the first interiors:* "These interiors are looking good but a few things: they need some lighting inside, dim to keep it scary, I like that they look worn down; sometimes a monster should be nesting in there; they need procedurally generated furniture scattered about, like the place has been ransacked many times before; loot needs to be discoverable in there, that's the whole point of this. They need a bit of a brighter more unique look to them so that they stand out from the background as interactable objects. Do this with good texture work, not VFX." *(B4, under queue #65. In: a dim candle or lamp in each house, the night kept out; each kind of find its own model in bright printed stock. Next: ransacked furniture, and the Gaunt's nest in its house.)*
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Done (note 327): off the train the crew are watched: now and then eyes at the lamp's edge toward where something that lives at the stop is, and its sound; and the night's pressure builds faster while anyone's afoot, so encounters come sooner (`enemies.json` `director.afoot`).*
 - A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run faster than the hounds' own 19 m/s for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs is proposed, not built ([orchestrator.md](orchestrator.md) §5.1).*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire.*
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Open (queue #39, note 301).*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*
@@ -2209,6 +2239,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The speed boards weren't on curves. The tightest curves should carry the limits, as on a real railway. *Done (notes 265, 277): boards only on bends that can derail, inked red on the map and on the route card.*
 - The derailment from track debris (the Sleepers) at 43 km/h felt cheap: no visible threat, and punished for not being in the right place. Good for role theory, bad for game feel (§22, A.1). *The Sleepers are gone (note 265); a bend taken too fast is heard (note 265) and now seen: flange sparks off the outer rail, and a judder (note 277).*
 - The train's lights and lanterns were all off. *Done (note 265): a smashed lamp can be relit.*
+- With the Sleepers gone, a Frontier night may have had nowhere the train could derail: frontier:7's sharpest bend was 707 m, over what the engine can reach (note 265). *Done (note 278): every night carries its tier's count of hard bends that derail the train under its top speed (Frontier 3–4, at 58–68 km/h), spread through the night, each boarded, on the cab map and going round a hill. The rules are in docs/design/level-design.md Part B.*
 
 **Second session (same build, continued)**
 - *Run start:* the spoken "the yard's open, here's the consist" intro is too long, cheesy, and a pain to localize. *Done (note 264): dropped.*
@@ -2296,4 +2327,4 @@ Further decisions (the director, 6 Oct 2026):
 
 ---
 
-*Dark Territory · GDD v1.4 · October 2026*
+*Dark Territory · GDD v1.5 · October 2026*

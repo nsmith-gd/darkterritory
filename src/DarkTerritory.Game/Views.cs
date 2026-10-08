@@ -29,11 +29,17 @@ public static class Views
             // windows and stovepipe, an armoured car's plate, a guard car's gun).
             "side" => Camera.LookAt(target.ToWorld(new Double3(-9, 2.6, 5)), target.ToWorld(new Double3(0, 2.4, -1)), 60),
             // Inside the car, at its front end, looking back down the aisle past the cargo.
+            // Note 301: a battered car's dent on its left wall and a breach in its rear end wall, their callouts (with
+            // --integrity and --breached).
+            "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
             "door" => DoorCamera(train, car),
             // On the ballast beside the gap behind this car, looking in under the plate (what checks a gap: the Whistler's).
             "gapside" => GapSideCamera(train, car),
+            // Off the target car's right, low, on its rear bogie: a hot axle box smoking (note 331; dt screenshot --hotbox s).
+            "hotbox" => Camera.LookAt(target.ToWorld(new Double3(target.Shape.HalfWidth + 4.2, 1.5, target.Shape.HalfLength - 5.5)),
+                target.ToWorld(new Double3(target.Shape.HalfWidth, 1.1, target.Shape.HalfLength - 1.6)), 50),
             // Low off the right of the target car, on the ballast, along its wheels (the flange sparks: --strain).
             // Side on to the staged row of the film's crew at their work (dt screenshot --wreck-poses), off the target car's right.
             "poses" => Camera.LookAt(target.ToWorld(new Double3(7.4, 1.3, -target.Shape.HalfLength * 0.6 + 1.95)),
@@ -118,10 +124,13 @@ public static class Views
             "engine" => Camera.LookAt(engine.ToWorld(new Double3(8.5, 3.2, -engineHalf - 6)), engine.ToWorld(new Double3(0, 2.2, 1)), 55),
             // The engine's front (note 311): low off its front quarter, the prow, the brow and the eye; and square off its
             // left side, the cab's run into the boiler.
+            // (Not one of Names.) Close on the headlamp from up the line, a little off its axis: the Stella Maris in its cage (note 338).
+            "headlamp" => Camera.LookAt(engine.ToWorld(new Double3(0.8, 2.2, -engineHalf - 3.4)), engine.ToWorld(new Double3(0, 1.95, -engineHalf)), 40),
             "prow" => Camera.LookAt(engine.ToWorld(new Double3(4.2, 1.9, -engineHalf - 6.5)), engine.ToWorld(new Double3(0, 2.5, -engineHalf + 2.2)), 52),
             // The way in from the train (the director, 7 Oct): on the left running board beside the boiler, a crewmate's eye,
             // looking forward to the cab's doorway.
-            "wayin" => Camera.LookAt(engine.ToWorld(new Double3(-engine.Shape.HalfWidth - 0.3, 3.0, -engineHalf + 13)), engine.ToWorld(new Double3(-engine.Shape.HalfWidth + 0.2, 2.4, -engineHalf + 5)), 62),
+            // In the corridor beside the boiler under the hood (note 338), forward to the cab through its back wall's opening.
+            "wayin" => Camera.LookAt(engine.ToWorld(new Double3(-1.05, 3.0, -engineHalf + 13)), engine.ToWorld(new Double3(-1.0, 2.6, -engineHalf + 4)), 70),
             "prowside" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.8, -engineHalf + 3.5)), engine.ToWorld(new Double3(0, 2.6, -engineHalf + 4.5)), 55),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),

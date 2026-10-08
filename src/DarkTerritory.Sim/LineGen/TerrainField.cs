@@ -607,6 +607,9 @@ public sealed class TerrainField
     /// <summary>
     /// Flattened pads (§12.1 "pad"): the fortress, the facilities, the settlements, blended in over 30 m. A box pad (a stop's
     /// ground) ends square at its zone's ends and leaves the rail's formation its own, since the line past a stop may climb.
+    /// So does a long pad laid along the line (a halt's or a town's, the fortress's, the terminus's): its 30 m blend past the
+    /// end held the ballast at the halt's level where the line had already started down (frontier:3's Mile 13 Halt, 8 cm
+    /// over the rail 20 m on).
     /// </summary>
     double Pads(double x, double z, double height, double formation, double formationW)
     {
@@ -633,7 +636,7 @@ public sealed class TerrainField
             if (d >= p.RadiusM + 30)
                 continue;
             double w = 1 - Smooth(p.RadiusM, p.RadiusM + 30, d);
-            if (p.Box && !double.IsNaN(formation))
+            if ((p.Box || p.HalfLengthM > 0) && !double.IsNaN(formation))
                 w *= 1 - formationW;
             height = height * (1 - w) + p.ElevM * w;
         }
