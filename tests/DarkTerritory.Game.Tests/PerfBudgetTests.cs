@@ -54,18 +54,25 @@ public class PerfBudgetTests
                 {
                     var camera = Views.Get(view, train);
                     scene.Build(mesh, train, camera.Position);
-                    int triangles = 0, draws = 0;
-                    foreach (var eye in eyes)
+                    // And again with a hand lamp in your own fist (note 436): its cube's drawn round the eye, the worst of it.
+                    foreach (bool lamp in new[] { false, true })
                     {
-                        eye.Render(mesh, camera, light, light.FogColor);
-                        var s = eye.Stats;
-                        // (The hand lamp's cube draws what it draws once a face.)
-                        triangles += s.Triangles + s.LampTriangles + s.MoonTriangles + s.HandTriangles * 6;
-                        draws = Math.Max(draws, Math.Max(Math.Max(s.Draws, s.HandDraws), Math.Max(s.LampDraws, s.MoonDraws)));
+                        if (lamp)
+                            mesh.ShadowLight = new PointLight(new Vector3(0.25f, -0.6f, -0.2f), Palette.LampAmber * 1.8f, 7);
+                        int triangles = 0, draws = 0;
+                        foreach (var eye in eyes)
+                        {
+                            eye.Render(mesh, camera, light, light.FogColor);
+                            var s = eye.Stats;
+                            // (The hand lamp's cube draws what it draws once a face.)
+                            triangles += s.Triangles + s.LampTriangles + s.MoonTriangles + s.HandTriangles * 6;
+                            draws = Math.Max(draws, Math.Max(Math.Max(s.Draws, s.HandDraws), Math.Max(s.LampDraws, s.MoonDraws)));
+                        }
+                        string with = lamp ? " with a hand lamp" : "";
+                        TestContext.Current.TestOutputHelper?.WriteLine($"{target.Fps} fps {view}{with}: {triangles} triangles, {draws} draws at most in a pass");
+                        Assert.True(triangles <= Tuning.MaxFrameTriangles, $"{target.Fps} fps, {view}{with}: {triangles} triangles a frame (at most {Tuning.MaxFrameTriangles})");
+                        Assert.True(draws <= Tuning.MaxPassDraws, $"{target.Fps} fps, {view}{with}: {draws} draws in a pass (at most {Tuning.MaxPassDraws})");
                     }
-                    TestContext.Current.TestOutputHelper?.WriteLine($"{target.Fps} fps {view}: {triangles} triangles, {draws} draws at most in a pass");
-                    Assert.True(triangles <= Tuning.MaxFrameTriangles, $"{target.Fps} fps, {view}: {triangles} triangles a frame (at most {Tuning.MaxFrameTriangles})");
-                    Assert.True(draws <= Tuning.MaxPassDraws, $"{target.Fps} fps, {view}: {draws} draws in a pass (at most {Tuning.MaxPassDraws})");
                 }
             }
             finally
