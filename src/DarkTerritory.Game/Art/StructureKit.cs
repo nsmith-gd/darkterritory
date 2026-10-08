@@ -554,11 +554,12 @@ public static class StructureKit
         {
             case FacilityKind.CoalingTower:
                 {
-                    // A concrete bunker up on timber stilts, its chute arm reaching over the track.
+                    // A concrete bunker up on timber stilts, its chute arm reaching over the track. (Three a side: the middle
+                    // one on the line's side is the leg Tower Jaw gnaws, enemies.json towerJaw towerLegOut; note 363.)
                     float x = s * 7;
                     k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
                     foreach (float dx in new[] { -3.5f, 3.5f })
-                        foreach (float dz in new[] { -4.5f, 4.5f })
+                        foreach (float dz in new[] { -4.5f, 0, 4.5f })
                             k.Rod(new Vector3(x + dx, -0.3f, dz), new Vector3(x + dx * 0.9f, 12, dz * 0.9f), 0.25f);
                     for (float y = 3; y < 12; y += 3.2f)
                         foreach (float dz in new[] { -4.5f, 4.5f })
@@ -741,6 +742,100 @@ public static class StructureKit
                 }
         }
         return k.Build($"facility-{kind}-{side}");
+    }
+
+    /// <summary>
+    /// The coaling tower brought down by Tower Jaw (note 363; docs/design/creatures/tower-jaw.md §5 COLLAPSE), in the frame
+    /// its standing self is drawn in for side +1 (+X out to its side, Z along the line, the origin on the line at its spout):
+    /// its stilts snapped off at the stumps (the gnawed one at the line's side an hourglass of tooth marks), the bunker gone
+    /// over beyond the line and lying on its side, broken open, and between them across the rails the heap the crew must
+    /// clear by hand: the stilts and their braces fallen every way, the chute arm bent over the rails, the hopper's cone, and
+    /// the coal out of the bunker spilled over all of it. <paramref name="cleared"/>: the same once the crew's cleared the
+    /// line (Use held at it): the timbers dragged off the rails to either side and the coal shovelled back off them.
+    /// </summary>
+    public static MeshAsset CoalingTowerFallen(Look? look, bool cleared)
+    {
+        var k = new Kit(look, 990);
+        static float H(int i, int j = 0) => 0.5f + 0.5f * MathF.Sin(i * 12.9898f + j * 78.233f + 0.7f) * MathF.Cos(i * 4.1414f - j * 1.618f);
+        // The stumps where it stood: the far row snapped high, the near row low, and the gnawed one cut through like an
+        // hourglass, raw where the teeth went in.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+        foreach (float dz in new[] { -4.5f, 0, 4.5f })
+        {
+            float far = 1.6f + 1.8f * H((int)(dz * 3) + 5);
+            k.Rod(new Vector3(10.5f, -0.3f, dz), new Vector3(10.45f, far, dz), 0.25f);
+            k.Rod(new Vector3(10.45f, far, dz), new Vector3(10.2f, far + 0.6f, dz + 0.1f), 0.08f);
+            k.Rod(new Vector3(10.55f, far, dz - 0.05f), new Vector3(10.7f, far + 0.4f, dz - 0.15f), 0.06f);
+            if (dz == 0)
+            {
+                k.Cylinder(new Vector3(3.5f, -0.3f, 0), new Vector3(3.5f, 0.45f, 0), 0.25f, 8, radiusB: 0.1f);
+                k.Use("wood_crate", Palette.TarnishedBrass, 0.6f, 0, tile: 0.6f);
+                k.Cylinder(new Vector3(3.5f, 0.45f, 0), new Vector3(3.48f, 0.55f, 0.02f), 0.1f, 8, radiusB: 0.04f);
+                k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
+            }
+            else
+                k.Rod(new Vector3(3.5f, -0.3f, dz), new Vector3(3.52f, 0.5f + 0.7f * H((int)(dz * 3) + 9), dz), 0.25f);
+        }
+        // The bunker: over on its side beyond the line and broken in two where it hit, sooted, the roof's sheet torn half
+        // off it.
+        float beyond = cleared ? -11.5f : -10.5f;
+        k.Use("concrete_stain", Palette.BlueGrey, 0.95f, 0.1f, tile: 2.5f).Shade(0.55f);
+        k.With(Matrix4x4.CreateRotationZ(1.36f) * Matrix4x4.CreateRotationY(0.14f) * Kit.At(beyond, 4.9f, -2.4f),
+            () => k.Box(new Vector3(-4, -5, -3.0f), new Vector3(4, 5, 2.6f)));
+        k.With(Matrix4x4.CreateRotationZ(1.22f) * Matrix4x4.CreateRotationY(0.34f) * Matrix4x4.CreateRotationX(0.12f) * Kit.At(beyond + 0.6f, 4.4f, 3.6f),
+            () => k.Box(new Vector3(-4, -4.6f, -2.4f), new Vector3(4, 4.6f, 2.4f)));
+        k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
+        k.With(Matrix4x4.CreateRotationZ(1.1f) * Matrix4x4.CreateRotationY(0.4f) * Kit.At(beyond - 4.6f, 2.2f, -2.5f),
+            () => k.Box(new Vector3(-0.3f, -4.3f, -5.8f), new Vector3(0, 4.3f, 2.5f)));
+        // The coal out of it: heaped where it burst, spilling toward the line and (till it's cleared) over the rails.
+        k.Use("coal", Palette.Charcoal, 0.7f, 0.2f, tile: 1);
+        k.Cylinder(new Vector3(beyond + 3.5f, -0.3f, 0.5f), new Vector3(beyond + 3.8f, 1.6f, 0.4f), 3.4f, 10, radiusB: 0.6f);
+        k.Cylinder(new Vector3(beyond + 6.5f, -0.3f, -1.4f), new Vector3(beyond + 6.6f, 0.9f, -1.2f), 2.4f, 9, radiusB: 0.4f);
+        if (!cleared)
+        {
+            k.Cylinder(new Vector3(-1.2f, -0.3f, 0.6f), new Vector3(-1.1f, 0.8f, 0.5f), 2.8f, 9, radiusB: 0.5f);
+            k.Cylinder(new Vector3(1.4f, -0.3f, -1.8f), new Vector3(1.5f, 0.5f, -1.7f), 1.9f, 8, radiusB: 0.4f);
+        }
+        for (int i = 0; i < (cleared ? 10 : 34); i++)
+        {
+            float lx = cleared ? beyond + 5 + 3 * H(i, 1) : -6.5f + 9 * H(i, 1), lz = -3.5f + 7 * H(i, 2), sz = 0.18f + 0.35f * H(i, 3);
+            k.With(Matrix4x4.CreateRotationY(6.28f * H(i, 4)) * Matrix4x4.CreateRotationX(0.8f * H(i, 5)) * Kit.At(lx, 0.1f + sz * 0.4f, lz),
+                () => k.Box(new Vector3(-sz, -sz * 0.7f, -sz * 0.8f), new Vector3(sz, sz * 0.7f, sz * 0.8f)));
+        }
+        // The stilts and braces, fallen: across the rails in a jumble (each snapped in two, lying on what fell first),
+        // or once cleared, dragged off along either side of the line.
+        k.Use("wood_grey", Palette.DeepBrown, 0.95f, 0, tile: 1.5f).Shade(0.55f);
+        for (int i = 0; i < 6; i++)
+        {
+            float z0 = -4.5f + 4.5f * (i % 3) + 0.8f * (H(i, 6) - 0.5f);
+            if (cleared)
+            {
+                float x0 = i % 2 == 0 ? 3.2f : -3.4f - 0.5f * H(i, 7), y0 = 0.15f + 0.45f * (i / 2);
+                k.Rod(new Vector3(x0, y0, -9 + 2 * H(i, 8)), new Vector3(x0 + 0.3f * (H(i, 9) - 0.5f), y0, 2 + 3 * H(i, 10)), 0.25f);
+                continue;
+            }
+            float a = 0.35f * (H(i, 11) - 0.5f), y0b = 0.25f + 0.9f * H(i, 12);
+            var foot = new Vector3(3.2f - 0.6f * H(i, 13), 0.2f + 0.3f * H(i, 14), z0);
+            var bend = foot + new Vector3(-6.2f, y0b, 6.2f * a);
+            var end = bend + new Vector3(-5.2f, 0.4f - 0.9f * H(i, 15), 5.2f * (a + 0.3f * (H(i, 16) - 0.5f)));
+            k.Rod(foot, bend, 0.25f);
+            k.Rod(bend + new Vector3(-0.15f, 0.05f, 0), end with { Y = Math.Max(0.2f, end.Y) }, 0.24f);
+        }
+        for (int i = 0; i < (cleared ? 6 : 12); i++)
+        {
+            float x0 = cleared ? (i % 2 == 0 ? 4 : -4.6f) : -5 + 8 * H(i, 17), z0 = -5 + 10 * H(i, 18), len = 2 + 2.5f * H(i, 19);
+            float a = 6.28f * H(i, 20);
+            var c = new Vector3(x0, 0.2f + (cleared ? 0 : 1.3f * H(i, 21)), z0);
+            var d = cleared ? new Vector3(0, 0.05f, 1) : new Vector3(MathF.Cos(a), 0.3f * (H(i, 22) - 0.5f), MathF.Sin(a));
+            k.Rod(c - d * len * 0.5f, c + d * len * 0.5f, 0.1f);
+        }
+        // The chute arm, its iron bent where it came down across the rails, and the hopper's cone rolled off beside it.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f).Shade(0.45f);
+        float cx = cleared ? 4.4f : 1.2f;
+        k.Rod(new Vector3(cx + 3.5f, 0.6f, -1.2f), new Vector3(cx, 0.35f, 0.4f), 0.3f);
+        k.Rod(new Vector3(cx, 0.35f, 0.4f), new Vector3(cx - (cleared ? 0 : 3.2f), 0.25f, cleared ? 3.5f : 1.9f), 0.28f);
+        k.Cylinder(new Vector3(cleared ? 5.5f : -3.2f, 1.1f, -2.6f), new Vector3(cleared ? 6.2f : -4.4f, 0.6f, -0.8f), 2.0f, 8, radiusB: 0.6f);
+        return k.Build(cleared ? "coaling-fallen-cleared" : "coaling-fallen");
     }
 
     /// <summary>The yaw that turns a modelled piece (its front the model's +Z) to face the line from side <paramref name="s"/>.</summary>

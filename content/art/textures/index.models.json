@@ -3880,6 +3880,26 @@
     ]
   },
   {
+    "name": "freight_beetle_0",
+    "diffuse": "models/freight_beetle_0.png",
+    "spec": "models/freight_beetle_0_s.png",
+    "normal": "models/freight_beetle_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/freight_beetle.py",
+        "what": "the Freight Beetle, modelled in tools/blender/freight_beetle.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "freight_carboys_0",
     "diffuse": "models/freight_carboys_0.png",
     "spec": "models/freight_carboys_0_s.png",
@@ -6419,6 +6439,26 @@
     ]
   },
   {
+    "name": "mourner_0",
+    "diffuse": "models/mourner_0.png",
+    "spec": "models/mourner_0_s.png",
+    "normal": "models/mourner_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/mourner.py",
+        "what": "the Mourners, modelled in tools/blender/mourner.py, their colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "passenger_0",
     "diffuse": "models/passenger_0.png",
     "spec": "models/passenger_0_s.png",
@@ -8866,6 +8906,26 @@
         "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
+    "name": "tower_jaw_0",
+    "diffuse": "models/tower_jaw_0.png",
+    "spec": "models/tower_jaw_0_s.png",
+    "normal": "models/tower_jaw_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/tower_jaw.py",
+        "what": "Tower Jaw, modelled in tools/blender/tower_jaw.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
       }
     ]
   },

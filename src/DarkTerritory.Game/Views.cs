@@ -105,6 +105,12 @@ public static class Views
             // (Staging.Gannet): up at it soaring in the engine's smoke; diving at the walker ahead; its beak in the planks;
             // stood on someone, mantled.
             "gannet" or "gannetfold" or "gannetstuck" or "gannetpin" => GannetCamera(train, name),
+            // (Not one of Names.) Out off the line's left at the staged Mourners round a body, dragging it off (Staging.Mourners),
+            // and at the staged Freight Beetle shoving a crate (Staging.Beetle); at Tower Jaw's coaling tower (Staging.TowerJaw:
+            // the screenshot puts the camera there, at the night's tower; this is only where it looks without one).
+            "mourners" => Staging.MournersCamera(train),
+            "beetle" => Staging.BeetleCamera(train),
+            "towerjaw" or "towerjawfall" => Camera.LookAt(engine.ToWorld(new Double3(-6, 2, -engineHalf - 20)), engine.ToWorld(new Double3(4, 4, -engineHalf - 40)), 66),
             // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
             "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
                 Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),

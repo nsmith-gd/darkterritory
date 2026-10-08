@@ -8,6 +8,10 @@ using Fortresses = DarkTerritory.Sim.Run.Fortresses;
 
 namespace DarkTerritory.Game.Art;
 
+/// <summary>A coaling tower as Tower Jaw's left it (note 363): standing (leaning as it's gnawed), fallen across the line
+/// (its wreck the creature's: CreatureArt.TowerWreck), or fallen and its heap cleared off the rails.</summary>
+public enum TowerDown : byte { Standing, Fallen, Cleared }
+
 /// <summary>The line's set pieces as the art pass places them: bridges, tunnels, fortresses, facilities, branches.</summary>
 public sealed partial class WorldArt
 {
@@ -370,7 +374,17 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A facility's buildings beside a track (the main line or its spur) at <paramref name="mid"/>, and its one working lamp.</summary>
-    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push)
+    /// <summary>How far out from the line a coaling tower's near stilts stand (StructureKit.Facility; enemies.json towerJaw
+    /// towerLegOut, the one Tower Jaw gnaws): what it leans over about.</summary>
+    public const float TowerPivotOut = 3.5f;
+
+    /// <param name="lean">A coaling tower gnawed by Tower Jaw (note 363): how far it leans over toward the line (radians),
+    /// about the foot of its stilts on the line's side.</param>
+    /// <param name="down">A coaling tower Tower Jaw's brought down: not standing. <see cref="TowerDown.Fallen"/> it's drawn
+    /// as the creature's wreck (CreatureArt.TowerWreck, across the line); <see cref="TowerDown.Cleared"/> here, its heap
+    /// dragged off the rails.</param>
+    public void Facility(MeshBuilder mesh, RailLine line, Double3 eye, FacilityKind? kind, double mid, double side, double push, float lean = 0,
+        TowerDown down = TowerDown.Standing)
     {
         side = side == 0 ? 1 : side;
         var t = line.Sample(Math.Clamp(mid, 0, line.Length));
@@ -378,7 +392,22 @@ public sealed partial class WorldArt
             return;
         var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         var at = t.Position + r * (side * push);
-        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), Basis(t.Tangent, at, eye, 0)));
+        var basis = Basis(t.Tangent, at, eye, 0);
+        if (kind == FacilityKind.CoalingTower && down != TowerDown.Standing)
+        {
+            // Its wreck's in the frame the tower's drawn in for the right-hand side: turned round for the left.
+            if (down == TowerDown.Cleared)
+                mesh.Instances.Add(new MeshInstance(Piece("coaling-fallen-cleared", () => StructureKit.CoalingTowerFallen(_look, cleared: true)),
+                    side < 0 ? Matrix4x4.CreateRotationY(MathF.PI) * basis : basis));
+            return;
+        }
+        if (kind == FacilityKind.CoalingTower && lean != 0)
+        {
+            // Over toward the line about its near stilts' feet (StructureKit.Facility: 3.5 m out from the line).
+            var pivot = new Vector3((float)side * TowerPivotOut, 0, 0);
+            basis = Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationZ((float)side * lean) * Matrix4x4.CreateTranslation(pivot) * basis;
+        }
+        mesh.Instances.Add(new MeshInstance(Piece($"facility-{kind}-{side}", () => StructureKit.Facility(_look, kind, (int)side)), basis));
         var lamp = (at + r * (side * 4) + Double3.Up * 5.1).RelativeTo(eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.3f, 12));
         mesh.Billboard(lamp, 1.4f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);

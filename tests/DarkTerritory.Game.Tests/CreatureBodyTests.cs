@@ -23,8 +23,13 @@ public class CreatureBodyTests
         { EnemyKind.Grumbler, "grumbler", 1 }, { EnemyKind.Whistler, "whistler", 1 }, { EnemyKind.Dragger, "dragger", 1 },
         { EnemyKind.Follower, "follower", 1 }, { EnemyKind.SootChildren, "soot_child", 1 }, { EnemyKind.CarHugger, "car_hugger", 1 },
         { EnemyKind.Passenger, "passenger", 1 }, { EnemyKind.Stoker, "stoker", 1 }, { EnemyKind.TippyToesie, "tippy_toesie", 1 },
-        { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 },
+        { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 }, { EnemyKind.Mourners, "mourner", 1 },
+        { EnemyKind.FreightBeetle, "freight_beetle", 1 }, { EnemyKind.TowerJaw, "tower_jaw", 1 },
     };
+
+    /// <summary>Kinds with a body in the sim but no model yet (CreatureArt.Outside.cs draws them as stand-ins till they're
+    /// modelled: the Brakeman, the Knotter, Hotbox; notes 364, 365, 367).</summary>
+    static readonly EnemyKind[] NotYetModelled = [EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.Hotbox];
 
     [Theory]
     [MemberData(nameof(Drawn))]
@@ -49,6 +54,6 @@ public class CreatureBodyTests
     public void EveryCreatureWithABodyIsDrawn()
     {
         var drawn = Drawn().Select(r => r.Data.Item1).OrderBy(k => k);
-        Assert.Equal(drawn, E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+        Assert.Equal(drawn, E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).Except(NotYetModelled).OrderBy(k => k));
     }
 }
