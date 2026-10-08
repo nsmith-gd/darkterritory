@@ -172,6 +172,39 @@ public sealed partial class CrewCalls
     /// whole aboard wait.
     /// </summary>
     public bool Leaving { get; private set; }
+
+    // Note 326: the village's hiding spots claimed (by whom), and the hands out at the houses or bringing a find back.
+    readonly Dictionary<int, int> _spots = new();
+    readonly SortedSet<int> _out = [];
+
+    /// <summary>"I'll take that cupboard": a hand going to search a spot, so the next goes elsewhere.</summary>
+    public void ClaimSpot(int member, int spot) => Heard(member, "spot", member, spot, () => _spots[spot] = member);
+    public void ReleaseSpot(int member, int spot) => Heard(member, "spot done", member, spot, () =>
+    {
+        if (_spots.TryGetValue(spot, out int who) && who == member)
+            _spots.Remove(spot);
+    });
+    /// <summary>Whether someone else has said they'll search a spot.</summary>
+    public bool SpotClaimed(int spot, int except) => _spots.TryGetValue(spot, out int who) && who != except;
+    /// <summary>"I'm out at the houses" (or back): the driver doesn't call the loading done while anyone alive is.</summary>
+    public void Out(int member, bool on)
+    {
+        if (_out.Contains(member) != on)
+            Heard(member, "out", member, on, () =>
+            {
+                if (on)
+                    _out.Add(member);
+                else
+                    _out.Remove(member);
+            });
+    }
+    /// <summary>Hands out at the houses now, but this one.</summary>
+    public int OutCount(int except) => _out.Count(m => m != except && Alive(m));
+    /// <summary>Whether this hand has said it's out at the houses.</summary>
+    public bool IsOut(int member) => _out.Contains(member);
+    /// <summary>Anyone alive out at the houses.</summary>
+    public bool Scavenging => _out.Any(Alive);
+    bool Alive(int member) => !_crew.TryGetValue(member, out var c) || c.Alive;
     public void Leave(bool leaving) => Heard(-1, "leave", -1, leaving, () => Leaving = leaving);
     /// <summary>
     /// The driver's away from the controls (T105: out on the running board sanding; T107: down on the ballast, or pulled off
@@ -1075,7 +1108,9 @@ public sealed class StopDriver(CrewCalls calls)
             || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
         bool herded = !pairs || !p.HerdLeft(world);
         bool hosed = !calls.HoseHand || !p.HoseLeft(world);
-        return winched && crated && craned && herded && hosed;
+        // Note 326: nor while a hand's out searching the village's houses, or bringing a find back.
+        bool searched = !calls.Scavenging;
+        return winched && crated && craned && herded && hosed && searched;
     }
 
     double _progress;
@@ -1228,7 +1263,7 @@ public sealed class StopDriver(CrewCalls calls)
 /// together until the sleds are in, and climb aboard. Out in the cold too long, they go and get warm first (the walker
 /// does that) and come back to it. With no part, or nothing to do this tick, it returns null and the walker walks.
 /// </summary>
-public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTuning? cold = null)
+public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, ColdTuning? cold = null)
 {
     /// <summary>Walking beside the train, keep this far from its track's centreline (a car is 3 m wide, 4.2 at its steps).</summary>
     const double Clear = 2.6;
@@ -1944,6 +1979,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
 
     int _car = -1;
     bool _pressed;
+    /// <summary>A find from the village it put down on a car's landing to open the door (note 326), to take up again.</summary>
+    int? _setDown;
 
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
@@ -1986,13 +2023,22 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         }
         else if (mine is null && PlayerId is not null && Wanting(world, p) is { } wanting)
             return LendAHand(self, world, wanting);
-        // Nothing more to carry: the doors shut behind us (an open car is a cold one), and aboard.
-        if (!heavy && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
+        // A find from the village we put down to open a door (note 326), gone (someone took it): nothing to go back for.
+        if (_setDown is int put0 && world.Bodies.All.FirstOrDefault(b => b.Id == put0 && b.Carrier < 0) is null)
+            _setDown = null;
+        // A find from the village in our arms (note 326): back round the houses to a car first.
+        if (mine is { Kind: Physics.BodyKind.Loot } && FindHome(self, world, p) is { } home)
+            return home;
+        // Nothing more to carry: the village's houses, if there's time and a share of hands for it (note 326); else the doors
+        // shut behind us (an open car is a cold one), and aboard.
+        if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
+            return errand;
+        if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
             calls.CarryingTo(member, -1);
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
-        if (!heavy || _car < 0)
+        if (!heavy && _setDown is null || _car < 0)
             _car = Roomiest(world, p, calls, member);
         calls.CarryingTo(member, heavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
@@ -2028,12 +2074,28 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         }
         if (onThisCar)
         {
+            // A find from the village put down here to open the door (note 326): the door's open, so up with it again.
+            if (!heavy && open && _setDown is int put && world.Bodies.All.FirstOrDefault(b => b.Id == put && b.Carrier < 0) is { } setDown
+                && (Physics.Bodies.WorldCentre(setDown, train) - PlayerMotor.WorldPosition(self, train)).Length < 2.5)
+            {
+                var lies = Physics.Bodies.WorldCentre(setDown, train);
+                var standing = PlayerMotor.WorldPosition(self, train);
+                double toward = DMath.Atan2(-(lies.X - standing.X), -(lies.Z - standing.Z));
+                if (!Aligned(self, toward))
+                    return new PlayerIntent { LookYaw = Turn(self, toward) };
+                Doing = "picking the find up again";
+                return Press();
+            }
+            if (heavy || mine is not null)
+                _setDown = null;
             // On its steps or the landing.
             if (!open)
             {
                 if (heavy)
                 {
                     Doing = "putting it down to open up";
+                    if (mine is { Kind: Physics.BodyKind.Loot })
+                        _setDown = mine.Id;
                     return Press();
                 }
                 if (!Near(self, landing, 0.25) || !Aligned(self, facingIn))

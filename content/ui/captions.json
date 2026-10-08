@@ -32,9 +32,30 @@
     "toy-squeaker": "A TOY SQUEAKING",
     "toy-musicbox": "A MUSIC BOX",
     "toy-drummer": "A TOY DRUM",
-    // Signs (note 327): something moving out there, heard as it is.
+    // Signs (note 327): something moving out there, heard as it is. Since note 342 they're their own sounds (sign.<kind>);
+    // the creatures' own movement is what plays where there's none, and when it's on you.
+    "sign.ribbits": "SOMETHING HOPPING",
+    "sign.sootChildren": "SMALL FEET IN THE CINDERS",
+    "sign.whistler": "SOMETHING IN THE BRUSH",
+    "sign.grumbler": "SCUTTLING",
     "cs-ribbits.hop-land": "SOMETHING HOPPING",
     "cs-grumbler.scuttle": "SCUTTLING",
+    // The tells since (note 391): by the line, and by the cue where a line's cues say different things. The Moose
+    // listening is silence, and so is the Gannet hanging over a walker: nothing to hear, nothing to caption.
+    "tell-moose-grazing": "CHEWING",
+    "tell-moose-warning": "A COUGHING GRUNT",
+    "tell-moose-square-up": "STAMPING AND SNORTING",
+    "tell-moose-charge": "HOOVES, CHARGING",
+    "cs-moose-ram.boom": "A BOOM AGAINST THE CAR",
+    "tell-gannet-calls.call": "HARSH CALLS ABOVE",
+    "tell-gannet-calls.wings": "WINGBEATS ABOVE",
+    "tell-gannet-fold": "AIR WHISTLING, FALLING",
+    "tell-gannet-bank.scream": "A SCREAM, COMING IN",
+    "tell-gannet-bank.wingbeats": "WINGBEATS, CLOSING",
+    // The train's jobs that call for a hand (notes 346, 356): heard, so a reader is called too.
+    "lamp-gutter": "A LAMP SPUTTERING",
+    "coupling-loose": "KNOCKING AT A COUPLING",
+    "state-coupling-loose": "KNOCKING AT A COUPLING",
     "hotbox": "A SQUEAL AT THE WHEELS",
     "heap-groan": "THE HEAP GROANING",
     "boiler-strain": "THE BOILER SHRIEKING",
