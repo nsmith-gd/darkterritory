@@ -1694,6 +1694,10 @@ public static partial class Hud
             return site.OutOfRhythm ? "OUT OF RHYTHM"
                 : p.Hand != default ? "CRANK : OVER THE TOP, TOWARDS THE TRACK" : "CRANK : HOLD [E]";
         // At the controls, driving them is the corner's (Hints): here, only what you're looking at.
+        // Note 346: a guttering lamp, in the car, trimmed with the lamp key.
+        if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent] is { LampLit: true, Gutter: > 0 } && PlayerMotor.Indoors(p, train)
+            && train.Frames[p.Parent].Shape.Interior is not null)
+            return $"TRIM THE LAMP : [{Controls.KeyLabel(Keys.KeyFor(Control.CarLamp))}]";
         // Note 266 (build 1121: "the lights are completely off"): in a car whose lamp is out (a Climber came in through it).
         if (p.Parent > 0 && p.Parent < train.Frames.Count && !train.Vehicles[p.Parent].LampLit && PlayerMotor.Indoors(p, train)
             && train.Frames[p.Parent].Shape.Interior is not null)
