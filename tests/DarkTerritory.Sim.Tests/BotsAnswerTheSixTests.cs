@@ -112,6 +112,9 @@ public class BotsAnswerTheSixTests
     static (Night N, TowerJaw Jaw) AtTheTower(double front, double speed, double gnawed)
     {
         var n = new Night(4, speed, Frontier, enemies: Quiet, front: front);
+        // Standing on its brake (frontier:7 is graded there: off it, the train creeps down the hill).
+        if (speed == 0)
+            n.Controls = new TrainControls { Reverser = 1, Brake = 1 };
         n.World.EnableRun(Tuning.Run, Frontier, 600, authority: true);
         int facility = n.World.Run!.Facilities.ToList().IndexOf(Tower);
         var jaw = n.World.AddEnemy(id => TowerJaw.AtCoalingTower(id, n.World, facility, E.TowerJaw, gnawed));

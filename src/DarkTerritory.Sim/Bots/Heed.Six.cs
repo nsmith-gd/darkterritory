@@ -20,10 +20,15 @@ public static partial class Heed
     /// <summary>m/s: a car slower than this is standing (a stop's hands get down off nothing moving: <see cref="StopHand"/>).</summary>
     const double StandingStill = 0.05;
 
-    /// <summary>On the ground already, or on a car of a rake that's standing: free to get down to something.</summary>
+    /// <summary>
+    /// The train standing (the engine's rake), and this bot on the ground already or on a car of a standing rake: free to get
+    /// down to something, or to stay down at it. Once the train moves off, the errand's over and the walker gets back aboard
+    /// (a bot kept on the ground by it would have the driver set back for it, and go out to it again, all night).
+    /// </summary>
     static bool CanGoDown(in PlayerState self, TrainOnLine train) =>
-        self.Parent == PlayerState.World
-        || self.Parent >= 0 && self.Parent < train.Frames.Count && Math.Abs(train.RakeOf(self.Parent).Velocity) < StandingStill;
+        Math.Abs(train.Dynamics.Velocity) < StandingStill
+        && (self.Parent == PlayerState.World
+            || self.Parent >= 0 && self.Parent < train.Frames.Count && Math.Abs(train.RakeOf(self.Parent).Velocity) < StandingStill);
 
     static bool Free(in PlayerState self) => self.Alive && !self.Has(PlayerFlags.Held);
 
@@ -175,13 +180,13 @@ public static partial class Heed
 
     /// <summary>
     /// The Freight Beetle (note 366: "it pushes away from whoever's nearest. Stand where you want it not to go"). It never
-    /// harms anyone, and three blows inside its window drive it off its load. A bot on foot (at a stop) within
-    /// <c>crewBots.beetleWithin</c> of it, but for one that's been driven off, clubs it (the stop's crate hands leave the
-    /// crate it has: <see cref="StopHand"/>'s crates).
+    /// harms anyone, and three blows inside its window drive it off its load. A bot on foot (at a stop, the train standing)
+    /// within <c>crewBots.beetleWithin</c> of it, but for one that's been driven off, clubs it (the stop's crate hands leave
+    /// the crate it has: <see cref="StopHand"/>'s crates).
     /// </summary>
     public static PlayerIntent Beetle(PlayerIntent intent, in PlayerState self, World world, int selfId)
     {
-        if (!Free(self) || self.Parent != PlayerState.World || world.Enemies is not { } et)
+        if (!Free(self) || self.Parent != PlayerState.World || world.Enemies is not { } et || !CanGoDown(self, world.Train))
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);

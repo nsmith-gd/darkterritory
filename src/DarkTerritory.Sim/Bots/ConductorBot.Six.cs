@@ -11,6 +11,8 @@ public sealed partial class ConductorBot
     double _standingForSix;
     /// <summary>The car behind a Knotter's joint (note 365): what's left standing there once it's killed, to couple up to.</summary>
     int _knotRear = -1;
+    /// <summary>A Knotter or a Hotbox stood for <c>standGiveUp</c> and not dealt with (nobody to): gone on from, for good.</summary>
+    readonly HashSet<int> _gaveUpOn = [];
 
     /// <summary>What the driver's doing about the six just now (for tests and the harness's trace), or null.</summary>
     public string? SixStep { get; private set; }
@@ -64,10 +66,21 @@ public sealed partial class ConductorBot
         if (!Express && Stops is not { Doing: not StopDriver.Leg.Cruise })
         {
             var knot = world.ActiveEnemies.OfType<Knotter>().FirstOrDefault(k => !k.Gone && k.Mode is KnotterMode.Force or KnotterMode.Taut
-                or KnotterMode.Coil or KnotterMode.Slack && k.Attached > 0 && k.Attached < train.Frames.Count);
+                or KnotterMode.Coil or KnotterMode.Slack && k.Attached > 0 && k.Attached < train.Frames.Count && !_gaveUpOn.Contains(k.Id));
+            var box = world.ActiveEnemies.OfType<Hotbox>().FirstOrDefault(h => !h.Gone && h.Mode is HotboxMode.Glow or HotboxMode.Seized
+                or HotboxMode.Unfolded && !_gaveUpOn.Contains(h.Id));
+            // Nobody's dealt with it in all that time (nobody to: a driver alone): on without it, and not stood for again.
+            if (givenUp)
+            {
+                if (knot is not null)
+                    _gaveUpOn.Add(knot.Id);
+                if (box is not null)
+                    _gaveUpOn.Add(box.Id);
+                (knot, box) = (null, null);
+            }
             if (knot is not null && train.VehicleBehind(knot.Attached) is var rear and >= 0)
                 _knotRear = rear;
-            bool hotbox = world.ActiveEnemies.Any(e => e is Hotbox { Gone: false } h && h.Mode is HotboxMode.Glow or HotboxMode.Seized or HotboxMode.Unfolded);
+            bool hotbox = box is not null;
             // Its axle left seized once it's out: stood for the wrench, a while.
             bool seized = _stoodForSix && !givenUp && d.Consist.Vehicles.Any(v => v.Seized);
             if (knot is not null || hotbox || seized)
