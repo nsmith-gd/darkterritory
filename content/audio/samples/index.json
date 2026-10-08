@@ -5036,6 +5036,67 @@
   "takes": 3,
   "sha": "37b374b91b382f98"
  },
+ "crew-house-door/open": {
+  "cue": "crew-house-door.open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A house door opened: the sneck lifted, the leaf jerked free of its swollen frame, a long creak in",
+    "key": "creak",
+    "sources": [
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "071e9afa9110143f"
+ },
+ "crew-house-door/shut": {
+  "cue": "crew-house-door.shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A swollen house door pushed shut: the sag dragged over the sill, the bang, the sneck dropping",
+    "key": "sag",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_08",
+     "sfx_100_v2:door_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cca4a4f5f18c8718"
+ },
  "crew-hurt/body-fall/concrete": {
   "cue": "crew-hurt.body-fall",
   "surface": "concrete",

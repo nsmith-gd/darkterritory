@@ -643,6 +643,61 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void WithTheChoirGatheringAHandOutInTheVillageShutsItselfIntoAHouseAndComesOutAfter()
+    {
+        // Note 413 (GDD §21: the Choir takes "anyone ... not behind a closed door"; note 401's doors): a crate hand out searching
+        // the village when the Choir gathers goes into the nearest open house, shuts its door on itself and waits there, out of
+        // its reach; the rest get aboard. Quiet again, it opens the door and goes back to it, and they all leave together.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var run = world.Run!;
+        var walls = train.Walls!;
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        // Out among the houses: the Choir comes.
+        night.Until(() => hands.Any(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal)), 1800);
+        var outThere = hands.First(h => h.Doing.StartsWith("searching the", StringComparison.Ordinal));
+        int me = outThere.PlayerId!.Value - 1;
+        Assert.True(night.Crew[me].Parent == PlayerState.World, "nobody went out to the village");
+        var doing = new List<string>();
+        void Watch()
+        {
+            foreach (var h in hands)
+                if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
+                    doing.Add(h.Doing);
+        }
+        bool shutIn = false;
+        int? house = null;
+        night.Until(() => shutIn && world.Run!.Seconds > 0 && night.Crew.Where((c, i) => i != me).All(c => PlayerMotor.Space(c, train) != PlayerMotor.Outside), 90, () =>
+        {
+            world.Choir.Build = 0.8; // gathering, held loud
+            Watch();
+            house ??= outThere.ShelterDoor?.House;
+            shutIn = PlayerMotor.Space(night.Crew[me], train) <= PlayerMotor.HouseSpace(0);
+        });
+        string trace = $"the hand was {outThere.Sheltering}/{outThere.Doing}; the hands did {string.Join(", ", doing)}";
+        Assert.True(shutIn, $"not shut in a house: {trace}");
+        Assert.NotNull(house);
+        var door = walls.HouseDoors.Single(d => d.House == house);
+        Assert.True(walls.Shut(door.Key), trace);
+        Assert.Contains("shutting the door on the Choir", doing);
+        // Waited out: still there, still shut in, and the driver hasn't gone without it.
+        night.Until(() => false, 20, () => world.Choir.Build = 0.8);
+        Assert.True(PlayerMotor.Space(night.Crew[me], train) <= PlayerMotor.HouseSpace(0), $"left the house with the Choir about: {outThere.Doing}");
+        Assert.Equal(0, run.Departures);
+        // Quiet: out again, the door open behind it, and on with the night.
+        world.Choir.Build = 0;
+        night.Until(() => run.Departures > 0, 1800, Watch);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}");
+        Assert.False(walls.Shut(door.Key), "the door was left shut");
+        Assert.Contains("opening the door", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+        Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
     public void WithTheSitesCratesInTheHandsFetchTheRestOfTheYardsOnFoot()
     {
         // Note 403 (GDD App. F.3 "work the yard together"; queue #89's loot on every siding): the crates by the site's own

@@ -231,6 +231,48 @@ public class HoundRunTests
     }
 
     [Fact]
+    public void TheForwardGunnerGoesForwardOntoTheEngineAndAnswersTheLaneAhead()
+    {
+        // Note 414: a bot crew's second gunner, put down on car 2's roof, walks forward, jumps onto the engine's hood, goes
+        // round the stack to the gun's seat and answers the pair coming in ahead.
+        var e = AllAhead with { Director = AllAhead.Director with { Run = AllAhead.Director.Run with { AfterMetres = 2000 } } };
+        var n = new Night(4, 21, enemies: e);
+        int engine = n.Train.Dynamics.Consist.Vehicles[0].Id, car2 = n.Train.Dynamics.Consist.Vehicles[2].Id;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car2, 0, P);
+        var gunner = new GunnerBot(Tuning.Combat.Guns) { Forward = true };
+        Assert.Equal("forward-gunner", gunner.Name);
+        var guns = Tuning.Combat.Guns;
+        var d = n.World.Director!;
+        double seated = -1;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+        {
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            if (seated < 0 && Guns.MannedGun(n.Crew[1], n.Train, guns) == engine && n.Crew[1].Has(PlayerFlags.Seated))
+                seated = n.World.ElapsedSeconds;
+        }
+        Assert.True(seated >= 0, $"never seated at the engine's gun: on {n.Crew[1].Parent} {n.Crew[1].Surface} at {n.Crew[1].Position}");
+        Assert.True(seated < 60, $"seated after {seated} s");
+        var run = Assert.Single(d.HoundRuns);
+        n.Run(R.AheadMetres / 21 + E.CinderHounds.HowlSeconds + 4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var (scattered, killed, boarded) = d.RunOutcome(run.Pack);
+        Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
+        n.AssertFair();
+    }
+
+    [Theory]
+    [InlineData(5, false)]
+    [InlineData(6, true)]
+    [InlineData(8, true)]
+    public void ABotCrewOfSixOrMoreHasAForwardGunnerInItsLastPlace(int count, bool forward)
+    {
+        var crew = Enumerable.Range(0, count).Select(i => BotCrew.Make(i, count, null, Tuning.Combat, P, 1)).ToList();
+        Assert.Equal(forward ? 1 : 0, crew.Count(b => b is GunnerBot { Forward: true }));
+        Assert.Equal(1, crew.Count(b => b is GunnerBot { Forward: false }));
+        if (forward)
+            Assert.True(crew[^1] is GunnerBot { Forward: true });
+    }
+
+    [Fact]
     public void SlowingStartsTheCountAgain()
     {
         // Run most of the way to a run, slow under stopSpeed for a second, and the count's gone: it takes the whole
