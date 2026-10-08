@@ -7,7 +7,8 @@ namespace DarkTerritory.Sim.Run;
 
 /// <summary>
 /// An open house's door in the world (note 401): its key (<see cref="StopWalls.DoorKey"/>), the middle of its doorway on
-/// the house's outside edge at the floor, its way out (level, a unit vector), and which house it's a door of.
+/// the house's outside edge at the floor, its way out (level, a unit vector), and which house it's a door of (a pair's
+/// cottages are a house each, note 453).
 /// </summary>
 public readonly record struct HouseDoor(int Key, Double3 At, Double3 Out, int House);
 
@@ -16,8 +17,9 @@ public readonly record struct HouseDoor(int Key, Double3 At, Double3 Out, int Ho
 /// doorway has a door, hanging open as the ransack left it. A crewmate on foot holds Use at it to shut it, or to open it
 /// again (<see cref="World"/>'s crew act, the host's; the doors shut replicate). Shut, it's a wall in the doorway like any
 /// other (<see cref="Near"/>): the crew, what they carry and drop, a cannon ball and whatever hunts them stop at it, and the
-/// bots' way round the village (<see cref="Bots.FootPath"/>) goes round. A house with every door shut is an enclosed space
-/// (<see cref="PlayerMotor.Space"/>), as a car with its doors shut is: the Choir passes over whoever's in it (GDD §21:
+/// bots' way round the village (<see cref="Bots.FootPath"/>) goes round. A house with its door shut is an enclosed space
+/// (<see cref="PlayerMotor.Space"/>), as a car with its doors shut is (a pair of cottages is two, each behind its own door,
+/// note 453): the Choir passes over whoever's in it (GDD §21:
 /// "anyone ... not behind a closed door"), and voices through its walls are muffled.
 /// </summary>
 public sealed partial class StopWalls
@@ -29,8 +31,22 @@ public sealed partial class StopWalls
     List<HouseSpace> _houses = [];
     List<int> _sealed = [];
 
-    /// <summary>An open house as a space: its plan, its frame in the world (origin, axis, across; level), its doors' keys.</summary>
-    sealed record HouseSpace(StopBuilding B, Double3 Origin, Double3 Ex, Double3 Ey, int[] Doors);
+    /// <summary>
+    /// An open house as a space: its plan, its frame in the world (origin, axis, across; level), its doors' keys, and which of
+    /// its parts it is when that part's a home of its own (a pair's cottage, note 453), or −1 for all of them.
+    /// </summary>
+    sealed record HouseSpace(StopBuilding B, Double3 Origin, Double3 Ex, Double3 Ey, int[] Doors, int Part = -1)
+    {
+        /// <summary>Whether a world point stands inside it (within 3 m of its floor).</summary>
+        public bool Holds(Double3 p)
+        {
+            var d = p - Origin;
+            if (Math.Abs(d.Y) >= 3)
+                return false;
+            double x = d.X * Ex.X + d.Z * Ex.Z, y = d.X * Ey.X + d.Z * Ey.Z;
+            return Part < 0 ? InParts(B, x, y) : B.Parts[Part] is var q && Math.Abs(x - q.X) <= q.Length / 2 + 1e-9 && Math.Abs(y - q.Y) <= q.Width / 2 + 1e-9;
+        }
+    }
 
     /// <summary>
     /// A door's key: its stop's place in the route's features, its building and which of the building's doorways (a pair of
@@ -97,12 +113,8 @@ public sealed partial class StopWalls
     public int ShutIn(Double3 p)
     {
         foreach (int h in _sealed)
-        {
-            var house = _houses[h];
-            var d = p - house.Origin;
-            if (Math.Abs(d.Y) < 3 && InParts(house.B, d.X * house.Ex.X + d.Z * house.Ex.Z, d.X * house.Ey.X + d.Z * house.Ey.Z))
+            if (_houses[h].Holds(p))
                 return h;
-        }
         return -1;
     }
 
@@ -113,18 +125,16 @@ public sealed partial class StopWalls
     public int HouseAt(Double3 p)
     {
         for (int h = 0; h < _houses.Count; h++)
-        {
-            var house = _houses[h];
-            var d = p - house.Origin;
-            if (Math.Abs(d.Y) < 3 && InParts(house.B, d.X * house.Ex.X + d.Z * house.Ex.Z, d.X * house.Ey.X + d.Z * house.Ey.Z))
+            if (_houses[h].Holds(p))
                 return h;
-        }
         return -1;
     }
 
     /// <summary>
     /// An open house's doors (from <see cref="Of"/>): a wall in each doorway, that stands only while it's shut, and the house as
-    /// a space. <paramref name="place"/> stands a box in the house's frame in the world, with its door's key.
+    /// a space; a pair of cottages as two, each its own door's (note 453: they're 0.4 m apart, no way between them, and one
+    /// shut up was outside while the other's door stood open). <paramref name="place"/> stands a box in the house's frame in
+    /// the world, with its door's key.
     /// </summary>
     void AddHouse(int feature, int building, StopBuilding b, RailLine line, RouteFeature f, Func<double, double, double, double, int, Wall> place)
     {
@@ -134,8 +144,13 @@ public sealed partial class StopWalls
         var ey = (Run.StopWorld(line, f, InHouse(b, 0, 1)) - origin) with { Y = 0 };
         double t = WallThickness, half = DoorWidth / 2;
         var keys = new List<int>();
+        var doorways = Doorways(b).ToList();
+        // A home of its own behind each door when there's more than one, each in a part of its own (a pair's cottages): the
+        // part its doorway's in.
+        var parts = doorways.Select(w => b.Parts.ToList().FindIndex(q => Math.Abs(w.In.X - q.X) <= q.Length / 2 && Math.Abs(w.In.Y - q.Y) <= q.Width / 2)).ToList();
+        bool apart = doorways.Count > 1 && parts.All(q => q >= 0) && parts.Distinct().Count() == parts.Count;
         int k = 0;
-        foreach (var (outside, inside) in Doorways(b))
+        foreach (var (outside, inside) in doorways)
         {
             // The doorway's middle on the house's outside edge, and its way out (along an axis of the house: its walls are).
             double nx = outside.X - inside.X, ny = outside.Y - inside.Y, len = Math.Sqrt(nx * nx + ny * ny);
@@ -148,9 +163,13 @@ public sealed partial class StopWalls
             var at = Run.StopWorld(line, f, InHouse(b, mx, my));
             var way = (Run.StopWorld(line, f, InHouse(b, mx + nx, my + ny)) - at) with { Y = 0 };
             _doors.Add(new HouseDoor(key, at, way.Normalized, _houses.Count));
-            keys.Add(key);
+            if (apart)
+                _houses.Add(new HouseSpace(b, origin, ex.Normalized, ey.Normalized, [key], parts[k - 1]));
+            else
+                keys.Add(key);
         }
-        _houses.Add(new HouseSpace(b, origin, ex.Normalized, ey.Normalized, [.. keys]));
+        if (!apart)
+            _houses.Add(new HouseSpace(b, origin, ex.Normalized, ey.Normalized, [.. keys]));
     }
 
     /// <summary>A copy of these walls (<see cref="Clear"/>) shares their doors, and which are shut.</summary>

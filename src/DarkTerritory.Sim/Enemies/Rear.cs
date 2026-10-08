@@ -166,21 +166,38 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
 
     /// <summary>
     /// A flank lane (note 418): in across the open ground, keeping pace, and aboard the car it comes alongside (not the
-    /// engine's hood: note 338), on its side, once it's at the car's edge.
+    /// engine's hood: note 338), on its side, once it's at the car's edge. Abeam the engine (note 443), it falls back along
+    /// it as it comes in, to be alongside the first car behind it at the edge.
     /// </summary>
     void RunIn(EnemyContext ctx)
     {
         var run = ctx.World.Director?.Tuning.Run ?? new HoundRunTuning();
         var train = ctx.Train;
         double edge = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id].Shape.HalfWidth + 0.6;
-        if (Math.Abs(Lateral) > edge)
+        var (best, local, z) = Alongside(train);
+        if (best < 0)
+            return;
+        double left = Math.Abs(Lateral) - edge;
+        if (left > 0)
         {
-            Lateral -= Math.Sign(Lateral) * Math.Min(Math.Abs(Lateral) - edge, run.FlankSpeed * SimConstants.TickSeconds);
+            double step = Math.Min(left, run.FlankSpeed * SimConstants.TickSeconds);
+            Lateral -= Math.Sign(Lateral) * step;
+            // The way along to the nearest of that car, made in step with the way in (local −Z is up the line).
+            LineDistance += (local - z) * (step / left);
             return;
         }
+        ctx.World.Director?.RunnerEnded(Pack, 2);
+        var shape = train.Frames[best].Shape;
+        Attached = best;
+        Local = new Double3(Lateral > 0 ? 0.6 : -0.6, shape.RoofHeight, z);
+    }
+
+    /// <summary>The car (not the engine) nearest along the train to where this runner is, where it is on it, and the nearest of it it can leap onto.</summary>
+    (int Car, double Local, double Z) Alongside(TrainOnLine train)
+    {
         var at = WorldPosition(train);
         int best = -1;
-        double nearest = double.MaxValue, z = 0;
+        double nearest = double.MaxValue, here = 0, z = 0;
         foreach (var v in train.Dynamics.Consist.Vehicles)
         {
             if (v.IsEngine)
@@ -188,14 +205,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             var f = train.Frames[v.Id];
             double local = f.ToLocal(at).Z, off = Math.Max(0, Math.Abs(local) - f.Shape.HalfLength);
             if (off < nearest)
-                (best, nearest, z) = (v.Id, off, Math.Clamp(local, -f.Shape.HalfLength + 1, f.Shape.HalfLength - 1));
+                (best, nearest, here, z) = (v.Id, off, local, Math.Clamp(local, -f.Shape.HalfLength + 1, f.Shape.HalfLength - 1));
         }
-        if (best < 0)
-            return;
-        ctx.World.Director?.RunnerEnded(Pack, 2);
-        var shape = train.Frames[best].Shape;
-        Attached = best;
-        Local = new Double3(Lateral > 0 ? 0.6 : -0.6, shape.RoofHeight, z);
+        return (best, here, z);
     }
 
     void Board(EnemyContext ctx)
@@ -262,6 +274,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double along = Local.Z;
         // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+        ctx.World.PackFires++;
     }
 
     /// <summary>A runner killed on the line (note 328: a ball on it) is counted for the run's report.</summary>

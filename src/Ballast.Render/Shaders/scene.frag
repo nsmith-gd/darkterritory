@@ -20,16 +20,17 @@ layout(set = 0, binding = 9) uniform sampler2DArray heroNormal;
 layout(set = 0, binding = 11) uniform sampler2DArray bigDiffuse;
 layout(set = 0, binding = 12) uniform sampler2DArray bigSpec;
 layout(set = 0, binding = 13) uniform sampler2DArray bigNormal;
+layout(set = 0, binding = 14) uniform sampler2DArrayShadow handShadow;
 
 float heroSlot(float layer) {
     int l = int(layer + 0.5);
-    return l >= 0 && l < 256 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+    return l >= 0 && l < 512 ? frame.heroOf[l >> 2][l & 3] : -1.0;
 }
 
 // How a layer moves (GreyboxRenderer.Motion): 1 the foliage, 2 water.
 float layerMotion(float layer) {
     int l = int(layer + 0.5);
-    return l >= 0 && l < 256 ? frame.motionOf[l >> 2][l & 3] : 0.0;
+    return l >= 0 && l < 512 ? frame.motionOf[l >> 2][l & 3] : 0.0;
 }
 
 layout(location = 0) in vec3 vPos;
@@ -248,6 +249,28 @@ float lampShadowAt(vec3 p, vec3 n) {
     float z = c.z - 0.0006;
     return 0.25 * (texture(lampShadow, vec3(uv + vec2(-0.6, -0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, -0.6) * texel, z))
                  + texture(lampShadow, vec3(uv + vec2(-0.6, 0.6) * texel, z)) + texture(lampShadow, vec3(uv + vec2(0.6, 0.6) * texel, z)));
+}
+
+// How much of the hand lamp reaches this point (MeshBuilder.ShadowLight): its cube's face the point lies along (the
+// axis it's furthest out on from the flame), four taps of that face's layer, as the headlamp's.
+float handShadowAt(vec3 p, vec3 n) {
+    if (frame.handColour.a < 0.5)
+        return 1.0;
+    vec3 d = p - frame.handPos.xyz;
+    vec3 a = abs(d);
+    int face = a.x >= a.y && a.x >= a.z ? (d.x > 0.0 ? 0 : 1) : a.y >= a.z ? (d.y > 0.0 ? 2 : 3) : (d.z > 0.0 ? 4 : 5);
+    vec4 ls = frame.handViewProj[face] * vec4(p + n * 0.025, 1.0);
+    if (ls.w <= 0.0)
+        return 1.0;
+    vec3 c = ls.xyz / ls.w;
+    vec2 uv = c.xy * 0.5 + 0.5;
+    if (c.z >= 1.0)
+        return 1.0;
+    float texel = 1.0 / 512.0;
+    float z = c.z - 0.0003;
+    float layer = float(face);
+    return 0.25 * (texture(handShadow, vec4(uv + vec2(-0.75, -0.75) * texel, layer, z)) + texture(handShadow, vec4(uv + vec2(0.75, -0.75) * texel, layer, z))
+                 + texture(handShadow, vec4(uv + vec2(-0.75, 0.75) * texel, layer, z)) + texture(handShadow, vec4(uv + vec2(0.75, 0.75) * texel, layer, z)));
 }
 
 // The moon's shadow: an orthographic map over the ground round the camera, filtered over a few texels (moonlight through
@@ -479,6 +502,20 @@ void main() {
         att *= att;
         light += lc * att * max(dot(n, ld), 0.0) * 1.6;
         spec += lc * att * pow(max(dot(n, normalize(ld + v)), 0.0), shininess) * 0.6;
+    }
+
+    // The hand lamp, as the practical lights but shadowed: what's between it and a surface throws its shadow there, and
+    // the shadows swing as the lamp swings in its carrier's fist (GDD 31).
+    if (frame.handPos.w > 0.0) {
+        vec3 d = frame.handPos.xyz - vPos;
+        float dist = length(d);
+        if (dist < frame.handPos.w) {
+            vec3 ld = d / max(dist, 1e-4);
+            float att = 1.0 - dist / frame.handPos.w;
+            att *= att * handShadowAt(vPos, n);
+            light += frame.handColour.rgb * att * max(dot(n, ld), 0.0) * 1.6;
+            spec += frame.handColour.rgb * att * pow(max(dot(n, normalize(ld + v)), 0.0), shininess) * 0.6;
+        }
     }
 
     vec3 colour = albedo * light + spec * specStrength * (vWear > 0.0 ? 0.55 + 0.45 * noise(vSurface / 16.0) : 1.0);

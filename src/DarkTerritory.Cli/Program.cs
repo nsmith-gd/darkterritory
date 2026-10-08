@@ -36,6 +36,9 @@ return args switch
     // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
     // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
     ["credits", ..] => CreditsCommands.Run(baseContent, args),
+    // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
+    // twin, and the mail to the studio it opens.
+    ["report", ..] => ReportCommands.Run(content, args),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
@@ -1230,6 +1233,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var back = ((site.ConveyorTail - site.ConveyorKnee) with { Y = 0 }).Normalized;
                 var right = Double3.Cross(back, Double3.Up);
                 camera = Camera.LookAt(site.ConveyorTail + back * 2 + right * 6 + Double3.Up * 4.5, Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.75), 70);
+                // --belt head: from the riser's side, along the track a way, up at the head's gantry, its chute and the riser
+                // (note 430; across the track a stop's sheds stand); --belt drive: at the drive house from the track's side, its
+                // flywheel and the starter.
+                var toTrack = ((site.ConveyorHead - site.ConveyorKnee) with { Y = 0 }).Normalized;
+                var alongTrack = Double3.Cross(toTrack, Double3.Up);
+                if (Str(args, "--belt", "") == "head")
+                    camera = Camera.LookAt(site.ConveyorKnee + alongTrack * 9 + toTrack * 1.5 + Double3.Up * 0.8, site.ConveyorHead - Double3.Up * 1.0, 68);
+                else if (Str(args, "--belt", "") == "drive")
+                    camera = Camera.LookAt(site.ConveyorTail + back * 6 + toTrack * 5 + Double3.Up * 1.2, site.ConveyorTail + back * 2 + Double3.Up * 0.4, 65);
             }
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Spout))
             {
@@ -1449,6 +1461,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
             run.Stock(searched, k, searched: true);
     }
+    if (look is not null && args.Contains("--reverser"))
+        look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var scene = new GreyboxScene
     {
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
@@ -1487,6 +1501,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).
+            // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
+            // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
+            : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
@@ -1521,6 +1538,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
+        // --unseen: the livestock not looking round at the eye and the crew (note 455), for the before.
+        Onlook = !args.Contains("--unseen"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
         FireGlow = args.Contains("--ruptured") ? 0 : args.Contains("--coal") ? GreyboxScene.FireLook(Opt(args, "--coal", 4), DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).FireboxCapacity) : 0.7f,
         // --spray: an extinguisher on every car fire, from the aisle (with --threats, the staged one: --view fire).
@@ -1729,6 +1748,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Tick = Staging.StrikeTick + (long)Math.Round(ago * SimConstants.TickRate);
         }
     }
+    // --scattered s (with --run, --run-ahead or --run-flank): the staged runners nearest the train scattered by a ball s seconds
+    // ago, at --speed (21 m/s), running off into the dark (note 451, GreyboxScene.Fleeing).
+    if (args.Contains("--scattered") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> runners)
+    {
+        foreach (var hound in runners.OfType<DarkTerritory.Sim.Enemies.CinderHound>().Where(h => h.Phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit).ToList())
+        {
+            runners.Remove(hound);
+            scene.Scattered(hound, Staging.StrikeTick, Opt(args, "--speed", 21));
+        }
+        scene.Tick = Staging.StrikeTick + (long)Math.Round(Opt(args, "--scattered", 1) * SimConstants.TickRate);
+    }
     // --dispersing s (with --threats): the staged Choir driven off s seconds ago, its ghosts going (GreyboxScene.Leaving).
     if (args.Contains("--dispersing") && scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> swarm)
     {
@@ -1859,6 +1889,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,
         lights = renderer.Stats.Lights,
+        // The hand lamp's cube (note 436): what its six faces drew.
+        handTriangles = renderer.Stats.HandTriangles,
         buildMs = Math.Round(buildMs, 2),
         width = width * scale,
         height = height * scale,
@@ -2404,10 +2436,18 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
-    // --menu crashed (note 411): the notice the game opens on after it stopped, two reports since it was last put away.
+    // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
+    var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
+    menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
+    menu.ProblemReport = () => reports.WriteProblem();
+    // --menu crashed (note 411): the notice the game opens on after it stopped, a real report behind it (note 452's SEND).
     if (screen == DarkTerritory.Game.Screen.Crashed)
-        menu.Crash = new DarkTerritory.Game.CrashNotice("C:/Users/Nick/AppData/Local/DarkTerritory/crashes",
-            "C:/Users/Nick/AppData/Local/DarkTerritory/crashes/crash-20261008-031522.txt", 2);
+    {
+        if (Directory.Exists(reports.Directory))
+            Directory.Delete(reports.Directory, recursive: true);
+        reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
+        menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
+    }
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with

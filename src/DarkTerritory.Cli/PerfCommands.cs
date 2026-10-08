@@ -53,6 +53,9 @@ static class PerfCommands
                     .Select(_ => new GreyboxRenderer(gpu, target.Width, target.Height, moonShadowSize: target.Eyes > 1 ? 1024 : 2048)).ToList();
             for (int e = 1; e < eyes.Count; e++)
                 eyes[e].ShadowsFrom = eyes[0];
+            // (A headset's hand lamp unshadowed, as VrView has it.)
+            foreach (var eye in eyes)
+                eye.HandShadows = target.Eyes == 1 || VrView.HandShadows;
             var all = eyes;
             foreach (var r in all)
                 look?.Dress(r);
@@ -107,9 +110,9 @@ static class PerfCommands
                             recorded += inRecord;
                             stats = r.Stats;
                             // A multiview pass's triangles go through the GPU once an eye.
-                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles;
-                            draws += stats.Draws + stats.LampDraws + stats.MoonDraws;
-                            maxDraws = Math.Max(maxDraws, Math.Max(stats.Draws, Math.Max(stats.LampDraws, stats.MoonDraws)));
+                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles + stats.HandTriangles;
+                            draws += stats.Draws + stats.LampDraws + stats.MoonDraws + stats.HandDraws;
+                            maxDraws = Math.Max(maxDraws, Math.Max(Math.Max(stats.Draws, stats.HandDraws), Math.Max(stats.LampDraws, stats.MoonDraws)));
                             if (f >= 0)
                                 foreach (var (pass, ms) in r.PassTimes())
                                 {
@@ -141,6 +144,7 @@ static class PerfCommands
                         sceneTriangles = stats.Triangles,
                         lampTriangles = stats.LampTriangles,
                         moonTriangles = stats.MoonTriangles,
+                        handTriangles = stats.HandTriangles,
                         lights = stats.Lights,
                         soupTriangles = mesh.Count / 3,
                         instances = mesh.Instances.Count,

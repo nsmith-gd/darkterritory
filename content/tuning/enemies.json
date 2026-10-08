@@ -869,7 +869,10 @@
       // its facing, so abeam its own car is the flank it has; abeam the middle of the train, neither gun reaches) and keeping
       // pace with the train, it howls, then runs in at flankSpeed m/s across the open ground and leaps onto the car it comes
       // alongside. The guard van's gun has it for about fifteen seconds from the howl.
-      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6,
+      // Of the night's flank pairs, every flankEngineEvery-th (the second of each two; note 443) comes abeam the engine's gun
+      // instead, to a train with a gun laid forward (with none laid back, every one does): the forward gun's flank, as abeam
+      // the guard van is the guard gun's. It runs in falling back along the engine, and leaps onto the first car behind it.
+      "flankEvery": 3, "flankOut": 70, "flankAbeam": 4, "flankSpeed": 6, "flankEngineEvery": 2,
       "flankBiomes": ["farmland", "plains", "hills", "mountain", "coast", "marsh", "dykeland", "contaminatedMarsh", "slag",
         "deadTown", "industrialRuin"]
     },

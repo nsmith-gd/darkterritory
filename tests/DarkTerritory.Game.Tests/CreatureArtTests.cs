@@ -496,6 +496,50 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void AHoundScatteredByABallRunsOffTheLineIntoTheDarkThenIsGone()
+    {
+        // GreyboxScene.Fleeing (note 451): a ball landing near a runner has it gone from the sim that tick; the scene that saw
+        // it last frame draws it running on, falling behind a running train and peeling off on its own side, turned the way
+        // it's going, until CreatureArt.HoundRunOffSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var pack = Staging.Run(train);
+        var hound = pack.OfType<CinderHound>().First(h => h.Phase == SpinePhase.Commit);
+        var near = train.Line.Sample(hound.LineDistance);
+        var start = hound.WorldPosition(train);
+        var eye = start + new Double3(0, 6, 0) + Double3.Cross(near.Tangent, Double3.Up).Normalized * (Math.Sign(hound.Lateral) * -12);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = pack, Tick = Staging.StrikeTick };
+        // The hounds drawn, each by where it stands (each is one model instance) and the way it faces (its model's −Z).
+        List<(Vector3 At, Vector3 Facing)> Hounds(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("cinder_hound", StringComparison.OrdinalIgnoreCase))
+                .Select(i => (i.Model.Translation, Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, i.Model) with { Y = 0 })))];
+        }
+        var there = Hounds(-1.0 / Sim.SimConstants.TickRate);
+        Assert.Equal(pack.Count(e => e is CinderHound), there.Count);
+        // Running with the train, it faces along the line: that's the model's −Z.
+        var rel = start - eye;
+        var was = there.MinBy(h => (h.At - new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z)).Length());
+        var along = Vector3.Normalize(new Vector3((float)near.Tangent.X, 0, (float)near.Tangent.Z));
+        var outward = Vector3.Normalize(new Vector3((float)(start.X - near.Position.X), 0, (float)(start.Z - near.Position.Z)));
+        Assert.True(Vector3.Dot(was.Facing, along) > 0.9f, $"facing {was.Facing} along {along}");
+        // Scattered at 21 m/s (the scene's speed is the train's: this one's standing, so it runs on ahead of where it was).
+        pack.Remove(hound);
+        scene.Scattered(hound, Staging.StrikeTick + 1, 21);
+        var off = Hounds(2).Except(there).ToList();
+        var gone = Assert.Single(off);
+        var moved = gone.At - was.At;
+        Assert.True(Vector3.Dot(moved, outward) > 9, $"out across the line: {Vector3.Dot(moved, outward)} m");
+        Assert.True(Vector3.Dot(moved, along) > 20, $"on along it, slowing: {Vector3.Dot(moved, along)} m");
+        Assert.True(Vector3.Dot(gone.Facing, outward) > 0.5f, $"turned off the line: facing {gone.Facing}, out {outward}");
+        Assert.Equal(there.Count - 1, Hounds(CreatureArt.HoundRunOffSeconds + 0.2).Count);
+    }
+
+    [Fact]
     public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
     {
         // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in

@@ -694,10 +694,25 @@ public static class StructureKit
             case FacilityKind.MilitaryDepot:
                 {
                     // A watchtower at the gate end, sandbag walls along the front, Nissen huts behind, a line of
-                    // barbed-wire posts between the depot and the line.
+                    // barbed-wire posts between the depot and the line. The modelled ones where they're built
+                    // (facility_pieces nissen_hut, wire_fence, powder_magazine, note 461): the huts' corrugated half-rounds,
+                    // their doors behind blast walls; the wire on cranked pickets, its cranks to the line, its gate by the
+                    // watchtower 12 m wide where the crates are stacked (facilities.json "crates": the stack at -10 to -13,
+                    // 3 m out, and the heavy ones at -4), clear of the winch's sled run at -33; and behind the huts,
+                    // banked round with earth, the powder magazine its cargo comes out of ("best payout, worst cargo").
                     Piece(k, "watchtower", s * 6, -20, Facing(s));
                     for (float z = -12; z <= 12; z += 3)
                         Piece(k, "sandbags", s * 5, z, MathF.PI / 2);
+                    if (k.Look is { } built && PropArt.Of(built).Get("nissen_hut") is not null)
+                    {
+                        foreach (float z in new[] { -18f, 0, 18 })
+                            Piece(k, "nissen_hut", s * 17, z, Facing(s));
+                        for (float z = -27; z <= 27; z += 6)
+                            if (z is not (-15 or -9))
+                                Piece(k, "wire_fence", s * 3.5f, z, Facing(s));
+                        Piece(k, "powder_magazine", s * 31, 10, Facing(s));
+                        break;
+                    }
                     k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
                     var hut = new List<Vector2>();
                     for (int i = 0; i <= 10; i++)
@@ -738,10 +753,15 @@ public static class StructureKit
             case FacilityKind.Switchyard:
                 {
                     // The signal box that ran the yard, looking out over it, and a water tower with its spout swung
-                    // out over the track; a goods shed behind.
+                    // out over the track; a goods shed behind. The modelled shed where it's built (facility_pieces
+                    // goods_shed, note 461): weatherboard and slate, its dock along the front under a canopy, doors open,
+                    // half across and barred, the office's lamp still lit.
                     Piece(k, "signal_box", s * 9, -6, Facing(s));
                     Piece(k, "water_tower", s * 6, 22, Facing(s));
-                    WorksHouse(k, s * 24, -4, 10, 30, 7, "wood_grey");
+                    if (k.Look is { } built && PropArt.Of(built).Get("goods_shed") is not null)
+                        Piece(k, "goods_shed", s * 24, -4, Facing(s));
+                    else
+                        WorksHouse(k, s * 24, -4, 10, 30, 7, "wood_grey");
                     break;
                 }
             case FacilityKind.WreckYard:

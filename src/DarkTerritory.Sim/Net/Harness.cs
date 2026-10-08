@@ -191,9 +191,11 @@ public sealed record SlackReport(double Max, double Over);
 
 /// <summary>
 /// A hound run (note 328): when (s into the night, km along), its size, the crew alive, and its runners scattered by a ball,
-/// killed, and aboard; and how many of them came from ahead, for the forward gun (note 405), and in from the flanks (note 418).
+/// killed, and aboard; and how many of them came from ahead, for the forward gun (note 405), and in from the flanks (note 418),
+/// of those abeam the engine (note 443).
 /// </summary>
-public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded, int Ahead = 0, int Flank = 0);
+public sealed record HoundRunReport(double Seconds, double Km, int Size, int Active, bool Hot, int Scattered, int Killed, int Boarded, int Ahead = 0, int Flank = 0,
+    int FlankEngine = 0);
 
 public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictionary<string, int> Spawned, IReadOnlyDictionary<string, int> Punishes,
     IReadOnlyDictionary<string, int> DeathsByCause, int FairnessViolations, bool Derailed, double ChoirPeak, double MeanCargoIntegrity, int RoundsFired)
@@ -226,7 +228,14 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
     /// <summary>Draggers put on a truss's top chord ahead of the fast train (note 435).</summary>
     public int TrussDraggers { get; init; }
+    /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
+    public int PackFires { get; init; }
+    /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
+    public GannetReport Gannet { get; init; } = new(0, 0, 0);
 }
+
+/// <summary>The Gannet's passes over a night (note 454): how often it hung over a walker, folded on one, and stabbed one.</summary>
+public sealed record GannetReport(int Hangs, int Folds, int Stabs);
 
 /// <summary>
 /// The night's upkeep (orchestrator.md §5.1): hot boxes come and caught (note 331), lamps guttering and gone out (note 346),
@@ -578,9 +587,12 @@ public static class Harness
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
+                PackFires = host.World.PackFires,
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
-                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack)))],
+                    r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
+                    d.FlankEngineRunners(r.Pack)))],
                 TrussDraggers = d.TrussDraggers,
+                Gannet = new GannetReport(d.GannetPasses.Hangs, d.GannetPasses.Folds, d.GannetPasses.Stabs),
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),

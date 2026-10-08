@@ -66,6 +66,10 @@
     // one's shut or opened as a hearing player is; and shut in anywhere while they besiege it, the beating on its door.
     "crew-house-door.shut": "A DOOR SLAMMING SHUT",
     "crew-house-door.open": "A DOOR CREAKING OPEN",
-    "cs-choir.bang-door": "BANGING ON THE DOOR"
+    "cs-choir.bang-door": "BANGING ON THE DOOR",
+    // A truss's Dragger (note 444): its weight landing on the roof of a car with someone on it, before its grab; with
+    // nobody up there, its fall onto the track behind.
+    "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
+    "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND"
   }
 }
