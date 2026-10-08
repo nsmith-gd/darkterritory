@@ -50,8 +50,8 @@ LASH = [(0.8, 0.0, 1.47)]
 for _k in range(4):
     LASH.append((0.8, 0.0, 1.47 - 0.165 * (_k + 1)))
 EXTRA = [Bone(f"chain_{k + 1:02d}", "hand_r" if k == 0 else f"chain_{k:02d}", LASH[k], LASH[k + 1]) for k in range(4)]
-# The lamp on its chain at his right hip, hung from the belt.
-LAMP_TOP = Vector((0.12, 0.12, 1.07))
+# The lamp on its chain at his right hip, hung off the belt on an iron hook that holds it out clear of the coat.
+LAMP_TOP = Vector((0.27, 0.03, 1.04))
 EXTRA.append(Bone("lamp", "pelvis", tuple(LAMP_TOP), tuple(LAMP_TOP + Vector((0, 0, -0.2)))))
 sk = rig.human(HEIGHT, arm=1.12, width=0.95, fingers=True, sockets=False, extra=EXTRA)
 sk.build()
@@ -574,8 +574,8 @@ chains.tube([end + Vector((0, 0, 0.01)), end + Vector((0, 0, -0.05)), end + Vect
 lamp = kit.part("lamp", smooth=False)
 L0 = LAMP_TOP + Vector((0, 0, -0.2))
 # The hook off the belt it hangs from, and its chain: four links down to the bail.
-lamp.tube([LAMP_TOP + Vector((0, -0.02, 0.02)), LAMP_TOP + Vector((0, 0.01, 0.01)), LAMP_TOP + Vector((0, 0.008, -0.012))], [0.006, 0.006, 0.005], 4,
-          IRON, "pelvis", ref=(1, 0, 0))
+lamp.tube([Vector((0.15, 0.03, 1.02)), Vector((0.21, 0.03, 1.045)), LAMP_TOP + Vector((0, 0, 0.012)), LAMP_TOP + Vector((0.004, 0, -0.012))],
+          [0.009, 0.008, 0.007, 0.005], 5, IRON, "pelvis", ref=(0, 1, 0))
 lamp.tube([L0 + Vector((0, 0, -0.14)), L0 + Vector((0, 0, -0.13)), L0 + Vector((0, 0, -0.02)), L0], [0.05, 0.054, 0.054, 0.046], 10, BRASS, "lamp",
           ref=(0, 1, 0), cap0=True)
 lamp.tube([L0, L0 + Vector((0, 0, 0.03)), L0 + Vector((0, 0, 0.045))], [0.046, 0.03, 0.012], 10, BRASS, "lamp", ref=(0, 1, 0), cap1=True)
@@ -583,7 +583,7 @@ lamp.blob(L0 + Vector((0, 0.05, -0.075)), (0.03, 0.012, 0.03), 10, 4, GLASS, "la
 lamp.tube([L0 + Vector((0, 0.044, -0.075)), L0 + Vector((0, 0.058, -0.075))], [0.036, 0.036], 10, BRASS, "lamp", ref=(0, 0, 1))
 bail = [L0 + Vector((-0.04, 0, 0.0)), L0 + Vector((-0.03, 0, 0.05)), L0 + Vector((0, 0, 0.068)), L0 + Vector((0.03, 0, 0.05)), L0 + Vector((0.04, 0, 0.0))]
 lamp.tube(bail, [0.004] * 5, 4, BRASS, "lamp", ref=(0, 1, 0))
-for k in range(4):
+for k in range(5):
     c = LAMP_TOP + Vector((0, 0, -0.03 - 0.03 * k))
     w = Vector((0.012, 0, 0)) if k % 2 else Vector((0, 0.012, 0))
     lamp.tube([c + Vector((0, 0, 0.02)), c + w, c + Vector((0, 0, -0.02)), c - w], [0.0045] * 4, 3, CHAIN, "lamp", ref=(0, 0, 1), loop=True)

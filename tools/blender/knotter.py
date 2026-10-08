@@ -3,21 +3,22 @@ rope-bodied parasite that becomes the coupling.
 
 A length of ship's hawser come alive: a body thick as a thigh, laid up of three twisted strands of pale grey-white flesh
 exactly like a hawser's lay, the strands' ridges worn and dirty; black whipping (tarred twine) bound round it every metre
-or so; rows of small pale hooked legs along its underside like a centipede's; and each end a knot of jointed grey claws,
-hooked and grasping, that clamp the cars' end sills. Stretched across a coupling it's 5 m long and taut.
+or so; rows of small pale hooked legs along its underside like a centipede's; and each end a knot, the strands wrung
+round into a fist, clustered with ten short thick jointed grey claws hooked in like a fist's knuckles, that clamp the cars'
+end sills. Stretched across a coupling it's 5 m long and taut.
 
 How it's made (the Look Review: organic, not boxes; the Gannet's and the Ribbit's way, notes 340, 362): its body is one
 skin (tools/blender/flesh.py): the three strands laid up round each other (each a term of a signed-distance field, their
-grooves kept sharp where they meet), the whipping's bands swelling the lay, each end's knot (the strands turned back on
-themselves into a fist) and the roots of the claws growing out of it: the union of their solids settled onto that field,
+grooves kept sharp where they meet), the whipping's bands swelling the lay, each end's knot (the strands swelling and
+wrung round tighter into a fist, one turned back over it) and the roots of the claws growing out of it: the union of their solids settled onto that field,
 QuadriFlowed and smooth-shaded, so the strands run into the knots and the knots into the claws with no seam. Over it: the
 legs in their two rows, and the claws' jointed fingers with their hooked horn tips. Its colour (and the strands' fibres,
 the twine's turns and the grime, too fine for the mesh) is baked into one atlas by tools/models/recipes/knotter.py; built
 alone (this script), it wears the shared tiling textures.
 
 SK_Knotter: a root at its middle, 33 segments along it (flat under the root: CreatureArt lays them along the gap's span,
-however wide it's been forced, sagging or coiled), and at each end the knot's bone and its five clawed fingers. At rest it
-lies straight along +Y (the engine's -Z), 4.8 m from knot to knot and 5.6 m claw tip to claw tip, its middle on the origin:
+however wide it's been forced, sagging or coiled), and at each end the knot's bone and its ten claws. At rest it
+lies straight along +Y (the engine's -Z), 4.8 m from knot to knot and 5.4 m claw tip to claw tip, its middle on the origin:
 the origin is the gap's middle at the coupler's height (the sim's Local). A large monster's budget (GDD §27). Clips (§31:
 still, then abrupt; laid along the span by the engine): creep (writhing up out from under, the claws feeling), clamp
 (the claws closing on the sills), force (swelling and twisting, the cars pushed apart), taut (held, the lay creaking round),
@@ -44,7 +45,7 @@ rig.reset()
 SPAN = 5.0
 SEGMENTS = 33
 END = 2.4                   # its knots' centres either side of the middle (m along it)
-REACH = 2.79                # its claws' tips
+REACH = 2.7                 # its claws' tips
 RADIUS = 0.104              # the lay's outside, over the strands' ridges
 LAY_R, STRAND_R = 0.054, 0.05
 PITCH = 0.42                # one turn of the lay (m)
@@ -134,9 +135,18 @@ body = kit.part("body")
 F = fl.Flesh(body, "knotter flesh")
 
 
+KNOT_TWIST = 1.3            # the extra turns the strands take round each knot, wrung tight into the fist
+
+
+def twist(y):
+    """The strands' extra turn at y: none along the lay, wrung round tighter and tighter into each knot."""
+    t = min(1.0, max(0.0, (abs(y) - (END - 0.2)) / 0.3))
+    return math.copysign(2 * math.pi * KNOT_TWIST * t * t * (3 - 2 * t), y)
+
+
 def strand_at(y, k):
     """The centre of strand k at y along the lay (turning right-handed, as a hawser's)."""
-    a = 2 * math.pi * y / PITCH + 2 * math.pi * k / 3
+    a = 2 * math.pi * y / PITCH + 2 * math.pi * k / 3 + twist(y)
     return math.cos(a) * LAY_R, math.sin(a) * LAY_R
 
 
@@ -183,7 +193,8 @@ def lay(P):
     s = 1 + 0.9 * np.exp(-((np.abs(y) - END) / 0.09) ** 2)
     d = None
     for k in range(3):
-        a = 2 * np.pi * y / PITCH + 2 * np.pi * k / 3
+        tw = np.clip((np.abs(y) - (END - 0.2)) / 0.3, 0.0, 1.0)
+        a = 2 * np.pi * y / PITCH + 2 * np.pi * k / 3 + np.sign(y) * 2 * np.pi * KNOT_TWIST * tw * tw * (3 - 2 * tw)
         cx, cz = np.cos(a) * LAY_R * s, np.sin(a) * LAY_R * s
         dk = np.hypot(P[:, 0] - cx, P[:, 2] - cz) * COS_ALPHA - STRAND_R * s * COS_ALPHA
         d = dk if d is None else fl._smin(d, dk, 0.006)
@@ -202,7 +213,7 @@ for wy in WHIP:
 for end, sy in (("f", 1), ("b", -1)):
     c = Vector((0, sy * END, 0))
     # A small core under the swollen strands, so the fist is solid where they part.
-    F.blob(c + Vector((0, sy * 0.03, 0)), (0.12, 0.08, 0.12), 0.03, FLESH, end_w(end), around=16, rings=8, fmat=under)
+    F.blob(c + Vector((0, sy * 0.03, 0)), (0.1, 0.07, 0.1), 0.02, FLESH, end_w(end), around=16, rings=8, fmat=under)
     # A strand's end looped back round over the fist (the knot's turn), laid as the rest is.
     loop = [c + Vector((math.cos(t) * 0.17, -sy * (0.0 + 0.07 * math.sin(t * 0.5) ** 2), math.sin(t) * 0.17)) for t in
             [2 * math.pi * j / 12 for j in range(13)]]

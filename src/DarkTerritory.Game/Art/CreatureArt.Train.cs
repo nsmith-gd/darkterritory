@@ -104,7 +104,7 @@ public sealed partial class CreatureArt
     // coiled under the coupling before it's forced the cars apart (m: the U it hangs in, coming up out from under).
     public const float KnotterEnd = 2.4f, KnotterCoiled = 3.6f;
     /// <summary>How far in from each end of the gap its knots lie (m): its claws reach on from them over the cars' end sills.</summary>
-    public const float KnotterInset = 0.35f;
+    public const float KnotterInset = 0.25f;
     // Its clamp onto the sills at the start of the force, and its slip under a foot at the start of the coil (clip lengths).
     public const double KnotterClampSeconds = 0.6, KnotterSlipSeconds = 0.5;
     // How it coils round whoever slipped: its radius (m), its turns, and from their feet how high it climbs them.

@@ -88,7 +88,7 @@ public class CreatureArtTests
         // The Brakeman a character (GDD §27: 4-10k), SK_Human with the lash's chain and the lamp's bone.
         ["brakeman"] = new(4000, 10000, 28, 40, ["walk", "wind", "flee", "cornered"], ["jump", "drop", "climb", "lash", "hit", "death"]),
         // The Knotter 5 m of rope as thick as a thigh: a large monster's (8-16k) lower half; SK_Knotter's segments and claws.
-        ["knotter"] = new(6000, 14000, 40, 55, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
+        ["knotter"] = new(6000, 14000, 40, 60, ["creep", "force", "taut", "coil", "exposed"], ["clamp", "slip", "hit", "death"]),
         // Hotbox a beast's (2-8k), the size of a dog; SK_Hotbox's plates, belly and sixteen legs.
         ["hotbox"] = new(2000, 8000, 35, 55, ["clamped", "knock", "glow", "out", "scuttle"], ["unfold", "snap", "prised", "hit", "death"]),
     };
@@ -160,9 +160,9 @@ public class CreatureArtTests
         var knotter = Get("knotter");
         Assert.InRange(knotter.Max.Z - knotter.Min.Z, 5.3f, 5.8f);
         Assert.InRange(Height(knotter), 0.15f, 0.5f);
-        // Hotbox (hotbox.md §3): about 1.1 m long and 0.4 m high.
+        // Hotbox (hotbox.md §3): about 1.1 m long and 0.4 m high under its carapace, its legs splayed out past it fore and aft.
         var hotbox = Get("hotbox");
-        Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.0f, 1.3f);
+        Assert.InRange(hotbox.Max.Z - hotbox.Min.Z, 1.3f, 1.65f);
         Assert.InRange(Height(hotbox), 0.3f, 0.5f);
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
