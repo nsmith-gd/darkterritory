@@ -26,5 +26,17 @@
     "greaseSeconds": 3,
     "reach": 3.0,
     "bogieInset": 1.6
+  },
+  // U3, a lamp guttering (note 346): a lit car's lamp running low. One starts, on a lit car with a room drawn at random,
+  // every everyMetres of the train's running (± jitter of it), none in the first firstAfterMetres, none in the yard or a
+  // fort, and never more guttering than there are crewmates alive. It flickers and dims, worse as it goes (the tell);
+  // whoever's in the car trims it with the lamp key, and it burns steady. Left outAfter seconds it goes out: the car is
+  // dark (Climbers make for an unlit car, App. A.4) until someone lights it again.
+  "lamp": {
+    "enabled": true,
+    "everyMetres": 3000,
+    "jitter": 0.5,
+    "firstAfterMetres": 3000,
+    "outAfter": 45
   }
 }
