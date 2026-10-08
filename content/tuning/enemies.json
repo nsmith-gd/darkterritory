@@ -574,7 +574,35 @@
     // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
     // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
     // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
-    "orchestrator": { "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1 },
+    "orchestrator": {
+      "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
+      // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
+      // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
+      // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom
+      // (holding them; else the nearest crewmate within onRadius m; else the nearest at a post that answers it below: a pack
+      // running behind is the gunner's); and their slack, the seconds on the run between stops (the train moving faster than
+      // drivingAbove, past the grace, out of the forts and facilities, short of the final approach) since they last had something to
+      // answer (a threat on them; an open hot box, note 331, on their car or, for a walker, anywhere on the train; or, in the
+      // cab, the train moving faster than drivingAbove m/s: the line and the fire are the driver's to answer). It
+      // counts whenever "on" is (the harness reports it); with census on too and minCrew or more alive it steers (a crew of
+      // one is App. B.1's as it was):
+      // - who's next: the free crewmate with the most slack, minSlack s or more; a kind answered at their post weighs
+      //   ×slackWeight; a kind answered only at posts nobody holds ×emptyPostWeight (not those in emptyPostExempt, whose
+      //   rule is the empty post: the Track Doll's cab);
+      // - slack presses: + slackPerSecond to the pressure each second for each crewmate at slackPress s or more;
+      // - perTarget: one threat on any one player: a kind whose every answering crewmate (at a post that answers it) has a
+      //   threat on them already weighs nothing (with all of them so, nothing comes that second).
+      "census": true, "minCrew": 2, "onRadius": 20, "drivingAbove": 0.5, "slackWeight": 2, "emptyPostWeight": 0.5, "emptyPostExempt": ["trackDoll"],
+      "minSlack": 30, "slackPress": 150, "slackPerSecond": 0.05, "perTarget": true,
+      // Which post answers what (orchestrator.md §3.1's table), by the names in "costs" (carFire: the trouble in the cars).
+      "answers": {
+        "cab": ["trackDoll", "switchman", "stoker"],
+        "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
+        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire"],
+        "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
+        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler"]
+      }
+    },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
     // the train, and not in a fort, is afoot. While anyone is, the night's pressure builds by + perSecond × the share of the
