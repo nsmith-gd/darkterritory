@@ -31,7 +31,7 @@ public sealed partial class WorldArt
     /// along the rail over them; a concrete floor at the ground's height; and over each roofed length its gables, its
     /// trusses and its pitched iron roof, seen from under it too. A gantry's cut between two lengths is left open.
     /// </summary>
-    void ShedShell(Kit k, StopLayout stop, int index, float height, string wall)
+    void ShedShell(Kit k, StopLayout stop, int index, float height, string wall, bool hoists = true)
     {
         var b = stop.Buildings[index];
         var t = _look.Walls;
@@ -110,7 +110,7 @@ public sealed partial class WorldArt
                     k.Rod(InKit(x, side * (w2 - th), height - 0.15f), InKit(x, 0, height + pitch - 0.22f), 0.07f);
                 k.Rod(InKit(x, 0, height - 0.15f), InKit(x, 0, height + pitch - 0.22f), 0.06f);
                 // A chain hoist off every other tie beam, its hook well over a head.
-                if (i % 2 == 1)
+                if (hoists && i % 2 == 1)
                 {
                     k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.4f);
                     BoxIn(k, x, 0.6, 0.12, 0.1, height - 0.75f, height - 0.35f);
@@ -145,6 +145,97 @@ public sealed partial class WorldArt
                 BoxIn(k, (rail0 + rail1) / 2, y + d.Side * 0.12, (rail1 - rail0) / 2 + 0.1, 0.04, ShellFloor + bay + 0.14f, ShellFloor + bay + 0.24f);
         }
     }
+
+    /// <summary>
+    /// An open barn, outbuilding or goods shed (note 417): the yard sheds' walk-in shell (no chain hoists: it's a farm's or
+    /// a goods agent's, not a works'), and what its finds are kept in, where the sim keeps them (<see cref="StopWalls.ShedKept"/>):
+    /// a barn's hayloft over the back of it with its ladder leant on the edge, or a workbench against the back wall with
+    /// its vice, its tools and a rack over it. The bench is the sim's solid box (<see cref="StopWalls.Benches"/>).
+    /// </summary>
+    /// <param name="rise">How far the ground under its footprint climbs over the ground at its middle (m): its boards are laid over it.</param>
+    void OpenShed(Kit k, StopLayout stop, int index, float height, string wall, float rise)
+    {
+        var b = stop.Buildings[index];
+        ShedShell(k, stop, index, height, wall, hoists: false);
+        double w2 = b.Width / 2, th = _look.Walls.WallM, l2 = b.Length / 2;
+        // Boards over the shell's concrete, a step up (as an open house's are): clear of the ground, which the terrain's mesh
+        // carries a little over the levelled height across a wide footprint, and where it climbs away from the line.
+        float floor = ShellFloor + MathF.Max(rise, 0) + BoardsUp, up = floor - ShellFloor;
+        k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+        BoxIn(k, 0, 0, l2 - th, w2 - th, ShellFloor, floor, Kit.Faces.All & ~Kit.Faces.NegY);
+        float loftAt = up + LoftFloor;
+        int door = StopWalls.ShedDoorSide(b);
+        // Across the shed toward its back wall, from the inner face out: y = -door * (w2 - th - d).
+        double Back(double d) => -door * (w2 - th - d);
+        bool loft = false;
+        foreach (var c in stop.Containers.Where(c => c.Building == index))
+        {
+            var (x, _, _, _) = StopWalls.ShedKept(b, c.Index);
+            if (c.Kind == ContainerKind.Hayloft)
+            {
+                if (!loft)
+                {
+                    // The loft: boards over the back of the barn its whole length, on a beam along its edge and posts.
+                    loft = true;
+                    double mid = Back(StopWalls.LoftDepth / 2), half = StopWalls.LoftDepth / 2;
+                    k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+                    BoxIn(k, 0, mid, l2 - th, half, loftAt - 0.1f, loftAt);
+                    k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0, tile: 1.3f);
+                    BoxIn(k, 0, Back(StopWalls.LoftDepth - 0.08), l2 - th, 0.08, loftAt - 0.3f, loftAt - 0.1f);
+                    // (Not where a ladder leans.)
+                    var ladders = stop.Containers.Where(h => h.Building == index && h.Kind == ContainerKind.Hayloft).Select(h => StopWalls.ShedKept(b, h.Index).X).ToList();
+                    for (double px = -l2 + th + 0.6; px <= l2 - th - 0.5; px += 3.2)
+                        if (ladders.All(lx => Math.Abs(lx - px) > 0.6))
+                            BoxIn(k, px, Back(StopWalls.LoftDepth - 0.08), 0.07, 0.07, floor, loftAt - 0.3f);
+                    // Hay up there, heaped against the wall and spilling to the edge, and a little fallen below.
+                    k.Use("ground_heath", Palette.HazardYellow * 0.55f, 1, 0, tile: 0.8f);
+                    for (double hx = -l2 + th + 0.9; hx < l2 - th - 0.6; hx += 1.7)
+                    {
+                        float tall = 0.5f + (float)((hx * 7.3 % 1 + 1) % 1) * 0.6f;
+                        BoxIn(k, hx, Back(0.55), 0.75, 0.5, loftAt, loftAt + tall);
+                    }
+                    BoxIn(k, x * 0.4, Back(StopWalls.LoftDepth + 0.5), 0.6, 0.35, floor, floor + 0.08f);
+                }
+                // The ladder, leant on the loft's edge, its foot out on the floor.
+                k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0, tile: 1.3f);
+                double top = StopWalls.LoftDepth - 0.05, foot = StopWalls.LoftDepth + StopWalls.LadderLean;
+                foreach (double side in new[] { -0.24, 0.24 })
+                    k.Rod(InKit(x + side, Back(foot), floor), InKit(x + side, Back(top), loftAt + 0.9f), 0.035f);
+                float span = loftAt + 0.9f - floor;
+                for (float r = 0.3f; r < span - 0.1f; r += 0.32f)
+                {
+                    double d = foot + (top - foot) * (r / span);
+                    k.Rod(InKit(x - 0.24, Back(d), floor + r), InKit(x + 0.24, Back(d), floor + r), 0.022f);
+                }
+            }
+            else if (c.Kind == ContainerKind.Bench)
+            {
+                // The workbench (the sim's box), its top and legs, a vice at one end, tools left on it, a rack on the wall over it.
+                double y = Back(StopWalls.BenchDepth), hw = StopWalls.BenchWidth, hd = StopWalls.BenchDepth;
+                k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0, tile: 1.1f);
+                BoxIn(k, x, y, hw, hd, up + 0.84f, up + 0.92f);
+                foreach (double lx in new[] { -hw + 0.08, hw - 0.08 })
+                    foreach (double ly in new[] { -hd + 0.08, hd - 0.08 })
+                        BoxIn(k, x + lx, y + ly, 0.05, 0.05, floor, up + 0.84f);
+                BoxIn(k, x, y, hw - 0.1, hd - 0.1, up + 0.25f, up + 0.29f);
+                k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+                BoxIn(k, x + hw - 0.18, y + door * (hd - 0.12), 0.1, 0.09, up + 0.92f, up + 1.06f);
+                BoxIn(k, x - 0.3, y + door * 0.05, 0.14, 0.04, up + 0.92f, up + 0.95f);
+                k.Rod(InKit(x + 0.15, y - door * 0.05, up + 0.94f), InKit(x + 0.48, y + door * 0.1, up + 0.94f), 0.012f);
+                k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+                BoxIn(k, x, Back(0.03), hw, 0.03, up + 1.45f, up + 2.05f);
+                k.Use("rust_heavy", Palette.IronGrey, 0.85f, 0.5f);
+                for (double tx = -hw + 0.25; tx < hw - 0.1; tx += 0.32)
+                    k.Rod(InKit(x + tx, Back(0.07), up + 1.95f), InKit(x + tx, Back(0.07), up + 1.55f), 0.015f);
+            }
+        }
+    }
+
+    /// <summary>The top of a barn's hayloft floor (m over the shed's floor): over a head, under the eaves.</summary>
+    const float LoftFloor = 3.0f;
+
+    /// <summary>How far an open barn's or shed's boards stand over its concrete where the ground's level (m): just clear of the terrain, and of a find lying on the ground.</summary>
+    const float BoardsUp = 0.06f;
 
     /// <summary>
     /// A Holdout's room as the sim stands it (one room, the whole footprint, its door where it's broken into: note 279):

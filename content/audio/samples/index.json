@@ -14624,6 +14624,66 @@
   "takes": 1,
   "sha": "fa8d2dbc8da70f20"
  },
+ "world-water/lake": {
+  "cue": "world-water.lake",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Still water lapping at a lake's stony shore: a wavelet every few seconds, slapping and sucking back",
+    "key": "lap",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "329f775198ff7e0b"
+ },
+ "world-water/river": {
+  "cue": "world-water.river",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A river running broad over stones: its wash, gurgles where it folds, the fizz of its surface",
+    "key": "run",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cb4b77848323c0e2"
+ },
+ "world-water/surf": {
+  "cue": "world-water.surf",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Atlantic's surf on a shingle beach: each wave breaking and the stones dragged rattling back",
+    "key": "shingle",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "bfc4941d60f64526"
+ },
+ "world-water/tide": {
+  "cue": "world-water.tide",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Fundy's tide far out over the red mud: its wash a long way off, the mud seeping and popping",
+    "key": "flats",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "09590b40719b7f2c"
+ },
  "world-wind/gale": {
   "cue": "world-wind.gale",
   "surface": null,

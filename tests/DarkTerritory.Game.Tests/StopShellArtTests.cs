@@ -121,4 +121,39 @@ public class StopShellArtTests
             : [BuildingKind.SignalBox, BuildingKind.LampRoom];
         Assert.Subset(kinds, expected.ToHashSet());
     }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:2")]
+    public void AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall(string spec)
+    {
+        // Note 417: where the sim keeps an open barn's or shed's find (StopWalls.ShedKept), against the wall across from its
+        // door, the art stands its hayloft (the loft's boards overhead) or its workbench (its top at a hand's height). Not
+        // at the door's wall: the same place mirrored across the shed has nothing at the bench's height.
+        int benches = 0, lofts = 0;
+        foreach (var (f, i, eye, tris, line) in Shells(spec))
+        {
+            var b = f.Stop!.Buildings[i];
+            if (!StopWalls.OpenShed(b))
+                continue;
+            string what = $"{spec} {b.Kind} at {f.Start + b.S:0}";
+            foreach (var c in f.Stop.Containers.Where(c => c.Building == i))
+            {
+                var (x, y, _, _) = StopWalls.ShedKept(b, c.Index);
+                if (c.Kind == ContainerKind.Bench)
+                {
+                    benches++;
+                    Assert.True(Hits(tris, At(line, f, b, x, y, 1.6, eye), At(line, f, b, x, y, 0.6, eye)).Any(), $"{what}: no bench where its find's kept");
+                    Assert.False(Hits(tris, At(line, f, b, x, -y, 1.6, eye), At(line, f, b, x, -y, 0.6, eye)).Any(), $"{what}: a bench at the door's wall");
+                }
+                else if (c.Kind == ContainerKind.Hayloft)
+                {
+                    lofts++;
+                    double under = y + Math.Sign(-y) * (StopWalls.LoftDepth / 2 - StopWalls.BenchDepth);
+                    Assert.True(Hits(tris, At(line, f, b, x, under, 1.8, eye), At(line, f, b, x, under, 3.4, eye)).Any(), $"{what}: no loft over its hayloft's ladder");
+                }
+            }
+        }
+        Assert.True(benches + lofts > 0, $"{spec}: no open barn or shed with a find");
+    }
 }

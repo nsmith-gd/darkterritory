@@ -690,13 +690,14 @@ public class HoldoutTests
         readonly Bots.CrewCalls _calls = new();
         uint _t;
 
-        public BotNight(int bots)
+        /// <param name="pick">The stop to come to (by default a Halt), with nothing just short of it to stop for first.</param>
+        public BotNight(int bots, Func<RouteFeature, bool>? pick = null)
         {
             for (ulong seed = 1; ; seed++)
             {
                 var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
                 // A Halt with nothing just short of it to stop for first.
-                if (route.Features.FirstOrDefault(f => f.Stop is not null && AHalt(f) && f.Start > 2_000
+                if (route.Features.FirstOrDefault(f => f.Stop is not null && (pick ?? AHalt)(f) && f.Start > 2_000
                         && !route.Features.Any(o => o != f && o.End > f.Start - 1_000 && o.Start < f.End)) is not { } site)
                     continue;
                 Route = route;
@@ -724,7 +725,7 @@ public class HoldoutTests
         }
 
         public byte PlayerId => Player.PlayerId!.Value;
-        public Holdout Lockup => Host.World.Holdouts!.All.Single(h => h.Site == Site);
+        public Holdout Lockup => Host.World.Holdouts!.All.First(h => h.Site == Site);
         public PlayerState Of(byte id) => Host.Players.First(p => p.Id == id).State;
 
         /// <summary>Runs the night on, each tick calling <paramref name="watch"/>; stops early once <paramref name="until"/> holds.</summary>
@@ -820,6 +821,33 @@ public class HoldoutTests
         Assert.True((back.Position - lockup.Inside).Length < 1);
         // And the driver's back up in the cab and away (the one playing climbs aboard as they like; it waits a while for them).
         n.Run(300, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
+        Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
+        Assert.False(driver.BreachingAlone);
+        Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");
+    }
+
+    [Fact]
+    public void ALoneDriverGoesRoundTheTreesToALockupFarOffTheLineAndBackToTheCab()
+    {
+        // Note 406 (queue #142): a Holdout's door can be most of Heed.HoldoutRange off the line, behind the lineside spruce
+        // (note 371). The driver went at it by the track-side walk, which keeps to the line's own along and across: into the
+        // trees, along them the wrong way, and out there till the dawn with the train on its brake (frontier:7, seed 2, a
+        // facility's lockup 160 m off). By the foot path, round the trees, and back by it to the cab.
+        var n = new BotNight(bots: 1, f => f.Kind == FeatureKind.Facility && Math.Abs(f.Stop!.Holdouts[0].Door.D) > 100);
+        n.KillThePlayer();
+        var driver = (Bots.ConductorBot)n.Crew[0].Bot;
+        byte driverId = n.Crew[0].Session.PlayerId!.Value;
+        double outAt = double.NaN;
+        n.Run(500, until: () => n.Lockup.State == HoldoutState.Freed, watch: () =>
+        {
+            if (double.IsNaN(outAt) && driver.BreachingAlone)
+                outAt = n.Host.Train.Dynamics.Distance;
+        });
+        Assert.False(double.IsNaN(outAt), "the driver got down");
+        Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 100);
+        var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
+        Assert.Equal(driverId, freed.By);
+        n.Run(400, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
         Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
         Assert.False(driver.BreachingAlone);
         Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");

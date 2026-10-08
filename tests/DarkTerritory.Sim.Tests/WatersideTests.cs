@@ -61,6 +61,32 @@ public class WatersideTests
     }
 
     [Theory]
+    [InlineData("frontier:3")]
+    [InlineData("deadLines:8")]
+    [InlineData("local:4")]
+    public void ALakesRimStandsOverItsWater(string spec)
+    {
+        // Out along rays from each lake's middle to its shore, the land just past it (3 m and its rim's crest out) is over
+        // the water (tiers.json lakes.rimM; ARCHITECTURE §8 note 424): no lake's water stands over its own shore. Before the
+        // rim, frontier:3's second lake was 6.5 m over the land on 45 of 120 rays.
+        var (plan, _, terrain) = Night(spec);
+        var rules = plan.Rules.Terrain.Lakes;
+        Assert.NotEmpty(plan.Lakes);
+        foreach (var lake in plan.Lakes)
+            for (int i = 0; i < 120; i++)
+            {
+                double a = i * Math.Tau / 120, cx = Math.Cos(a), cz = Math.Sin(a), r = 1;
+                while (TerrainField.LakeMetric(lake, lake.X + cx * r, lake.Z + cz * r) < 1)
+                    r += 0.5;
+                foreach (double past in new[] { 3, rules.RimCrestM })
+                {
+                    double h = terrain.Height(lake.X + cx * (r + past), lake.Z + cz * (r + past));
+                    Assert.True(h > lake.LevelM, $"{spec} {lake.Id}: the land {past} m past its shore is {h - lake.LevelM:0.00} m over its water");
+                }
+            }
+    }
+
+    [Theory]
     [InlineData("local:3")]
     [InlineData("frontier:7")]
     [InlineData("deadLines:3")]

@@ -26,6 +26,8 @@ public sealed partial class StopHand
     int? _putDown;
     int _hidingTicks;
     bool _houseSought;
+    /// <summary>In a house another of us took, behind its door: the door's theirs to shut and open (note 406).</summary>
+    bool _guest;
     readonly HashSet<int> _noHouse = [];
 
     /// <summary>Where it is in getting behind a door from the Choir (for tests and traces): "" when it isn't.</summary>
@@ -61,6 +63,7 @@ public sealed partial class StopHand
             _hidingTicks = 0;
             _noHouse.Clear();
             _houseSought = false;
+            _guest = false;
             _hiding = Hiding.Aboard;
         }
         _hidingTicks++;
@@ -70,6 +73,18 @@ public sealed partial class StopHand
         {
             case Hiding.Aboard:
                 {
+                    // Note 406: already inside a house another of us has taken (two hands searching it, one took it for
+                    // shelter and shut the door on the pair): behind its door too. It stays, and leaves the door to them; it
+                    // went for the train before, from inside the shut house, and stood at the wall till dawn.
+                    if (walls is not null && walls.HouseAt(here) is var inHouse and >= 0 && calls.SpotClaimed(HouseKey(inHouse), member)
+                        && walls.HouseDoors.Any(d => d.House == inHouse))
+                    {
+                        _door = walls.HouseDoors.First(d => d.House == inHouse);
+                        _guest = true;
+                        _hiding = Hiding.In;
+                        calls.Out(member, true);
+                        return new PlayerIntent();
+                    }
                     // A house to go into, if there's one nearer than the train (and walkable); else the walker's way aboard.
                     // Looked for once (and again only when one's turned out no good): a way's planned to each one tried.
                     if (!_houseSought && self.Parent == PlayerState.World && walls is not null && _hidingTicks < HouseGiveUpTicks
@@ -151,6 +166,16 @@ public sealed partial class StopHand
                     return new PlayerIntent { Buttons = PlayerButtons.Use };
                 }
             case Hiding.In:
+                if (_guest)
+                {
+                    if (!quiet)
+                    {
+                        _hidingTicks = 0;
+                        Doing = "behind a door from the Choir";
+                        return new PlayerIntent();
+                    }
+                    return Done(world, self);
+                }
                 // Someone opened it (someone playing, going out): shut it again while it's about.
                 if (!walls!.Shut(_door.Key))
                 {
@@ -223,8 +248,9 @@ public sealed partial class StopHand
     /// </summary>
     PlayerIntent? Done(World world, in PlayerState self)
     {
-        if (_hiding is Hiding.ToHouse or Hiding.Shut or Hiding.In or Hiding.Open)
+        if (!_guest && _hiding is Hiding.ToHouse or Hiding.Shut or Hiding.In or Hiding.Open)
             calls.ReleaseSpot(member, HouseKey(_door.House));
+        _guest = false;
         calls.Out(member, _wasOut);
         _path = null;
         _hidingTicks = 0;

@@ -503,6 +503,24 @@ public sealed record StokerTuning
 }
 
 /// <summary>The Draggers (App. A.4, B.4, spec B.3). Field docs live in enemies.json.</summary>
+/// <summary>
+/// Draggers off a truss (note 435, orchestrator.md §5.2 S4): a Dragger perched on a through-truss's top chord, put there
+/// <see cref="Ahead"/> m before the train comes to it with a chance of <see cref="Chance"/>, and only to a train at
+/// <see cref="FromSpeed"/> or more (at speed is when the director's never put one under a car: note 286). It scrapes on the
+/// steel from <see cref="TellSeconds"/> before the train's under it, at <see cref="Height"/> m, and drops on whoever's on the
+/// roof of the car passing under it.
+/// </summary>
+public sealed record DraggerDropTuning
+{
+    public bool On { get; init; } = true;
+    public double Chance { get; init; } = 0.6;
+    public double FromSpeed { get; init; } = 14;
+    public double Ahead { get; init; } = 500;
+    public double TellSeconds { get; init; } = 3;
+    public double Height { get; init; } = 7.2;
+    public double Lateral { get; init; } = 2.7;
+}
+
 public sealed record DraggerTuning
 {
     public double GrabRange { get; init; } = 1.0;
@@ -530,6 +548,8 @@ public sealed record DraggerTuning
     public double BoardBelow { get; init; } = double.MaxValue;
     /// <summary>Note 286: their weight on a tight bend (<see cref="ClimberTuning.TightBendRadius"/>), slow.</summary>
     public double BendWeight { get; init; } = 1;
+    /// <summary>Off a truss (note 435, orchestrator.md §5.2 S4): one perched on a through-truss's top chord, dropping at speed.</summary>
+    public DraggerDropTuning Drop { get; init; } = new();
 
     /// <summary>The grab range at a train speed (spec B.3: +50% at max).</summary>
     public double GrabAt(double speed) => GrabRange * (1 + (FastGrabScale - 1) * Math.Clamp((speed - FastFrom) / Math.Max(1e-6, FastAt - FastFrom), 0, 1));
@@ -823,6 +843,21 @@ public sealed record HoundRunTuning
     /// <summary>Running in to meet the train (m/s, against it), across the line to this far out on the other side (m).</summary>
     public double AheadSpeed { get; init; } = 3;
     public double AheadCross { get; init; } = 3;
+    /// <summary>
+    /// The flank lanes (note 418, orchestrator.md §5.3 6): every this many pairs, the last of them comes in from the open country
+    /// abeam the guard van's gun (0: none; 1: every pair), to a train whose last car has its gun. Only where the line's biome is one of <see cref="FlankBiomes"/>
+    /// (any, on a line with no plan) and the land's open <see cref="FlankOut"/> m out (not a tunnel's bore or a bridge's deck).
+    /// </summary>
+    public int FlankEvery { get; init; } = 3;
+    /// <summary>
+    /// How far out to the side a flank pair is put down (m), how far ahead of the train's rear end (abeam the guard van's gun,
+    /// the flank its arc has), and how fast it runs in across the open ground (m/s, keeping pace).
+    /// </summary>
+    public double FlankOut { get; init; } = 70;
+    public double FlankAbeam { get; init; } = 4;
+    public double FlankSpeed { get; init; } = 6;
+    /// <summary>The open country (linegen biomes.json's few-treed ones).</summary>
+    public string[] FlankBiomes { get; init; } = [];
 }
 
 /// <summary>

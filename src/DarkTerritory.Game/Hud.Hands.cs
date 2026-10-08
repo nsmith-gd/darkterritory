@@ -222,7 +222,7 @@ public static partial class Hud
             // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
             bool steam = train.BoilerTuning?.SteamDrive == true;
             if (!steam)
-                lines.AddRange(["REGULATOR : [R/F]", "BRAKE : [B]"]);
+                lines.AddRange(["REGULATOR UP : [R]", "REGULATOR DOWN : [Y]", "BRAKE : [B]"]);
             else
                 lines.Add(s.Controls.Brake > 0 && train.Dynamics.Speed < CabControls.StandingBelow ? "RELEASE BRAKE : [R]" : "BRAKE : [B]");
             // Note 267: the brake and the vent, one key each, held.
