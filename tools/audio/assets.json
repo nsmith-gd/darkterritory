@@ -1559,10 +1559,50 @@
   "url": "/_blob/d81a1f71ec48a2440275eeee1f7f6012",
   "sha": "f45475e4f841a9cb"
  },
+ "previews/crew-powder--fill--iron.mp4": {
+  "id": "d536c74d904edec1102df88055aa43c3",
+  "url": "/_blob/d536c74d904edec1102df88055aa43c3",
+  "sha": "2c9e0720de21718e"
+ },
+ "previews/crew-powder--fill--wood.mp4": {
+  "id": "19428ef35c62c77afd05a01f8f17b8d3",
+  "url": "/_blob/19428ef35c62c77afd05a01f8f17b8d3",
+  "sha": "9a6ae4e97c2bdf75"
+ },
+ "previews/crew-powder--filled--bar.mp4": {
+  "id": "eec444ffa9c89105517e5f68e6a04136",
+  "url": "/_blob/eec444ffa9c89105517e5f68e6a04136",
+  "sha": "9efc76c325eb8d32"
+ },
+ "previews/crew-powder--filled--pin.mp4": {
+  "id": "ad50fd5986cb13e39b9d988c69a5b0a8",
+  "url": "/_blob/ad50fd5986cb13e39b9d988c69a5b0a8",
+  "sha": "e274393ebee5bbe3"
+ },
+ "previews/crew-powder--take--chest.mp4": {
+  "id": "e73846d38e65fbe57d6107122e0323da",
+  "url": "/_blob/e73846d38e65fbe57d6107122e0323da",
+  "sha": "29a899f4b9785c00"
+ },
+ "previews/crew-powder--take--heft.mp4": {
+  "id": "2753dec7a80a8e935d22e8331c3d688c",
+  "url": "/_blob/2753dec7a80a8e935d22e8331c3d688c",
+  "sha": "2cb9f003b9a42323"
+ },
  "previews/crew-repair--board-place--plank.mp4": {
   "id": "f7584ae01f915b1803541a9d2df108fe",
   "url": "/_blob/f7584ae01f915b1803541a9d2df108fe",
   "sha": "6ce78f9a6a090921"
+ },
+ "previews/crew-repair--dent--cladding.mp4": {
+  "id": "2a505882264c50ec598bafe7c1d207c2",
+  "url": "/_blob/2a505882264c50ec598bafe7c1d207c2",
+  "sha": "86f829c2263b4a2c"
+ },
+ "previews/crew-repair--dent--plate.mp4": {
+  "id": "66b15dc4f304bb4f9487497c6d7f7899",
+  "url": "/_blob/66b15dc4f304bb4f9487497c6d7f7899",
+  "sha": "71944e16fbdc0ffd"
  },
  "previews/crew-repair--done--flush.mp4": {
   "id": "faf53a6c53ebcc45f73a96f2f1e7ec2d",
@@ -1583,6 +1623,16 @@
   "id": "5104d9825186e74ab772e6095915384b",
   "url": "/_blob/5104d9825186e74ab772e6095915384b",
   "sha": "0fa6780e5a5e2ca2"
+ },
+ "previews/crew-repair--lamp--mend.mp4": {
+  "id": "8e427265043ecae7a089ca37f20864ed",
+  "url": "/_blob/8e427265043ecae7a089ca37f20864ed",
+  "sha": "93591a35f11f5516"
+ },
+ "previews/crew-repair--lamp--tinker.mp4": {
+  "id": "9f9c29c1d35cc65c7a1223ef1c570ed4",
+  "url": "/_blob/9f9c29c1d35cc65c7a1223ef1c570ed4",
+  "sha": "a7466c9cb0dcb157"
  },
  "previews/crew-repair--ratchet--spanner.mp4": {
   "id": "ff2535c1b2aef258379f9214991daafc",
@@ -1633,6 +1683,26 @@
   "id": "c3fc107e06bce129050125647f77dc74",
   "url": "/_blob/c3fc107e06bce129050125647f77dc74",
   "sha": "7fe61408197dbe75"
+ },
+ "previews/crew-upkeep--tighten--rusted.mp4": {
+  "id": "dee4af66db8cd519f733865571008b6e",
+  "url": "/_blob/dee4af66db8cd519f733865571008b6e",
+  "sha": "09509cf9fa751e7a"
+ },
+ "previews/crew-upkeep--tighten--spanner.mp4": {
+  "id": "9f15b1755d7dd750b68f9e45aafdca20",
+  "url": "/_blob/9f15b1755d7dd750b68f9e45aafdca20",
+  "sha": "baee426fff463eb2"
+ },
+ "previews/crew-upkeep--tightened--home.mp4": {
+  "id": "472a26da336a6c1e5facf8ba73bf52da",
+  "url": "/_blob/472a26da336a6c1e5facf8ba73bf52da",
+  "sha": "efc16956d1c9ada6"
+ },
+ "previews/crew-upkeep--tightened--seat.mp4": {
+  "id": "44195f8f8c1b1403060db07424cc0a6c",
+  "url": "/_blob/44195f8f8c1b1403060db07424cc0a6c",
+  "sha": "6ae29537eac4d95a"
  },
  "previews/crew-upkeep--trim--wick.mp4": {
   "id": "7fea80ad66567a73e1fa0e65dfb096ed",
@@ -2309,6 +2379,26 @@
   "url": "/_blob/3d8db06c8bc340f8a66698de46abdae8",
   "sha": "c86ac8740c73a472"
  },
+ "previews/place-breach--pick--lever.mp4": {
+  "id": "24a64c63361d1781fce3635d55a51ccc",
+  "url": "/_blob/24a64c63361d1781fce3635d55a51ccc",
+  "sha": "63dfd6a8400fdd4d"
+ },
+ "previews/place-breach--pick--wards.mp4": {
+  "id": "5097d1d985a072513c9e3414bdc8539b",
+  "url": "/_blob/5097d1d985a072513c9e3414bdc8539b",
+  "sha": "46123d3b8079a037"
+ },
+ "previews/place-breach--pick-give--click.mp4": {
+  "id": "f0f82521dfda1358e346cc228dedea59",
+  "url": "/_blob/f0f82521dfda1358e346cc228dedea59",
+  "sha": "9e224441a8eafa7b"
+ },
+ "previews/place-breach--pick-give--spring.mp4": {
+  "id": "7224f8aabbc8b320c114d9ce27c74018",
+  "url": "/_blob/7224f8aabbc8b320c114d9ce27c74018",
+  "sha": "f1bcd26a9136e729"
+ },
  "previews/place-breach--pry--bar.mp4": {
   "id": "336d9d5baa671fe06866bb8c8d8c5f5b",
   "url": "/_blob/336d9d5baa671fe06866bb8c8d8c5f5b",
@@ -2428,6 +2518,26 @@
   "id": "a139aa7c6bd18af84897996d436a3938",
   "url": "/_blob/a139aa7c6bd18af84897996d436a3938",
   "sha": "86eaaa04de3fbef9"
+ },
+ "previews/place-mine-lift--tip--chute.mp4": {
+  "id": "77ed68cd2ec16957e3fce7ad597c7fa0",
+  "url": "/_blob/77ed68cd2ec16957e3fce7ad597c7fa0",
+  "sha": "3a64b51f9cfc2ba2"
+ },
+ "previews/place-mine-lift--tip--rubble.mp4": {
+  "id": "069013ed0ec3d17a9e694b069735ad25",
+  "url": "/_blob/069013ed0ec3d17a9e694b069735ad25",
+  "sha": "68bcb3f1759af191"
+ },
+ "previews/place-mine-lift--winding--engine.mp4": {
+  "id": "80705668ab25e3820c3a38b8dba63a02",
+  "url": "/_blob/80705668ab25e3820c3a38b8dba63a02",
+  "sha": "631737ba44fb0608"
+ },
+ "previews/place-mine-lift--winding--headframe.mp4": {
+  "id": "2422f3d4f8f2a2cf9b11566db171e865",
+  "url": "/_blob/2422f3d4f8f2a2cf9b11566db171e865",
+  "sha": "6c684c26d5081afa"
  },
  "previews/place-slaughterhouse--hook-chain--rail.mp4": {
   "id": "e2db2a19e32cbfb35846a316a7ff2366",
@@ -2553,6 +2663,21 @@
   "id": "e7ce2e2f4be130933f5b0586e347126e",
   "url": "/_blob/e7ce2e2f4be130933f5b0586e347126e",
   "sha": "6faa9b9a3a7b65dd"
+ },
+ "previews/state-coupling-loose--knock--casting.mp4": {
+  "id": "e3fc724e9f6bf7f36bca12ecc15fed25",
+  "url": "/_blob/e3fc724e9f6bf7f36bca12ecc15fed25",
+  "sha": "9c81e13ffec60774"
+ },
+ "previews/state-coupling-loose--knock--clank.mp4": {
+  "id": "9ee821bc3fa984dc419808e1f2485b55",
+  "url": "/_blob/9ee821bc3fa984dc419808e1f2485b55",
+  "sha": "7b02ce3668e73f7b"
+ },
+ "previews/state-coupling-loose--knock--knuckle.mp4": {
+  "id": "6daa61e107beb90b2ca78434df03567a",
+  "url": "/_blob/6daa61e107beb90b2ca78434df03567a",
+  "sha": "852699d918c00920"
  },
  "previews/state-derail--climb--flange.mp4": {
   "id": "37ddf2f2ef38318d8ea1e74a87383851",
