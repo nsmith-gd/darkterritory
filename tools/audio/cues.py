@@ -259,6 +259,15 @@ CUES = {
         L("fill", "The ready rack filled: canvas charges pushed into the rack's slots (held while at it)"),
         O("filled", "The rack full: its bar dropped across", vars=3),
     ],
+    # Searching an open house's hiding spots (note 326; queue #148, note 412): held while the replicated search is under way,
+    # each kind about its loot.json `search.seconds`, cut when the hands come off; and the find coming out.
+    "crew-search": [
+        O("cupboard", "A cupboard gone through: its door pulled open, its shelves rummaged (about 2.5 s)", vars=3),
+        O("cabinet", "A cabinet's drawers pulled out, rattled through and shoved back (about 2 s)", vars=3),
+        O("cellar", "A cellar's hatch lifted and laid back, the steps down, crates shifted in the stone below (about 4 s)", vars=3),
+        O("boards", "Floorboards prised up: the bar's bite, the nails squealing out, laid aside (about 5 s)", vars=3),
+        O("found", "The spot gone through: the find lifted out and set down", vars=3),
+    ],
     "crew-cannon-ball": [
         O("ball-in", "The ball dropped into the muzzle", vars=2),
         O("ball-roll", "The ball rolling down the bore, iron on iron", vars=2, cand={"_": [old("audio/crew-cannon-ball--ball.mp3")]}),
