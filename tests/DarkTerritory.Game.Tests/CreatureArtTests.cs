@@ -534,10 +534,16 @@ public class CreatureArtTests
             scene.Build(mesh, train, eye);
             return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
         }
-        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static Vector3 At(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Aggregate(Vector3.Zero, (a, b) => a + b) / drawn.Count;
+        }
+        var was = At(Drawn(-1.0 / Sim.SimConstants.TickRate));
         staged.Remove(e);
         scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
-        var going = Assert.Single(Drawn(1));
+        var going = At(Drawn(1));
         // Out from the line on its own side (the eye's on the train's other side): further from the eye, and off the train.
         var rel = start - eye;
         var from = new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z);
