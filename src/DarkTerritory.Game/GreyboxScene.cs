@@ -836,6 +836,18 @@ public sealed class GreyboxScene
     // The Cinder Hounds on the line scattered by a ball or driven off since (with the tick, and how fast they were running
     // along the line then): the sim has one gone the tick it breaks off.
     readonly Dictionary<int, (Enemy Body, uint Tick, double Speed)> _fleeing = new();
+    // The rest let go of in sight since, not killed (note 458): a copy as it was last seen, the tick, how fast it was going
+    // along the line then (the train's, aboard or pacing it), and where it set off from in the world (on its first frame).
+    readonly Dictionary<int, Retreat> _retreating = new();
+    sealed class Retreat(Enemy body, uint tick, double speed)
+    {
+        public Enemy Body { get; } = body;
+        public uint Tick { get; } = tick;
+        public double Speed { get; } = speed;
+        public Double3? From;
+        public Double3 Along, Out;
+        public double Hint;
+    }
     readonly List<(string Beat, Enemy Body)> _newBeats = new();
 
     /// <summary>What began in the last <see cref="Remember"/>, each as it was last seen: "killed", "dispersed" (a Choir
@@ -858,6 +870,7 @@ public sealed class GreyboxScene
         Vanishing(mesh, line, frames, eye, from, to);
         Riding(mesh, line, frames, eye, from, to);
         Fleeing(mesh, line, frames, eye, from, to);
+        Retreating(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -923,6 +936,19 @@ public sealed class GreyboxScene
             {
                 _fleeing[id] = (was, (uint)Tick, Math.Max(0, _speed));
                 _newBeats.Add(("scattered", was));
+            }
+        // The rest let go of, not killed (note 458): a Climber outnumbered or giving up, a Whistler found in its gap, a pack
+        // that's eaten, the Gaunt going with its loot, a Switchman at the lever, a hound aboard over the side. The sim has
+        // them gone the tick it's done with them; they're seen going.
+        foreach (var (id, was) in _seen)
+            if (Art.CreatureArt.Retreat(was.Kind) is not null && !(was.Kind == EnemyKind.CinderHound && was.Attached < 0)
+                && !(was.Kind == EnemyKind.CarHugger) && !_dying.ContainsKey(id) && !_retreating.ContainsKey(id)
+                && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                var copy = Enemy.Blank(was.Kind, id, was.Extra);
+                copy.Restore(SpinePhase.BreakOff, 0, was.Health, was.Attached, was.Local, was.LineDistance, was.Lateral, was.Height, was.Extra, was.Extra2);
+                _retreating[id] = new Retreat(copy, (uint)Tick, was.Attached >= 0 || was.Kind == EnemyKind.Climber ? Math.Max(0, _speed) : 0);
+                _newBeats.Add(("retreated", was));
             }
         _seen.Clear();
         foreach (var e in Enemies ?? [])
@@ -1059,6 +1085,78 @@ public sealed class GreyboxScene
             hound.Restore(SpinePhase.BreakOff, age, body.Health, -1, body.Local, along, lateral, body.Height, body.Extra, body.Extra2);
             DrawEnemy(mesh, line, frames, hound, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn)));
         }
+    }
+
+    /// <summary>
+    /// The ones let go of in sight going (note 458; <see cref="Art.CreatureArt.Retreat"/>): from where each was last seen, down
+    /// to the ground under it if it was up on a car, falling behind as the train it was going with runs on (pulling up along
+    /// the line), and out from the line on its own side, turned away from the train, in its break-off; then lost in the dark.
+    /// </summary>
+    void Retreating(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, r) in _retreating.ToArray())
+        {
+            double age = (Tick - r.Tick) * Sim.SimConstants.TickSeconds;
+            if (Art.CreatureArt.Retreat(r.Body.Kind) is not { } go || age > go.Seconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _retreating.Remove(id);
+                continue;
+            }
+            if (r.From is null)
+            {
+                // Where it was, in the world: on its car, on the line beside it, or stood loose.
+                var b = r.Body;
+                Double3 at;
+                if (b.Attached >= 0 && b.Attached < frames.Count)
+                    at = frames[b.Attached].ToWorld(b.Local);
+                else if (b.Attached == Enemy.Loose)
+                    at = b.Local;
+                else
+                {
+                    var s = line.Sample(b.LineDistance);
+                    at = s.Position + Double3.Cross(s.Tangent, Double3.Up).Normalized * b.Lateral + Double3.Up * b.Height;
+                }
+                double hint = b.LineDistance;
+                var (path, d) = line.Nearest(at, ref hint);
+                var near = line.Sample(path, d);
+                r.Hint = hint;
+                r.From = at;
+                r.Along = (near.Tangent with { Y = 0 }).Normalized;
+                var off = (at - near.Position) with { Y = 0 };
+                var side = Double3.Cross(near.Tangent, Double3.Up).Normalized;
+                r.Out = Double3.Dot(off, side) >= 0 ? side : side * -1;
+            }
+            var (along, outward) = Away(r.Speed, go.Out, age);
+            var p = r.From.Value + r.Along * along + r.Out * outward;
+            double h = r.Hint;
+            double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
+            // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
+            double y = Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
+            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, r.Body.Lateral, 0, r.Body.Extra, r.Body.Extra2);
+            // Loose, it's drawn facing the nearest car: turned about, it faces away, the way it's going.
+            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
+        }
+    }
+
+    // One let go of going: how hard it pulls up along the line (m/s²), from the speed it was going with the train.
+    const double AwaySlowing = 7;
+
+    /// <summary>How far one let go of <paramref name="age"/> s ago has gone along the line (going at <paramref name="speed"/>
+    /// with the train, pulling up at <see cref="AwaySlowing"/>) and out from it (at <paramref name="outSpeed"/>).</summary>
+    internal static (double Along, double Out) Away(double speed, double outSpeed, double age)
+    {
+        double run = Math.Min(age, speed / AwaySlowing);
+        return (speed * run - 0.5 * AwaySlowing * run * run, outSpeed * age);
+    }
+
+    /// <summary>Staged (<c>dt screenshot --retreat kind:s</c>): <paramref name="e"/> let go of at <paramref name="tick"/>, going
+    /// with the train at <paramref name="speed"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Retreated(Enemy e, uint tick, double speed)
+    {
+        var copy = Enemy.Blank(e.Kind, e.Id, e.Extra);
+        copy.Restore(SpinePhase.BreakOff, 0, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        _retreating[e.Id] = new Retreat(copy, tick, speed);
     }
 
     // A scattered hound running off: how hard it pulls up along the line (m/s²) and how fast it goes out across it (m/s).
