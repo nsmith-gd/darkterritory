@@ -2512,7 +2512,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // Smash and pry want a melee tool in hand (D.7; note 275): a hand put free picks the first one up again.
         if (((h.Door - at) with { Y = 0 }).Length <= hs.Tuning.BreachReach * 0.8)
             return new PlayerIntent { Buttons = PlayerButtons.Use, Select = Kit.ToolToHand(self) };
-        return WalkTo(self, train.Line, RailLine.MainPath, h.Door, null).Step;
+        return OnFoot(self, train, RailLine.MainPath, h.Door, null).Step;
     }
 
     /// <summary>
@@ -2572,8 +2572,25 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (engine.Shape.Bounds.Max.X + 0.5), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
-        var (step, there) = WalkTo(self, train.Line, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
+        var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
+    }
+
+    /// <summary>
+    /// Note 406: further than this from where it's going on the ground (m), a hand goes by <see cref="FootPath"/>, round the
+    /// walls and the lineside trees, and only beside the train by <see cref="WalkTo"/>. A Holdout's door is up to
+    /// <see cref="Heed.HoldoutRange"/> off the line, and <see cref="WalkTo"/> keeps to the track's own across and along: a
+    /// driver gone to breach one 160 m from the cab walked into the spruce beside the line, slid along it the wrong way, and
+    /// stood out there till the dawn with the train on its brake (frontier:7, seed 2).
+    /// </summary>
+    const double ByFootPath = 10;
+
+    /// <summary>To a point on the ground: by <see cref="FootPath"/> while it's far, then round the train by <see cref="WalkTo"/>.</summary>
+    (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
+    {
+        if (self.Parent == PlayerState.World && (Flat(target) - Flat(PlayerMotor.WorldPosition(self, train))).Length > ByFootPath)
+            return (Follow(self, train, target), false);
+        return WalkTo(self, train.Line, path, target, yaw);
     }
 
     /// <summary>The middle of the cab's side doorways along the engine (between the side wall and the back pillar).</summary>
