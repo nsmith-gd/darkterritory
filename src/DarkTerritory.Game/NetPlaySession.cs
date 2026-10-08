@@ -1095,6 +1095,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public LinkInfo? Link => new(Role(), Host is null && Client.Connected ? _link.RoundTrip(PeerId.Host) * 1000 : null,
         Aboard, Client.Waiting ? Client.WaitingReason : null, Lost, JoinAt, Listed && Host is not null)
     {
+        Locked = Locked && Host is not null,
         Attempt = Reconnecting ? Math.Max(1, Attempt) : 0,
         Attempts = Attempts,
         CanReconnect = CanReconnect,

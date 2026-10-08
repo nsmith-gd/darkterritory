@@ -52,7 +52,7 @@ public class LobbyBrowserTests
         // A real round trip to the host's machine and back: on loopback, well under a frame.
         Assert.NotNull(game.PingMs);
         Assert.InRange(game.PingMs.Value, 0.0, 200.0);
-        Assert.True(open.Link!.Value.Listed);
+        Assert.True(open.Link!.Value is { Listed: true, Locked: false });
         Assert.False(shut.Link!.Value.Listed);
     }
 
@@ -232,6 +232,8 @@ public class LobbyBrowserTests
         Browse(browser, games => games is [{ PingMs: not null }], null, host);
         var game = Assert.Single(browser.Games);
         Assert.Equal((true, RunMood.Competitive), (game.Locked, game.Mood));
+        // The host's lobby panel says it's private, listed with a lock (not "your game's listed").
+        Assert.True(host.Link!.Value is { Listed: true, Locked: true });
         var at = new IPEndPoint(IPAddress.Loopback, host.Port);
         var e = Assert.Throws<JoinRefusedException>(() => NetPlaySession.Join(Content, at, () => host.Step(default)));
         Assert.Equal("WRONG PASSWORD", e.Message);
