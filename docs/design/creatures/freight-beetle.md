@@ -49,7 +49,7 @@ shoving forward in steady strides), `turn`, `startle` (rearing back off its load
 ```
 WAIT      at a facility with loose freight, settled beside it; no player within 25 m → still
 PICK      a player within 25 m → it takes the movable load nearest to it (a crate, a cargo crate, a heavy crate)
-          └ TELEGRAPH: it braces behind the load, head down (1 s)
+          └ TELEGRAPH: it braces behind the load, head down (1.5 s)
 PUSH      it shoves the load DIRECTLY AWAY FROM THE NEAREST PLAYER (1.2 m/s; a heavy crate 0.8 m/s), walking behind it
           ├ the nearest player changes → the push turns with them (a 90°/s turn): two players steer it
           ├ into a car's open door at the floor, from a platform → the load's in the car (loaded, as if carried)
@@ -90,11 +90,12 @@ NEVER     it never attacks anyone; it never pushes a body or a lamp
 | Field | Value | Why |
 |---|---|---|
 | `notice` | 25 m | |
-| `brace` | 1 s | |
+| (brace) | 1.5 s | the spine's least telegraph (`MinReactionSeconds`), not a number of its own |
 | `push` / `pushHeavy` | 1.2 / 0.8 m/s | slower than a walk: you can get round it |
-| `turn` | 90 °/s | |
-| `startleWithin` / `startle` | 1.5 m / 2 s | |
-| `health` / `driveOff` | 6 / 3 blows in 10 s | |
+| `turnDegrees` | 90 °/s | |
+| `startleWithin` / `startleSeconds` | 1.5 m / 2 s | |
+| `health` / `driveOffBlows` / `driveOffSeconds` / `awaySeconds` | 6 / 3 blows in 10 s / 30 s | |
+| `walk` / `freightReach` / `facilityReach` | 2 m/s / 30 m / 80 m | |
 | `cost` | 1 | |
 
 ## 10. What the harness verifies

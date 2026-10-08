@@ -100,7 +100,7 @@ NEVER     a bridge; it never boards the train
 | `notice` / `lungeWithin` | 10 / 3 m | |
 | `threatSeconds` | 1.5 | |
 | `bite` | 35 | never a kill |
-| `driveOff` / `driveOffWithin` / `awaySeconds` | 4 blows / 15 s / 120 s | |
+| `driveOffBlows` / `driveOffSeconds` / `awaySeconds` | 4 blows / 15 s / 120 s | |
 | `health` | 12 | blows |
 | `crush` / `crushRadius` | 45 / 3.5 m | as the wreck heap |
 | `clearCrewSeconds` | 30 | crew-seconds of Use at the wreckage |
