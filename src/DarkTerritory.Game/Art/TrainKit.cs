@@ -124,6 +124,49 @@ public static class TrainKit
     }
 
     /// <summary>
+    /// Plate hung over a bogie's sides (note 360; #76's reference, the director: "make all the train feel armoured"): a
+    /// riveted skirt from the underframe down to a hand above the rail, as long as the wheelbase and a little, its foot
+    /// bevelled back; the journal boxes show through a slot at axle height, so the wheels still read turning under it.
+    /// </summary>
+    static void BogieSkirt(Kit k, float w, float z, float top)
+    {
+        const float Foot = 0.32f, Reach = 1.45f, Slot = 0.12f, Axle = 0.42f;
+        foreach (int side in new[] { -1, 1 })
+        {
+            float x0 = side * (w - 0.1f), x1 = side * (w - 0.06f);
+            var (lo, hi) = (MathF.Min(x0, x1), MathF.Max(x0, x1));
+            var outer = side > 0 ? Kit.Faces.PosX : Kit.Faces.NegX;
+            Iron(k, 1.1f).Shade(0.7f);
+            // Above the slot and below it: the slot's the journal boxes' (the arch bar's at 0.3–0.7).
+            k.Box(new Vector3(lo, Axle + Slot, z - Reach), new Vector3(hi, top, z + Reach), outer | Kit.Faces.PosY | Kit.Faces.NegY | Kit.Faces.PosZ | Kit.Faces.NegZ);
+            k.Box(new Vector3(lo, Foot, z - Reach + 0.25f), new Vector3(hi, Axle - Slot, z + Reach - 0.25f), outer | Kit.Faces.NegY | Kit.Faces.PosZ | Kit.Faces.NegZ);
+            // The foot's bevel back to the ends, so it reads as cut plate, not a box.
+            var n = new Vector3(side, 0, 0);
+            float xf = side > 0 ? hi : lo;
+            foreach (int end in new[] { -1, 1 })
+            {
+                var a = new Vector3(xf, Axle - Slot, z + end * Reach);
+                var b = new Vector3(xf, Axle - Slot, z + end * (Reach - 0.25f));
+                var c = new Vector3(xf, Foot, z + end * (Reach - 0.25f));
+                if (end * side > 0)
+                    k.Tri(a, c, b);
+                else
+                    k.Tri(a, b, c);
+            }
+            // Rivet straps along its top and over the slot, and one down each end.
+            Rusted(k).Shade(0.5f);
+            float face = side * (w - 0.06f + 0.015f);
+            var (f0, f1) = (MathF.Min(face, side * (w - 0.06f)), MathF.Max(face, side * (w - 0.06f)));
+            foreach (float y in new[] { top - 0.05f, Axle + Slot + 0.04f })
+                k.Box(new Vector3(f0, y - 0.03f, z - Reach), new Vector3(f1, y + 0.03f, z + Reach), outer | Kit.Faces.PosY);
+            foreach (int end in new[] { -1, 1 })
+                k.Box(new Vector3(f0, Axle + Slot, z + end * Reach - 0.04f), new Vector3(f1, top, z + end * Reach + 0.04f), outer);
+            Strap(k, new Vector3(face, top - 0.1f, z - Reach + 0.1f), new Vector3(face, Axle + Slot + 0.1f, z - 0.05f), n, 0.07f);
+            Strap(k, new Vector3(face, top - 0.1f, z + Reach - 0.1f), new Vector3(face, Axle + Slot + 0.1f, z + 0.05f), n, 0.07f);
+        }
+    }
+
+    /// <summary>
     /// A knuckle coupler and its draft gear, out from the end beam at <paramref name="z"/> towards <paramref name="dir"/> (±1).
     /// Where the modelled ones are built (tools/models car_gear: coupler_knuckle, coupler_open) they're not baked in: the
     /// scene draws each end's per frame, shut or cut (<see cref="CouplerEnds"/>, SceneArt.Car), so a cut shows.
@@ -667,13 +710,48 @@ public static class TrainKit
     /// <summary>
     /// Where the boiler tears when it ruptures (spec B.6, GDD §23): a seam on its left flank, high, between the first two
     /// straps behind the cab, so the burst's seen from the cab's left doorway and from the line; in the engine's frame, on
-    /// the casing's face (its outward normal the engine's −X).
+    /// the casing's face (its outward normal the engine's −X). Under the armoured hood (note 338) the burst comes through
+    /// it (note 360): the tear is in the hood's plate, below the feed pipe, proud of the hood's straps.
     /// </summary>
     public static Vector3 RuptureSeam(CarShape shape)
     {
         var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
-        return new(-(float)boiler.Max.X, (float)boiler.Max.Y - 0.85f, (float)shape.Cab!.Value.Max.Z + 2.7f);
+        float z = (float)shape.Cab!.Value.Max.Z + 2.7f;
+        if (HoodFace(shape, -1, z) is { } hood)
+            return new(-(hood.X + HoodStrapProud), hood.Deck + 0.9f, z);
+        return new(-(float)boiler.Max.X, (float)boiler.Max.Y - 0.85f, z);
     }
+
+    /// <summary>
+    /// The armoured hood's side (note 338) at frame <paramref name="z"/> on <paramref name="side"/> (−1 left, +1 right):
+    /// its plate's outer face (|x|) and the deck it stands on, or null where no hood wall covers that z (an engine
+    /// without one, or in front of the cab). What a burst or a leak inside it comes out through (note 360).
+    /// </summary>
+    public static (float X, float Deck)? HoodFace(CarShape shape, int side, float z)
+    {
+        if (!shape.Solids.Any(s => s.Part == PartKind.Boiler))
+            return null;
+        var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
+        foreach (var s in shape.Solids)
+        {
+            var b = s.Box;
+            if (s.Part != PartKind.CabWall || b.Max.Y - b.Min.Y < 2 || z < b.Min.Z || z > b.Max.Z || b.Min.Z < boiler.Min.Z - 0.5)
+                continue;
+            if (side < 0 ? b.Max.X < -boiler.Max.X : b.Min.X > boiler.Max.X)
+                return ((float)(side < 0 ? -b.Min.X : b.Max.X), (float)b.Min.Y);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// How big the tear's drawn (its scale): a boiler's own seam as made, a hood's plate blown out wider round the burst
+    /// (note 360), so it reads on a side 14 m long from the line.
+    /// </summary>
+    public static float RuptureSize(CarShape shape) =>
+        shape.Cab is { } cab && HoodFace(shape, -1, (float)cab.Max.Z + 2.7f) is not null ? 1.7f : 1;
+
+    /// <summary>How far the hood's seam straps and X straps stand off its plate (m): what's drawn on it sits past them.</summary>
+    const float HoodStrapProud = 0.035f;
 
     /// <summary>
     /// The tear itself, drawn over the casing at <see cref="RuptureSeam"/> while she's ruptured: a ragged black hole
@@ -1884,7 +1962,10 @@ public static class TrainKit
             k.Cylinder(new Vector3(-0.5f, 0.82f, 0.2f), new Vector3(-0.5f, 0.82f, 0.9f), 0.15f, 10);
         }
         foreach (float z in new[] { -l + 1.9f, l - 1.9f })
+        {
             Truck(k, z);
+            BogieSkirt(k, w, z, floor - 0.2f);
+        }
         // End beams, couplers.
         k.Use("paint_oxide", Palette.RustRed, 0.9f, 0.1f);
         foreach (int end in new[] { -1, 1 })
