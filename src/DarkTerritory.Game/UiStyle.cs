@@ -204,22 +204,44 @@ public static class UiStyle
         return h;
     }
 
-    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
+    /// <summary>
+    /// <paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words. A word wider than the
+    /// line on its own (a crash report's path, note 411) is broken too, after a slash where one fits, so nothing runs off.
+    /// </summary>
     public static IEnumerable<string> Wrap(Overlay o, string text, float width)
     {
         string line = "";
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var whole in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
-            string wider = line.Length == 0 ? word : line + " " + word;
-            if (line.Length > 0 && o.Font.Measure(wider) > width)
+            foreach (var word in Pieces(o, whole, width))
             {
-                yield return line;
-                line = word;
+                string wider = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && o.Font.Measure(wider) > width)
+                {
+                    yield return line;
+                    line = word;
+                }
+                else
+                    line = wider;
             }
-            else
-                line = wider;
         }
         if (line.Length > 0)
             yield return line;
+    }
+
+    /// <summary>A word in pieces that each fit <paramref name="width"/>: after the last slash that fits, or where it has to.</summary>
+    static IEnumerable<string> Pieces(Overlay o, string word, float width)
+    {
+        while (word.Length > 1 && o.Font.Measure(word) > width)
+        {
+            int fit = 1;
+            while (fit < word.Length && o.Font.Measure(word[..(fit + 1)]) <= width)
+                fit++;
+            int slash = word.LastIndexOfAny(['/', '\\'], fit - 1);
+            int cut = slash > 0 ? slash + 1 : fit;
+            yield return word[..cut];
+            word = word[cut..];
+        }
+        yield return word;
     }
 }
