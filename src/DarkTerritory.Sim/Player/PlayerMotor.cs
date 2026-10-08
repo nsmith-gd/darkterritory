@@ -186,7 +186,9 @@ public enum DeathCause : byte
     // GDD §18 (WP15b, note 187): a wreck yard's heap shifting on whoever was by it.
     Wreckage,
     // GDD §21, App. A.6 (note 339): pinned under the Moose's rack and ground into the peat.
-    Trampled
+    Trampled,
+    // GDD §21, App. A.4 (note 340): the Gannet's fourth peck, pinned under its foot.
+    Pecked
 }
 
 /// <summary>Conditions a player carries.</summary>

@@ -75,8 +75,9 @@ public class UpgradeTests
         int Fouls(Loadout l)
         {
             // The forward gun, fired and fired: no reload between, and every foul cleared as it comes, so only the bore's
-            // chance differs. The same ticks on the same gun, so a cooled gun fouls on a subset of the ticks a hot one does.
-            var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000 } };
+            // chance differs. The same ticks on the same gun, so a cooled gun fouls on a subset of the ticks a hot one does. No
+            // ready rack (note 374): every round at the gun.
+            var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000, Rack = 0 } };
             var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
             var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 6, 1)), line, 5_000), combat);
             w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);

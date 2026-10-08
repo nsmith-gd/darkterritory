@@ -549,24 +549,6 @@ public sealed class FrontEnd
 
     static string DefaultCrewName(int slot) => $"Crew {slot}";
 
-    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
-    static IEnumerable<string> Wrap(Overlay o, string text, float width)
-    {
-        string line = "";
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            string wider = line.Length == 0 ? word : line + " " + word;
-            if (line.Length > 0 && o.Font.Measure(wider) > width)
-            {
-                yield return line;
-                line = word;
-            }
-            else
-                line = wider;
-        }
-        if (line.Length > 0)
-            yield return line;
-    }
 
     /// <summary>The title's MODS line (note 323): how many are on tonight, and how many couldn't load.</summary>
     string ModsLine()
@@ -851,6 +833,12 @@ public sealed class FrontEnd
                 Settings.Colours == HudColours.Colourblind ? "The HUD's good in blue, warnings in yellow, danger in red." : "The HUD's good in green, warnings in amber, danger in red."),
                 Toggle(s => s with { Colours = s.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind }),
                 _ => Change(Settings with { Colours = Settings.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind })),
+            // Note 349: what's heard, named, and where.
+            new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
+                Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 350: a new player's first nights.
+            new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
+                Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
             // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
             new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
                 "Left and right to change: the HUD's print and the menus', bigger."),
@@ -1114,7 +1102,7 @@ public sealed class FrontEnd
     void DrawCredits(Overlay o, float x, float y, int width, int height)
     {
         // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var row in Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
+        foreach (var row in UiStyle.Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
         {
             o.Text(x, y, row, Faint);
             y += 10;
@@ -1169,7 +1157,7 @@ public sealed class FrontEnd
     {
         var tally = Tally;
         // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var line in Wrap(o, TallyLine, width - x - 8))
+        foreach (var line in UiStyle.Wrap(o, TallyLine, width - x - 8))
         {
             o.Text(x, y, line, Faint);
             y += 10;
@@ -1265,7 +1253,7 @@ public sealed class FrontEnd
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         // At a bigger TEXT SIZE (note 347) a long heading wraps rather than run off the frame.
-        foreach (var row in Wrap(o, heading!, width - x - 8))
+        foreach (var row in UiStyle.Wrap(o, heading!, width - x - 8))
         {
             o.Text(x, y, row, Dim);
             y += 10;
@@ -1331,7 +1319,7 @@ public sealed class FrontEnd
         y += 6;
         if (Selected < items.Count && items[Selected].Detail is { } detail)
             // Wrapped to the screen (note 323): a mod's description is its author's, up to Thunderstore's 250 characters.
-            foreach (var line in Wrap(o, detail.ToUpperInvariant(), width - x - 8))
+            foreach (var line in UiStyle.Wrap(o, detail.ToUpperInvariant(), width - x - 8))
             {
                 o.Text(x, y, line, Dim);
                 y += 10;

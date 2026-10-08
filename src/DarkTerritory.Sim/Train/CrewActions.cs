@@ -16,7 +16,8 @@ namespace DarkTerritory.Sim.Train;
 /// <item>inside a breached car at the hole, board it up (decided 1 Oct, <see cref="Breaches"/>; with the wrench, note 301);</item>
 /// <item>the wrench in hand at a burst boiler or a battered car's dent, mend it (note 301, <see cref="Repairs"/>);</item>
 /// <item>at a crew locker, open or shut its door (a tap there is the hands': <see cref="Lockers"/>);</item>
-/// <item>at a car's hot axle box, from the coupling gap behind it or the ground beside it, grease it (note 331, <see cref="HotBoxes"/>).</item>
+/// <item>at a car's hot axle box, from the coupling gap behind it or the ground beside it, grease it (note 331, <see cref="HotBoxes"/>);</item>
+/// <item>the wrench in hand at a loose coupling, in its gap, tighten it (note 356, <see cref="Couplings"/>).</item>
 /// </list>
 /// A VR player's reaching hand (T29) picks what's worked by where it is, not where they stand, and shovels by the
 /// stroke: coal onto the shovel at the tender, then into the firebox (<see cref="ShovelByHand"/>).
@@ -51,6 +52,19 @@ public static class CrewActions
             s.ActionProgress += dt;
             if (s.ActionProgress >= hbt.GreaseSeconds)
                 train.Vehicles[box].HotBox = 0;
+            return;
+        }
+        // A loose coupling (note 356): the wrench in the gap, Use held, and it's tight. Before the plate's doors: at a loose
+        // pin with the wrench in hand, it's the pin that's worked.
+        if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } lt
+            && Couplings.Tightens(s, train) && Couplings.Within(s, train, lt) is { } pin)
+        {
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (s.ActionProgress >= lt.TightenSeconds)
+                s.ActionProgress = 0;
+            s.ActionProgress += dt;
+            if (s.ActionProgress >= lt.TightenSeconds)
+                train.Vehicles[pin].Loose = 0;
             return;
         }
         if (!s.Alive || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || s.Parent == PlayerState.World)

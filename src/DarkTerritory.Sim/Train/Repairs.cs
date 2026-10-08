@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>What's broken and can be mended where you stand (note 301).</summary>
-public enum BreakKind : byte { None, Rupture, Breach, Dent, Lamp }
+public enum BreakKind : byte { None, Rupture, Breach, Dent, Lamp, Coupling }
 
 /// <summary>
 /// The wrench is the repair tool (queue #39, the director, 7 Oct, GDD App. F.3: "repairing things in the Sea of Thieves

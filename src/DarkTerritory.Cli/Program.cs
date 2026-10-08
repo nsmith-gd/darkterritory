@@ -154,6 +154,10 @@ object RunHarness(string[] args)
             lastTrace = now;
         },
         Bots = (int)Opt(args, "--bots", 8),
+        // --express [m/s]: the driver runs hot (21 m/s if no speed's given) and takes no stops (note 376): the hound run's night.
+        Express = Array.IndexOf(args, "--express") is var ex and >= 0
+            ? ex + 1 < args.Length && double.TryParse(args[ex + 1], System.Globalization.CultureInfo.InvariantCulture, out double fast) ? fast : 21
+            : null,
         Cars = (int)Opt(args, "--cars", 10),
         Seconds = Opt(args, "--seconds", 120),
         Seed = (int)Opt(args, "--seed", 1),
@@ -1011,6 +1015,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.HotBoxTuning = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).HotBox;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].HotBox = hotFor;
     }
+    // --loose s: the coupling behind car 2 that many seconds loose (note 356): its callout in the gap (--view gapside).
+    if (Opt(args, "--loose", -1) is var looseFor and >= 0)
+    {
+        train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+    }
+    // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
+    // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
+    // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
+    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "" });
+    if (gannetMode.Length > 0 && !args.Contains("--ruptured") && !args.Contains("--wreck"))
+    {
+        train.Dynamics.Velocity = Opt(args, "--speed", 20);
+        train.RefreshFrames();
+    }
     // --wreck s: off the rails at --speed (22) and that many seconds into the wreck (T117), seen by the cinematic camera.
     if (Opt(args, "--wreck", -1) is var wreckAt and >= 0)
     {
@@ -1408,6 +1427,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (Repairs.LampSillAt(train) is { } sill)
                 breaks.Add(new BreakCallout(BreakKind.Lamp, 0, sill));
         }
+        Couplings.Callouts(train, breaks);
         scene.Breaks = breaks;
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
@@ -1439,6 +1459,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var mooseTuning = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Moose;
         float moosePace = mooseMode switch { "charge" => (float)mooseTuning.ChargeSpeed, "search" => (float)mooseTuning.SearchSpeed, _ => 0 };
         scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [Staging.MooseId] = moosePace };
+    }
+    if (gannetMode.Length > 0)
+    {
+        scene.Enemies = Staging.Gannet(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, gannetMode);
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.LoneId or Staging.GannetRescuerId)), Staging.GannetWalker(train, gannetMode),
+            .. Staging.GannetRescuer(train, gannetMode) is { } rescuer ? [rescuer] : Array.Empty<Crewmate>()];
     }
     // --gaunt leave|leavein: the body it's carrying off, under it (App. A.6; Staging.GauntLoad).
     if (Str(args, "--gaunt", "") is "leave" or "leavein" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Gaunt>().FirstOrDefault() is { } leaving)
@@ -2388,8 +2414,20 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--commend-pick"))
         Hud.StagedCommendPick = (Str(args, "--commend-pick", "Okafor") is { Length: > 0 } to && !to.StartsWith("--") ? to.ToUpperInvariant() : "OKAFOR",
             UiStyle.Name(UiStyle.Commendation.CameBackForMe), false);
+    // --captions (note 349): CAPTIONS on, with what's staged heard round the player (the captions' own wording and order).
+    IReadOnlyList<string>? captioned = null;
+    if (args.Contains("--captions"))
+    {
+        var captions = new Captions(Captions.Load(content));
+        var ears = Ballast.Audio.Listener.At(Double3.Zero, 0);
+        captions.Update([new("hotbox", new Double3(0, -1, 30), 0.2f)], ears, 0);
+        captions.Update([new("child-call", new Double3(-40, 0, 5), 0.1f)], ears, 0.5);
+        captions.Update([new("tippy-tiptoe.roof", new Double3(0, 6, 1), 0.3f)], ears, 1);
+        captioned = captions.Lines();
+    }
+    // --first-night (note 350): one of a new player's first nights, the controls' card up in the yard.
     // --commend: the night's commendations shown under its report (App. D.12; awarding them isn't in the game yet).
-    Hud.Build(hud, width, height, session, pixels: scale, commendations: args.Contains("--commend")
+    Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
         ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
             ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
         : null, stills: stills.Stills, talk: talk, now: talkNow);

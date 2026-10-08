@@ -14,7 +14,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
-- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, and a car's lamp guttering, trimmed inside before it goes out (B.3, F.3).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
 - **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
 - **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
 - **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
@@ -38,6 +38,9 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Jumping off** is lethal above 16.5 m/s, matching the systems spec in the repo (§23).
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
+
+**Director's decisions of 2026-10-07: the Gannet (queue #78; ARCHITECTURE §8 note 340; design `docs/design/creatures/gannet.md`).**
+- **A nineteenth enemy, the Gannet:** App. F.1's "fast, flying class" (the orchestrator's S3). One enormous corrupted seabird that rides a fast train, the inverse of the roster: everything else boards a slow train, and it comes only to one run at 18 m/s or more. It hangs over a walker on the roofs and dives beak-first; break your stride after it folds and it misses, its beak stuck in the planks; hold your line and it stabs. Hit it and it comes down on you, pins you under a foot and pecks four times while your friends beat it off. A team can kill it, and its head is a trophy worth a good deal. A slow train, a tunnel or a still roof and it peels off. Every tier, weighted (§21, A.4, A.9, B.1, B.4).
 
 **Director's decisions of 2026-10-07: the Moose (queue #77; ARCHITECTURE §8 note 339; design `docs/design/creatures/moose.md`).**
 - **An eighteenth enemy, the Moose:** a hyper-aggressive, territorial bull moose, too big to get on the train. It grazes beside the line and at the stops and leaves be whoever leaves it be. Crowd it, talk near it or hit it and it charges in straight lines; the bullfight (dodge it, pass it with a blow, lose it round the buildings, quietly) is the heart of it. It rams the car you hide in for a while (only a ram), gives up when it can't find you or you're far enough off, and the train pulling away ends it. Nothing kills it. It's in every tier, more the harder the tier, and it is never on the rail (§21, A.6, A.9, B.1, B.6).
@@ -454,7 +457,7 @@ Every enemy must pass at least four of the six, including 1 and 3. This is the f
 
 The learnability rules from v1.0 — the rule fits in six words, one death teaches it, the telegraph always comes first — now live in the fairness contract (Appendix A.1).
 
-## 21. Roster — 18 enemies
+## 21. Roster — 19 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
@@ -495,6 +498,11 @@ A grabbed player hangs over the side for a few seconds. Someone has to pull them
 Blows your own whistle, then hides in a coupling gap.
 > **RULE: check the gaps after the whistle.**
 Only strikes when the train is stopped. It carries its victim off to a nest, and the crew chases or leaves them.
+
+**THE GANNET** · *over a fast train, in open country* *(the director's decisions, 2026-10-07)*
+A seabird the size of a cart circling in your smoke, lit orange by your own fire. It hunts whatever moves on the roofs.
+> **RULE: when it folds, break your stride.**
+It hangs over a walker, folds and drops beak-first at where you'll be. Stop dead or step aside after the fold and it misses, its beak buried in the planks a while; hold your line and it stabs. Hit it back and it comes down for you: it pins you under one foot and pecks at your head, four pecks, while your friends beat it off. It can be killed by a team, and its head is worth a good deal. Slow the train, take a tunnel, or keep still and it can't stay. Anyone inside a car or the cab is safe.
 
 ### INTERIOR — already aboard
 
@@ -928,6 +936,8 @@ The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE
 
 - **TEXT SIZE** (100%, 125%, 150%): the HUD's print and the menus', bigger. The whole overlay is drawn on a smaller canvas and stretched over the window, so everything on it grows together. A long line wraps or is cut short where it would leave the frame (ARCHITECTURE §8 note 347).
 - **COLOURS** (standard, colourblind): what the HUD's colours mean (good, a warning, danger) told apart without red against green: blue, yellow and red. Measured as a protanope, deuteranope and tritanope sees them, every pair stays clearly apart (ARCHITECTURE §8 note 348).
+- **CAPTIONS** (off by default): the sounds worth hearing written as they're heard, and where: "[TIPTOEING, ABOVE]". A caption says what a sound is, as someone hearing it would say it, never which creature makes it or what to do about it, so a player who reads learns the same as one who listens. What's silent by design stays silent (ARCHITECTURE §8 note 349).
+- **FIRST NIGHTS** (on by default): a tip on the loading screen, and for a player's first three nights the core controls on a card in the yard, in their own keys. The tips are the shape of a night and the crew's habits ("Roll call is shouted. Count the crew before the train moves."), never a creature's rule (ARCHITECTURE §8 note 350).
 
 ### The screenshot test
 
@@ -1167,6 +1177,30 @@ COUNTER   check the gaps after a whistle; move in pairs at stops
 ```
 **Never grabs from a moving train.** Every rescue is a chase on foot, which makes every stop more dangerous.
 
+### THE GANNET · sight *(the director's decisions, 2026-10-07; note 340)*
+```
+GATHER    the train over 18 m/s for 30 s, out of a tunnel → it arrives
+          └ TELEGRAPH (presence): calls overhead; a pale, orange-lit shape circling in the smoke
+SOAR      holding station 20–35 m over a car, riding its plume and wake
+SPOT      someone walking a roof (over 0.8 m/s on it, not seated) → it hangs over them, head down
+          └ TELEGRAPH: the calls stop; it hangs still over one walker (2 s)
+FOLD      wings back, sacs swollen, the whistle of air; its line locks on where they'll be in 1.6 s
+          └ TELEGRAPH: 1.6 s from fold to strike
+STRIKE    ├ the walker broke stride (stopped, or 0.9 m off its line) → MISS: stuck in the planks 4 s
+          └ the walker held their line → STAB: a heavy hit (35), and it climbs for another pass (every 8–12 s)
+MARK      anyone hits it (a blow while it's stuck, a gun round in the air) → that one is its mark
+BANK      its next pass is for its mark: round and in low, screaming
+          └ TELEGRAPH: 2.5 s; its mark can get inside a car or the cab
+SWOOP     lands on its mark (a roof, or the ground within 200 m) → GRAB: pinned under one foot
+PECK      4 pecks, 3 s apart, each with a wind-up you can see; the victim can talk
+          └ interrupt: 3 blows from friends in the pin → it lets go and climbs; the last to hit it is its mark
+PUNISH    the fourth peck
+GIVE UP   hurt below 4 of its 12 health → it leaves for the run; killed, its head is a trophy (1.5 car-loads)
+BREAK OFF the train under 12 m/s for 6 s, a tunnel, or 60 s with nobody walking the roofs and its mark inside
+          → it peels off; back after 3 minutes if the train runs fast again
+```
+**The inverse of the roster.** Everything else boards a slow train (App. F.1, "slowing opens the doors"); it comes only to a fast one, riding the train's lift as seabirds ride a ship's: the fastest train sheds the Cinder Hounds and gathers the Gannet. **Only the pin kills, and it only pins someone who hit it**: left alone it's a dodgeable stab; fighting it is the crew's choice, and the hitter is the bait. **It never goes inside**: any car or the cab is shelter. Numbers in enemies.json `gannet`; the design and its reasons in `docs/design/creatures/gannet.md`.
+
 ---
 
 ## A.5 Interior
@@ -1396,7 +1430,7 @@ COUNTER   gang up and kill it, or leave it alone;
 
 Enemies are not rolled independently. A **pressure director** spends a budget across the run, which is what allows deliberate contradiction stacking instead of random pile-ups.
 
-**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328).
+**The orchestrator** (*proposed, 7 Oct 2026*; App. F.3): a layer over the director that plans threats against the players currently active, where each is and what each is doing, and the threats and upkeep that fill the run between stops. The outline is [orchestrator.md](orchestrator.md) (ARCHITECTURE §8 note 328). *Built so far (7–8 Oct 2026):* the live crew and its caps (note 336). The census of posts and slack (note 345) reads each crewmate's post (the cab, a gun, the roofs, inside a car, the ground) and the seconds on the run between stops since they last had anything to answer. The director's pick favours what the slackest crewmate's post answers, idle crewmates press it, and no player gets a second threat while the first is on them. A crew of one is as it was. The hound run (note 328) is also built.
 
 ### Budget
 
@@ -1449,7 +1483,7 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 |---|---|
 | **2** | Followers, Draggers, Fire Flies, The Switchman |
 | **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose |
-| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler |
+| **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Gannet |
 | **5** | The Passenger |
 | **—** | The Choir (not spawned; triggered by the loudness meter) |
 
@@ -1459,7 +1493,7 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 
 | Tag | Target share | Enemies |
 |---|---|---|
-| **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir |
+| **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir, The Gannet |
 | **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
 | **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler |
@@ -1509,6 +1543,9 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Ribbits + The Moose | Never be outnumbered vs. whoever the moose chases ends up alone |
 | Whistler + The Moose | The coupling gaps hide you from the moose and hold the Whistler |
 | The Moose + facility loading | The loading needs everyone vs. someone has to keep the moose busy, and quiet |
+| Cinder Hounds + The Gannet | Outrun the hounds by running fast vs. a fast train brings the Gannet |
+| Draggers + The Gannet | Walk the centreline vs. step aside when it folds, toward the edge the Draggers hold |
+| The Choir + The Gannet | The gun is the quick answer vs. every ball feeds the meter, and marks the gunner |
 
 At least one pair per run on Frontier and above. Two on Deep Territory.
 
@@ -1542,6 +1579,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Climbers** | Alongside at track level, mounts at a coupling gap | **≥2 coupling gaps** · minimum speed threshold | Weight scales directly with gap count — the length curve made literal |
 | **Draggers** | Pre-attached beneath car edges at generation or facility departure | Train length ≥2 | Dormant until a player is on the roofs |
 | **Whistler** | Hides in a coupling gap; boards at any stop | Train length ≥2 | Weight up on routes with more planned stops |
+| **The Gannet** | Over the train, after 30 s at 18 m/s or more, out of a tunnel | **Every tier** · train length ≥2 · once a run (it peels off and comes back on its own) | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×3 Atlantic shore and Fundy, ×1.5 barrens, bog and dead towns, ×0.3 black forest; up per player on the roofs |
 
 ---
 
@@ -1621,7 +1659,7 @@ Comet material is the high-risk contract: it is the best freight payout and it m
 | **Tier progression** | Deep territory is meaningfully harder than Local at matched crew and length |
 | **Vote bounds** | Dead-vote weighting never exceeds ×1.5, keeps want-tag shares, and never bypasses a gate, cap or once-per-run limit |
 
-Spawn tuning is the single largest use of the agent harness. Eighteen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
+Spawn tuning is the single largest use of the agent harness. Nineteen enemies against four tiers, seven crew sizes and a variable consist length is a space no human tester can cover — but it can be swept exhaustively overnight.
 
 ---
 
@@ -1633,7 +1671,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
 
 1. **The GRAB rescue state.** Part of the shared skeleton (A.1): a held player, a timer (8–20s), an interrupt that ends in BREAK OFF, and a hook for voice effects. **A held player can talk at full clarity** unless the enemy applies a voice effect (C.8). Their commentary is the point of the window: it's the call for help, and it's the joke.
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. Server-authoritative hits with lag compensation.
-3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure.
+3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder.*
 4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
 5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once.
 6. **Group counting.** Players within 8m of each other count as a group — the full-clarity voice radius. Used by Ribbits and Climbers.
@@ -2242,7 +2280,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A couple of playtests ago, running hot the whole time and never stopping, two Car Huggers came. More threats that can board the train at speed, to give players things to do. *First piece done (note 328): the hound run. A train run faster than the hounds' own 19 m/s for 2.4 km (sooner with the boiler hot) draws a stream of Cinder Hounds faster than it is, so a hot train can't outrun them: 2 runners solo, up to 6 at crew 8, in pairs on alternating flanks. Missed, they board the rear car at any speed. More at-speed boarders are proposed in [orchestrator.md](orchestrator.md) §5.2.*
 
 **Pacing on the train**
-- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire. The second is in (queue #83, note 346): a car's lamp guttering, trimmed with the lamp key inside; left alone it goes out and the car is dark.*
+- Point A to point B is still relatively boring. The director is open to ideas: activities on the train, things players do to maintain the train while it runs; threats attacking the train tower-defense style, to give the gunners something to do. *Tower defence, first piece done (note 328): the guns answer the hound run one hound at a time. A ball landing near a runner scatters it, and one good shot between a pair takes both. Upkeep while the train runs ([orchestrator.md](orchestrator.md) §5.1), first job in (queue #71, note 331): the hot box, an axle box running dry as the train runs, a squeal then smoke at a car's rear bogie, greased from the gap behind it or the ground beside; left alone it drags the train off its top speed, then the car catches fire. The second is in (queue #83, note 346): a car's lamp guttering, trimmed with the lamp key inside; left alone it goes out and the car is dark. The third is in (queue #93, note 356): a coupling working loose, knocking in its gap and called out like a break, more often on bends; the wrench in the gap tightens it; left alone the pin drops and the rake parts behind it. The fourth is in (queue #111, note 374): powder to the guns, a gun's ready rack of six refilled by a charge carried up from the guard van's powder locker, so a gun in a wave is a gunner and a walker.*
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
@@ -2268,8 +2306,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
 - The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
-- The train is near-silent on the rail: no rolling sound to reinforce speed. *In progress (T127).*
-- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *In progress (T127).*
+- The train is near-silent on the rail: no rolling sound to reinforce speed. *Done (T127): the wheels' roll under each car near you, a roar with speed and the rail joints' click-clack (`bed-wheel-rail`).*
+- There's no audible stress before a derailment (A.1: whole-train events carry their own telegraph). *Done (T127, note 266): on a bend past its board the flanges squeal, then the derail scream climbs in pitch to the edge, with the frames creaking and the cab's bell.*
 - The Choir was heard behind the train (A.7). *Noted.*
 
 **Cab**

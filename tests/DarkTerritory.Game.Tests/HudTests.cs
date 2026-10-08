@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
+using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
@@ -41,6 +42,27 @@ public class HudTests
         o.Clear();
         o.Text(0, 0, "I", Vector4.One);
         Assert.Equal(2 * 7 * 6, o.Count);
+    }
+
+    [Fact]
+    public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
+    {
+        // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with
+        // one in hand at the gun, hold Use to fill the rack.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var train = s.Train;
+        var g = s.World.Combat!.Guns;
+        int van = train.Dynamics.Consist.Vehicles[^1].Id;
+        var mount = Guns.Mount(train, van)!.Value;
+        s.Player = PlayerMotor.SpawnOnRoof(train, van, mount.Position.Z - mount.Facing.Z * 0.8, s.PlayerTuning);
+        train.Vehicles[van].Gun.Rack = 0;
+        Assert.Equal("THE RACK'S EMPTY: POWDER FROM THE GUARD VAN", Hud.Prompt(s));
+        var locker = Guns.Locker(train.Frames[van].Shape)!.Value;
+        s.Player = new PlayerState { Parent = van, Surface = Surface.Deck, Health = 100, Position = locker + new Double3(0.6, 0.05, 0.4) };
+        Assert.Equal($"TAKE A CHARGE : [E]   {Guns.Stowed(train, g)} ROUNDS", Hud.Prompt(s));
+        foreach (var v in train.Vehicles.Where(v => v.HasGun))
+            v.Gun.Ammo = Guns.Ready(v.Gun, g);
+        Assert.Equal("THE POWDER LOCKER'S EMPTY", Hud.Prompt(s));
     }
 
     [Fact]

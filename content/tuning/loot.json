@@ -82,10 +82,18 @@
     "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] }
   },
 
+  // A creature's trophy when it's killed (note 340; the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"):
+  // the find it drops, and what it pays stowed aboard, in the tier's car-loads (run.json economy.perCar; a rescued child
+  // pays 3).
+  "trophies": {
+    "gannet": { "item": "gannetHead", "perCar": 1.5 }
+  },
+
   // Names for the HUD.
   "items": {
     "treats": "Treats", "tinnedFood": "Tinned food", "candles": "Candles", "medicine": "Medicine", "bandages": "Bandages",
     "morphine": "Morphine", "preserves": "Preserves", "tools": "Tools", "valuableTools": "Valuable tools",
-    "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope"
+    "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope",
+    "gannetHead": "The Gannet's head"
   }
 }

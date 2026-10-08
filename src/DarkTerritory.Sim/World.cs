@@ -923,13 +923,49 @@ public sealed class World
             _upkeep = value;
             Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
             Train.Gutter = value?.Lamp is { Enabled: true } lt ? lt : null;
+            Train.Loose = value?.Coupling is { Enabled: true } ct ? ct : null;
             _hotBoxes = null;
             _gutters = null;
+            _couplings = null;
         }
     }
     UpkeepTuning? _upkeep;
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
+    Couplings? _couplings;
+    /// <summary>Host: the guns' racks filled from the powder locker tonight (note 374), for the harness.</summary>
+    public int RacksFilled { get; private set; }
+
+    /// <summary>The gun this player's at whose ready rack wants powder from the lockers (note 374), or null.</summary>
+    int? Charging(in PlayerState s, GunTuning t) =>
+        Guns.MannedGun(s, Train, t) is { } g && Guns.Ready(Train.Vehicles[g].Gun, t) < t.Rack && Guns.Stowed(Train, t) > 0 ? g : null;
+
+    /// <summary>
+    /// Host: a charge in hand at a gun that wants it, Use held (standing) <see cref="GunTuning.ChargeSeconds"/>: the rack's
+    /// filled and the charge is spent. Let go, and it starts again.
+    /// </summary>
+    void Charge(in PlayerState s, in PlayerIntent intent, int playerId, GunTuning t)
+    {
+        if (Bodies.CarriedBy(playerId) is not { Kind: Physics.BodyKind.Powder } charge || Charging(s, t) is not { } gun)
+            return;
+        if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
+        {
+            charge.MendTicks = 0;
+            return;
+        }
+        if (++charge.MendTicks * SimConstants.TickSeconds < t.ChargeSeconds)
+            return;
+        if (Guns.Fill(Train, gun, t) > 0)
+        {
+            Bodies.Remove(charge);
+            RacksFilled++;
+        }
+        else
+            charge.MendTicks = 0;
+    }
+
+    /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
+    public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
@@ -986,11 +1022,20 @@ public sealed class World
         bool picks = Repairs.ByWrench(Train) ? Authority && Repairs.WrenchInHand(s) && Bodies.CarriedBy(playerId) is null : kit;
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, picks, Player.Kit.Held(s) != Player.Tool.None) == true;
+        // Powder to the guns (note 374): a charge in hand at a gun whose rack wants it is being loaded, not put down; empty
+        // hands at a powder locker with powder in it take a charge.
+        var gunTuning = Combat?.Guns;
+        bool charging = Authority && gunTuning is { Rack: > 0 } && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Powder } && Charging(s, gunTuning) is not null;
+        var fetch = Authority && gunTuning is { Rack: > 0 } && Guns.AtLocker(s, Train, gunTuning) is not null && Guns.Stowed(Train, gunTuning) > 0
+            ? Physics.BodyKind.Powder : (Physics.BodyKind?)null;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)), lever: lever);
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand,
+            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
+        if (charging && gunTuning is not null)
+            Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1340,6 +1385,12 @@ public sealed class World
             _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
         if (Authority && _gutters is null && Train.Gutter is { } gt)
             _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
+        if (Authority && _couplings is null && Train.Loose is { } ct)
+            _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
+        // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
+        // its pin, and the rake parts behind it.
+        if (Authority && !Derailed && _couplings is { } pins)
+            pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
@@ -1637,6 +1688,8 @@ public sealed class World
         }
         else
             StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
+        // How long the train's run at the Gannet's speed (note 340): its arrival rule.
+        FastSeconds = Train.Dynamics.Speed >= t.Gannet.ArriveAbove ? FastSeconds + SimConstants.TickSeconds : 0;
         _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
@@ -1644,7 +1697,7 @@ public sealed class World
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard)
         {
             d.Present(_context?.Crew.Count ?? 0);
-            d.Census(this);
+            d.Count(this, Run is { Tuning.YardIsSafe: true } rc ? rc.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
             d.Listen(this);
@@ -1748,6 +1801,9 @@ public sealed class World
     readonly Dictionary<int, Ballast.Double3> _carries = new();
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
+
+    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.ArriveAbove"/> without a break (note 340).</summary>
+    public double FastSeconds { get; private set; }
 
     double _mooseNext = double.NaN;
     Ballast.Pcg32 _mooseDice;
