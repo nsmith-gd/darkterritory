@@ -10,6 +10,12 @@ so each kind reads by its shape from the line:
   * cattle_pen: a 3 m panel of timber pen fence, and cattle_ramp, the loading ramp up to a car's door;
   * signal_box (the switchyard): a timber box on a brick base, windows all round, its lever frame inside, stairs;
   * water_tower: a riveted tank on a timber trestle, its canvas spout swung out over the track.
+  * grain_elevator (note 381): a concrete terminal elevator, 36 m along the line and 33 m to the bin floor's roof: four
+    slip-formed silos in a row, their pour lines banded and rain-streaked from the top, a caged ladder up the end one;
+    the bin-floor gallery along their tops, iron-clad, its windows dark but one; the leg house over the far end, the
+    tallest thing for miles, with its own lit window; at the foot the receiving shed and its dark doorway; and the
+    loading spout swung down from the gallery to 2.5 m off the track, its sock hanging. Its origin is on the ground at
+    the silos' middle, 15 m off the line (StructureKit.Facility).
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -38,17 +44,20 @@ def materials():
         "lit": make.flat("lit", (0.9, 0.7, 0.4), rough=0.5),
         "roof": make.lib("corrugated_iron", 0.6, tint=(0.7, 0.7, 0.68), rough=0.5),
         "stain": make.flat("stain", (0.08, 0.1, 0.05), rough=0.4),
+        "concrete": make.lib("concrete_stain", 0.25, tint=(0.82, 0.82, 0.8), rough=0.9),
+        "streak": make.flat("streak", (0.035, 0.034, 0.03), rough=0.85),
+        "clad": make.lib("corrugated_iron", 0.5, tint=(0.62, 0.6, 0.58), rough=0.55, metal=0.3),
     }
 
 
-def build(name, fn, what, size=1024, budget=4000):
+def build(name, fn, what, size=1024, budget=4000, layer=None):
     cook.reset()
     make.LOW.clear()
     make.USED.clear()
     make._mats.clear()
     parts, extra = fn(materials())
     low = cook.bake_down(parts, name + "_low", budget, colour=None, size=size, cage=0.003, reach=0.008, low=list(make.LOW))[0]
-    cook.finish(name, [low] + extra, budget=budget + 200, grime=0.6, made=make.provenance("facility_pieces", what))
+    cook.finish(name, [low] + extra, budget=budget + 200, grime=0.6, made=make.provenance("facility_pieces", what), size=layer)
 
 
 def _beam(a, b, w, material, name):
@@ -258,11 +267,84 @@ def water_tower(m):
     return p, []
 
 
-build("headframe", headframe, "the mine head's headframe", budget=3500)
-build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500)
-build("watchtower", watchtower, "the military depot's watchtower", budget=2500)
-build("sandbags", sandbags, "a length of sandbag wall", size=512, budget=1500)
-build("cattle_pen", cattle_pen, "a panel of cattle pen", size=512, budget=400)
-build("cattle_ramp", cattle_ramp, "the cattle loading ramp", size=512, budget=800)
-build("signal_box", signal_box, "the switchyard's signal box", budget=1500)
-build("water_tower", water_tower, "a water tower", budget=2000)
+def grain_elevator(m):
+    p = []
+    R, H = 4.4, 26.0  # the silos: four in a row along X, touching
+    xs = [-13.2, -4.4, 4.4, 13.2]
+    for x in xs:
+        p.append(make.cyl((x, 0, -0.3), (x, 0, H), R, m["concrete"], n=40, bevel=0.02, name="silo", low=28))
+        # The slip-form's pour lines, a lip every 1.5 m (baked into the shell, not kept).
+        for z in [k * 1.5 for k in range(1, int(H / 1.5))]:
+            p.append(make.torus((x, 0, z), (0, 0, 1), R + 0.005, 0.025, m["concrete"], n=40, m=4, name="pour", low=False))
+        # Rain off the gallery's eaves: dark streaks down the line side of each, some long, some short.
+        for k, (a, length) in enumerate(((-0.55, 14.0), (-0.2, 22.0), (0.15, 9.0), (0.5, 17.0), (-0.85, 6.0))):
+            ang = -math.pi / 2 + a + 0.07 * (xs.index(x) - 1.5)
+            cx, cy = math.cos(ang) * (R + 0.02), math.sin(ang) * (R + 0.02)
+            p.append(make.box((x + cx, cy, H - length / 2), (0.16 + 0.1 * (k % 2), 0.01, length / 2), m["streak"], bevel=0,
+                              name="streak", low=False, rot=Matrix.Rotation(ang + math.pi / 2, 4, "Z")))
+    # Between the silos' necks, the interstice walls that close the row at the top and bottom.
+    for x0, x1 in zip(xs, xs[1:]):
+        xm = (x0 + x1) / 2
+        p.append(make.box((xm, 0, H / 2), (0.6, R * 0.55, H / 2 + 0.3), m["concrete"], bevel=0.02, name="web"))
+    # The bin floor: a long iron-clad gallery along the silos' tops, its windows dark, one lit.
+    G0, G1 = H, H + 5.0
+    p.append(make.box((0, 0, H + 0.15), (17.9, 4.6, 0.15), m["concrete"], bevel=0.02, name="slab"))
+    p.append(make.box((0, 0, (G0 + G1) / 2 + 0.15), (17.6, 4.0, 2.5), m["clad"], bevel=0.03, name="gallery"))
+    p.append(make.box((0, 0, G1 + 0.3), (18.0, 4.4, 0.15), m["roof"], bevel=0.02, name="gallery_roof"))
+    for k in range(9):
+        x = -14.0 + k * 3.5
+        mat = m["lit"] if k == 6 else m["glass"]
+        p.append(make.box((x, -4.02, G0 + 2.7), (0.7, 0.03, 0.55), mat, bevel=0, name="window", low=False))
+        p.append(make.box((x, -4.03, G0 + 2.1), (0.8, 0.04, 0.05), m["rust"], bevel=0, name="sill", low=False))
+    # The leg house over the far end: the elevator's boot-to-head legs run up inside it, so it stands 12 m clear.
+    L0, L1 = G1 + 0.3, G1 + 12.0
+    p.append(make.box((12.5, 0.5, (L0 + L1) / 2), (4.0, 3.6, (L1 - L0) / 2), m["clad"], bevel=0.03, name="leg_house"))
+    p.append(make.box((12.5, 0.5, L1 + 1.2), (4.3, 3.9, 0.1), m["roof"], bevel=0.02, name="leg_eave"))
+    p.append(make.cyl((12.5, 0.5, L1), (12.5, 0.5, L1 + 1.2), 3.6, m["roof"], n=4, bevel=0, name="leg_roof", r1=0.4, low=4))
+    for z in (L0 + 3.0, L0 + 7.5):
+        for x in (10.5, 14.5):
+            mat = m["lit"] if (z, x) == (L0 + 7.5, 14.5) else m["glass"]
+            p.append(make.box((x, -3.12, z), (0.6, 0.03, 0.8), mat, bevel=0, name="window", low=False))
+    # A caged ladder up the near end's silo to the gallery: its stiles, rungs and the hoops of the cage.
+    lx, ly = -13.2 - R - 0.25, 0.0
+    for dy in (-0.25, 0.25):
+        p.append(make.cyl((lx, ly + dy, 0.5), (lx, ly + dy, G0 + 1.0), 0.03, m["rust"], n=6, bevel=0, name="stile", low=False))
+    for z in [0.8 + k * 0.3 for k in range(int((G0 - 0.5) / 0.3))]:
+        p.append(make.cyl((lx, ly - 0.25, z), (lx, ly + 0.25, z), 0.015, m["rust"], n=5, bevel=0, name="rung", low=False))
+    for z in [3.0 + k * 1.2 for k in range(int((G0 - 2.0) / 1.2))]:
+        p.append(make.torus((lx - 0.35, ly, z), (0, 0, 1), 0.38, 0.02, m["rust"], n=12, m=4, name="hoop", low=False))
+    # At the foot, the receiving shed against the silos on the line side, its doorway dark.
+    p.append(make.box((-4.4, -R - 2.0, 2.5), (6.0, 2.2, 2.5), m["clad"], bevel=0.03, name="shed"))
+    p.append(make.box((-4.4, -R - 2.0, 5.15), (6.3, 2.5, 0.12), m["roof"], bevel=0.02, name="shed_roof",
+                      rot=Matrix.Rotation(-0.12, 4, "X")))
+    p.append(make.box((-4.4, -R - 4.22, 1.6), (1.6, 0.03, 1.6), m["glass"], bevel=0, name="doorway", low=False))
+    # The loading spout: from the gallery's front, swung down and out to 2.5 m off the track at 6 m up, its sock hanging.
+    top, end = Vector((4.4, -4.0, G0 + 1.5)), Vector((4.4, -12.5, 6.0))
+    p.append(make.cyl(top, end, 0.35, m["rust"], n=12, bevel=0.01, name="spout", low=8))
+    for t in (0.25, 0.5, 0.75):
+        p.append(make.torus(top.lerp(end, t), end - top, 0.38, 0.05, m["steel"], n=12, m=4, name="spout_band", low=False))
+    p.append(make.cyl(end, end + Vector((0, -0.2, -1.6)), 0.32, m["sack"], n=10, bevel=0, name="sock", r1=0.26, low=6))
+    # The cables that hold the spout up, from the leg house's corner.
+    p.append(make.cyl((9.0, -3.0, L0 + 1.0), end + Vector((0, 0, 0.3)), 0.025, m["steel"], n=5, bevel=0, name="stay", low=False))
+    p.append(make.cyl((9.0, -3.0, L0 + 1.0), top.lerp(end, 0.5) + Vector((0, 0, 0.3)), 0.025, m["steel"], n=5, bevel=0,
+                      name="stay", low=False))
+    return p, []
+
+
+PIECES = {
+    "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
+    "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
+    "watchtower": lambda: build("watchtower", watchtower, "the military depot's watchtower", budget=2500),
+    "sandbags": lambda: build("sandbags", sandbags, "a length of sandbag wall", size=512, budget=1500),
+    "cattle_pen": lambda: build("cattle_pen", cattle_pen, "a panel of cattle pen", size=512, budget=400),
+    "cattle_ramp": lambda: build("cattle_ramp", cattle_ramp, "the cattle loading ramp", size=512, budget=800),
+    "signal_box": lambda: build("signal_box", signal_box, "the switchyard's signal box", budget=1500),
+    "water_tower": lambda: build("water_tower", water_tower, "a water tower", budget=2000),
+    # (Its layer at 1024, a hero's: some 4500 m² of concrete and iron would get 13 cm a texel at the props' 512.)
+    "grain_elevator": lambda: build("grain_elevator", grain_elevator, "the grain elevator", size=2048, budget=3000, layer=1024),
+}
+# tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
+want = set(cook.args()) or set(PIECES)
+for name, fn in PIECES.items():
+    if name in want:
+        fn()

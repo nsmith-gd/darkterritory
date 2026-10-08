@@ -1129,7 +1129,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             Double3 Along() => site.Track.Sample(site.Mid).Tangent;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
             var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
-            if (waiting is not null)
+            // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
+            // back along it at a crewman's eye, up at whatever stands m out on its side (19 by default: the grain elevator's
+            // silos). Where GreyboxScene puts them: 25 m short of the layout down a spur, at it on the main line.
+            if (args.Contains("--building"))
+            {
+                double outM = args.SkipWhile(a => a != "--building").Skip(1).FirstOrDefault() is { } given
+                    && double.TryParse(given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m) ? m : 19;
+                var foot = site.Track.Sample(site.Mid - (site.Spur >= 0 ? 25 : 0));
+                var right = Double3.Cross(foot.Tangent, Double3.Up).Normalized * site.Side;
+                camera = Camera.LookAt(foot.Position + right * 5 + foot.Tangent * 50 + Double3.Up * 1.7, foot.Position + right * outM + Double3.Up * 15, 72);
+            }
+            else if (waiting is not null)
             {
                 var gap = line.Sample(waiting.Path, waiting.RearDistance - 1.5);
                 var right = Double3.Cross(gap.Tangent, Double3.Up).Normalized * line.Branches[waiting.Path].Side;
