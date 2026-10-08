@@ -24,13 +24,13 @@ layout(set = 0, binding = 14) uniform sampler2DArrayShadow handShadow;
 
 float heroSlot(float layer) {
     int l = int(layer + 0.5);
-    return l >= 0 && l < 256 ? frame.heroOf[l >> 2][l & 3] : -1.0;
+    return l >= 0 && l < 512 ? frame.heroOf[l >> 2][l & 3] : -1.0;
 }
 
 // How a layer moves (GreyboxRenderer.Motion): 1 the foliage, 2 water.
 float layerMotion(float layer) {
     int l = int(layer + 0.5);
-    return l >= 0 && l < 256 ? frame.motionOf[l >> 2][l & 3] : 0.0;
+    return l >= 0 && l < 512 ? frame.motionOf[l >> 2][l & 3] : 0.0;
 }
 
 layout(location = 0) in vec3 vPos;

@@ -253,6 +253,8 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 429: the quick river over its stones, the deep one a candidate; the Atlantic's shingle beaches drag
                 # their stones back, the rocky ledges' surf a candidate.
                 "world-water.river": "run", "world-water.surf": "shingle",
+                # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
+                "bed-wheel-rail.joint": "crack",
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
                 "cs-draggers.drop": "slam"}
 

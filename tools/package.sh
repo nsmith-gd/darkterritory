@@ -18,7 +18,8 @@ mkdir -p out/dist
 for rid in "${rids[@]}"; do
   dir="out/dist/DarkTerritory-$rid"
   rm -rf "$dir" "$dir.zip"
-  dotnet publish src/DarkTerritory.App -c Release -r "$rid" --self-contained true -o "$dir" -p:DebugType=none -nologo -v quiet
+  # Debug info embedded in the assemblies (note 452): a player's crash report names the file and line of every frame.
+  dotnet publish src/DarkTerritory.App -c Release -r "$rid" --self-contained true -o "$dir" -p:DebugType=embedded -nologo -v quiet
   test -f "$dir/content/tuning/train.json" || { echo "no content in $dir" >&2; exit 1; }
   # Everyone whose work is in the game (note 390), at the top where a player looks; content/credits holds it and the texts.
   cp "$dir/content/credits/THIRD-PARTY-NOTICES.txt" "$dir/"
