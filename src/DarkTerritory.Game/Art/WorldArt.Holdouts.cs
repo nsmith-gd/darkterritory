@@ -197,22 +197,37 @@ public sealed partial class WorldArt
     /// <summary>A derelict penal transport (D.4): an iron van on its bogies, barred slits, the door padlocked, on its siding.</summary>
     static void PrisonCar(Kit k, float siding, int door)
     {
-        // The spare siding: sleepers and two rails, the points long gone.
+        // The spare siding: sleepers and two rails, the points long gone; on the ground, not under it (the frame stands
+        // 0.15 m under the ground, as every stop building's does).
+        const float rail = 0.36f;
         k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.3f);
         for (float z = -siding / 2 + 0.4f; z < siding / 2; z += 0.75f)
-            k.Box(new Vector3(-1.3f, -0.05f, z - 0.12f), new Vector3(1.3f, 0.07f, z + 0.12f), Kit.Faces.All & ~Kit.Faces.NegY);
+            k.Box(new Vector3(-1.3f, 0.05f, z - 0.12f), new Vector3(1.3f, rail - 0.12f, z + 0.12f), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
         foreach (int side in new[] { -1, 1 })
-            k.Box(new Vector3(side * TrainKit.HalfGauge - 0.035f, 0.07f, -siding / 2), new Vector3(side * TrainKit.HalfGauge + 0.035f, 0.19f, siding / 2));
-        // The van, 14 m, on two bogies.
-        const float half = 7, w = 1.5f, floor = 1.1f, top = 3.6f;
+            k.Box(new Vector3(side * TrainKit.HalfGauge - 0.035f, rail - 0.12f, -siding / 2), new Vector3(side * TrainKit.HalfGauge + 0.035f, rail, siding / 2));
+        // The van, 14 m, on two bogies: their wheels on the rails, the side frames over the axle boxes outside them, a
+        // bolster across under the van (note 387: they were a block with the wheels inside it).
+        const float half = 7, w = 1.5f, floor = 1.1f, top = 3.6f, wheel = 0.42f;
         k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
         foreach (float z in new[] { -4.8f, 4.8f })
         {
-            k.Box(new Vector3(-1.1f, 0.3f, z - 1.2f), new Vector3(1.1f, 0.9f, z + 1.2f));
             foreach (float dz in new[] { -0.8f, 0.8f })
+            {
                 foreach (int side in new[] { -1, 1 })
-                    k.Cylinder(new Vector3(side * TrainKit.HalfGauge - 0.06f, 0.5f, z + dz), new Vector3(side * TrainKit.HalfGauge + 0.06f, 0.5f, z + dz), 0.45f, 10);
+                    k.Cylinder(new Vector3(side * TrainKit.HalfGauge - 0.06f, rail + wheel, z + dz), new Vector3(side * TrainKit.HalfGauge + 0.06f, rail + wheel, z + dz), wheel, 12);
+                k.Rod(new Vector3(-TrainKit.HalfGauge, rail + wheel, z + dz), new Vector3(TrainKit.HalfGauge, rail + wheel, z + dz), 0.06f, 8);
+            }
+            k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.4f);
+            foreach (int side in new[] { -1, 1 })
+            {
+                float x = side * (TrainKit.HalfGauge + 0.14f);
+                k.Box(new Vector3(x - 0.05f, rail + wheel - 0.12f, z - 1.25f), new Vector3(x + 0.05f, rail + wheel + 0.14f, z + 1.25f));
+                foreach (float dz in new[] { -0.8f, 0.8f })
+                    k.Box(new Vector3(x - 0.09f, rail + wheel - 0.14f, z + dz - 0.16f), new Vector3(x + 0.09f, rail + wheel + 0.16f, z + dz + 0.16f));
+            }
+            k.Box(new Vector3(-1.2f, rail + wheel + 0.14f, z - 0.3f), new Vector3(1.2f, floor, z + 0.3f));
+            k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
         }
         // Its body hollow (note 387): plate walls, floor and roof, so its door broken open shows the cell inside. The door's
         // opening is where Entrance hangs its leaf: 2 m along the middle of the crew's side, the standard door's height.
