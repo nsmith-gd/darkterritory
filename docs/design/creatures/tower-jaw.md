@@ -112,6 +112,9 @@ NEVER     a bridge; it never boards the train
   threat and the lunge (never a kill); 4 blows drive it off and it comes back to its post with its gnawing kept; 12 kill
   it; the collapse crushes (never kills) and blocks the track there; a train stops against it; the crew clears it with
   Use, faster with two; deterministic.
+- `BotsAnswerTheSixTests` (the bots, note NNN): bots on foot drive it off its post and are never killed; gnawed past
+  0.9, they keep clear of the fall. The driver stops short of its wreck, the bots clear it, and the train goes on with
+  the crew aboard.
 
 ## 11. Decisions taken overnight (G1's calls, for the director)
 
