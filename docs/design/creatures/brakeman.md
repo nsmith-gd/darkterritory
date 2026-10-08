@@ -6,6 +6,17 @@ first pass in the roster's units (player health 100, roof run 3.5 m/s, a crowbar
 
 ![The director's reference](brakeman-reference.webp)
 
+**As built** (`dt screenshot --view brakeman|brakemancorner`, `--brakeman walk|wind|flee|cornered|lash|climb|drop`;
+`dt art clip brakeman <clip>`): tools/blender/brakeman.py, his colour baked by tools/models/recipes/brakeman.py; drawn by
+Art/CreatureArt.Train.cs. His body, coat and boots are one fused, settled skin and his head and neck another (the collar
+hides the join); the coat's ragged skirt, the clawed fingers, the iron lames and plates, both brake wheels, the chains (the
+lash on its own four bones) and the lamp over it. A wound car's brake wheel is drawn turned, its chain taken up round the
+staff, and its shoes spark on the wheels while it runs.
+
+![Winding a car's brake on](brakeman-wind.png)
+![Cornered between two of the crew](brakeman-cornered.png)
+![A close look](brakeman-closeup.png)
+
 > **Something is walking the roofs, winding every brake on. One of you can chase it off. It takes two to catch it.**
 
 ---

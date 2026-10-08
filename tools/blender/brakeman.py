@@ -613,7 +613,7 @@ def hang_chain(pose, trail=(0.0, 0.0, 0.0), swing=0.0):
 # forward of him, the claws curled.
 STOOP = mirror({
     "pelvis": (-12, 0, 0), "spine_01": (-14, 0, 0), "spine_02": (-16, 0, 0), "spine_03": (-14, 0, 0), "neck": (30, 0, 0), "head": (22, 0, 0),
-    "clavicle_r": (10, 12, 8), "upperarm_r": (34, 62, 0), "lowerarm_r": (0, 0, 34), "hand_r": (0, 14, 0), "fingers_r": (0, 22, 0), "thumb_r": (0, 10, 0),
+    "clavicle_r": (10, 12, 8), "upperarm_r": (28, 42, 0), "lowerarm_r": (0, 0, 34), "hand_r": (0, 14, 0), "fingers_r": (0, 22, 0), "thumb_r": (0, 10, 0),
     "thigh_r": (24, 0, -8), "calf_r": (-38, 0, 0), "foot_r": (14, 0, -8),
 })
 STOOP = hang_chain(STOOP)
@@ -636,7 +636,7 @@ def ground(pose, up=0.0):
 W_CONTACT = over(STOOP, pelvis__loc=(0, 0, -0.03), pelvis=(-8, 0, -6), spine_02=(-14, 0, 4), spine_03=(-12, 0, 4),
                  thigh_r=(40, 0, -4), calf_r=(-14, 0, 0), foot_r=(6, 0, -6),
                  thigh_l=(-14, 0, 4), calf_l=(-30, 0, 0), foot_l=(-14, 0, 6),
-                 upperarm_r=(-6, 72, 0), upperarm_l=(42, -72, 0), lowerarm_l=(0, 0, -30))
+                 upperarm_r=(2, 42, 0), upperarm_l=(38, -52, 0), lowerarm_l=(0, 0, -30))
 W_PASS = over(STOOP, pelvis__loc=(0, 0, 0.01), thigh_r=(14, 0, -4), calf_r=(-24, 0, 0), foot_r=(4, 0, -6),
               thigh_l=(38, 0, 4), calf_l=(-80, 0, 0), foot_l=(16, 0, 6))
 walk = Clip("walk")
@@ -674,9 +674,9 @@ wind.close(24)
 F_REACH = over(STOOP, pelvis__loc=(0, 0, -0.08), pelvis=(-26, 0, -8), spine_01=(-14, 0, 4), spine_02=(-10, 0, 4), spine_03=(-8, 0, 4),
                neck=(40, 0, 0), head=(20, 0, 0),
                thigh_r=(64, 0, -4), calf_r=(-30, 0, 0), foot_r=(10, 0, -6), thigh_l=(-24, 0, 4), calf_l=(-50, 0, 0), foot_l=(-20, 0, 6),
-               upperarm_r=(-40, 66, 0), lowerarm_r=(0, 0, 40), upperarm_l=(56, -60, 0), lowerarm_l=(0, 0, -50))
+               upperarm_r=(-20, 40, 0), lowerarm_r=(0, 0, 40), upperarm_l=(50, -42, 0), lowerarm_l=(0, 0, -50))
 F_FLY = over(F_REACH, pelvis__loc=(0, 0, 0.02), thigh_r=(30, 0, -4), calf_r=(-60, 0, 0), thigh_l=(20, 0, 4), calf_l=(-100, 0, 0),
-             upperarm_r=(10, 70, 0), upperarm_l=(10, -70, 0))
+             upperarm_r=(14, 42, 0), upperarm_l=(14, -42, 0))
 flee = Clip("flee")
 for f, p in ((0, F_REACH), (4, F_FLY)):
     flee.key(f, hang_chain(p, (-60, 0, 0)), "LINEAR")
@@ -688,7 +688,7 @@ flee.close(16)
 # Jump (0.8 s, once): a gap, crouched: down onto his haunches, sprung, tucked over it with the arms out in front, landing
 # low on the far roof two metres on.
 CROUCH = over(STOOP, pelvis__loc=(0, 0, -0.28), pelvis=(-34, 0, 0), thigh_r=(86, 0, -6), calf_r=(-110, 0, 0), foot_r=(24, 0, -6),
-              thigh_l=(86, 0, 6), calf_l=(-110, 0, 0), foot_l=(24, 0, 6), upperarm_r=(-30, 60, 0), upperarm_l=(-30, -60, 0))
+              thigh_l=(86, 0, 6), calf_l=(-110, 0, 0), foot_l=(24, 0, 6), upperarm_r=(14, 46, 0), upperarm_l=(14, -46, 0))
 TUCK = over(CROUCH, pelvis__loc=(0, 1.0, 0.5), pelvis=(-20, 0, 0), thigh_r=(90, 0, -6), calf_r=(-100, 0, 0), thigh_l=(70, 0, 6),
             calf_l=(-90, 0, 0), upperarm_r=(60, 50, 0), lowerarm_r=(0, 0, 20), upperarm_l=(60, -50, 0), lowerarm_l=(0, 0, -20))
 jump = Clip("jump", loop=False)
@@ -716,7 +716,7 @@ drop = Clip("drop", loop=False)
 drop.key(0, STOOP, "BEZIER")
 drop.key(6, hang_chain(at(CROUCH, 0.9, 0.0, 0.0, turn=-70)), "LINEAR")
 drop.key(14, hang_chain(at(over(CROUCH, pelvis=(-10, 0, 0)), 1.5, 0.0, -0.9, turn=-90, tip=-20)), "LINEAR")
-drop.key(26, hang_chain(at(over(STOOP, upperarm_l=(0, -150, 0), lowerarm_l=(0, 0, -10)), 1.7, 0.0, -2.4, turn=-90, tip=-8)), "LINEAR")
+drop.key(26, hang_chain(at(STOOP, 1.7, 0.0, -2.4, turn=-90, tip=-8)), "LINEAR")
 drop.key(36, hang_chain(at(STOOP, 1.75, 0.0, -3.4, turn=-90)), "CONSTANT")
 
 # Climb (2 s, once: the sim's climbSeconds): up the end ladder behind him, facing it, hand over hand, and over the roof's

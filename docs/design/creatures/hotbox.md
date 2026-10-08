@@ -7,6 +7,17 @@ director to overrule. Numbers are a first pass in the roster's units (player hea
 
 ![The director's reference](hotbox-reference.webp)
 
+**As built** (`dt screenshot --view hotboxbug|hotboxout`, `--hotboxbug knock|glow|seized|unfolded|snap|prised`; `dt art
+clip hotbox <clip>`): tools/blender/hotbox.py, its colour and its belly's glow baked by tools/models/recipes/hotbox.py; drawn
+by Art/CreatureArt.Train.cs. The swollen segmented belly, the head and the legs' roots are one fused skin; the domed,
+lumped, shingled plates, the legs and the mandibles over it. In its truck it's rolled on its side, its back out, the belly
+dull while it knocks (once a wheel turn), bright and smoking while it glows, white-hot seized (the seized car's wheel
+dragging in sparks); at a stand it unfolds out onto the ballast, snaps on the sim's beat, and prised, flips out and runs.
+
+![Glowing in its truck](hotbox-glow.png)
+![Out on the ballast at a stand](hotbox-out.png)
+![A close look](hotbox-closeup.png)
+
 > **Something in the running gear is eating the grease. Listen for the knock, find the wheel, stop the train.**
 
 ---

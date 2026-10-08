@@ -264,9 +264,11 @@ rough[peak] = 0.25
 # The face and the bare arm: dead grey, blotched brown and bruised purple, the veins dark; darker round the sunk eyes and in
 # the hollows of the cheeks; the lips bloodless.
 skin = is_("brakeman_skin")
-base[skin] = np.array((0.32, 0.29, 0.25), np.float32) * (0.9 + 0.2 * noise(3721, 8.0))[skin][:, None]
+base[skin] = np.array((0.33, 0.29, 0.23), np.float32) * (0.9 + 0.2 * noise(3721, 8.0))[skin][:, None]
 base = paint(base, (0.15, 0.115, 0.085), skin * smooth01(0.2, 0.7, noise(3722, 14.0) * 0.5 + 0.5) * 0.6)
-base = paint(base, (0.17, 0.1, 0.11), skin * smooth01(0.72, 0.92, noise(3723, 7.0) * 0.5 + 0.5) * 0.35)
+base = paint(base, (0.16, 0.11, 0.08), skin * smooth01(0.72, 0.92, noise(3723, 7.0) * 0.5 + 0.5) * 0.3)
+# (The bare forearm darker than the face, grimed with soot and rust.)
+base = paint(base, (0.1, 0.075, 0.06), skin * smooth01(HC[2] - 0.25, HC[2] - 0.4, P[..., 2]) * 0.55)
 base = paint(base, (0.08, 0.06, 0.07), skin * smooth01(0.9, 0.97, field(lambda p: 1 - np.abs(cook.noise_np(p, 3724, 22.0)))) * 0.7)
 for e in EYES.values():
     r = np.linalg.norm(P - e, axis=-1)

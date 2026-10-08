@@ -17,7 +17,7 @@ alone (this script), it wears the shared tiling textures.
 
 SK_Knotter: a root at its middle, 33 segments along it (flat under the root: CreatureArt lays them along the gap's span,
 however wide it's been forced, sagging or coiled), and at each end the knot's bone and its five clawed fingers. At rest it
-lies straight along +Y (the engine's -Z), 4.8 m from knot to knot and 5.2 m claw tip to claw tip, its middle on the origin:
+lies straight along +Y (the engine's -Z), 4.8 m from knot to knot and 5.6 m claw tip to claw tip, its middle on the origin:
 the origin is the gap's middle at the coupler's height (the sim's Local). A large monster's budget (GDD §27). Clips (§31:
 still, then abrupt; laid along the span by the engine): creep (writhing up out from under, the claws feeling), clamp
 (the claws closing on the sills), force (swelling and twisting, the cars pushed apart), taut (held, the lay creaking round),
@@ -44,7 +44,7 @@ rig.reset()
 SPAN = 5.0
 SEGMENTS = 33
 END = 2.4                   # its knots' centres either side of the middle (m along it)
-REACH = 2.62                # its claws' tips
+REACH = 2.79                # its claws' tips
 RADIUS = 0.088              # the lay's outside, over the strands' ridges
 LAY_R, STRAND_R = 0.047, 0.044
 PITCH = 0.42                # one turn of the lay (m)

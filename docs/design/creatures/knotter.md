@@ -7,6 +7,18 @@ first pass in the roster's units (player health 100, a crowbar blow = 1, a gun r
 
 ![The director's reference](knotter-reference.webp)
 
+**As built** (`dt screenshot --view knotter|knotterslip`, `--knotter creep|force|taut|slack|coil`; `dt art clip knotter
+<clip>`): tools/blender/knotter.py, its colour baked by tools/models/recipes/knotter.py; drawn by Art/CreatureArt.Train.cs.
+The lay (three strands' signed-distance field, their grooves kept), the whipping, the knots and the claws' roots are one
+fused skin; the legs and the jointed claws over it. Its 33 segments are laid along the gap as the sim has it forced
+(CarShape.Knotted's span): hanging in a U under the coupling while it creeps, straightening as it forces the cars apart,
+straight and taut at speed, sagging slack at a stand, and coiled up round whoever slipped. The coupler plate isn't drawn
+while it's the coupling.
+
+![Taut across a forced gap at speed](knotter-taut.png)
+![Coiled round a crewmate who slipped](knotter-coil.png)
+![A knot of claws](knotter-closeup.png)
+
 > **The train is still one train, but now it's held together by something alive, and you can't get across it.**
 
 ---
