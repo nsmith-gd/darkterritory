@@ -2849,15 +2849,20 @@ public sealed class GreyboxScene
         }
     }
 
-    /// <summary>An open house in the world: its frame's origin on its floor, its axes, its parts, and its light.</summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id);
+    /// <summary>
+    /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
+    /// stand over that floor (an open barn's or shed's eaves, note 462).
+    /// </summary>
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f);
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
     /// <summary>
     /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
     /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
-    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. Only the houses near the eye.
+    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. An open barn, outbuilding or goods shed (note
+    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp. Only the houses near
+    /// the eye.
     /// </summary>
     void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
     {
@@ -2871,6 +2876,17 @@ public sealed class GreyboxScene
                 for (int i = 0; i < stop.Buildings.Count; i++)
                 {
                     var b = stop.Buildings[i];
+                    // An open barn or shed (note 462): its walls from the frame (0.15 m under the ground at its middle, as
+                    // WorldArt stands it) to its eaves, one part, no light. Not one a Holdout's in: that's the Holdout's shell.
+                    if (Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
+                    {
+                        double frame = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15).Y;
+                        Double3 On(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = frame };
+                        var origin = On(0, 0);
+                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized,
+                            [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)], null, false, (int)(f.Start * 7 + i), Art.WorldArt.OpenShedHeight(b.Kind)));
+                        continue;
+                    }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
                         continue;
                     // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
@@ -2889,9 +2905,9 @@ public sealed class GreyboxScene
             _openHouses = cached = (route, line, houses);
         }
         const double Near = 40;
-        const float WallHeight = 3.0f;
         foreach (var h in cached.Houses)
         {
+            float wallHeight = h.Height;
             if ((h.Origin - eye).Length > Near)
                 continue;
             var right = ToF(h.X);
@@ -2901,8 +2917,8 @@ public sealed class GreyboxScene
                 back = -back;
             foreach (var part in h.Parts)
             {
-                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (WallHeight / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, WallHeight / 2, (float)part.Width / 2)));
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (wallHeight / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, wallHeight / 2, (float)part.Width / 2)));
             }
             // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
             if (h.Light is not { } light)

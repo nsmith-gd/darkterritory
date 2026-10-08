@@ -186,7 +186,7 @@ public sealed partial class WorldArt
                             var p = Sim.Run.StopWalls.InHouse(b, cx * b.Length, cy * b.Width);
                             rise = MathF.Max(rise, Ground(route, f.Start + p.S, (float)p.D, valleyDepth) - centre);
                         }
-                    k.With(frame, () => OpenShed(k, stop, index, b.Kind switch { BuildingKind.Barn => 6.5f, BuildingKind.GoodsShed => 7f, _ => 4.6f },
+                    k.With(frame, () => OpenShed(k, stop, index, OpenShedHeight(b.Kind),
                         b.Kind == BuildingKind.Outbuilding && b.Variant == 1 || b.Kind == BuildingKind.GoodsShed && b.Variant == 1 ? "rust_heavy" : "wood_grey", rise));
                 }
                 break;

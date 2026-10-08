@@ -1,5 +1,7 @@
+using System.Numerics;
 using System.Text.Json;
 using Ballast;
+using Ballast.Render;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Run;
@@ -81,5 +83,57 @@ public class HouseInteriorArtTests
         }
         // Candles in the corners, and lamps.
         Assert.True(candles > 0 && lamps > 0 && nests > 0, $"{spec}: {candles} candles, {lamps} lamps, {nests} nests");
+    }
+    [Fact]
+    public void AnOpenBarnOrShedIsARoomWithNoLightOfItsOwn()
+    {
+        // Note 462 (note 417's "not yet"): inside an open barn, outbuilding or goods shed the moon and the sky are kept out, as
+        // in an open house's parts (a Room the renderer's lighting leaves out), and there's no candle: bring a lamp.
+        var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        var trains = DataFile.Load<DarkTerritory.Sim.Train.TrainTuning>(Path.Combine(Content, DarkTerritory.Sim.Train.TrainTuning.File));
+        var look = Look.Load(Content);
+        int seen = 0;
+        foreach (var f in route.Features.Where(f => f.Stop is not null))
+        {
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                var b = stop.Buildings[i];
+                if (!StopWalls.OpenShed(b) || !StopWalls.Shelled(stop, i) || stop.Holdouts.Any(h => h.Building == i))
+                    continue;
+                // Stood in the middle of it, at a crewman's eye, the train standing at the stop.
+                double ground = WorldArt.Ground(route, f.Start + b.S, (float)b.D, 18);
+                var eye = Run.StopWorld(line, f, b.Centre, ground + 1.6);
+                var train = new DarkTerritory.Sim.Train.TrainOnLine(new DarkTerritory.Sim.Train.TrainDynamics(DarkTerritory.Sim.Train.Consist.Uniform(trains, 4, 1)), line, f.Start);
+                var mesh = new MeshBuilder();
+                new GreyboxScene { Look = look, Route = route, Time = 0.37 }.Build(mesh, train, eye);
+                // (Camera-relative: the eye's at the origin.)
+                Assert.Contains(mesh.Rooms, r => Inside(r, Vector3.Zero));
+                // Nothing lit in there: no light inside its walls.
+                Assert.DoesNotContain(mesh.PointLights, l => StopWalls.InParts(b, Along(l.Position), Across(l.Position)));
+                seen++;
+
+                // The light's place in the barn's own frame (x along it, y across), from camera-relative.
+                double Along(Vector3 at) => Frame(at).X;
+                double Across(Vector3 at) => Frame(at).Y;
+                (double X, double Y) Frame(Vector3 at)
+                {
+                    var o = Run.StopWorld(line, f, StopWalls.InHouse(b, 0, 0), 0) with { Y = 0 };
+                    var ex = (Run.StopWorld(line, f, StopWalls.InHouse(b, 1, 0), 0) with { Y = 0 }) - o;
+                    var ey = (Run.StopWorld(line, f, StopWalls.InHouse(b, 0, 1), 0) with { Y = 0 }) - o;
+                    var d = new Double3(eye.X + at.X, 0, eye.Z + at.Z) - o;
+                    return (d.X * ex.X + d.Z * ex.Z, d.X * ey.X + d.Z * ey.Z);
+                }
+            }
+        }
+        Assert.True(seen > 0, "frontier:7 has no open barn or shed");
+
+        static bool Inside(Room r, Vector3 p)
+        {
+            var d = p - r.Centre;
+            return Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Right))) <= r.Half.X && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Up))) <= r.Half.Y
+                && Math.Abs(Vector3.Dot(d, Vector3.Normalize(r.Back))) <= r.Half.Z;
+        }
     }
 }
