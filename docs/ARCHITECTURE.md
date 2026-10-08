@@ -5540,3 +5540,50 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - A sound inside a building heard from outside it (a crewmate searching a house, from the street). That would cost a line search per voice for every listener outside; it waits for a cheaper building lookup.
         - The night's own air, played at the ear, isn't walled.
     - **Pinned:** `WorldSoundTests.FromInsideAStopsBuildingWhatsOutsideComesThroughItsWalls`: in a Holdout's room, a sound on the line is behind `roomWall` and one in the room behind none; in a shed, behind the lighter `shedWall`; out on the line, clear. The audio test classes pass (119).
+
+353. **Towns that are lived in: townsfolk with their own breathing gear, a round for everyone, a green and the things a walled-in people put up (queue #90, B2; the director, 8 Oct 2026, with two shots of an open house: "We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns dont feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, its weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable.").** Renumbered from #89 and 352, which A1's #294 landed first.
+    - **The poses were off.**
+        - **In a short house the range's crouch was on the table's chair.** The layout put the chair 0.26 m from where the one at the range crouches: the director's shot had the seated one beside the chair and the crouched one on it. `HouseLayout.TableV`: the table (and its chair behind it) come forward in a house under ~6.3 m deep, so the range keeps 0.65 m.
+        - **crouch_idle floated.** crew_clips.py plants most clips' feet (`rig.feet_planter`) but not crouch_idle's, so a crouched figure is drawn ~0.5 m up. A town's people are set down on their feet (`CreatureArt.FeetOver`, the lowest foot or ball joint at the clip's start over the idle's 0.03 m); a seated one sits on the gunner clip's pan (its pelvis over the chair, 0.08 m over its 0.48 m seat, `TownsfolkArtTests`). The crew's own crouch is C1/E1's (the clip): it still floats on the train.
+        - **No swivelling off a chair.** Whoever's seated, crouched or mending stays as they are when talked to; only those standing turn to you.
+    - **Their own breathing gear, never the crew's mask.** A town's people are the survivors' bare-headed figure (survivor_prisoner, the wildlander's patched coat on one in three), not the crew's masked one. `TownsfolkKit` makes the gear in the figure's bind pose and `CreatureArt.Wear` carries it on a bone (the head's skinning matrix for the face, spine_03's for the body); a hose runs between where the pose has put its two ends (`CreatureArt.Posed`):
+        - a respirator: a rubber half-mask, a filter can either cheek, two straps;
+        - oxygen: an amber cup on a hose over the shoulder to a green bottle slung on the back;
+        - a rebreather: a mine-rescue set (the mouthpiece, the nose clip, two hoses to the breathing bag on the chest and its scrubber can);
+        - a wrap: wool over the nose and mouth, a tin can sewn into it.
+
+        The town's character weights the kinds (houses.json `gear`: a company issues its respirator and the pit's rebreather; a cove makes its own wraps). Each person's is drawn from their name (`Townsperson.Gear`, `TownGear.Pick`, in the kinds' order whatever the file's). At home half have the mask down on the chest. Hats out of doors: a sou'wester, a knitted toque, a flat cap, a headscarf. The survivors' chest lamp is dark on a townsperson. `dt art townsfolk [--full] [--pose ...]` lines them up.
+    - **A round for everyone** (`TownRounds`, `Town.Now`; towns.json `rounds`). They go round on the night's clock: `World.Step` sets `Town.Clock` from the tick, so every machine has them in the same places.
+        - **Out of doors**, a day is four slots of 45 s. The square's folk go out every other slot; the people at their doors (the clerk, the keeper, the store, the fitter) once, in the middle, when the rest are back at their posts, so there's always somebody to have a word with. Where they go: a bench to sit on, a fire barrel (hands out to it), the board or the laws to read, a stall's counter, a mend at the crate, a vigil at the centrepiece, the statue or the wall of names, a garden to tend, or a word with somebody at their post (one time in three first). A place holds one a slot, and nobody's put within 0.9 m of anyone else that slot. The way there is clear of what's solid: `Town.Clear` sweeps a body's width at the knees and the chest, `Town.Free` keeps the stop out of walls, and an 8 m wall index keeps a 3000-person town's planning under 0.1 s. The gate's people pace their post; a street's lamp-carriers walk to a neighbour's; the lampman walks the line.
+        - **At home**, each of the household goes round the rooms' places (the range, the table, the parlour's chair, the window, the stair, the door) in turn, starting from their own, so no two share one. Each house has its own phase. The way between is the shortest over a 0.4 m grid of the places a body can stand, through the partition's doorway, pulled straight.
+        - **They walk at the end of a slot** to arrive as the next begins, so everyone is at their post as the night starts. Acts play crew clips: sat (gunner), crouched (crouch_idle), mending (mend), hands to a fire (carry), at a counter (push), a lamp up (lantern), walking (walk, or lantern_walk with a lamp), and a word with somebody (now and then point).
+        - **Whoever you talk to stops for you** (`Town.Hold`, from `TownTalk.Step`): their round waits on this machine and goes on from there after. Talking still changes nothing in the night.
+        - **Townspeople aren't solid any more.** A wall of their own would stand in a different place on a machine that's stopped somebody, and prediction would diverge. App. F.1's solid world is the town's walls, houses and furniture.
+    - **A walled town's green, its governance and its culture** (`TownPlan.Green`, `CivicKit`, `WorldArt.Civic`; towns.json `laws`, `civic`, `walled`). Every piece can be looked at and says something sideways:
+        - **The green**, across the first street from the square, where the far row and the next street's near row would be: grass, gravel paths corner to corner, lamps. On it:
+            - a statue: the survivors' figure cast in bronze or cut in stone on a plinth, frozen in its pose (the Founder's palm out; the Lamplighter's lamp lit; the Child looking up; the Railwayman turned from the gate);
+            - the wall of names: slate, the names cut pale, iron rings by some, a row of blank slates already mounted;
+            - the bandstand, a sky painted under its roof;
+            - lamp gardens: cloches, or tin flowers in damp soil;
+            - tin trees and the old elm hung with paper leaves and little lamps;
+            - benches.
+        - **Governance** (every town): four of the council's ordinances posted by the clerk's door, and the town's flag in the square.
+        - **Culture:** the day painted on the inside of the back wall at the ends of the first streets: a sunrise over the sea, a window on a field, the day the wall's length.
+        - **What becomes of those who rarely leave:** a walled town's folk have lines of their own ("My youngest was born inside. She asked me once if the train goes anywhere, or only comes.").
+        - `dt screenshot --town green|statue|memorial|mural|garden`, `--clock s` for the rounds.
+    - **Verified:**
+        - `TownsfolkTests`:
+            - gear of the town's kinds, the same every time;
+            - everyone on a round, back at their post when it comes round;
+            - every round clear of every wall (a bench's sitter aside), never two in one place, over two of its longest periods at three sizes up to 2000;
+            - talking holds them and they go on;
+            - the green and its pieces, the laws, the flag and the mural, each lookable.
+        - `TownsfolkArtTests`: crouched set down, seated on the chair, every piece of gear built and cheap.
+        - `TownTests` (people in no wall now, they've none of their own).
+        - Looked at: the lineups, the sitter, the range, the armchair, the square over a round, the green, the statue, the names, the gardens, the mural.
+    - **Not yet:**
+        - natural layouts: streets that bend with the land, irregular setbacks, a crescent round the green;
+        - the quiet house;
+        - a council house of its own;
+        - murals and a green for a small town (the yard's corridor);
+        - a modelled townsfolk figure (tools/models needs Blender, not in this container: the gear is procedural on the survivors' figure).
