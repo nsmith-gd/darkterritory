@@ -238,7 +238,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
-| Bots bring the powder: a walker keeps a gun in action fed from the guard van's locker, the engine's forward gun too, so the gunner keeps firing (queue #114) | this PR | 377 |
+| Bots bring the powder: a walker keeps a gun in action fed from the guard van's locker, the engine's forward gun too, so the gunner keeps firing (queue #114) | [#404](https://github.com/nsmith-gd/darkterritory/pull/404) | 377 |
 | The relief driver: a walker takes the controls from a dead driver, and comes forward into the cab to club a Climber with the driver (queue #134) | [#397](https://github.com/nsmith-gd/darkterritory/pull/397) | 399 |
 | #299's regressions: the driver kept from the Climber, and the headlamp mended from the floor, not the vent's corner (queue #39) | [#387](https://github.com/nsmith-gd/darkterritory/pull/387), [#393](https://github.com/nsmith-gd/darkterritory/pull/393) | 301 |
 | Wrenches are the repair tool, slice 2: the engine, the headlamp, the radio, the lock, Stranded; the kit goes (queue #39) | [#299](https://github.com/nsmith-gd/darkterritory/pull/299) | 301 |
