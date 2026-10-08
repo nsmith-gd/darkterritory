@@ -63,6 +63,27 @@ public static class UiStyle
         return w;
     }
 
+    /// <summary>
+    /// TEXT BACKING (note 404) set aside while a plate's drawn: what's written on a plate, a card or a strip has its own ground,
+    /// and a band a line on it would only patch it. <c>using var plate = UiStyle.OnPlate(o);</c> puts it back at the scope's end.
+    /// </summary>
+    public static PlateScope OnPlate(Overlay o) => new(o);
+
+    /// <summary><see cref="OnPlate"/>'s scope.</summary>
+    public readonly struct PlateScope : IDisposable
+    {
+        readonly Overlay _o;
+        readonly Vector4 _was;
+
+        public PlateScope(Overlay o)
+        {
+            (_o, _was) = (o, o.Backing);
+            o.Backing = default;
+        }
+
+        public void Dispose() => _o.Backing = _was;
+    }
+
     /// <summary>Rounds to the font's pixel at this scale (half a canvas pixel in fine print), so glyphs stay crisp.</summary>
     static float Snap(float v, float scale) => MathF.Round(v / MathF.Min(1, scale)) * MathF.Min(1, scale);
 
@@ -72,9 +93,14 @@ public static class UiStyle
     /// </summary>
     public static float Keyed(Overlay o, float x, float y, string text, Vector4 colour, float scale = 1)
     {
+        // TEXT BACKING (note 404): one band behind the whole line, keycaps and all, rather than one a piece of text.
+        var backing = o.Backing;
+        o.Back(x, y, MeasureKeyed(o, text, scale) - scale, scale);
+        o.Backing = default;
         float at = x;
         foreach (var (part, key) in Parts(text))
             at += key ? Keycap(o, at, y - 2 * scale, part, scale) + 3 * scale : o.Text(at, y, part, colour, scale) + scale;
+        o.Backing = backing;
         return at - x;
     }
 

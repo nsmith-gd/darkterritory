@@ -2283,6 +2283,9 @@ static object HudShot(string content, string[] args)
     // --colours colourblind (note 348): the HUD in that palette.
     if (Str(args, "--colours", "") is { Length: > 0 } colours)
         Hud.Keys = Hud.Keys with { Colours = Enum.Parse<HudColours>(colours, ignoreCase: true) };
+    // --text-backing (note 404): the band behind the print in play.
+    if (args.Contains("--text-backing"))
+        Hud.Keys = Hud.Keys with { TextBacking = true };
     int cars = (int)Opt(args, "--cars", 6);
     Route? generated = Str(args, "--route", "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
