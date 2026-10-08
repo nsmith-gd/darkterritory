@@ -646,6 +646,9 @@ CUES = {
         O("vanish", "Vanishing when approached", vars=2, cand={"_": [old("audio/cs-track-doll--vanish.mp3")]}),
         O("crack", "Porcelain cracking when cornered and clubbed", vars=3, cand={"_": [old("audio/cs-track-doll--cornered.mp3")]}),
         O("take-toy", "A toy taken", vars=2),
+        # Restless (her next stage coming; queue #236, note 499): her own, now and then, and her own rattle of the brake.
+        O("restless", "Restless: heels drumming on the woodwork, a hum through her teeth, her head turning", vars=4),
+        O("rattle", "At stage 2, restless: her small hand shaking the brake handle without turning it", vars=3),
     ],
     "cs-car-hugger": [
         O("swallow", "The swallow closing round a player", vars=2, cand={"_": [old("audio/cs-car-hugger--swallow.mp3")]}),

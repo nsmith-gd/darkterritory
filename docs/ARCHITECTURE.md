@@ -2991,7 +2991,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
       - Run-rounds and trailing points, so picked-up cars could go behind the engine (I.4).
       - Bots fetching a hand lamp from the guard van for the dark heaps.
-      - A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.
+      - ~~A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.~~ Done in note 481.
       - Art-pass models for the heaps (greybox boxes drawn from the sim's state; the art pass's wreck-yard scenery is separate), and audio for the groan (the tell is visual and on the HUD for now).
       - frontier:11's and deadLines:2's switchyards, drilled, lose a hand to the cold before their first stop's done: as they did before this package.
     - Protocol 18 (standing rakes from the start; the heap record; death cause `Wreckage`). Tests: `FacilityTests` (the standing cars, their ids and limit, a client standing the same, nobody counting them lost; coupled up they're ahead of the engine and paid; the wreck dark until a lamp's on it; pulling pieces makes a heap groan, then shift on whoever's by; a client mirroring the heaps; the residents); `StopCrewTests` (a bot crew fetches the switchyard's standing cars a siding at a time, and salvages what the headlamp finds at the wreck yard). `StopCrewTests`' crate-only and winch-only stops give a switchyard or wreck yard just those modules (a route's own, T44).
@@ -7008,6 +7008,35 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - a lock's 3 s, three or four blows, each within a tick of the clip's blow, and one last blow as it gives;
         - a barricade's 6 s, four or five heaves, each within a tick of the clip's haul, four boards off and the barricade giving way once, and no smash.
     - `ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed` now hears a smashed lock give with its last blow.
+
+481. **A resumed night keeps the train as it left (A1, queue #218; spec E "Autosave per POI, on successful departure", "Crash: Session lost. Campaign rolls back to last POI autosave"; note 187's "not yet").**
+    - **What was wrong:** the autosave (`NetPlaySession.Capture`, taken as the engine leaves a stop's zone) kept each car's load, shell, ammunition and cargo, the coal, the clock and the spent Holdouts. A resumed night then built the train from the campaign's own cars, engine first, at the save's front, and put those values back on them. So whatever had happened to the train's *shape* before the save was undone:
+      - a car cut loose, or rolled away by the Passenger or finished by the Car Hugger, was back in the train;
+      - a switchyard's cars picked up (note 187) were standing on their siding again, and the train was short of them;
+      - what the Car Hugger had eaten of a car's shell was whole again (A.3: "gone, not dented").
+    - **The save keeps the rakes** (`RunCheckpoint.Rakes`, a `RakeSave` each): every rake's vehicles front to back, the track its front is on and how far along, its handbrake and front coupler lock. The engine's is the train going on, the picked-up cars ahead of it; any other is cars cut off it where they were left, or a yard's still standing. `CarState` keeps `Eaten` too.
+    - **Resuming** (`NetPlaySession.Restore`): `TrainOnLine.Resume` puts the rakes back as they were, every one at rest, and nothing slides on the first frame (each rake's previous distance is where it is). It shares `Restore`'s rebuild, the one a client's snapshot uses, so the engine's rake object stays the train's. A joiner's world builds its own cars and then takes the host's rakes like any snapshot.
+    - **An older save,** with no rakes, resumes as it did: the train from its own cars. So does one whose rakes aren't this train's: `Resume` checks every vehicle is in exactly one rake, the engine in one, on a track the line has, and changes nothing otherwise. The save carries its line (linegen plan §17.4), so a yard's standing cars take the same ids on resume.
+    - **Readings:** every rake comes back at rest, the engine's too, as it always did (the night restarts stopped where it was saved). A cut rake left rolling at the save is stopped where it was.
+    - **Not yet:** what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh; nor are the crew's places.
+    - Protocol unchanged (the save is the host's file; clients take the rakes from snapshots as ever). Tests: `ResumeTests` (the rakes back as they left: picked-up cars ahead of the engine and not standing, a cut car where it was left with its handbrake on, at rest, and the train running on; a save that isn't this train's changes nothing: a car missing, a car twice, a car past the train, a track the line hasn't, no rakes). `CampaignSessionTests.AResumedNightKeepsTheTrainAsItLeft` (at the coaling tower on frontier:10, a yard's derelicts put ahead of the engine, the last car cut off and a bite out of car one; the autosave on leaving keeps all three, the resumed host has them, its own client agrees, and an older save without rakes resumes the old way). `CampaignSessionTests.ThreeSlotsOfText` round-trips the rakes and the eaten shell through a save slot.
+499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
+    - **How** (`GameAudio.DollSounds`, off the mirrored record):
+        - **Restless,** at any stage, in a car or at the controls: `cs-track-doll.restless` at her, first 1-2 s after she becomes so, then every 4-8 s while she is. It comes between the quickened giggles (`GameAudio.Tells`, unchanged).
+        - **Her rattle:** at stage 2, restless, on the beat she'll take the brake, `cs-track-doll.rattle` at the brake handle. It falls back to the crew's `brake-handle` only if hers isn't installed.
+        - **Captions:** small heels drumming, humming; the brake handle rattling.
+    - **The sounds** (`tools/audio/recipes/doll_restless.py`): two new cues on the Audio Checklist's `cs-track-doll` line, installed. Each is the same doll as her giggle and her pleased "heh": a child's throat played an octave up into a hollow porcelain head's 3-6 kHz, glaze ticks, a door creak two octaves up for her joints.
+        - `restless`, `heels` (4 takes, different moods):
+            - her porcelain heels drumming against a crate or a bench the way a child kicks, impatient, one take quickening and stopping dead;
+            - a tuneless hum through her teeth, a few porcelain "mm"s that wander and don't resolve;
+            - her head turning on its joint with a porcelain tick;
+            - in a wooden car's room.
+        - `rattle`, `brass` (3 takes): the brake valve's brass handle shaken in its detent, not turned. Quick light squeaks of brass on brass (the crew's handle's stick-slip, shorter and higher), the detent clicking out and back in, five to eight in half a second, her fingertips ticking on the brass. In the cab.
+    - **Pinned:** `CreatureSoundTests.RestlessTheTrackDollIsHeardOfHerOwnAndRattlesTheBrakeWithHerOwnHand`:
+        - haunting a car, not restless, never her restlessness;
+        - restless, 20 s, three to five times;
+        - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
+    - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
 501. **The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit).** `crew-coupling.knuckle-release` plays where a car is cut loose (`GameAudio.Crew`). Its recipe describes "the heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked)", but the iron hit was pitched down 8 semitones and choked under a mining hit's sub, with the lock's rattle at -16 dB. The installed takes were a low thud: they centred at 127-136 Hz, with little over 1 kHz after the first 0.1 s, and the cut's own moment was lost under the wheels.
     - **The sound** (`tools/audio/recipes/crew_train.py`, `knuckle-release`, `clank`, 3 takes): rebuilt as a clank, installed in place, its hook unchanged.
         - a short squeal of steel on its pin as it swings;
