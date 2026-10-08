@@ -89,6 +89,7 @@ whoever has to hear it.
 | The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
 | The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | pending (audio) |
+| The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | pending (audio) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
@@ -404,6 +405,25 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
 | Beside the line | 2 · 3 · 4 · 5 per 10 km by tier, × the biome's weight |
 | Health | none: nothing kills it |
+
+## B.13 The Gannet
+
+*The director's decisions, 2026-10-07* (GDD §21, App. A.4, B.4; `gannet` in `content/tuning/enemies.json`; ARCHITECTURE §8 note 340). `SpecTableTests.TheGannetMatchesB13` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train at **18 m/s** or more for **30 s**, out of a tunnel |
+| Peels off | under **12 m/s** for 6 s, in a tunnel, or 60 s with nobody walking the roofs; back after 180 s |
+| Soars | 20–35 m over a car |
+| Prey | a walker on a roof, over 0.8 m/s on it, not seated |
+| **Hang, fold** | hangs **2 s**, then folds: **1.6 s** to the strike, its line locked on where they'll be |
+| Strike | within **0.9 m** of its line's end: a stab of **35**; nobody there, on the roof: stuck **4 s** |
+| A pass | every 8–12 s |
+| **Mark** | whoever hit it; its next pass is a **2.5 s** bank, then down on them (a roof, or the ground within 200 m) |
+| **Pin** | **4 pecks, 3 s apart** (12 s); **3 blows** from friends drive it off |
+| Health | **12** blows; under 4 it leaves for the run |
+| Trophy | its head: **1.5** of the tier's car-loads (loot.json `trophies`) |
+| Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
 
 # PART C — DEATH AND REVIVAL
 

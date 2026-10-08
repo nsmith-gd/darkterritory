@@ -4656,6 +4656,26 @@
     ]
   },
   {
+    "name": "gannet_0",
+    "diffuse": "models/gannet_0.png",
+    "spec": "models/gannet_0_s.png",
+    "normal": "models/gannet_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/gannet.py",
+        "what": "the Gannet, modelled in tools/blender/gannet.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "gaunt_0",
     "diffuse": "models/gaunt_0.png",
     "spec": "models/gaunt_0_s.png",

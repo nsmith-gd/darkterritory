@@ -84,8 +84,9 @@ public static class CrewActs
             EnemyKind.Whistler => CrewPose.HeldCarried,
             EnemyKind.TippyToesie => CrewPose.HeldCover,
             EnemyKind.Ribbit => CrewPose.HeldFrozen,
-            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311.)
-            EnemyKind.SootChildren or EnemyKind.Moose => CrewPose.HeldPinned,
+            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311. Flat on the roof under the
+            // Gannet's foot, the same: note 340.)
+            EnemyKind.SootChildren or EnemyKind.Moose or EnemyKind.Gannet => CrewPose.HeldPinned,
             EnemyKind.Choir => CrewPose.HeldSeized,
             EnemyKind.Passenger => CrewPose.HeldDragged,
             _ => CrewPose.Held,

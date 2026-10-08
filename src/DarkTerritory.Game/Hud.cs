@@ -51,9 +51,12 @@ public static partial class Hud
     /// canvas's): the prompt's fine print is as small as stays crisp at that (<see cref="PromptScaleAt"/>).</param>
     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
+    /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
+    /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
+    /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        float pixels = 4, TownTalk? talk = null, double now = 0)
+        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
@@ -87,9 +90,14 @@ public static partial class Hud
             Situation(o, s);
         }
         Alerts(o, width, height, s, line);
+        if (captions is { Count: > 0 } && !over)
+            CaptionsOn(o, height, captions);
         // (Not while the link is lost: who's aboard is stale, and the reconnecting message has the screen.)
         if (s.Link is { Lost: false } lobby && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
             Lobby(o, s, lobby, line);
+        // A new player's first nights (note 350): the core controls on a card in the yard, gone once the train's out.
+        if (firstNight && !over && p.Alive && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
+            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
@@ -509,6 +517,7 @@ public static partial class Hud
     static string Called(Sim.World world, Body b) => b.Kind switch
     {
         BodyKind.RepairKit => "THE REPAIR KIT",
+        BodyKind.Powder => "THE CHARGE",
         BodyKind.Lamp => "THE LAMP",
         BodyKind.Radio => "THE RADIO",
         BodyKind.Toy => b.Noise switch
@@ -1447,9 +1456,25 @@ public static partial class Hud
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
+        DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
+
+    /// <summary>
+    /// CAPTIONS (note 349): the sounds heard now, the newest lowest, in fine print at the bottom left, where nothing else is
+    /// (the hotbar's middle has the tool's name and the noise meter over it; the right, the corner's keys). No plate: note 285.
+    /// </summary>
+    static void CaptionsOn(Overlay o, int height, IReadOnlyList<string> lines)
+    {
+        float k = Fine, row = (o.Font.LineHeight + 4) * k;
+        float y = MathF.Round(height - 8 - lines.Count * row);
+        foreach (var l in lines)
+        {
+            o.Text(8, y, l, Ink, k);
+            y += row;
+        }
+    }
 
     /// <summary>The player's keys (T80), for the prompts: the app sets them from the settings.</summary>
     public static Settings Keys { get; set; } = new();
@@ -1515,6 +1540,18 @@ public static partial class Hud
     /// A healing find being used (note 272): how far it's got, from the body record, as plain state at the crosshair. Null
     /// otherwise: the find's name and keys are the corner's (note 285).
     /// </summary>
+    /// <summary>
+    /// A charge in hand (note 374): at a gun whose rack wants it, the hold that fills it and how far it's got; at a full one,
+    /// that it's full. Null anywhere else (what it is and how to put it down are the corner's).
+    /// </summary>
+    public static string? PowderPrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Powder || s.World.Combat is not { } combat || Guns.MannedGun(s.Player, s.Train, combat.Guns) is not { } gun)
+            return null;
+        return Guns.Ready(s.Train.Vehicles[gun].Gun, combat.Guns) >= combat.Guns.Rack ? "THE RACK'S FULL"
+            : Hold("FILL THE RACK", carried.MendTicks * Sim.SimConstants.TickSeconds / combat.Guns.ChargeSeconds);
+    }
+
     public static string? HealPrompt(IPlaySession s, Body carried) =>
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
@@ -1590,7 +1627,7 @@ public static partial class Hud
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -1600,7 +1637,7 @@ public static partial class Hud
             // GDD §23 (note 183): a shot's fouled it, and it's cleared by hand before anything else.
             return gun.Jammed ? Hold("CLEAR THE GUN", gun.ReloadProgress / combat.Guns.ClearSeconds)
                 : gun.ReloadNeeded > 0 ? $"{LoadStep(gun, combat.Guns)} : HOLD [E]"
-                : gun.Ammo <= 0 ? "NO SHOT"
+                : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
                 : "SIT : [E]   PUSH ALONG : [E] + WALK";
@@ -1680,6 +1717,9 @@ public static partial class Hud
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
             return TownTalk.Prompt(town, there);
+        // The powder locker (note 374): a charge for a gun's rack, while there's any.
+        if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
+            return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
             return thing.Kind switch

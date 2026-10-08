@@ -92,6 +92,7 @@ public static class Combinations
         EnemyKind.TrackDoll, EnemyKind.CinderHound, EnemyKind.CarHugger, EnemyKind.Climber, EnemyKind.Dragger, EnemyKind.Whistler,
         EnemyKind.Stoker, EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Gaunt, EnemyKind.Follower,
         EnemyKind.SootChildren, EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Switchman, EnemyKind.Grumbler, EnemyKind.Moose,
+        EnemyKind.Gannet,
     ];
 
     /// <summary>
