@@ -1819,6 +1819,106 @@
   "url": "/_blob/0934e4e45604ea2f7c97eb37f52de11e",
   "sha": "02baace9add9818b"
  },
+ "previews/cs-gannet-strike--death--crash.mp4": {
+  "id": "23e2babc0bf0a031979518f2cc1d5b03",
+  "url": "/_blob/23e2babc0bf0a031979518f2cc1d5b03",
+  "sha": "06435bd82fb526c6"
+ },
+ "previews/cs-gannet-strike--death--slump.mp4": {
+  "id": "361ddb98e42696bbb5b01f098bcc79f1",
+  "url": "/_blob/361ddb98e42696bbb5b01f098bcc79f1",
+  "sha": "24b30ca6264cd3a9"
+ },
+ "previews/cs-gannet-strike--driven--flurry.mp4": {
+  "id": "21739e2ae7f1fa96108404b3dbcfe9ad",
+  "url": "/_blob/21739e2ae7f1fa96108404b3dbcfe9ad",
+  "sha": "b787c103e1c0a2c0"
+ },
+ "previews/cs-gannet-strike--driven--lurch.mp4": {
+  "id": "6e03349a097b23b1426b6ad1f62c0aab",
+  "url": "/_blob/6e03349a097b23b1426b6ad1f62c0aab",
+  "sha": "f768c1b8ed813265"
+ },
+ "previews/cs-gannet-strike--hit--croak.mp4": {
+  "id": "14ebe2c04c65e1a83baab2aaef71d6a1",
+  "url": "/_blob/14ebe2c04c65e1a83baab2aaef71d6a1",
+  "sha": "9d43aa0a21aeeb55"
+ },
+ "previews/cs-gannet-strike--hit--squawk.mp4": {
+  "id": "e806716fa0797c7c134ab56da69c78dc",
+  "url": "/_blob/e806716fa0797c7c134ab56da69c78dc",
+  "sha": "e978c258e48d51d1"
+ },
+ "previews/cs-gannet-strike--land--drop.mp4": {
+  "id": "d946dffd72d1cdbdda4c822dc3230dc8",
+  "url": "/_blob/d946dffd72d1cdbdda4c822dc3230dc8",
+  "sha": "0d9239d064a57ee9"
+ },
+ "previews/cs-gannet-strike--land--pin.mp4": {
+  "id": "a0ae8dd8257fc8f886000fc24e088fec",
+  "url": "/_blob/a0ae8dd8257fc8f886000fc24e088fec",
+  "sha": "7c4b7a83ba710302"
+ },
+ "previews/cs-gannet-strike--peck--beak.mp4": {
+  "id": "a0323aa7e418485ff73cac7e463bc010",
+  "url": "/_blob/a0323aa7e418485ff73cac7e463bc010",
+  "sha": "397b477cbc58c717"
+ },
+ "previews/cs-gannet-strike--peck--strike.mp4": {
+  "id": "20bc7ae99e1e7068e4792fc294d58575",
+  "url": "/_blob/20bc7ae99e1e7068e4792fc294d58575",
+  "sha": "862682f9dc8bab19"
+ },
+ "previews/cs-gannet-strike--stab--gore.mp4": {
+  "id": "0246bfe1aea4563a64f0988680a570d9",
+  "url": "/_blob/0246bfe1aea4563a64f0988680a570d9",
+  "sha": "8c548fe73434d00b"
+ },
+ "previews/cs-gannet-strike--stab--pierce.mp4": {
+  "id": "b55958bf6d312efcd395b79d8231c42c",
+  "url": "/_blob/b55958bf6d312efcd395b79d8231c42c",
+  "sha": "d2b8a876228a7d1b"
+ },
+ "previews/cs-gannet-strike--tear--splinter.mp4": {
+  "id": "ac8d5005daa4a1899f4236cc6d6c77f0",
+  "url": "/_blob/ac8d5005daa4a1899f4236cc6d6c77f0",
+  "sha": "5aac28911865a525"
+ },
+ "previews/cs-gannet-strike--tear--wrench.mp4": {
+  "id": "68708f6b9afc263cee4ec02c0d048cd6",
+  "url": "/_blob/68708f6b9afc263cee4ec02c0d048cd6",
+  "sha": "62fcc61b17140aaf"
+ },
+ "previews/cs-gannet-strike--thrash--flail.mp4": {
+  "id": "558ec13eea8fc59b059e887dba01d17f",
+  "url": "/_blob/558ec13eea8fc59b059e887dba01d17f",
+  "sha": "d8b167fd532fcfc8"
+ },
+ "previews/cs-gannet-strike--thrash--heave.mp4": {
+  "id": "43022b4f548748441506cf280ba00eb0",
+  "url": "/_blob/43022b4f548748441506cf280ba00eb0",
+  "sha": "1f9baa1f72ddc2a5"
+ },
+ "previews/cs-gannet-strike--thunk--modal.mp4": {
+  "id": "7f486e2b4fa050a53362ca2f78ae821c",
+  "url": "/_blob/7f486e2b4fa050a53362ca2f78ae821c",
+  "sha": "39225c3232deb919"
+ },
+ "previews/cs-gannet-strike--thunk--plank.mp4": {
+  "id": "7a832e17aba2ff39dffc3c41e039effe",
+  "url": "/_blob/7a832e17aba2ff39dffc3c41e039effe",
+  "sha": "f4e73d0d93bb2a41"
+ },
+ "previews/cs-gannet-strike--windup--rattle.mp4": {
+  "id": "245e42c0eaf1d29c5cef6b035faa5583",
+  "url": "/_blob/245e42c0eaf1d29c5cef6b035faa5583",
+  "sha": "87be9e786da0da08"
+ },
+ "previews/cs-gannet-strike--windup--trill.mp4": {
+  "id": "d5c03a1ae5ab7c57cb64b4d9633c70d7",
+  "url": "/_blob/d5c03a1ae5ab7c57cb64b4d9633c70d7",
+  "sha": "42f0bb11b627907d"
+ },
  "previews/cs-gaunt--blow--branch.mp4": {
   "id": "ea795b6dbef03dd2197a8fe933bc1c6b",
   "url": "/_blob/ea795b6dbef03dd2197a8fe933bc1c6b",
@@ -2633,6 +2733,66 @@
   "id": "b6a7380181f16999d3ebd9c12aa9fd02",
   "url": "/_blob/b6a7380181f16999d3ebd9c12aa9fd02",
   "sha": "98228f68889bd1c0"
+ },
+ "previews/tell-gannet-bank--scream--scream.mp4": {
+  "id": "9583729b93b2cfc1035e1ad3ef433fa5",
+  "url": "/_blob/9583729b93b2cfc1035e1ad3ef433fa5",
+  "sha": "7c3c4f5e55aa443c"
+ },
+ "previews/tell-gannet-bank--scream--wail.mp4": {
+  "id": "e541bf44612a03a3463af6c69f2d2667",
+  "url": "/_blob/e541bf44612a03a3463af6c69f2d2667",
+  "sha": "014957ad802bfc9b"
+ },
+ "previews/tell-gannet-bank--wingbeats--beat.mp4": {
+  "id": "1cc3a0c6e60463561e8c236622449a68",
+  "url": "/_blob/1cc3a0c6e60463561e8c236622449a68",
+  "sha": "62150111cc28d7a4"
+ },
+ "previews/tell-gannet-bank--wingbeats--canvas.mp4": {
+  "id": "298f05c58420e6724f5c939ffb11da18",
+  "url": "/_blob/298f05c58420e6724f5c939ffb11da18",
+  "sha": "f93d9a06c5d1287f"
+ },
+ "previews/tell-gannet-calls--call--rasp.mp4": {
+  "id": "17dca2a54d03d00e8897c1c4e4c435a2",
+  "url": "/_blob/17dca2a54d03d00e8897c1c4e4c435a2",
+  "sha": "d0fce467cfaf8e7d"
+ },
+ "previews/tell-gannet-calls--call--roar.mp4": {
+  "id": "6630e2ce55b60191eff24a3fad47a47f",
+  "url": "/_blob/6630e2ce55b60191eff24a3fad47a47f",
+  "sha": "46962a5f4462ec13"
+ },
+ "previews/tell-gannet-calls--wings--canvas.mp4": {
+  "id": "7cc04815280ecb8dfbe9b7a3802994bd",
+  "url": "/_blob/7cc04815280ecb8dfbe9b7a3802994bd",
+  "sha": "9a62e42c5add22c6"
+ },
+ "previews/tell-gannet-calls--wings--stroke.mp4": {
+  "id": "f2f340fdbd94a8b27ab49524ecfdede8",
+  "url": "/_blob/f2f340fdbd94a8b27ab49524ecfdede8",
+  "sha": "4e6d72e03306e347"
+ },
+ "previews/tell-gannet-fold--crack--sail.mp4": {
+  "id": "8cca2b869dad9422e491b3af7df16a90",
+  "url": "/_blob/8cca2b869dad9422e491b3af7df16a90",
+  "sha": "78756a2ff5ec2287"
+ },
+ "previews/tell-gannet-fold--crack--whip.mp4": {
+  "id": "254b79d8a0f37c568131eb7c244432f3",
+  "url": "/_blob/254b79d8a0f37c568131eb7c244432f3",
+  "sha": "d2cac6a1236ad3fa"
+ },
+ "previews/tell-gannet-fold--whistle--dive.mp4": {
+  "id": "3452ea8d98d25def76ffe405bb2d29af",
+  "url": "/_blob/3452ea8d98d25def76ffe405bb2d29af",
+  "sha": "0bdd716c4cac4094"
+ },
+ "previews/tell-gannet-fold--whistle--rush.mp4": {
+  "id": "25b5a7bc8ed02a0b9611c3b50171a720",
+  "url": "/_blob/25b5a7bc8ed02a0b9611c3b50171a720",
+  "sha": "e72bf2282568f5aa"
  },
  "previews/tell-grumbler--gnaw--incisors.mp4": {
   "id": "16c78f317af637eff2e444a2569517b0",
