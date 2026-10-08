@@ -76,6 +76,20 @@ public static class TownRounds
                     // At the stall's counter (it faces along the line, its back to the square's end), seeing to it.
                     places.Add(new($"stall{f.Id}", f.S + f.FaceS * (f.SolidD + 0.6), f.D, -f.FaceS, -f.FaceD, "work", null));
                     break;
+                case "memorial" or "statue":
+                    // Stood before the names, or the statue, a while.
+                    foreach (double along in f.Kind == "memorial" ? (double[])[-2.2, 0, 2.2] : [-0.7, 0.7])
+                        places.Add(new($"{f.Kind}{f.Id}{along}", f.S + along, f.D + f.FaceD * (f.SolidD + 1.3), -f.FaceS, -f.FaceD, "vigil", null));
+                    break;
+                case "garden":
+                    // Down at the bed under its lamps, tending it.
+                    places.Add(new($"garden{f.Id}", f.S, f.D + f.FaceD * (f.SolidD + 0.6), -f.FaceS, -f.FaceD, "mend", null));
+                    break;
+                case "laws" or "mural":
+                    places.Add(new($"{f.Kind}{f.Id}", f.S + f.FaceS * 2.5, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, "read", null));
+                    break;
+                case "bandstand" or "tree" or "flag":
+                    break;
                 case "crate":
                     places.Add(new($"crate{f.Id}", f.S, f.D + f.FaceD * (f.SolidD + 0.7), -f.FaceS, -f.FaceD, "mend", null));
                     break;

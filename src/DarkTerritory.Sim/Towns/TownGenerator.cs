@@ -121,6 +121,49 @@ public static partial class TownGenerator
         // The houses down the yard's street, and the households in the open ones (TownGenerator.Houses).
         var homes = Houses(content, site, square, population, former, Rng);
 
+        // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
+        // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
+        // on its walls (the director, 8 Oct 2026: "parks, signs of governance, signs of culture, statues, things that tell the
+        // story of a people walled in for fear of the outside world"; note 353).
+        var civic = Rng("civic");
+        TownText? Civic(string kind) => w.Civic.TryGetValue(kind, out var texts) && texts.Length > 0 ? civic.Pick(texts) : null;
+        if (w.Laws.Length > 0)
+        {
+            var laws = Take(w.Laws, Math.Min(4, w.Laws.Length), Rng("laws"));
+            string[] numerals = ["I", "II", "III", "IV"];
+            string ordained = $"BY ORDER OF THE COUNCIL OF {site.Name.ToUpperInvariant()}. "
+                + string.Join(" ", laws.Select((l, i) => $"{numerals[i]}. {l}"));
+            Fix("laws", "the ordinances", ordained, buildings[0].S + sq.OfficeWidth / 2 - 1.2, side * (front - 0.3), 0, -side);
+        }
+        if (Civic("flag") is { } flag)
+            Fix("flag", flag.Title, flag.Text, s1 - 8, side * (BesideTrack + 5), 0, -side);
+        if (homes.Green is { } green)
+        {
+            double gs = (green.S0 + green.S1) / 2, gd = side * (green.Near + green.Far) / 2, glen = green.S1 - green.S0;
+            if (Civic("statue") is { } statue)
+                Fix("statue", statue.Title, statue.Text, gs, gd, 0, -side);
+            if (Civic("memorial") is { } wallOfNames)
+                Fix("memorial", wallOfNames.Title, wallOfNames.Text, gs, side * (green.Far - 1.6), 0, -side);
+            if (Civic("bandstand") is { } band)
+                Fix("bandstand", band.Title, band.Text, green.S0 + glen * 0.2, gd, 0, -side);
+            var garden = Take(w.Civic.GetValueOrDefault("garden") ?? [], 2, Rng("civic.garden"));
+            for (int i = 0; i < garden.Count; i++)
+                Fix("garden", garden[i].Title, garden[i].Text, green.S1 - glen * 0.2 + (i - 0.5) * 4.4, gd + side * (i == 0 ? -2.5 : 2.5), 0, -side);
+            var trees = Take(w.Civic.GetValueOrDefault("tree") ?? [], 2, Rng("civic.trees"));
+            (double S, double D)[] corners = [(green.S0 + 3, green.Near + 3), (green.S1 - 3, green.Far - 3), (green.S1 - 3, green.Near + 3), (green.S0 + 3, green.Far - 3)];
+            for (int i = 0; i < corners.Length && trees.Count > 0; i++)
+                Fix("tree", trees[i % trees.Count].Title, trees[i % trees.Count].Text, corners[i].S, side * corners[i].D, 0, -side);
+            foreach (double along in (double[])[-6, 6])
+                Fix("bench", "a bench", "", gs + along, gd - side * 3.5, 0, -side);
+        }
+        if (homes.Bounds is { } walls)
+        {
+            // The day, painted on the inside of the back wall at the ends of the first streets, where you see it down them.
+            var murals = Take(w.Civic.GetValueOrDefault("mural") ?? [], 2, Rng("civic.murals"));
+            for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
+                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].D, 1, 0);
+        }
+
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
         var jobs = new List<Spot>
@@ -199,6 +242,8 @@ public static partial class TownGenerator
         var trade = new Deck<string>(industry?.Lines ?? [], Rng("lines.trade"));
         var scraps = new Deck<string>([.. w.Threads.SelectMany(th => th.Lines)], Rng("lines.scraps"));
         var anyone = new Deck<string>(w.Roles.TryGetValue("anyone", out var any) ? any.Lines : [], Rng("lines.anyone"));
+        // What a walled town's people say of living inside (note 353).
+        var inside = new Deck<string>(homes.Bounds is not null ? w.Walled : [], Rng("lines.walled"));
         var roleDecks = new Dictionary<string, Deck<string>>();
         Deck<string> JobDeck(string role)
         {
@@ -224,7 +269,7 @@ public static partial class TownGenerator
             }
             else
             {
-                string? job = JobDeck(role).Next(), town = (street ? null : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
+                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
                 // The gatekeeper says the town's law first, as you come in (the first thing anyone in a town tells you).
                 if (role == "gatekeeper" && w.Welcome.Length > 0)
                     lines.Add(Rng("welcome").Pick(w.Welcome));
@@ -237,7 +282,7 @@ public static partial class TownGenerator
                 lines.Add(scrap);
             // Short of lines: the town's habits and trade, another of the job's, a scrap of a thread after all, and last what
             // anybody says.
-            while (lines.Count < want && (spare.Next() ?? trade.Next() ?? JobDeck(role).Next() ?? scraps.Next() ?? anyone.Next()) is { } extra)
+            while (lines.Count < want && (spare.Next() ?? inside.Next() ?? trade.Next() ?? JobDeck(role).Next() ?? scraps.Next() ?? anyone.Next()) is { } extra)
                 lines.Add(extra);
             var vars = spot.House >= 0 ? homes.Vars(spot.House) : null;
             said[i] = [.. lines.Take(Math.Max(Math.Max(1, want), spot.House >= 0 ? 2 : 1)).Select(l => fill.In(l, name, vars))];
@@ -302,7 +347,8 @@ public static partial class TownGenerator
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
         return new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
-            industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds);
+            industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
+            homes.Green);
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
@@ -412,6 +458,16 @@ public static class TownFixtures
         "crate" => (0.5, 0.4, 0.8),
         "barrel" => (0.35, 0.35, 1.0),
         "stall" => (0.9, 1.5, 2.6),
+        // The civic pieces (note 353): a statue on its plinth, the wall of names, the bandstand's raised floor, a bed under
+        // its lamps, a tree's trunk, the flagpole, the laws' board; a mural is paint on a wall (its half-width to look from).
+        "statue" => (0.8, 0.8, 3.4),
+        "memorial" => (3.6, 0.35, 2.2),
+        "bandstand" => (2.8, 2.8, 0.8),
+        "garden" => (1.6, 0.7, 0.45),
+        "tree" => (0.35, 0.35, 4.5),
+        "flag" => (0.15, 0.15, 8.0),
+        "laws" => (0.9, 0.12, 2.0),
+        "mural" => (5.0, 0, 4.0),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

@@ -23,7 +23,19 @@ public sealed record TownPlan(
     IReadOnlyList<TownPaper> Papers,
     IReadOnlyList<TownFixture> Fixtures,
     string Character = "",
-    TownBounds? Bounds = null);
+    TownBounds? Bounds = null,
+    TownGreen? Green = null);
+
+/// <summary>
+/// A walled town's green (note 353): across the first street from the square, from <see cref="S0"/> to <see cref="S1"/>
+/// along the line and <see cref="Near"/> to <see cref="Far"/> out from it on the square's <see cref="Side"/>, where the
+/// houses would have been. The statue, the wall of names, the bandstand, the lamp garden and the trees stand on it.
+/// </summary>
+public sealed record TownGreen(double S0, double S1, double Near, double Far, int Side)
+{
+    public bool Holds(double s, double d, double pad = 0) =>
+        s >= S0 - pad && s <= S1 + pad && Math.Sign(d) == Side && Math.Abs(d) >= Near - pad && Math.Abs(d) <= Far + pad;
+}
 
 /// <summary>
 /// A walled town's extent and streets (queue #74, note 335), in the rail frame: the wall along the line from

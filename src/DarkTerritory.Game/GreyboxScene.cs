@@ -2386,6 +2386,7 @@ public sealed class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Look.Art.World.Civic(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
@@ -2395,6 +2396,24 @@ public sealed class GreyboxScene
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
                         Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
+                // cut in stone; the Lamplighter's lamp lit.
+                foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "statue"))
+                {
+                    var at = town.World(f.S, f.D, Art.CivicKit.PlinthTop);
+                    if ((at - eye).Length > 160)
+                        continue;
+                    var (clip, scale, away, stone) = Art.CivicKit.StatueClip(Art.CivicKit.Variant(f.Kind, f.Name));
+                    var face = ToF(town.Direction(f.S, f.FaceS, f.FaceD)) * (away ? -1 : 1);
+                    var back = -face * scale;
+                    var right = Vector3.Cross(Vector3.UnitY, -face) * scale;
+                    var m = Art.CreatureArt.Basis(V(at, eye), right, Vector3.UnitY * scale, back);
+                    var cast = stone ? new Vector3(0.42f, 0.41f, 0.38f) : new Vector3(0.24f, 0.18f, 0.1f);
+                    Look.Art.Creatures.Draw(mesh, "survivor_prisoner", clip, 0, false, m, 0,
+                        adjust: (_, l) => l with { Layer = -1, Colour = cast, Emissive = 0, Shine = stone ? 0.05f : 0.75f, Wear = 0.6f });
+                    if (clip == "lantern" && Art.PropArt.Of(Look).Get("hand_lantern") is { } held && Look.Art.Creatures.Hang(mesh, held, m, "survivor_prisoner"))
+                        mesh.PointLights.Add(new PointLight(Look.Art.Creatures.LastHanging, Palette.LampAmber * 1.4f, 8));
+                }
                 foreach (var p in town.Plan.People)
                 {
                     // Where they are on their round now (note 353): walking between stops, or at one doing what's done there.

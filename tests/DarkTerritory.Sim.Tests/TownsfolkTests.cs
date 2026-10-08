@@ -163,4 +163,45 @@ public class TownsfolkTests
         double on = (town.Feet(walker) - held).Length;
         Assert.InRange(on, 0.5 * town.Tuning.Rounds.Walk, 1.05 * town.Tuning.Rounds.Walk);
     }
+
+    [Fact]
+    public void AWalledTownHasAGreenItsPeoplePutUpAndTheDayPaintedOnItsWall()
+    {
+        // The director, 8 Oct 2026: "These towns need layouts, parks, signs of governance, signs of culture, statues".
+        var town = Plan("local:3", 2500);
+        var plan = town.Plan;
+        var green = Assert.IsType<TownGreen>(plan.Green);
+        Assert.Equal(plan.Square.Side, green.Side);
+        Assert.True(green.S1 - green.S0 > 30 && green.Far - green.Near > 10, $"a green {green.S1 - green.S0:0} by {green.Far - green.Near:0} m");
+        // No house on it.
+        Assert.DoesNotContain(plan.Houses, h => h.Solids().Any(p =>
+        {
+            var (sa, da) = h.Rail(p.U0, p.V0);
+            var (sb, db) = h.Rail(p.U1, p.V1);
+            return green.Holds((sa + sb) / 2, (da + db) / 2, -0.5);
+        }));
+        string[] kinds = ["statue", "memorial", "bandstand", "garden", "tree"];
+        foreach (string kind in kinds)
+            Assert.Contains(plan.Fixtures, f => f.Kind == kind && green.Holds(f.S, f.D) && f.Text.Length > 0);
+        // The council's laws by the clerk's door, four of them; the town's flag in the square; the day on the back wall.
+        var laws = Assert.Single(plan.Fixtures, f => f.Kind == "laws");
+        Assert.Contains(" IV. ", laws.Text);
+        Assert.Single(plan.Fixtures, f => f.Kind == "flag");
+        var mural = Assert.Single(plan.Fixtures.Where(f => f.Kind == "mural").Take(1));
+        Assert.True(Math.Abs(mural.S - plan.Bounds!.Rear) < 1.2, "the mural isn't on the back wall");
+        // Each one looked at from in front of it says what it is.
+        foreach (var f in plan.Fixtures.Where(f => kinds.Contains(f.Kind) || f.Kind is "laws" or "mural"))
+        {
+            var at = town.World(f.S, f.D, Math.Max(0.3, f.Height * 0.6));
+            var face = town.Direction(f.S, f.FaceS, f.FaceD);
+            var stand = at + face * (f.Kind == "mural" ? 3.0 : Math.Max(f.SolidS, f.SolidD) + 1.0);
+            var eye = new Double3(stand.X, town.World(f.S, f.D).Y + 1.6, stand.Z);
+            var target = town.Target(eye, (at - eye).Normalized);
+            Assert.True(target is { Kind: TownTargetKind.Fixture } t && t.Index == f.Id, $"{f.Name} ({f.Kind}) can't be looked at");
+        }
+        // A small town keeps the yard: no green, but its laws and its flag.
+        var small = Plan("frontier:7", 60);
+        Assert.Null(small.Plan.Green);
+        Assert.Contains(small.Plan.Fixtures, f => f.Kind == "laws");
+    }
 }

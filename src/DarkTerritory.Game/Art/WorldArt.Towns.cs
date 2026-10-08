@@ -13,6 +13,50 @@ namespace DarkTerritory.Game.Art;
 /// </summary>
 public sealed partial class WorldArt
 {
+    /// <summary>
+    /// A walled town's green and what its people have put up (note 353): the grass and paths and their lamps, the statue's
+    /// plinth, the wall of names, the bandstand, the lamp gardens, the trees, the flag, the laws' board, the day painted on
+    /// the walls; each drawn where it is, near enough the view (the green's across the street, the murals at the back wall).
+    /// </summary>
+    public void Civic(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        int side = plan.Square.Side;
+        foreach (var f in plan.Fixtures)
+        {
+            if (f.House >= 0 || !CivicKit.Draws(f.Kind) || f.S < from - 20 || f.S > to + 20)
+                continue;
+            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
+            int variant = CivicKit.Variant(f.Kind, f.Name);
+            mesh.Instances.Add(new MeshInstance(Piece($"civic-{f.Kind}-{variant}", () => CivicKit.Piece(_look, f.Kind, variant)), m));
+            if (f.Kind == "garden")
+                foreach (var lamp in CivicKit.GardenLamps())
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), Palette.LampAmber * 1.4f, 6));
+            if (f.Kind == "tree" && variant == 1)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 3.0f, 0), m), Palette.LampAmber * 0.9f, 6));
+            if (f.Kind is "mural" or "memorial")
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 3.2f, -3.5f), m), Palette.LampAmber * 1.3f, 11));
+        }
+        // A walled town's green across the street (note 353): its grass and paths, lamps at its corners and its middle.
+        if (plan.Green is { } green && green.S1 > from - 20 && green.S0 < to + 20)
+        {
+            double gs = (green.S0 + green.S1) / 2, gd = side * (green.Near + green.Far) / 2;
+            float length = (float)(green.S1 - green.S0), depth = (float)(green.Far - green.Near);
+            var ground = Piece($"civic-green-{length:0}x{depth:0}", () => CivicKit.Green(_look, length, depth));
+            mesh.Instances.Add(new MeshInstance(ground, Place(line, eye, town.World(gs, gd), gs, 0, -side)));
+            var lamp = Piece("square-lamppost", () => SquareKit.LampPost(_look));
+            foreach (var (ls, ld) in new[] { (green.S0 + 1.5, green.Near + 1.2), (green.S1 - 1.5, green.Near + 1.2), (gs, (green.Near + green.Far) / 2 + 1.5),
+                (green.S0 + 1.5, green.Far - 1.2), (green.S1 - 1.5, green.Far - 1.2) })
+            {
+                var lm = Place(line, eye, town.World(ls, side * ld), ls, 0, -side);
+                mesh.Instances.Add(new MeshInstance(lamp, lm));
+                var flame = Vector3.Transform(SquareKit.LampTop, lm);
+                mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 2.0f, 14));
+                mesh.Billboard(flame, 0.9f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+            }
+        }
+    }
+
     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
     {
@@ -55,9 +99,12 @@ public sealed partial class WorldArt
         {
             if (f.House >= 0)
                 continue;
+            // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
+            if (CivicKit.Draws(f.Kind))
+                continue;
+            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
             var piece = Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
-            var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             mesh.Instances.Add(new MeshInstance(piece, m));
             // The banked fire glows; the shuttered lamps leak a little round their shutters.
             if (f.Kind == "brazier")

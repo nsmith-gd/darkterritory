@@ -150,6 +150,12 @@ public sealed record TownWriting
     public Dictionary<string, string[]> EmptyHouses { get; init; } = [];
     /// <summary>What else there is to look at in an open house, by thing ("stairs", "stove", "photo").</summary>
     public Dictionary<string, string[]> Rooms { get; init; } = [];
+    /// <summary>The council's ordinances (note 353): a town posts some of them by the clerk's door.</summary>
+    public string[] Laws { get; init; } = [];
+    /// <summary>The green's and the walls' pieces by kind (statue, memorial, bandstand, garden, tree, flag, mural): what each is called and what looking at it tells you.</summary>
+    public Dictionary<string, TownText[]> Civic { get; init; } = [];
+    /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
+    public string[] Walled { get; init; } = [];
 }
 
 /// <summary>

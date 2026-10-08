@@ -83,6 +83,24 @@ public static class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
         }
+        // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
+        // its wall of names, and down the first street to the day painted on the back wall.
+        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden")
+        {
+            double gs = (green.S0 + green.S1) / 2, near = side * green.Near, far = side * green.Far, gd = (near + far) / 2;
+            var statue = plan.Fixtures.FirstOrDefault(f => f.Kind == "statue");
+            var names = plan.Fixtures.FirstOrDefault(f => f.Kind == "memorial");
+            var mural = plan.Fixtures.FirstOrDefault(f => f.Kind == "mural");
+            var garden = plan.Fixtures.FirstOrDefault(f => f.Kind == "garden");
+            return where switch
+            {
+                "statue" when statue is not null => Ballast.Render.Camera.LookAt(town.World(statue.S - 3.5, statue.D - side * 4.5, 1.7), town.World(statue.S, statue.D, 2.6), 60),
+                "memorial" when names is not null => Ballast.Render.Camera.LookAt(town.World(names.S - 3, names.D - side * 5, 1.7), town.World(names.S, names.D, 1.2), 65),
+                "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
+                "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
+                _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
+            };
+        }
         // A walled town's yards (note 335): behind a house with things in its yard, and out on a street at a picket fence.
         if (where is "yard" or "fence" or "yardtop")
         {

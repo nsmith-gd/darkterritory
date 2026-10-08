@@ -21,6 +21,8 @@ public static partial class TownGenerator
         public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
         public TownBounds? Bounds;
+        /// <summary>A walled town's green, across the first street from the square (note 353).</summary>
+        public TownGreen? Green;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
         public void Open(int house, TownHousehold household, Dictionary<string, string> vars, Pcg32 rng)
@@ -52,6 +54,9 @@ public static partial class TownGenerator
             _ => "of the {family} house",
         };
     }
+
+    /// <summary>How far in from the square's ends the green across the street from it starts (m).</summary>
+    const double GreenIn = 4;
 
     static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor)
     {
@@ -127,7 +132,9 @@ public static partial class TownGenerator
                         double mid = s + lot / 2;
                         bool lane = laneAt.Any(l => Math.Abs(l - mid) < lot / 2 + wt.LaneWidth / 2);
                         bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
-                        if (!lane && !inSquare)
+                        // The green (note 353): the first street's far row and the next street's near one, across from the square.
+                        bool onGreen = sd == side && row is 2 or 3 && mid + lot / 2 > square.S0 + GreenIn && mid - lot / 2 < square.S1 - GreenIn;
+                        if (!lane && !inSquare && !onGreen)
                             lots.Add((Math.Round(mid, 3), d, facing, lot, row));
                         s += lot;
                     }
@@ -137,6 +144,9 @@ public static partial class TownGenerator
         double heartS = (square.S0 + square.S1) / 2, heartD = side * 15;
         lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
         double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin;
+        if (count > 0)
+            homes.Green = new TownGreen(square.S0 + GreenIn, square.S1 - GreenIn, wt.First + wt.Width / 2,
+                count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, side);
         if (count > 0)
             homes.Bounds = new TownBounds(wt.Rear, site.Gate, reach, reach, streets,
                 [.. laneAt.Select(l => new TownLane(l, -reach, reach, wt.LaneWidth))]);
