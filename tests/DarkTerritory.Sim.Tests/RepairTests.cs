@@ -110,4 +110,20 @@ public class RepairTests
         Assert.Equal(train.Vehicles[3].BreachAt, callouts[2].At);
         Assert.True(train.Frames[1].Shape.Interior!.Value.Contains(callouts[1].At));
     }
+    [Fact]
+    public void TheKitsGoneNoneStowedAndTheFortressSellsNone()
+    {
+        // Note 301, slice 2: the wrench is the repair tool, so the kit doesn't ride in the fitter's locker, spares or not.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(50_000)]));
+        var t = T with { Kit = T.Kit with { SpareKits = 2 } };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 4, 1)), line, 1_000, Tuning.Boiler));
+        world.EnableBodies();
+        world.Stock();
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);
+        Assert.False(world.KitStocked);
+        // campaign.json: no spare kits in the stores.
+        var c = DataFile.Load<Campaign.CampaignTuning>(Path.Combine(DataFile.FindContentRoot(), Campaign.CampaignTuning.File));
+        Assert.Null(c.SpareKit);
+        Assert.NotNull(Campaign.Campaign.BuySpareKit(c, new Campaign.CampaignState { Scrip = 10_000 }).Refused);
+    }
 }

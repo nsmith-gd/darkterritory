@@ -30,7 +30,8 @@ public class HoldoutTests
         public readonly List<HoldoutEvent> Events = [];
         public PlayerIntent[] Intents = [];
 
-        public Night(Func<RouteFeature, bool> pick, double engineFrom, RouteTier tier = RouteTier.Frontier)
+        /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench in hand opens a lock quietly. Off, the repair kit does (D.7).</param>
+        public Night(Func<RouteFeature, bool> pick, double engineFrom, RouteTier tier = RouteTier.Frontier, bool wrench = true)
         {
             for (ulong seed = 1; ; seed++)
             {
@@ -39,7 +40,8 @@ public class HoldoutTests
                     continue;
                 Site = site;
                 Route = route;
-                Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
+                var t = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } };
+                Train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 3, 0)), route.Build(), site.Start + engineFrom, Tuning.Boiler);
                 World = new World(Train, Tuning.Combat);
                 World.EnableBodies();
                 World.EnableRun(Tuning.Run, route, 600, authority: true);
@@ -372,7 +374,7 @@ public class HoldoutTests
     public void TheRepairKitOpensALockSilentlyAndSlowerThanASmash()
     {
         // D.7 "open lock: repair kit in hand, 6 s, no noise". Held at the door, Use works the lock and the kit stays in hand.
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         double loud = n.World.Choir.Loudness;
         n.Hold(living, PlayerButtons.Use);
@@ -392,7 +394,7 @@ public class HoldoutTests
     public void TheKitIsNoHelpAtABarricade()
     {
         // A shelter's barricade is pried, loud, kit or no kit; and it stays in hand.
-        var n = new Night(ABarricade, engineFrom: -300);
+        var n = new Night(ABarricade, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         double loud = n.World.Choir.Loudness;
         n.Hold(living, PlayerButtons.Use);
@@ -439,21 +441,57 @@ public class HoldoutTests
         n.Stand(living, h.Door);
         n[living] = n[living] with { Kit = Kit.Of([tool]), HeldSlot = 0 };
         n.Hold(living, PlayerButtons.Use);
-        n.Step(H.Smash.Seconds + 0.2);
+        // The wrench opens it quietly instead, and slower (note 301: what the kit did).
+        n.Step((tool == Tool.Wrench ? H.Open.Seconds : H.Smash.Seconds) + 0.2);
         Assert.Equal(HoldoutState.Freed, h.State);
+    }
+
+    [Fact]
+    public void TheWrenchOpensALockSilentlyAndTheCrowbarSmashesIt()
+    {
+        // Note 301: the kit's gone; the wrench in hand is what opens a lock quietly (D.7's "open lock ... 6 s, no noise").
+        var n = new Night(ALock, engineFrom: -300);
+        int living = n.Add(alive: true);
+        n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.Single();
+        n.Stand(living, h.Door);
+        n[living] = n[living] with { HeldSlot = 1 };
+        Assert.Equal(Tool.Wrench, Kit.Held(n[living]));
+        double loud = n.World.Choir.Loudness;
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(H.Smash.Seconds + 0.2);
+        Assert.Equal(HoldoutState.Breaching, h.State);
+        Assert.True(h.Quiet);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        n.Step(H.Open.Seconds - H.Smash.Seconds);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        Assert.Equal(loud, n.World.Choir.Loudness);
+        // The crowbar (slot 1) smashes it: quicker, and loud.
+        var c = new Night(ALock, engineFrom: -300);
+        int smasher = c.Add(alive: true);
+        c.Add(alive: false);
+        c.Step(0.2);
+        var lockUp = c.Here.Single();
+        c.Stand(smasher, lockUp.Door);
+        Assert.Equal(Tool.Crowbar, Kit.Held(c[smasher]));
+        c.Hold(smasher, PlayerButtons.Use);
+        c.Step(0.5);
+        Assert.False(lockUp.Quiet);
+        Assert.Equal(H.Smash, lockUp.Breach(H));
     }
 
     [Fact]
     public void TheKitOpensALockInEmptyHandsButIsNoToolForABarricade()
     {
         // The kit's silent breach is the kit's (D.7): no melee tool needed for it. At a barricade it's a pry, and that is.
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, _) = KitAtTheDoor(n);
         n[living] = n[living] with { HeldSlot = 3 };
         n.Hold(living, PlayerButtons.Use);
         n.Step(H.Open.Seconds + 0.2);
         Assert.Equal(HoldoutState.Freed, h.State);
-        var b = new Night(ABarricade, engineFrom: -300);
+        var b = new Night(ABarricade, engineFrom: -300, wrench: false);
         var (prier, barricade, _) = KitAtTheDoor(b);
         b[prier] = b[prier] with { HeldSlot = 3 };
         b.Hold(prier, PlayerButtons.Use);

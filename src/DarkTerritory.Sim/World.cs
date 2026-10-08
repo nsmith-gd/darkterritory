@@ -501,7 +501,8 @@ public sealed class World
             return;
         var shape = Train.Frames[car].Shape;
         var kit = Train.Dynamics.Tuning.Kit;
-        int kits = kit.RepairKits + kit.SpareKits;
+        // Note 301: where the wrench is the repair tool, the kit's gone: none rides in the fitter's locker.
+        int kits = Repairs.ByWrench(Train) ? 0 : kit.RepairKits + kit.SpareKits;
         int first = Math.Max(0, shape.KitLocker);
         // From the kit's locker on down the row, then round from the front.
         var order = Enumerable.Range(0, shape.Lockers.Count).Select(i => (first + i) % shape.Lockers.Count).ToList();
@@ -694,7 +695,9 @@ public sealed class World
         }
         if (loot is not null)
         {
-            Run.EnableLoot(loot, Train.Line, facilities);
+            // Note 301: where the wrench is the repair tool, the kit's gone, and none turns up at the stops either. (Kits are
+            // rolled on their own stream, so the rest of a stop's loot is the same.)
+            Run.EnableLoot(Repairs.ByWrench(Train) ? loot with { RepairKitChance = 0 } : loot, Train.Line, facilities);
             // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
@@ -957,8 +960,10 @@ public sealed class World
         // The repair kit in hand at a Holdout's door is opening it (GDD App. D.7), and at a ruptured boiler's firebox mending
         // it (T109): not being put down.
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
+        // Note 301: where the wrench is the repair tool, it's the wrench in hand that opens a lock quietly, as the kit did.
+        bool picks = Repairs.ByWrench(Train) ? Authority && Repairs.WrenchInHand(s) && Bodies.CarriedBy(playerId) is null : kit;
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
-        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
+        bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, picks, Player.Kit.Held(s) != Player.Tool.None) == true;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
         bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
