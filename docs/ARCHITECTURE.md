@@ -6956,6 +6956,39 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
         - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
         - The fog cards still cut where they meet the land and water (soft particles stay off).
+494. **The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit it in the last ~5s", "gang up or leave it alone").** A lone crewmate's blow on a Grumbler closes again (enemies.json `grumbler`: 6 health, back at 1.5 a second), and since #224 it's seen: the stuff of it drawn back into the body, a wet pulse. It made no sound, so whoever wasn't looking at it, or reads the captions, didn't learn the rule.
+    - **How** (`GameAudio.GrumblerSounds`, off the mirrored record's `Health`, replicated, so every machine hears it): while its health climbs (and 0.35 s after it last rose, a snapshot's gap and more, as E1's knit is seen), `cs-grumbler.heal` is held at its middle, 0.45 m over its feet. Its level is E1's knit's: 0.35 + 1.3 × how far down it is from full (`grumbler.health`), at most 1. A gang's blows, which it doesn't heal, are never heard healing. It's layered over whatever else it's doing (scuttling, gnawing, after its hitter).
+        - **Caption:** wet flesh knitting.
+    - **The sound** (`tools/audio/recipes/grumbler_heal.py`): `heal`, `knit`, a new loop on the Audio Checklist's `cs-grumbler` line, installed. It's beasts.py's Grumbler (a man gone wrong, flesh, not chitin, and his own voice).
+        - Wet sucks every half second or so as what the blow knocked out of it is drawn back in (a seal pulling inward as its colour opens late), each then giving and closing round it (wet tissue squishing, small bubbles).
+        - Tissue ticking as it knits, a low wet throb about every 0.6 s under it, and his muttering, low, shut-mouthed and pleased with himself.
+        - 2.4 s exact cycle.
+    - **Pinned:** `CreatureSoundTests.AGrumblerIsHeardHealingALoneBlowLouderTheFurtherDownItIs`, off the mirrored record:
+        - a lone blow (6 to 2), the hit and no healing yet;
+        - climbing back at 1.5 a second, one heal held all the way, louder from 2 than from 5.5;
+        - back at full, it stops;
+        - ganged down and staying down, never heard healing.
+489. **The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips, note 477; AU1's note 478 heard the patrol by its motion).** Note 478 heard a hound aboard by where its record went. Its leap over a gap played when the record's car changed, half-way through E1's arc, with the landing a fixed moment after. Its climb back out at a door played as a leap. A hound stopped to sniff (every 8-15 s on patrol) made no sound at all. And the leap it played was the boarding's, a landing on the rear platform's boards, whichever roof it came off.
+    - **How** (`GameAudio.HoundAboard` and `HoundMove`, off the hound's replicated mode and when it began, `ModeSeconds`; alike on every machine):
+        - **On a change of mode** each move's sounds are set for when they come in it, counted from when the mode began, so a record that arrives a snapshot late still lands them on time. Joined more than 0.25 s past one, it's missed rather than played late. Each plays where the hound is when it comes (its latest record).
+        - **The leap:** `cs-hounds.spring` (new) as it drives off and four paws on the next car's tin as it lands, fore pair then hind (`cs-hounds.paw.roof`). Both are the sim's own times: it's carried across between `leapFrom` and `leapTo` of `leapSeconds` (enemies.json `cinderHounds.patrol`), and E1's clip drives off and lands with it.
+        - **The drop in at a door:** `cs-hounds.spring` off the roof's edge, then four paws landing on the boards (`cs-hounds.paw.wood`). These are at E1's clip's frames (`cinder_hound.py` drop, 30 fps: off the edge at 13, on the sill at 28). The spring is placed up at the roof over the door (`DROP_UP`, 2.9 m), where the clip has the hound, since the record has it on the floor from the start.
+        - **The climb out:** `cs-hounds.climb` (new), the whole climb in one sound timed to E1's clip, from the trot to the sill to its weight onto the roof. It's placed half-way up the car's side.
+        - **Sniffing:** `cs-hounds.sniff` (new) held at its nose while the mode is `Sniff`, and gone when it moves on.
+        - **Paws** are stepped only while it walks or stands (Patrol, Still). A change of car other than by a leap is the record catching up, not a step.
+        - **The snarl** (the pack fight's, now and then) waits while it's in the middle of a move or sniffing, which have their own breath.
+        - **Captions:** sniffing; claws scrabbling up the side.
+    - **The sounds** (`tools/audio/recipes/hound_moves.py`): three new cues on the Audio Checklist's `cs-hounds` line, installed. Each is built from beasts.py's hound (its breath through the same dog's tract, its claws, the kept paws on the tin and the boards, the embers and ash in its hide), so it's the same animal.
+        - `spring`, `tin`: a gathering forepaw, both hind feet driving off the tin a hair apart, the sheet popping back low, a huff, its body through the air with sparks off it. No landing: that's its paws, where it lands.
+        - `sniff`, `nose`: quick hard sniffs in runs of four to six, a wet snort between, a low rumble in its chest, the embers crackling. 3 s exact cycle (`sniffSeconds`).
+        - `climb`, `scrabble`: the trot to the sill on the boards, the spring out and up (frame 10), its forelegs hooking over the roof's edge (19), its hind legs scrabbling at the side (22-28), the heave (33), and its weight onto the tin (37).
+        - The kept `leap` stays the boarding's (onto the rear platform from the ballast).
+    - **Pinned:** `CreatureSoundTests.AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside`, off records carrying the mode as `Lateral` (mode × 4 + facing) and its start as `LineDistance`:
+        - walking the roof, its paws on the tin;
+        - over the gap, one spring at a quarter of the leap and four paws on the tin at two thirds, and no `leap`;
+        - down at a door, one spring and four paws on the boards, none on the tin;
+        - out again, one climb and no paws, spring or snarl;
+        - stopped, the sniffing held and no snarl; moving on, it stops.
 499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
     - **How** (`GameAudio.DollSounds`, off the mirrored record):
         - **Restless,** at any stage, in a car or at the controls: `cs-track-doll.restless` at her, first 1-2 s after she becomes so, then every 4-8 s while she is. It comes between the quickened giggles (`GameAudio.Tells`, unchanged).

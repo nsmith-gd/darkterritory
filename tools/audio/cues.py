@@ -682,6 +682,11 @@ CUES = {
     "cs-hounds": [
         O("paw", "One paw fall (fired at the gallop's tempo; aboard, at its walk: note 478)", vars=6, mats=["ground", "grate", "roof", "wood"]),
         O("leap", "The leap onto the rear car", vars=2),
+        # On patrol aboard (D1's #208; queue #226, note 489): springing off a roof (over a gap, or down in at a door),
+        # stopped to sniff, and climbing back out at an open door.
+        O("spring", "Springing off a roof: hind feet driving off the tin, a huff", vars=3),
+        L("sniff", "Stopped to sniff on patrol: quick sniffs, a snort, a rumble"),
+        O("climb", "Climbing out at an open door: claws up the car's side, onto the roof", vars=3),
         O("snarl", "A snarl", vars=4),
         O("bite", "A bite", vars=4),
         O("yelp", "Driven off by a hit", vars=3),
@@ -746,6 +751,8 @@ CUES = {
         L("eat", "Eating cargo aboard"),
         # Note 290: pain sounds for a ball are the audio chat's.
         O("hit", "A ball or a blow landing on it before it turns: an indignant bark", vars=3),
+        # Its healing (App. A.8, queue #231, note 494; E1's #224 shows it): held while its health climbs.
+        L("heal", "Healing a lone crewmate's blow: wet sucks drawn back in, tissue knitting, his muttering"),
     ],
 
     # ---- Enemy tells (the warning sounds; the director's In review stands) --------------------------------------------
