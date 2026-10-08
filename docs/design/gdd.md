@@ -582,7 +582,7 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 | **Weak bridges** | Length. Your longer, richer train may not clear it. |
 | **Tunnels** | Radio. Compressed proximity voice, no exterior reference. |
 | **Brass growth** | Speed. Cut through slowly or ram it and pay. |
-| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window. Run right up to it and brake hard, or slow early and deal with what's on the roof. |
+| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window, and shown it: sparks off the outer rail and the cars leaning out over it, their inner wheels lifting as it nears coming off (notes 277, 370). Run right up to it and brake hard, or slow early and deal with what's on the roof. |
 | ~~Track debris~~ | *Retired: the director's decision, 6 Oct 2026. "A derailment needs to be clearly a mistake by the driver, someone not paying attention to the map." Debris forced a derailment on the game's behalf. Off by a tuning flag (enemies.json sleepers.enabled), kept in the code for mods.* |
 | **Marsh** | Movement. Something in the reeds surges toward motion; stand still for ~4s and it loses you. |
 | **Dawn** | Time. Every careful option becomes unaffordable. |

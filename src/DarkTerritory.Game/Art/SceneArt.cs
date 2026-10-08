@@ -446,7 +446,8 @@ public sealed partial class SceneArt(Look look)
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
             return true;
-        var up = onCar ? frames[b.Parent].Up : Double3.Up;
+        // (A load in the wreck film tumbles: its own up, note 370.)
+        var up = b.Tilt.Length > 0.5 ? b.Tilt : onCar ? frames[b.Parent].Up : Double3.Up;
         double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
         var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
         var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
