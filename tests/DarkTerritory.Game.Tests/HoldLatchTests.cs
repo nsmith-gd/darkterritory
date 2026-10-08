@@ -4,7 +4,7 @@ using DarkTerritory.Game;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// HOLD KEYS (note 399; GDD §32 "Accessibility"): with TOGGLE a press latches run, the brake, talk, the radio and the crew
+/// HOLD KEYS (note 383; GDD §32 "Accessibility"): with TOGGLE a press latches run, the brake, talk, the radio and the crew
 /// roster on and another lets go. Client-side only: the button held is what the host gets either way.
 /// </summary>
 public sealed class HoldLatchTests : IDisposable

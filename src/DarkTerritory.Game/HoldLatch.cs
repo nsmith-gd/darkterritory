@@ -1,7 +1,7 @@
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// HOLD KEYS (note 399; GDD §32 "Accessibility"): with TOGGLE, a press of run, the brake, talk, the radio or the crew roster
+/// HOLD KEYS (note 383; GDD §32 "Accessibility"): with TOGGLE, a press of run, the brake, talk, the radio or the crew roster
 /// latches it on and another lets it go, for a player who can't keep a key down. Client-side only: what the host is sent is
 /// the same held button either way, so prediction and the sim don't know the difference.
 /// </summary>
