@@ -526,7 +526,7 @@ public class HoldoutTests
     [Fact]
     public void PutDownPartWayTheLockIsSmashedFromTheStart()
     {
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, kit) = KitAtTheDoor(n);
         n.Hold(living, PlayerButtons.Use);
         n.Step(H.Open.Seconds * 0.8);
@@ -564,7 +564,7 @@ public class HoldoutTests
     [Fact]
     public void AClientSeesTheLockOpenedQuietly()
     {
-        var n = new Night(ALock, engineFrom: -300);
+        var n = new Night(ALock, engineFrom: -300, wrench: false);
         var (living, h, _) = KitAtTheDoor(n);
         n.Hold(living, PlayerButtons.Use);
         n.Step(1);
@@ -582,7 +582,9 @@ public class HoldoutTests
     public void TheTrainLeavesWithItsRepairKitInCarOne()
     {
         // A guard van and all: the kit rides in the first car behind the engine (train.json kit.repairKitCar), not with the stores.
-        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)),
+        // (Where the kit's still the repair tool: note 301's repair.wrench off.)
+        var kitRule = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = false } };
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(kitRule, 6, 1)),
             new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(50_000)])), 1_000));
         world.EnableBodies();
         world.Stock();

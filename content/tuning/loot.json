@@ -22,6 +22,7 @@
   // GDD v1.4 App. E.12 question 4, answered: repair kits turn up as loot, not just in the fortress's stores. Each container
   // at a stop (a village's cupboards and cellars, a yard's crate stacks and strongroom) has this chance of a kit lying
   // beside what it holds: rare, about one a night on a long line. Brought home, a found kit is kept as a spare.
+  // Note 301: where the wrench is the repair tool (train.json repair.wrench), no kit is found: this is read as 0.
   "repairKitChance": 0.03,
   // Note 267 (the director's notes on build 1121: the guard van's toys "are things that we should definitely find out in
   // the world"): GDD §19's hand-carried loot, found at the stops, not stocked from the fortress. Each village container of

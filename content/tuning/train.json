@@ -162,7 +162,10 @@
   // shell (what it ran into, or what ran into it) at its dent, the left wall three quarters back, where it comes back
   // integrityPerSecond while it's worked, never past what a Car Hugger ate. dentReach: how near the dent (m, across the
   // floor). A mend half done is kept while you stay at it with the wrench, so a few presses do it as well as a hold.
-  // Every break shows where it is (the callout, Effects.Repairs). false: the kit and hands, as before note 301.
+  // Every break shows where it is (the callout, Effects.Repairs). Slice 2: the wrench also mends a broken radio
+  // (kit.radioMendSeconds) and opens a Holdout's lock quietly (holdouts.json open), and the kit's gone: none stowed
+  // (kit.repairKits, spareKits), none found at the stops (loot.json repairKitChance). false: the kit and hands, as before
+  // note 301.
   "repair": {
     "wrench": true,
     "dentedBelow": 0.9,

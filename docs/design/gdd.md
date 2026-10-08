@@ -291,6 +291,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ### Fluidity
 
+**The wrench is the repair tool** (the director, 7 Oct, App. F.3; note 301, which supersedes the kit paragraphs below where they disagree). Everyone carries one beside the crowbar. With it in hand, Use at a break mends it, Sea of Thieves style: the burst boiler at its fire door (§23), a breach at its hole, a car battered by what it ran into at its dent, a broken radio, and a Holdout's lock opened quietly (D.7). A few presses do it as well as one long hold, and every break is called out where it is with an amber glow and sparks. The engineering kit is gone: none rides in the fitter's locker, none is found at the stops, and the fortress sells none.
+
 **The engineering kit is an item, not a station.** It's a carried kit, kept in the fitter's locker in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The fitter's empty shelf shows whether the kit is home.
 
 **The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, each with a crew grade on an enamel plate: DRIVER, FIREMAN, GUARD, SHUNTER, SIGNALMAN, BRAKESMAN, LAMPMAN, FITTER, GANGER, WHEELTAPPER, PORTER, YARDMASTER. Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in the **fitter's**: the fitter is the shed's mechanic, who mends engines.
@@ -612,12 +614,14 @@ Overfire past the safety valve and pressure pins at 100. Hold it there for 20s a
 |---|---|
 | **Rupture** | A burst loud enough to carry. Pressure and fire drop to zero, and the cylinders seize |
 | **Slowdown** | The seized engine drags the train down at 1.5 m/s² until it's below 4 m/s, then it coasts. Grades still apply, so it can roll on downhill and stall short of a summit |
-| **Repair** | In the cab, the engineering kit held at the firebox for **25s**. Interrupted, it starts over |
+| **Repair** | In the cab, the wrench worked at the fire door for **25s** (note 301; once, the engineering kit held there). Presses add up while you stay at it |
 | **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: 40s at three cars, over three minutes at twenty |
 
 Nobody dies. The cost is the clock, a stopped train with everything that means (the Whistler, a haunting Track Doll at the cab controls, Cinder Hounds closing), and whatever you have to do to get the kit back to the firebox.
 
 ### 23.2 Stranded, unable to repair
+
+*Note 301: with the wrench the repair tool and every crewmate carrying one, a lost kit strands nobody, and there's no kit to lose. Whether a night can still be stranded is the director's call. The rule as it stood:*
 
 **A ruptured boiler with the engineering kit lost ends the night.** Nothing else mends a boiler. With spares (§12), it takes losing **every** kit the crew has. A kit found at a stop counts once someone has picked it up.
 
@@ -1722,7 +1726,7 @@ Breaching is a hold-to-interact action by a living crew member, using the tools 
 |---|---|---|---|
 | Smash lock | Any melee tool: shovel, wrench, crowbar | 3s | **Counts toward crew loudness** at cannon level for its duration |
 | Pry barricade | Any melee tool | 6s | **Counts toward crew loudness** at machinery level for its duration |
-| Open lock | Engineering kit in hand | 6s | None |
+| Open lock | The wrench in hand (note 301; once, the engineering kit) | 6s | None |
 
 Breach noise counts because it is the living's action. A crew that smashes a lock while already loud can bring the Choir.
 
@@ -2148,7 +2152,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - A threat orchestrator that takes into account how many players are in the game and orchestrates threats to the number currently active. A design outline first; it can go to a different chat. *Outlined (queue #67, note 328): [the threat orchestrator, and the run between stops](orchestrator.md): the orchestrator over the director (who's active, at which post, and how long since each had something to answer), upkeep while the train runs, threats that board at speed, waves at the guns, pacing targets, what changes in the director, and five questions for the director.*
 
 **Repairs**
-- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. The repair kit's other uses go in a second slice.*
+- The wrench doesn't repair things Sea of Thieves style yet. Wanted as soon as possible. *Done (note 301): everyone carries a wrench; in hand, Use at a break mends it, a few presses or a hold (the burst boiler, a breach, a battered car's dent), and every break is called out with an amber glow and sparks. Second slice: the wrench also mends a broken radio and opens a Holdout's lock quietly, and the kit is gone (not stowed, found or sold).*
 
 **Audio**
 - A weird high, repeated sound when the cannon turns. Get rid of it, or make it a lot lower and slower. *Done (note 329): the gun's lay is now a low motor hum with a slow, deep gear clunk (2–5 a second under 420 Hz, where it ticked 6–28 a second at 1.8–3.1 kHz).*

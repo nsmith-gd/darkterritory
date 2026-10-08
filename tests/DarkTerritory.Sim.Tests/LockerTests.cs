@@ -22,9 +22,12 @@ public class LockerTests
     static readonly RailLine Line = new(new LineDefinition("t", [new TrackSegment(50_000)]));
     static readonly double Tap = 1.0 / SimConstants.TickRate;
 
+    /// <summary>Where the repair kit still rides in the fitter's locker (note 301's <c>repair.wrench</c> off: on, it's gone).</summary>
+    static readonly TrainTuning KitRule = Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = false } };
+
     static World Stocked(TrainTuning? tuning = null, int cars = 4, RailLine? line = null, double start = 1_000)
     {
-        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning ?? Tuning.Train, cars, 1)), line ?? Line, start));
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(tuning ?? KitRule, cars, 1)), line ?? Line, start));
         world.EnableBodies();
         world.Stock();
         return world;
@@ -269,7 +272,8 @@ public class LockerTests
     [Fact]
     public void ASpareKitBoughtAtTheFortressStartsTheNightInALocker()
     {
-        var c = DataFile.Load<CampaignTuning>(Path.Combine(DataFile.FindContentRoot(), CampaignTuning.File));
+        // (campaign.json sells none since note 301: the kit's rule, with the store's old numbers.)
+        var c = DataFile.Load<CampaignTuning>(Path.Combine(DataFile.FindContentRoot(), CampaignTuning.File)) with { SpareKit = new SpareKitTuning(325, 3) };
         var s = Campaign.Campaign.New(c, 1, "Spares", 3) with { Scrip = 10_000 };
         var bought = Campaign.Campaign.BuySpareKit(c, s);
         Assert.True(bought.Ok);
@@ -280,7 +284,7 @@ public class LockerTests
         Assert.False(Campaign.Campaign.BuySpareKit(c, full).Ok);
         Assert.False(Campaign.Campaign.BuySpareKit(c, s with { Scrip = 0 }).Ok);
 
-        var loadout = Campaign.Campaign.WithSpareKits(new Loadout(Tuning.Train, Tuning.Boiler, Tuning.Combat, null), bought.State.SpareKits);
+        var loadout = Campaign.Campaign.WithSpareKits(new Loadout(KitRule, Tuning.Boiler, Tuning.Combat, null), bought.State.SpareKits);
         var world = Stocked(loadout.Train);
         var kits = world.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit).OrderBy(b => b.Id).ToList();
         Assert.Equal(2, kits.Count);
@@ -289,7 +293,7 @@ public class LockerTests
         Assert.All(kits, k => Assert.Equal("FITTER", shape.Lockers[k.Locker].Name));
         Assert.Equal([0, 1], kits.Select(k => k.Slot));
         // With more spares than his shelves, the next lockers along take them.
-        var many = Stocked(Tuning.Train with { Kit = Tuning.Train.Kit with { SpareKits = 3 } });
+        var many = Stocked(KitRule with { Kit = KitRule.Kit with { SpareKits = 3 } });
         var stowed = many.Bodies.All.Where(b => b.Kind == BodyKind.RepairKit).ToList();
         Assert.Equal(4, stowed.Count);
         Assert.All(stowed, k => Assert.True(k.Stowed));
