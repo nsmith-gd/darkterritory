@@ -1395,6 +1395,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         // A ruptured boiler (T109): the wrench from its rack, and mended at the firebox; the train coasts meanwhile.
         if (Mend(self, world, tick) is { } mending)
             return mending with { Lamp = lamp };
+        // A smashed headlamp (note 301, slice 2): mended with the wrench from where the driver stands, at the front windows.
+        if (MendLamp(self, world) is { } glazing)
+            return glazing with { Lamp = lamp };
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = OpenCruise(world);
         // The Track Doll on the rail ahead in the lamp (v1.1 App. A.2): stop before you hit the doll. Braking to a stand
@@ -1855,6 +1858,23 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             return null;
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
         return KitRun.Decide(self, world, FiringSpot(firebox, Fireman ? -1 : 1), tick);
+    }
+
+    /// <summary>
+    /// The smashed forward lamp (note 301, slice 2): forward to the cab's front windows, the wrench into hand and Use held
+    /// there, the train left as it's going for the few seconds it takes. Null with the lamp whole or the bot out of the cab.
+    /// </summary>
+    PlayerIntent? MendLamp(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        if (!Repairs.LampSmashed(train) || !self.Alive || !PlayerMotor.InCab(self, train) || train.Frames[0].Shape.Cab is not { } cab)
+            return null;
+        // Forward to the windows first (the driver works the controls from anywhere in the cab).
+        if (!Repairs.AtLamp(self, train))
+            return WarmUp.Steer(self, new Double3(0, 0, cab.Min.Z + 0.6), 0).Step;
+        if (Repairs.WrenchKey(self) is var key and > 0)
+            return new PlayerIntent { Select = key };
+        return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : null;
     }
 
     PlayerIntent? FightStoker(in PlayerState self, World world)

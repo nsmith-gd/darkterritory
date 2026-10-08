@@ -155,4 +155,55 @@ public class RepairTests
         var cab = PlayerMotor.SpawnInCab(train, P) with { HeldSlot = 1 };
         Assert.Equal(BreakKind.None, Repairs.At(cab, train));
     }
+    [Fact]
+    public void ASmashedHeadlampStaysOutTillTheWrenchMendsItFromTheCabsFrontWindows()
+    {
+        // Slice 2, the director (8 Oct): the smashed headlamp is the wrench's. It no longer comes back by itself.
+        var world = World();
+        world.EnableBodies(); // the host's (it relights the lamp)
+        var train = world.Train;
+        world.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        var idle = PlayerMotor.SpawnInCab(train, P);
+        Hold(world, ref idle, Tuning.Enemies.Climbers.LampOutSeconds + 1, new PlayerIntent());
+        Assert.False(world.LampLit);
+        Assert.True(Repairs.LampSmashed(train));
+        // Called out on the cab's nose, and on the sill inside where it's mended from.
+        Assert.Equal([(BreakKind.Lamp, 0), (BreakKind.Lamp, 0)], RepairCallouts.Of(train).Select(c => (c.Kind, c.Vehicle)).ToArray());
+        // At the back of the cab (the fire door), nothing; at the front windows with the crowbar, nothing.
+        var cab = train.Frames[0].Shape.Cab!.Value;
+        var front = PlayerMotor.SpawnInCab(train, P) with { HeldSlot = 0 };
+        front.Position = front.Position with { Z = cab.Min.Z + 0.6 };
+        Assert.Equal(BreakKind.Lamp, Repairs.At(front, train));
+        Hold(world, ref front, 2);
+        Assert.Equal(Tuning.Enemies.Climbers.LampOutSeconds, world.LampOutSeconds, 6);
+        // The wrench in hand: lampMendRate seconds of glass to each one worked, then it's lit again as the driver had it.
+        front.HeldSlot = 1;
+        Hold(world, ref front, Tuning.Enemies.Climbers.LampOutSeconds / T.Repair.LampMendRate - 0.5);
+        Assert.False(world.LampLit);
+        Hold(world, ref front, 0.6);
+        Assert.Equal(0, world.LampOutSeconds);
+        Assert.True(world.LampLit);
+        Assert.Empty(RepairCallouts.Of(train));
+    }
+    [Fact]
+    public void TheBotDriverMendsASmashedHeadlampFromTheControls()
+    {
+        // Slice 2: the driver stands at the front windows, where the lamp's mended; its wrench into hand, and the glass in.
+        var world = World();
+        world.EnableBodies();
+        var train = world.Train;
+        world.SmashLamp(Tuning.Enemies.Climbers.LampOutSeconds);
+        var bot = new Bots.ConductorBot(new Bots.CrewCalls(), 0);
+        var s = PlayerMotor.SpawnInCab(train, P);
+        for (uint tick = 0; tick < (Tuning.Enemies.Climbers.LampOutSeconds / T.Repair.LampMendRate + 15) * SimConstants.TickRate
+            && Repairs.LampSmashed(train); tick++)
+        {
+            var intent = bot.Decide(s, world, tick, out _);
+            world.BeginTick();
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+        }
+        Assert.False(Repairs.LampSmashed(train));
+    }
 }

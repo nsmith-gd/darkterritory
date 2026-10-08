@@ -1641,7 +1641,7 @@ public sealed class GreyboxScene
         {
             if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
                 continue;
-            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            int car = kind is BreakKind.Rupture or BreakKind.Lamp ? 0 : s.Parent;
             for (int i = 0; i < breaks.Count; i++)
                 if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
                     (at ??= []).Add(i);

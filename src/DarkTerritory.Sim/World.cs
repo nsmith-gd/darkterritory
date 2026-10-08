@@ -27,6 +27,9 @@ public sealed class World
         Combat = combat;
         // A roof hatch isn't shut down onto a casting the crane has hanging in it (T99).
         train.HatchBlocked = car => Run?.CurrentSite?.Cranes.Any(c => c.InHatch(train, car)) == true;
+        // Note 301: a smashed lamp's glass is the wrench's work (repair.lampMendRate seconds of it to each second worked).
+        train.LampOut = () => Derailed ? 0 : LampOutSeconds; // derailed, the night's over: nothing to call out
+        train.MendLamp = dt => LampOutSeconds = Math.Max(0, LampOutSeconds - dt * train.Dynamics.Tuning.Repair.LampMendRate);
         Choir = ChoirState.Quiet;
         if (combat is not null)
             Guns.Arm(train, combat.Guns);
@@ -1316,7 +1319,9 @@ public sealed class World
         if (Authority && Train.Boiler.ShovelOut && _actors.Count > 0 && !_actors.Any(a => Player.Kit.Has(a.State.Kit, Player.Tool.Shovel))
             && !Bodies.All.Any(b => b.HasTool(Player.Tool.Shovel)))
             Train.Boiler.ShovelOut = false;
-        LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
+        // Note 301: where the wrench is the repair tool, the glass goes in only when someone mends it (Repairs.Lamp).
+        if (!Repairs.ByWrench(Train))
+            LampOutSeconds = Math.Max(0, LampOutSeconds - SimConstants.TickSeconds);
         if (_relight && LampOutSeconds <= 0 && Authority && !Derailed && Train.Dynamics.Tuning.Kit.RelightSmashedLamp)
         {
             _relight = false;

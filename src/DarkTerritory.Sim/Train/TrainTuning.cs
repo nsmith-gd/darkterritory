@@ -85,6 +85,7 @@ public sealed record RepairTuning
     public double IntegrityPerSecond { get; init; } = 0.04;
     public double DentReach { get; init; } = 1.3;
     public double EngineDentBehind { get; init; } = 2.5;
+    public double LampMendRate { get; init; } = 6;
 }
 
 /// <summary>

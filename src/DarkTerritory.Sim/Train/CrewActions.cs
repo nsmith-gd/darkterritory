@@ -180,6 +180,11 @@ public static class CrewActions
                 if (before < couplings.HandbrakeSeconds && s.ActionProgress >= couplings.HandbrakeSeconds)
                     train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
                 break;
+            // The smashed forward lamp from the cab's front windows, the wrench in hand (note 301, slice 2): the glass goes in.
+            case null when Repairs.Lamp(s, train):
+                s.ActionProgress += dt;
+                train.MendLamp?.Invoke(dt);
+                break;
             // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
             case null when Repairs.Dent(s, train, hand) is { } dented:
                 s.ActionProgress += dt;

@@ -1450,7 +1450,13 @@ public static partial class Hud
         var at = Repairs.At(p, train, hand);
         if (at == BreakKind.None)
             return null;
-        string what = at switch { BreakKind.Breach => "THE CAR'S BREACHED", BreakKind.Rupture => "BOILER RUPTURED", _ => "THE CAR'S BATTERED" };
+        string what = at switch
+        {
+            BreakKind.Breach => "THE CAR'S BREACHED",
+            BreakKind.Rupture => "BOILER RUPTURED",
+            BreakKind.Lamp => "THE HEADLAMP'S SMASHED",
+            _ => "THE CAR'S BATTERED",
+        };
         if (!Repairs.WrenchInHand(p))
             return Repairs.WrenchKey(p) is var key and > 0 ? $"{what}   WRENCH : [{key}]" : $"{what}   NO WRENCH";
         double done = at switch
@@ -1459,6 +1465,9 @@ public static partial class Hud
             BreakKind.Rupture => train.BoilerTuning is { } bt ? p.ActionProgress / bt.RepairSeconds : 0,
             _ => p.Parent >= 0 && p.Parent < train.Vehicles.Count ? train.Vehicles[p.Parent].Integrity / Math.Max(1e-6, Repairs.Mendable(train.Vehicles[p.Parent])) : 0,
         };
+        // The lamp's glass has no fixed length to show a share of (lamp armour halves it): the hold, and the work going on.
+        if (at == BreakKind.Lamp)
+            return p.ActionProgress > 0 ? "MENDING THE HEADLAMP" : "MEND THE HEADLAMP : HOLD [E]";
         string verb = at switch { BreakKind.Breach => "BOARD IT UP", BreakKind.Rupture => "MEND THE BOILER", _ => "MEND THE CAR" };
         return $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)";
     }

@@ -1382,6 +1382,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var breaks = RepairCallouts.Of(train);
         if (scene.Ruptured && !train.Boiler.Ruptured && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { Kind: InteractableKind.Firebox } fire)
             breaks.Insert(0, new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        // --smashed: the headlamp smashed, its glass the wrench's to mend (note 301, slice 2): its callout on the cab's nose.
+        if (args.Contains("--smashed"))
+        {
+            breaks.Add(new BreakCallout(BreakKind.Lamp, 0, Repairs.LampAt(train)));
+            if (Repairs.LampSillAt(train) is { } sill)
+                breaks.Add(new BreakCallout(BreakKind.Lamp, 0, sill));
+        }
         scene.Breaks = breaks;
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();

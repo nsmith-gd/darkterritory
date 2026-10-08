@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Sim.Train;
 
 /// <summary>What's broken and can be mended where you stand (note 301).</summary>
-public enum BreakKind : byte { None, Rupture, Breach, Dent }
+public enum BreakKind : byte { None, Rupture, Breach, Dent, Lamp }
 
 /// <summary>
 /// The wrench is the repair tool (queue #39, the director, 7 Oct, GDD App. F.3: "repairing things in the Sea of Thieves
@@ -103,6 +103,27 @@ public static class Repairs
     public static int? Dent(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
         WrenchInHand(s) ? AtDent(s, train, hand) : null;
 
+    /// <summary>The engine's forward lamp is smashed and wants mending (slice 2: where the wrench is the repair tool).</summary>
+    public static bool LampSmashed(TrainOnLine train) => ByWrench(train) && train.LampOut?.Invoke() > 0;
+
+    /// <summary>Where the forward lamp is (the engine's frame): on the cab's nose under its front windows (<see cref="World.LampPosition"/>).</summary>
+    public static Double3 LampAt(TrainOnLine train) => new(0, World.LampHeight, -train.Frames[0].Shape.HalfLength - 0.3);
+
+    /// <summary>Inside the cab, on its front windows' sill: where the smashed lamp's mended from, and called out for the mender.</summary>
+    public static Double3? LampSillAt(TrainOnLine train) =>
+        train.Frames[0].Shape.Cab is { } cab ? new Double3(-0.55, cab.Min.Y + 1.5, cab.Min.Z + 0.15) : null;
+
+    /// <summary>
+    /// At the smashed lamp, whatever's in hand: in the cab, at its front windows (within <see cref="RepairTuning.DentReach"/>
+    /// of them), the lamp just the other side of the glass.
+    /// </summary>
+    public static bool AtLamp(in PlayerState s, TrainOnLine train) =>
+        s.Alive && s.Parent == 0 && LampSmashed(train) && train.Frames[0].Shape.Cab is { } cab && PlayerMotor.InCab(s, train)
+        && s.Position.Z - cab.Min.Z <= train.Dynamics.Tuning.Repair.DentReach;
+
+    /// <summary>Mending the smashed lamp now: at it with the wrench in hand.</summary>
+    public static bool Lamp(in PlayerState s, TrainOnLine train) => WrenchInHand(s) && AtLamp(s, train);
+
     /// <summary>
     /// The break this player's at, whatever's in hand: what the HUD names and the callout's prompt asks the wrench for. The
     /// breach first (it's the one thing worked at the hole), then the boiler, then a dent.
@@ -113,6 +134,8 @@ public static class Repairs
             return BreakKind.Breach;
         if (CrewActions.AtTheRupture(s, train, hand))
             return BreakKind.Rupture;
+        if (AtLamp(s, train))
+            return BreakKind.Lamp;
         return AtDent(s, train, hand) is not null ? BreakKind.Dent : BreakKind.None;
     }
 
@@ -158,6 +181,14 @@ public static class RepairCallouts
         if (train.BoilerTuning is not null && train.Boiler.Ruptured && train.Frames.Count > 0
             && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { } fire)
             list.Add(new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        // The lamp's called out twice: on the cab's nose where it is (seen from outside), and on the front windows' sill inside,
+        // where it's mended from (the nose is below the glass from in there).
+        if (train.Frames.Count > 0 && Repairs.LampSmashed(train))
+        {
+            list.Add(new BreakCallout(BreakKind.Lamp, 0, Repairs.LampAt(train)));
+            if (Repairs.LampSillAt(train) is { } sill)
+                list.Add(new BreakCallout(BreakKind.Lamp, 0, sill));
+        }
         for (int car = 0; car < train.Vehicles.Count && car < train.Frames.Count; car++)
         {
             var v = train.Vehicles[car];
