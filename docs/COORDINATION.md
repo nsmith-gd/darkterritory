@@ -450,6 +450,10 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 - About 13 car fires a night set by boarded hound packs on an 8-bot hot run (D1.2's note 437: 118 over nine nights, against 8 hot boxes caught); the bots fight what they can. Note 269's `igniteEverySeconds` and how often a pack is left aboard are the levers.
 - GDD D.15, question 3: the answer was cut off.
+- D1, 8 Oct: the threat orchestrator's build order (orchestrator.md §6.2) is done but for S2. Two upkeep and boarding pieces need the director's yes before anyone builds them:
+  - **U6, the boiler's water.** A gauge glass that falls every 8 km and the injector in the cab (Use 2 s) to feed it, with the fire dropped or §23's rupture if it's let go. That's a second job in the cab beside the shovel.
+  - **S2, Climbers at speed.** On Dead Lines and harder, a pack that has paced a fast train long enough gets a grip anyway, over note 286's 14 m/s.
+  - Also §5.3's "other runners than hounds", which would be a second creature for the waves at the guns.
 - What makes solo "seriously hard" (App. F.1; note 300): a bot alone delivers every night swept, Local to Dead Lines at 10 cars, at about a third of a crew's income. Four untuned options in note 300.
 - Whether the Stoker's hose should be a real cab fitting (a slacking pipe) instead of an extinguisher (note 271).
 - The threat orchestrator (App. F.3; note 328): five questions in [orchestrator.md](design/orchestrator.md) §8. They are §15's "scaling by train length, not enemy count multipliers" against scaling by active players; a flying creature for top speed (the kites); which upkeep job comes first; whether the hound run should come only above the hounds' 19 m/s (as built); and whether a missed runner boards or harms the train.
