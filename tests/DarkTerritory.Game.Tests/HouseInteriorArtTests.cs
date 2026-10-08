@@ -26,9 +26,12 @@ public class HouseInteriorArtTests
         // Every item loot.json can deal out has a model of its own and a cell, not the plain bundle.
         var loot = DataFile.Load<LootTuning>(Path.Combine(Content, LootTuning.File));
         var plain = FindKit.Find(null, "nothing", 0.15f).Vertices.Length;
+        // (A creature's trophy, the Gannet's head, isn't a village find: a model of its own, but no cell.)
+        var trophies = loot.Trophies.Values.Select(t => t.Item).ToHashSet();
         foreach (var item in loot.Items.Keys)
         {
-            Assert.Contains(item, FindKit.Cells);
+            if (!trophies.Contains(item))
+                Assert.Contains(item, FindKit.Cells);
             var model = FindKit.Find(null, item, 0.15f);
             Assert.True(model.Vertices.Length > 0 && model.Vertices.Length != plain, $"{item} is the plain bundle");
         }

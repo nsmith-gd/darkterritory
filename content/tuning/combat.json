@@ -43,7 +43,16 @@
     // T121 playtest ("every cannonball should have an impact explosion and VFX to show where impact was"): a ball's path is
     // searched in steps this long for the ground, water or a stop building's wall it comes down on before what it was
     // aimed at; one that hits nothing comes down where its range runs out.
-    "impactStep": 0.5
+    "impactStep": 0.5,
+    // Powder to the guns (note 374; docs/design/orchestrator.md §5.1 U4; GDD App. F.3, the director, 7 Oct 2026: "on the
+    // train, still relatively boring from point A to point B"): a gun fires what's in its ready rack, rack rounds of its
+    // ammo; the rest of the night's powder is down in the powder locker in the guard van (the shot locker, App. C.3), the
+    // engine gun's share too. A charge is taken from the locker (Use, empty-handed, within lockerReach m of it) and carried
+    // up to a gun whose rack isn't full; Use held chargeSeconds at the gun fills the rack from the lockers. It makes a
+    // gun a two-person job in a wave: a gunner, and a walker bringing the powder. rack 0: no rack, the whole stock at the gun.
+    "rack": 6,
+    "chargeSeconds": 2,
+    "lockerReach": 1.3
   },
   // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the

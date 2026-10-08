@@ -33,6 +33,12 @@ public sealed partial class Run
     /// <summary>A find's body's owner: the stop, and the container in its layout.</summary>
     public static int LootOwner(int stop, int container) => stop << 12 | container;
 
+    /// <summary>The "stop" a creature's trophy's owner names (note 340): past any line's stops, its container the creature's kind.</summary>
+    public const int TrophyStop = 0xFFF;
+
+    /// <summary>A creature's trophy's owner (the Gannet's head, note 340): a find that's the kind's, not a stop's.</summary>
+    public static int TrophyOwner(Enemies.EnemyKind kind) => LootOwner(TrophyStop, (int)kind);
+
     /// <summary>
     /// Fills the stops from the economy and builds their yards' cranes. Host and clients both do this (after
     /// <see cref="EnableSites"/>), so a client can name a find from its body.
@@ -95,6 +101,12 @@ public sealed partial class Run
         if (b.Kind != Physics.BodyKind.Loot)
             return null;
         int stop = b.Owner >> 12, container = b.Owner & 0xFFF;
+        // A creature's trophy (the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"; note 340): loot.json
+        // trophies, by the kind, paying its share of the tier's car-load. The same on every machine.
+        if (stop == TrophyStop)
+            return _loot is { } lt && _route is { } r && lt.Trophies.TryGetValue(Enemies.Director.Key((Enemies.EnemyKind)container), out var trophy)
+                ? new LootFind(container, trophy.Item, trophy.PerCar * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(r.Tier), 700))
+                : null;
         if (stop < 0 || stop >= _stopLoot.Count)
             return null;
         foreach (var f in _stopLoot[stop].Finds)

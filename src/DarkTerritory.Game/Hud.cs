@@ -509,6 +509,7 @@ public static partial class Hud
     static string Called(Sim.World world, Body b) => b.Kind switch
     {
         BodyKind.RepairKit => "THE REPAIR KIT",
+        BodyKind.Powder => "THE CHARGE",
         BodyKind.Lamp => "THE LAMP",
         BodyKind.Radio => "THE RADIO",
         BodyKind.Toy => b.Noise switch
@@ -1447,6 +1448,7 @@ public static partial class Hud
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
+        DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -1515,6 +1517,18 @@ public static partial class Hud
     /// A healing find being used (note 272): how far it's got, from the body record, as plain state at the crosshair. Null
     /// otherwise: the find's name and keys are the corner's (note 285).
     /// </summary>
+    /// <summary>
+    /// A charge in hand (note 374): at a gun whose rack wants it, the hold that fills it and how far it's got; at a full one,
+    /// that it's full. Null anywhere else (what it is and how to put it down are the corner's).
+    /// </summary>
+    public static string? PowderPrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Powder || s.World.Combat is not { } combat || Guns.MannedGun(s.Player, s.Train, combat.Guns) is not { } gun)
+            return null;
+        return Guns.Ready(s.Train.Vehicles[gun].Gun, combat.Guns) >= combat.Guns.Rack ? "THE RACK'S FULL"
+            : Hold("FILL THE RACK", carried.MendTicks * Sim.SimConstants.TickSeconds / combat.Guns.ChargeSeconds);
+    }
+
     public static string? HealPrompt(IPlaySession s, Body carried) =>
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
@@ -1590,7 +1604,7 @@ public static partial class Hud
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -1600,7 +1614,7 @@ public static partial class Hud
             // GDD §23 (note 183): a shot's fouled it, and it's cleared by hand before anything else.
             return gun.Jammed ? Hold("CLEAR THE GUN", gun.ReloadProgress / combat.Guns.ClearSeconds)
                 : gun.ReloadNeeded > 0 ? $"{LoadStep(gun, combat.Guns)} : HOLD [E]"
-                : gun.Ammo <= 0 ? "NO SHOT"
+                : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
                 : "SIT : [E]   PUSH ALONG : [E] + WALK";
@@ -1680,6 +1694,9 @@ public static partial class Hud
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
             return TownTalk.Prompt(town, there);
+        // The powder locker (note 374): a charge for a gun's rack, while there's any.
+        if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
+            return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
             return thing.Kind switch

@@ -142,6 +142,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
 {
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
+    /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
+    public UpkeepReport? Upkeep { get; init; }
     /// <summary>With <see cref="HarnessOptions.DropRejoin"/>: how the bot that dropped came back (note 253).</summary>
     public RejoinReport? Rejoin { get; init; }
     /// <summary>The crew cap (note 254): the cap, the places taken at the end, and the bots turned away and what they were told.</summary>
@@ -215,6 +217,12 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     /// <summary>The hound runs sent at the fast train (note 328), each with how its runners ended.</summary>
     public IReadOnlyList<HoundRunReport> HoundRuns { get; init; } = [];
 }
+
+/// <summary>
+/// The night's upkeep (orchestrator.md §5.1): hot boxes come and caught (note 331), lamps guttering and gone out (note 346),
+/// couplings come loose and parted (note 356), and the guns' racks filled from the powder locker (note 374).
+/// </summary>
+public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentOut, int Couplings, int Parted, int RacksFilled);
 
 /// <summary>
 /// The crew afoot off the train (note 327): crew-seconds out, the signs shown them (and how many from a site at the stop), by
@@ -570,6 +578,8 @@ public static class Harness
         string link = o.Network is { } n ? n.Name : o.Udp ? "udp localhost" : $"{o.Link.LatencySeconds * 1000:0}ms ±{o.Link.JitterSeconds * 1000:0} loss {o.Link.LossRate:P0}";
         var pacing = Pace(quiet, lastQuiet, beats, outTicks, quietTicks, beatKinds);
         pacing = pacing with { LongestQuietEnded = lastQuiet > 0 && lastQuiet >= quiet.DefaultIfEmpty(0).Max() ? $"{seconds:0}s, the night's end" : longestEnded, LongQuiets = longQuiets };
+        var upkeep = host.World.Upkeep is null ? null : new UpkeepReport(host.World.HotBoxCount.Came, host.World.HotBoxCount.Caught,
+            host.World.GutterCount.Came, host.World.GutterCount.WentOut, host.World.LooseCount.Came, host.World.LooseCount.Parted, host.World.RacksFilled);
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
             Math.Round(host.Train.Boiler.Pressure, 1), Math.Round(host.Train.Boiler.Tender), host.LastSnapshotBytes,
@@ -580,6 +590,7 @@ public static class Harness
             clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Log,
             pacing)
         {
+            Upkeep = upkeep,
             Voice = calls?.Voice?.Report(),
             Crew = crewCap,
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
