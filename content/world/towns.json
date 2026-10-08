@@ -594,7 +594,67 @@
         "elder": ["Ten past four. The minute {absent} went. I stopped it myself. Don't you touch it.", "Some nights the clock ticks. Just a few. Then it thinks better of it."],
         "parent": ["Every clock in the house stopped together. All of them. We hadn't even heard yet."],
         "child": ["I wound the clock once. Mam cried and cried. I won't again."] },
-      "object": { "kind": "clock", "name": "the mantel clock", "text": "A mantel clock stopped at ten past four. The key's gone. Somebody's tied the pendulum still with a hair ribbon." } }
+      "object": { "kind": "clock", "name": "the mantel clock", "text": "A mantel clock stopped at ten past four. The key's gone. Somebody's tied the pendulum still with a hair ribbon." } },
+    { "id": "foghorn", "absent": true,
+      "lines": {
+        "parent": ["{absent} took the dory out the night of the fall. The fog came in behind him and never went back out.", "We sound the horn for him at the turn of every tide. Some nights something out there sounds back."],
+        "elder": ["Forty years I fished. You don't whistle on a boat. You don't whistle anywhere, now. Nobody told {absent}.", "The fog's not weather any more. It comes in when it's called."],
+        "child": ["Dad's out past the light. He waves from the fog some mornings. Mam won't look.", "I'm learning the horn. Two long, one short. That's ours. Anything else, you don't answer."] },
+      "object": { "kind": "timetable", "name": "a tide table", "text": "A tide table from the year of the fall, framed on the wall. One high water is ringed in pencil: the night the dories went out. Every tide since is ticked off, in the same hand, to tonight's." } },
+    { "id": "rope", "absent": false,
+      "lines": {
+        "parent": ["Nobody in this house goes to the privy alone. Not the children. Not me. Especially not me.", "My brother went for wood by himself. Two minutes. We heard him counting all the way back. It wasn't him counting."],
+        "child": ["I hold Mam's hand on the stairs. If I let go it's my fault.", "Someone stood right behind me at the pump. I didn't turn round. You don't turn round. You wait for your other."],
+        "elder": ["Mind the rope. A rope's better than a hand. A hand lets go when it's frightened."] },
+      "object": { "kind": "boots", "name": "a pair of boots", "text": "A pair of boots by the door with a rope knotted through both, long enough to reach a second pair. The second pair's gone. The rope's end has been cut, very cleanly." } },
+    { "id": "toys", "absent": true,
+      "lines": {
+        "parent": ["We don't keep toys in this house. Not since {absent}. Whatever comes, we give it to the shelf at the gate.", "She's polite, the one who takes them. Polite ones you thank. You thank them and you shut the door."],
+        "child": ["I had a rag doll. Somebody wanted her more than me. That's what Mam says. Somebody wanted her more.", "If you find a toy on the line, don't pick it up. It's not yours. It's not anybody's yet."],
+        "elder": ["In my day a doll was a doll. Now you don't leave one lying. Not on a sill. Not anywhere it looks like a gift."] },
+      "object": { "kind": "suitcase", "name": "a child's case", "text": "A child's case under the stairs, strapped shut. Through a split in its side: a doll's arm, a tin wheel. A luggage tag in a child's hand: FOR HER. SHE ASKED NICELY." } },
+    { "id": "pit", "absent": true,
+      "lines": {
+        "parent": ["{absent} went down the pit the morning after the fall. The shift came up at four. He came up at six. He's been down since.", "The company sent his lamp back. Lit. It's never needed filling."],
+        "elder": ["Fifty years under the sea in the deep seam. Never heard singing down there till after. You never sing back.", "There's coal in the walls of every house in this town. Some nights you hear it settle. Some nights it's not settling."],
+        "child": ["There's black footprints by Dad's boots most mornings. Mam sweeps them before Gran sees."] },
+      "object": { "kind": "boots", "name": "a miner's boots", "text": "A miner's boots by the door, the toes worn white. In front of them, on the swept floor, fresh coal dust in the shape of two feet, standing very still, facing in." } },
+    { "id": "ceilidh", "absent": true,
+      "lines": {
+        "parent": ["We were a singing house. A kitchen party every Saturday. {absent} had the best voice on the shore. That was the trouble.", "Somebody sang at the last one. Just a verse. We counted heads in the morning."],
+        "elder": ["Hum if you must. Mouth shut, under your breath. Never the words. The words carry.", "The fiddle's in its case. It stays in its case. The bow's under my mattress."],
+        "child": ["Gran taught me a song with no tune. You just say it. Like a list of who's still here."] },
+      "object": { "kind": "letters", "name": "folded sheet music", "text": "Sheet music, folded small and tied with a fiddle string. Every tune's still there. Every word has been scratched out, so hard the nib went through." } },
+    { "id": "count", "absent": false,
+      "lines": {
+        "parent": ["I count us every hour. Five of us. Every hour, five. One night there were six, and nobody would say who.", "Count anything that comes in a crowd. If they're more than you, you're already too late to be clever."],
+        "elder": ["She counts. Let her count. Somebody in every house should."],
+        "child": ["Mam counts us when we're asleep. I pretend, so she gets it right.", "I counted the frogs in the ditch once. I stopped. They didn't."] },
+      "object": { "kind": "letters", "name": "a tally", "text": "Envelopes, opened flat, covered in tally marks in pencil: the household counted every hour, every night. Five. Five. Five. Six. Five. Five. The six has been rubbed at until the paper's thin." } },
+    { "id": "telephone", "absent": true,
+      "lines": {
+        "parent": ["{absent} was a brakeman. The night the line went dark he rang us on the railway telephone. He still rings. They cut that wire years ago.", "He asks for the door to be opened. Only that. I tell him it's open. It's not. It never will be."],
+        "elder": ["When it whispers you turn it up. When it whistles you turn it off and leave the room. I don't ask why any more."],
+        "child": ["The radio has Dad's voice in it some nights. He knows all our names. He says them in the wrong order."] },
+      "object": { "kind": "radio", "name": "the wireless", "text": "A cabinet wireless with its dial taped down between two stations. On the tape, in pencil: HE'S ON THIS ONE. It isn't switched on. It's warm." } },
+    { "id": "stones", "absent": false,
+      "lines": {
+        "parent": ["A stone on the sill for every night we've all slept in. The row's gone round the room twice. Don't move any.", "If you hear tapping on the glass, it's the stones settling. That's what we say. That's what we've decided."],
+        "child": ["I picked the stones off the beach. Only white ones. Anything dark that washes up, you leave.", "One morning there was a stone on the outside sill too. Dad buried it."],
+        "lodger": ["They're good people. Strange about the stones. I've started counting them myself. I can't stop."] },
+      "object": { "kind": "boards", "name": "the boarded window", "text": "Boards nailed across the window, and along the sill inside them a row of small white beach stones, one for every night. The row runs off the sill and on round the room." } },
+    { "id": "bride", "absent": true,
+      "lines": {
+        "parent": ["{absent} was to be married the week of the fall. The dress is upstairs. Some nights it isn't.", "We set her place. It's what you do. It's what the town does. Don't take her cup."],
+        "elder": ["She was always one for the platform. Waving the trains off. Waving them in. You don't wave at a train now. It might wave back."],
+        "child": ["My sister comes home late. She doesn't use the door. She's very quiet so she doesn't wake Mam."] },
+      "object": { "kind": "table", "name": "a place laid", "text": "A place laid at the table with the good china: a wedding plate, gold at the rim, and a cup. The cup's half full. There's a lip print on it, very faint, the colour of river mud." } },
+    { "id": "lighthouse", "absent": true,
+      "lines": {
+        "parent": ["{absent} kept the light on the point. It's still turning. Nobody's been out to it in nine years.", "A lit window tells something where you are. We keep ours dark. Keep yours dark, out there."],
+        "elder": ["The light used to warn the ships off the rocks. Now we wonder who it's calling in."],
+        "child": ["I watch the light from my window. Three flashes, then dark. Last night it was four."] },
+      "object": { "kind": "clock", "name": "the keeper's clock", "text": "A brass-faced keeper's clock on the mantel, still wound, still keeping time. Beside it, the logbook's last line, in a different hand: LIGHT ATTENDED. ALL WELL. KEEPER GONE DOWN TO THE WATER." } }
   ],
 
   // A knock at a shut house, one a house.

@@ -31,6 +31,10 @@ public static class Views
             // Inside the car, at its front end, looking back down the aisle past the cargo.
             // Note 301: a battered car's dent on its left wall and a breach in its rear end wall, their callouts (with
             // --integrity and --breached).
+            // Slice 2: the engine's dent on its boiler's left flank, from out beside the running board (with --integrity).
+            "mendengine" => Repairs.DentAt(train, 0) is { } ed
+                ? Camera.LookAt(engine.ToWorld(ed + new Double3(-3.2, 0.9, 2.6)), engine.ToWorld(ed), 60)
+                : Camera.LookAt(engine.ToWorld(new Double3(-4, 2.5, 3)), engine.ToWorld(new Double3(0, 2, 0)), 60),
             "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
@@ -45,6 +49,10 @@ public static class Views
             "poses" => Camera.LookAt(target.ToWorld(new Double3(7.4, 1.3, -target.Shape.HalfLength * 0.6 + 1.95)),
                 target.ToWorld(new Double3(2.6, 0.85, -target.Shape.HalfLength * 0.6 + 1.95)), 55),
             "flanges" => Camera.LookAt(target.ToWorld(new Double3(4.5, 0.9, -target.Shape.HalfLength - 3)), target.ToWorld(new Double3(0.6, 0.3, 0)), 60),
+            // On the line behind the last car, low, looking up the train: how far the cars lean out on a bend taken too fast
+            // (note 370: dt screenshot --view lean --strain x), their ends against the rails and the horizon.
+            "lean" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.3, 1.3, train.Frames[^1].Shape.HalfLength + 8)),
+                train.Frames[^1].ToWorld(new Double3(0, 1.9, -12)), 45),
             // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
             "trail" => TrailCamera(train),
             // Behind the rear car and off its side, a little over its roof, looking at the roof's end and down the car's end: where
@@ -97,6 +105,10 @@ public static class Views
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
             // or on them (Staging.Moose: squareup, charge, pin...).
             "moosecharge" => MooseChargeCamera(train),
+            // (Not one of Names.) A crewmate's eye on the second car's roof over the moving train, at the staged Gannet
+            // (Staging.Gannet): up at it soaring in the engine's smoke; diving at the walker ahead; its beak in the planks;
+            // stood on someone, mantled.
+            "gannet" or "gannetfold" or "gannetstuck" or "gannetpin" => GannetCamera(train, name),
             // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
             "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
                 Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),
@@ -284,6 +296,12 @@ public static class Views
         // At it, turned a little toward the engine and its lamp behind it.
         var engine = Staging.Lineside(train, 0, 0);
         return Camera.LookAt(eye, at + (engine - at) * 0.3 + Double3.Up * 1.7, 55);
+    }
+
+    static Camera GannetCamera(TrainOnLine train, string view)
+    {
+        var (eye, look) = Staging.GannetEye(train, view);
+        return Camera.LookAt(eye, look, view switch { "gannet" => 64, "gannetfold" => 62, _ => 62 });
     }
 
     static Camera MooseChargeCamera(TrainOnLine train)

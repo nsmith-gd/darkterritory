@@ -383,4 +383,78 @@ public class CreatureSoundTests
         Assert.False(scene.Playing("cs-choir.arrive"));
         Assert.Empty(scene.Tick());
     }
+
+    [Fact]
+    public void TheMooseIsHeardGrazingFallsSilentListeningWarnsAndChargesAndBoomsOnEachRam()
+    {
+        // Note 334 (queue #73), read off the record as G1 answered on #247: the mode in Height, the aggro in Extra2, the rams in
+        // Health (1 + rams).
+        string[] grazing = ["tell-moose-grazing.browse", "tell-moose-grazing.creak", "tell-moose-grazing.grunt"];
+        string[] warning = ["tell-moose-warning.grunt", "tell-moose-warning.clack", "tell-moose-warning.hoof-drag"];
+        using var scene = new Scene(1, [.. grazing, "tell-moose-grazing.chew~", .. warning, "tell-moose-square-up.stamp", "tell-moose-square-up.snort",
+            "tell-moose-charge.hooves~", "tell-moose-charge.wheeze~", "tell-moose-charge.brush", "cs-moose-ram.boom", "cs-moose-ram.scrape",
+            "cs-moose-train-pass.bellow", "cs-moose-train-pass.thrash"]);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Moose;
+        var at = scene.Train.Frames[1].ToWorld(new Double3(40, 0, 0));
+        Moose M(MooseMode mode, double aggro, int rams = 0) =>
+            Record(new Moose(7), SpinePhase.Dormant, 1, 1 + rams, -1, at, height: (double)mode, extra: -1, extra2: aggro);
+        var heard = new List<string>();
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MooseMode.Graze, 0)));
+        Assert.True(scene.Playing("tell-moose-grazing.chew"));
+        Assert.Contains(heard, grazing.Contains);
+        Assert.DoesNotContain(heard, warning.Contains);
+        // Listening: the chewing stops, and nothing plays.
+        heard.Clear();
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MooseMode.Graze, (t.ListenAt + t.WarnAt) / 2)));
+        Assert.False(scene.Playing("tell-moose-grazing.chew"));
+        Assert.Empty(heard);
+        // Warning: its grunts, clacks and pawing.
+        for (int i = 0; i < 6 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MooseMode.Graze, t.WarnAt + 10)));
+        Assert.NotEmpty(heard);
+        Assert.All(heard, h => Assert.Contains(h, warning));
+        // Squaring up: two stamps and a snort, once.
+        heard.Clear();
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MooseMode.SquareUp, 100)));
+        Assert.Equal(["tell-moose-square-up.stamp", "tell-moose-square-up.stamp", "tell-moose-square-up.snort"], heard);
+        // Charging: the hooves and the wheeze held.
+        scene.Tick(M(MooseMode.Charge, 100));
+        Assert.True(scene.Playing("tell-moose-charge.hooves") && scene.Playing("tell-moose-charge.wheeze"));
+        // Ramming a car: a boom on each ram, not between them.
+        heard.Clear();
+        heard.AddRange(scene.Tick(M(MooseMode.Ram, 100)));
+        heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 1)));
+        heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 1)));
+        heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 2)));
+        Assert.Equal(2, heard.Count(h => h == "cs-moose-ram.boom"));
+    }
+
+    [Fact]
+    public void ASignShownAfootIsHeardOnceAsItsOwnSoundAndTheGauntsIsItsEyesAlone()
+    {
+        // Note 342 (queue #79): a sign shown a crewmate afoot (note 327, World.Watcher) is heard once as it starts, from where
+        // its eyes are: the checklist's sign.<kind> where there is one, the creature's own movement where not; the Gaunt
+        // and the Followers make no sound of their own till they're on you.
+        using var scene = new Scene(1, GameAudio.SignCue(EnemyKind.Ribbit), "cs-grumbler.scuttle", "cs-gaunt.step");
+        var at = scene.Ear.Position + new Double3(14, -2, 0);
+        void Show(EnemyKind kind) => scene.World.Watcher = new Watcher(3.5, kind, at, 1);
+        Show(EnemyKind.Ribbit);
+        Assert.Equal(["sign.ribbits"], scene.Tick());
+        Assert.Empty(scene.Tick());
+        scene.World.Watcher = default;
+        Assert.Empty(scene.Tick());
+        Show(EnemyKind.Grumbler);
+        Assert.Equal(["cs-grumbler.scuttle"], scene.Tick());
+        scene.World.Watcher = default;
+        scene.Tick();
+        Show(EnemyKind.Gaunt);
+        Assert.Empty(scene.Tick());
+        // The game's own: the four that move out there have theirs installed; the two that don't, none.
+        var installed = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        Assert.All(new[] { EnemyKind.Ribbit, EnemyKind.SootChildren, EnemyKind.Whistler, EnemyKind.Grumbler }, k => Assert.NotNull(installed.Get(GameAudio.SignCue(k))));
+        Assert.All(new[] { EnemyKind.Gaunt, EnemyKind.Follower }, k => Assert.Null(installed.Get(GameAudio.SignCue(k))));
+    }
 }

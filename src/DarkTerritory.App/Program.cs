@@ -81,6 +81,11 @@ var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(cont
 var saves = new SaveSlots(Arg("--saves", SaveSlots.DefaultDirectory), campaignTuning.SaveSlots);
 // The player's profile (note 180): commendations, and whether a night they hosted has had a child's call (B.6; note 182).
 var profile = new PlayerProfile(args.Contains("--saves") ? Path.Combine(saves.Directory, "profile.json") : PlayerProfile.DefaultPath);
+// Note 350: the loading screen's tips and the first nights' card, and how many of this player's nights are over.
+var onboarding = Onboarding.Load(content);
+int nightsOver = profile.Load().Nights;
+// Note 349: CAPTIONS, the sounds worth hearing written over the hotbar, fed from the mixer's voices each frame.
+var captions = new Captions(Captions.Load(content));
 // GDD v1.4 App. E.6: the derailment's shuffle bag for nights without a campaign slot (a slot keeps its own), in app data.
 var musicBags = new MusicBagFile(args.Contains("--saves") ? Path.Combine(saves.Directory, "music-bag.json") : MusicBagFile.DefaultPath);
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
@@ -310,6 +315,7 @@ LobbyId? Invited(NetPlaySession? net)
     return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
 }
 
+bool menuOpened = false;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The front end over a night scene: the fortress yard with a train standing in it, the camera slowly looking about.
@@ -351,6 +357,18 @@ Launch? MenuLoop()
     // The public games (T116; the user's playtest: "Join should work like Lethal Company"), for the join screen: the local
     // network's, and Steam's lobby search when Steam's up.
     using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), steam);
+    // Note 351 (the polish pass, headless with --capture): --screen name opens a menu screen from the first frame (fortress
+    // is slot 1's), and --select n moves n rows down it.
+    if (Arg("--screen", "") is { Length: > 0 } opened && !menuOpened)
+    {
+        menuOpened = true;
+        if (opened.Equals("fortress", StringComparison.OrdinalIgnoreCase))
+            frontEnd.ShowFortress(1);
+        else if (Enum.TryParse<Screen>(opened, ignoreCase: true, out var screen))
+            frontEnd.Show(screen);
+        for (int i = 0; i < int.Parse(Arg("--select", "0")); i++)
+            frontEnd.Down();
+    }
     while (!window.CloseRequested && !QuitNow())
     {
         window.PumpEvents();
@@ -405,6 +423,16 @@ Launch? MenuLoop()
         FeedSpeaker();
         input.EndFrame();
         frameCount++;
+    }
+    // --capture with no night (note 351): the menu as it was last drawn, over its yard.
+    if (capture is not null && vr is null && QuitNow())
+    {
+        var camera = view;
+        camera.Yaw += Math.Sin((timer.Elapsed.TotalSeconds - started) * 0.07) * 0.25;
+        frontEnd.Draw(overlay, UiWidth, UiHeight);
+        var pixels = renderer.Render(mesh, camera, light, light.FogColor, overlay);
+        PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
+        Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }
     return null;
 }
@@ -570,8 +598,9 @@ return 0;
             break;
         overlay.Clear();
         string dots = new('.', 1 + (int)((timer.Elapsed.TotalSeconds - began) * 2) % 3);
-        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f - 10, doing + dots, new Vector4(0.95f, 0.7f, 0.3f, 1), scale: 2);
-        overlay.TextCentred(UiWidth / 2f, UiHeight / 2f + 14, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW", new Vector4(0.6f, 0.6f, 0.6f, 1));
+        // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
+        Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
+            Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         // From the command line there's no menu yard behind it (no camera yet): the window's only kept answering.
         if (vr is null && menuView.FovYDegrees > 0)
         {
@@ -686,6 +715,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
     Hud.Keys = settings;
     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
+    // Note 350: one of this player's first nights shows the core controls in the yard.
+    bool firstNight = Onboarding.FirstNight(onboarding, settings, nightsOver);
+    captions.Clear();
+    // The canvas TEXT SIZE asks for from the night's first frame (note 351: a night from the command line drew its first on
+    // the default canvas, there being no menu frame before it to take the setting).
+    ApplyDisplay();
     // In a headset the ballot and the commendations are the stick's (note 202), and say so.
     Hud.Headset = vr is not null;
     var nightKeys = new VrMenuInput();
@@ -1183,8 +1218,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
-        scene.Breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
-        scene.Mending = scene.Breaks.Count > 0 ? GreyboxScene.MendingAt(scene.Breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
+        // And the loose couplings, called out alike (note 356).
+        var breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
+        var mending = breaks.Count > 0 ? GreyboxScene.MendingAt(breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
+        var tightening = new HashSet<int>();
+        DarkTerritory.Sim.Train.Couplings.Callouts(session.Train, breaks, session.CrewStates(1).Select(c => c.State), tightening);
+        scene.Breaks = breaks;
+        scene.Mending = tightening.Count > 0 ? [.. mending ?? [], .. tightening] : mending;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
@@ -1217,9 +1257,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             albumSaid = true;
             Console.WriteLine($"bookmarks: the night's stills are kept in {album.Night}");
         }
+        // Note 349: what the ear heard in the last block, at the gain it was heard at.
+        if (frontEnd.Settings.Captions)
+            captions.Update(sound.Mixer.Voices.Where(v => !v.Finished && !v.Virtual).Select(v => new Heard(v.Name, v.Position, v.AudibleGain)),
+                sound.Mixer.Listener, now);
+        else
+            captions.Clear();
         if (showHud)
         {
-            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now);
+            Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, now: now,
+                // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
+                firstNight: firstNight && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
+                captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
@@ -1292,6 +1341,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         frameCount++;
     }
 
+    // Note 350: a night seen to its end is one of the player's nights.
+    if (session.World.Run?.Over == true)
+        nightsOver = profile.CountNight().Nights;
     if (capture is not null)
     {
         var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || frontEnd.Night is not null ? overlay : null);

@@ -43,27 +43,30 @@ public class UpgradeTests
     }
 
     [Fact]
-    public void ArmouredTheSmashedLampIsLitAgainSooner()
+    public void ArmouredTheSmashedLampIsMendedSooner()
     {
+        // Note 301, slice 2: the glass goes in with the wrench, worked from the cab's front windows; armour halves the work.
+        double rate = Tuning.Train.Repair.LampMendRate;
         bool LitAfter(Loadout l, double seconds)
         {
             var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
             var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 3, 1)), line, 1_000), l.Combat);
+            world.EnableBodies(); // the host's
             // A Climber coming over the tender into the cab (Flank.cs) smashes it for its tuning's time.
             world.SmashLamp(l.Enemies!.Climbers.LampOutSeconds);
-            var driver = PlayerMotor.SpawnInCab(world.Train, P);
+            var driver = PlayerMotor.SpawnInCab(world.Train, P) with { HeldSlot = 1 };
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
                 world.BeginTick();
-                world.CrewAct(ref driver, new PlayerIntent { Lamp = LampSwitch.On }, 1);
+                world.CrewAct(ref driver, new PlayerIntent { Lamp = LampSwitch.On, Buttons = PlayerButtons.Use }, 1);
                 world.Step(new TrainControls { Reverser = 1, Brake = 1 });
             }
             return world.LampLit;
         }
-        double armoured = With("lampArmour").Enemies!.Climbers.LampOutSeconds;
-        Assert.True(LitAfter(With("lampArmour"), armoured + 1));
-        Assert.False(LitAfter(Base, armoured + 1));
-        Assert.True(LitAfter(Base, Tuning.Enemies.Climbers.LampOutSeconds + 1));
+        double armoured = With("lampArmour").Enemies!.Climbers.LampOutSeconds / rate;
+        Assert.True(LitAfter(With("lampArmour"), armoured + 0.3));
+        Assert.False(LitAfter(Base, armoured + 0.3));
+        Assert.True(LitAfter(Base, Tuning.Enemies.Climbers.LampOutSeconds / rate + 0.3));
     }
 
     [Fact]
@@ -72,8 +75,9 @@ public class UpgradeTests
         int Fouls(Loadout l)
         {
             // The forward gun, fired and fired: no reload between, and every foul cleared as it comes, so only the bore's
-            // chance differs. The same ticks on the same gun, so a cooled gun fouls on a subset of the ticks a hot one does.
-            var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000 } };
+            // chance differs. The same ticks on the same gun, so a cooled gun fouls on a subset of the ticks a hot one does. No
+            // ready rack (note 374): every round at the gun.
+            var combat = l.Combat with { Guns = l.Combat.Guns with { ReloadSteps = 0, Ammo = 100_000, Rack = 0 } };
             var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
             var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 6, 1)), line, 5_000), combat);
             w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);

@@ -245,13 +245,14 @@ public sealed class GreyboxScene
     /// <summary>Depth of the valley under a bridge.</summary>
     const double ValleyDepth = 18;
 
-    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye)
+    /// <param name="frames">The cars as drawn, when not the train's own (leaning on a bend: CarLean).</param>
+    public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
     {
         Vehicles ??= train.Vehicles;
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
-        Build(mesh, train.Line, train.Frames, train.Dynamics.Distance, eye);
+        Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
     /// <param name="frames">Car frames to draw, e.g. interpolated between ticks.</param>
@@ -305,7 +306,8 @@ public sealed class GreyboxScene
                     if (site is not null && (site.Capstan - eye).Length < DrawDistance && Look?.Art.Winch(mesh, site, eye) != true)
                         Winch(mesh, site, eye);
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
-                    if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose))
+                    if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
+                        || site.Has(Sim.Run.ModuleKind.Lift))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         SetPieces(mesh, site, frames, eye, Time);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go.
@@ -412,6 +414,8 @@ public sealed class GreyboxScene
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
+            // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
+            Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)
                 Look.Art.Effects.Flanges(mesh, frames, eye, Time, bends);
             if (Ruptured && frames.Count > 0)
@@ -533,7 +537,7 @@ public sealed class GreyboxScene
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
                     // A Moose pinning someone stands over them (note 339): the one it holds.
-                    if (e.Kind == EnemyKind.Moose && e.Holding >= 0)
+                    if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Holding >= 0)
                         after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
@@ -548,9 +552,18 @@ public sealed class GreyboxScene
                     if (e.Kind == EnemyKind.Moose && Look?.Art.Creatures is { } herd)
                         herd.TrainPassing = Math.Abs(_speed) > 1 && frames.Count > 0
                             && frames.Min(f => ((f.Origin - e.Local) with { Y = 0 }).Length - f.Shape.HalfLength) <= herd.MooseTuning.TrainPassAt;
+                    // A Gannet's clips go by what it's been doing and for how long, and what it did before (note 340).
+                    double modeSeconds = e is Sim.Enemies.Moose moose ? MooseSince(moose) : -1;
+                    if (e is Sim.Enemies.Gannet gannet)
+                    {
+                        var (since, before) = GannetSince(gannet);
+                        modeSeconds = since;
+                        if (Look?.Art.Creatures is { } flock)
+                            flock.GannetWas = before;
+                    }
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
-                        modeSeconds: e is Sim.Enemies.Moose moose ? MooseSince(moose) : -1);
+                        modeSeconds: modeSeconds);
                 }
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
@@ -604,14 +617,71 @@ public sealed class GreyboxScene
     /// What landed (T121), timed from the sim's tick as a gun's muzzle flash is: each cannonball's explosion where it came
     /// down, and each blow or ball's pop and flash on the creature it landed on.
     /// </summary>
+    /// <summary>
+    /// Balls from the train's own guns that came down on it (note 370), kept in the car they struck so the scorch rides on
+    /// with it: the impact's id, the car, where on it (its frame) and the face's way out, and when (this scene's clock).
+    /// </summary>
+    readonly List<(int Id, int Car, Double3 Local, Double3 Out, float Room, double Born)> _trainScorches = [];
+    const int MaxTrainScorches = 32;
+
+    /// <summary>
+    /// The car a ball that landed on the train came down on (its impact replicated in the world's frame, where the car
+    /// was then: carried on by the car's way since), the point on its body's face, that face's way out and how far the face
+    /// runs on round it (so the burn stays on the plate); null if none.
+    /// </summary>
+    static (int Car, Double3 Local, Double3 Out, float Room)? OnTheTrain(in Sim.Combat.CannonImpact i, IReadOnlyList<CarFrame> frames, double since)
+    {
+        (int, Double3, Double3, float)? best = null;
+        double nearest = 1.0;
+        for (int k = 0; k < frames.Count; k++)
+        {
+            var f = frames[k];
+            var local = f.ToLocal(i.At + f.Velocity * since);
+            var s = f.Shape;
+            // How far outside its body (0 inside), and the face it's nearest.
+            double dx = Math.Abs(local.X) - s.HalfWidth, dz = Math.Abs(local.Z) - s.HalfLength, dy = local.Y - s.RoofHeight;
+            double outside = Math.Sqrt(Math.Pow(Math.Max(0, dx), 2) + Math.Pow(Math.Max(0, dz), 2) + Math.Pow(Math.Max(0, dy), 2));
+            if (outside >= nearest || local.Y < -0.5)
+                continue;
+            nearest = outside;
+            // Onto the nearest face: the roof, a side or an end.
+            var (onto, way) = dy > Math.Max(dx, dz) - 0.3
+                ? (local with { Y = s.RoofHeight }, Double3.Up)
+                : dx > dz
+                    ? (local with { X = (local.X < 0 ? -1 : 1) * s.HalfWidth }, new Double3(local.X < 0 ? -1 : 1, 0, 0))
+                    : (local with { Z = (local.Z < 0 ? -1 : 1) * s.HalfLength }, new Double3(0, 0, local.Z < 0 ? -1 : 1));
+            // The body's side runs from just under its floor to the roof; the face's edges bound the burn.
+            double bottom = (s.Interior?.Min.Y ?? 1.0) - 0.15;
+            double room = way.Y > 0.5 ? Math.Min(s.HalfWidth - Math.Abs(onto.X), s.HalfLength - Math.Abs(onto.Z))
+                : Math.Min(Math.Min(s.RoofHeight - onto.Y, onto.Y - bottom), way.X != 0 ? s.HalfLength - Math.Abs(onto.Z) : s.HalfWidth - Math.Abs(onto.X));
+            best = (k, onto + way * 0.03, way, (float)Math.Max(0.15, room));
+        }
+        return best;
+    }
+
     void Strikes(MeshBuilder mesh, Art.Effects fx, RailLine line, double hint, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Tick < 0)
             return;
+        // The train's scorches, riding with their cars; a car no longer drawn takes its own with it.
+        _trainScorches.RemoveAll(x => x.Car >= frames.Count);
+        foreach (var (id, car, local, way, room, born) in _trainScorches)
+        {
+            var at = frames[car].ToWorld(local);
+            if ((at - eye).Length < DrawDistance)
+                fx.TrainScorch(mesh, V(at, eye), ToF(frames[car].DirToWorld(way)), id, Time - born, room);
+        }
         if (Impacts is not null)
             foreach (var i in Impacts)
             {
                 double age = (Tick - i.Tick) * Sim.SimConstants.TickSeconds;
+                if (i.Surface == Sim.Combat.ImpactSurface.Train && age >= 0 && !_trainScorches.Exists(x => x.Id == i.Id)
+                    && OnTheTrain(i, frames, age) is { } hit)
+                {
+                    _trainScorches.Add((i.Id, hit.Car, hit.Local, hit.Out, hit.Room, Time - age));
+                    if (_trainScorches.Count > MaxTrainScorches)
+                        _trainScorches.RemoveAt(0);
+                }
                 if (age < 0 || age > Art.Effects.ImpactSeconds || (i.At - eye).Length > DrawDistance)
                     continue;
                 // A creature's insides come down on the ground under it (note 290).
@@ -759,8 +829,13 @@ public sealed class GreyboxScene
                 continue;
             }
             var (push, roll) = Fallen(blow, (float)age);
-            DrawEnemy(mesh, line, frames, body, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
-            if (fx is not null && BodyAt(body, line, frames) is var at && (at - eye).Length < DrawDistance)
+            // The Gannet has its own fall (gannet.py death: crashing across the roof, the wings crumpling): not rolled
+            // over, and shot out of the air over a car, it falls to that roof first (note 340).
+            var fallen = body;
+            if (body is Sim.Enemies.Gannet g)
+                (roll, fallen) = (0, Falling(g, frames, age));
+            DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
+            if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
                 fx.Crumble(mesh, V(at, eye), (float)age, id);
         }
     }
@@ -948,6 +1023,21 @@ public sealed class GreyboxScene
             return EnemyWorld(e, frames);
         var t = line.Sample(Math.Clamp(e.LineDistance, 0, line.Length));
         return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * e.Lateral + Double3.Up * e.Height;
+    }
+
+    /// <summary>A Gannet killed in the air over a car, <paramref name="age"/> s on: dropped toward that car's roof as dead
+    /// weight falls (its stand-in: the sim's done with it), and stopped there.</summary>
+    static Sim.Enemies.Gannet Falling(Sim.Enemies.Gannet g, IReadOnlyList<CarFrame> frames, double age)
+    {
+        if (g.Attached < 0 || g.Attached >= frames.Count)
+            return g;
+        double roof = frames[g.Attached].Shape.RoofHeight;
+        if (g.Local.Y <= roof + 0.05)
+            return g;
+        var fell = new Sim.Enemies.Gannet(g.Id);
+        fell.Restore(g.Phase, g.PhaseSeconds, g.Health, g.Attached, g.Local with { Y = Math.Max(roof, g.Local.Y - 0.5 * 9.81 * age * age) },
+            g.LineDistance, g.Lateral, g.Height, g.Extra, g.Extra2, g.Holding, g.GrabWindow);
+        return fell;
     }
 
     internal static bool Falls(EnemyKind k) => k is not (EnemyKind.Choir or EnemyKind.FireFlies or EnemyKind.CarFire or EnemyKind.Stoker or EnemyKind.CarHugger
@@ -1385,6 +1475,24 @@ public sealed class GreyboxScene
         return Time - was.Since;
     }
 
+    // What each Gannet was doing when last drawn, since when (scene time), and what it was doing before that.
+    readonly Dictionary<int, (Sim.Enemies.GannetMode Mode, double Since, Sim.Enemies.GannetMode? Before)> _gannetModes = new();
+
+    /// <summary>
+    /// How long a Gannet has been at what it's doing (its <see cref="Sim.Enemies.GannetMode"/>, s) and what it was doing
+    /// before, for its clips (Art/CreatureArt.GannetClip: its fold from the hang, the tear free at the end of its stuck, the
+    /// stab out of a dive, the lurch off a pin). Its mode isn't timed on the wire, only its phase, so this watches it change;
+    /// first seen (a screenshot, a client joining), its phase's time stands in and what came before isn't known.
+    /// </summary>
+    (double Since, Sim.Enemies.GannetMode? Before) GannetSince(Sim.Enemies.Gannet g)
+    {
+        if (!_gannetModes.TryGetValue(g.Id, out var was) || Time < was.Since)
+            _gannetModes[g.Id] = was = (g.Mode, Time - g.PhaseSeconds, null);
+        else if (was.Mode != g.Mode)
+            _gannetModes[g.Id] = was = (g.Mode, Time, was.Mode);
+        return (Time - was.Since, was.Before);
+    }
+
     /// <summary>
     /// The Whistler's trail (App. A.4: "findable in a chase on foot"), from the gap it took them at to where it's got to
     /// with them: two heel furrows dragged through the ground, the dirt kicked up dark either side where they fought it,
@@ -1475,12 +1583,27 @@ public sealed class GreyboxScene
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
-        if (e.Kind == EnemyKind.Moose && e.Attached == Enemy.Loose)
+        if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
+            // So does a Gannet down on someone on the ground (note 340).
             origin = e.Local;
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
+        }
+        else if (e.Kind == EnemyKind.Gannet && e.Attached >= 0)
+        {
+            // The Gannet rides in a car's moving air (note 340): it faces its heading in that car's frame (its Lateral, a
+            // player's yaw there). Stood on someone on a roof, it's turned along the car, the long way, so who it has lies
+            // along the roof.
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            double yaw = e is Sim.Enemies.Gannet { Mode: Sim.Enemies.GannetMode.Pin } ? (Math.Cos(e.Lateral) >= 0 ? 0 : Math.PI) : e.Lateral;
+            origin = f.ToWorld(e.Local);
+            up = f.Up;
+            back = f.Right * Math.Sin(yaw) + f.Back * Math.Cos(yaw);
+            right = f.Right * Math.Cos(yaw) - f.Back * Math.Sin(yaw);
         }
         else if (e.Attached >= 0)
         {
@@ -1568,6 +1691,31 @@ public sealed class GreyboxScene
             return;
         switch (e.Kind)
         {
+            case EnemyKind.Gannet:
+                {
+                    // A pale cross 7 m across with a spear for a head (note 340): wings spread flying, a dart diving, the
+                    // wings down round it on a roof; nothing when it's gone off.
+                    var mode = (e as Sim.Enemies.Gannet)?.Mode ?? Art.CreatureArt.GannetModeOf(e.Phase);
+                    if (mode == Sim.Enemies.GannetMode.Away)
+                        break;
+                    var pale = Palette.BoardEnamel;
+                    bool down = mode is Sim.Enemies.GannetMode.Stuck or Sim.Enemies.GannetMode.Pin;
+                    if (mode == Sim.Enemies.GannetMode.Fold)
+                    {
+                        Draw(0, 2.3, 0, 0.35, 1.3, 0.35, pale);
+                        Draw(0, 0.5, 0, 0.06, 0.5, 0.06, Palette.Charcoal);
+                        Draw(0, 3.2, 0, 0.9, 0.9, 0.08, Palette.SootBlack);
+                        break;
+                    }
+                    Draw(0, 1.05, 0, 0.45, 0.42, 0.85, pale);
+                    Draw(0, 1.5, -1.3, 0.12, 0.12, 0.5, Palette.HazardYellow);
+                    Draw(0, 1.45, -2.2, 0.05, 0.05, 0.5, Palette.BoardEnamel * 0.8f);
+                    foreach (double x in new[] { -2.2, 2.2 })
+                        Draw(x, down ? 0.9 : 1.2, 0, 1.3, down ? 0.5 : 0.04, 0.4, x < 0 ? pale : pale * 0.9f);
+                    foreach (double x in new[] { -3.2, 3.2 })
+                        Draw(x, down ? 0.3 : 1.2, 0.1, 0.3, down ? 0.3 : 0.03, 0.3, Palette.SootBlack);
+                    break;
+                }
             case EnemyKind.Moose:
                 {
                     // A pale bulk on long legs under a slab of a rack wider than a doorway (note 339): the head up listening,
@@ -1724,7 +1872,7 @@ public sealed class GreyboxScene
         {
             if (s.ActionProgress <= 0 || !Repairs.WrenchInHand(s) || Repairs.At(s, train) is not (var kind and not BreakKind.None))
                 continue;
-            int car = kind == BreakKind.Rupture ? 0 : s.Parent;
+            int car = kind is BreakKind.Rupture or BreakKind.Lamp ? 0 : s.Parent;
             for (int i = 0; i < breaks.Count; i++)
                 if (breaks[i].Kind == kind && breaks[i].Vehicle == car)
                     (at ??= []).Add(i);
@@ -1761,6 +1909,7 @@ public sealed class GreyboxScene
             if (Route is not null)
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
+            Look.Art.World.TownBounds = Town?.Plan.Bounds;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -2215,11 +2364,12 @@ public sealed class GreyboxScene
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             var town = start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 foreach (var p in town.Plan.People)
                 {
                     var feet = town.Feet(p);
@@ -2348,6 +2498,46 @@ public sealed class GreyboxScene
                     double fall = (time * 6 + i * 0.31) % 2.6;
                     var p = mouth - Double3.Up * fall + a * (0.18 * Math.Sin(i * 2.3)) + x * (0.18 * Math.Cos(i * 1.7));
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
+                }
+        }
+        if (site.Has(Sim.Run.ModuleKind.Lift))
+        {
+            // The mine head's steam lift (note 368): the ore bin on its legs astride the track, fed down a sloping trough from the
+            // headframe (the art's, where it has one), the skip riding up the frame's track-side face as far as it's wound, ore
+            // down the chute as a skip tips, and the lever, its handle down while it winds.
+            var mouth = site.LiftChute;
+            var ground = mouth with { Y = mouth.Y - 4.6 };
+            var frame = site.Headframe;
+            var (along, across) = Axes(mouth, frame);
+            var a = ToD(along);
+            var x = ToD(across);
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(ground + a * (i * 1.9) + x * (j * 2.6) - Double3.Up * 0.3, mouth + Double3.Up * 1.6 + a * (i * 1.4) + x * (j * 2.0), 0.11f, Palette.DeepBrown);
+            mesh.Box(V(mouth + Double3.Up * 2.4, eye), along, Vector3.UnitY, across, new Vector3(1.6f, 0.9f, 2.2f), Palette.IronGrey);
+            Rod(mouth + Double3.Up * 1.5, mouth, 0.3f, Palette.RustRed);
+            // The trough, from the frame's tipping point well up the headframe down onto the bin.
+            var tip = frame + x * -2.2 + Double3.Up * 11;
+            Rod(tip, mouth + Double3.Up * 3.3 + x * 1.6, 0.35f, Palette.RustRed * 0.9f);
+            // The skip on its guides up the frame's track-side face.
+            var guide = frame + x * -2.4;
+            foreach (int i in new[] { -1, 1 })
+                Rod(guide + a * (i * 0.8), guide + a * (i * 0.8) + Double3.Up * 12, 0.07f, Palette.IronGrey);
+            var skip = guide + Double3.Up * (0.9 + 9.8 * Math.Clamp(site.Wind, 0, 1));
+            mesh.Box(V(skip, eye), along, Vector3.UnitY, across, new Vector3(0.7f, 0.8f, 0.6f), Palette.SootBlack * 1.5f);
+            // Ore left down the shaft, in a gauge on the bin's track side.
+            float left = (float)Math.Clamp(site.Ore / 3.0, 0, 1);
+            mesh.Box(V(mouth + Double3.Up * (1.6 + 1.6 * left) + x * -2.22, eye), along, Vector3.UnitY, across, new Vector3(0.25f, 1.6f * left + 0.02f, 0.02f), Palette.Charcoal);
+            var lever = site.LiftLever;
+            Rod(lever - Double3.Up * 0.9, lever, 0.06f, Palette.IronGrey);
+            Rod(lever, lever + Double3.Up * (site.Winding ? -0.15 : 0.35) - x * 0.45, 0.04f, Palette.HazardYellow);
+            // Ore down the chute just after a skip tips (the wind's back near nothing).
+            if (site.Winding && site.Wind < 0.15)
+                for (int i = 0; i < 16; i++)
+                {
+                    double fall = (time * 6 + i * 0.29) % 2.2;
+                    var p = mouth - Double3.Up * fall + a * (0.2 * Math.Sin(i * 2.3)) + x * (0.2 * Math.Cos(i * 1.7));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
         if (site.Has(Sim.Run.ModuleKind.Ramp))

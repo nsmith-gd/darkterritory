@@ -169,12 +169,22 @@
   // shell (what it ran into, or what ran into it) at its dent, the left wall three quarters back, where it comes back
   // integrityPerSecond while it's worked, never past what a Car Hugger ate. dentReach: how near the dent (m, across the
   // floor). A mend half done is kept while you stay at it with the wrench, so a few presses do it as well as a hold.
-  // Every break shows where it is (the callout, Effects.Repairs). false: the kit and hands, as before note 301.
+  // Every break shows where it is (the callout, Effects.Repairs). Slice 2: the wrench also mends a broken radio
+  // (kit.radioMendSeconds) and opens a Holdout's lock quietly (holdouts.json open), and the kit's gone: none stowed
+  // (kit.repairKits, spareKits), none found at the stops (loot.json repairKitChance). false: the kit and hands, as before
+  // note 301.
   "repair": {
     "wrench": true,
     "dentedBelow": 0.9,
     "integrityPerSecond": 0.04,
-    "dentReach": 1.3
+    "dentReach": 1.3,
+    // Slice 2: the engine's dent (what it ran into hits the front) is on the boiler's left flank, this far (m) behind the
+    // left running board's sandbox, worked from the board.
+    "engineDentBehind": 2.5,
+    // Slice 2, the director (8 Oct): a smashed headlamp (enemies.json climbers.lampOutSeconds) no longer comes back by
+    // itself; it's mended with the wrench from the cab's front windows, behind it, each second worked taking this many
+    // off what's left (45 s of glass is 7.5 s with the wrench; lamp armour halves it again).
+    "lampMendRate": 6
   },
 
   "speedBands": {
@@ -206,8 +216,11 @@
   //   buffers (the line the Switchman throws a train down) run into over this, and the train goes through them and off the
   //   end. The same warning and lead: the cab is told while there's still room to stop, and a hit short of the lead is the
   //   buffer stop's damage alone.
+  // - The lean (note 370; App. F.1's telegraph: "the cars straining and leaning"): each car rolls out about its outer rail
+  //   by its own stress, as stress^1.5 of leanDegrees, so its inner wheels lift; it settles into it over leanSeconds, and
+  //   past half way to derailing rocks on its springs by leanRock of it. Drawn only: the sim's cars never lean.
   "overspeed": { "leadSeconds": 4, "brakeShare": 0.6, "marginM": 30, "lurchAt": 0.5, "repeatSeconds": 1.5, "warningSound": "warn-overspeed",
-    "deadEndDerailAbove": 6.9 },
+    "deadEndDerailAbove": 6.9, "leanDegrees": 4, "leanSeconds": 0.35, "leanRock": 0.18 },
   // The consist's make-up and fittings (GDD §10, §26, spec F.3; ARCHITECTURE §8 note 184). The counts and the handrails are
   // what the fortress sells: campaign.json's upgrades add to them, and every machine builds the same train. Converted cars
   // come out of the cargo cars, never leaving fewer than minCargoCars: extra guard cars first (each with a gun, in the

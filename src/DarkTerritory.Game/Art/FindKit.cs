@@ -212,6 +212,24 @@ public static class FindKit
                         k.Quad(p0 - outward0, p1 - outward1, p1 + up, p0 + up, new(u0, r.Y), new(u1, r.Y), new(u1, r.W), new(u0, r.W), twoSided: true);
                     }
                 break;
+            case "gannetHead":
+                // The Gannet's head (note 340, its trophy), lying on its side: the sooted white skull, egg-shaped and plated, the
+                // pale bone spear of its beak out along the ground with its hooked tip, and the dark serrations down its edge.
+                // Not a village find, so no cell of its own: it stands out by its size.
+                k.Use("fleece", new Vector3(0.86f, 0.84f, 0.78f), 0.05f, 0.25f, tile: 0.5f);
+                k.Cylinder(o + new Vector3(-0.24f, 0.11f, 0), o + new Vector3(-0.2f, 0.11f, 0), 0.06f, 12, radiusB: 0.1f, capB: false);
+                k.Cylinder(o + new Vector3(-0.2f, 0.11f, 0), o + new Vector3(-0.06f, 0.1f, 0), 0.1f, 12, radiusB: 0.11f, caps: false);
+                k.Cylinder(o + new Vector3(-0.06f, 0.1f, 0), o + new Vector3(0.04f, 0.08f, 0), 0.11f, 12, radiusB: 0.07f, capA: false);
+                k.Use("plaster_ruin", new Vector3(0.78f, 0.76f, 0.7f), 0.1f, 0.4f, tile: 0.5f);
+                k.Cylinder(o + new Vector3(0.02f, 0.09f, 0), o + new Vector3(0.62f, 0.05f, 0), 0.055f, 10, radiusB: 0.012f);
+                k.Cylinder(o + new Vector3(0.02f, 0.06f, 0), o + new Vector3(0.55f, 0.025f, 0), 0.04f, 10, radiusB: 0.01f);
+                k.Cylinder(o + new Vector3(0.6f, 0.055f, 0), o + new Vector3(0.67f, 0.0f, 0), 0.014f, 6, radiusB: 0.004f);
+                k.Use("paint_black", new Vector3(0.08f, 0.08f, 0.08f), 0.2f, 0.3f, tile: 0.5f);
+                for (int i = 0; i < 7; i++)
+                    k.BoxAt(o + new Vector3(0.08f + i * 0.065f, 0.03f - i * 0.002f, 0.03f), new Vector3(0.01f, 0.014f, 0.006f));
+                // The pale ringed eye in its black skin.
+                k.Cylinder(o + new Vector3(-0.08f, 0.13f, 0.1f), o + new Vector3(-0.08f, 0.13f, 0.115f), 0.03f, 10);
+                break;
             default:
                 // Anything else: a clean bundle in sacking, stencilled.
                 LabelledBox(k, o + new Vector3(0, 0.07f, 0), new Vector3(0.13f, 0.07f, 0.09f), "supplies", "supplies");

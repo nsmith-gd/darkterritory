@@ -367,7 +367,7 @@ What stands beside a generated line between the stops, and what of it you walk i
 - **Trees by the biome.** Its flora by weight, dead and corrupted by its shares, stunted on the barrens, white pine standing over the canopy. They start 6–9 m out (nearer in denser forest) and run to 90 m, more of them near than far. None grows on a crag (rise over run over 1.1).
 - **Boulders** are scattered by the biome's roughness, bigger and sunk deeper on a slope.
 - **A telegraph pole** stands every 50 m, 4.5 m right of the line.
-- **Kept off the line's own ground:** a branch's ground on its side; every stop's buildings, roads, tracks and yard throat; an alternate's track; a road's bed and shoulders; and water. Trees and boulders also keep off each stop's whole cleared zone and the inside of a fort or its town's square. The poles run on through a fort.
+- **Kept off the line's own ground:** a branch's ground on its side; every stop's buildings, roads, tracks and yard throat; an alternate's track; a road's bed and shoulders; and water. Trees and boulders also keep off each stop's whole cleared zone and the inside of a fort: its square, and a walled town's whole extent behind its wall. The poles run on through a fort.
 - **The night's own.** Everything is dealt from the night's seed, one stream per 12 m slot, the same on every machine.
 
 ## L.2 Solid

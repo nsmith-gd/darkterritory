@@ -217,7 +217,7 @@ public sealed class LinesideProps
         return false;
     }
 
-    /// <summary>Inside a fortress's walls (<see cref="Fortresses.WallOut"/> out, with a little room), or its town's square: nothing wild grows there.</summary>
+    /// <summary>Inside a fortress's walls (<see cref="Fortresses.WallOut"/> out, with a little room), its town's square, or a walled town's wall: nothing wild grows there.</summary>
     public static bool InsideAFort(IReadOnlyList<Fort> forts, double along, double offset)
     {
         foreach (var f in forts)
@@ -225,6 +225,9 @@ public sealed class LinesideProps
             if (Math.Abs(offset) < Fortresses.WallOut + 1.7 && along > f.Start - 2 && along < f.End + 2)
                 return true;
             if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2)
+                return true;
+            // A walled town's whole extent (note 335), its streets and lanes behind the wall.
+            if (f.Bounds is { } town && town.Holds(along, offset, 3))
                 return true;
         }
         return false;

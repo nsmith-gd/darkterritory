@@ -139,7 +139,8 @@ public sealed class Holdouts
     /// A player's hands this tick (host): holding Use at an occupied Holdout's door is breaching it; a dead player's Use
     /// calls out, Throw defers. True while they're breaching.
     /// </summary>
-    /// <param name="kit">They've the repair kit in their hands: a lock opens to it, quietly (D.7).</param>
+    /// <param name="kit">They've the repair kit in their hands, or the wrench where it's the repair tool (note 301): a lock opens to
+    /// it, quietly (D.7).</param>
     /// <param name="tool">A melee tool's in their hand (D.7: smash and pry are "any melee tool: shovel, wrench, crowbar";
     /// note 275). Without one, only the kit at a lock does anything.</param>
     public bool CrewAct(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, bool kit = false, bool tool = true)

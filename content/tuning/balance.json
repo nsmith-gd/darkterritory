@@ -93,5 +93,11 @@
   // crew-of-one nights: the first runs' line and train (Systems Spec F.4 "Early": startTier, startCars) get home at least
   // startDelivered of the time; where a crew advances to (F.4 "Establishing": hardTier, hardCars) at most hardDelivered.
   // DESIGN-TODO: first pass, and the bot's a diligent solo player (it never forgets the fire); people will find it harder.
-  "solo": { "startTier": "local", "startCars": 3, "startDelivered": 0.66, "hardTier": "frontier", "hardCars": 6, "hardDelivered": 0.34 }
+  "solo": { "startTier": "local", "startCars": 3, "startDelivered": 0.66, "hardTier": "frontier", "hardCars": 6, "hardDelivered": 0.34 },
+
+  // The orchestrator's pacing targets (docs/design/orchestrator.md §4; ARCHITECTURE §8 note 379), first pass, advisory: flagged
+  // in the report, never failing the sweep, until the director sets them. P1: no crewmate spends more than slackOverSeconds
+  // a night at or past the census's slackPress (enemies.json director.orchestrator; note 345), on the run between stops. P3:
+  // something engaged for engaged[0]..engaged[1] of the night out on the line (1 - the harness's pacing quietShare).
+  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] }
 }
