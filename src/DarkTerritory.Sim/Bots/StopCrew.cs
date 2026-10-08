@@ -2585,13 +2585,44 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// </summary>
     const double ByFootPath = 10;
 
-    /// <summary>To a point on the ground: by <see cref="FootPath"/> while it's far, then round the train by <see cref="WalkTo"/>.</summary>
+    /// <summary>
+    /// To a point on the ground: by <see cref="FootPath"/> while it's far and there's a way, then round the train by
+    /// <see cref="WalkTo"/>. Beside the train the foot path's margins (a car's steps, the coupling gaps) can leave no way
+    /// between it and the trees where a crewmate fits: a lone driver back from cutting a car loose found none to the cab
+    /// from 150 m back, walked straight at the cars, and stood against them (frontier:7, seed 5). There, the track-side walk.
+    /// </summary>
     (PlayerIntent Step, bool There) OnFoot(in PlayerState self, TrainOnLine train, int path, Double3 target, double? yaw)
     {
-        if (self.Parent == PlayerState.World && (Flat(target) - Flat(PlayerMotor.WorldPosition(self, train))).Length > ByFootPath)
+        var here = PlayerMotor.WorldPosition(self, train);
+        if (self.Parent == PlayerState.World && (Flat(target) - Flat(here)).Length > ByFootPath && WayTo(train, here, target))
             return (Follow(self, train, target), false);
         return WalkTo(self, train.Line, path, target, yaw);
     }
+
+    /// <summary>A way to <paramref name="goal"/> by <see cref="FootPath"/>, kept or planned; false when there's none, and it
+    /// isn't looked for again for <see cref="NoWayFor"/> ticks (each look is a search over the whole stretch).</summary>
+    bool WayTo(TrainOnLine train, Double3 here, Double3 goal)
+    {
+        if (_path is not null && (Flat(_pathGoal) - Flat(goal)).Length <= 1)
+            return true;
+        if (_noWayLeft > 0 && (Flat(_noWayTo) - Flat(goal)).Length <= 1)
+        {
+            _noWayLeft--;
+            return false;
+        }
+        _path = FootPath.Plan(train, here, goal);
+        _pathGoal = goal;
+        _pathAt = 0;
+        _stuckTicks = 0;
+        if (_path is not null)
+            return true;
+        (_noWayTo, _noWayLeft) = (goal, NoWayFor);
+        return false;
+    }
+
+    const int NoWayFor = SimConstants.TickRate * 3;
+    Double3 _noWayTo;
+    int _noWayLeft;
 
     /// <summary>The middle of the cab's side doorways along the engine (between the side wall and the back pillar).</summary>
     static double CabDoorZ(TrainOnLine train)
