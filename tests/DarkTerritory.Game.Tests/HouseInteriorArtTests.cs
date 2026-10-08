@@ -40,7 +40,7 @@ public class HouseInteriorArtTests
     public void EveryOpenHouseHasItsDimLightInsideItClearOfTheFurniture(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);
-        int candles = 0, lamps = 0;
+        int candles = 0, lamps = 0, nests = 0;
         foreach (var f in route.Features.Where(f => f.Stop is not null))
         {
             var stop = f.Stop!;
@@ -51,7 +51,18 @@ public class HouseInteriorArtTests
                     continue;
                 int index = i;
                 var kept = stop.Containers.Where(c => c.Building == index).ToList();
-                var (x, y, height, lamp) = TownKit.HouseLight(b, kept);
+                var clutter = StopWalls.ClutterOf(stop, i);
+                var nest = StopWalls.Nest(stop, i);
+                // The Gaunt's house is dark; every other has its light.
+                if (TownKit.HouseLight(b, kept, clutter, nest) is not var (x, y, height, lamp))
+                {
+                    Assert.NotNull(nest);
+                    nests++;
+                    continue;
+                }
+                Assert.Null(nest);
+                foreach (var c in clutter.Where(c => c.Solid && !lamp))
+                    Assert.False(Math.Abs(c.X - x) < c.Box.HalfX + 0.1 && Math.Abs(c.Y - y) < c.Box.HalfY + 0.1, $"{spec} at {f.Start:0}: house {i}'s candle is under its {c.Kind}");
                 Assert.True(StopWalls.InParts(b, x, y), $"{spec} at {f.Start:0}: house {i}'s light is outside it");
                 // Inside the room, not in a wall, and a candle not in a cupboard or a cabinet.
                 foreach (var (wx, wy, hx, hy) in StopWalls.OpenWalls(b))
@@ -66,6 +77,6 @@ public class HouseInteriorArtTests
             }
         }
         // Candles in the corners, and lamps.
-        Assert.True(candles > 0 && lamps > 0, $"{spec}: {candles} candles, {lamps} lamps");
+        Assert.True(candles > 0 && lamps > 0 && nests > 0, $"{spec}: {candles} candles, {lamps} lamps, {nests} nests");
     }
 }
