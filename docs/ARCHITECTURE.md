@@ -6301,3 +6301,33 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The Game suite.
         - Looked at: along the run stopped, carrying and jammed; at the head; at the drive house running and stopped; before and after, and on the turntable.
 
+452. **Reports to the studio (F1, UI/UX 3; queue #188; the director, 8 Oct: "You can point reports, crashes, logs, etc. into a nicely formatted reporting structure that is dev friendly for debugging to nsmith@squidostudio.com"; roadmap M6, note 626's not-yet "a crash reporter that sends reports").** A crash wrote a plain dump to app data: a line of version, the exception, the last lines. That was all a player could send, and nothing helped them send it.
+    - **A report a developer reads at a glance** (`Report`, written by `CrashReports`).
+        - It's titled DARK TERRITORY CRASH REPORT, or PROBLEM REPORT for a player's own.
+        - Then a header of labelled lines, every value in one column:
+            - its id and time (local, and UTC);
+            - the build (the version, and the commit the SDK stamps into the assembly's informational version);
+            - the OS and runtime;
+            - this launch's log file;
+            - what the app sets as it goes (`CrashReports.Context`): the edition, mods, Steam, the arguments, the GPU, VR;
+            - what's asked as it's written (`Live`): the settings in a line (`ReportFields.Settings`), what the game was doing (the menus and their screen, or the night as launched: "a hosted night, frontier:7, 6 cars, 3 bots"), and in a night where it had got to (`ReportFields.Night`: the phase and seconds, the km and speed, the vehicles, the player alive or how they died, the link's role, crew and ping);
+            - the uptime.
+        - Then WHAT HAPPENED (a player's words), the EXCEPTION with its stack, and the LAST LINES the game printed, each with its time.
+        - What goes wrong reading the night (the state that broke) is a line of its own; the report's still written.
+    - **Its JSON twin** beside it (`crash-….json`): the same fields as an object, the exception's type, message and text, and the log as an array. The notice and `Report.Load` read it back. The crash notice counts only the text files.
+    - **A log of every launch.** The console (out and error) is teed, a line at a time with its time, into `DarkTerritory/logs/latest.log`. The last launch's is kept as `log-<when it started>.txt`, the newest five of those kept. A report names the log, so a developer can ask for the whole of it.
+    - **Sent from the player's own mail** (`Launch.Mail`).
+        - The crash notice has SEND THE REPORT under OK. The settings have a HELP section with REPORT A PROBLEM, in a night's settings too, which writes a problem report (`CrashReports.WriteProblem`) then does the same.
+        - Either opens the player's mail program on a `mailto:` link to `content/ui/reports.json`'s address (the director's). The subject says what it is, its id and the build ("Dark Territory crash, System.NullReferenceException: crash-20261008-031522 (1.0.0, 419b82f42a3b)"). The body asks for a few words and for the file to be attached, then carries the header and the exception's first lines, cut at `mailBodyChars` (mail programs cut long links).
+        - The report's folder opens beside it, since a link can't attach a file.
+        - Nothing is sent by the game: it can't hold a mail server's credentials safely, and a report doesn't leave a player's machine unless they send it. An empty address hides both entries. A server that takes reports by itself would be the next step, and needs a service the studio runs.
+    - **Line numbers in a player's stack.** `tools/package.sh` built with `DebugType=none`, so a shipped crash's frames had no file or line. It's `embedded` now: the debug information is inside the assemblies, a few MB, and every frame says where.
+    - **Verified.** `ReportsTests`:
+        - the header's fields in one column (the build's commit, the context as last set, what was going on), then the exception, its stack and the timestamped lines;
+        - the JSON twin round trips and isn't counted by the notice;
+        - a broken night still leaves a report;
+        - a problem report has no exception and isn't the notice's;
+        - the mail is to the address with the kind, id, exception and build in its subject and the header in a body within the limit;
+        - eight launches keep the latest and three older logs;
+        - SEND THE REPORT on the notice and REPORT A PROBLEM in the settings return the mail and its folder, and neither shows without an address.
+      `CrashReportsTests` as before. `dt report [--problem]` writes one and prints its mail. The app with `--crash-test` crashes on purpose: its report, read, named the commit, the GPU, the settings and the screen. Two launches kept two logs. `dt screenshot --menu crashed` and `--menu settings`, looked at.

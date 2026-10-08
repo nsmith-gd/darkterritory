@@ -49,6 +49,12 @@ public abstract record Launch
     /// browser at <paramref name="Url"/>. The menu stays up.
     /// </summary>
     public sealed record Wishlist(uint App, string Url) : Launch;
+    /// <summary>
+    /// A report to the studio (note 452): the player's mail program on <paramref name="MailTo"/> (a mailto: link with the
+    /// subject and a summary filled in), and <paramref name="Folder"/> in the file browser beside it, to attach the report.
+    /// The menu stays up.
+    /// </summary>
+    public sealed record Mail(string MailTo, string Folder) : Launch;
 }
 
 /// <summary>
@@ -172,6 +178,17 @@ public sealed class FrontEnd
     /// opens on <see cref="Screen.Crashed"/> while there are; OK or Escape puts it away for good.
     /// </summary>
     public CrashNotice? Crash { get; set; }
+
+    /// <summary>Note 452: where reports go (content/ui/reports.json); without an address nothing offers to send one.</summary>
+    public ReportsTuning? Reports { get; set; }
+
+    /// <summary>
+    /// Note 452: REPORT A PROBLEM writes the player's report (what's going on, the log so far) and returns its path; the app's,
+    /// from its <see cref="CrashReports"/>. Null and the settings don't offer it.
+    /// </summary>
+    public Func<string?>? ProblemReport { get; set; }
+
+    bool CanMail => Reports is { To.Length: > 0 };
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -584,8 +601,25 @@ public sealed class FrontEnd
         return
         [
             new(new("OK", where), () => { PutCrashAway(); return null; }, Back: true),
+            // Note 452: to the studio, from the player's own mail, the report's folder beside it to attach the file.
+            .. CanMail && Report.Load(c.Newest) is { } report
+                ? [new Entry(new("SEND THE REPORT", $"A mail to the studio, its subject and a summary filled in; attach {Path.GetFileName(c.Newest)} from the folder that opens beside it."),
+                    () => new Launch.Mail(report.MailTo(Reports!, c.Newest), c.Directory))]
+                : (Entry[])[],
             new(new("OPEN THE REPORTS", where), () => new Launch.OpenFolder(c.Directory)),
         ];
+    }
+
+    /// <summary>REPORT A PROBLEM (note 452): the report written, and the mail to send it opened; if it couldn't be written, said.</summary>
+    Launch? ReportProblem()
+    {
+        if (ProblemReport?.Invoke() is not { } path || Report.Load(path) is not { } report)
+        {
+            Message = "The report couldn't be written.";
+            return null;
+        }
+        Message = $"Report written: {Path.GetFileName(path)}. Attach it to the mail.";
+        return new Launch.Mail(report.MailTo(Reports!, path), Path.GetDirectoryName(path)!);
     }
 
     /// <summary>The crash notice put away: its reports aren't said again, and the title's up.</summary>
@@ -939,6 +973,11 @@ public sealed class FrontEnd
             // Note 350: a new player's first nights.
             new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
                 Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
+            // Note 452: something wrong that didn't crash it, reported as a crash is, from the player's own mail.
+            .. CanMail && ProblemReport is not null
+                ? [Heading("HELP"), new Entry(new("REPORT A PROBLEM", "Writes what the game's doing and its log to a file, and opens a mail to the studio to send it with a few words."),
+                    ReportProblem)]
+                : (Entry[])[],
             BackTo(Night is null ? Screen.Title : Screen.Night),
         ],
         // A heading a section (greyed: the selection steps over it), then a row a credit with its licence and source under
