@@ -270,8 +270,12 @@ public sealed partial class GameAudio
     /// brake) in beats of three seconds (TrackDoll.Tamper; note 268); those moves only reach the train through World.Step's
     /// own copy of the controls, never the replicated ones, so the crew's lever hooks can't hear them: they're heard here, as
     /// the crew's own levers. Restless at stage 2 (her last stage coming), she rattles the brake handle on the beat she'd
-    /// take it, without moving it. Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
+    /// take it, without moving it, with her own rattle (note 499). Restless at any stage, now and then her own restlessness.
+    /// Come at, it vanishes to another car; cornered and clubbed, its porcelain cracks.
     /// </summary>
+    // Restless (note 499): her own first 1-2 s after she becomes so, then every 4-8 s while she is (30 s, warnSeconds).
+    const double DollRestlessFirst = 1, DollRestlessEvery = 4;
+
     void DollSounds(World world, TrackDoll e, Creature was, Double3 at, float occ, bool struck)
     {
         var train = world.Train;
@@ -286,9 +290,25 @@ public sealed partial class GameAudio
             if (Math.Abs(now.Throttle - before.Throttle) > 0.01)
                 Tamper("regulator-notch", levers is { } l ? train.Frames[0].ToWorld(l.RegulatorAt(now.Throttle)) : at);
             bool rattle = e.Stage == 2 && e.Restless && DollBeat(e.PhaseSeconds) == 2 && (!wasTampering || DollBeat(was.PhaseSeconds) != 2);
-            if (Math.Abs(now.Brake - before.Brake) > 0.01 || rattle)
-                Tamper("brake-handle", levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at);
+            var brake = levers is { } k ? train.Frames[0].ToWorld(k.BrakeAt(now.Brake)) : at;
+            // Her own rattle of it (note 499), a small hand shaking the handle; until she has one, the crew's lever.
+            if (rattle && Cue("cs-track-doll.rattle", brake, Occlusion(0)) is null || Math.Abs(now.Brake - before.Brake) > 0.01)
+                Tamper("brake-handle", brake);
         }
+        // Restless, her next stage coming (note 268's telegraph; note 499): now and then her own, between the giggles (which
+        // come twice as often, GameAudio.Tells): her heels drumming, a hum through her teeth, her head turning.
+        if (e.Restless)
+        {
+            if (was.Next <= 0)
+                was.Next = _time + DollRestlessFirst * (1 + _creatureRng.Next());
+            else if (_time >= was.Next)
+            {
+                Cue("cs-track-doll.restless", at, occ);
+                was.Next = _time + DollRestlessEvery * (1 + _creatureRng.Next());
+            }
+        }
+        else
+            was.Next = 0;
         // Gone from where it stood to another car (or to the cab's controls): approached, or bored of the car.
         if (was.Phase == SpinePhase.Punish && e.Phase == SpinePhase.Punish && (e.Attached != was.Attached || (e.Local - was.Local).Length > 0.75))
             Cue("cs-track-doll.vanish", was.At, Occlusion(was.Space));

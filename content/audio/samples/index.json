@@ -10289,6 +10289,53 @@
   "takes": 1,
   "sha": "ec9f5fddbd1da047"
  },
+ "cs-track-doll/rattle": {
+  "cue": "cs-track-doll.rattle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Her small hand shaking the brake handle without turning it: quick brass squeaks, the detent clicking, her fingertips",
+    "key": "brass",
+    "sources": [
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "34cb7caec605ef13"
+ },
+ "cs-track-doll/restless": {
+  "cue": "cs-track-doll.restless",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The doll restless: porcelain heels drumming on the woodwork, a tuneless hum through her teeth, her head turning",
+    "key": "heels",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "b58fc7759ac2a52a"
+ },
  "cs-track-doll/take-toy": {
   "cue": "cs-track-doll.take-toy",
   "surface": null,
