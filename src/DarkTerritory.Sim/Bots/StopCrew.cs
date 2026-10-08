@@ -2196,9 +2196,70 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
     /// <summary>How far a bot looks down to cut: past the tuning's least (couplings.uncoupleLookDownDegrees), at the plate.</summary>
     const double CutPitch = -1.3;
 
-    PlayerIntent? Cut(in PlayerState self, TrainOnLine train, StopPlan p)
+    PlayerIntent? Cut(in PlayerState self, TrainOnLine train, StopPlan p) => CutAt(self, train, p.CutBehind);
+
+    /// <summary>
+    /// Note 343: the driver on its own, cutting loose the car a hound pack has boarded (v1.1 App. A.3: "they go only dead, or
+    /// with their car cut loose"; note 269), the train standing: down out of the cab, along the ballast and up the nearest
+    /// car's side ladder (the walker's way aboard, <see cref="RoofWalkerBot.Board"/>), along the roofs to the gap behind
+    /// <paramref name="car"/>, and Uncouple on its plate. Only the climb, not a walker's judgement: hurt, a walker keeps clear
+    /// of a pack aboard, and a lone driver at 1 hp stood between the ground and car 1's landing for the rest of the night.
+    /// </summary>
+    public PlayerIntent? CutLoose(in PlayerState self, World world, int car)
     {
-        int car = p.CutBehind;
+        var train = world.Train;
+        if (CutAt(self, train, car) is { } cutting)
+            return cutting;
+        Doing = "to the cut";
+        // Out of the cab, or out of a car, or off the wrong gap's plate: down onto the ballast. A car's side-door landing is on
+        // the way to its ladder (the walk along the train goes up its steps): on along to the ladder from there.
+        if (self.Parent == 0 && self.Surface == Surface.Deck)
+            return GetDown(self, train, +1);
+        if (self.Parent > 0 && self.Surface == Surface.Deck)
+        {
+            var layout = train.Dynamics.Tuning.Geometry.Interior;
+            bool inside = layout is null || Math.Abs(self.Position.X) < train.Frames[self.Parent].Shape.Bounds.Max.X - layout.WallThickness;
+            return inside ? OffTheCar(self, train, +1) ?? new PlayerIntent() : ToARoofLadder(self, train);
+        }
+        if (self.Surface == Surface.Coupler)
+            return GetDown(self, train, +1) ?? new PlayerIntent();
+        // Mid-climb: keep going up. On the ballast: to the nearest side ladder.
+        if (self.Surface == Surface.Ladder)
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+        return self.Parent == PlayerState.World ? ToARoofLadder(self, train) : new PlayerIntent();
+    }
+
+    /// <summary>
+    /// On foot to the nearest side ladder that reaches a roof, round the train (<see cref="WalkTo"/>: out past the side-door
+    /// steps, which a walk straight along the car's side goes up), and at its foot, take hold (<see cref="RoofWalkerBot.Board"/>).
+    /// </summary>
+    PlayerIntent ToARoofLadder(in PlayerState self, TrainOnLine train)
+    {
+        Double3? best = null;
+        double bestD = double.MaxValue;
+        foreach (var frame in train.Frames)
+        {
+            if (frame.Index == 0 || train.StandingCar(frame.Index) || train.Dynamics.Consist.IndexOf(frame.Index) < 0)
+                continue;
+            foreach (var ladder in frame.Shape.Ladders)
+            {
+                if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5 || ladder.Top < frame.Shape.RoofHeight - 0.5)
+                    continue;
+                var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
+                double d = (Flat(at) - Flat(self.Position)).Length;
+                if (d < bestD)
+                    (best, bestD) = (at, d);
+            }
+        }
+        if (best is not { } foot)
+            return new PlayerIntent();
+        if (bestD > 1.0)
+            return WalkTo(self, train.Line, train.Dynamics.Path, foot, null).Step;
+        return RoofWalkerBot.Board(self, train, roofOnly: true);
+    }
+
+    PlayerIntent? CutAt(in PlayerState self, TrainOnLine train, int car)
+    {
         if (self.Surface == Surface.Coupler && self.Parent == car)
         {
             // Facing out to the right, away from both doors: Use facing one works the door instead.

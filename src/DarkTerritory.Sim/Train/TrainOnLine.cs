@@ -22,7 +22,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null);
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -156,6 +156,8 @@ public sealed class TrainOnLine
     public int TrainRakes => _rakes.Count(r => !Standing(r));
 
     public BoilerTuning? BoilerTuning { get; set; }
+    /// <summary>The hot boxes' tuning (note 331), when the night has them: their seconds count, and they drag.</summary>
+    public HotBoxTuning? HotBoxTuning { get; set; }
     public Boiler Boiler;
     /// <summary>True for the one tick on which the boiler ruptured.</summary>
     public bool RupturedThisTick { get; private set; }
@@ -327,7 +329,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -348,6 +350,7 @@ public sealed class TrainOnLine
             vehicle.Breached = v.Breached;
             vehicle.BreachAt = v.BreachAt;
             vehicle.Char = v.Char is { } c ? (byte[])c.Clone() : [];
+            vehicle.HotBox = v.HotBox;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
@@ -388,6 +391,11 @@ public sealed class TrainOnLine
             v?.EndTick();
         foreach (var rake in _rakes)
             rake.PreviousDistance = rake.Distance;
+        // A hot box runs on hotter (note 331), on every machine alike, so its drag is predicted as the host has it.
+        if (HotBoxTuning is not null)
+            foreach (var v in _vehicles)
+                if (v is { HotBox: > 0 })
+                    v.HotBox += dt;
 
         foreach (var rake in _rakes)
         {
@@ -488,7 +496,9 @@ public sealed class TrainOnLine
         // down to a coast.
         Drag = DragOn(rake) + (rake == _engineRake && Boiler.Ruptured && BoilerTuning is { } bt && rake.Speed > bt.RuptureCoastBelow ? bt.RuptureDecel : 0)
             // And an engine short of steam holds back the speed its steam can't make (boiler.json starvedDecel, note 319).
-            + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0),
+            + (rake == _engineRake && BoilerTuning is { } st ? st.StarvedDrag(Boiler, rake.Speed, rake.Tuning.MaxSpeed) : 0)
+            // And its hot boxes run dry (upkeep.json hotBox, note 331): each takes some top speed off it.
+            + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0),
     };
 
     /// <summary>A rake's front running forward through a branch's points goes where the switch is set.</summary>

@@ -637,6 +637,8 @@ public sealed record DirectorTuning(
     public AfootTuning Afoot { get; init; } = new();
     /// <summary>The hound run (note 328): a fast train's wave of Cinder Hounds, answered by the guns one hound at a time.</summary>
     public HoundRunTuning Run { get; init; } = new();
+    /// <summary>The orchestrator's live crew and caps (note 336; orchestrator.md §3.2).</summary>
+    public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
     /// <summary>A spawn pressed for (pressure at <see cref="PressureTuning.PressAt"/>) may overdraw the budget's curve by up to this much: enough for a threat of this cost.</summary>
@@ -738,6 +740,19 @@ public sealed record AbandonedTuning
     public double[] SpawnOut { get; init; } = [35, 18];
     /// <summary>From this hunt (0 the first) a Gaunt woken on them comes too (note 296); −1 never.</summary>
     public int GauntFrom { get; init; } = 2;
+}
+
+/// <summary>
+/// The orchestrator's census and caps (ARCHITECTURE §8 note 336; docs/design/orchestrator.md §3.2 1, 3, 5): the budget's crew
+/// multiplier from the crew alive now, and the engaged cap by it. Mirror of enemies.json <c>director.orchestrator</c>; field
+/// docs live there.
+/// </summary>
+public sealed record OrchestratorTuning
+{
+    public bool On { get; init; } = true;
+    public bool LiveCrew { get; init; } = true;
+    public double EngagedPerActive { get; init; } = 0.75;
+    public double PerPlayer { get; init; } = 1;
 }
 
 /// <summary>

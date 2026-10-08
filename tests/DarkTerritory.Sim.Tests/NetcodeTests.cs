@@ -196,6 +196,35 @@ public class NetcodeTests
     }
 
     [Fact]
+    public void AClientMendingADentIsPredictedExactly()
+    {
+        // Note 301: a battered car mended at its dent with the wrench; the mender's client predicts it like any hold.
+        var (net, host, clients) = Session(2);
+        Run(net, host, clients, 10, _ => default);
+        const int car = 3;
+        host.Train.Vehicles[car].Integrity = 0.5;
+        var dent = Repairs.DentAt(host.Train.Frames[car].Shape)!.Value;
+        HostTeleport(host, clients[1].PlayerId!.Value, new PlayerState
+        {
+            Parent = car,
+            Surface = Surface.Deck,
+            Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, dent.Z),
+            Yaw = Math.PI,
+            Health = 100,
+            Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]),
+            HeldSlot = 1,
+        });
+        Run(net, host, clients, 5, _ => default);
+        foreach (var c in clients)
+            c.ResetStats();
+        Run(net, host, clients, 120, i => i == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Run(net, host, clients, 3, _ => default);
+        Assert.True(host.Train.Vehicles[car].Integrity > 0.5 + T.Repair.IntegrityPerSecond);
+        Assert.All(clients, c => Assert.Equal(host.Train.Vehicles[car].Integrity, c.Train.Vehicles[car].Integrity, 4));
+        Assert.All(clients, c => Assert.Equal(0, c.MaxCorrection));
+    }
+
+    [Fact]
     public void AClientBoardingUpABreachIsPredictedExactly()
     {
         // Decided 1 Oct: a breached car is boarded up from inside, Use held at the hole; the boarder's client predicts it.
@@ -211,6 +240,9 @@ public class NetcodeTests
             Position = new Ballast.Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, room.Max.Z - 0.7),
             Yaw = Math.PI,
             Health = 100,
+            // The wrench in hand (note 301: it's what boards it up).
+            Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]),
+            HeldSlot = 1,
         });
         Run(net, host, clients, 5, _ => default);
         Assert.All(clients, c => Assert.True(c.Train.Vehicles[car].Breached));

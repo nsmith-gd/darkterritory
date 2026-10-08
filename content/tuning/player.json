@@ -17,8 +17,9 @@
   "jumpHeight": 0.8,
   "health": 100,
   // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
-  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench.
-  "kit": ["crowbar"],
+  // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench. Note 301: the wrench is the repair tool
+  // (train.json repair), so everyone has one, in slot 2.
+  "kit": ["crowbar", "wrench"],
   // What the bots go by (GDD v1.4 App. D.12: the incident report names everyone): a crew's names, in the order they board.
   "botNames": ["Dunmore", "Okafor", "Reyes", "Halloran", "Petrov", "Achebe", "Lindqvist", "Moreau"],
   "gravity": 9.81,

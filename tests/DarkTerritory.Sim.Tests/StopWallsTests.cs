@@ -24,10 +24,12 @@ public class StopWallsTests
         return (route, train);
     }
 
+    /// <summary>Within <paramref name="pad"/> of a wall's box (round its corners, as the motor keeps a crewmate off it).</summary>
     static bool InAnyWall(StopWalls walls, Double3 p, double pad) => walls.Near(p).Any(w =>
     {
         var l = w.ToLocal(p);
-        return Math.Abs(l.X) < w.HalfLength + pad && Math.Abs(l.Z) < w.HalfWidth + pad;
+        double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
+        return dx * dx + dz * dz < pad * pad;
     });
 
     [Fact]

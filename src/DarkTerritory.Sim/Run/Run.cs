@@ -290,7 +290,9 @@ public sealed partial class Run
         }
         _wasRuptured = train.Boiler.Ruptured;
         _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
-        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
+        // Note 301: where the wrench mends the boiler (and everyone carries one), a lost kit strands nobody.
+        bool stranded = !Train.Repairs.ByWrench(train) && train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds
+            && engine.Speed < Tuning.StopBelowSpeed;
 
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);

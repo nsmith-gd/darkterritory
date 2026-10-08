@@ -123,6 +123,10 @@ public sealed partial class GameAudio
         {
             if (v.Id >= train.Frames.Count)
                 continue;
+            // A hot axle box (note 331): its squeal at the rear bogie, harsher as it heats, and its smoke from halfway.
+            if (v.HotBox > 0 && train.HotBoxTuning is { } hb)
+                Hold("hotbox", v.Id, train.Frames[v.Id].ToWorld(HotBoxes.Box(train.Frames[v.Id].Shape, hb)), outside)?
+                    .Params.Set("heat", Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {
