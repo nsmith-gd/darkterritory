@@ -339,18 +339,20 @@ The brief (the director, 6 Oct 2026, GDD App. F): with the Sleepers gone, derail
 
 The Drop, the Blind Throat, the Ledge and curved tunnels still lay their own sharp bends on top of these (a Blind Throat's reverse curve is two).
 
+Some are S-bends (note 359; tiers.json `sBends`, the chance a hard bend is one): two hard turns either way with a short straight between, braked for once and held through both. None on Local, then 20%, 30%, 40% and 50% of Frontier's, Dead Lines', Deep's and Deep max's bends.
+
 ## B.3 Rules for the generator
 - **The count is the tier's,** rolled on its own stream, whatever else the script rolled.
 - **The hard bend** (`setpieces.json` "hardBend"): one curve of 40–90°, 120–260 m of straight either side (halved where room is short; no bend at all under 60% of the least turn). Not a crunch: like brass it's a demand, and the lethal spacing check keeps it from the next one.
 - **Where:** after everything else is handed out (the quotas, the hazards, the signatures), one in each equal share of the line between the threshold and the home straight, in the stretch with room nearest the share's middle. A share still without one, because its stretches were full, gets one where the line already is: cut into a plain connector, or laid on a climb, descent, summit or roller as the line going round a hill (its grades as they were).
+- **The S-bend** (note 359): two turns of 30–50° at the hard bend's radius, either way, 20–50 m of straight between (`sDeflectionDeg`, `sGapM`). **Held as one:** the first turn's limit runs on until the train's tail is round the second, so it's one board, one demand and one resume board, and the lethal spacing check sees one lethal check. Where room is short, shorter straights, then smaller turns, and none under its least turn (one turn is laid instead). Its hill changes sides halfway along the straight between.
 - **The land:** `LedgeUp` (8–20 m) on the inside, `Embankment` (2–6 m down) on the outside, over the piece. A hill that hides the way out can make the bend blind enough for a restricted zone; its board still stands (a restriction taking the bend's demand doesn't take its board).
-- **By a branch:** within `bendDeadLineClearM` (1500 m) past a dead line's toe, the bend turns away from it. In an alternate's window it turns towards the alternate's side: a line turning one way lies on the far side of its chord, and the alternate bows out on its own side, so the two stay apart. Turned the other way, the main line swung across the alternate's way back in.
+- **By a branch:** within `bendDeadLineClearM` (1500 m) past a dead line's toe, the bend turns away from it. In an alternate's window it turns towards the alternate's side: a line turning one way lies on the far side of its chord, and the alternate bows out on its own side, so the two stay apart. Turned the other way, the main line swung across the alternate's way back in. An S-bend comes out on the side it first turns to, so it first turns away from either.
 - **No branch crosses the main line.** An alternate or dead line that crosses to the main line's other side, away from its turnouts, is refused when it's laid: retried, then dropped (a dead line in its place if the junction count needs one). The validator's `crossings` check says none got through. Shores keep off the side an alternate runs on, from its toe to its rejoin.
 - **Tags:** `curve_tight` over every stretch that derails the train under its top speed, for the director ("slowing opens the doors": the places a train slows are where things board); `pre_curve` before each.
-- **The validator** fails a night with fewer than the tier's least count (`hard bends`); the metrics report `hardBends` and `hardBendSlowestMs`.
+- **The validator** fails a night with fewer than the tier's least count (`hard bends`); the metrics report `hardBends`, `hardBendSlowestMs` and `sBends`.
 
 ## B.4 Not yet
-- **S-bends.** Two lethal bends this close fail the lethal spacing check; they'd need one demand over both.
 - **Hard bends on alternates and dead lines.** Only the main line carries them; the alternates keep their trade-offs.
 - **Boarding at tight curves.** The `curve_tight` tag is there for the boarding rules (A1.8's queue #22) to read; nothing does yet.
 
