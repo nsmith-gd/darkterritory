@@ -61,7 +61,7 @@ void ShellOpen(string path)
 {
     try
     {
-        if (!path.StartsWith("https://", StringComparison.Ordinal))
+        if (!path.StartsWith("https://", StringComparison.Ordinal) && !path.StartsWith("mailto:", StringComparison.Ordinal))
             System.IO.Directory.CreateDirectory(path);
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
     }
@@ -129,7 +129,25 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     StillsFolder = BookmarkAlbum.DefaultDirectory,
     // Note 411: the game stopped last time, and the console that said where its report is was never seen.
     Crash = CrashReports.Unseen(crashes.Directory),
+    // Note 452: where reports go, and the player's own report of a problem.
+    Reports = ReportsTuning.Load(content),
+    ProblemReport = () => crashes.WriteProblem(),
 };
+// Note 452: every report says what the game is: its edition and mods, whether Steam's up, and (asked as it's written) the
+// settings, the screen or the night and where it had got to.
+crashes.Context("edition", EditionTuning.Load(content).Name);
+crashes.Context("mods", Mods.Off ? "off (--no-mods)" : Mods.Installed.Mods.Count == 0 ? "none"
+    : string.Join(", ", Mods.Installed.Mods.Select(m => $"{m.Name} {m.Version}")) + (Mods.Installed.Problems.Count > 0 ? $"; {Mods.Installed.Problems.Count} couldn't load" : ""));
+crashes.Context("steam", steam is null ? "off" : "on");
+crashes.Context("args", args.Length == 0 ? "none" : string.Join(" ", args));
+IPlaySession? playing = null;
+string doing = "the menus";
+crashes.Live = () =>
+[
+    new ReportField("settings", ReportFields.Settings(frontEnd.Settings)),
+    new ReportField("doing", playing is null ? $"{doing}: {frontEnd.Screen}" : doing),
+    .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
+];
 if (frontEnd.Crash is not null)
     frontEnd.Show(Screen.Crashed);
 
@@ -212,6 +230,12 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
+crashes.Context("gpu", gpu.DeviceName);
+crashes.Context("vr", vr is null ? "off" : "on");
+// --crash-test (note 452): stops the game on purpose once it's up, so the whole path (the report, its twin, the notice on
+// the next launch, the mail) can be tried on any machine.
+if (args.Contains("--crash-test"))
+    throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 using var rendererOwner = new Owner(() => renderer.Dispose());
 if (look is not null)
@@ -436,6 +460,13 @@ Launch? MenuLoop()
             ShellOpen(folder.Path);
             chosen = null;
         }
+        // Note 452: a report to the studio, the player's mail on it and its folder beside it to attach the file.
+        if (chosen is Launch.Mail mail)
+        {
+            ShellOpen(mail.Folder);
+            ShellOpen(mail.MailTo);
+            chosen = null;
+        }
         // Note 434: WISHLIST ON STEAM, the store page in the overlay over the menu, or the browser when the overlay's off.
         if (chosen is Launch.Wishlist wishlist)
         {
@@ -478,6 +509,16 @@ Launch? MenuLoop()
     }
     return null;
 }
+
+// What a night was, for a report (note 452): "a hosted night, frontier:7, 6 cars, 3 bots".
+static string Doing(Launch chosen) => chosen switch
+{
+    Launch.CampaignNight c => $"a campaign night, slot {c.Slot}, contract {c.Contract}{(c.Resume ? ", resumed" : "")}{(c.Host ? ", hosted" : "")}",
+    Launch.Night n => $"a {(n.Host ? "hosted" : "solo")} night, {n.Route ?? n.RouteFile ?? n.Line}, {n.Cars} cars{(n.Bots > 0 ? $", {n.Bots} bots" : "")}",
+    Launch.Join j => $"joined {j.Address}",
+    Launch.JoinLobby l => $"joined Steam lobby {l.Lobby}",
+    _ => chosen.GetType().Name,
+};
 
 // Starts what was chosen. A campaign night begins (or resumes) its slot's contract and saves that first.
 (IPlaySession Session, CampaignState? Campaign) Start(Launch chosen)
@@ -593,7 +634,10 @@ while (!window.CloseRequested && !QuitNow())
     var (session, campaign) = begun;
     var leaving = launch;
     launch = null;
+    // Note 452: a report written in the night says which, and where it had got to.
+    (playing, doing) = (session, Doing(leaving));
     campaign = Play(session, campaign);
+    (playing, doing) = (null, "the menus");
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
