@@ -52,7 +52,15 @@
     // gun a two-person job in a wave: a gunner, and a walker bringing the powder. rack 0: no rack, the whole stock at the gun.
     "rack": 6,
     "chargeSeconds": 2,
-    "lockerReach": 1.3
+    "lockerReach": 1.3,
+    // Bots bring the powder (note 377, orchestrator.md §5.1 U4's two-person gun): a manned gun's rack at this many rounds or
+    // fewer sends one walker (never the whole crew) down to the locker for a charge and up to fill it from beside the gun,
+    // the engine's forward gun too, so the gunner keeps firing. Two: a walk from the front of a long train is about two
+    // rounds' worth of loading and laying. -1: no walker goes, and a gunner whose rack runs dry fetches its own.
+    "feedAt": 2,
+    // feedAt for a gun on another car than the locker's (the engine's forward gun): the walk's the train's length each way,
+    // a minute on four cars, so a walker goes after its first shot.
+    "feedAtFar": 5
   },
   // T121 playtest ("all creatures need hit confirm feedback"): a blow or a ball that lands on a creature, and where a ball
   // came down, are kept in the replicated world this long (s), so every client sees the flinch, hears the thud and the

@@ -37,7 +37,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public StopHand? Job => _legs.Job;
     bool _holding;
     // Off the gun, it gets about like anyone else on the roofs, goes in to get warm like them, and works stops like them.
-    readonly RoofWalkerBot _legs = new(seed, cold, job);
+    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
     /// <summary>The rest of the crew as its client sees them (its legs need them to know whether the kit's theirs to bring).</summary>
@@ -167,14 +167,15 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     int _gunCar = -1;
     bool _powderAlong;
+    PowderRun? _powderRun;
     /// <summary>Where it's got to on a powder run (note 374), or null (for tests and the harness's trace).</summary>
     public string? PowderStep { get; private set; }
 
     /// <summary>
-    /// Powder to the guns (note 374, orchestrator.md §5.1 U4). Its gun's ready rack run dry with powder in the lockers: up out
-    /// of the seat, down the guard van's hatch ladder (beside the gun), along the room to the powder locker in its front
-    /// corner, a charge into its hands, back up the ladder and Use held at the gun until the rack's full. On the roof of
-    /// another car, its legs take it along the roofs to the guard van (null, with <see cref="_powderAlong"/>). Null with nothing to fetch.
+    /// Powder to the guns (note 374, orchestrator.md §5.1 U4). Its gun's ready rack run dry with powder in the lockers, and
+    /// nobody else bringing a charge (note 377: a walker on its way up with one, <see cref="PowderCarry"/>): the run
+    /// (<see cref="PowderRun"/>), to stand behind the gun with the charge. On the roof of another car, its legs take it along
+    /// the roofs (null, with <see cref="_powderAlong"/>). Null with nothing to fetch.
     /// </summary>
     PlayerIntent? Powder(in PlayerState self, World world, uint tick)
     {
@@ -187,83 +188,14 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             _gunCar = manned;
         int gunCar = _gunCar >= 0 && _gunCar < train.Vehicles.Count && train.Vehicles[_gunCar].HasGun ? _gunCar : -1;
         bool carrying = world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder };
-        if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0))
+        if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0
+            || PowderCarry.Brought(world, Crew, Me)))
             return null;
-        int lockerCar = -1;
-        foreach (var v in train.Dynamics.Consist.Vehicles)
-            if (v.Id < train.Frames.Count && Guns.Locker(train.Frames[v.Id].Shape) is not null)
-                lockerCar = v.Id;
-        if (lockerCar < 0)
-            return null;
-        var shape = train.Frames[lockerCar].Shape;
-        var room = shape.Interior!.Value;
-        // The hatch ladder: the one whose foot is on the room's floor.
-        Ladder? hatch = null;
-        foreach (var l in shape.Ladders)
-            if (room.Contains(l.Foot + new Double3(0, 0.2, 0)))
-                hatch = l;
-        if (hatch is not { } ladder)
-            return null;
-        bool inside = self.Parent == lockerCar && PlayerMotor.Indoors(self, train);
-        if (carrying)
-        {
-            if (Guns.MannedGun(self, train, guns) == gunCar)
-            {
-                PowderStep = "charge";
-                return new PlayerIntent { Buttons = PlayerButtons.Use };
-            }
-            if (self.Surface == Surface.Ladder)
-            {
-                PowderStep = "up";
-                return new PlayerIntent { MoveZ = 1 };
-            }
-            if (inside)
-            {
-                PowderStep = "to the ladder";
-                var (step, there) = WarmUp.Steer(self, ladder.Foot - ladder.Inward * 0.3, DMath.Atan2(-ladder.Inward.X, -ladder.Inward.Z) + Math.PI);
-                return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
-            }
-            if (self.Surface == Surface.Roof && self.Parent == gunCar && Guns.Mount(train, gunCar) is { } mount)
-            {
-                PowderStep = "to the gun";
-                var behind = mount.Position with { Y = self.Position.Y, Z = mount.Position.Z - mount.Facing.Z * (guns.SeatBehind + 0.1) };
-                return WarmUp.Steer(self, behind, DMath.Atan2(-mount.Facing.X, -mount.Facing.Z) + Math.PI).Step;
-            }
-            if (self.Surface == Surface.Roof)
-                _legs.Head(gunCar < self.Parent ? -1 : 1);
-            PowderStep = "along";
-            _powderAlong = true;
-            return null;
-        }
-        if (Guns.AtLocker(self, train, guns) is not null)
-        {
-            // A press, let go, and pressed again: the hands take a charge on the press.
-            PowderStep = "take";
-            return tick % 2 == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
-        }
-        if (inside)
-        {
-            PowderStep = "to the locker";
-            var at = Guns.Locker(shape)!.Value;
-            return WarmUp.Steer(self, at + new Double3(0.6, 0, 0.4), Math.PI / 2).Step;
-        }
-        if (self.Surface == Surface.Ladder && self.Parent == lockerCar)
-        {
-            PowderStep = "down";
-            return new PlayerIntent { MoveZ = -1 };
-        }
-        if (self.Surface == Surface.Roof && self.Parent == lockerCar)
-        {
-            PowderStep = "to the hatch";
-            var top = ladder.Foot with { Y = self.Position.Y };
-            var (step, there) = WarmUp.Steer(self, top, self.Yaw);
-            return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
-        }
-        if (self.Surface == Surface.Roof)
-            _legs.Head(lockerCar < self.Parent ? -1 : 1);
-        PowderStep = "along";
-        _powderAlong = true;
-        return null;
+        _powderRun ??= new PowderRun(guns);
+        var intent = _powderRun.Go(self, world, Me, gunCar, beside: false, tick, _legs.Head);
+        PowderStep = _powderRun.Step;
+        _powderAlong = _powderRun.Along;
+        return intent;
     }
 
     /// <summary>Pushing the gun off a held car (T103), and where that's got to (for the harness's trace).</summary>
@@ -326,6 +258,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 212); null otherwise.</summary>
     public LookErrand? Errand { get; set; }
+
+    /// <summary>The crew's calls (who's a bot, who brings the powder: note 377), or null (then every crewmate's taken for a walker).</summary>
+    public CrewCalls? Calls { get; set; }
+
+    /// <summary>Whether it brings the guns their powder (note 377): a walker does; a gunner's legs don't (its own run is the gunner's).</summary>
+    public bool Feeds { get; set; } = true;
 
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
@@ -770,6 +708,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return looking;
         if (Work(self, world) is { } working)
             return working;
+        // A manned gun's rack low (note 377): down to the guard van's locker for a charge, and up to fill it from beside it.
+        if (_warm is not { Active: true } && Feed(self, world, tick) is { } feeding)
+            return feeding;
+        if (_feeding?.Along == true)
+            return Decide(self, world.Train, tick);
         var train = world.Train;
         // The Car Hugger on the car we're on, and it has a platform to get at it from (v1.1 App. A.3): down and club it off.
         // Only with someone near enough to pull us from its mouth (A.3: "swallowSeconds for friends to pull them free",
@@ -823,6 +766,44 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 return greasing;
         }
         return Decide(self, train, tick);
+    }
+
+    PowderRun? _feeding;
+    int _feedGun = -1;
+
+    /// <summary>Not bringing powder this tick: the run's put by, and this is the intent.</summary>
+    PlayerIntent? Stand(PlayerIntent? intent)
+    {
+        _feeding = null;
+        return intent;
+    }
+    /// <summary>Where it's got to bringing a gun its powder (note 377), or null (for tests and the harness's trace).</summary>
+    public string? FeedStep => _feeding?.Step;
+
+    /// <summary>
+    /// Bots bring the powder (note 377, orchestrator.md §5.1 U4): if it's this walker's to go (<see cref="PowderCarry.Carrier"/>),
+    /// the run to the gun that wants it (<see cref="PowderRun"/>), to fill it from beside the gun while the gunner keeps the
+    /// seat. With the charge in hand at a gun whose rack's full, it's free for anything else, the charge kept for the next shot.
+    /// Null with nothing to bring, or the legs walking it (<see cref="PowderRun.Along"/>).
+    /// </summary>
+    PlayerIntent? Feed(in PlayerState self, World world, uint tick)
+    {
+        var train = world.Train;
+        if (!Feeds || Me < 0 || !self.Alive || world.Combat?.Guns is not { Rack: > 0 } guns)
+            return Stand(null);
+        List<(int Id, PlayerState State)> all = [(Me, self), .. Crew.Where(c => c.Id != Me)];
+        if (PowderCarry.Carrier(world, all, guns, Calls is { } calls ? id => id == Me || calls.IsFeeder(id) : null) != Me)
+            // Left up on the engine's roof by a run to its gun: back down onto the train (the legs' walk keeps off the engine).
+            return Stand(PowderRun.OffTheEngine(self, train));
+        if (PowderCarry.Wanting(world, all.Select(c => c.State), guns) is { } wanted)
+            _feedGun = wanted;
+        if (_feedGun < 0 || _feedGun >= train.Vehicles.Count || !train.Vehicles[_feedGun].HasGun || train.Vehicles[_feedGun].Taken)
+            return Stand(null);
+        // At the gun with the charge and its rack full: free for anything else till the next shot.
+        if (Guns.MannedGun(self, train, guns) == _feedGun && Guns.Ready(train.Vehicles[_feedGun].Gun, guns) >= guns.Rack)
+            return Stand(null);
+        _feeding ??= new PowderRun(guns);
+        return _feeding.Go(self, world, Me, _feedGun, beside: true, tick, Head);
     }
 
     /// <summary>
