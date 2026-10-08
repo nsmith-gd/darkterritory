@@ -110,7 +110,7 @@ public sealed class YardFunTests : IDisposable
     {
         var m = Menu();
         m.Show(Screen.Settings);
-        int i = m.Items.ToList().FindIndex(x => x.Label.StartsWith("OUTFIT", StringComparison.Ordinal));
+        int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith("OUTFIT", StringComparison.Ordinal));
         while (m.Selected != i)
             m.Down();
         Assert.Equal("OUTFIT: THE CREW'S PICK", m.Items[i].Label);
