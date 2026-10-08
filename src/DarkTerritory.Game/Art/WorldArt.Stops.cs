@@ -150,7 +150,7 @@ public sealed partial class WorldArt
                     int door = towards >= b.D ? 1 : -1;
                     bool hero = b.Kind == BuildingKind.Hero;
                     string wall = hero ? "brick_soot" : (b.Variant % 3) switch { 1 => "rust_heavy", _ => "wood_grey" };
-                    float height = hero ? 10 + b.Variant : 6.5f + b.Variant * 0.8f;
+                    float height = YardShedHeight(b);
                     // Where a yard gantry works this shed's bays (P18), its runway is an open bay cut through it: the
                     // castings lie in the open under the hook, the gantry's legs at the ends, the shed either side.
                     var gap = CraneBay(stop, index);
