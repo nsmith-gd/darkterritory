@@ -128,4 +128,113 @@ public class FiremanTests
         Assert.Equal(P.Health, cab.DriverState.Health);
         Assert.True((cab.DriverState.Position - cabBox.Centre).Length > Tuning.Enemies.Climbers.Reach);
     }
+
+    /// <summary>A driver bot in the cab and a walker bot on car 2's roof, on the calls; both decide, act and walk.</summary>
+    sealed class DriverAndWalker
+    {
+        public readonly World World;
+        public readonly CrewCalls Calls = new();
+        public readonly ConductorBot Driver;
+        public readonly RoofWalkerBot Walker;
+        public readonly Dictionary<int, PlayerState> Crew;
+
+        public DriverAndWalker()
+        {
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), Line, 2_000);
+            train.Dynamics.Velocity = 8;
+            World = new World(train, Tuning.Combat);
+            var quiet = Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+            World.EnableEnemies(quiet, route: null, 1, crew: 2, authority: true);
+            Driver = new ConductorBot(Calls, 0);
+            Walker = new RoofWalkerBot(7) { Me = 2, Calls = Calls };
+            Crew = new() { [1] = PlayerMotor.SpawnInCab(train, P), [2] = PlayerMotor.SpawnOnRoof(train, 3, 0, P) };
+        }
+
+        public TrainOnLine Train => World.Train;
+
+        public void Run(double seconds)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                World.BeginTick();
+                Walker.Crew = [(1, Crew[1])];
+                Driver.Crewmates = [Crew[2]];
+                var d = Driver.Decide(Crew[1], World, World.Tick, out _); // dead too, as the harness has it: it says so
+                var w = Walker.Decide(Crew[2], World, World.Tick, out _);
+                foreach (var (id, intent) in new[] { (1, d), (2, w) })
+                {
+                    var s = Crew[id];
+                    World.CrewAct(ref s, intent, id);
+                    Crew[id] = s;
+                }
+                World.Step(World.Controls);
+                World.ApplyDamage(id => Crew[id], (id, s) => Crew[id] = s, [1, 2]);
+                foreach (var (id, intent) in new[] { (1, d), (2, w) })
+                {
+                    var s = Crew[id];
+                    PlayerMotor.Step(ref s, intent, Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+                    Crew[id] = s;
+                }
+            }
+        }
+
+        /// <summary>Runs until the walker's in the cab, at most <paramref name="seconds"/>; how long it took, or null.</summary>
+        public double? UntilInCab(double seconds)
+        {
+            for (int t = 0; t < seconds; t++)
+            {
+                Run(1);
+                if (PlayerMotor.InCab(Crew[2], Train))
+                    return t + 1;
+            }
+            return null;
+        }
+    }
+
+    [Fact]
+    public void WithTheDriverDeadAWalkerGoesForwardAndTakesTheControls()
+    {
+        // Note 396 (a harness night's driver taken by a Climber at km 3, and the train stood the rest of the night: nobody
+        // else drives since the fireman went, note 280): a walker on the roofs hears the driver's gone, goes forward over the
+        // engine's hood and down its roof hatch into the cab, and drives on.
+        var n = new DriverAndWalker();
+        n.Run(5);
+        Assert.False(n.Walker.Relieving);
+        Assert.True(n.Calls.Has(StopJob.Driver));
+        // The driver dies at the controls; the train brakes to a stand with nobody at them (the Deadman's).
+        n.Crew[1] = n.Crew[1] with { Death = DeathCause.Climbed, Health = 0 };
+        var inCab = n.UntilInCab(120);
+        Assert.True(inCab is not null, $"never got to the cab: at {n.Crew[2].Parent}/{n.Crew[2].Surface} {n.Crew[2].Position}");
+        Assert.True(n.Walker.Relieving);
+        double from = n.Train.Dynamics.Distance;
+        n.Run(60);
+        Assert.True(n.Calls.Has(StopJob.Driver), "the crew hears a driver again");
+        Assert.True(n.Train.Dynamics.Distance - from > 100, $"drove on {n.Train.Dynamics.Distance - from:0} m in a minute");
+    }
+
+    [Fact]
+    public void AClimberInTheCabBringsAWalkerForwardAndTheTwoClubItOut()
+    {
+        // Note 396: alone in the cab with a Climber, the driver keeps clear of it (a lone blow doesn't hurt it, note 288), and
+        // its fire goes unworked till the train stands. A walker comes forward into the cab, and the two of them club it;
+        // then the walker goes back to the train.
+        var n = new DriverAndWalker();
+        n.Run(2);
+        var cab = n.Train.Frames[0].Shape.Cab!.Value;
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cab.Centre, 0, 0, 0, -1, 1);
+        n.Run(1);
+        Assert.True(climber.Inside);
+        Assert.True(n.Walker.Relieving);
+        // Forward to the cab, and out of it the Climber goes: clubbed dead, or off to the cars (where nobody's alone with it).
+        for (int t = 0; t < 120 && climber.Attached == 0 && !climber.Gone; t++)
+            n.Run(1);
+        Assert.True(climber.Gone || climber.Attached != 0, $"the Climber's still in the cab; the walker's at {n.Crew[2].Parent}/{n.Crew[2].Surface} {n.Crew[2].Position}");
+        Assert.True(n.Crew[1].Alive && n.Crew[2].Alive);
+        // Then back to the train: off the engine, nobody's but the driver's.
+        n.Run(40);
+        Assert.False(n.Walker.Relieving);
+        Assert.True(n.Crew[2].Parent != 0, $"still on the engine: {n.Crew[2].Surface} {n.Crew[2].Position}");
+        Assert.True(n.Calls.Has(StopJob.Driver));
+    }
 }

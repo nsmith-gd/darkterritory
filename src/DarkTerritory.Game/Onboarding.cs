@@ -36,7 +36,7 @@ public static class Onboarding
     public static IReadOnlyList<string> Card(Settings keys)
     {
         string K(Control c) => $"[{Controls.KeyLabel(keys.KeyFor(c))}]";
-        // HOLD KEYS on TOGGLE (note 383): those are a press, not a hold.
+        // HOLD KEYS on TOGGLE (note 396): those are a press, not a hold.
         string Hold(Control c) => keys.ToggleHolds && HoldLatch.Latches(c) ? "" : "HOLD ";
         return
         [

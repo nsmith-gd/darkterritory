@@ -727,7 +727,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     NetPlaySession.PlayerName = settings.PlayerName;
     // The in-night menu (note 292) open this frame: the night goes on, but nothing pressed reaches it.
     bool inMenu = false;
-    // HOLD KEYS on TOGGLE (note 383): run, the brake, talk, the radio and the roster latched by a press (once a frame, below).
+    // HOLD KEYS on TOGGLE (note 396): run, the brake, talk, the radio and the roster latched by a press (once a frame, below).
     var latch = new HoldLatch { Toggles = settings.ToggleHolds };
     bool Held(Control c) => !inMenu && latch.Held(c, input.Down(keyOf[c]));
     bool Hit(Control c) => !inMenu && input.Pressed(keyOf[c]);
