@@ -31,13 +31,13 @@ unsafe struct FrameData
     public fixed float Rooms[MaxRooms * 12];
     public Vector4 Counts;
     public Matrix4x4 MoonViewProj;
-    public fixed float HeroOf[256];
+    public fixed float HeroOf[GreyboxRenderer.LayerTable];
     /// <summary>xyz the glow low on the dawn's horizon, w how far it's up (0..1).</summary>
     public Vector4 Dawn;
     /// <summary>xyz the wind (m/s, world axes), w how gusty.</summary>
     public Vector4 Wind;
     /// <summary>Per layer, how it moves (<see cref="GreyboxRenderer.Motion"/>): 1 bends in the wind, 2 is water, else 0.</summary>
-    public fixed float MotionOf[256];
+    public fixed float MotionOf[GreyboxRenderer.LayerTable];
     /// <summary>The right eye's, when one pass draws both (<see cref="GreyboxRenderer.Views"/> 2; Shaders/view.glsl).</summary>
     public Matrix4x4 ViewProj1;
     public Matrix4x4 InvViewProj1;
@@ -162,6 +162,14 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <summary>A hero slot at or over this is in the big arrays (scene.frag's heroSlot).</summary>
     const int BigHero = 64;
+
+    /// <summary>
+    /// How many layers the frame's per-layer tables (<see cref="FrameData.HeroOf"/>, <see cref="FrameData.MotionOf"/>;
+    /// Shaders/frame.glsl, scene.frag, scene.vert) cover. A layer past it is drawn, but never at its hero size and never
+    /// moving. 512: the library and the models' atlases passed 256 with the conveyor's pieces (ARCHITECTURE §8 note 430),
+    /// and the uniform is still well inside the 16 KB every device gives it.
+    /// </summary>
+    public const int LayerTable = 512;
     // Which layers bend in the wind: the foliage's cards and boughs (by name, *_card and *_bough).
     float[] _motion = [];
     RenderAssets? _assets;
@@ -544,12 +552,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             var l = assets.Layers[i];
             _heroSlot[i] = -1;
-            if (l.Diffuse.Width > size && bigSize > size && i < 256 && bigs.Count < BigHero)
+            if (l.Diffuse.Width > size && bigSize > size && i < LayerTable && bigs.Count < BigHero)
             {
                 _heroSlot[i] = BigHero + bigs.Count;
                 bigs.Add(l);
             }
-            else if (l.Diffuse.Width > assets.LayerSize && i < 256 && heroes.Count < BigHero)
+            else if (l.Diffuse.Width > assets.LayerSize && i < LayerTable && heroes.Count < BigHero)
             {
                 _heroSlot[i] = heroes.Count;
                 heroes.Add(l);
@@ -870,7 +878,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             from._handFaces.CopyTo(_handFaces, 0);
             _handOn = from._handOn;
         }
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < LayerTable; i++)
             f->HeroOf[i] = i < _heroSlot.Length ? _heroSlot[i] : -1;
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
         f->FogHeight = new Vector4(fogBase, lighting.FogHeightFalloff, lighting.FogFloor, (float)(lighting.Time % 10000));
@@ -913,7 +921,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Counts = new Vector4(_rooms.Count, _moonOn ? 1 : 0, 1f / (_shadowsFrom ?? this).MoonShadowSize, lighting.Frost);
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
 

@@ -136,6 +136,29 @@ public sealed class CreatureArt
 
     /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
     public const double ChoirLeaveSeconds = 3.0;
+    /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
+    public const double HoundRunOffSeconds = 4.0;
+
+    /// <summary>
+    /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
+    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark.
+    /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
+    /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
+    /// </summary>
+    public static (double Out, double Seconds)? Retreat(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Climber => (5.0, 3.0),        // outnumbered, held off, or given up on a fast train: down off it and away
+        EnemyKind.Whistler => (8.0, 2.0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
+        EnemyKind.Ribbit => (4.0, 3.0),         // the pack's eaten: off in hops
+        EnemyKind.Gaunt => (1.5, 6.0),          // its loot taken or talked down: on walking, out past its 30 m
+        EnemyKind.Switchman => (4.0, 3.0),      // the points thrown back, or the train gone by: off from the lever
+        EnemyKind.TippyToesie => (5.0, 2.5),
+        EnemyKind.SootChildren => (3.0, 3.0),
+        EnemyKind.Passenger => (3.0, 3.0),      // unmasked, off the back of the train
+        EnemyKind.Follower => (4.0, 3.0),
+        EnemyKind.CinderHound => (6.0, 3.0),    // one aboard (its car cut, or its kill made): over the side and away
+        _ => null,
+    };
 
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
@@ -1103,6 +1126,22 @@ public sealed class CreatureArt
         return m;
     }
 
+    /// <summary>
+    /// A creature drawn on its clip with its head turned over it (note 455: a sheep looking round at whoever's come in):
+    /// <paramref name="yaw"/> (radians, left positive) shared down the neck and head, the head tipped up by
+    /// <paramref name="pitch"/>. For four-legged models with a neck_01, neck_02, head chain (sheep.py).
+    /// </summary>
+    public bool DrawTurned(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, float yaw, float pitch, int seed = 0) =>
+        Draw(mesh, name, clip, time, loop, at, m =>
+        {
+            if (MathF.Abs(yaw) + MathF.Abs(pitch) < 1e-3f)
+                return;
+            Bend(m, "head", Matrix4x4.CreateRotationX(pitch));
+            Bend(m, "neck_01", Matrix4x4.CreateRotationY(yaw * 0.4f));
+            Bend(m, "neck_02", Matrix4x4.CreateRotationY(yaw * 0.25f));
+            Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
+        }, seed: seed);
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1380,6 +1419,8 @@ public sealed class CreatureArt
                         SpinePhase.Commit when aboard => 1.1f + 0.3f * pulse,
                         SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
                         SpinePhase.Telegraph => 1.05f,
+                        // Scattered, running off (note 451, GreyboxScene.Fleeing): its embers going out as it goes.
+                        SpinePhase.BreakOff => 1.05f * (float)Math.Max(0, 1 - t / HoundRunOffSeconds),
                         _ => 0.75f,
                     };
                     string clip;

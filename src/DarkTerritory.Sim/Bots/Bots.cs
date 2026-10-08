@@ -722,7 +722,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train0 = world.Train;
         // A car that's all but gone up isn't one to walk into: let it burn out.
         // Fire Flies swarming a car's lamp are trouble too (v1.1 App. A.5): in there, the lamp out, before the car catches.
+        // Nor a fire with the pack that lit it still aboard (note 437; note 269: a boarded pack keeps setting its car alight):
+        // inside, fighting it, the walker burns while the pack relights it overhead. The fit go at the pack on the roof instead
+        // (below), and the fire's fought once it's theirs alone.
         _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && e.Extra > 0.85 && e.Attached != here)
+                && !(e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
             .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault() : null;
@@ -913,6 +917,15 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (trouble.Gone || self.Parent != trouble.Attached || self.Health < TooHurt)
             return null;
         bool tap = _tick % KitRun.TapEvery == 0;
+        // On a side door's steps, outside the walls (in there for a bag, the hook out): straight in through the doorway first.
+        // Note 437: frontier:7's four walkers in at car 1's side door made for its extinguishers from the steps on a slant,
+        // into the door's jamb, and stood against it for 20 s with the car alight round them.
+        if (train.Frames[self.Parent].Shape.Interior is { } walls && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
+        {
+            TendStep = "in";
+            double inX = Math.Clamp(self.Position.X, walls.Min.X + 0.5, walls.Max.X - 0.5);
+            return WarmUp.Steer(self, new Double3(inX, 0, self.Position.Z), self.Position.X < 0 ? -Math.PI / 2 : Math.PI / 2).Step;
+        }
         // Fire Flies on the lamp: put it out (a press every other tick until it's out; the press is what the host counts).
         if (trouble is FireFlies)
         {
@@ -1638,6 +1651,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     /// ahead of it that isn't the engine (a car right behind the engine is every car). For a walker alive, fit for the pack
     /// fight and aboard; null otherwise.
     /// </summary>
+    /// <summary>A Cinder Hound pack aboard <paramref name="car"/> (note 269's: it stays, eating and setting the car alight).</summary>
+    static bool Boarded(World world, int car) => world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == car);
+
     int? HeldAndBoarded(in PlayerState self, World world)
     {
         var train = world.Train;
@@ -3125,7 +3141,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
                     // Inside, that is: on the plate still, the way to it is through the door it's walking at (and it never
                     // gave up, its clock kept at nothing by the work).
                     _why = "";
-                    if (!ShutFirst && Into == _car && self.Parent == _car && PlayerMotor.Indoors(self, train) && Indoors?.Invoke(self) is { } first)
+                    // On its floor is inside: a side doorway is in the wall, outside the room's box (note 437: frontier:7's four
+                    // walkers in at car 1's side door stood in it, the work walking them in and the door walking them back out,
+                    // every other tick, for 15 s with the car alight, and burned there; four in a doorway, it never shut).
+                    if (!ShutFirst && Into == _car && self.Parent == _car && self.Surface == Surface.Deck && Indoors?.Invoke(self) is { } first)
                     {
                         _ticks = 0;
                         _why = "busy";
@@ -3508,6 +3527,20 @@ public static class Heed
             || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null || world.Switches?.InReach(self, world.Train, world.Hand) is not null)
             return intent;
         return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
+    }
+
+    /// <summary>
+    /// The Gannet (note 340; note 454): "when it folds, break your stride". It hangs over someone walking a roof (its calls
+    /// stopped, head down) and folds onto where they'll be; whoever stops walking is let be, and a fold onto a stopped walker
+    /// misses. A bot on a roof it's hanging or folding over stops dead, as a crewmate who's learned it does, and walks on once
+    /// it's climbed away. (Read off what every client has: its mode and its prey.)
+    /// </summary>
+    public static PlayerIntent Gannet(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    {
+        if (!self.Alive || self.Surface != Surface.Roof || self.Has(PlayerFlags.Held)
+            || !world.ActiveEnemies.OfType<Gannet>().Any(g => g.Prey == selfId && g.Mode is GannetMode.Hang or GannetMode.Fold))
+            return intent;
+        return intent with { MoveX = 0, MoveZ = 0, Buttons = intent.Buttons & ~(PlayerButtons.Run | PlayerButtons.Jump) };
     }
 
     public static PlayerIntent Drift(PlayerIntent intent, in PlayerState self, World world, int selfId)

@@ -454,6 +454,135 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void AHoundScatteredByABallRunsOffTheLineIntoTheDarkThenIsGone()
+    {
+        // GreyboxScene.Fleeing (note 451): a ball landing near a runner has it gone from the sim that tick; the scene that saw
+        // it last frame draws it running on, falling behind a running train and peeling off on its own side, turned the way
+        // it's going, until CreatureArt.HoundRunOffSeconds, then not.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var pack = Staging.Run(train);
+        var hound = pack.OfType<CinderHound>().First(h => h.Phase == SpinePhase.Commit);
+        var near = train.Line.Sample(hound.LineDistance);
+        var start = hound.WorldPosition(train);
+        var eye = start + new Double3(0, 6, 0) + Double3.Cross(near.Tangent, Double3.Up).Normalized * (Math.Sign(hound.Lateral) * -12);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = pack, Tick = Staging.StrikeTick };
+        // The hounds drawn, each by where it stands (each is one model instance) and the way it faces (its model's −Z).
+        List<(Vector3 At, Vector3 Facing)> Hounds(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("cinder_hound", StringComparison.OrdinalIgnoreCase))
+                .Select(i => (i.Model.Translation, Vector3.Normalize(-Vector3.TransformNormal(Vector3.UnitZ, i.Model) with { Y = 0 })))];
+        }
+        var there = Hounds(-1.0 / Sim.SimConstants.TickRate);
+        Assert.Equal(pack.Count(e => e is CinderHound), there.Count);
+        // Running with the train, it faces along the line: that's the model's −Z.
+        var rel = start - eye;
+        var was = there.MinBy(h => (h.At - new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z)).Length());
+        var along = Vector3.Normalize(new Vector3((float)near.Tangent.X, 0, (float)near.Tangent.Z));
+        var outward = Vector3.Normalize(new Vector3((float)(start.X - near.Position.X), 0, (float)(start.Z - near.Position.Z)));
+        Assert.True(Vector3.Dot(was.Facing, along) > 0.9f, $"facing {was.Facing} along {along}");
+        // Scattered at 21 m/s (the scene's speed is the train's: this one's standing, so it runs on ahead of where it was).
+        pack.Remove(hound);
+        scene.Scattered(hound, Staging.StrikeTick + 1, 21);
+        var off = Hounds(2).Except(there).ToList();
+        var gone = Assert.Single(off);
+        var moved = gone.At - was.At;
+        Assert.True(Vector3.Dot(moved, outward) > 9, $"out across the line: {Vector3.Dot(moved, outward)} m");
+        Assert.True(Vector3.Dot(moved, along) > 20, $"on along it, slowing: {Vector3.Dot(moved, along)} m");
+        Assert.True(Vector3.Dot(gone.Facing, outward) > 0.5f, $"turned off the line: facing {gone.Facing}, out {outward}");
+        Assert.Equal(there.Count - 1, Hounds(CreatureArt.HoundRunOffSeconds + 0.2).Count);
+    }
+
+    [Theory]
+    [InlineData(EnemyKind.Climber, "climber", true)]
+    [InlineData(EnemyKind.Whistler, "whistler", true)]
+    [InlineData(EnemyKind.CinderHound, "cinder_hound", true)]
+    [InlineData(EnemyKind.Ribbit, "ribbit", false)]
+    [InlineData(EnemyKind.Gaunt, "gaunt", false)]
+    [InlineData(EnemyKind.Switchman, "switchman", false)]
+    public void OneLetGoOfInSightIsSeenGoingOffIntoTheDarkThenIsGone(EnemyKind kind, string asset, bool aboard)
+    {
+        // GreyboxScene.Retreating (note 458): the sim has one gone the tick it's done with it (a Climber outnumbered, a Whistler
+        // found in its gap, a hound over the side, a pack that's eaten, the Gaunt with its loot, a Switchman at the lever). The
+        // scene that saw it last frame draws it going: down off the train, out from the line, until CreatureArt.Retreat's time.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int car = 2;
+        var f = train.Frames[car];
+        var e = Enemy.Blank(kind, 90, kind == EnemyKind.Ribbit ? 60 : 0);
+        if (aboard)
+            e.Restore(SpinePhase.Commit, 1, 3, car, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, 0, 0, 0);
+        else
+        {
+            var at = f.ToWorld(new Double3(f.Shape.HalfWidth + 4, 0, 0));
+            double hint = train.Cars[car].FrontDistance;
+            e.Restore(SpinePhase.Telegraph, 1, 3, Enemy.Loose, at with { Y = Sim.Player.PlayerMotor.GroundAt(at, line, ref hint) }, 0, 0, 0, -1, 0);
+        }
+        var start = e.WorldPosition(train);
+        var eye = f.ToWorld(new Double3(-12, 6, 0));
+        var staged = new List<Enemy> { e };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + 1 + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        staged.Remove(e);
+        scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
+        var going = Assert.Single(Drawn(1));
+        // Out from the line on its own side (the eye's on the train's other side): further from the eye, and off the train.
+        var rel = start - eye;
+        var from = new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z);
+        double outward = CreatureArt.Retreat(kind)!.Value.Out;
+        Assert.True((going - from).Length() > 0.8 * outward, $"{kind}: moved {(going - from).Length():0.0} m from where it was");
+        Assert.True(going.Length() > was.Length() + 0.5 * outward, $"{kind}: away from the eye: {was.Length():0.0} → {going.Length():0.0} m");
+        Assert.Empty(Drawn(CreatureArt.Retreat(kind)!.Value.Seconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AClimberTheSimLetsGoOfIsSeenGoingAndOneKilledFallsInstead(bool killed)
+    {
+        // GreyboxScene.Remember (note 458): gone from the sim between frames and not killed, it's let go of (Retreating);
+        // killed by a blow (a HitConfirm that says so), it falls where it was (Deaths) and doesn't also run off.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var f = train.Frames[2];
+        var climber = new Climber(91);
+        climber.Restore(SpinePhase.Commit, 1, 1, 2, new Double3(0.3, f.Shape.RoofHeight, 2), 0, 0, 0, 2, -1);
+        var eye = f.ToWorld(new Double3(-12, 6, 0));
+        var staged = new List<Enemy> { climber };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        int Drawn(long tick)
+        {
+            scene.Tick = tick;
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("climber", StringComparison.OrdinalIgnoreCase));
+        }
+        Assert.Equal(1, Drawn(Staging.StrikeTick));
+        staged.Clear();
+        if (killed)
+            scene.Hits = [new Sim.Combat.HitConfirm(1, (uint)Staging.StrikeTick + 1, climber.Id, EnemyKind.Climber, 1, Sim.Combat.HitSource.Melee, climber.WorldPosition(train), eye, true)];
+        Assert.Equal(1, Drawn(Staging.StrikeTick + 1));
+        // The beat the scene saw begin that frame: one, and the right one.
+        Assert.Equal(killed ? "killed" : "retreated", Assert.Single(scene.NewBeats).Beat);
+        scene.Hits = null;
+        // A second on, it's still seen: falling, or going.
+        Assert.Equal(1, Drawn(Staging.StrikeTick + 1 + (long)Sim.SimConstants.TickRate));
+    }
+
+    [Fact]
     public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
     {
         // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
