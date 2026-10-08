@@ -20,8 +20,9 @@ public class SteamLiftTests
     [Fact]
     public void TheMineHeadHasASteamLiftBesideItsWinch()
     {
-        // Two 2-person modules at one stop (spec D.3: "someone is alone somewhere"), and the crates for when nothing runs.
-        Assert.Equal([ModuleKind.Lift, ModuleKind.Winch, ModuleKind.Crates], F.ModulesOf(FacilityKind.MineHead));
+        // Two 2-person modules at one stop (spec D.3: "someone is alone somewhere"), the tipple (note 423), and the crates for
+        // when nothing runs.
+        Assert.Equal([ModuleKind.Lift, ModuleKind.Tipple, ModuleKind.Winch, ModuleKind.Crates], F.ModulesOf(FacilityKind.MineHead));
         var stop = new FacilityTests.Stop(FacilityKind.MineHead);
         Assert.True(stop.Site.Has(ModuleKind.Lift));
         Assert.Equal(F.Lift.Ore, stop.Site.Ore, 6);

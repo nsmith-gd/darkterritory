@@ -926,6 +926,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Train.FramesAt(alpha, _frames);
         // Each car leaning out on a bend it's taking too fast (note 370): drawn only, worked out alike on every machine.
         _lean.Apply(_frames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
+        // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
+        TippleTilt.Apply(_frames, Train, World.Run);
         return _frames;
     }
 

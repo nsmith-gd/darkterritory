@@ -14,7 +14,10 @@ public class FacilityTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    internal static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    internal static readonly FacilityTuning F = Whole(DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File)));
+
+    /// <summary>The tuning with every stop given its kind's whole list (note 449's draw off): what these tests pin.</summary>
+    internal static FacilityTuning Whole(FacilityTuning t) => t with { Draw = t.Draw with { Enabled = false } };
 
     /// <summary>A route with a facility that has the module, and that facility.</summary>
     /// <param name="power">The yard's power (level-design D.2): live unless a test is about it.</param>

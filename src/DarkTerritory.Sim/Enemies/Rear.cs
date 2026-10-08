@@ -146,7 +146,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         {
             ctx.World.Director?.RunnerEnded(Pack, 2);
             Attached = car;
-            Local = new Double3(Lateral > 0 ? 0.6 : -0.6, frame.Shape.RoofHeight, -(frame.Shape.HalfLength - 2.5));
+            Local = Spot(ctx, car, -(frame.Shape.HalfLength - 2.5), Lateral);
             return;
         }
         if (LineDistance < train.Dynamics.RearDistance)
@@ -187,9 +187,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             return;
         }
         ctx.World.Director?.RunnerEnded(Pack, 2);
-        var shape = train.Frames[best].Shape;
         Attached = best;
-        Local = new Double3(Lateral > 0 ? 0.6 : -0.6, shape.RoofHeight, z);
+        Local = Spot(ctx, best, z, Lateral);
     }
 
     /// <summary>The car (not the engine) nearest along the train to where this runner is, where it is on it, and the nearest of it it can leap onto.</summary>
@@ -215,10 +214,43 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         if (Runner)
             ctx.World.Director?.RunnerEnded(Pack, 2);
         int rear = ctx.Train.Dynamics.Consist.Vehicles[^1].Id;
-        var shape = ctx.Train.Frames[rear].Shape;
         Attached = rear;
-        Local = new Double3(Lateral > 0 ? 0.6 : -0.6, shape.RoofHeight, shape.HalfLength - 2.5);
+        Local = Spot(ctx, rear, ctx.Train.Frames[rear].Shape.HalfLength - 2.5, Lateral);
     }
+
+    // How far apart hounds on a roof keep (m), and how far in from its ends they stand.
+    const double SpotApart = 1.6, SpotFromEnd = 1;
+
+    /// <summary>
+    /// Where on <paramref name="car"/>'s roof a hound coming aboard stands (note 471; the director, 8 Oct 2026: "they overlap on
+    /// each other when on top of the car, they should pick their own spots to be"): at <paramref name="z"/> on its own side if
+    /// that's clear of every other hound there, else the nearest spot along that side that is (the far side once it's full).
+    /// </summary>
+    Double3 Spot(EnemyContext ctx, int car, double z, double lateral)
+    {
+        var shape = ctx.Train.Frames[car].Shape;
+        double end = shape.HalfLength - SpotFromEnd, x = lateral > 0 ? 0.6 : -0.6;
+        var taken = ctx.World.ActiveEnemies.Where(e => e is CinderHound && e != this && !e.Gone && e.Attached == car).Select(e => e.Local).ToList();
+        // On its own side (the side it came up), at z, then out from it both ways a step at a time; the far side only if its
+        // own is full.
+        foreach (double side in (double[])[x, -x])
+            for (int k = 0; k < 40; k++)
+            {
+                double step = (k + 1) / 2 * SpotApart * (k % 2 == 0 ? 1 : -1);
+                var at = new Double3(side, shape.RoofHeight, Math.Clamp(z + step, -end, end));
+                if (taken.All(o => (o - at).Length >= SpotApart))
+                    return at;
+            }
+        return new Double3(x, shape.RoofHeight, Math.Clamp(z, -end, end));
+    }
+
+    /// <summary>
+    /// Whether this hound, where it is, can get its teeth into someone (note 471; the director, 8 Oct 2026: "Cinder Hounds were
+    /// able to grab me through the car. I was in the car, they were on top"): only on the same side of a car's walls as it.
+    /// Up on the roofs it has whoever's out on the train (a roof, a ladder, a landing, the gap), never anyone inside a car or
+    /// the cab under it.
+    /// </summary>
+    bool Reaches(TrainOnLine train, in PlayerState s) => !PlayerMotor.Indoors(s, train);
 
     void Maul(EnemyContext ctx, HoundTuning t)
     {
@@ -227,7 +259,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         foreach (var (player, world) in ctx.LivingCrew())
         {
             double d = (world - at).Length;
-            if (d <= 12 && (victim is null || d < victim.Value.Distance))
+            if (d <= 12 && Reaches(ctx.Train, player.State) && (victim is null || d < victim.Value.Distance))
                 victim = (player.Id, d);
         }
         if (victim is not { } v)
