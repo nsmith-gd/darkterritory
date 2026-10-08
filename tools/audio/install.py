@@ -189,7 +189,8 @@ def candidates(line, cue, stored):
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
-FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
+FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
                 "state-starved.labour": "drag",
@@ -353,6 +354,14 @@ CUE_DEF = {
     "crew-mishaps.crushed": {"maxDistance": 120, "rolloff": 0.8},
     # A loose coupling's knock is heard where D1's synth was (note 356): from the gap, its ladders and the ground beside.
     "state-coupling-loose.knock": {"minDistance": 3, "maxDistance": 60},
+    # The walled town (note 415): a fire barrel warms a few metres of the square, a range and a clock a room; the townsfolk
+    # are heard across a street or two.
+    "place-town.fire": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "place-town.range": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.clock": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "place-town.radio": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.murmur": {"minDistance": 3, "maxDistance": 35, "rolloff": 1.0},
+    "place-town.cough": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
 }
 
 
