@@ -443,16 +443,27 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         found = i >= 0 ? (generated, i) : null;
     }
     else
-        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind);
+    {
+        // The stop's modules (note 449): the night's draw, or --modules a,b,c pinned, or --all-modules its kind's whole list.
+        IReadOnlyList<DarkTerritory.Sim.Run.ModuleKind>? pinned = Str(args, "--modules", "") is { Length: > 0 } named
+            ? [.. named.Split(',').Select(n => Enum.Parse<DarkTerritory.Sim.Run.ModuleKind>(n.Trim(), ignoreCase: true))]
+            : args.Contains("--all-modules") ? facilities.ModulesOf(kind) : null;
+        found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind, modules: pinned);
+    }
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
+    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
+    if (args.Contains("--empty"))
+        run = run with { DepartureLoad = 0 };
+    if (args.Contains("--no-crates"))
+        facilities = facilities with { Crates = facilities.Crates with { Count = [0, 0], Heavy = facilities.Crates.Heavy with { Count = [0, 0] } } };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
         (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
     return new
     {
         route = at.Route.Name,
         facility = r.Facility,
-        modules = facilities.ModulesOf(kind).Select(m => m.ToString()),
+        modules = r.Modules.Select(m => m.ToString()),
         departed = r.Departed,
         seconds = r.Seconds,
         legs = r.Legs,
@@ -466,6 +477,9 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         // The conveyor line's (note 400): the grain left for it, and how often it jammed.
         grain = r.Grain,
         jams = r.Jams,
+        // The tipple's (note 423): the ore left in its bin, and the cars off their rails at the end.
+        tippleOre = r.TippleOre,
+        offRails = r.OffRails,
         leaking = r.Leaking,
         rakes = r.Rakes,
         switchBack = r.SwitchBack,
@@ -1008,6 +1022,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Hose)
         && train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).MinBy(v => (train.Frames[v.Id].Origin - site.HoseStand).Length) is { } hosed)
         site.Mirror(site.State with { HoseCar = hosed.Id });
+    // The mine head's tipple (note 423): --tip r, the car in its cradle (the one behind the car under the lift's chute)
+    // clamped and rolled r of the way over (--tipping: at the top, the ore coming down the chute); --offrails, that car off
+    // its rails.
+    if (site is not null && site.Has(DarkTerritory.Sim.Run.ModuleKind.Tipple) && run?.CarInCradle(train, site) is { } cradled)
+    {
+        if (args.Contains("--tip"))
+            site.Mirror(site.State with { Clamped = cradled.Id, GoodClamp = true, Roll = Opt(args, "--tip", 0.5), RollingBack = args.Contains("--tipping") });
+        if (args.Contains("--offrails"))
+            cradled.OffRails = true;
+    }
     if (junction >= 0 && junction < line.Branches.Count)
     {
         var branch = line.Branches[junction];
@@ -1207,6 +1231,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     camera = Camera.LookAt(heap + toward * 9 + across * 4 + Double3.Up * 1.7, heap + Double3.Up * 1.2, 70);
                 }
             }
+            // --tipple: the mine head's tipple (note 423), from across the track off the cradle's end, the bin and its chute beyond.
+            else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Tipple) && args.Contains("--tipple"))
+            {
+                var toBin = ((site.TippleBin - site.Cradle) with { Y = 0 }).Normalized;
+                var along = Double3.Cross(toBin, Double3.Up);
+                camera = Camera.LookAt(site.Cradle - toBin * 10 + along * 13 + Double3.Up * 4, site.Cradle + toBin * 2.5 + Double3.Up * 2.5, 70);
+            }
             // --belt: the grain elevator's conveyor line (note 400), from behind its drive house down the belt's low run to the knee,
             // the riser and its head over the car.
             else if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--belt"))
@@ -1326,12 +1357,26 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     DarkTerritory.Sim.Run.Holdouts? holdouts = null;
     // --freed: every Holdout broken open and its occupant out (D.7, D.8): the door swung wide, the lock smashed off (or, every
     // other one, picked with the repair kit), the barricade pried down. --holdout n: the camera before the nth one's door.
-    if ((args.Contains("--lit") || args.Contains("--freed")) && generated is not null)
+    // --breaching f: every Holdout being broken into, f of the way (note 464): its lock jumping and sparking on the smash's blows
+    // (--quiet: picked with the kit instead), its barricade's boards coming away; --scene-time s picks the moment in the
+    // clips' beats (a blow lands 0.3 s into each 0.8 s; a heave comes on 0.47 s into each 1.33 s).
+    if ((args.Contains("--lit") || args.Contains("--freed") || args.Contains("--breaching")) && generated is not null)
     {
         holdouts = new DarkTerritory.Sim.Run.Holdouts(DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)), generated, line);
         bool freed = args.Contains("--freed");
+        double breaching = args.Contains("--breaching") ? Math.Clamp(Opt(args, "--breaching", 0.5), 0, 0.999) : -1;
         foreach (var h in holdouts.All)
+        {
+            if (breaching >= 0)
+            {
+                bool quiet = args.Contains("--quiet") && h.Lockable;
+                // (Quiet first: how long its breach takes is the kit's or the smash's by it.)
+                holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Breaching, 1, 0, quiet);
+                holdouts.Mirror(h.Index, DarkTerritory.Sim.Run.HoldoutState.Breaching, 1, breaching * h.Breach(holdouts.Tuning).Seconds, quiet);
+                continue;
+            }
             holdouts.Mirror(h.Index, freed ? DarkTerritory.Sim.Run.HoldoutState.Freed : DarkTerritory.Sim.Run.HoldoutState.Occupied, 1, 0, quiet: freed && h.Index % 2 == 1);
+        }
         if (Opt(args, "--holdout", -1) is var hi and >= 0 && hi < holdouts.All.Count)
         {
             var h = holdouts.All[(int)hi];
@@ -1339,6 +1384,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             outward = outward.Length > 0.1 ? outward.Normalized : Double3.Cross(Double3.Up, line.Sample(h.LineHint).Tangent);
             var across = Double3.Cross(Double3.Up, outward);
             camera = Camera.LookAt(h.Door + outward * 4.2 + across * 3.6 + Double3.Up * 2.0, h.Door + Double3.Up * 1.2, 60);
+            // --close: at arm's length from its lock or its barricade, as whoever's breaching it sees it (note 464).
+            if (args.Contains("--close"))
+                camera = Camera.LookAt(h.Door + outward * 1.6 + across * 1.1 + Double3.Up * 1.75, h.Door + Double3.Up * 1.35, 55);
+            // --lock h: closer still, at the lock h m up (a prison car's 1.85, a lockup's 1.3).
+            if (args.Contains("--lock"))
+            {
+                double lockUp = Opt(args, "--lock", 1.85);
+                camera = Camera.LookAt(h.Door + outward * 1.0 + across * 0.55 + Double3.Up * (lockUp + 0.25), h.Door + Double3.Up * lockUp, 50);
+            }
             // --inside: through its broken-open door, from just in, at the room (note 387; --lantern for a hand lamp).
             if (args.Contains("--inside"))
                 camera = Camera.LookAt(h.Door - outward * 2.0 + across * 0.3 + Double3.Up * 1.65, h.Inside - outward * 2.5 + Double3.Up * 1.0, 80);
@@ -1787,6 +1841,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
         ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
         : null;
+    // And a car in the mine head's tipple rolled over, or off its rails (note 423; --tip, --offrails), as the sessions draw it.
+    if (run is not null && (args.Contains("--tip") || args.Contains("--offrails")))
+    {
+        var tilted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
+        leaned = tilted;
+    }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();

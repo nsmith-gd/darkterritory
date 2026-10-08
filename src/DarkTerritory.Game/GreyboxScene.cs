@@ -335,11 +335,13 @@ public sealed class GreyboxScene
                         Winch(mesh, site, eye);
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
-                        || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
+                        || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor) || site.Has(Sim.Run.ModuleKind.Tipple))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
-                        // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
+                        // The art pass's models where it has them (#135); the conveyor line its own (note 430); the tipple (note 423)
+                        // is the greybox's either way.
                         SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true,
-                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true);
+                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true,
+                            tipple: Run.FacilityTuning?.Tipple);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -371,7 +373,7 @@ public sealed class GreyboxScene
                 HouseDoors(mesh, line, Route, doored, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
-                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
+                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);
             // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
             if (Holdouts is not null)
                 foreach (var h in Holdouts.All)
@@ -890,10 +892,30 @@ public sealed class GreyboxScene
                 continue;
             }
             var (push, roll) = Fallen(blow, (float)age);
+            var was = body;
+            // The Car Hugger clubbed to death (note 458): its grip on the car's end gone, it's left where it was as the train
+            // runs on, down onto the track. (Its own clip is the latch's; dead, it's rolled and crumbles as anything does.)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frames.Count)
+            {
+                var dropped = Enemy.Blank(EnemyKind.CarHugger, id);
+                // Clear of the car's end it hung on (a train stood at a stop doesn't pull away from it): out past it 1.5 m.
+                var end = frames[was.Attached];
+                double off = Math.Sign(was.Local.Z) * 1.5;
+                dropped.Restore(SpinePhase.BreakOff, 0, 0, Enemy.Loose, end.ToWorld(was.Local) + end.Back * off, was.LineDistance, 0, 0, 0, 0);
+                _dying[id] = (was = dropped, tick, blow);
+            }
+            if (was.Kind == EnemyKind.CarHugger && was.Attached == Enemy.Loose)
+            {
+                double hint = was.LineDistance;
+                double ground = Sim.Player.PlayerMotor.GroundAt(was.Local, line, ref hint);
+                var falling = Enemy.Blank(EnemyKind.CarHugger, id);
+                falling.Restore(SpinePhase.BreakOff, age, 0, Enemy.Loose, was.Local with { Y = Math.Max(ground, was.Local.Y - 0.5 * 9.81 * age * age) }, was.LineDistance, 0, 0, 0, 0);
+                was = falling;
+            }
             // The Gannet has its own fall (gannet.py death: crashing across the roof, the wings crumpling): not rolled
             // over, and shot out of the air over a car, it falls to that roof first (note 340).
-            var fallen = body;
-            if (body is Sim.Enemies.Gannet g)
+            var fallen = was;
+            if (was is Sim.Enemies.Gannet g)
                 (roll, fallen) = (0, Falling(g, frames, age));
             DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
             if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
@@ -914,7 +936,7 @@ public sealed class GreyboxScene
             return;
         if (Hits is not null)
             foreach (var h in Hits)
-                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && (Falls(body.Kind) || body.Kind == EnemyKind.CarHugger))
                 {
                     _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
                     _newBeats.Add(("killed", body));
@@ -929,10 +951,11 @@ public sealed class GreyboxScene
         // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
         // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
         foreach (var (id, was) in _seen)
-            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
+            if (was.Kind is EnemyKind.CarHugger or EnemyKind.CarFire && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
                 && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
             {
-                _riding[id] = (was, (uint)Tick);
+                // A fire too (note 458): the car's cut loose burning, and burns on as it rolls away (the sim's done with it).
+                _riding[id] = (Copy(was), (uint)Tick);
                 _newBeats.Add(("cut-loose", was));
             }
         // A Cinder Hound running the line gone and not killed (note 451): scattered by a ball landing near it (note 328), driven
@@ -1062,6 +1085,15 @@ public sealed class GreyboxScene
                 _riding.Remove(id);
                 continue;
             }
+            // A fire, kept burning on its car as it rolls away: its flames here, and its car's smoke (Fires: _burns).
+            if (body is Sim.Enemies.CarFire burning)
+            {
+                var fire = new Sim.Enemies.CarFire(id);
+                fire.Restore(burning.Phase, burning.PhaseSeconds + age, burning.Health, car, burning.Local, 0, 0, 0, burning.Extra, burning.Extra2);
+                fire.RestoreHeat(burning.Heat);
+                DrawEnemy(mesh, line, frames, fire, eye, from, to, Look?.Art.Creatures);
+                continue;
+            }
             var hugger = new Sim.Enemies.CarHugger(id);
             hugger.Restore(SpinePhase.Commit, body.PhaseSeconds + age, body.Health, car, body.Local, 0, 0, 0, body.Extra, body.Extra2);
             var bite = Look is { } look
@@ -1155,6 +1187,17 @@ public sealed class GreyboxScene
     {
         double run = Math.Min(age, speed / AwaySlowing);
         return (speed * run - 0.5 * AwaySlowing * run * run, outSpeed * age);
+    }
+
+    /// <summary>A copy of <paramref name="e"/> as it is now (the sim moves its own, and a snapshot's is replaced): its phase,
+    /// place and state, and a fire's heat.</summary>
+    static Enemy Copy(Enemy e)
+    {
+        var copy = Enemy.Blank(e.Kind, e.Id, e.Extra);
+        copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        if (e is Sim.Enemies.CarFire fire && copy is Sim.Enemies.CarFire into)
+            into.RestoreHeat([.. fire.Heat]);
+        return copy;
     }
 
     /// <summary>Staged (<c>dt screenshot --retreat kind:s</c>): <paramref name="e"/> let go of at <paramref name="tick"/>, going
@@ -2365,6 +2408,13 @@ public sealed class GreyboxScene
                 double peak = _burns.TryGetValue(e.Attached, out var was) ? Math.Max(was.Peak, e.Extra) : e.Extra;
                 _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish);
             }
+        // A car cut loose burning (note 458): its fire's gone from the sim, and it burns on as it rolls away (Riding).
+        foreach (var (_, (body, _)) in _riding)
+            if (body.Kind == EnemyKind.CarFire && body.Attached >= 0 && body.Attached < cars && Adrift(body.Attached))
+            {
+                double peak = _burns.TryGetValue(body.Attached, out var was) ? Math.Max(was.Peak, body.Extra) : body.Extra;
+                _burns[body.Attached] = (peak, Time, body.Extra, body.Phase == SpinePhase.Punish);
+            }
         // Clocks run backwards across a reload or a fresh run: forget what was.
         foreach (var car in _burns.Keys.Where(k => _burns[k].Last > Time + 1).ToList())
             _burns.Remove(car);
@@ -2705,8 +2755,9 @@ public sealed class GreyboxScene
     /// </summary>
     /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
     /// <param name="conveyorDrawn">The art pass drew the conveyor line (note 430).</param>
+    /// <param name="tipple">The tipple's tuning (note 423): how far over its cradle turns at the top of the roll.</param>
     static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false,
-        bool conveyorDrawn = false)
+        bool conveyorDrawn = false, Sim.Run.TippleTuning? tipple = null)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2861,6 +2912,70 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
                 }
         }
+        if (site.Has(Sim.Run.ModuleKind.Tipple))
+        {
+            // The mine head's tipple (note 423): the cradle's two hoops round the track a car's length apart on their rollers,
+            // turning with the car clamped in them (TippleTilt rolls the car itself), the clamp beam down on its roof once it's
+            // clamped and the side platen it's rolled against; the ore bin up on its legs out on the site's side with its chute
+            // reaching over where the car's open top comes round to, ore in it as much as is left and falling at the top of a
+            // roll; the lever on its post, over while it's worked.
+            var c = site.Cradle;
+            var (along, across) = Axes(c, site.TippleBin);
+            var a = ToD(along);
+            var x = ToD(across);
+            var axis = c + Double3.Up * TippleTilt.AxisHeight;
+            double turned = tipple is { } tp && site.Clamped >= 0 ? site.Roll * tp.RollDegrees * Math.PI / 180 : 0;
+            // Up and toward the bin, turned about the axis as the car is (its top comes round to the bin).
+            var up = Double3.Up * Math.Cos(turned) + x * Math.Sin(turned);
+            var toBin = x * Math.Cos(turned) - Double3.Up * Math.Sin(turned);
+            const double Radius = 2.9, Half = 7.6;
+            var ore = Palette.Charcoal;
+            foreach (int end in new[] { -1, 1 })
+            {
+                var hub = axis + a * (end * Half);
+                for (int i = 0; i < 20; i++)
+                {
+                    double t0 = i * Math.Tau / 20, t1 = (i + 1) * Math.Tau / 20;
+                    Rod(hub + (up * Math.Cos(t0) + toBin * Math.Sin(t0)) * Radius, hub + (up * Math.Cos(t1) + toBin * Math.Sin(t1)) * Radius, 0.16f,
+                        i % 5 == 0 ? Palette.RustRed : Palette.IronGrey * 0.8f);
+                }
+                // Its rollers under it either side, and their bed.
+                foreach (int j in new[] { -1, 1 })
+                    mesh.Box(V(c + a * (end * Half) + x * (j * 1.7) + Double3.Up * 0.3, eye), along, Vector3.UnitY, across, new Vector3(0.35f, 0.3f, 0.3f), Palette.SootBlack * 1.3f);
+                mesh.Box(V(c + a * (end * Half) - Double3.Up * 0.05, eye), along, Vector3.UnitY, across, new Vector3(0.6f, 0.1f, 2.4f), Palette.DeepBrown);
+            }
+            // The clamp beam over the car's roof (down on it once clamped, up clear of it otherwise) and the side platen it's
+            // rolled against, both turning with the hoops.
+            double clamp = site.Clamped >= 0 ? 1.65 : 2.5;
+            Rod(axis + up * clamp - a * Half, axis + up * clamp + a * Half, 0.18f, Palette.HazardYellow * 0.8f);
+            Rod(axis + toBin * 1.75 - a * Half, axis + toBin * 1.75 + a * Half, 0.16f, Palette.IronGrey);
+            // The bin on its four legs, the ore in it, its chute down toward the cradle.
+            var bin = site.TippleBin;
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(bin + a * (i * 1.6) + x * (j * 1.3) - Double3.Up * 1.2, (bin + a * (i * 1.6) + x * (j * 1.3)) with { Y = c.Y }, 0.12f, Palette.DeepBrown);
+            mesh.Box(V(bin, eye), along, Vector3.UnitY, across, new Vector3(1.9f, 1.2f, 1.6f), Palette.RustRed * 0.85f);
+            if (tipple is { Ore: > 0 } full && site.TippleOre > 0)
+            {
+                float fill = (float)Math.Clamp(site.TippleOre / full.Ore, 0, 1);
+                mesh.Box(V(bin + Double3.Up * (1.2 + 0.25 * fill), eye), along, Vector3.UnitY, across, new Vector3(1.7f, 0.25f * fill + 0.02f, 1.4f), ore);
+            }
+            var mouth = c + x * 3.1 + Double3.Up * (TippleTilt.AxisHeight + 1.4);
+            Rod(bin - Double3.Up * 0.9 - x * 1.2, mouth, 0.45f, Palette.IronGrey * 0.9f);
+            // Ore coming down the chute at the top of the roll, into the car's open top come round under it.
+            if (site.Clamped >= 0 && site.RollingBack && site.Roll > 0.75)
+                for (int i = 0; i < 16; i++)
+                {
+                    double fall = (time * 5 + i * 0.29) % 1.6;
+                    var p = mouth - x * (0.5 + fall * 0.4) - Double3.Up * fall + a * (0.5 * Math.Sin(i * 2.3));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.18f, 0.16f, 0.18f), i % 2 == 0 ? ore : Palette.IronGrey * 0.7f);
+                }
+            // The lever on its post: over while the cradle's clamped or turning.
+            var lever = site.TippleLever;
+            Rod(lever with { Y = c.Y }, lever, 0.07f, Palette.IronGrey);
+            double pulled = site.Clamped >= 0 ? 0.9 : site.Clamp > 0 ? 0.5 : 0;
+            Rod(lever, lever + Double3.Up * (0.55 * Math.Cos(pulled)) + x * (0.55 * Math.Sin(pulled)), 0.04f, Palette.HazardYellow);
+        }
         if (!artDrawn && site.Has(Sim.Run.ModuleKind.Ramp))
         {
             // The pen's rails round the herd, the ramp up from it to a car's doorway, the head still penned.
@@ -2959,8 +3074,8 @@ public sealed class GreyboxScene
     /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
     /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
     /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. An open barn, outbuilding or goods shed (note
-    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp. Only the houses near
-    /// the eye.
+    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp; and so is a yard's
+    /// walk-in shed or strongroom, along its roofed lengths (queue #201, note 465). Only the houses near the eye.
     /// </summary>
     void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
     {
@@ -2974,15 +3089,23 @@ public sealed class GreyboxScene
                 for (int i = 0; i < stop.Buildings.Count; i++)
                 {
                     var b = stop.Buildings[i];
-                    // An open barn or shed (note 462): its walls from the frame (0.15 m under the ground at its middle, as
-                    // WorldArt stands it) to its eaves, one part, no light. Not one a Holdout's in: that's the Holdout's shell.
-                    if (Sim.Run.StopWalls.OpenShed(b) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
+                    // An open barn or shed (note 462), or a yard's walk-in shed or its strongroom (note 465): its walls from the
+                    // frame (0.15 m under the ground at its middle, as WorldArt stands it) to its eaves, no light of its own. A
+                    // yard shed is a room along each roofed length (a gantry's cut through it is the open air, the sky over the
+                    // castings). Not one a Holdout's in: that's the Holdout's shell.
+                    bool yard = b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero;
+                    if ((yard || Sim.Run.StopWalls.OpenShed(b)) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
                     {
                         double frame = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15).Y;
                         Double3 On(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = frame };
                         var origin = On(0, 0);
-                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized,
-                            [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)], null, false, (int)(f.Start * 7 + i), Art.WorldArt.OpenShedHeight(b.Kind)));
+                        IReadOnlyList<Sim.Stops.FootprintPart> lengths = yard
+                            ? [.. Sim.Run.StopWalls.Roofed(stop, i).Select(r => new Sim.Stops.FootprintPart((r.Lo + r.Hi) / 2, 0, r.Hi - r.Lo, b.Width))]
+                            : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                        if (lengths.Count == 0)
+                            continue;
+                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind)));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -3006,7 +3129,8 @@ public sealed class GreyboxScene
         foreach (var h in cached.Houses)
         {
             float wallHeight = h.Height;
-            if ((h.Origin - eye).Length > Near)
+            // (Near its walls, not its middle: a long yard shed is walked into at an end.)
+            if ((h.Origin - eye).Length > Near + h.Parts.Max(p => Math.Abs(p.X) + p.Length / 2))
                 continue;
             var right = ToF(h.X);
             var back = ToF(h.Y);

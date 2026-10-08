@@ -37,7 +37,7 @@ public static class TrackRules
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
             {
-                double mid = car.FrontDistance - car.Length / 2, kc = Math.Abs(train.Line.Sample(rake.Path, mid).Curvature);
+                double mid = car.FrontDistance - car.Length / 2, kc = Curvature(train, mid);
                 if (kc > k)
                     (k, at) = (kc, mid);
             }
@@ -121,7 +121,7 @@ public static class TrackRules
         double kOn = 0;
         foreach (var car in train.Cars)
             if (rake.Consist.IndexOf(car.Index) >= 0)
-                kOn = Math.Max(kOn, Math.Abs(train.Line.Sample(rake.Path, car.FrontDistance - car.Length / 2).Curvature));
+                kOn = Math.Max(kOn, Curvature(train, car.FrontDistance - car.Length / 2));
         double pull = v * v * kOn / r.ADerail;
         double stress = kOn < 1e-9 ? 0 : Math.Clamp((pull - postShare) / (1 - postShare), 0, 1);
         int travel = Math.Sign(rake.Velocity);
@@ -136,7 +136,7 @@ public static class TrackRules
                 double at = s + travel * x;
                 if (at < 0 || at > length)
                     break;
-                double kx = Math.Abs(train.Line.Sample(rake.Path, at).Curvature);
+                double kx = Curvature(train, at);
                 if (kx < 1e-9)
                     break;
                 k = Math.Max(k, kx);
@@ -155,7 +155,7 @@ public static class TrackRules
             double s = from + travel * x;
             if (s < 0 || s > length)
                 break;
-            double k = Math.Abs(train.Line.Sample(rake.Path, s).Curvature);
+            double k = Curvature(train, s);
             if (k < 1e-9)
                 continue;
             double vd = Math.Sqrt(r.ADerail / k);
@@ -167,6 +167,20 @@ public static class TrackRules
         }
         return new BendStress(stress, false, 0, 0, 0, false);
     }
+
+    /// <summary>
+    /// The bend the train's on at <paramref name="s"/> along its path, as a derailment counts it: none on a yard's track (a
+    /// facility's spur, its turnout's S-curve off the main line included). The director, 8 Oct 2026: "When turning into a
+    /// yard, derailment is way too easy. Don't allow derailments when turning into and leaving a yard." (note 470). The main
+    /// line's bends, an alternate's and a dead line's still take a train taken over them too fast.
+    /// </summary>
+    static double Curvature(TrainOnLine train, double s) =>
+        InYard(train.Line, train.Dynamics.Path, s) ? 0 : Math.Abs(train.Line.Sample(train.Dynamics.Path, s).Curvature);
+
+    /// <summary>Whether <paramref name="s"/> along <paramref name="path"/> is on a yard's track (a <see cref="BranchKind.Spur"/>), off the main line.</summary>
+    public static bool InYard(RailLine line, int path, double s) =>
+        path >= 0 && path < line.Branches.Count && line.Branches[path].Definition.Kind == BranchKind.Spur
+        && double.IsNaN(line.MainDistance(path, s));
 
     static string Derail(World world, string why)
     {

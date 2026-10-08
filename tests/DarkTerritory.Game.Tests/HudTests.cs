@@ -438,6 +438,54 @@ public class HudTests
     }
 
     [Fact]
+    public void AtTheTippleThePromptsSayHowTrueTheCarStandsAndPutItBackOnItsRails()
+    {
+        // Queue #159 (note 423): at the lever, how far the car in the cradle stands off its mark before the clamp (spec D.3: "a
+        // sloppy clamp costs you"), the roll once it's clamped; beside a car off its rails, the wrench that puts it back.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead,
+            // Its whole list: the night's draw (note 449) may have left the tipple out of this one.
+            modules: DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)).ModulesOf(DarkTerritory.Sim.Route.FacilityKind.MineHead))!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var t = s.World.Run.FacilityTuning!.Tipple;
+        PlayerState At(Double3 p) => PlayerMotor.SpawnOnGround(p, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        s.Player = At(site.TippleLever - Double3.Up * 0.9);
+        Assert.Equal("NO CAR IN THE CRADLE", Hud.Prompt(s));
+        // A cargo car stood in the cradle, a little off its mark and then further.
+        var car = s.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        var spur = s.Train.Line.Branches[site.Spur];
+        void Stand(double off)
+        {
+            var consist = s.Train.Dynamics.Consist;
+            int i = consist.IndexOf(car.Id);
+            var state = s.Train.Capture();
+            s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = spur.Index, Distance = spur.Toe + site.TippleAlong + consist.OffsetOf(i) + car.Length(consist.Tuning) / 2 + off, Velocity = 0 }, .. state.Rakes.Skip(1)] });
+            s.Train.RefreshFrames();
+        }
+        car.Load = 0;
+        Stand(0);
+        Assert.Equal("CLAMP : HOLD [E]   CAR STOOD TRUE", Hud.Prompt(s));
+        Stand(1.0);
+        Assert.Equal("CLAMP : HOLD [E]   CAR 1.0 M OFF ITS MARK", Hud.Prompt(s));
+        Stand(0);
+        site.Mirror(site.State with { Clamp = t.ClampSeconds / 2 });
+        Assert.Equal("CLAMP : HOLD [E] (50%)   CAR STOOD TRUE", Hud.Prompt(s));
+        site.Mirror(site.State with { Clamp = 0, Clamped = car.Id, GoodClamp = true, Roll = 0.25 });
+        Assert.Equal("TIP IT : HOLD [E] (25%)", Hud.Prompt(s));
+        site.Mirror(site.State with { RollingBack = true });
+        Assert.Equal("ROLLING BACK", Hud.Prompt(s));
+        // Off its rails: beside it, the wrench's key; with it in hand, the hold and how far it's got.
+        site.Mirror(site.State with { Clamped = -1, Roll = 0, RollingBack = false, Rerail = t.RerailSeconds / 4 });
+        car.OffRails = true;
+        Assert.Equal("THE CAR'S OFF ITS RAILS : WRENCH IT BACK ON", Hud.Prompt(s));
+        var across = ((site.TippleBin - site.Cradle) with { Y = 0 }).Normalized;
+        s.Player = At(s.Train.Frames[car.Id].Origin with { Y = site.Cradle.Y } + across * 1.6);
+        Assert.Equal($"THE CAR'S OFF ITS RAILS   WRENCH : [{Repairs.WrenchKey(s.Player)}]", Hud.Prompt(s));
+        s.Player = s.Player with { HeldSlot = (byte)(Repairs.WrenchKey(s.Player) - 1) };
+        Assert.Equal("PUT IT BACK ON ITS RAILS : HOLD [E] (25%)", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void AtAnAlternatesStandThePromptNamesTheRouteCardsLineNotADeadLine()
     {
         // Note 289: on the line generator's nights (the ones the game plays) every branch that wasn't a spur was "the dead

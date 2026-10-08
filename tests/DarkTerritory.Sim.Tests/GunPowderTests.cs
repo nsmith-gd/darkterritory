@@ -138,6 +138,141 @@ public class GunPowderTests
     }
 
     [Fact]
+    public void AnIdleGunnerKeepsTheGunLaidOnItsLane()
+    {
+        // Note 447: seated with nothing to shoot, the view drifted and the carriage stood at the end of its arc (95–100° round),
+        // so the first hound in range cost the carriage's 1.4 s swing before a shot. Idle, it's laid along its facing.
+        var n = new Night(4, 20);
+        int van = Rear(n);
+        n.Crew[1] = AtTheGun(n) with { Yaw = Math.PI / 2 };
+        var gunner = new GunnerBot(G) { Me = 1 };
+        n.Run(4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(n.Crew[1].Has(PlayerFlags.Seated));
+        var gun = n.Train.Vehicles[van].Gun;
+        Assert.True(Math.Abs(gun.Traverse) * 180 / Math.PI < 3, $"the carriage stands {gun.Traverse * 180 / Math.PI:0} degrees round");
+    }
+
+    [Fact]
+    public void AGunnerKeepsItsGunWhileARunIsStillComingInWithAHoundAboard()
+    {
+        // Note 447: a hound aboard used to take both gunners off their guns to the pack fight, and the rest of the run came in
+        // unanswered. With more coming in on the ground, the gun's theirs; only once nothing's coming does it go to the pack.
+        var n = new Night(4, 20);
+        int van = Rear(n);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1 };
+        n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var shape = n.Train.Frames[2].Shape;
+        var aboard = n.World.AddEnemy(e => new Enemies.CinderHound(e, 900) { Health = Tuning.Enemies.CinderHounds.Health });
+        aboard.Restore(Enemies.SpinePhase.Commit, 0, Tuning.Enemies.CinderHounds.Health, 2, new Double3(0.6, shape.RoofHeight, 0), 0, 0, 0, 900, 0);
+        var coming = n.World.AddEnemy(e => new Enemies.CinderHound(e, 900) { Health = Tuning.Enemies.CinderHounds.Health });
+        coming.Restore(Enemies.SpinePhase.Telegraph, 0, Tuning.Enemies.CinderHounds.Health, -1, default, n.Train.Dynamics.RearDistance - 300, 3, 0, 900, 0);
+        n.Run(3, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(n.Crew[1].Has(PlayerFlags.Seated) && Guns.MannedGun(n.Crew[1], n.Train, G) == van, $"off the gun: {n.Crew[1].Surface} on {n.Crew[1].Parent}");
+    }
+
+    [Fact]
+    public void AGunnerHoldsFireOnTheGannetRidingTheSmoke()
+    {
+        // Note 447 (note 340's "not yet"): a ball makes the gunner the Gannet's mark, and it comes down on them on the seat.
+        // Fighting it is the crew's choice; a bot gunner lays on it only while it pins someone.
+        var n = new Night(4, 20);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1 };
+        n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        // Soaring over the guard van, inside its gun's arc and pitch.
+        var gannet = n.World.AddEnemy(id => Enemies.Gannet.Arriving(id, n.Train, Tuning.Enemies.Gannet, 6));
+        gannet.Attached = Rear(n);
+        gannet.Local = new Double3(Tuning.Enemies.Gannet.SoarRadius, 8, 20);
+        n.Run(6, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.Empty(n.Shots);
+        Assert.True(gannet.GunAnswers && n.Crew[1].Has(PlayerFlags.Seated));
+    }
+
+    [Fact]
+    public void WithTheGuardGunnerDeadTheNearestWalkerTakesTheGun()
+    {
+        // Note 456 (#183's seed 2 on main: the guard gunner Devoured, and the gun stood unmanned all night): at the run's speed,
+        // the nearer of two free walkers goes back to the guard gun and takes the seat; the other stays a walker.
+        var n = new Night(5, 20, enemies: Quiet);
+        int van = Rear(n);
+        var rake = n.Train.Dynamics.Consist.Vehicles;
+        var calls = new CrewCalls();
+        n.Crew[1] = AtTheGun(n);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, rake[^3].Id, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, rake[2].Id, 0, P);
+        var gunner = new GunnerBot(G) { Me = 1, Calls = calls };
+        var near = new RoofWalkerBot(7, job: null) { Me = 2, Calls = calls };
+        var far = new RoofWalkerBot(8, job: null) { Me = 3, Calls = calls };
+        PlayerIntent Decide(int id)
+        {
+            List<(int, PlayerState)> crew = [.. n.Crew.Where(c => c.Key != id).Select(c => (c.Key, c.Value))];
+            if (id == 1)
+            {
+                gunner.Crew = crew;
+                return gunner.Decide(n.Crew[1], n.World, n.World.Tick, out _);
+            }
+            var w = id == 2 ? near : far;
+            w.Crew = crew;
+            return w.Decide(n.Crew[id], n.World, n.World.Tick, out _);
+        }
+        n.Run(3, Decide);
+        Assert.Equal(1, calls.Gunner(false));
+        Assert.Null(near.Manning);
+        n.Crew[1] = n.Crew[1] with { Death = DeathCause.Devoured, Health = 0 };
+        for (int t = 0; t < 60 && !(n.Crew[2].Has(PlayerFlags.Seated) && Guns.MannedGun(n.Crew[2], n.Train, G) == van); t++)
+            n.Run(1, Decide);
+        Assert.True(n.Crew[2].Has(PlayerFlags.Seated) && Guns.MannedGun(n.Crew[2], n.Train, G) == van,
+            $"not at the gun: {n.Crew[2].Surface} on {n.Crew[2].Parent}");
+        Assert.Equal(false, near.Manning);
+        Assert.Null(far.Manning);
+        Assert.Equal(2, calls.Gunner(false));
+    }
+
+    [Fact]
+    public void TheForwardGunnerDoesntTakeTheGuardGun()
+    {
+        // Note 447: warmed up in the guard van, the forward gunner sat down at the guard gun beside its own gunner, and the
+        // lane ahead went unwatched. Its gun is the engine's: up out of the guard gun's seat and forward along the roofs.
+        var n = new Night(4, 12);
+        int van = Rear(n);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1, Forward = true };
+        n.Run(4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var s = n.Crew[1];
+        Assert.False(s.Has(PlayerFlags.Seated) && Guns.MannedGun(s, n.Train, G) == van, "seated at the guard gun");
+        Assert.True(s.Parent != van || s.Position.Z < Guns.Mount(n.Train, van)!.Value.Position.Z - 2, $"still at the guard gun: {s.Surface} on {s.Parent} at z {s.Position.Z:0.0}");
+    }
+
+    [Fact]
+    public void TheGuardGunnerDucksDownTheHatchUnderATrussDraggerAndIsBackAtTheGun()
+    {
+        // Note 448 (note 442's "not yet"): a seated gunner is on its car's roof, and a truss Dragger drops on whoever's on the
+        // roof of the car passing under it. The guard gun's gunner bot, seated, at 20 m/s with a Dragger on a chord 150 m ahead:
+        // down the hatch ladder below the roof before the van's under it, so it drops on nobody; and back in the seat after.
+        var n = new Night(4, 20);
+        int van = Rear(n);
+        n.Crew[1] = AtTheGun(n);
+        var gunner = new GunnerBot(G) { Me = 1 };
+        n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        Assert.True(n.Crew[1].Has(PlayerFlags.Seated));
+        var dragger = n.World.AddEnemy(id => Enemies.Dragger.OnTruss(id, n.Train.Dynamics.Distance + 150, 1, Tuning.Enemies.Draggers.Drop));
+        bool ducked = false, grabbed = false;
+        for (int i = 0; i < 30 * SimConstants.TickRate && !(dragger.Gone && n.Crew[1].Has(PlayerFlags.Seated)); i++)
+        {
+            n.Run(1.0 / SimConstants.TickRate, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            ducked |= gunner.Ducking && n.Crew[1].Surface == Surface.Ladder && n.Crew[1].Parent == van;
+            grabbed |= dragger.Target == 1 || n.Crew[1].Has(PlayerFlags.Held);
+        }
+        var s = n.Crew[1];
+        Assert.False(grabbed, "the Dragger dropped on the gunner");
+        Assert.True(ducked, "never down the hatch");
+        Assert.True(dragger.Gone);
+        Assert.True(s.Alive, $"died of {s.Death}");
+        Assert.True(s.Has(PlayerFlags.Seated) && Guns.MannedGun(s, n.Train, G) == van, $"not back at the gun: {s.Surface} on {s.Parent}");
+    }
+
+    [Fact]
     public void TheGunnerGoesDownForPowderAndBringsItUp()
     {
         // The guard gun's rack run dry, its gunner in the seat: up, down the hatch ladder beside the gun, along the van to

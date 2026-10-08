@@ -90,7 +90,8 @@ public sealed unsafe class Swapchain : IDisposable
 
     /// <summary>
     /// Records the frame via <paramref name="render"/>, blits the renderer's image to the window and presents.
-    /// Returns false if the swapchain is out of date and must be recreated at the new window size.
+    /// Returns false if the swapchain is out of date and must be recreated at the new window size. The image keeps its shape
+    /// (note 459: <see cref="Letterbox.Fit"/>), black bars where the window's is another (a 16:10 screen, an ultrawide).
     /// </summary>
     /// <param name="source">The part of the renderer's image to show (x, y, width, height); all of it by default.</param>
     public bool Present(GreyboxRenderer renderer, Action<VkCommandBuffer> render, (int X, int Y, int Width, int Height)? source = null)
@@ -117,9 +118,18 @@ public sealed unsafe class Swapchain : IDisposable
                 dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
             };
             var (sx, sy, sw, sh) = source ?? (0, 0, renderer.Width, renderer.Height);
+            var (dx, dy, dw, dh) = Letterbox.Fit(sw, sh, (int)extent.width, (int)extent.height);
+            if (dw < extent.width || dh < extent.height)
+            {
+                // The bars: the swapchain's image comes undefined, so whatever isn't the picture is cleared to black.
+                var black = new VkClearColorValue(0f, 0f, 0f, 1f);
+                var all = new VkImageSubresourceRange(VkImageAspectFlags.Color, 0, 1, 0, 1);
+                Api.vkCmdClearColorImage(cmd, image, VkImageLayout.TransferDstOptimal, &black, 1, &all);
+            }
             blit.srcOffsets[0] = new VkOffset3D(sx, sy, 0);
             blit.srcOffsets[1] = new VkOffset3D(sx + sw, sy + sh, 1);
-            blit.dstOffsets[1] = new VkOffset3D((int)extent.width, (int)extent.height, 1);
+            blit.dstOffsets[0] = new VkOffset3D(dx, dy, 0);
+            blit.dstOffsets[1] = new VkOffset3D(dx + dw, dy + dh, 1);
             Api.vkCmdBlitImage(cmd, renderer.ColorImage, VkImageLayout.TransferSrcOptimal, image, VkImageLayout.TransferDstOptimal, 1, &blit, VkFilter.Linear);
             renderer.Transition(cmd, image, VkImageAspectFlags.Color, VkImageLayout.TransferDstOptimal, VkImageLayout.PresentSrcKHR);
         });

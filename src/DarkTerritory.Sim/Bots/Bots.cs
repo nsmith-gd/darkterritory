@@ -75,6 +75,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     }
 
     bool _atGun;
+    double _offFor;
+
+    /// <summary>Off the train at speed this long, it's left behind and its gun's up for a walker (note 456).</summary>
+    const double LeftBehindSeconds = 5;
 
     PlayerIntent Gun(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
@@ -83,8 +87,14 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (!self.Alive)
         {
             _legs.Work(self, world); // the dead still say so, or the driver waits all night for them to get aboard
+            Calls?.Gunning(Me, Forward, false); // and its gun's up for a walker (note 456)
             return default;
         }
+        // Note 456: at its post while it's aboard (or the train's slow enough to catch); left behind, its gun's a walker's.
+        // Off the train a few seconds, not a jump's: mid-jump between two roofs it's in the air, off every car.
+        bool aboard = self.Parent >= 0 || SpeedBands.CanBeCaughtOnFoot(world.Train.Dynamics.Tuning, world.Train.Dynamics.Speed);
+        _offFor = aboard ? 0 : _offFor + SimConstants.TickSeconds;
+        Calls?.Gunning(Me, Forward, _offFor < LeftBehindSeconds);
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
         // From the first howl (the telegraph): back to the gun, it's a long walk from the front cars and the pack's closing.
@@ -93,6 +103,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // for each and never reached its gun all night); only with no other hand aboard but the driver does it go for them.
         bool alone = _legs.Crew.Count(c => c.State.Alive && c.Id != Me) < 2;
         _legs.Looked(world, self, safe: Guns.MannedGun(self, world.Train, guns) is not null, tend: !hounds, catches: alone);
+        // Note 448: a truss Dragger scraping over this gun's car coming under: down its hatch ladder until the car's through.
+        if (Duck(self, world) is { } ducking)
+            return ducking;
         // T103 (T93 playtest: "so a cannon can be saved before decoupling a car"): a car the Car Hugger has hold of is a car
         // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
         if (SaveGun(self, world) is { } saving)
@@ -101,8 +114,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (_legs.Fetching(self, world))
             return _legs.Decide(self, world, tick, out aimed);
         // Nobody holds a gun through the cold (spec B.2): off it and indoors until warm, then back. Nor through a stop
-        // they have a part in.
-        if (_legs.Warming(self) || _legs.Work(self, world) is not null)
+        // they have a part in. Note 447: but seated with a run coming in on the ground, it keeps the gun until it's over, the
+        // cold well short of what kills (a guard gunner went in to get warm as a run's first pair howled, and all six boarded).
+        bool holdOut = cold is { } ct && self.Has(PlayerFlags.Seated) && self.Cold < ct.DeathSeconds * ColdHoldOut
+            && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        if (!holdOut && _legs.Warming(self) || _legs.Work(self, world) is not null)
             return _legs.Decide(self, world, tick, out aimed);
         // The look-out in a crew of two (note 222): off the gun to look, only while the gun can spare it (nothing at the back
         // for it to shoot), and back to it once there's nothing left to look at from here.
@@ -116,14 +132,30 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Hounds that got aboard can't be shot from the gun they're standing next to: off it, to the pack fight with the
         // rest (they stay aboard, note 269; or, with stayAboard off, get clear: they drop off once nobody's near), then walk
         // back to the guard car and take the gun again.
-        bool houndsAboard = world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
+        // Note 447: not while more of a run are still coming in on the ground. Those are the gun's (a ball each), and the pack
+        // aboard is the walkers' (a crew of eight's hot night: a pair left aboard from the run's first took both gunners off
+        // their guns, and the next six came in unanswered and all boarded).
+        bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        bool houndsAboard = !coming && world.ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && e.Attached >= 0);
         // The Car Hugger on the rear car (v1.1 App. A.3): the gun's no answer to it (it's below the arc). Off the gun: down to
         // the guard van's rear platform to club it off (the legs do that), or with no platform to get at it from, up the
         // train, clear of its mouth, and let it take the car.
         bool rearHeld = world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == world.Train.Dynamics.Consist.Vehicles[^1].Id);
         // The forward gunner (note 414) leaves the Car Hugger to the guard van's.
         rearHeld &= !Forward;
-        if (houndsAboard || rearHeld || Guns.MannedGun(self, world.Train, guns) is not { } gun)
+        // Note 447: and once the gun's been pushed off the held car onto the one ahead (T103), it's that gun's gunner again:
+        // the rear held sent it up the train to car 1 and back, the saved gun unmanned through a hound run.
+        rearHeld &= world.Train.Vehicles[world.Train.Dynamics.Consist.Vehicles[^1].Id].HasGun;
+        // With a run coming in, a held car's gun is still the gun for the hounds behind until the car's gone: the Car Hugger
+        // eats it from the back over minutes, and a save that didn't take sent the gunner up to car 1, ten cars from its gun
+        // when the next pairs howled.
+        rearHeld &= !coming;
+        // The forward gunner's is the engine's gun (note 414), not whichever it's standing by: warmed up in the guard van, it
+        // sat down at the guard gun beside its own gunner, and the lane ahead went unwatched (note 447).
+        var manned = Guns.MannedGun(self, world.Train, guns);
+        if (Forward && manned is { } m && m != world.Train.Dynamics.Consist.Vehicles[0].Id)
+            manned = null;
+        if (houndsAboard || rearHeld || manned is not { } gun)
         {
             if (Forward && !houndsAboard && ToTheForwardGun(self, world.Train) is { } going)
                 return going;
@@ -132,7 +164,13 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             if (Forward && !houndsAboard)
                 _legs.Head(-1);
             else if (rearHeld)
+            {
+                // Clear of its mouth on the car ahead, and no further: the gun's a step back when the hounds come.
+                int held = world.Train.Dynamics.Consist.Vehicles[^1].Id;
+                if (self.Parent == world.Train.VehicleAhead(held) && self.Surface == Surface.Roof)
+                    return new PlayerIntent();
                 _legs.Head(-1);
+            }
             else if (!houndsAboard)
                 _legs.Head(+1);
             // On a car, on a ladder (the engine's too), or down on the ballast after a stop: the walker's way about, and
@@ -149,31 +187,147 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             _holding = true;
         else if (choir is null || world.Choir.Build <= 0.1 && !world.Choir.Present)
             _holding = false;
-        // GDD v1.1 App. C.3: powder, ball, ram after every shot, before anything else (Use held at the gun).
         _atGun = true;
-        // A fouled bore (note 183) the same way: Use held until it's clear.
-        if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 } or { Jammed: true })
-            return new PlayerIntent { Buttons = PlayerButtons.Use };
         // T112: only from the seat.
         var seat = self.Has(PlayerFlags.Seated) ? PlayerActions.None : PlayerActions.Seat;
         bool holdFire = _holding;
         var frame = world.Train.Frames[gun];
-        var muzzle = frame.ToWorld(Guns.Mount(world.Train, gun)!.Value.Position);
+        var mount = Guns.Mount(world.Train, gun)!.Value;
+        var muzzle = frame.ToWorld(mount.Position);
         // What the gun answers (GDD §21), and anything holding a crewmate: a ball frees them as a friend's blow would (note 290).
-        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null)
+        // Note 447: only what this gun can be laid on (its arc, its pitch), and not the Gannet riding the smoke unless it has
+        // someone pinned (hitting it makes the gunner its mark, and overhead it's out of the gun's reach): on a hot night the
+        // Gannet circling 100 m up was always nearer than the hounds coming in at 200, and both guns sat laid at it.
+        var target = world.ActiveEnemies.Where(e => e.Exposed && (e.GunAnswers || e.Phase == SpinePhase.Grab) && world.Enemies is not null
+                && (e is not Gannet || e.Phase == SpinePhase.Grab))
             .Select(e => (e, offset: e.AimPoint(world.Train, world.Enemies!) - muzzle))
-            .Where(x => x.offset.Length <= guns.Range)
+            .Where(x => x.offset.Length <= guns.Range && Guns.CheckAim(mount, frame.DirToLocal(x.offset).Normalized, guns) == AimResult.Ok)
             .OrderBy(x => x.offset.Length).FirstOrDefault();
-        if (target.e is null)
-            return new PlayerIntent { Actions = seat };
-        var d = frame.DirToLocal(target.offset).Normalized;
+        // Note 447: laid on the lane before there's a shot (a hound coming in, out past the range; or straight along its
+        // facing, a little down), so the carriage isn't standing at the end of its arc when one comes in. Idle, the view drifted
+        // there, and every hound in range was the carriage's 1.4 s swing (70°/s through 95°) before the first shot.
+        var lay = target.e is not null ? target.offset : Lane(world, frame, mount, muzzle);
+        var d = frame.DirToLocal(lay).Normalized;
         double yaw = DMath.Atan2(-d.X, -d.Z), pitch = DMath.Asin(d.Y);
         // Turn by look deltas, the way a player would; the gun follows at its own pace, and it fires once it's laid.
         var intent = new PlayerIntent { LookYaw = (float)Wrap(yaw - self.Yaw), LookPitch = (float)(pitch - self.Pitch), Actions = seat };
         aimed = self with { Yaw = self.Yaw + intent.LookYaw, Pitch = self.Pitch + intent.LookPitch };
-        if (!holdFire && self.Has(PlayerFlags.Seated) && Guns.Laid(Guns.Mount(world.Train, gun)!.Value, world.Train.Vehicles[gun].Gun, d, guns))
+        // GDD v1.1 App. C.3: powder, ball, ram after every shot, before anything else (Use held at the gun); a fouled bore
+        // (note 183) the same way. Note 447: still laying on the mark while it loads, so it fires as soon as it's loaded.
+        if (world.Train.Vehicles[gun].Gun is { ReloadNeeded: > 0, Ammo: > 0 } or { Jammed: true })
+            return intent with { Buttons = PlayerButtons.Use };
+        if (target.e is not null && !holdFire && self.Has(PlayerFlags.Seated) && Guns.Laid(mount, world.Train.Vehicles[gun].Gun, d, guns))
             intent.Buttons = PlayerButtons.Fire;
         return intent;
+    }
+
+    /// <summary>How far toward the cold that kills (of cold.json's deathSeconds) a seated gunner holds its gun through a run.</summary>
+    const double ColdHoldOut = 0.75;
+
+    int _duckCar = -1;
+    /// <summary>Down the gun's hatch ladder out of a truss Dragger's way (note 448), for the harness's trace and tests.</summary>
+    public bool Ducking => _duckCar >= 0;
+    /// <summary>How far ahead of its car a truss Dragger's chord sends the gunner down (s at the train's speed): the time to get
+    /// up out of the seat, over to the hatch and below the roof.</summary>
+    const double DuckLead = 4;
+    /// <summary>How far below the top rung it holds on the hatch ladder (m): its head under the roof.</summary>
+    const double DuckDepth = 1.8;
+
+    /// <summary>
+    /// Note 448 (note 442's "not yet"): a seated gunner is on its car's roof, and a truss Dragger drops on whoever's on the
+    /// roof of the car passing under it. Its scrape heard (<see cref="RoofWalkerBot.TrussScrape"/>), and its chord about to be
+    /// over the gun's car: up out of the seat, down the gun's own hatch ladder (the guard van's from inside, the cab's), and
+    /// held there below the roof until the car's through; then straight back up to the gun. Not with a hound inside the gun's
+    /// range (the pack's the gun's, and a run's a ball each): it keeps the gun. Null when there's nothing to duck.
+    /// </summary>
+    PlayerIntent? Duck(in PlayerState self, World world)
+    {
+        var train = world.Train;
+        int car = _duckCar >= 0 ? _duckCar : Guns.MannedGun(self, train, guns) ?? -1;
+        if (car < 0 || car >= train.Frames.Count || self.Parent != car || HatchLadder(train, car) is not { } ladder)
+        {
+            _duckCar = -1;
+            return null;
+        }
+        bool under = OverCar(world, car) && !HoundInRange(world, car);
+        if (under)
+            _duckCar = car;
+        if (self.Surface == Surface.Ladder && _duckCar >= 0)
+        {
+            if (under)
+                return new PlayerIntent { MoveZ = self.Position.Y > ladder.Top - DuckDepth ? -1 : 0 };
+            if (self.Position.Y >= ladder.Top - 0.05 || self.Surface != Surface.Ladder)
+                _duckCar = -1;
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use }; // back up to the gun
+        }
+        if (!under)
+        {
+            _duckCar = -1;
+            return null;
+        }
+        if (self.Surface != Surface.Roof)
+            return new PlayerIntent();
+        // Up out of the seat (Jump, seated), over to the hatch, and onto its ladder (the ladder key, as at the cab's).
+        if (self.Has(PlayerFlags.Seated))
+            return new PlayerIntent { Buttons = PlayerButtons.Jump };
+        var (step, there) = WarmUp.Steer(self, ladder.Foot with { Y = self.Position.Y }, self.Yaw);
+        return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+    }
+
+    /// <summary>The ladder up through a gun car's roof from inside (its foot on a floor, not the ballast), nearest its gun.</summary>
+    static Ladder? HatchLadder(TrainOnLine train, int car)
+    {
+        if (Guns.Mount(train, car) is not { } mount)
+            return null;
+        Ladder? best = null;
+        double bestD = double.MaxValue;
+        foreach (var l in train.Frames[car].Shape.Ladders)
+        {
+            double dd = (l.Foot.X - mount.Position.X) * (l.Foot.X - mount.Position.X) + (l.Foot.Z - mount.Position.Z) * (l.Foot.Z - mount.Position.Z);
+            if (l.Foot.Y > 0 && dd < bestD)
+                (best, bestD) = (l, dd);
+        }
+        return best;
+    }
+
+    /// <summary>A truss Dragger scraping (<see cref="RoofWalkerBot.TrussScrape"/>) whose chord is over the car, or will be within
+    /// <see cref="DuckLead"/> at the train's speed, and the car not yet through.</summary>
+    static bool OverCar(World world, int car)
+    {
+        var train = world.Train;
+        double speed = Math.Max(1, train.Dynamics.Speed), front = train.Cars[car].FrontDistance, back = front - train.Frames[car].Shape.HalfLength * 2;
+        return world.ActiveEnemies.Any(e => e is Dragger { Attached: < 0, Phase: SpinePhase.Telegraph } dr
+            && dr.LineDistance <= front + speed * DuckLead && dr.LineDistance >= back - 2);
+    }
+
+    /// <summary>A hound out on the ground coming in, within the gun's range of its car.</summary>
+    bool HoundInRange(World world, int car)
+    {
+        if (world.Enemies is null)
+            return false;
+        var muzzle = world.Train.Frames[car].ToWorld(Guns.Mount(world.Train, car)!.Value.Position);
+        return world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit
+            && (e.AimPoint(world.Train, world.Enemies) - muzzle).Length <= guns.Range);
+    }
+
+    /// <summary>How far down the gun rests on its lane (degrees): at the ground a long way out from a car's roof.</summary>
+    const double LaneDip = 1.2;
+
+    /// <summary>
+    /// Where a gun with nothing in range waits laid (note 447): on the nearest hound coming in that it could ever answer (a
+    /// run's pair out past the range, its howl heard), else straight out along its facing, dipped to the ground a long way out.
+    /// </summary>
+    Double3 Lane(World world, CarFrame frame, GunMount mount, Double3 muzzle)
+    {
+        var coming = world.Enemies is null ? null : world.ActiveEnemies
+            .Where(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit)
+            .Select(e => e.AimPoint(world.Train, world.Enemies!) - muzzle)
+            .Where(o => Guns.CheckAim(mount, frame.DirToLocal(o).Normalized, guns) == AimResult.Ok)
+            .OrderBy(o => o.Length).Select(o => (Double3?)o).FirstOrDefault();
+        if (coming is { } c)
+            return c;
+        double dip = -LaneDip * Math.PI / 180;
+        return frame.DirToWorld(mount.Facing * DMath.Cos(dip) + new Double3(0, DMath.Sin(dip), 0));
     }
 
     static double Wrap(double a)
@@ -413,6 +567,90 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (forward)
             Head(-1);
         return null;
+    }
+
+    GunnerBot? _manning;
+
+    /// <summary>At a gun in its gunner's place (note 456, for tests and the harness): the engine's with true, the guard gun's with false.</summary>
+    public bool? Manning => _manning?.Forward;
+
+    /// <summary>
+    /// Note 456 (#183's seed 2 on main: the guard gunner Devoured, and its gun stood unmanned for the rest of the night): a
+    /// gun whose gunner the crew has heard at it tonight, and now has none (dead, or left behind on the ballast), with a run
+    /// coming in or due (the train at the run's speed), is taken by the nearest free walker, the relief driver's way (note
+    /// 399): one a gun, claimed on the crew's calls, and never the last free hand (one at a fire or a pack aboard isn't free).
+    /// At the gun it's a <see cref="GunnerBot"/> in the gunner's place, until it dies or the gunner's back at its post.
+    /// </summary>
+    PlayerIntent? ManGun(in PlayerState self, World world, uint tick, bool free, out PlayerState aimed)
+    {
+        aimed = self;
+        if (Calls is not { } calls || Me < 0 || !Feeds || world.Combat is not { } combat)
+            return null;
+        var train = world.Train;
+        if (_manning is { } gunner)
+        {
+            bool f = gunner.Forward;
+            if (self.Alive && (calls.Gunner(f) is not { } at || at == Me))
+            {
+                if (GunCar(train, f) is not null)
+                {
+                    (gunner.Me, gunner.Calls, gunner.Crew) = (Me, calls, Crew);
+                    return gunner.Decide(self, world, tick, out aimed);
+                }
+            }
+            // Dead, the gun's gone, or its own gunner's back at it: a walker again (up out of the seat first).
+            if (calls.GunRelief(f) == Me)
+                calls.SetGunRelief(f, null);
+            calls.Gunning(Me, f, false);
+            _manning = null;
+            return self.Alive && self.Has(PlayerFlags.Seated) ? new PlayerIntent { Buttons = PlayerButtons.Jump } : null;
+        }
+        if (!free || !self.Alive || self.Parent < 0)
+            return null;
+        bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        if (!due)
+            return null;
+        foreach (bool f in (ReadOnlySpan<bool>)[false, true])
+        {
+            if (!calls.GunHeard(f) || calls.Gunner(f) is not null || GunCar(train, f) is not { } car)
+                continue;
+            if (calls.GunRelief(f) is { } other && other != Me && Crew.Any(c => c.Id == other && c.State.Alive))
+                continue;
+            var others = calls.Feeders.Where(id => id != Me).ToList();
+            if (others.Count == 0 || !Nearest(self, train, car, others))
+                continue;
+            calls.SetGunRelief(f, Me);
+            _manning = new GunnerBot(combat.Guns, combat.Choir, seed, cold, job) { Forward = f, Me = Me, Calls = calls, Crew = Crew };
+            return _manning.Decide(self, world, tick, out aimed);
+        }
+        return null;
+    }
+
+    /// <summary>The car with that gun: the engine's (forward), or the guard gun's, the rearmost with one.</summary>
+    static int? GunCar(TrainOnLine train, bool forward)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        if (forward)
+            return train.Vehicles[rake[0].Id].HasGun ? rake[0].Id : null;
+        for (int i = rake.Count - 1; i > 0; i--)
+            if (train.Vehicles[rake[i].Id].HasGun)
+                return rake[i].Id;
+        return null;
+    }
+
+    /// <summary>Whether it's nearer the gun's car (by cars along the train; the lower id on a tie) than every other free hand.</summary>
+    bool Nearest(in PlayerState self, TrainOnLine train, int car, List<int> others)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        int Place(int parent) => Enumerable.Range(0, rake.Count).FirstOrDefault(i => rake[i].Id == parent, -1);
+        int gun = Place(car);
+        int Cars(in PlayerState s) => s.Parent >= 0 && Place(s.Parent) is var p and >= 0 ? Math.Abs(p - gun) : int.MaxValue;
+        int mine = Cars(self);
+        foreach (int o in others)
+            if (Crew.FirstOrDefault(c => c.Id == o) is { State.Alive: true } c && (Cars(c.State) < mine || Cars(c.State) == mine && o < Me))
+                return false;
+        return true;
     }
 
     uint _workedTick = uint.MaxValue;
@@ -953,6 +1191,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             Calls?.CanFeed(Me, false);
             return Decide(self, world.Train, tick);
         }
+        // Note 456: at a gun whose gunner's dead or left behind, it's the gunner now (its own look and legs).
+        if (_manning is not null && ManGun(self, world, tick, false, out aimed) is { } gunning)
+        {
+            Calls?.CanFeed(Me, false);
+            return gunning;
+        }
         if (!_looked)
             Look(world, self);
         _looked = false;
@@ -961,6 +1205,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Already on a run, its way out of a car (the warm-up's way out) is the run's.
         bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false)
             && !(_warm is { Active: true } && _catchCar is null && !_feedRun);
+        // Note 456: free, and the nearest free hand to a gun nobody's at with a run coming or due: to the gun.
+        if (free && ManGun(self, world, tick, true, out aimed) is { } manning)
+        {
+            Calls?.CanFeed(Me, false);
+            return manning;
+        }
         Calls?.CanFeed(Me, free);
         // The look-out on an insisted night (note 212): a Dragger to meet keeps it out on the roofs, not in for a bag.
         if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
@@ -2549,7 +2799,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (train.BoilerTuning is { SteamDrive: true } fb && train.Dynamics.BrakeEfficiency < FadedBrake && !standing)
             fireTo = Math.Min(fireTo, Boiler.PressureFor(fb, Math.Max(0, _cruise - fb.DriveSpeedBand), train.Dynamics.Tuning.MaxSpeed));
         // Only with the shovel to hand (note 275): the one off the rack, or in its own kit. Out with a crewmate, it's theirs to fire.
-        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && PlayerMotor.InCab(self, train) && CrewActions.HasShovel(self, train)
+        // Anywhere on the engine's deck, not only in the cab (note 463): drawn back along the hood by something, it walks back
+        // to the fire when the fire wants it, where it stood in the corridor all night with the tender full.
+        if (train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && self.Parent == 0 && self.Surface == Surface.Deck && CrewActions.HasShovel(self, train)
             && (!standing && train.Boiler.Pressure < fireTo || standing && train.Boiler.Pressure < StandingPressure
                 // Never a low fire (the Stoker, App. A.5); with steam driving and the pressure well over what's wanted, only
                 // just clear of low, or the surplus is speed.
