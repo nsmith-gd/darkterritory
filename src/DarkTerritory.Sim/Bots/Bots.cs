@@ -711,7 +711,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             int mine = train.Dynamics.Consist.IndexOf(parent);
             if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0 && mine >= held - 1))
                 _direction = -1;
-            // A hot axle box (note 331): to its car, down its end ladder into the gap behind it, and grease it.
+            // A hot axle box (note 331) or a loose coupling (note 356): to its car, down its end ladder into the gap behind it,
+            // and grease it or tighten it.
             if (_trouble is null && _warm is not { Active: true } && Grease(self, world) is { } greasing)
                 return greasing;
         }
@@ -719,33 +720,46 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     }
 
     /// <summary>
-    /// The nearest hot axle box nobody's at yet (note 331, <see cref="HotBoxes"/>): along the roofs to its car, to the roof's
-    /// back end over the ladder down into the gap behind it, down it, and Use held until it's greased (its box is in reach
-    /// from the ladder's foot). Greased, there's nothing to go to, and the walker climbs out of the gap as from any.
+    /// The nearest hot axle box (note 331, <see cref="HotBoxes"/>) or loose coupling (note 356, <see cref="Couplings"/>; with
+    /// a wrench to take to it) nobody's at yet: both are in the gap behind their car. Along the roofs to its car, to the roof's
+    /// back end over the ladder down into the gap behind it, down it, and Use held until it's done (the box and the pin are in
+    /// reach from the ladder's foot; the wrench into hand first for the pin). Done, there's nothing to go to, and the walker
+    /// climbs out of the gap as from any.
     /// </summary>
     PlayerIntent? Grease(in PlayerState self, World world)
     {
         var train = world.Train;
-        if (train.HotBoxTuning is not { Enabled: true } t)
+        var hb = train.HotBoxTuning is { Enabled: true } hbt ? hbt : null;
+        var lt = train.Loose is { Enabled: true } && (Couplings.Tightens(self, train) || Repairs.WrenchKey(self) > 0) ? train.Loose : null;
+        if (hb is null && lt is null)
             return null;
         var me = PlayerMotor.WorldPosition(self, train);
         int? hot = null;
+        bool pin = false;
         double nearest = double.MaxValue;
         for (int i = 1; i < train.Vehicles.Count && i < train.Frames.Count; i++)
         {
-            if (train.Vehicles[i].HotBox <= 0)
-                continue;
-            var box = train.Frames[i].ToWorld(HotBoxes.Box(train.Frames[i].Shape, t));
-            if (Crew.Any(c => c.Id != Me && c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - box).Length <= t.Reach + 0.5))
-                continue;
-            double d = (box - me).Length;
+            var f = train.Frames[i];
+            if (hb is not null && train.Vehicles[i].HotBox > 0)
+                Consider(f.ToWorld(HotBoxes.Box(f.Shape, hb)), hb.Reach, i, false);
+            if (lt is not null && train.Vehicles[i].Loose > 0)
+                Consider(f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)), lt.Reach, i, true);
+        }
+        void Consider(Ballast.Double3 at, double reach, int i, bool isPin)
+        {
+            foreach (var c in Crew)
+                if (c.Id != Me && c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - at).Length <= reach + 0.5)
+                    return;
+            double d = (at - me).Length;
             if (d < nearest)
-                (hot, nearest) = (i, d);
+                (hot, pin, nearest) = (i, isPin, d);
         }
         if (hot is not { } car)
             return null;
-        if (HotBoxes.Within(self, train, t) == car)
+        if (!pin && HotBoxes.Within(self, train, hb!) == car)
             return new PlayerIntent { Buttons = PlayerButtons.Use };
+        if (pin && Couplings.Within(self, train, lt!) == car)
+            return Repairs.WrenchKey(self) is var key and > 0 ? new PlayerIntent { Select = key } : new PlayerIntent { Buttons = PlayerButtons.Use };
         double l = train.Frames[car].Shape.HalfLength;
         switch (self.Surface)
         {
@@ -2860,6 +2874,20 @@ public static class Heed
             || world.Train.HotBoxTuning is not { Enabled: true } t || HotBoxes.Within(self, world.Train, t) is null)
             return intent;
         return new PlayerIntent { Buttons = PlayerButtons.Use };
+    }
+
+    /// <summary>
+    /// A loose coupling (note 356): a bot that finds itself in reach of one (a walker down in its gap) stops, puts the wrench
+    /// in hand and tightens it. As <see cref="HotBox"/>: not the crew on the engine, not a bot busy with its hands.
+    /// </summary>
+    public static PlayerIntent Coupling(PlayerIntent intent, in PlayerState self, World world)
+    {
+        if (!self.Alive || self.Has(PlayerFlags.Held) || self.Parent == 0 || intent.Buttons != PlayerButtons.None
+            || world.Train.Loose is not { Enabled: true } t || Couplings.Within(self, world.Train, t) is null)
+            return intent;
+        if (Repairs.WrenchKey(self) is var key and > 0)
+            return new PlayerIntent { Select = key };
+        return Couplings.Tightens(self, world.Train) ? new PlayerIntent { Buttons = PlayerButtons.Use } : intent;
     }
 
     /// <summary>

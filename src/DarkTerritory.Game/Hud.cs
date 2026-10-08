@@ -1537,6 +1537,10 @@ public static partial class Hud
         // A hot axle box (note 331): greased from the gap behind its car or the ground beside it.
         if (train.HotBoxTuning is { Enabled: true } hb && HotBoxes.Within(p, train, hb) is not null)
             return Hold("GREASE THE HOT BOX", p.ActionProgress / hb.GreaseSeconds);
+        // A loose coupling (note 356): the wrench in the gap tightens it; without it in hand, the key that puts it there.
+        if (train.Loose is { Enabled: true } lt && Couplings.Within(p, train, lt) is not null)
+            return Couplings.Tightens(p, train) ? Hold("TIGHTEN THE COUPLING", p.ActionProgress / lt.TightenSeconds)
+                : Repairs.WrenchKey(p) is var wrench and > 0 ? $"THE COUPLING'S LOOSE   WRENCH : [{wrench}]" : "THE COUPLING'S LOOSE   NO WRENCH";
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
         var near = CrewActions.Nearest(p, train, hand);

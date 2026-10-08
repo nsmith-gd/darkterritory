@@ -100,6 +100,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         int me = session.PlayerId ?? 0;
         intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
+        intent = Heed.Coupling(intent, session.Predicted, session.World);
         intent = Heed.Rescue(intent, session.Predicted, session.World, me);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);

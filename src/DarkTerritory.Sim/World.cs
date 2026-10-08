@@ -903,13 +903,18 @@ public sealed class World
             _upkeep = value;
             Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
             Train.Gutter = value?.Lamp is { Enabled: true } lt ? lt : null;
+            Train.Loose = value?.Coupling is { Enabled: true } ct ? ct : null;
             _hotBoxes = null;
             _gutters = null;
+            _couplings = null;
         }
     }
     UpkeepTuning? _upkeep;
     HotBoxes? _hotBoxes;
     Gutters? _gutters;
+    Couplings? _couplings;
+    /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
+    public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
@@ -1311,6 +1316,12 @@ public sealed class World
             _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
         if (Authority && _gutters is null && Train.Gutter is { } gt)
             _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
+        if (Authority && _couplings is null && Train.Loose is { } ct)
+            _couplings = new Couplings(ct, (Route?.Seed ?? 0) ^ 0xC0091UL);
+        // The couplings (note 356): one loose for each crewmate at most, none in the yard or a fort; one left too long drops
+        // its pin, and the rake parts behind it.
+        if (Authority && !Derailed && _couplings is { } pins)
+            pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
         // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
         if (Authority && !Derailed && _gutters is { } lamps)
             lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
