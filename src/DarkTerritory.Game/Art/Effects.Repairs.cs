@@ -40,6 +40,8 @@ public sealed partial class Effects
             var outward = brk.Kind switch
             {
                 BreakKind.Dent => right,
+                // A loose coupling's pin (note 356), down in the gap: its sparks spit up out of it, where the walker looks down.
+                BreakKind.Coupling => up,
                 BreakKind.Breach when frame.Shape.Interior is { } room && brk.At.Y >= room.Max.Y - 0.05 => -up,
                 _ => -F(frame.Back),
             };

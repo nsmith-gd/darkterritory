@@ -13,6 +13,7 @@ public sealed record UpkeepTuning
     public const string File = "tuning/upkeep.json";
     public HotBoxTuning HotBox { get; init; } = new();
     public GutterTuning Lamp { get; init; } = new();
+    public LooseTuning Coupling { get; init; } = new();
 }
 
 /// <summary>U1, the hot box (note 331): an axle box running dry on a car as the train runs.</summary>

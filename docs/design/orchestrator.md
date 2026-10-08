@@ -202,7 +202,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness ni
 
 1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): **built (note 336, queue #75).**
 2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
-3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train.
+3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train. **Built: the hot box (note 331, queue #71), the lamp (U3; note 346, queue #83) and the loose coupling (note 356, queue #93).**
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next; the bots' `posts` already compute most of it.
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.

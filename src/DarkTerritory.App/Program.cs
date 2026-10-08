@@ -1183,8 +1183,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
-        scene.Breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
-        scene.Mending = scene.Breaks.Count > 0 ? GreyboxScene.MendingAt(scene.Breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
+        // And the loose couplings, called out alike (note 356).
+        var breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);
+        var mending = breaks.Count > 0 ? GreyboxScene.MendingAt(breaks, session.CrewStates(1).Select(c => c.State), session.Train) : null;
+        var tightening = new HashSet<int>();
+        DarkTerritory.Sim.Train.Couplings.Callouts(session.Train, breaks, session.CrewStates(1).Select(c => c.State), tightening);
+        scene.Breaks = breaks;
+        scene.Mending = tightening.Count > 0 ? [.. mending ?? [], .. tightening] : mending;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
