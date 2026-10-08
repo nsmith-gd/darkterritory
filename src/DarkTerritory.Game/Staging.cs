@@ -97,6 +97,15 @@ public static class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
         }
+        // A fishing town's net loft or fish flake (note 490): in the first yard that has one, from beside it, along the back.
+        if (where is "loft" or "flake" && plan.Houses.Select(h => (h, y: h.Yard.FirstOrDefault(y => y.Kind == (where == "loft" ? Sim.Towns.YardKind.Loft : Sim.Towns.YardKind.Flake))))
+            .FirstOrDefault(x => x.y is not null) is ({ } yh, { } yt))
+        {
+            double um = (yt.U0 + yt.U1) / 2, vm = (yt.V0 + yt.V1) / 2;
+            var (ts, td) = yh.Rail(um, vm);
+            var (cs, cd) = yh.Rail(um + (um > 0 ? -6.5 : 6.5), vm - 1.5);
+            return Ballast.Render.Camera.LookAt(town.World(cs, cd, 2.2), town.World(ts, td, where == "loft" ? 2.0 : 0.6), 70);
+        }
         // The quiet house by the gate, the council house in the square, a small town's far wall (note 353).
         if (where is "quiet" or "council" or "farwall")
         {

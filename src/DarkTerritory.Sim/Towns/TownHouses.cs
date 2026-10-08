@@ -106,8 +106,9 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     }
 }
 
-/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335).</summary>
-public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel }
+/// <summary>What stands in a yard (houses.json characters' <c>yard</c>, note 335): a fishing town's net loft and fish flake
+/// too (note 490).</summary>
+public enum YardKind : byte { Picket, Boards, Woodpile, Shed, Privy, Traps, Dory, Clothesline, Barrel, Loft, Flake }
 
 /// <summary>
 /// A thing in a house's yard, in the house's frame (u along its front from its middle, v in from its front): its footprint,

@@ -75,7 +75,8 @@
   // rest from anywhere; "uniform" is a company town's: one design for every house, its paint and its wear their own.
   // "yard" (ARCHITECTURE §8 note 335): the share of street houses with a picket fence out front, of back lines with a
   // board fence, how many things a yard keeps, and how often each is picked (woodpile, shed, privy, traps, dory,
-  // clothesline, barrel): a cove's yards are traps and an upturned dory, a farm's its woodpile and shed.
+  // clothesline, barrel; a fishing town's net loft and fish flake, note 490): a cove's yards are traps, an upturned dory and
+  // the flakes nobody's dried a catch on in years, a farm's its woodpile and shed.
   // "gear" (note 353; the director, 8 Oct 2026: the air is foul): what its people breathe through out of doors, each kind
   // weighted against the rest: "respirator" (a rubber half-mask, two cans), "oxygen" (a cup on a hose from a bottle on the
   // back), "rebreather" (a mine-rescue set: the mouthpiece, its hoses and the bag on the chest), "wrap" (a wool wrap with a
@@ -85,7 +86,7 @@
       "shingle": 0.65, "gableFront": 0.5, "dormers": 0.25, "ell": 0.35, "porch": 0.3, "shutters": 0.25, "fancy": 0.03,
       "storeys": [3, 4, 3, 0], "roofs": [8, 1, 1, 0], "paints": ["white", "teal", "butter", "dove", "barnRed", "sky"], "own": 0.75,
       "gear": { "wrap": 5, "respirator": 1, "oxygen": 1, "rebreather": 1 },
-      "yard": { "picket": 0.25, "boards": 0.6, "count": [1, 3], "things": { "traps": 5, "dory": 3, "woodpile": 3, "privy": 2, "clothesline": 2, "barrel": 2, "shed": 1 } } },
+      "yard": { "picket": 0.25, "boards": 0.6, "count": [1, 3], "things": { "traps": 5, "dory": 3, "woodpile": 3, "privy": 2, "clothesline": 2, "barrel": 2, "shed": 1, "loft": 2, "flake": 2 } } },
     { "id": "lunenburg", "name": "an old town of painted houses",
       "shingle": 0.12, "gableFront": 0.3, "dormers": 0.5, "ell": 0.3, "porch": 0.25, "shutters": 0.3, "fancy": 0.4, "bump": 0.3,
       "storeys": [0, 3, 5, 2], "roofs": [6, 1, 1, 1], "paints": ["periwinkle", "barnRed", "butter", "teal", "ochre", "white", "pink"], "own": 0.8,
@@ -95,7 +96,7 @@
       "shingle": 0.35, "gableFront": 0.45, "dormers": 0.3, "ell": 0.4, "porch": 0.15, "shutters": 0.5, "fancy": 0.08,
       "storeys": [0, 2, 6, 2], "roofs": [6, 2, 1, 1], "paints": ["maroon", "slate", "barnRed", "ochre", "white", "dove"], "own": 0.8,
       "gear": { "respirator": 2, "oxygen": 2, "wrap": 3 },
-      "yard": { "picket": 0.55, "boards": 0.8, "count": [1, 3], "things": { "woodpile": 3, "traps": 2, "dory": 1, "shed": 2, "clothesline": 2, "barrel": 2, "privy": 1 } } },
+      "yard": { "picket": 0.55, "boards": 0.8, "count": [1, 3], "things": { "woodpile": 3, "traps": 2, "dory": 1, "shed": 2, "clothesline": 2, "barrel": 2, "privy": 1, "loft": 1, "flake": 1 } } },
     { "id": "farm", "name": "a farm town",
       "shingle": 0.25, "gableFront": 0.25, "dormers": 0.3, "ell": 0.6, "porch": 0.4, "shutters": 0.2, "fancy": 0.06, "centreGable": 0.3,
       "storeys": [1, 6, 4, 0], "roofs": [6, 2, 3, 0], "paints": ["white", "barnRed", "sage", "butter", "dove"], "own": 0.7,
@@ -110,7 +111,7 @@
       "shingle": 0.35, "gableFront": 0.35, "dormers": 0.35, "ell": 0.4, "porch": 0.3, "shutters": 0.3, "fancy": 0.12, "bump": 0.1, "centreGable": 0.1,
       "storeys": [2, 4, 4, 1], "roofs": [7, 2, 2, 1], "paints": [], "own": 0,
       "gear": { "respirator": 3, "oxygen": 2, "rebreather": 1, "wrap": 2 },
-      "yard": { "picket": 0.5, "boards": 0.8, "count": [1, 3], "things": { "woodpile": 4, "shed": 2, "privy": 1, "traps": 1, "dory": 1, "clothesline": 2, "barrel": 2 } } }
+      "yard": { "picket": 0.5, "boards": 0.8, "count": [1, 3], "things": { "woodpile": 4, "shed": 2, "privy": 1, "traps": 1, "dory": 1, "clothesline": 2, "barrel": 2, "flake": 0.5 } } }
   ],
   // Which characters each trade's towns are drawn from, as often as each is listed (the fortress's identity, linegen
   // tiers.json "identities"). The coast runs past them all, so any of them may be a fishing cove too.

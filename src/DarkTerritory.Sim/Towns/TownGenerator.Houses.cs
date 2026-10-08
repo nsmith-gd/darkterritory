@@ -469,7 +469,8 @@ public static partial class TownGenerator
         if (room < 0.7 || h.Kind == HouseKind.Burnt)
             return things;
         int n = rng.RangeInclusive(odds.Count[0], odds.Count[1]) - (lived ? 0 : 1);
-        var kinds = new[] { YardKind.Woodpile, YardKind.Shed, YardKind.Privy, YardKind.Traps, YardKind.Dory, YardKind.Clothesline, YardKind.Barrel };
+        // (A fishing town's net loft and fish flake last: a character that keeps neither rolls its yard as it did. Note 490.)
+        var kinds = new[] { YardKind.Woodpile, YardKind.Shed, YardKind.Privy, YardKind.Traps, YardKind.Dory, YardKind.Clothesline, YardKind.Barrel, YardKind.Loft, YardKind.Flake };
         var picked = new List<(YardKind Kind, double L, double D, double H, int Variant)>();
         for (int i = 0; i < n; i++)
         {
@@ -482,6 +483,10 @@ public static partial class TownGenerator
                 YardKind.Traps => (1.0, 0.65, 1.0),
                 YardKind.Dory => (4.3, 1.4, 0.8),
                 YardKind.Barrel => (0.65, 0.65, 0.95),
+                // The net loft: a shed with a loft over it, its hoist beam out over the loft door. The fish flake: a rack of
+                // boughs on posts, knee-high, the fish split and laid on it to dry (note 490).
+                YardKind.Loft => (3.2, 2.6, 4.8),
+                YardKind.Flake => (3.6, 1.8, 0.95),
                 _ => (0, 1.2, 2.1),
             };
             var fits = kinds.Where(k => Size(k).D <= room && odds.Weight(k) > 0
