@@ -1533,6 +1533,32 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
+    // --toys [h]: the six toys as they're found at a stop (note 372), on the floor h m (default 1.6) under the eye, in an arc
+    // 1.5-2.2 m in front of it: the bear, the horse and the doll (body ids that pick each one's model, SceneArt.ToyModel),
+    // the squeaker, the music box and the drummer. With --lantern, as a crewmate's lamp finds them.
+    if (args.Contains("--toys"))
+    {
+        var ahead = camera.Forward with { Y = 0 };
+        var fwd = ahead.LengthSquared() > 1e-6f ? System.Numerics.Vector3.Normalize(ahead) : -System.Numerics.Vector3.UnitZ;
+        var side = System.Numerics.Vector3.Cross(fwd, System.Numerics.Vector3.UnitY);
+        double drop = args.SkipWhile(a => a != "--toys").Skip(1).FirstOrDefault() is { } given
+            && double.TryParse(given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 1.6;
+        double floor = camera.Position.Y - drop;
+        (int Id, DarkTerritory.Sim.Physics.ToyNoise Noise)[] toys =
+        [
+            (6, default), (1, default), (3, default),
+            (100, DarkTerritory.Sim.Physics.ToyNoise.Squeaker), (101, DarkTerritory.Sim.Physics.ToyNoise.MusicBox), (102, DarkTerritory.Sim.Physics.ToyNoise.Drummer),
+        ];
+        var foundToys = toys.Select((t, k) =>
+        {
+            float across = (k - 2.5f) * 0.42f, out_ = 1.5f + 0.7f * MathF.Abs(k - 2.5f) / 2.5f;
+            var at = camera.Position + new Double3(fwd.X * out_ + side.X * across, 0, fwd.Z * out_ + side.Z * across);
+            return new DarkTerritory.Sim.Physics.Body(t.Id, DarkTerritory.Sim.Physics.BodyKind.Toy, DarkTerritory.Sim.Player.PlayerState.World,
+                new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at with { Y = floor + 0.15 }, 1, 0.15)]))
+            { Noise = t.Noise, Yaw = Math.Atan2(-fwd.X, -fwd.Z) + (k - 2.5) * 0.35 };
+        });
+        scene.Bodies = [.. scene.Bodies ?? [], .. foundToys];
+    }
     // --strain x leans the cars out too, about their right-hand rail, as far as that strain leans them (note 370).
     IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
         ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
