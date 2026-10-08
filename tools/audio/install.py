@@ -200,6 +200,12 @@ FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": 
                 "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
 
 
+# A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
+# floor's rebuild is a candidate only: the director likes the car's boards as they are (build 1121, App. F.1: "on wood and
+# grates they're good").
+SURFACE_CHOICE = {f"crew-footsteps.{cue}.roof": "tin" for cue in ("walk", "run", "jump", "land", "scuff")}
+
+
 def pick(cands, mat, line_level, cue_name=None):
     here = [k for k in cands if k.get("mat") in (mat, None)]
     kept = [k for k in here if k.get("verdict") == "keep"]
@@ -209,7 +215,7 @@ def pick(cands, mat, line_level, cue_name=None):
     # of its own (a tell's takes go under its game name: tell_sounds).
     ok = [k for k in here if k.get("verdict") != "redo"]
     # (A cue with no first choice leaves the order alone: a library candidate has no key, and None isn't a choice.)
-    want = FIRST_CHOICE.get(cue_name)
+    want = SURFACE_CHOICE.get(f"{cue_name}.{mat}") or FIRST_CHOICE.get(cue_name)
     ok.sort(key=lambda k: (want is not None and k.get("key") != want, not k.get("built"), not k.get("old"), k.get("mat") is None))
     return ok[:1], "first"
 

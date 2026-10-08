@@ -3543,8 +3543,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Push-off into a jump: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Push-off into a jump: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -3571,7 +3571,7 @@
    }
   ],
   "takes": 3,
-  "sha": "e6ddd03fe786f0ee"
+  "sha": "d9ee419cf61a6c6f"
  },
  "crew-footsteps/jump/wood": {
   "cue": "crew-footsteps.jump",
@@ -3882,8 +3882,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Landing from a jump or drop: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Landing from a jump or drop: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -3910,7 +3910,7 @@
    }
   ],
   "takes": 3,
-  "sha": "b32c67d7ba5ce6b1"
+  "sha": "349b5b2d61388c85"
  },
  "crew-footsteps/land/wood": {
   "cue": "crew-footsteps.land",
@@ -4221,8 +4221,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Running: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Running: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4249,7 +4249,7 @@
    }
   ],
   "takes": 6,
-  "sha": "35b279aa360d5bb1"
+  "sha": "6ab60fe9a83fbfbc"
  },
  "crew-footsteps/run/wood": {
   "cue": "crew-footsteps.run",
@@ -4560,8 +4560,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Turning or stopping short: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Turning or stopping short: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4588,7 +4588,7 @@
    }
   ],
   "takes": 3,
-  "sha": "5c0fd491cc3281cd"
+  "sha": "a5965c13ce8416c0"
  },
  "crew-footsteps/scuff/wood": {
   "cue": "crew-footsteps.scuff",
@@ -4899,8 +4899,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Walking: boots on a car's tin roof",
-    "key": "boots",
+    "label": "Walking: boots on a car's tin roof: the sheet buckling and rattling",
+    "key": "tin",
     "sources": [
      "kenney_impact-sounds:impactPlate_light_000",
      "kenney_impact-sounds:impactPlate_light_001",
@@ -4927,7 +4927,7 @@
    }
   ],
   "takes": 6,
-  "sha": "8f1b4e451422032c"
+  "sha": "3e38882989e91899"
  },
  "crew-footsteps/walk/wood": {
   "cue": "crew-footsteps.walk",
