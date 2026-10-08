@@ -6866,6 +6866,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - a bad clamp, one derail and no second release;
         - the wrench heard at it, and once back on.
 
+486. **A stop hand goes round the train to its winch handle (queue #223, D1.3 for D1; found on #220's playthrough).** `dt playthrough --route frontier:7 --bots 2 --minutes 20 --insist cinderhound --seed 2` stood at the first stop, the Foundry (@5764), from about 433 s to 811 s. From 642 s a car fire started every 20 s.
+    - **The fires** are a pack of four aboard cars 5 and 6, which followed the train into the spur and boarded there, lighting each car they're on (`CinderHound.Feed`). With two bots nobody fights it or cuts it. That's D1.2's #221 (the pack fight and the cut), and the trace has gone to D1.2.
+    - **The stand** happens with `--no-enemies` too, so the hounds aren't its cause.
+      - The shunter, which is the gunner in a crew of two, is lent to the winch pair once the train's in (Winch0). Its handle is across the spur from where it came down.
+      - `StopHand.Crank` walked there by `WalkTo`, which routes round the train only on the walker's own side of the track. So it walked straight at car 3's side, up its side steps, onto the deck and off again, for six minutes.
+      - The winch turns only with both handles held, so the driver cranked alone and hauled nothing.
+    - **Now** `StopHand.OnFoot` takes the `FootPath` (which plans round the cars) whenever the target is across the track with the train standing between (`Across`), as well as for targets more than 10 m off. `Crank` walks by `OnFoot`, and says "to the winch" on the way.
+    - **Measured** (`dt harness --route frontier:7 --cars 6 --upkeep --seconds 1200`, against current main):
+
+      | Night | Winch sleds | Cargo delivered | Stop | km | Deaths |
+      |---|---|---|---|---|---|
+      | 2 bots, `--no-enemies`, seed 2 | 0 → 2 | 3.5 → 4.5 | 360 s → 376 s loading | 9.66 → 9.67 | 0 → 0 |
+      | 2 bots, `--insist cinderhound`, seed 2 | 0 → 1 | 0.31 → 2.34 (cars 1 → 5) | 377 s → 367 s loading | 7.33 → 9.69 | 1 → 0 |
+      | 4 bots, `--enemies`, seed 1 | 0 → 2 | 3.5 → 5 | 553 s → 534 s | 8.76 → 8.65 | 0 → 1 (Dragged, later in the night) |
+      | 4 bots, `--enemies`, seed 2 | 0 → 1 | 2.34 → 2.68 | 709 s → 565 s | 7.64 → 9.14 | 2 → 2 |
+      | 4 bots, `--enemies`, seed 3 | 0 → 2 | 3.5 → 5 | 554 s → 539 s | 8.12 → 8.82 | 0 → 0 |
+
+      So on main the Foundry's winch hauled nothing for a crew of four either.
+    - **Test:** `CrewOfTwoTests.ACrewOfTwosGunnerLentToTheWinchGoesRoundTheTrainToItsHandle` (frontier:7, seed 2, two bots, no enemies, 900 s): the stop's done and at least one sled hauled. It fails without the change. Sim 1383/1383; ClerkVoice, CrewAudio, Hud, LobbyBrowser and NetPlay 99/99.
+    - **Not yet:** the pack aboard a 2-bot train, which nobody fights or cuts (D1.2's #221).
+
 488. **The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28).** Since note 475 every open barn, outbuilding and goods shed, and each roofed length of a yard's shed or strongroom, hangs a lantern turned low. The Gaunt's roost was among them. The roost falls in a barn or outbuilding when it's the village's furthest building on foot, and in a yard shed or the strongroom at a stop with no village, which is most facilities: across local, frontier, deadLines and deepTerritory seeds 1 to 12, nearly every stop whose roost isn't a house has it in a yard shed or the hero, and deadLines nights put it in a barn at about one stop in two. A house the Gaunt nests in has no candle, and that dark is its tell (`TownKit.HouseLight`). A lit barn with the Gaunt asleep in it said the opposite.
     - **Its lanterns out** (`GreyboxScene.HouseInteriors`, `OpenHouse.Dark`): a barn, outbuilding, goods shed, yard shed or strongroom that `StopWalls.Nest` names keeps its Room (the moon stays out, and the room's own fill, note 475, still shows the walls close to) but hangs no lantern. A dark building among lit ones is where the Gaunt is, as a house with no candle is.
     - **Its nest** (`WorldArt.OpenShed`): in an open barn, outbuilding or goods shed, `RansackKit.Nest` lies on the boards where the Gaunt sleeps (the lair's place, its middle), as in a house.

@@ -61,6 +61,37 @@ public class CrewOfTwoTests
     }
 
     [Fact]
+    public void ACrewOfTwosGunnerLentToTheWinchGoesRoundTheTrainToItsHandle()
+    {
+        // Note 486: frontier:7's first stop (seed 2) has a winch whose handles are on the far side of the spur from where the
+        // shunter came down. Lent to the pair, it walked straight across at its handle, into car 3's side and up its steps,
+        // for the six minutes the driver cranked alone; the winch turns only with both handles held, and hauled nothing. By
+        // the foot path round the cars, it gets there, and the sleds come in.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(Tuning.Route.YardLength);
+        var report = Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 2,
+            Cars = 6,
+            Seconds = 900,
+            Seed = 2,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = Tuning.Run.DepartFrom(gate, Train.Consist.Uniform(Tuning.Train, 6, 1).LengthMetres),
+            Combat = Tuning.Combat,
+            Route = route,
+            Run = Tuning.Run,
+            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            YardLength = gate,
+            Holdouts = Tuning.Holdouts,
+        }, Tuning.Boiler);
+        // Done with it inside the 900 s, with the winch's sleds in. Without the way round, it isn't done in this time.
+        var stop = report.Stops!.FirstOrDefault(s => s.Legs.ContainsKey("Loading"));
+        Assert.True(stop is not null, $"the stop's not done by {report.Seconds} s");
+        Assert.True(stop.SledsHauled >= 1, $"{stop.SledsHauled} sleds hauled in {stop.Legs["Loading"]:0} s of loading");
+    }
+
+    [Fact]
     public void TheChoirFindsACrewOfTwosGunnerBehindAShutDoor()
     {
         // App. A.7: it seizes anyone outside or behind no shut door, and with the driver at the controls nobody can break it.
