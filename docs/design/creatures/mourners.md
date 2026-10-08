@@ -127,8 +127,8 @@ HOME      the body in a car of the train (or the train leaving) → they keen, a
   the starved waist, the ribs' cage leant back over it, the great hump of the shoulders and bunched upper arms, thin
   knobbed legs, the small skull pushed forward low between the shoulders, the brow, and the veil: a curtain of the face's
   own loose skin hanging over the eyes with a few ragged rags off its hem (they sway on the veil bone). Over it: three
-  two-boned hooked fingers and a thumb a hand, twice the palm's length, the nails curled under; three clawed toes; wet
-  black glints of eyes at the veil's edges. **6,298 triangles** (distance copy 2,518), stooped to 1.0 m.
+  thin, two-boned hooked fingers and a thumb a hand, twice the palm's length, the nails curled under; three clawed toes; wet
+  black glints of eyes at the veil's edges. **6,116 triangles** (distance copy 2,446), stooped to 1.0 m.
 - **Colour** (`tools/models/recipes/mourner.py`, one 2048 atlas): ash-pale, dry, crazed like old clay (the cracks baked
   into the normal map and darkened, a pale lifted rim along each), grey dust on whatever faces up, bruised grey-violet
   at the joints, grimed lower down and along the fingers; the veil darker and sallow; the nails dark horn.

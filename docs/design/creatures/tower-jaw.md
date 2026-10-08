@@ -129,16 +129,19 @@ NEVER     a bridge; it never boards the train
 ![Its threat: reared, the incisors bared, the tail up to slap](tower-jaw-threat.png)
 
 - **Model** (`tools/blender/tower_jaw.py`, SK_TowerJaw, 26 bones): one fused skin from the rump through the barrel of
-  the chest, the hump of the shoulders standing over the head, the thick neck, the blunt head (cheeks, square wet
-  muzzle, flews, black nose, small ears), the bear's forelegs down to broad shovel paws, the folded hind legs on webbed
-  feet and the tail's root out to its flat paddle. Over it: some 540 wet fur clumps slicked into spikes (combed back and
+  the chest, the hump of the shoulders standing over the head, the thick neck, the big blunt head (a broad flat skull,
+  puffed cheeks, a heavy rounded wet muzzle, flews, a big black nose, small round ears), the bear's forelegs down to
+  broad shovel paws, the folded hind legs on webbed feet and the tail's root out to its broad flat paddle, held up off
+  the ground so its scaled top shows from the side. Over it: some 540 wet fur clumps slicked into spikes (combed back and
   down the way the fur lies, hanging under the belly), 80 timber splinters driven in at all angles, a ridge of black
-  splintered spines from the nape to the rump (tallest over the hump), two iron-dark chisel incisors as long as a
-  forearm (chipped), plank claws, small black eyes. **15,382 triangles** (distance copy 6,139), about 1.6 m at the hump
+  splintered spines from the nape to the rump (tallest over the hump), two broad flat chisel-ended incisors as long as a
+  forearm hanging well below the lip, plank claws, small black eyes high on the skull. **15,528 triangles** (distance
+  copy 6,199), about 1.6 m at the hump
   and 2.2 m to the spines' tips.
 - **Colour** (`tools/models/recipes/tower_jaw.py`, one 2048 atlas): dark brown soaked fur with lighter clump tips and black
   hollows, charred round the spines' roots; the spines black char split by cracks that glow ember-red (an emission map);
-  the incisors iron-dark with rust run down them and bare metal at their chipped ends; dark wet muzzle and paws, a black
+  the incisors orange-brown (a beaver's, stained: G1's review), darker streaks run down them, paler at their chipped
+  chisel ends; dark wet muzzle and paws, a black
   glistening nose; a dark scaled tail; weathered splinters pale where they snapped; old dark timber claws.
 - **Clips**: gnaw (side-on, the head turned to the post and wrenching, the jaw working; chips fly), turn (head up,
   listening), threat (reared, incisors bared, the tail raised and slammed flat), lunge, retreat (a humping lope), hit,
