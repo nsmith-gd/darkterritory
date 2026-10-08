@@ -70,15 +70,19 @@ public static class CrewActs
             && (e.WorldPosition(world.Train) - at).Length < StressRange);
 
     /// <summary>Who has hold of them (App. A.1 GRAB), as the pose that says so from across the car.</summary>
-    static CrewPose HeldBy(int id, World world) =>
-        world.ActiveEnemies.FirstOrDefault(e => e.Holding == id)?.Kind switch
+    static CrewPose HeldBy(int id, World world) => HeldPose(world.ActiveEnemies.FirstOrDefault(e => e.Holding == id)?.Kind);
+
+    /// <summary>The pose someone held by a <paramref name="kind"/> is drawn in (App. A.1 GRAB).</summary>
+    public static CrewPose HeldPose(EnemyKind? kind) =>
+        kind switch
         {
             EnemyKind.Dragger => CrewPose.HeldHang,
             EnemyKind.CarHugger => CrewPose.HeldMouth,
             EnemyKind.Whistler => CrewPose.HeldCarried,
             EnemyKind.TippyToesie => CrewPose.HeldCover,
             EnemyKind.Ribbit => CrewPose.HeldFrozen,
-            EnemyKind.SootChildren => CrewPose.HeldPinned,
+            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311.)
+            EnemyKind.SootChildren or EnemyKind.Moose => CrewPose.HeldPinned,
             EnemyKind.Choir => CrewPose.HeldSeized,
             EnemyKind.Passenger => CrewPose.HeldDragged,
             _ => CrewPose.Held,
@@ -247,7 +251,7 @@ public static class CrewActs
             if (world.Run is { } run && run.LeverInReach(s, train))
                 return CrewPose.Chute;
         }
-        if (world.Run is { } r && r.SpoutLeverInReach(s, train) is not null)
+        if (world.Run is { } r && (r.SpoutLeverInReach(s, train) is not null || r.LiftLeverInReach(s, train) is not null))
             return CrewPose.Spout;
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return null;

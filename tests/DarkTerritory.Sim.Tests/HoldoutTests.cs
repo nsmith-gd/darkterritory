@@ -594,7 +594,7 @@ public class HoldoutTests
         var shape = world.Train.Frames[1].Shape;
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
         // In the fitter's locker (note 173): inside its cabinet, and no other solid.
-        Assert.Equal("FITTER", shape.Lockers[kit.Locker].Name);
+        Assert.Equal("8", shape.Lockers[kit.Locker].Name);
         Assert.DoesNotContain(shape.Solids, s => s.Box.Contains(kit.Centre) && s.Box != shape.Lockers[kit.Locker].Box);
     }
 

@@ -46,7 +46,7 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
 /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
 /// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk }
+public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -435,8 +435,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // (Up through the hood's roof, note 338.)
             new(new Box(new Double3(-0.35, e.BoilerTop, plan.StackZ - 0.35), new Double3(0.35, g.EngineHeight + 0.7, plan.StackZ + 0.35)), SurfaceKind.Roof, PartKind.Stack),
             new(new Box(new Double3(-w - 0.1, roof, cabFront), new Double3(w + 0.1, g.EngineHeight, cabBack)), SurfaceKind.Roof, PartKind.CabRoof),
-            // The coal bunker, in the cab against its left wall (note 276).
+            // The coal bunker in the cab's front left corner, and the firebox against the front wall beside it (note 280).
             new(plan.Bunker, SurfaceKind.Deck, PartKind.Tender),
+            new(plan.Firebox, SurfaceKind.Deck, PartKind.Firebox),
         };
         // The cab's front: waist-high under its windows, the driver's console behind it; pillars at its corners hold the
         // roof, and the windows between them are the driver's view of the line.
@@ -457,6 +458,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             double b0 = side < 0 ? -w + 0.1 : e.BoilerHalfWidth, b1 = side < 0 ? -e.BoilerHalfWidth : w - 0.1;
             solids.Add(new(new Box(new Double3(b0, deck + g.Doorway.Height, cabBack - 0.15), new Double3(b1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
         }
+        // ... and across it (note 280: the firebox is at the front now; the boiler's end is plated over).
+        solids.Add(new(new Box(new Double3(-e.BoilerHalfWidth, deck, cabBack - 0.15), new Double3(e.BoilerHalfWidth, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
         // The hood (note 338; the director's silhouette, 7 Oct 2026: "This is a bulky survival train not a dainty city tram"):
         // armour the engine's whole length behind the cab, its sides flush with the cab's and a roof at the cab roof's
         // height, walked on as one with it. The walkway either side of the boiler runs inside it, a corridor from the deck
@@ -501,15 +504,19 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             ladders.Add(new Ladder(new Double3(g.EndLadderX, 0, l + 0.1), g.EngineHeight, new Double3(0, 0, -1)));
 
         var bunker = plan.Bunker;
+        var firebox = plan.Firebox;
         var interactables = new List<Interactable>
         {
-            // The firebox door, in the cab's back wall (the boiler's end), worked from the footplate in front of it.
-            new(InteractableKind.Firebox, new Double3(0, deck, cabBack - 0.35), 1.1, Aim: 0.7),
-            // The coal at the bunker's face, a quarter turn from the fire door: a fireman between them reaches both.
-            new(InteractableKind.Coal, new Double3(bunker.Max.X + 0.1, deck, bunker.Max.Z - 0.4), 1.0, Aim: 0.5),
+            // The firebox door, on the firebox's face against the cab's front wall (note 280), worked from behind it, facing
+            // forward: the line in view over it.
+            new(InteractableKind.Firebox, new Double3(firebox.Centre.X, deck, firebox.Max.Z + 0.2), 1.1, Aim: 0.55),
+            // The coal at the bunker's face beside it, a half step to the left: one person between the console and the bunker
+            // reaches the coal, the fire and the controls without turning round.
+            new(InteractableKind.Coal, new Double3(bunker.Max.X + 0.1, deck, firebox.Max.Z + 0.4), 1.0, Aim: 0.5),
             // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab, so one player works it all from
-            // the footplate; on the left, ahead of the bunker, clear of where the firebox is worked from.
-            new(InteractableKind.Vent, new Double3(-w + 0.3, deck, bunker.Min.Z - 0.6), 0.6),
+            // the footplate; note 280, on the right side wall a step behind the console, its pipe up the side window's post
+            // and out of the line's view (the front windows stay clear).
+            new(InteractableKind.Vent, new Double3(w - 0.25, deck, cabFront + 0.15 + (doorFront - cabFront - 0.15) / 3), 0.6, Aim: 1.15),
             // The tool rack on the right side, the driver's (T109): the wrench, a tool to swing.
             new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.4), 0.6, Aim: 1.2),
             // The powered switch thrower's lever (spec F.3, note 196), on the driver's side behind the tool rack: clear of the
@@ -527,9 +534,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, roof, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
 
-        // Forward gun on the cab roof, reached by a hatch ladder up from the cab floor in its front left corner.
+        // Forward gun on the cab roof, reached by a hatch ladder up from the cab floor behind the bunker (note 280: the front
+        // left corner's the coal's now).
         var mount = new Double3(0, g.EngineHeight, cabFront + 0.8);
-        ladders.Add(new Ladder(new Double3(-w + 0.45, deck, cabFront + 0.4), g.EngineHeight, new Double3(0, 0, 1)));
+        ladders.Add(new Ladder(new Double3(-w + 0.45, deck, bunker.Max.Z + 0.45), g.EngineHeight, new Double3(0, 0, 1)));
         // The driver's side is the right, at the front windows: the regulator on the console before them, the brake valve
         // on the cab side ahead, and the reverser standing from the floor beside them. Each comes back (+Z) towards the
         // driver as it's worked, as on the backhead it was.
@@ -554,10 +562,11 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 }
 
 /// <summary>
-/// The cab-forward engine's plan (ARCHITECTURE §8 note 276) in its frame, from train.json: where the cab's front windows and
-/// back wall are, where its doorways start, the coal bunker, and the stack. The sim, the bots and the art all read it here.
+/// The cab-forward engine's plan (ARCHITECTURE §8 notes 276, 280) in its frame, from train.json: where the cab's front
+/// windows and back wall are, where its doorways start, the coal bunker and the firebox at its front, and the stack. The
+/// sim, the bots and the art all read it here.
 /// </summary>
-public readonly record struct EnginePlan(double Half, double CabFront, double CabBack, double DoorFront, Box Bunker, double StackZ)
+public readonly record struct EnginePlan(double Half, double CabFront, double CabBack, double DoorFront, Box Bunker, double StackZ, Box Firebox)
 {
     public static EnginePlan Of(GeometryTuning g)
     {
@@ -566,12 +575,15 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
         double cabFront = -l + e.PilotLength, cabBack = cabFront + e.CabLength;
         // Each side's doorway at the back of the cab, inside the back corner pillar.
         double doorFront = cabBack - 0.15 - g.Doorway.Width;
-        // Against the left wall, from just ahead of the left doorway forward.
-        var bunker = new Box(new Double3(-w + 0.1, e.DeckHeight, doorFront - 0.05 - e.BunkerLength),
-            new Double3(-w + 0.1 + e.BunkerDepth, e.DeckHeight + e.BunkerHeight, doorFront - 0.05));
+        // Note 280: the front of the cab is the work. In its front left corner, the coal bunker back along the left wall;
+        // against the front wall beside it, the firebox under the window sill; the driver's console under the right window.
+        double wall = cabFront + 0.15;
+        var bunker = new Box(new Double3(-w + 0.1, e.DeckHeight, wall), new Double3(-w + 0.1 + e.BunkerDepth, e.DeckHeight + e.BunkerHeight, wall + e.BunkerLength));
+        double fx = bunker.Max.X + 0.02;
+        var firebox = new Box(new Double3(fx, e.DeckHeight, wall), new Double3(fx + e.FireboxWidth, e.DeckHeight + e.FireboxHeight, wall + e.FireboxDepth));
         // The stack over the smokebox, near the boiler's rear end.
         double stackZ = l - CarShape.BoilerToEnd - 1.25;
-        return new(l, cabFront, cabBack, doorFront, bunker, stackZ);
+        return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox);
     }
 
     /// <summary>How far behind the engine's front the coal bunker's middle is: where a coaling spout pours (spec D.4).</summary>

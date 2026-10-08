@@ -70,9 +70,13 @@ public static partial class TownGenerator
         var quirks = Take(w.Quirks, Rng("quirks").RangeInclusive(t.Quirks[0], t.Quirks[1]), Rng("quirks.pick"));
         var industry = w.Industries.TryGetValue(site.Industry, out var ind) ? ind : null;
 
-        // How many live here now, and how many did (the director, 7 Oct: 20 to 350; every town has lost people).
+        // How many live here now, and how many did (the director, 7 Oct: 20 to 350, then up to 3000; every town has lost people).
         var prng0 = Rng("population");
-        int population = prng0.RangeInclusive(t.Population[0], t.Population[1]);
+        // Most towns small, a few big (towns.json populationPower): u to a power, by multiplying (no Math.Pow in the Sim).
+        double draw = prng0.NextDouble(), skew = draw;
+        for (int i = 1; i < t.PopulationPower; i++)
+            skew *= draw;
+        int population = t.Population[0] + (int)Math.Round((t.Population[1] - t.Population[0]) * skew);
         int former = (int)Math.Round(population * prng0.Range(t.Former[0], t.Former[1]));
 
         // The square, beside the engine as the night starts (towns.json "square").
@@ -147,11 +151,12 @@ public static partial class TownGenerator
         spots.AddRange(homes.Residents);
         // Out of doors at night, a lantern in hand, in front of their own houses nearest the square: one in t.Outdoors.
         var lived = homes.Houses.Where(h => h.Kind == HouseKind.Lived).ToList();
-        int outdoors = Math.Min(lived.Count, (int)Math.Round(population / Math.Max(1, t.Outdoors)));
+        int outdoors = Math.Min(Math.Min(lived.Count, t.OutdoorsMax), (int)Math.Round(population / Math.Max(1, t.Outdoors)));
         for (int i = 0; i < outdoors; i++)
         {
             var h = lived[i];
-            spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 1.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
+            // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth).
+            spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 2.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
         }
 
         // Who they are: a name each, a household's sharing its surname.
@@ -297,7 +302,7 @@ public static partial class TownGenerator
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
         return new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
-            industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures);
+            industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds);
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class

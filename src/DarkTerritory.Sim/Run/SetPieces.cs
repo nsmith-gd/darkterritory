@@ -60,6 +60,33 @@ public sealed partial class Run
         return null;
     }
 
+    /// <summary>The cargo car (in any rake) whose middle is under the steam lift's chute, within its tolerance; null if none.</summary>
+    public Vehicle? CarUnderChute(TrainOnLine train, Site site) =>
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Lift) ? null
+        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.LiftChute) <= t.Lift.Tolerance)
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.LiftChute)).FirstOrDefault();
+
+    /// <summary>A steam lift with ore left down its shaft, within reach of its lever (on foot).</summary>
+    public Site? LiftLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    {
+        if (Over || !s.Alive || s.Parent != PlayerState.World || _facilityTuning is not { } t)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, train);
+        foreach (var site in _sites)
+            if (site is { Ore: > 0 } && site.Has(ModuleKind.Lift)
+                && PlayerMotor.Grips(s, train, hand, site.LiftLever, (at - site.LiftLever).Length <= t.Lift.LeverReach))
+                return site;
+        return null;
+    }
+
+    /// <summary>
+    /// Whether the engine stands near enough the steam lift for its steam line (spec D.2 "the locomotive coupled nearby"): its
+    /// middle within facilities.json <c>lift.steamReach</c> of the chute. Its steam comes when the cab's vent is held open.
+    /// </summary>
+    public bool EngineInReach(TrainOnLine train, Site site) =>
+        _facilityTuning is { } t && site.Has(ModuleKind.Lift) && train.Vehicles.FirstOrDefault(v => v.Kind == VehicleKind.Engine) is { } engine
+        && engine.Id < train.Frames.Count && Flat(train.Frames[engine.Id].Origin - site.LiftChute) <= t.Lift.SteamReach;
+
     /// <summary>In the pen of a herd with head left in it (on foot): where you drive them from.</summary>
     public Site? InPen(in PlayerState s, TrainOnLine train)
     {
@@ -108,6 +135,8 @@ public sealed partial class Run
         bool use = intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5;
         if (use && SpoutLeverInReach(s, train, hand) is { } spout && (spout.Pourer < 0 || playerId < spout.Pourer))
             spout.Pourer = playerId;
+        if (use && LiftLeverInReach(s, train, hand) is { } lift && (lift.Winder < 0 || playerId < lift.Winder))
+            lift.Winder = playerId;
         if (use && InPen(s, train) is { } pen)
             pen.Herders.Add(playerId);
         if (AtHoseStand(s, train) is not { } stand)
@@ -197,6 +226,8 @@ public sealed partial class Run
             var cargo = site.Feature.Facility is { } kind ? t.CargoOf(kind) : CargoKind.Goods;
             if (site.Has(ModuleKind.Spout))
                 Pour(train, site, t.Spout, cargo, dt);
+            if (site.Has(ModuleKind.Lift))
+                Lift(train, site, t.Lift, cargo);
             if (site.Has(ModuleKind.Ramp))
                 Drive(train, site, t.Ramp, cargo, dt);
             if (site.Has(ModuleKind.Hose))
@@ -230,6 +261,41 @@ public sealed partial class Run
             car.Cargo = cargo;
         }
         car.Integrity = Math.Max(0, car.Integrity - (pour - taken) * sp.OverfillDamagePerLoad);
+    }
+
+    /// <summary>
+    /// The steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it. 2 crew. Ties loading
+    /// directly to the boiler; you're at zero pressure while it runs"; note 368). With someone holding its lever, the engine
+    /// in its steam line's reach and the cab's vent held open, the vented steam winds the skip up the shaft instead of into the
+    /// air: every point of pressure is 1/<c>steamPerSkip</c> of a wind. Wound, the skip tips its ore down the chute: into the car
+    /// under it, if there's one with room; onto the ballast if not; a full car under it overflows, which strains it, as the
+    /// spout's does. The boiler pays the vent's own rate (boiler.json <c>ventRate</c>), so loading empties it.
+    /// </summary>
+    void Lift(TrainOnLine train, Site site, LiftTuning l, CargoKind cargo)
+    {
+        // This tick's venting (the boiler's step has run): the vent's full rate while there's pressure, and with the gauge run down
+        // to nothing, what the fire's making ("you're at zero pressure while it runs", and it runs at the fire's pace).
+        double steam = train.BoilerTuning is not null && train.Boiler.Vented ? train.Boiler.VentedSteam : 0;
+        site.LeverHeld = !Over && site.Winder >= 0;
+        site.Winding = site.LeverHeld && site.Ore > 1e-9 && steam > 0 && EngineInReach(train, site);
+        site.Winder = -1;
+        if (!site.Winding)
+            return;
+        site.Wind += steam / l.SteamPerSkip;
+        if (site.Wind < 1)
+            return;
+        site.Wind = 0;
+        double skip = Math.Min(l.PerSkip, site.Ore);
+        site.Ore = Math.Max(0, site.Ore - skip);
+        if (CarUnderChute(train, site) is not { } car)
+            return; // on the ballast
+        double taken = Math.Min(skip, Math.Max(0, 1 - car.Load));
+        if (taken > 0)
+        {
+            car.Load += taken;
+            car.Cargo = cargo;
+        }
+        car.Integrity = Math.Max(0, car.Integrity - (skip - taken) * l.OverfillDamagePerLoad);
     }
 
     /// <summary>

@@ -1613,9 +1613,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
 
     /// <summary>
     /// A Climber got into the cab (App. A.4): it takes whoever comes within its reach, and stays while anyone's in the cab
-    /// (the Deadman's there for an empty one). So nobody leaves: the driver and fireman keep to the cab's front corners
-    /// (<paramref name="side"/>: +1 the driver's right), out of its reach, working the controls and the firebox from there.
-    /// The controls and the fire as the intent had them; only where it stands changes.
+    /// (the Deadman's there for an empty one). So nobody leaves: the driver and a second hand keep to the cab's free corners
+    /// (<paramref name="side"/>: +1 the driver's, the front right by the console; −1 the back left by the doorway, the front
+    /// left being the coal's, note 280), out of its reach. The controls as the intent had them; only where it stands changes.
     /// </summary>
     static PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
     {
@@ -1623,7 +1623,7 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (!self.Alive || !PlayerMotor.InCab(self, train) || !world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
             return intent;
         var cab = train.Frames[0].Shape.Cab!.Value;
-        var corner = new Double3(side * (cab.Max.X - 0.45), 0, cab.Min.Z + 0.45);
+        var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
         var (step, _) = WarmUp.Steer(self, corner, 0);
         return intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
     }
@@ -1791,8 +1791,8 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     static Double3[] VentWay(TrainOnLine train)
     {
         var vent = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Vent).Position;
-        // T109: the vent's in the cab, on its left side: a step across to it.
-        return [vent with { X = vent.X + 0.25 }];
+        // T109: the vent's in the cab; note 280, on the right side wall a step behind the console: a step across to it.
+        return [vent with { X = vent.X - 0.4 }];
     }
 
     /// <summary>The way to the right-hand sandbox, in the engine's frame: in the doorway, out onto the board, along it, at the box.</summary>
@@ -1917,17 +1917,21 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         return allowed;
     }
 
-    /// <summary>Where it stands to fire (engine frame): this far to its side of the firebox door, and this far out from it into the cab.</summary>
-    const double FiringSide = 0.35, FiringOut = 0.4;
+    /// <summary>
+    /// Where it stands to fire (engine frame): its middle this far right of the firebox door (towards the console, away from
+    /// the bunker beside it), this far to its side of that, and this far back from the door into the cab.
+    /// </summary>
+    const double FiringRight = 0.15, FiringSide = 0.25, FiringOut = 0.4;
 
     /// <summary>
-    /// Its firing place, <paramref name="side"/> of the firebox door (+1 the driver's right): out from the door into the cab.
-    /// Cab forward (note 276), the firebox is in the cab's back wall, so that's forward (−Z) of it.
+    /// Its firing place, <paramref name="side"/> of the firebox door (+1 the driver's right): back from the door into the
+    /// cab. The firebox is against the cab's front wall (note 280), so that's behind (+Z) it, facing forward, the coal at its
+    /// left hand and the console at its right.
     /// </summary>
-    internal static Double3 FiringSpot(Double3 firebox, int side) => new(side * FiringSide, 0, firebox.Z - FiringOut);
+    internal static Double3 FiringSpot(Double3 firebox, int side) => new(firebox.X + FiringRight + side * FiringSide, 0, firebox.Z + FiringOut);
 
-    /// <summary>The look that faces the firebox door from <see cref="FiringSpot"/>: back down the engine (+Z), cab forward.</summary>
-    internal const double FacingFire = Math.PI;
+    /// <summary>The look that faces the firebox door from <see cref="FiringSpot"/>: forward (−Z), down the line.</summary>
+    internal const double FacingFire = 0;
 
     /// <summary>At a stand, the gauge it fires to hold: comfortably over the Stoker's low-pressure mark (enemies.json, 40).</summary>
     const double StandingPressure = 60;
@@ -2034,7 +2038,9 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
             // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
-            if (CrewActions.Nearest(self, train) == InteractableKind.Firebox)
+            // Not while still walking in: Use and forward is a climb (T90), and note 280's hatch ladder stands behind the
+            // bunker, on the way to the fire from the back of the cab.
+            if (CrewActions.Nearest(self, train) == InteractableKind.Firebox && (there || step.MoveZ <= 0.5))
                 intent.Buttons |= PlayerButtons.Use;
             if (!there)
                 intent = intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
@@ -2155,7 +2161,7 @@ public static class KitRun
     }
 
     /// <summary>
-    /// Out of the engine (cab forward, note 276): back down the middle of the cab past the coal bunker on the left wall; left
+    /// Out of the engine (cab forward, notes 276 and 280): back down the middle of the cab from its work at the front; left
     /// to the doorway at the cab's back corner; out onto the left running board; back along it beside the boiler; in onto the
     /// rear deck past the smokebox; the footplate off it; the plate at car 1's door. Each point's further back than the last
     /// (the way out takes the next one that is, more than <see cref="RouteStep"/> on).
@@ -2726,7 +2732,7 @@ public static class Heed
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
             || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
-            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null || world.Switches?.InReach(self, world.Train, world.Hand) is not null)
             return intent;
         return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
     }

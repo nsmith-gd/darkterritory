@@ -3,6 +3,7 @@ using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -82,7 +83,7 @@ public class HudTests
         {
             var p = PlayerMotor.SpawnInCab(train, s.PlayerTuning);
             var thing = train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
-            // On the cab's side of it (cab forward, note 276: the firebox is in the back wall, the cab ahead of it).
+            // On the cab's side of it (note 280: the firebox at the front, the cab behind it).
             double into = Math.Sign(train.Frames[0].Shape.Cab!.Value.Centre.Z - thing.Z);
             p.Position = thing with { Y = p.Position.Y, Z = thing.Z + 0.4 * into };
             return p;
@@ -120,13 +121,13 @@ public class HudTests
         // [E]", and not that it's loud: that's learned); the vent's one key is in the corner with the brake's, and held, the
         // prompt says it's venting.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        // (Cab forward, note 276: the cord at the driver's end, the firebox at the fireman's; each read where it's worked.)
+        // (Note 280: the cord in the driver's front corner, the firebox at the front beside it; each read where it's worked.)
         var shape = s.Train.Frames[0].Shape;
         var firebox = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox);
         var cord = shape.Interactables.First(i => i.Kind == InteractableKind.Whistle);
         s.Player = LookingAt(s, cord.Position + new Double3(-0.3, 0, 0.4), InteractableKind.Whistle);
         Assert.Equal("PULL CORD : [E]", Hud.Prompt(s));
-        s.Player = LookingAt(s, firebox.Position + new Double3(0.35, 0, -0.45), InteractableKind.Firebox);
+        s.Player = LookingAt(s, firebox.Position + new Double3(0.15, 0, 0.45), InteractableKind.Firebox);
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
         var (head, lines) = Hud.Hints(s);
@@ -163,7 +164,10 @@ public class HudTests
     /// action does: "consequences need to be learned". Every key is the action's (after " : "), and nothing says loud, quiet,
     /// faster, slower, what mends what, or who hears.
     /// </summary>
-    static void AssertShort(string? prompt)
+    static void AssertShort(string? prompt) => AssertForm(prompt, 48);
+
+    /// <summary>Note 285's form: every key an action's (or a choice's) and nothing foretold; at most <paramref name="longest"/> characters.</summary>
+    static void AssertForm(string? prompt, int longest)
     {
         if (prompt is null)
             return;
@@ -175,7 +179,57 @@ public class HudTests
         }
         foreach (string foretold in new[] { "LOUD", "QUIET", "SILENT", "FASTER", "SLOWER", "NEEDS", "MENDS", "HEARS", "KEEP AT IT", "GET CLEAR", "BRING", "WHEN THE" })
             Assert.DoesNotContain(foretold, prompt);
-        Assert.True(prompt.Length <= 48, $"too long ({prompt.Length}): {prompt}");
+        Assert.True(prompt.Length <= longest, $"too long ({prompt.Length}): {prompt}");
+    }
+
+    [Fact]
+    public void TheCommendationPickerAndTheSkipSayTheActionAndItsKey()
+    {
+        // Note 369: the last two lines that put the key first, in note 285's form.
+        var pick = ("ADA", "CAME BACK FOR ME", false);
+        Assert.Equal("ADA : [LEFT/RIGHT]   CAME BACK FOR ME : [UP/DOWN]   COMMEND : [SPACE]", Hud.CommendLine(pick, headset: false));
+        Assert.Equal("ADA : [STICK LEFT/RIGHT]   CAME BACK FOR ME : [STICK UP/DOWN]   COMMEND : [CLICK STICK]", Hud.CommendLine(pick, headset: true));
+        Assert.Equal("YOU COMMENDED ADA: CAME BACK FOR ME", Hud.CommendLine(pick with { Item3 = true }, headset: false));
+        foreach (bool headset in new[] { false, true })
+            AssertForm(Hud.CommendLine(pick, headset), 96);
+        // Along the foot of the report in fine print, at every TEXT SIZE's canvas (480, 384, 320 wide) in a 720p and a 1080p
+        // window, and on a headset's panel (480 wide at two pixels, whatever the TEXT SIZE): every line inside the frame, a
+        // name with the most letters a name can have (Messages.NameLength) cut short or on two lines, given or not.
+        var o = new Overlay();
+        var bart = ("BARTHOLOMEW FENWICKE", "LAST ONE STANDING", false);
+        Assert.Equal(DarkTerritory.Sim.Net.Messages.NameLength, bart.Item1.Length);
+        var screens = new[] { 480, 384, 320 }.SelectMany(c => new[] { (c, 1280f / c, false), (c, 1920f / c, false) }).Append((480, 2f, true));
+        foreach (var (canvas, pixels, headset) in screens)
+            foreach (var who in new[] { pick, bart, bart with { Item3 = true } })
+            {
+                float fine = Hud.PromptScaleAt(pixels);
+                var lines = Hud.CommendLines(o, who, headset, canvas, fine);
+                Assert.InRange(lines.Count, 1, 2);
+                foreach (string line in lines)
+                {
+                    Assert.True(UiStyle.MeasureKeyed(o, line, fine) <= canvas - 12, $"{canvas} wide at {fine}: {line}");
+                    AssertForm(line, 128);
+                }
+            }
+        // A short name whole on one line at 1080p, and at 720p; the longest cut short at 720p, on one line at 100% (the
+        // report's room kept) and over COMMEND at 125%, where no name would go on one.
+        Assert.Equal([Hud.CommendLine(pick, false)], Hud.CommendLines(o, pick, false, 480, Hud.PromptScaleAt(4)));
+        Assert.Equal([Hud.CommendLine(pick, false)], Hud.CommendLines(o, pick, false, 480, Hud.PromptScaleAt(1280f / 480)));
+        Assert.Equal(["BARTHOLOMEW. : [LEFT/RIGHT]   LAST ONE STANDING : [UP/DOWN]   COMMEND : [SPACE]"],
+            Hud.CommendLines(o, bart, false, 480, Hud.PromptScaleAt(1280f / 480)));
+        var narrow = Hud.CommendLines(o, bart, false, 384, Hud.PromptScaleAt(1280f / 384));
+        Assert.Equal(2, narrow.Count);
+        Assert.StartsWith("BARTHOLOMEW", narrow[0]);
+        Assert.Equal("COMMEND : [SPACE]", narrow[1]);
+
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        Assert.Equal("SKIP : HOLD [SPACE]", Hud.SkipLine(s));
+        AssertShort(Hud.SkipLine(s));
+        // Under the crew's vote (wreck.json skip.own false), the votes so far.
+        s.World.WreckTuning = s.World.WreckTuning with { Skip = s.World.WreckTuning.Skip with { Own = false } };
+        s.World.FilmVotes = (2, 5);
+        Assert.Equal("SKIP : HOLD [SPACE]   2/5", Hud.SkipLine(s));
+        AssertShort(Hud.SkipLine(s));
     }
 
     [Fact]
@@ -229,11 +283,11 @@ public class HudTests
             Yaw = bay.Facing * Math.PI / 2,
         };
         Assert.False(s.Train.Vehicles[car].LockerOpen(bay.Index));
-        // Note 301: the kit's gone, so the fitter's locker stands empty.
-        Assert.Equal("THE FITTER'S LOCKER: EMPTY   OPEN : [E]", Hud.Prompt(s));
-        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        // Note 301: the kit's gone, so locker 8 stands empty.
+        Assert.Equal("LOCKER 8: EMPTY   OPEN : [E]", Hud.Prompt(s));
+        var lamp = Assert.Single(Lockers.Contents(s.World.Bodies, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
         Assert.Equal(DarkTerritory.Sim.Physics.BodyKind.Lamp, lamp.Kind);
-        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "DRIVER").Index));
+        Assert.Equal("THE LAMP", Hud.Holding(s.World, car, s.Train.Frames[car].Shape.Lockers.First(b => b.Name == "1").Index));
     }
 
     [Fact]
@@ -271,6 +325,63 @@ public class HudTests
             s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.True(s.Train.Diverging(0));
         Assert.Equal("THROW TO THE MAIN LINE : HOLD [E]", Hud.Prompt(s));
+    }
+
+    [Fact]
+    public void AtAStandThePromptIsTheLeversWhateversInYourHandsOrLyingByIt()
+    {
+        // Queue #94 (note 357): Use is the lever's at a stand, so the prompt was wrong to offer the crate lying by it, and
+        // to say nothing while a lamp was in hand.
+        var route = Enumerable.Range(1, 20).Select(seed => DarkTerritory.Sim.Route.RouteGenerator.Generate(
+            DarkTerritory.Sim.Route.RouteTuning.Load(Content),
+            DarkTerritory.Sim.Route.RouteTier.Frontier, (ulong)seed)).First(r => r.Branches.Count > 0);
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var stands = s.World.Switches!;
+        var line = s.Train.Line;
+        var lever = stands.LeverAt(line, 0);
+        var toe = line.Sample(line.Branches[0].Toe);
+        var right = Double3.Cross(toe.Tangent, Double3.Up).Normalized;
+        s.Player = PlayerMotor.SpawnOnGround(lever - Double3.Up * 0.9 + right * (line.Branches[0].Side * 0.8), line, line.Branches[0].Toe, s.PlayerTuning);
+        int me = ((IPlaySession)s).PlayerId;
+        var feet = PlayerMotor.WorldPosition(s.Player, s.Train);
+
+        var crate = s.World.Bodies.SpawnCargo(feet + new Double3(0, 0, -0.6), line.Branches[0].Toe);
+        Assert.Same(crate, s.World.Bodies.InReach(s.Player, s.Train));
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+
+        crate.Pbd.Particles[0].Position = feet + right * 40;
+        var lamp = s.World.Bodies.SpawnItem(feet, line.Branches[0].Toe, BodyKind.Lamp);
+        lamp.Carrier = me;
+        Assert.Equal("THROW TO THE DEAD LINE : HOLD [E]", Hud.Prompt(s));
+        for (int i = 0; i < (stands.Tuning.ThrowSeconds + 0.2) * DarkTerritory.Sim.SimConstants.TickRate; i++)
+            s.Step(new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(s.Train.Diverging(0));
+        Assert.Equal(me, lamp.Carrier);
+    }
+
+    [Fact]
+    public void AtTheSteamLiftsLeverThePromptSaysTheCarUnderTheChuteAndTheCabSaysWhereTheSteamsGoing()
+    {
+        // Queue #105 (note 368): the lever, the car under the chute, the skip winding while the engine vents into it.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.MineHead)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var spur = s.Train.Line.Branches[site.Spur];
+        var consist = s.Train.Dynamics.Consist;
+        var state = s.Train.Capture();
+        s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.Toe + site.LiftAlong + consist.OffsetOf(1) + consist.Vehicles[1].Length(s.TrainTuning) / 2, Velocity = 0 }] });
+        s.Train.RefreshFrames();
+        consist.Vehicles[1].Load = 0.25;
+        s.Player = PlayerMotor.SpawnOnGround(site.LiftLever - Double3.Up * 0.9, s.Train.Line, site.MainDistance, s.PlayerTuning);
+        Assert.Equal("LIFT : HOLD [E]   CAR 25% FULL", Hud.Prompt(s));
+        site.Mirror(site.State with { Winding = true });
+        Assert.Equal("WINDING   CAR 25% FULL", Hud.Prompt(s));
+        // In the cab with the vent open, the steam's said to be going to the lift, not into the air.
+        s.World.Run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, facility, false,
+            [.. Enumerable.Repeat(0.0, s.World.Run.FacilityCount)], [.. s.World.Run.Sites.Select(x => x?.State ?? default)]);
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Train.Boiler.Vented = true;
+        Assert.Equal("STEAM TO THE LIFT", Hud.Prompt(s));
     }
 
     [Fact]
@@ -357,13 +468,14 @@ public class HudTests
     {
         // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
         var s = new PrototypeSession(Content, "test-loop", 4);
-        Assert.Null(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        Assert.Null(Hud.ColdLine(s.Player, s.Train));
         DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
-        Assert.Equal("BITTER COLD: OUTSIDE, IT COMES ON 1.5X FASTER", Hud.ColdLine(s.Player, s.Train, s.PlayerTuning));
+        // Its name only (note 369): how much faster it comes on outside is learned out in it.
+        Assert.Equal("BITTER COLD", Hud.ColdLine(s.Player, s.Train));
+        AssertShort(Hud.ColdLine(s.Player, s.Train));
         var deeper = new PrototypeSession(Content, "test-loop", 4);
         DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
-        Assert.StartsWith("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train, deeper.PlayerTuning));
-        Assert.True(BitmapFont.Default.Measure(Hud.ColdLine(s.Player, s.Train, s.PlayerTuning)!) < 480 - 12);
+        Assert.Equal("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train));
     }
 
     [Fact]

@@ -79,6 +79,30 @@ def materials():
         "tin_red": make.lib("paint_oxide", 8.0, tint=(1.2, 0.45, 0.35), rough=0.4, metal=0.4),
         "tin_blue": make.lib("paint_black", 8.0, tint=(0.45, 0.55, 0.85), rough=0.4, metal=0.4),
         "tin_green": make.lib("paint_black", 8.0, tint=(0.45, 0.7, 0.45), rough=0.45, metal=0.4),
+        # The toys (note 372; the director, 8 Oct, on what's found at a stop: "a bit of a brighter more unique look to them so
+        # that they stand out from the background as interactable objects. Do this with good texture work, not VFX"): their own
+        # paint and cloth, each tinted to come out at the colour in its comment on its library layer, so after the finds atlas
+        # they're the brightest, most coloured things in a dark house; glaze and enamel kept smooth, so a lamp's highlight sits
+        # on them. Still worn: the library layers carry their wear.
+        "toy_fur": make.lib("wool", 9.0, tint=(7.73, 4.11, 1.12), rough=0.9),  # sRGB (176, 132, 76)
+        "toy_bald": make.lib("wool", 14.0, tint=(9.83, 6.79, 3.33), rough=0.85),  # sRGB (196, 166, 128)
+        "toy_stuffing": make.lib("wool", 16.0, tint=(13.28, 12.23, 8.71), rough=0.95),  # sRGB (224, 216, 198)
+        "toy_button": make.lib("brass", 6.0, tint=(3.47, 2.66, 1.16), rough=0.3, metal=0.6),  # sRGB (196, 156, 84)
+        "toy_wood": make.lib("wood_sleeper", 9.0, tint=(3.94, 2.62, 1.29), rough=0.5),  # sRGB (156, 116, 76)
+        "toy_paint_white": make.lib("plaster_ruin", 8.0, tint=(5.61, 6.13, 5.92), rough=0.35),  # sRGB (226, 218, 200)
+        "toy_paint_red": make.lib("paint_oxide", 6.0, tint=(2.65, 0.33, 0.34), rough=0.35),  # sRGB (184, 46, 38)
+        "toy_porcelain": make.lib("plaster_ruin", 18.0, tint=(6.3, 6.78, 7.04), rough=0.15),  # sRGB (238, 228, 216)
+        "toy_smock": make.lib("wool", 12.0, tint=(10.06, 3.47, 3.44), rough=0.9),  # sRGB (198, 122, 130)
+        "toy_hair": make.lib("wool", 20.0, tint=(3.85, 1.09, 0.3), rough=0.85),  # sRGB (128, 70, 38)
+        "toy_string": make.lib("wool", 20.0, tint=(11.98, 9.61, 5.13), rough=0.95),  # sRGB (214, 194, 156)
+        "toy_pig": make.lib("plaster_ruin", 10.0, tint=(6.18, 3.24, 3.22), rough=0.3),  # sRGB (236, 164, 152)
+        "toy_walnut": make.lib("wood_sleeper", 16.0, tint=(3.94, 1.76, 0.75), rough=0.2),  # sRGB (156, 96, 58)
+        "toy_velvet": make.lib("wool", 18.0, tint=(5.92, 0.26, 0.39), rough=0.95),  # sRGB (156, 32, 44)
+        "toy_vellum": make.lib("plaster_ruin", 12.0, tint=(6.07, 6.38, 5.4), rough=0.5),  # sRGB (234, 222, 192)
+        "toy_tin_red": make.lib("paint_oxide", 8.0, tint=(3.33, 0.42, 0.4), rough=0.25, metal=0.45),  # sRGB (204, 52, 42)
+        "toy_tin_blue": make.lib("paint_black", 8.0, tint=(0.91, 2.15, 8.21), rough=0.25, metal=0.45),  # sRGB (62, 92, 176)
+        "toy_tin_green": make.lib("paint_black", 8.0, tint=(1.23, 4.95, 1.3), rough=0.3, metal=0.45),  # sRGB (72, 136, 74)
+        "toy_brass": make.lib("brass", 4.0, tint=(3.8, 3.14, 1.4), rough=0.25, metal=0.8),  # sRGB (204, 168, 92)
     }
 
 
@@ -117,19 +141,19 @@ def run(points, r, material, name="run", low=6):
 # ---------------------------------------------------------------------------------------------------------- toys
 
 def toy_bear(m):
-    p = [blob((0, 0, -0.035), (0.068, 0.058, 0.075), m["fur"], "belly")]
-    p.append(blob((0, -0.002, 0.075), (0.055, 0.05, 0.05), m["fur"], "head"))
-    p.append(blob((0, -0.045, 0.065), (0.025, 0.022, 0.02), m["bald"], "snout"))
+    p = [blob((0, 0, -0.035), (0.068, 0.058, 0.075), m["toy_fur"], "belly")]
+    p.append(blob((0, -0.002, 0.075), (0.055, 0.05, 0.05), m["toy_fur"], "head"))
+    p.append(blob((0, -0.045, 0.065), (0.025, 0.022, 0.02), m["toy_bald"], "snout"))
     p.append(blob((0, -0.066, 0.07), (0.009, 0.006, 0.007), m["thread"], "nose", n=10, low=0))
     for sx in (-1, 1):
-        p.append(blob((sx * 0.042, 0.005, 0.118), (0.02, 0.01, 0.02), m["fur"], "ear", n=12, low=6))
+        p.append(blob((sx * 0.042, 0.005, 0.118), (0.02, 0.01, 0.02), m["toy_fur"], "ear", n=12, low=6))
         # The arms hanging forward and down, the legs out in front: it's been sat somewhere.
-        p += limb((sx * 0.06, -0.01, 0.01), (sx * 0.08, -0.04, -0.06), 0.022, m["fur"], "arm", r1=0.02)
-        p.append(blob((sx * 0.08, -0.042, -0.068), (0.02, 0.02, 0.018), m["bald"], "paw", n=12, low=0))
-        p += limb((sx * 0.04, -0.02, -0.09), (sx * 0.055, -0.09, -0.1), 0.027, m["fur"], "leg", r1=0.025)
-        p.append(blob((sx * 0.055, -0.112, -0.1), (0.024, 0.006, 0.026), m["bald"], "sole", n=12, low=0))
+        p += limb((sx * 0.06, -0.01, 0.01), (sx * 0.08, -0.04, -0.06), 0.022, m["toy_fur"], "arm", r1=0.02)
+        p.append(blob((sx * 0.08, -0.042, -0.068), (0.02, 0.02, 0.018), m["toy_bald"], "paw", n=12, low=0))
+        p += limb((sx * 0.04, -0.02, -0.09), (sx * 0.055, -0.09, -0.1), 0.027, m["toy_fur"], "leg", r1=0.025)
+        p.append(blob((sx * 0.055, -0.112, -0.1), (0.024, 0.006, 0.026), m["toy_bald"], "sole", n=12, low=0))
     # One brass button eye; the other's gone and a cross of black thread is sewn over the place.
-    p.append(make.cyl((-0.021, -0.043, 0.088), (-0.021, -0.05, 0.088), 0.008, m["button"], n=10, bevel=0.001, name="eye", low=0))
+    p.append(make.cyl((-0.021, -0.043, 0.088), (-0.021, -0.05, 0.088), 0.008, m["toy_button"], n=10, bevel=0.001, name="eye", low=0))
     for a in (0.8, -0.8):
         p.append(make.box((0.021, -0.047, 0.088), (0.009, 0.0012, 0.0012), m["thread"], bevel=0, name="cross", low=False,
                           rot=Matrix.Rotation(a, 4, "Y")))
@@ -142,54 +166,54 @@ def toy_bear(m):
     p.append(make.box((0.01, -0.057, -0.03), (0.004, 0.003, 0.03), m["thread"], bevel=0.001, name="split", low=False,
                       rot=Matrix.Rotation(0.15, 4, "Y")))
     for k, (dz, s) in enumerate(((0.012, 0.012), (-0.008, 0.014), (-0.03, 0.01))):
-        p.append(blob((0.012 + 0.003 * k, -0.06, -0.03 + dz), (s, s * 0.7, s), m["stuffing"], "stuffing", n=10, low=0))
+        p.append(blob((0.012 + 0.003 * k, -0.06, -0.03 + dz), (s, s * 0.7, s), m["toy_stuffing"], "stuffing", n=10, low=0))
     return p
 
 
 def toy_horse(m):
     # The board on its four iron wheels; the horse stood on it.
-    p = [make.box((0, 0, -0.1), (0.045, 0.12, 0.01), m["wood"], bevel=0.003, name="board")]
+    p = [make.box((0, 0, -0.1), (0.045, 0.12, 0.01), m["toy_wood"], bevel=0.003, name="board")]
     for sx in (-1, 1):
         for y in (-0.09, 0.09):
             p.append(make.cyl((sx * 0.05, y, -0.115), (sx * 0.06, y, -0.115), 0.022, m["iron"], n=14, bevel=0.002, name="wheel", low=8))
-    p.append(blob((0, 0, 0.0), (0.04, 0.09, 0.045), m["paint_white"], "barrel"))
+    p.append(blob((0, 0, 0.0), (0.04, 0.09, 0.045), m["toy_paint_white"], "barrel"))
     for sx in (-1, 1):
         for y in (-0.06, 0.06):
-            p.append(make.cyl((sx * 0.025, y, -0.02), (sx * 0.028, y, -0.09), 0.012, m["paint_white"], n=10, bevel=0, name="leg", r1=0.009, low=6))
+            p.append(make.cyl((sx * 0.025, y, -0.02), (sx * 0.028, y, -0.09), 0.012, m["toy_paint_white"], n=10, bevel=0, name="leg", r1=0.009, low=6))
             p.append(make.cyl((sx * 0.028, y, -0.085), (sx * 0.028, y, -0.092), 0.011, m["paint_dark"], n=10, bevel=0, name="hoof", low=0))
     # The neck up and forward (the horse faces -Y), the head down off it.
-    p.append(make.cyl((0, -0.06, 0.02), (0, -0.1, 0.1), 0.028, m["paint_white"], n=12, bevel=0, name="neck", r1=0.022, low=6))
-    p.append(blob((0, -0.125, 0.1), (0.022, 0.045, 0.024), m["paint_white"], "head", rot=Matrix.Rotation(0.5, 4, "X")))
+    p.append(make.cyl((0, -0.06, 0.02), (0, -0.1, 0.1), 0.028, m["toy_paint_white"], n=12, bevel=0, name="neck", r1=0.022, low=6))
+    p.append(blob((0, -0.125, 0.1), (0.022, 0.045, 0.024), m["toy_paint_white"], "head", rot=Matrix.Rotation(0.5, 4, "X")))
     # Its one ear (the other snapped off at the root: a stub of bare wood), the mane, the painted saddle and eyes.
-    p.append(make.cyl((0.012, -0.105, 0.125), (0.016, -0.1, 0.152), 0.007, m["paint_white"], n=8, bevel=0, name="ear", r1=0.002, low=4))
-    p.append(make.cyl((-0.012, -0.105, 0.125), (-0.013, -0.104, 0.131), 0.007, m["wood"], n=8, bevel=0, name="ear_stub", low=0))
+    p.append(make.cyl((0.012, -0.105, 0.125), (0.016, -0.1, 0.152), 0.007, m["toy_paint_white"], n=8, bevel=0, name="ear", r1=0.002, low=4))
+    p.append(make.cyl((-0.012, -0.105, 0.125), (-0.013, -0.104, 0.131), 0.007, m["toy_wood"], n=8, bevel=0, name="ear_stub", low=0))
     for k in range(6):
         t = k / 5
-        p.append(blob((0, -0.06 - 0.04 * t, 0.05 + 0.07 * t), (0.006, 0.012, 0.016), m["hair"], "mane", n=8, low=0))
-    p.append(make.box((0, 0.01, 0.04), (0.042, 0.03, 0.01), m["paint_red"], bevel=0.004, name="saddle"))
+        p.append(blob((0, -0.06 - 0.04 * t, 0.05 + 0.07 * t), (0.006, 0.012, 0.016), m["toy_hair"], "mane", n=8, low=0))
+    p.append(make.box((0, 0.01, 0.04), (0.042, 0.03, 0.01), m["toy_paint_red"], bevel=0.004, name="saddle"))
     for sx in (-1, 1):
         p.append(blob((sx * 0.02, -0.135, 0.11), (0.003, 0.006, 0.004), m["ink_black"], "eye", n=8, low=0))
-    p.append(make.cyl((0, 0.09, 0.0), (0, 0.13, -0.03), 0.009, m["hair"], n=8, bevel=0, name="tail", r1=0.004, low=4))
+    p.append(make.cyl((0, 0.09, 0.0), (0, 0.13, -0.03), 0.009, m["toy_hair"], n=8, bevel=0, name="tail", r1=0.004, low=4))
     # Its tow string, a ring on the board's front and the string slack along the floor.
     p.append(make.torus((0, -0.125, -0.1), (0, 1, 0), 0.008, 0.002, m["iron"], name="eye_ring", low=False))
     pts = [Vector((0, -0.13, -0.1)), Vector((0.01, -0.16, -0.115)), Vector((0.03, -0.2, -0.122)), Vector((0.02, -0.24, -0.122))]
-    p += run(pts, 0.002, m["string"], name="tow", low=0)
+    p += run(pts, 0.002, m["toy_string"], name="tow", low=0)
     return p
 
 
 def toy_doll(m):
     # The smock: a bell of cloth to the knees; the legs and button boots under it.
-    p = [make.cyl((0, 0, -0.06), (0, 0, 0.04), 0.06, m["smock"], n=16, bevel=0.002, name="smock", r1=0.03, low=8)]
+    p = [make.cyl((0, 0, -0.06), (0, 0, 0.04), 0.06, m["toy_smock"], n=16, bevel=0.002, name="smock", r1=0.03, low=8)]
     for sx in (-1, 1):
-        p.append(make.cyl((sx * 0.018, 0, -0.06), (sx * 0.02, -0.005, -0.12), 0.011, m["porcelain"], n=10, bevel=0, name="leg", low=6))
+        p.append(make.cyl((sx * 0.018, 0, -0.06), (sx * 0.02, -0.005, -0.12), 0.011, m["toy_porcelain"], n=10, bevel=0, name="leg", low=6))
         p.append(blob((sx * 0.02, -0.012, -0.125), (0.013, 0.02, 0.01), m["paint_dark"], "boot", n=10, low=6))
         # The arms down at its sides, a little forward, the hands open.
-        p += limb((sx * 0.032, 0, 0.032), (sx * 0.05, -0.02, -0.02), 0.009, m["porcelain"], "arm", r1=0.008)
-    p.append(blob((0, -0.005, 0.045), (0.03, 0.022, 0.012), m["smock"], "collar", n=12, low=6))
+        p += limb((sx * 0.032, 0, 0.032), (sx * 0.05, -0.02, -0.02), 0.009, m["toy_porcelain"], "arm", r1=0.008)
+    p.append(blob((0, -0.005, 0.045), (0.03, 0.022, 0.012), m["toy_smock"], "collar", n=12, low=6))
     # The head: porcelain, too big for it, tipped a little to one side; the paint of the face rubbed thin.
     tilt = Matrix.Rotation(0.18, 4, "Y")
-    p.append(blob((0.004, 0, 0.088), (0.038, 0.036, 0.042), m["porcelain"], "head", rot=tilt))
-    p.append(blob((0.004, 0.006, 0.105), (0.04, 0.036, 0.03), m["hair"], "hair", rot=tilt))
+    p.append(blob((0.004, 0, 0.088), (0.038, 0.036, 0.042), m["toy_porcelain"], "head", rot=tilt))
+    p.append(blob((0.004, 0.006, 0.105), (0.04, 0.036, 0.03), m["toy_hair"], "hair", rot=tilt))
     for sx in (-1, 1):
         p.append(blob((0.004 + sx * 0.014, -0.033, 0.094), (0.006, 0.003, 0.007), m["ink_black"], "eye", n=10, low=0))
         p.append(blob((0.004 + sx * 0.016, -0.03, 0.078), (0.007, 0.003, 0.005), m["ink_red"], "cheek", n=8, low=0))
@@ -199,29 +223,29 @@ def toy_doll(m):
 
 def toy_squeaker(m):
     # The turned base and the pleated bellows on it: rings of cloth in and out, the reed's hole in the base.
-    p = [make.cyl((0, 0, -0.15), (0, 0, -0.12), 0.05, m["wood"], n=18, bevel=0.004, name="base", low=10)]
+    p = [make.cyl((0, 0, -0.15), (0, 0, -0.12), 0.05, m["toy_wood"], n=18, bevel=0.004, name="base", low=10)]
     p.append(make.cyl((0.05, 0, -0.135), (0.054, 0, -0.135), 0.008, m["ink_black"], n=10, bevel=0, name="reed_hole", low=0))
     z = -0.12
     for k in range(5):
         r = 0.046 if k % 2 == 0 else 0.038
         p.append(make.cyl((0, 0, z), (0, 0, z + 0.012), r, m["serge"], n=18, bevel=0.002, name="pleat", r1=0.038 if k % 2 == 0 else 0.046, low=8))
         z += 0.012
-    p.append(make.cyl((0, 0, z), (0, 0, z + 0.006), 0.046, m["wood"], n=18, bevel=0.002, name="top", low=10))
+    p.append(make.cyl((0, 0, z), (0, 0, z + 0.006), 0.046, m["toy_wood"], n=18, bevel=0.002, name="top", low=10))
     # The pig on it: a fat pink barrel, snout and ears, four stub legs on the board, a curl of tail.
     pig = z + 0.006
-    p.append(blob((0, 0, pig + 0.035), (0.036, 0.05, 0.034), m["pig"], "body"))
-    p.append(blob((0, -0.048, pig + 0.045), (0.026, 0.024, 0.024), m["pig"], "head"))
-    p.append(make.cyl((0, -0.068, pig + 0.042), (0, -0.08, pig + 0.04), 0.012, m["pig"], n=12, bevel=0.002, name="snout", low=6))
+    p.append(blob((0, 0, pig + 0.035), (0.036, 0.05, 0.034), m["toy_pig"], "body"))
+    p.append(blob((0, -0.048, pig + 0.045), (0.026, 0.024, 0.024), m["toy_pig"], "head"))
+    p.append(make.cyl((0, -0.068, pig + 0.042), (0, -0.08, pig + 0.04), 0.012, m["toy_pig"], n=12, bevel=0.002, name="snout", low=6))
     for sx in (-1, 1):
         p.append(blob((sx * 0.005, -0.081, pig + 0.041), (0.002, 0.001, 0.003), m["ink_black"], "nostril", n=6, low=0))
         p.append(blob((sx * 0.011, -0.066, pig + 0.055), (0.003, 0.002, 0.003), m["ink_black"], "eye", n=8, low=0))
         for y in (-0.03, 0.03):
-            p.append(make.cyl((sx * 0.02, y, pig + 0.012), (sx * 0.02, y, pig), 0.009, m["pig"], n=8, bevel=0, name="leg", low=6))
+            p.append(make.cyl((sx * 0.02, y, pig + 0.012), (sx * 0.02, y, pig), 0.009, m["toy_pig"], n=8, bevel=0, name="leg", low=6))
     # One ear whole, flopped forward over the eye; the other chewed to a ragged stub.
-    p.append(blob((0.014, -0.052, pig + 0.066), (0.012, 0.004, 0.011), m["pig"], "ear", n=12, low=6,
+    p.append(blob((0.014, -0.052, pig + 0.066), (0.012, 0.004, 0.011), m["toy_pig"], "ear", n=12, low=6,
                   rot=Matrix.Rotation(-0.7, 4, "X") @ Matrix.Rotation(0.3, 4, "Y")))
-    p.append(blob((-0.014, -0.046, pig + 0.064), (0.006, 0.004, 0.005), m["pig"], "ear_stub", n=10, low=6))
-    p.append(make.torus((0, 0.052, pig + 0.045), (0, 1, 0), 0.008, 0.002, m["pig"], name="tail"))
+    p.append(blob((-0.014, -0.046, pig + 0.064), (0.006, 0.004, 0.005), m["toy_pig"], "ear_stub", n=10, low=6))
+    p.append(make.torus((0, 0.052, pig + 0.045), (0, 1, 0), 0.008, 0.002, m["toy_pig"], name="tail"))
     return p
 
 
@@ -229,51 +253,51 @@ def toy_musicbox(m):
     # The box: walnut, a brass escutcheon; inside under its glass the comb and the pinned cylinder.
     w, d, h = 0.07, 0.05, 0.05
     base = -0.15
-    p = [make.box((0, 0, base + h / 2), (w, d, h / 2), m["walnut"], bevel=0.004, name="box")]
+    p = [make.box((0, 0, base + h / 2), (w, d, h / 2), m["toy_walnut"], bevel=0.004, name="box")]
     p.append(make.box((0, 0, base + h + 0.001), (w - 0.008, d - 0.008, 0.002), m["glass"], bevel=0, name="glass", low=False))
-    p.append(make.cyl((-0.035, 0.012, base + h - 0.004), (0.035, 0.012, base + h - 0.004), 0.009, m["brass"], n=12, bevel=0.001, name="cylinder", low=0))
+    p.append(make.cyl((-0.035, 0.012, base + h - 0.004), (0.035, 0.012, base + h - 0.004), 0.009, m["toy_brass"], n=12, bevel=0.001, name="cylinder", low=0))
     for k in range(14):
         x = -0.03 + k * 0.0046
         p.append(make.box((x, -0.008, base + h - 0.006), (0.0018, 0.014, 0.0008), m["steel"], bevel=0, name="tooth", low=False))
-    p.append(make.box((0, -d - 0.001, base + h * 0.6), (0.008, 0.001, 0.006), m["brass"], bevel=0.001, name="escutcheon", low=False))
+    p.append(make.box((0, -d - 0.001, base + h * 0.6), (0.008, 0.001, 0.006), m["toy_brass"], bevel=0.001, name="escutcheon", low=False))
     # Brass corners and a pale inlaid panel on its front, so it reads as a keepsake, not a crate.
-    p.append(make.box((0, -d - 0.0008, base + h * 0.45), (w * 0.7, 0.0008, h * 0.3), m["vellum"], bevel=0, name="inlay", low=False))
+    p.append(make.box((0, -d - 0.0008, base + h * 0.45), (w * 0.7, 0.0008, h * 0.3), m["toy_vellum"], bevel=0, name="inlay", low=False))
     for sx in (-1, 1):
         for sy in (-1, 1):
-            p.append(make.box((sx * (w - 0.004), sy * (d - 0.004), base + h / 2), (0.0045, 0.0045, h / 2 + 0.001), m["brass"],
+            p.append(make.box((sx * (w - 0.004), sy * (d - 0.004), base + h / 2), (0.0045, 0.0045, h / 2 + 0.001), m["toy_brass"],
                               bevel=0.001, name="corner", low=False))
     # The winding key in the right side: a stem and its butterfly.
-    p.append(make.cyl((w, 0, base + 0.02), (w + 0.012, 0, base + 0.02), 0.003, m["brass"], n=8, bevel=0, name="key_stem", low=6))
-    p.append(make.box((w + 0.014, 0, base + 0.02), (0.002, 0.012, 0.007), m["brass"], bevel=0.002, name="key_wings"))
+    p.append(make.cyl((w, 0, base + 0.02), (w + 0.012, 0, base + 0.02), 0.003, m["toy_brass"], n=8, bevel=0, name="key_stem", low=6))
+    p.append(make.box((w + 0.014, 0, base + 0.02), (0.002, 0.012, 0.007), m["toy_brass"], bevel=0.002, name="key_wings"))
     # The lid up on its hinge at the back, tipped past square; in its lid's well the bone dancer on her spindle.
     hinge = Vector((0, d, base + h))
     lid = Matrix.Translation(hinge) @ Matrix.Rotation(-1.75, 4, "X") @ Matrix.Translation(-hinge)
-    p.append(make.box(tuple(lid @ Vector((0, 0, base + h + 0.006))), (w, d, 0.006), m["walnut"], bevel=0.003, name="lid",
+    p.append(make.box(tuple(lid @ Vector((0, 0, base + h + 0.006))), (w, d, 0.006), m["toy_walnut"], bevel=0.003, name="lid",
                       rot=Matrix.Rotation(-1.75, 4, "X")))
-    p.append(make.box(tuple(lid @ Vector((0, 0, base + h - 0.0005))), (w - 0.01, d - 0.01, 0.001), m["velvet"], bevel=0, name="lining", low=False,
+    p.append(make.box(tuple(lid @ Vector((0, 0, base + h - 0.0005))), (w - 0.01, d - 0.01, 0.001), m["toy_velvet"], bevel=0, name="lining", low=False,
                       rot=Matrix.Rotation(-1.75, 4, "X")))
     # The dancer on top of the box, by the glass: a spindle, a skirt, arms up in an arc, her head.
     at = Vector((0.0, -0.025, base + h + 0.004))
     k = 1.7
-    p.append(make.cyl(tuple(at - Vector((0, 0, 0.004))), tuple(at + Vector((0, 0, 0.002))), 0.012, m["brass"], n=12, bevel=0.001, name="pedestal", low=8))
-    p.append(make.cyl(tuple(at), tuple(at + Vector((0, 0, 0.012 * k))), 0.0025, m["brass"], n=8, bevel=0, name="spindle", low=4))
-    p.append(make.cyl(tuple(at + Vector((0, 0, 0.012 * k))), tuple(at + Vector((0, 0, 0.022 * k))), 0.012 * k, m["porcelain"], n=12, bevel=0.001, name="skirt", r1=0.003 * k, low=8))
-    p.append(make.cyl(tuple(at + Vector((0, 0, 0.02 * k))), tuple(at + Vector((0, 0, 0.034 * k))), 0.004 * k, m["porcelain"], n=8, bevel=0, name="bodice", low=4))
-    p.append(blob(tuple(at + Vector((0, 0, 0.039 * k))), (0.005 * k, 0.005 * k, 0.006 * k), m["porcelain"], "head", n=10, low=6))
+    p.append(make.cyl(tuple(at - Vector((0, 0, 0.004))), tuple(at + Vector((0, 0, 0.002))), 0.012, m["toy_brass"], n=12, bevel=0.001, name="pedestal", low=8))
+    p.append(make.cyl(tuple(at), tuple(at + Vector((0, 0, 0.012 * k))), 0.0025, m["toy_brass"], n=8, bevel=0, name="spindle", low=4))
+    p.append(make.cyl(tuple(at + Vector((0, 0, 0.012 * k))), tuple(at + Vector((0, 0, 0.022 * k))), 0.012 * k, m["toy_porcelain"], n=12, bevel=0.001, name="skirt", r1=0.003 * k, low=8))
+    p.append(make.cyl(tuple(at + Vector((0, 0, 0.02 * k))), tuple(at + Vector((0, 0, 0.034 * k))), 0.004 * k, m["toy_porcelain"], n=8, bevel=0, name="bodice", low=4))
+    p.append(blob(tuple(at + Vector((0, 0, 0.039 * k))), (0.005 * k, 0.005 * k, 0.006 * k), m["toy_porcelain"], "head", n=10, low=6))
     for sx in (-1, 1):
-        p.append(make.cyl(tuple(at + Vector((sx * 0.003 * k, 0, 0.032 * k))), tuple(at + Vector((sx * 0.006 * k, 0, 0.046 * k))), 0.0015 * k, m["porcelain"], n=6, bevel=0, name="arm", low=4))
+        p.append(make.cyl(tuple(at + Vector((sx * 0.003 * k, 0, 0.032 * k))), tuple(at + Vector((sx * 0.006 * k, 0, 0.046 * k))), 0.0015 * k, m["toy_porcelain"], n=6, bevel=0, name="arm", low=4))
     return p
 
 
 def toy_drummer(m):
     # A tin drummer boy: his legs on a stand, the tunic, the shako; the drum on his front, the sticks up mid beat.
-    p = [make.cyl((0, 0, -0.15), (0, 0, -0.14), 0.035, m["tin_green"], n=16, bevel=0.002, name="stand", low=8)]
+    p = [make.cyl((0, 0, -0.15), (0, 0, -0.14), 0.035, m["toy_tin_green"], n=16, bevel=0.002, name="stand", low=8)]
     for sx in (-1, 1):
-        p.append(make.cyl((sx * 0.01, 0, -0.14), (sx * 0.01, 0, -0.08), 0.008, m["tin_blue"], n=10, bevel=0, name="leg", low=6))
+        p.append(make.cyl((sx * 0.01, 0, -0.14), (sx * 0.01, 0, -0.08), 0.008, m["toy_tin_blue"], n=10, bevel=0, name="leg", low=6))
         p.append(make.box((sx * 0.01, -0.006, -0.137), (0.007, 0.012, 0.004), m["paint_dark"], bevel=0.001, name="boot"))
-    p.append(make.cyl((0, 0, -0.085), (0, 0, -0.025), 0.02, m["tin_red"], n=14, bevel=0.002, name="tunic", r1=0.017, low=8))
+    p.append(make.cyl((0, 0, -0.085), (0, 0, -0.025), 0.02, m["toy_tin_red"], n=14, bevel=0.002, name="tunic", r1=0.017, low=8))
     p.append(make.box((0, 0, -0.055), (0.021, 0.021, 0.003), m["ink_white"], bevel=0, name="belt", low=False))
-    p.append(blob((0, 0, -0.012), (0.012, 0.012, 0.013), m["porcelain"], "head", n=12, low=6))
+    p.append(blob((0, 0, -0.012), (0.012, 0.012, 0.013), m["toy_porcelain"], "head", n=12, low=6))
     for sx in (-1, 1):
         p.append(blob((sx * 0.005, -0.011, -0.01), (0.002, 0.001, 0.002), m["ink_black"], "eye", n=6, low=0))
     p.append(make.cyl((0, 0, -0.003), (0, 0, 0.03), 0.013, m["paint_dark"], n=12, bevel=0.001, name="shako", r1=0.015, low=6))
@@ -281,10 +305,10 @@ def toy_drummer(m):
     p.append(blob((0, -0.01, 0.033), (0.004, 0.004, 0.007), m["ink_red"], "plume", n=8, low=6))
     # The drum: tin shell, brass hoops, cord zigzag up its side.
     drum = Vector((0, -0.035, -0.07))
-    p.append(make.cyl(tuple(drum + Vector((0, 0, -0.015))), tuple(drum + Vector((0, 0, 0.015))), 0.026, m["tin_blue"], n=18, bevel=0.002, name="drum", low=10))
+    p.append(make.cyl(tuple(drum + Vector((0, 0, -0.015))), tuple(drum + Vector((0, 0, 0.015))), 0.026, m["toy_tin_blue"], n=18, bevel=0.002, name="drum", low=10))
     for dz in (-0.015, 0.015):
-        p.append(make.torus(tuple(drum + Vector((0, 0, dz))), (0, 0, 1), 0.026, 0.0025, m["brass"], name="hoop", low=False))
-    p.append(make.cyl(tuple(drum + Vector((0, 0, 0.015))), tuple(drum + Vector((0, 0, 0.016))), 0.024, m["vellum"], n=18, bevel=0, name="head", low=0))
+        p.append(make.torus(tuple(drum + Vector((0, 0, dz))), (0, 0, 1), 0.026, 0.0025, m["toy_brass"], name="hoop", low=False))
+    p.append(make.cyl(tuple(drum + Vector((0, 0, 0.015))), tuple(drum + Vector((0, 0, 0.016))), 0.024, m["toy_vellum"], n=18, bevel=0, name="head", low=0))
     for k in range(8):
         a = k * math.tau / 8
         lo = drum + Vector((math.cos(a) * 0.027, math.sin(a) * 0.027, -0.014))
@@ -294,12 +318,12 @@ def toy_drummer(m):
     for sx in (-1, 1):
         sh = Vector((sx * 0.021, 0, -0.035))
         hand = Vector((sx * 0.02, -0.03, -0.04))
-        p.append(make.cyl(tuple(sh), tuple(hand), 0.006, m["tin_red"], n=8, bevel=0, name="arm", low=6))
-        p.append(make.cyl(tuple(hand), tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), 0.0018, m["wood"], n=6, bevel=0, name="stick", low=4))
-        p.append(blob(tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), (0.003, 0.003, 0.003), m["wood"], "stick_end", n=8, low=4))
+        p.append(make.cyl(tuple(sh), tuple(hand), 0.006, m["toy_tin_red"], n=8, bevel=0, name="arm", low=6))
+        p.append(make.cyl(tuple(hand), tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), 0.0018, m["toy_wood"], n=6, bevel=0, name="stick", low=4))
+        p.append(blob(tuple(hand + Vector((-sx * 0.008, -0.02, 0.03))), (0.003, 0.003, 0.003), m["toy_wood"], "stick_end", n=8, low=4))
     # The big key in his back.
-    p.append(make.cyl((0, 0.018, -0.05), (0, 0.035, -0.05), 0.003, m["brass"], n=8, bevel=0, name="key_stem", low=6))
-    p.append(make.box((0, 0.037, -0.05), (0.02, 0.002, 0.01), m["brass"], bevel=0.003, name="key_wings"))
+    p.append(make.cyl((0, 0.018, -0.05), (0, 0.035, -0.05), 0.003, m["toy_brass"], n=8, bevel=0, name="key_stem", low=6))
+    p.append(make.box((0, 0.037, -0.05), (0.02, 0.002, 0.01), m["toy_brass"], bevel=0.003, name="key_wings"))
     return p
 
 

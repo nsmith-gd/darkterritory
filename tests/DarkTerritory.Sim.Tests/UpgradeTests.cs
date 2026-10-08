@@ -118,7 +118,7 @@ public class UpgradeTests
             world.Train.Boiler.Ruptured = true;
             var firebox = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
             var s = PlayerMotor.SpawnInCab(world.Train, P);
-            s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 }; // in front of the fire door (cab forward, note 276)
+            s.Position = s.Position with { X = firebox.X + 0.15, Z = firebox.Z + 0.45 }; // behind the fire door (note 280: at the cab's front)
             // The wrench in hand (note 301: it mends the boiler; the upgrade's speed is its).
             s.HeldSlot = 1;
             Assert.Equal(Tool.Wrench, Kit.Held(s));
