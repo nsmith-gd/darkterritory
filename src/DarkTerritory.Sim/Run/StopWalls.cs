@@ -82,11 +82,18 @@ public sealed partial class StopWalls
             or BuildingKind.Station or BuildingKind.GoodsShed or BuildingKind.Derelict or BuildingKind.Powerhouse
             or BuildingKind.SignalBox or BuildingKind.LampRoom or BuildingKind.WaterTower or BuildingKind.Lockup or BuildingKind.PrisonCar
             or BuildingKind.Well
-        && !stop.Holdouts.Any(h => h.Building == building);
+        && !stop.Holdouts.Any(h => h.Building == building) && !OpenShed(stop.Buildings[building]);
 
     /// <summary>Whether a stop's building stands as its walls with a door into it (a yard's shed or hero, a Holdout; note 279).</summary>
     public static bool Shelled(StopLayout stop, int building) =>
-        stop.Buildings[building].Kind is BuildingKind.Shed or BuildingKind.Hero || stop.Holdouts.Any(h => h.Building == building);
+        stop.Buildings[building].Kind is BuildingKind.Shed or BuildingKind.Hero || stop.Holdouts.Any(h => h.Building == building)
+        || OpenShed(stop.Buildings[building]);
+
+    /// <summary>
+    /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>): its
+    /// walls with a wide door toward the line, its hayloft's or workbench's find inside to search, as a yard's shed is walked.
+    /// </summary>
+    public static bool OpenShed(StopBuilding b) => b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed;
 
     /// <summary>
     /// Where a find in a walled building is put out (the houses are shut, with no way in to search): on its step, a
@@ -155,6 +162,8 @@ public sealed partial class StopWalls
     /// </summary>
     public static (double X, double Y) InsideLocal(StopBuilding b, ContainerKind kind, int index)
     {
+        if (OpenShed(b))
+            return ShedFind(b, kind, index);
         if (Composite(b))
         {
             var k = KeptComposite(b, kind, index);
@@ -184,6 +193,8 @@ public sealed partial class StopWalls
     /// </summary>
     public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index)
     {
+        if (OpenShed(b))
+            return ShedKept(b, index);
         if (Composite(b))
         {
             var k = KeptComposite(b, kind, index);
@@ -237,6 +248,11 @@ public sealed partial class StopWalls
         if (c.Building < 0 || c.Building >= stop.Buildings.Count)
             return c.At;
         var b = stop.Buildings[c.Building];
+        if (OpenShed(b) && !stop.Holdouts.Any(h => h.Building == c.Building))
+        {
+            var (fx, fy) = ShedFind(b, c.Kind, c.Index);
+            return Plan.World(b, fx, fy);
+        }
         if (Walled(stop, c.Building) && b.Open)
         {
             var (x, y) = InsideLocal(b, c.Kind, c.Index);
@@ -263,10 +279,55 @@ public sealed partial class StopWalls
                 : new Door(Math.Sign(y), 0, Math.Clamp(x, -b.Length / 2, b.Length / 2), t.PersonDoorM);
             yield break;
         }
+        // An open barn, outbuilding or goods shed (note 417): one wide door in the middle of the side toward the line.
+        if (OpenShed(b))
+        {
+            yield return new Door(ShedDoorSide(b), 0, 0, t.BayDoorM);
+            yield break;
+        }
         int door = DoorSide(stop, b);
         foreach (var (lo, hi) in Roofed(stop, building))
             yield return new Door(door, 0, (lo + hi) / 2, t.BayDoorM);
     }
+
+    /// <summary>
+    /// The side (±1, across its axis) of an open barn, outbuilding or goods shed its door is in: the one that looks more
+    /// toward the line (a barn's turned to its drive, so it's not always the stop's +D or −D).
+    /// </summary>
+    public static int ShedDoorSide(StopBuilding b) => Math.Sign(b.D) * DMath.Cos(b.Yaw) > 0 ? -1 : 1;
+
+    /// <summary>
+    /// An open barn's, outbuilding's or goods shed's find and what it's kept in (note 417), in its own frame: against the
+    /// back wall (across from the door), a quarter of the way along from the middle (one way or the other by the container's
+    /// index): a hayloft's ladder up to the loft, or a workbench. The find lies out in front of it.
+    /// </summary>
+    public static (double X, double Y, double FaceX, double FaceY) ShedKept(StopBuilding b, int index)
+    {
+        int door = ShedDoorSide(b);
+        double along = (index % 2 == 0 ? 1 : -1) * b.Length / 4;
+        return (along, -door * (b.Width / 2 - ShedWall - BenchDepth), 0, door);
+    }
+
+    /// <summary>
+    /// Where an open shed's find lies (<see cref="ShedKept"/>): out in front of the bench, or of the foot of the hayloft's
+    /// ladder (the loft over the back of the barn, <see cref="LoftDepth"/> deep, its ladder leant on its edge).
+    /// </summary>
+    public static (double X, double Y) ShedFind(StopBuilding b, ContainerKind kind, int index)
+    {
+        // (What it's kept in stands BenchDepth out from the back wall's face.)
+        var (x, y, fx, fy) = ShedKept(b, index);
+        double ahead = kind == ContainerKind.Hayloft ? LoftDepth + LadderLean + 0.4 - BenchDepth : BenchDepth + 0.6;
+        return (x + fx * ahead, y + fy * ahead);
+    }
+
+    /// <summary>A barn's hayloft (note 417; the art's): how deep it reaches in from the back wall, and how far its ladder's foot stands out from its edge (m).</summary>
+    public const double LoftDepth = 1.6, LadderLean = 0.6;
+
+    /// <summary>
+    /// An open shed's walls' thickness as the art and the sim stand them (run.json <c>walls.wallM</c>'s default), and a
+    /// workbench's half sizes (deep from the wall, wide along it; m). Not design numbers: a carpenter's bench.
+    /// </summary>
+    public const double ShedWall = 0.3, BenchDepth = 0.35, BenchWidth = 0.9;
 
     /// <summary>The side of a shed its doors face: the track it serves (its first), or the main line.</summary>
     static int DoorSide(StopLayout stop, StopBuilding b) => (b.Tracks.Count > 0 ? stop.Tracks[b.Tracks[0]].FaceStart.D : 0) >= b.D ? 1 : -1;
@@ -359,7 +420,8 @@ public sealed partial class StopWalls
                 // and a Holdout as their shells by their doors (note 279).
                 int index = i;
                 IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> boxes = !Walled(stop, i)
-                    ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top)) : []
+                    ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top))
+                        .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))) : []
                     : b.Open
                         ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
                             .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))
@@ -384,6 +446,22 @@ public sealed partial class StopWalls
             }
         }
         return walls;
+    }
+
+    /// <summary>
+    /// An open shed's workbenches (note 417), as boxes in its own frame (middles and half sizes): one against the back wall
+    /// for each of its finds kept on one. Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
+    /// </summary>
+    public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> Benches(StopLayout stop, int building)
+    {
+        var b = stop.Buildings[building];
+        if (!OpenShed(b) || stop.Holdouts.Any(h => h.Building == building))
+            yield break;
+        foreach (var c in stop.Containers.Where(c => c.Building == building && c.Kind == ContainerKind.Bench))
+        {
+            var (x, y, _, _) = ShedKept(b, c.Index);
+            yield return (x, y, BenchWidth, BenchDepth);
+        }
     }
 
     /// <summary>More walls standing beside the stops' (a fortress town's square: note 281).</summary>
