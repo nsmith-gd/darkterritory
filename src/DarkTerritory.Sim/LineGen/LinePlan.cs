@@ -266,6 +266,8 @@ public sealed record PlanRules(double ADerail, double BrassCuttingSpeed, double 
     public IReadOnlyDictionary<string, double> BiomeRelief { get; init; } = new Dictionary<string, double>();
     /// <summary>Each kind of board as the signage kit builds it (signage.json "boards"), by type.</summary>
     public IReadOnlyDictionary<string, BoardDef> Boards { get; init; } = new Dictionary<string, BoardDef>();
+    /// <summary>What each lineside kit piece stands on (footprints.json; note 389), by piece: each variant's boxes.</summary>
+    public IReadOnlyDictionary<string, double[][][]> Footprints { get; init; } = new Dictionary<string, double[][][]>();
 }
 
 public sealed record PlanCheck(string Name, bool Pass, string Detail);
