@@ -397,14 +397,18 @@ public class HudTests
         s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = spur.End - 0.5, Velocity = 0 }] });
         s.Train.RefreshFrames();
         s.Player = PlayerMotor.SpawnOnGround(crane.Controls, s.Train.Line, site.MainDistance, s.PlayerTuning);
-        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
         for (int i = 0; i < 10; i++)
-            s.Step(use);
+            s.Step(default);
         Assert.Same(site, s.World.Run.CurrentSite);
+        // Not a hold (the director, 8 Oct): Use's press at the stand (sent as the seat's) takes the controls.
+        Assert.Equal("THE CRANE : [E]", Hud.Prompt(s));
+        s.Step(new PlayerIntent { Actions = PlayerActions.Seat });
         Assert.True(s.Player.Has(PlayerFlags.Operating));
+        var use = new PlayerIntent();
         var lines = Hud.Hints(s).Lines;
         Assert.Contains("HOOK UP : [SPACE]", lines);
         Assert.Contains("HOOK DOWN : [B]", lines);
+        Assert.Contains("STEP DOWN : [E]", lines);
         // Held, the brake key brings the hook down, as the app now sends it in a solo session too.
         double hook = crane.Hook;
         for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
@@ -414,6 +418,9 @@ public class HudTests
         for (int i = 0; i < DarkTerritory.Sim.SimConstants.TickRate; i++)
             s.Step(use with { Buttons = PlayerButtons.Use | PlayerButtons.Jump });
         Assert.True(crane.Hook > hook + 0.5, $"the hook went from {hook:0.00} to {crane.Hook:0.00}");
+        // Pressed again, the controls are let go.
+        s.Step(new PlayerIntent { Actions = PlayerActions.Seat });
+        Assert.False(s.Player.Has(PlayerFlags.Operating));
     }
 
     [Fact]

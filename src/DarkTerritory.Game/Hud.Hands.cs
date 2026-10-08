@@ -215,7 +215,7 @@ public static partial class Hud
             lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK UP : [SPACE]", "HOOK DOWN : [B]"]);
             if (crane.Hooked is not null)
                 lines.Add("LET GO : [LMB]");
-            lines.Add("STEP DOWN : LET GO OF [E]");
+            lines.Add("STEP DOWN : [E]");
             return ("THE CRANE", lines);
         }
         if (CabControls.CanDrive(p, train))
