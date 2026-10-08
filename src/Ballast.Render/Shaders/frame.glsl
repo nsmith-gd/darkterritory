@@ -27,6 +27,7 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 handPos;      // the shadowed hand lamp (MeshBuilder.ShadowLight): xyz camera-relative, w = range (0: none)
     vec4 handColour;   // rgb, a = 1 when its cube shadow is drawn
     mat4 handViewProj[6]; // its cube's faces (+X, -X, +Y, -Y, +Z, -Z), one layer each of handShadow
+    vec4 indoor;       // rgb = the fill inside a room, in the moon's place (FrameLighting.IndoorFill)
     vec4 probe;        // x < 0: the sky painted magenta where it shows steeper below the horizon than this; y = 1: untextured surfaces cyan (dt holes, note 433)
 } frame;
 

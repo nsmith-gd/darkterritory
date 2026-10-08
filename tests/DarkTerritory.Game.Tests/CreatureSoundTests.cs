@@ -267,6 +267,52 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside()
+    {
+        // Note 478 (D1's #208: hounds aboard patrol the roofs, jump the gaps they can make, and go in and out of cars whose
+        // doors stand open): its paws at its walk on what it's on, the leap over a gap and its landing, and the drop in at
+        // a door onto the boards; standing, nothing.
+        using var scene = new Scene(5, "cs-hounds.paw.ground", "cs-hounds.paw.roof", "cs-hounds.paw.wood", "cs-hounds.leap", "cs-hounds.snarl");
+        int rear = scene.Rear, next = rear - 1;
+        var shape = scene.Train.Frames[rear].Shape;
+        CinderHound On(int car, Double3 local) => Record(new CinderHound(10, 10), SpinePhase.Commit, 2, 3, car, local, extra: 10);
+        var roof = new Double3(0, shape.RoofHeight, shape.HalfLength - 2);
+        var heard = new List<string>();
+        int Count(string name) => heard.Count(h => h == name);
+        for (int i = 0; i < 10; i++)
+            heard.AddRange(scene.Tick(On(rear, roof)));
+        heard.Clear();
+        // Standing on the roof: nothing underfoot.
+        for (int i = 0; i < 30; i++)
+            heard.AddRange(scene.Tick(On(rear, roof)));
+        Assert.Equal(0, Count("cs-hounds.paw.roof"));
+        // Two seconds' walk forward along it at 1.2 m/s: a walk's paws on the tin, four to a stride of about a metre.
+        for (int i = 1; i <= 60; i++)
+            heard.AddRange(scene.Tick(On(rear, roof with { Z = roof.Z - 1.2 * i / 30 })));
+        Assert.InRange(Count("cs-hounds.paw.roof"), 8, 16);
+        Assert.Equal(0, Count("cs-hounds.leap"));
+        // Over the gap onto the next car's roof: the leap, and two paws landing on its tin.
+        heard.Clear();
+        var over = new Double3(0, shape.RoofHeight, scene.Train.Frames[next].Shape.HalfLength - 0.8);
+        for (int i = 0; i < 15; i++)
+            heard.AddRange(scene.Tick(On(next, over)));
+        Assert.Equal(1, Count("cs-hounds.leap"));
+        Assert.Equal(2, Count("cs-hounds.paw.roof"));
+        // Down in at its open door onto the floor: the leap, and the landing on the boards; walking there, the boards.
+        heard.Clear();
+        var room = scene.Train.Frames[next].Shape.Interior!.Value;
+        var floor = new Double3(room.Centre.X, room.Min.Y + 0.05, room.Centre.Z);
+        for (int i = 0; i < 15; i++)
+            heard.AddRange(scene.Tick(On(next, floor)));
+        Assert.Equal(1, Count("cs-hounds.leap"));
+        Assert.Equal(2, Count("cs-hounds.paw.wood"));
+        for (int i = 1; i <= 30; i++)
+            heard.AddRange(scene.Tick(On(next, floor with { Z = floor.Z + 1.2 * i / 30 })));
+        Assert.InRange(Count("cs-hounds.paw.wood"), 2 + 4, 2 + 9);
+        Assert.Equal(0, Count("cs-hounds.paw.ground"));
+    }
+
+    [Fact]
     public void TheTrackDollWorksTheCabLeversWithTheirOwnSoundsUntilItHasOne()
     {
         static List<string> Tamper(Scene scene)

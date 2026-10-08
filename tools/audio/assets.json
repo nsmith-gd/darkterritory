@@ -2279,6 +2279,11 @@
   "url": "/_blob/cd7ee53152aa772221c6b6883d8b864c",
   "sha": "58705f29882ca515"
  },
+ "previews/cs-hounds--paw--boards--wood.mp4": {
+  "id": "1f241a3b7c9b0ec956a7374cc58828f3",
+  "url": "/_blob/1f241a3b7c9b0ec956a7374cc58828f3",
+  "sha": "b1377dda968eba33"
+ },
  "previews/cs-hounds--paw--deck--grate.mp4": {
   "id": "79d889bb568d5960506e8781aed1e693",
   "url": "/_blob/79d889bb568d5960506e8781aed1e693",
@@ -2864,6 +2869,46 @@
   "url": "/_blob/05f4185f6767d3731e2a381dc0b9f58b",
   "sha": "a1bd7b741222b9ee"
  },
+ "previews/place-tipple--clamp--bite.mp4": {
+  "id": "2c35b801e4b88269013be91a6b9cad15",
+  "url": "/_blob/2c35b801e4b88269013be91a6b9cad15",
+  "sha": "1cf83d35e8c5d1e6"
+ },
+ "previews/place-tipple--clamping--screw.mp4": {
+  "id": "63d326fd4ff448e7cb538e8e545aa6a5",
+  "url": "/_blob/63d326fd4ff448e7cb538e8e545aa6a5",
+  "sha": "b0804a1f77a1f58f"
+ },
+ "previews/place-tipple--derail--off.mp4": {
+  "id": "888e61b7b7ca69a53653d5481fc6762e",
+  "url": "/_blob/888e61b7b7ca69a53653d5481fc6762e",
+  "sha": "778333a92ab4b0f7"
+ },
+ "previews/place-tipple--pour--chute.mp4": {
+  "id": "84ead31582971d53a60148e0771f50bc",
+  "url": "/_blob/84ead31582971d53a60148e0771f50bc",
+  "sha": "79ceb59303efd145"
+ },
+ "previews/place-tipple--release--springs.mp4": {
+  "id": "45836731659c1bda2505e13ae77a45ae",
+  "url": "/_blob/45836731659c1bda2505e13ae77a45ae",
+  "sha": "b406f0ac7a635d04"
+ },
+ "previews/place-tipple--rerail--jack.mp4": {
+  "id": "1c39e5ad9a6d33967f70345b55398784",
+  "url": "/_blob/1c39e5ad9a6d33967f70345b55398784",
+  "sha": "a87deac68c84f13f"
+ },
+ "previews/place-tipple--rerailed--back-on.mp4": {
+  "id": "ffb2346f9ce5cfd9598ebcd74b7e6b16",
+  "url": "/_blob/ffb2346f9ce5cfd9598ebcd74b7e6b16",
+  "sha": "b053dd5b585e4a25"
+ },
+ "previews/place-tipple--roll--hoops.mp4": {
+  "id": "b29394ff350ee7441ef6151145b66443",
+  "url": "/_blob/b29394ff350ee7441ef6151145b66443",
+  "sha": "2f91fa7419e305bd"
+ },
  "previews/place-town--clock--case.mp4": {
   "id": "15ffa4c35aea6f313283713fbdf30125",
   "url": "/_blob/15ffa4c35aea6f313283713fbdf30125",
@@ -2943,6 +2988,26 @@
   "id": "db951c74e725cac3fdecdb838618bfd3",
   "url": "/_blob/db951c74e725cac3fdecdb838618bfd3",
   "sha": "cb1b7bb236c699e9"
+ },
+ "previews/place-winch--capstan--drum.mp4": {
+  "id": "e7abfc702fcc64a79bbbc97b3ce3470d",
+  "url": "/_blob/e7abfc702fcc64a79bbbc97b3ce3470d",
+  "sha": "47d011eadb15e4ad"
+ },
+ "previews/place-winch--drag--skids.mp4": {
+  "id": "d93f8352712dc608b4e496eeb54cdb11",
+  "url": "/_blob/d93f8352712dc608b4e496eeb54cdb11",
+  "sha": "85b94e3011716c9e"
+ },
+ "previews/place-winch--in--stop.mp4": {
+  "id": "93f42fd2e5f497160b378f57dbc98a5a",
+  "url": "/_blob/93f42fd2e5f497160b378f57dbc98a5a",
+  "sha": "68f133956b22037f"
+ },
+ "previews/place-winch--stall--snatch.mp4": {
+  "id": "641821944d3dfb393cf3cd4b267b1c9c",
+  "url": "/_blob/641821944d3dfb393cf3cd4b267b1c9c",
+  "sha": "afe253df75a4a823"
  },
  "previews/place-wreck--cargo-pull--drag.mp4": {
   "id": "5349f7b1800a00061a7f04b2a98e4347",

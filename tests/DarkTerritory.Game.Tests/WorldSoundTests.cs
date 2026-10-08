@@ -258,6 +258,55 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ACapstanWinchIsHeardTurningHaulingStallingAndBringingItsSledIn()
+    {
+        // Spec D.2's capstan winch (T43; queue #204, note 468), at a foundry (the wreck yard's is place-wreck's), off its site's
+        // record as a client has it: the drum while it's cranked in rhythm, the sled hauled in over the ground, the stall as
+        // the cranks fall out of rhythm, once, and a sled brought up to its stop, once, where it stops.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-winch.stall", "place-winch.in");
+        Held(audio, "place-winch.capstan", "place-winch.drag");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Winch));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        void Set(bool turning = false, bool outOfRhythm = false, double progress = 0, int sleds = 2) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, progress, sleds, turning, outOfRhythm, 0))]);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        var ears = new Ears(audio, world);
+        var ear = site.Capstan + new Double3(0, 0.9, 2);
+        Set();
+        ears.Tick(ear, 5);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // Cranked in rhythm: the drum, and the sled coming in.
+        Set(turning: true, progress: 0.3);
+        ears.Tick(ear, 10);
+        Assert.True(Playing("place-winch.capstan") && Playing("place-winch.drag"));
+        // Out of rhythm: the stall, once, and the drum and the sled still.
+        Set(outOfRhythm: true, progress: 0.4);
+        ears.Tick(ear, 10);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+        // In rhythm again and the sled in: brought up to its stop, once, and the next one waiting out at the far end.
+        Set(turning: true, progress: 0.98);
+        ears.Tick(ear, 10);
+        Set(turning: true, progress: 0, sleds: 1);
+        ears.Tick(ear, 10);
+        var stop = Assert.Single(ears.Started, v => v.Name == "place-winch.in");
+        Assert.True((stop.Position - site.SledTo).Length < 1e-6);
+        Assert.Single(ears.Started, v => v.Name == "place-winch.stall");
+        // Far off, nothing.
+        ears.Tick(site.Capstan + new Double3(400, 0, 0), SimConstants.TickRate);
+        Assert.False(Playing("place-winch.capstan") || Playing("place-winch.drag"));
+    }
+
+    [Fact]
     public void TheConveyorIsHeardStartedRunningJammedClearedAndStalled()
     {
         // The grain elevator's conveyor line (A1's note 400; queue #202, note 466), off its site's record as a client has it:
@@ -331,6 +380,84 @@ public class WorldSoundTests
         Assert.Single(ears.Started, v => v.Name == "place-conveyor.stall");
         Assert.Single(ears.Started, v => v.Name == "place-conveyor.free");
         Assert.Empty(Now());
+    }
+
+    [Fact]
+    public void TheTippleIsHeardClampingRollingTippingAndDerailingABadClamp()
+    {
+        // The mine head's tipple (A1's note 423; queue #216, note 480), off its site's record and the car's OffRails as a
+        // client has them: the clamp wound down while held and biting once; the cradle rolling while it moves; the ore at the
+        // top once; rolled back and let go once; a bad clamp's derailment once (no release with it), the wrench at it, and
+        // the car back on its rails once.
+        var (world, mine) = Night(f => f.Facility == FacilityKind.MineHead, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "place-tipple.clamp", "place-tipple.pour", "place-tipple.release", "place-tipple.derail", "place-tipple.rerailed");
+        Held(audio, "place-tipple.clamping", "place-tipple.roll", "place-tipple.rerail");
+        var run = world.Run!;
+        var facilities = DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File));
+        run.EnableSites(facilities with { Draw = facilities.Draw with { Enabled = false } }, world.Train.Line);
+        int index = run.Route.Of(FeatureKind.Facility).ToList().IndexOf(mine);
+        var site = run.Sites[index]!;
+        Assert.True(site.Has(ModuleKind.Tipple));
+        double[] left = new double[run.FacilityCount];
+        double seconds = 900;
+        // The car in the cradle: the one the test derails, stood on the cradle's mark.
+        var car = world.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo);
+        void Set(int clamped = -1, double roll = 0, bool back = false, double clamp = 0, double rerail = 0) =>
+            run.Mirror(RunPhase.AtFacility, RunEnd.None, seconds++, index, false, left, [.. run.Sites.Select(x => x != site
+                ? new SiteState(true, 0, x?.SledsLeft ?? 0, false, false, 0) { Bin = x?.Bin ?? 0 }
+                : new SiteState(true, 0, site.SledsLeft, false, false, 0) { TippleOre = 2, Clamped = clamped, GoodClamp = true, Roll = roll,
+                    RollingBack = back, Clamp = clamp, Rerail = rerail })]);
+        var ears = new Ears(audio, world);
+        bool Playing(string cue) => WorldSoundTests.Playing(audio, cue);
+        int Count(string cue) => ears.Started.Count(v => v.Name == cue);
+        var ear = site.TippleLever + new Double3(0, 0.8, 0);
+        Set();
+        ears.Tick(ear, 5);
+        // The lever held: the clamp wound down; then clamped, once.
+        Set(clamp: 0.7);
+        ears.Tick(ear, 5);
+        Assert.True(Playing("place-tipple.clamping"));
+        Set(clamped: car.Id);
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.clamp"));
+        Assert.False(Playing("place-tipple.clamping"));
+        // Rolling over: heard while it moves, still while it's held still; the ore at the top, once.
+        for (int i = 1; i <= 20; i++)
+        {
+            Set(clamped: car.Id, roll: i / 20.0);
+            ears.Tick(ear, 3);
+        }
+        Assert.True(Playing("place-tipple.roll"));
+        Assert.Equal(1, Count("place-tipple.pour"));
+        Set(clamped: car.Id, roll: 1);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.False(Playing("place-tipple.roll"));
+        // Back by itself and let go: once.
+        Set(clamped: car.Id, roll: 0.5, back: true);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.roll"));
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.release"));
+        // A bad clamp: off its rails (its clamp let go with it, not a release), the wrench at it, back on, once each.
+        Set(clamped: car.Id, roll: 0.3);
+        ears.Tick(ear, 5);
+        car.OffRails = true;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.derail"));
+        Assert.Equal(1, Count("place-tipple.release"));
+        Set(rerail: 5);
+        ears.Tick(ear, 3);
+        Set(rerail: 6);
+        ears.Tick(ear, 3);
+        Assert.True(Playing("place-tipple.rerail"));
+        car.OffRails = false;
+        Set();
+        ears.Tick(ear, 5);
+        Assert.Equal(1, Count("place-tipple.rerailed"));
+        Assert.Equal(1, Count("place-tipple.derail"));
     }
 
     [Fact]

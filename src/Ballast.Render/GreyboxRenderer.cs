@@ -47,6 +47,8 @@ unsafe struct FrameData
     public Vector4 HandColour;
     /// <summary>Its cube's six faces (+X, −X, +Y, −Y, +Z, −Z), camera-relative, one layer each of its shadow map.</summary>
     public fixed float HandViewProj[6 * 16];
+    /// <summary>rgb the fill inside a room (<see cref="FrameLighting.IndoorFill"/>).</summary>
+    public Vector4 Indoor;
     /// <summary>x <see cref="GreyboxRenderer.HoleSlope"/>, y 1 for <see cref="GreyboxRenderer.ShowUntextured"/>.</summary>
     public Vector4 Probe;
 }
@@ -894,6 +896,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
         f->FogHeight = new Vector4(fogBase, lighting.FogHeightFalloff, lighting.FogFloor, (float)(lighting.Time % 10000));
         f->Moon = new Vector4(lighting.MoonDirection, lighting.Ambient);
+        f->Indoor = new Vector4(lighting.IndoorFill == Vector3.Zero ? lighting.Ambient * new Vector3(0.55f, 0.42f, 0.3f) : lighting.IndoorFill, 0);
         f->MoonColour = new Vector4(lighting.MoonColour, lighting.MoonStrength);
         f->LampPos = new Vector4(lighting.LampPosition.RelativeTo(camera.Position), lighting.LampRange);
         f->LampDir = new Vector4(lighting.LampDirection, MathF.Cos(lighting.LampConeDegrees * MathF.PI / 180));
