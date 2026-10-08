@@ -84,7 +84,9 @@ static class PlaythroughCommands
             scene.FireDoorOpen = train.Boiler.FireDoorOpen;
             scene.Ruptured = train.Boiler.Ruptured;
             // Every break to mend, called out (note 301).
-            scene.Breaks = RepairCallouts.Of(train);
+            var breaks = RepairCallouts.Of(train);
+            Couplings.Callouts(train, breaks);
+            scene.Breaks = breaks;
             scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
             scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;

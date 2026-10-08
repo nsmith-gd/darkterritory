@@ -135,10 +135,13 @@ public class CrewAudioTests
         Assert.Equal(0, b.Count("crew-footsteps.run.roof"));
         Assert.All(b.Heard.Where(h => h.Name == "crew-footsteps.walk.roof"), h => Assert.True((h.At - at[h.Tick - 1]).Length < 0.01));
 
-        // Standing still: nothing.
+        // Standing still: nothing. Nor turning on the spot (App. F.1, build 1121; note 355): a full turn in a second.
         int before = b.Heard.Count;
         for (int i = 0; i < 30; i++)
+        {
+            s.Yaw += 2 * Math.PI / 30;
             b.Step((1, s));
+        }
         Assert.Equal(before, b.Heard.Count);
 
         // Off the train beside it, running on the ballast; stopping short scuffs.
@@ -682,6 +685,76 @@ public class CrewAudioTests
         var house = stop.Stop!.Buildings.MinBy(b => Math.Abs(b.D))!;
         Assert.Equal("concrete", At(stop.Start + house.S, house.D));
         Assert.All(new[] { "ballast", "concrete", "cobbles", biome.Ground }, t => Assert.NotEqual("ground", Footing.OfTexture(t)));
+    }
+
+    [Theory]
+    [InlineData("crew-footsteps.walk.cobbles")]
+    [InlineData("crew-footsteps.run.cobbles")]
+    [InlineData("crew-footsteps.land.cobbles")]
+    [InlineData("crew-footsteps.walk.concrete")]
+    [InlineData("crew-footsteps.run.concrete")]
+    public void BootsOnStoneCrackRatherThanSquish(string sound)
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"):
+        // the stones' steps were the packs' soft-soled concrete steps, all of it under 1 kHz, a 250 Hz wobble a step. A hard
+        // boot on stone cracks: there's as much of it over 1 kHz as in its low mids (the soft ones were 7 to 17 dB under).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double crack = Meter.BandDb(mix, 1000, 8000), body = Meter.BandDb(mix, 100, 500);
+        Assert.True(crack > body - 3, $"{sound}: {crack:0.0} dB over 1 kHz, {body:0.0} dB at 100-500 Hz");
+    }
+
+    [Theory]
+    [InlineData("crew-footsteps.walk.dirt", 8)]
+    [InlineData("crew-footsteps.run.dirt", 8)]
+    [InlineData("crew-footsteps.walk.grass", 8)]
+    [InlineData("crew-footsteps.walk.ballast", 8)]
+    [InlineData("crew-footsteps.land.ballast", 8)]
+    [InlineData("crew-footsteps.walk.mud", 3)]
+    public void TheGroundUnderfootIsAStepNotABoom(string sound, double under)
+    {
+        // Note 354 and App. F.1 (build 1121: "footsteps on the ground sound wrong; on wood and grates they're good"). Dirt
+        // and grass were the packs' steps lowpassed, two slow swings under 60 Hz a step, and the crunches' pad of weight
+        // and the mud were half sub: a boom under every step. A step on the ground is its contact and what's on it: what's
+        // under 120 Hz well under the step itself (the car's boards, which the director likes, are 10 dB under; mud's
+        // squelch is allowed its weight).
+        var (report, mix) = AudioBench.RenderSound(Content, sound);
+        Assert.Null(report.Error);
+        double boom = Meter.BandDb(mix, 20, 120), step = Meter.BandDb(mix, 250, 4000);
+        Assert.True(boom < step - under, $"{sound}: {boom:0.0} dB under 120 Hz, {step:0.0} dB at 250 Hz-4 kHz");
+    }
+
+    [Fact]
+    public void AWalledTownsStreetsAreItsStonesUnderfootAndItsLanesItsMud()
+    {
+        // Note 354 (the director, 8 Oct 2026: "a super weird squishy footstep sound when I walk on the stones in the town"): a
+        // walled town's streets are drawn in beaten stones and its lanes in mud (WorldArt.Streets), and underfoot they were
+        // the land under them, its grass or the shore's red mud. A town of 3000, as World.EnableTown stands it.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), gate - 8), C);
+        world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(Content, Sim.Run.RunTuning.File)), route, gate, authority: true);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var bounds = town.Plan.Bounds!;
+        var line = world.Train.Line;
+        string Under(double s, double d)
+        {
+            double hint = s;
+            var p = town.World(s, d);
+            return Footing.Ground(world, p with { Y = line.Conditions!.Ground(p) }, ref hint);
+        }
+        Assert.NotEmpty(bounds.Streets);
+        foreach (var st in bounds.Streets)
+            foreach (double s in new[] { st.S0 + 2, (st.S0 + st.S1) / 2, st.S1 - 2 })
+                Assert.Equal("ballast", Under(s, st.D));
+        var lane = bounds.Lanes[0];
+        Assert.Equal("mud", Under(lane.S, lane.D0 + 10));
+        // Off them, the land: what the streets were heard as.
+        var first = bounds.Streets[0];
+        Assert.NotEqual("ballast", Under((first.S0 + first.S1) / 2, first.D + Math.Sign(first.D) * (first.Width / 2 + 3)));
     }
 
     [Fact]

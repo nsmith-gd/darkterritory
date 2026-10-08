@@ -32,12 +32,12 @@ tools/art/store/screens.sh                                            # store sc
 tools/blender/build.sh                                                # rebuild the procedural creatures in content/art/models (needs blender)
 python3 tools/models/fetch.py && tools/models/build.sh                # sourced CC0/CC-BY models, and the modelled-and-baked ones (props, the crew) -> content/art/models (needs blender)
 dotnet run --project src/DarkTerritory.Cli -- perf [--only pc|vr] [--views roof,cab]   # frame cost vs tuning/perf.json (90 fps PC, 72 fps VR): CPU phases, GPU passes, counts
-dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300   # host + bots over lossy loopback; netcode report
+dotnet run --project src/DarkTerritory.Cli -- harness --bots 8 --seconds 300 [--express 21]   # host + bots over lossy loopback; netcode report (--express: a driver that runs hot and takes no stops, note 376)
 dotnet run --project src/DarkTerritory.Cli -- mods pack tools/mods/example      # mods are Thunderstore packages: check one and zip it; `dt mods` lists what's installed
 dotnet run --project src/DarkTerritory.Cli -- linegen generate --route frontier:7 --cars 6   # a night's line plan + map and profile PNGs; `linegen sweep` for pass rates; `linegen water` its lakes and shores
 XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
 ```
-**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox).
+**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox, moose, moosecharge, moosepin, gannet, gannetfold, gannetstuck, gannetpin).
 Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
 
 ## Layout

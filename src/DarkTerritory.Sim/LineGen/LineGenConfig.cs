@@ -102,6 +102,8 @@ public sealed record TierColumn
     public double[] Bends { get; init; } = [];
     /// <summary>Note 278: the speeds (m/s) a hard bend derails at, [min, max]; its radius v² / aDerail, never under minRadius.</summary>
     public double[] BendDerail { get; init; } = [];
+    /// <summary>Note 359: the chance a hard bend is laid as an S-bend, two hard turns either way held as one.</summary>
+    public double SBends { get; init; }
 }
 
 /// <summary>§3.3 budget curve: zone shares and the reserved stretches.</summary>
@@ -126,10 +128,11 @@ public sealed record DemoSwitches(bool Enabled, RouteTier MaxTier, bool NoWashou
 /// <summary>§3.4.</summary>
 public sealed record ConsistRules(double MainGradeShareOfClimbMax, int MaxCars);
 
-/// <summary>§10: the departure fortress and the threshold.</summary>
+/// <summary>§10: the departure fortress and the threshold. <see cref="PadM"/>: how far either side of the line the yard's
+/// ground is level (the walled town's, queue #74, note 335; 70 when the yard was a corridor between two walls).</summary>
 public sealed record FortressTemplate(double DepartureRoadExtraM, double ThroatM, double InnerGateBeforeM, double TowersFromM, double KillZoneM,
     double LastLightM, double[] DressingTransitionM, double YardSpeed, int[] ThroatSwitches, string[] Identities, double MaxThresholdGrade,
-    double ThresholdMinRadius);
+    double ThresholdMinRadius, double PadM = 70);
 
 /// <summary>§11.4: the terminus and arrival.</summary>
 public sealed record TerminusTemplate(double SkyGlowM, double YardLimitBoardM, double SpawnBanM, double WallsResolveM, double ArrivalYardM,
@@ -172,7 +175,16 @@ public sealed record AuthorityRules(double SleeperSafeMargin, double LampHeightM
 public sealed record TerrainRules(double CorridorM, double TileM, double GridM, double FormationM, double ShoulderM, double BlendM, double NoiseAmplitudeM,
     double[] NoiseWavelengthM, double JunctionPadM, double SkirtDropM, double SampleM, double WalkableSlope, double WalkableWithinM,
     double TunnelCoverM, double RiverWidthM, double ReliefM, double[] ReliefWavelengthM, double ReliefFromM, double ReliefFullM, double ReliefRidged,
-    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers, RoadRules Roads);
+    double ReliefUp, DrumlinRules Drumlins, KnobRules Knobs, PlateauRules Plateau, LakeRules Lakes, ShoreRules Shore, DykeRules Dykes, RiverRules Rivers, RoadRules Roads)
+{
+    /// <summary>Note 279: a tunnel's bore either side of the rail (StructureKit.TunnelHalf), and its crown over the rail.</summary>
+    public double BoreHalfM { get; init; } = 3.1;
+    public double BoreCrownM { get; init; } = 7.5;
+    /// <summary>Note 279: a bridge's deck either side of the rail.</summary>
+    public double DeckHalfM { get; init; } = 2.6;
+    /// <summary>Note 279: what runs beside a train in a bore or on a deck keeps this inside the lining or the deck's edge.</summary>
+    public double BesideClearM { get; init; } = 0.6;
+}
 
 /// <summary>The Maritimes' landforms (TerrainField.Landform): heights as a share of reliefM, lengths in metres.</summary>
 public sealed record DrumlinRules(double WavelengthM, double Stretch, double FlowDeg, double Height);

@@ -1,4 +1,4 @@
-// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen and the
+// Enemies (GDD v1.1 §21, App. A behaviour, App. B spawn rules, App. C shared systems): the v1.1 roster of sixteen, the Moose (note 339), the Gannet (note 340) and the
 // Choir, plus two hazards (§22: track debris, formerly the Sleepers; marsh, formerly the Drift). First pass. Speeds in m/s; the GDD's Sleeper thresholds (40 / 20) are km/h, converted here.
 {
   // App. A.1: every telegraph gives at least this long before a commit.
@@ -123,7 +123,11 @@
     "carHugger": [[1.3, 0.6], [1.2, 1.9]],
     "passenger": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
     "stoker": [[0.45, 0.45], [0.4, 1.1]],
-    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]]
+    "tippyToesie": [[0.4, 0.6], [0.4, 1.4], [0.3, 2.0]],
+    // The barrel and the hump (note 339); its rack stops nothing, a round in it is a miss.
+    "moose": [[0.9, 1.6], [0.9, 2.1], [0.6, 2.6]],
+    // Its breast and sacs, and the head over them (note 340): standing on a roof 2.3 m tall; in the air, about where it flies.
+    "gannet": [[1.0, 0.7], [0.6, 1.6]]
   },
   "gauntAsleep": 0.35,
 
@@ -192,6 +196,17 @@
     "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
   },
 
+  // The world is solid (the director, 6 Oct 2026: "creatures, carries and players must respect the terrain and geometry";
+  // ARCHITECTURE §8 note 279). Once the creatures have stepped, what's loose in the world is held out of the stops' and the
+  // fortresses' buildings and inside a tunnel's lining, by the widest sphere of its body (bodies, above). By kind: "ground"
+  // walks on the land (a Ribbit's hop, a Gaunt walking up after its waker, a feral Grumbler), but within climbM of a car it
+  // may be up its side; "air" flies, never lower than airClearM over the land (the Choir); "none" goes its own way (the
+  // Whistler's run is laid clear of walls, above, a Follower crawls along the cars, the Soot Children answer a voice).
+  "solidity": {
+    "climbM": 2.5, "airClearM": 0.2,
+    "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none" }
+  },
+
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
   // nobody within aloneRadius; starts startBehind m behind them and creeps at approachSpeed (slower at a crew of two).
   // Looked at (within seenDegrees of their view) it flees, up to maxFlees times, and waits waitAfterSeen s. At reach it
@@ -258,6 +273,72 @@
   "choir": {
     "ghosts": 4, "health": 6, "seizeSeconds": 12, "flySpeed": 6, "hitBackDamage": 35, "hitBackEvery": 3, "disperseQuietSeconds": 10,
     "around": 12, "drivenOff": true, "hushBreakSeconds": 3
+  },
+
+  // THE MOOSE · movement (trespass), sound · outside (GDD §21, App. A.6, B.6; the director's decisions of 7 Oct 2026;
+  // ARCHITECTURE §8 note 339; docs/design/creatures/moose.md). A hyper-aggressive, territorial moose, too big to get on the
+  // train. Grazing beside a stop, its aggro (0-100) rises crowdPerSecond with anyone on the ground within crowdAt m
+  // (closePerSecond within closeAt), voicePerSecond at full voice (by the Voice byte, over talkingAbove of 255) with anyone
+  // talking within hearVoice m, and by trainPass once as a train goes by within trainPassAt m; a hit fills it. It falls
+  // calmPerSecond with nobody crowding or talking. listenAt (head up, ears turning) and warnAt (ears flat, the sac ridge up)
+  // are its tells. Full, its target is whoever put the most in (whoever hits it, from then on). In sight (sightRange, no
+  // building or car between) it closes at huntSpeed, squares up squareUpSeconds within squareUpAt[1] m (its heading locks
+  // at the end) and charges at chargeSpeed, overrunning overrun m, then wheels round in wheelSeconds. Its body is rackSpan
+  // across: nothing narrower lets it in. A building in the way snags it snagSeconds; a car or the track's clearance pulls it
+  // up; blockedCharges of those without reaching its target and it gives up. A charge through anyone on the ground (within
+  // hitReach of its rack) is a hit of chargeDamage; on someone at or under grabBelowHealth it pins them for pinSeconds, and
+  // a blow from anyone else takes it off them (they're its target then). Out of sight it searches at searchSpeed where it
+  // lost them, searchSeconds; a voice within hearVoice gives anyone away. Lost within lostAtCar m of a car they're aboard,
+  // it rams the car every ramEvery s for ramSeconds (a ram is only a sound and a shudder). It gives up past leashRadius from
+  // its ground, and when the train pulls away. It can't be killed. Never within trackClearance m of a track's centre
+  // (movingClearance while the train moves): it's never on the rail. Gone past goneBeyond m from the train.
+  // Spawns (B.6): at a stop, groundAt m out from the consist's middle; every tier, tierWeights by tier; biomeWeights by the
+  // line's biome (1 unlisted); perGroundWeight more per player on the ground; minCrew (1: a lone player struggles free, the
+  // solo rule, as from every grab). Beside the line on the run, lineside per 10 km by tier (times the biome's weight),
+  // linesideAhead m ahead and linesideOut m out: the line's own, not the director's.
+  "moose": {
+    "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
+    "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
+    "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
+    "listenAt": 20, "warnAt": 50,
+    "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
+    "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
+    "chargeDamage": 60, "grabBelowHealth": 40, "pinSeconds": 12,
+    "sightRange": 60, "searchSpeed": 2.5, "searchSeconds": 25, "leashRadius": 80,
+    "lostAtCar": 5, "ramEvery": 3, "ramSeconds": 15,
+    "trackClearance": 3.2, "movingClearance": 6, "goneBeyond": 600,
+    "groundAt": [30, 60], "minCrew": 1, "perGroundWeight": 0.5,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "lineside": { "local": 2, "frontier": 3, "deadLines": 4, "deepTerritory": 5 },
+    "linesideOut": [8, 22], "linesideAhead": 300,
+    "biomeWeights": { "marsh": 2, "plains": 1.5, "contaminatedMarsh": 1.5, "coast": 0.5, "blackForest": 1, "forestEdge": 1, "mountain": 1,
+      "deadTown": 0.5, "industrialRuin": 0.3, "slag": 0.3 }
+  },
+
+  // THE GANNET · sight · flank (GDD §21, App. A.4, B.4; the director's decisions of 7 Oct 2026; ARCHITECTURE §8 note 340;
+  // docs/design/creatures/gannet.md; the orchestrator's S3). One enormous corrupted seabird that rides a fast train: the
+  // train over arriveAbove m/s for arriveSeconds, out of a tunnel, and it comes, soaring soarRadius m round a car soarHeight
+  // m up at flySpeed. Someone walking a roof (over preyAbove m/s on it, not seated) is its prey: it hangs over them
+  // hangSeconds, then folds: its line locks on where they'll be foldSeconds on, and it strikes there at the end. Within
+  // strikeRadius of the strike, a stab of stabDamage (it can't kill) and up again; nobody there, on the roof: stuck
+  // stuckSeconds (a blow lands only now, or in a pin). A pass every diveEvery s. Whoever hits it (a blow, a ball) is its
+  // mark: when it's next due, it banks round bankSeconds (the telegraph: inside a car or the cab is shelter) and comes down
+  // on them, on a roof or on the ground within markReach, and pecks pecks times, peckEvery s apart, the last their death;
+  // driveOffBlows blows from friends in the pin drive it off (the last of them its mark). health in blows; under
+  // giveUpBelow it leaves for the run; killed, its head is a trophy (loot.json trophies.gannet). Under stallBelow for
+  // stallSeconds, in a tunnel, or quietSeconds with nobody walking the roofs and its mark inside, it peels off, back after
+  // returnSeconds once the train's run fast again. Spawns (B.4): every tier, tierWeights; biomeWeights by the line's biome
+  // (1 unlisted); perRoofWeight more per player on the roofs; minCars. Once a run (it comes back on its own).
+  "gannet": {
+    "arriveAbove": 18, "arriveSeconds": 30, "stallBelow": 12, "stallSeconds": 6, "quietSeconds": 60, "returnSeconds": 180,
+    "soarHeight": [20, 35], "soarRadius": 14, "flySpeed": 12,
+    "preyAbove": 0.8, "hangSeconds": 2, "foldSeconds": 1.6, "diveEvery": [8, 12],
+    "strikeRadius": 0.9, "stabDamage": 35, "stuckSeconds": 4,
+    "bankSeconds": 2.5, "pecks": 4, "peckEvery": 3, "driveOffBlows": 3,
+    "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
+      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
   },
 
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
@@ -574,7 +655,36 @@
     // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
     // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
     // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
-    "orchestrator": { "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1 },
+    "orchestrator": {
+      "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
+      // The census of posts and slack (ARCHITECTURE §8 note 345; orchestrator.md §3.1, §3.2 items 2–4). Once a second, each
+      // crewmate alive: their post (cab, gunner, walker on the roofs, a ladder or a gap, rider inside a car, ground off the
+      // train near it, or left behind past abandoned.behindM, whose own hunt answers them); which engaged threats are on whom
+      // (holding them; else the nearest crewmate within onRadius m; else the nearest at a post that answers it below: a pack
+      // running behind is the gunner's); and their slack, the seconds on the run between stops (the train moving faster than
+      // drivingAbove, past the grace, out of the forts and facilities, short of the final approach) since they last had something to
+      // answer (a threat on them; an upkeep job on their car: an open hot box, note 331, or a guttering lamp, note 346; a hot box
+      // anywhere for a walker, a guttering lamp anywhere for a rider; or, in the
+      // cab, the train moving faster than drivingAbove m/s: the line and the fire are the driver's to answer). It
+      // counts whenever "on" is (the harness reports it); with census on too and minCrew or more alive it steers (a crew of
+      // one is App. B.1's as it was):
+      // - who's next: the free crewmate with the most slack, minSlack s or more; a kind answered at their post weighs
+      //   ×slackWeight; a kind answered only at posts nobody holds ×emptyPostWeight (not those in emptyPostExempt, whose
+      //   rule is the empty post: the Track Doll's cab);
+      // - slack presses: + slackPerSecond to the pressure each second for each crewmate at slackPress s or more;
+      // - perTarget: one threat on any one player: a kind whose every answering crewmate (at a post that answers it) has a
+      //   threat on them already weighs nothing (with all of them so, nothing comes that second).
+      "census": true, "minCrew": 2, "onRadius": 20, "drivingAbove": 0.5, "slackWeight": 2, "emptyPostWeight": 0.5, "emptyPostExempt": ["trackDoll"],
+      "minSlack": 30, "slackPress": 150, "slackPerSecond": 0.05, "perTarget": true,
+      // Which post answers what (orchestrator.md §3.1's table), by the names in "costs" (carFire: the trouble in the cars).
+      "answers": {
+        "cab": ["trackDoll", "switchman", "stoker"],
+        "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
+        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire"],
+        "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
+        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler"]
+      }
+    },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
     // the train, and not in a fort, is afoot. While anyone is, the night's pressure builds by + perSecond × the share of the
@@ -639,7 +749,7 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5 },
+      "passenger": 5, "moose": 3, "gannet": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -665,6 +775,18 @@
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [
+      // The Moose (note 339): talk to the Gaunt vs. the moose hears every word; never be outnumbered vs. whoever it chases
+      // ends up alone; the coupling gaps hide you from it and hold the Whistler; the loading needs everyone vs. someone
+      // keeps it busy.
+      ["gaunt", "moose"],
+      ["ribbits", "moose"],
+      ["whistler", "moose"],
+      ["moose", "facilityLoading"],
+      // The Gannet (note 340): outrun the hounds by running fast vs. a fast train brings it; walk the centreline (the
+      // Draggers) vs. step aside when it folds; the gun is the quick answer vs. every ball feeds the Choir and marks the gunner.
+      ["cinderHounds", "gannet"],
+      ["draggers", "gannet"],
+      ["choir", "gannet"],
       ["choir", "cinderHounds"],
       ["choir", "gaunt"],
       ["fireFlies", "trackDoll"],

@@ -306,11 +306,29 @@ public sealed class FrontEnd
         if (e.Select is null)
             return null;
         // Choosing BACK is backing out.
-        Cue?.Invoke(e.Back ? UiCue.Back : UiCue.Select);
+        Cue?.Invoke(e.Back ? UiCue.Back : e.Sound ?? UiCue.Select);
         return e.Select();
     }
 
     public void Type(string text)
+    {
+        // A key heard for each typing that took (note 322): a field full, or a character it won't take, is silent.
+        string before = TypedText();
+        TypeInto(text);
+        if (TypedText() != before)
+            Cue?.Invoke(UiCue.Type);
+    }
+
+    /// <summary>What's in the field being typed into, to hear whether a key took.</summary>
+    string TypedText() => Editing switch
+    {
+        TextField.PlayerName => Settings.PlayerName,
+        TextField.CrewName => Open?.Name ?? "",
+        TextField.Address => Address,
+        _ => NamingLobby ? LobbyName : "",
+    };
+
+    void TypeInto(string text)
     {
         if (Editing == TextField.PlayerName)
         {
@@ -355,6 +373,14 @@ public sealed class FrontEnd
     public const int MaxCrewName = 24;
 
     public void Erase()
+    {
+        string before = TypedText();
+        EraseOne();
+        if (TypedText() != before)
+            Cue?.Invoke(UiCue.Type);
+    }
+
+    void EraseOne()
     {
         if (Editing == TextField.PlayerName)
         {
@@ -517,30 +543,12 @@ public sealed class FrontEnd
                 Show(Screen.Slots);
                 Message = $"Slot {s.Slot} is empty.";
                 return null;
-            }),
+            }, Sound: UiCue.Delete),
         ];
     }
 
     static string DefaultCrewName(int slot) => $"Crew {slot}";
 
-    /// <summary><paramref name="text"/> in lines no wider than <paramref name="width"/>, broken between words.</summary>
-    static IEnumerable<string> Wrap(Overlay o, string text, float width)
-    {
-        string line = "";
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            string wider = line.Length == 0 ? word : line + " " + word;
-            if (line.Length > 0 && o.Font.Measure(wider) > width)
-            {
-                yield return line;
-                line = word;
-            }
-            else
-                line = wider;
-        }
-        if (line.Length > 0)
-            yield return line;
-    }
 
     /// <summary>The title's MODS line (note 323): how many are on tonight, and how many couldn't load.</summary>
     string ModsLine()
@@ -739,7 +747,8 @@ public sealed class FrontEnd
 
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
     /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
-    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null);
+    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null,
+        string? Sound = null);
 
     List<Entry> Entries() => Screen switch
     {
@@ -819,6 +828,17 @@ public sealed class FrontEnd
             new(new($"HUD: {(Settings.Hud ? "ON" : "OFF")}", "F1 in the game as well."), Toggle(s => s with { Hud = !s.Hud }), _ => Change(Settings with { Hud = !Settings.Hud })),
             new(new($"CONTROL HINTS: {(Settings.ControlHints ? "ON" : "OFF")}", "The keys in the corner for what you're holding or driving."),
                 Toggle(s => s with { ControlHints = !s.ControlHints }), _ => Change(Settings with { ControlHints = !Settings.ControlHints })),
+            // Note 348: the HUD's colours that mean something, told apart without red against green.
+            new(new($"COLOURS: {(Settings.Colours == HudColours.Colourblind ? "COLOURBLIND" : "STANDARD")}",
+                Settings.Colours == HudColours.Colourblind ? "The HUD's good in blue, warnings in yellow, danger in red." : "The HUD's good in green, warnings in amber, danger in red."),
+                Toggle(s => s with { Colours = s.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind }),
+                _ => Change(Settings with { Colours = Settings.Colours == HudColours.Colourblind ? HudColours.Standard : HudColours.Colourblind })),
+            // Note 349: what's heard, named, and where.
+            new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
+                Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 350: a new player's first nights.
+            new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
+                Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
             // Note 347: the print, bigger; the HUD's and these menus' alike, at once.
             new(new($"TEXT SIZE: {Settings.TextScale * 100:0}%",
                 "Left and right to change: the HUD's print and the menus', bigger."),
@@ -1082,7 +1102,7 @@ public sealed class FrontEnd
     void DrawCredits(Overlay o, float x, float y, int width, int height)
     {
         // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var row in Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
+        foreach (var row in UiStyle.Wrap(o, "COMPOSITIONS IN THE PUBLIC DOMAIN. RECORDINGS DEDICATED CC0 1.0.", width - x - 8))
         {
             o.Text(x, y, row, Faint);
             y += 10;
@@ -1137,7 +1157,7 @@ public sealed class FrontEnd
     {
         var tally = Tally;
         // Wrapped at a bigger TEXT SIZE (note 347).
-        foreach (var line in Wrap(o, TallyLine, width - x - 8))
+        foreach (var line in UiStyle.Wrap(o, TallyLine, width - x - 8))
         {
             o.Text(x, y, line, Faint);
             y += 10;
@@ -1233,7 +1253,7 @@ public sealed class FrontEnd
             _ => "A CO-OP NIGHT ON THE LAST RAILWAY",
         };
         // At a bigger TEXT SIZE (note 347) a long heading wraps rather than run off the frame.
-        foreach (var row in Wrap(o, heading!, width - x - 8))
+        foreach (var row in UiStyle.Wrap(o, heading!, width - x - 8))
         {
             o.Text(x, y, row, Dim);
             y += 10;
@@ -1273,6 +1293,11 @@ public sealed class FrontEnd
         int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
+        // More above or below (note 351): a small arrow on the plate's edge, where "..." on a row read as part of its label.
+        if (first > 0)
+            Chevron(o, x - 8 + plate / 2, y - 7, down: false, Ink);
+        if (first + shown < items.Count)
+            Chevron(o, x - 8 + plate / 2, y + shown * 10 + 1, down: true, Ink);
         for (int i = first; i < first + shown; i++)
         {
             bool on = i == Selected;
@@ -1281,10 +1306,9 @@ public sealed class FrontEnd
             if (on)
                 o.Rect(x - 4, y - 1, plate - 8, 9, UiStyle.Lit with { W = 0.14f });
             var colour = !items[i].Enabled ? Faint : on ? Amber : Ink;
-            string more = i == first && first > 0 || i == first + shown - 1 && first + shown < items.Count ? "  ..." : "";
             // A label wider than the frame (a long contract at 150%, note 347) is cut short; the detail under the list says it whole.
-            string label = Clip(o, (on ? "> " : "  ") + items[i].Label, plate - 8 - (arrows ? 28 : 0) - o.Font.Measure(more));
-            o.Text(x, y, label + more, colour);
+            string label = Clip(o, (on ? "> " : "  ") + items[i].Label, plate - 8 - (arrows ? 28 : 0));
+            o.Text(x, y, label, colour);
             if (entries[i].Adjust is not null && items[i].Enabled && Editing is null)
             {
                 float ax = x - 8 + plate - 26;
@@ -1299,7 +1323,7 @@ public sealed class FrontEnd
         y += 6;
         if (Selected < items.Count && items[Selected].Detail is { } detail)
             // Wrapped to the screen (note 323): a mod's description is its author's, up to Thunderstore's 250 characters.
-            foreach (var line in Wrap(o, detail.ToUpperInvariant(), width - x - 8))
+            foreach (var line in UiStyle.Wrap(o, detail.ToUpperInvariant(), width - x - 8))
             {
                 o.Text(x, y, line, Dim);
                 y += 10;
@@ -1317,6 +1341,16 @@ public sealed class FrontEnd
         if (UiStyle.MeasureKeyed(o, hints) > width - 16)
             hints = hints.Replace(" OR MOUSE", "").Replace(" OR CLICK", "");
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
+    }
+
+    /// <summary>A four-pixel arrow centred on <paramref name="cx"/>, from <paramref name="y"/> down, pointing up or down.</summary>
+    static void Chevron(Overlay o, float cx, float y, bool down, Vector4 colour)
+    {
+        for (int r = 0; r < 4; r++)
+        {
+            float half = down ? 3 - r : r;
+            o.Rect(MathF.Round(cx - half), y + r, half * 2 + 1, 1, colour);
+        }
     }
 
     /// <summary><paramref name="text"/> cut short with "..." to fit <paramref name="width"/>, or as it is if it fits.</summary>

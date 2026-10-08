@@ -421,7 +421,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _manifestSeconds += SimConstants.TickSeconds;
         // GDD App. E.12 question 5 (note 308): the last engineering kit lost, the yard says so, once.
         _kitLostFor = run.Kit.Lost && !run.Over ? _kitLostFor + SimConstants.TickSeconds : 0;
-        if (!_kitLostSaid && RadioTuning.KitLost && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
+        // (Note 301: not for the last wrench; the clerk has no line for it yet, AU1's to record.)
+        if (!_kitLostSaid && RadioTuning.KitLost && !Sim.Train.Repairs.ByWrench(Train) && _kitLostFor >= run.Tuning.Stranded.LostForSeconds)
         {
             _kitLostSaid = true;
             _bulletin = Sim.Run.Radio.KitLost(run.Kit);
@@ -918,9 +919,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             StepRedial();
     }
 
+    readonly CarLean _lean = new();
+
     public IReadOnlyList<CarFrame> InterpolatedFrames(double alpha)
     {
         Train.FramesAt(alpha, _frames);
+        // Each car leaning out on a bend it's taking too fast (note 370): drawn only, worked out alike on every machine.
+        _lean.Apply(_frames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         return _frames;
     }
 

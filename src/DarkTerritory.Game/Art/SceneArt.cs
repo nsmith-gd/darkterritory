@@ -80,6 +80,15 @@ public sealed partial class SceneArt(Look look)
             pose = CrewPose.HangUp;
         else if (before.Pose == CrewPose.HangUp && pose is CrewPose.Idle or CrewPose.Walk && time - before.Time < HangUpSeconds)
             pose = CrewPose.HangUp;
+        // Over the top of a jump (rising it's the sim's Jump, then nothing till they're falling fast): the leap held through
+        // it, so the walk doesn't flicker in between.
+        if (before.Pose == CrewPose.Jump && pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Hurry && time - before.Time < JumpHoldSeconds)
+            pose = CrewPose.Jump;
+        // Stood or walking on a car straining on a bend taken too fast (BendStrain; App. F.1's overspeed telegraph), past the
+        // judder: fighting for footing, arms out (note 375). The sim's lurch throws them off later still (Lineside).
+        if (pose is CrewPose.Idle or CrewPose.Walk or CrewPose.Run or CrewPose.Hurry or CrewPose.Gap or CrewPose.GapStep
+            && BendStrain is { } bends && c.Car >= 0 && c.Car < bends.Count && bends[c.Car].Stress >= StumbleAt)
+            pose = CrewPose.Stumble;
         LastPose = pose;
         // A blow taken (their health down since last drawn): rocked back a step, unless their hands are busy with something.
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
@@ -107,6 +116,8 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
             CrewPose.Reload => c.Phase,
+            // A staged leap says how far into it they are (dt screenshot --act jump); a lived one, from the spring.
+            CrewPose.Jump => c.Phase > 0 ? c.Phase : time - since.Time,
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
@@ -261,6 +272,16 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
+
+    /// <summary>Each car's strain on a bend taken too fast (GreyboxScene's, BendStrain.PerCar), by frame: the crew on it stumble.</summary>
+    public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
+
+    // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
+    // (BendStrain.Offset starts at 0.2) and the flanges' haze comes on.
+    const float StumbleAt = 0.5f;
+
+    // How long a jump's leap is held from its start (s): over the top, until they're falling or down (crew_clips.py's jump).
+    const double JumpHoldSeconds = 0.75;
 
     // How long hanging the extinguisher back on its bracket takes (s): crew_clips.py's hang_up, 40 frames at 30.
     const double HangUpSeconds = 40 / 30.0;
@@ -446,7 +467,8 @@ public sealed partial class SceneArt(Look look)
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
             return true;
-        var up = onCar ? frames[b.Parent].Up : Double3.Up;
+        // (A load in the wreck film tumbles: its own up, note 370.)
+        var up = b.Tilt.Length > 0.5 ? b.Tilt : onCar ? frames[b.Parent].Up : Double3.Up;
         double yaw = b.Yaw + (onCar ? frames[b.Parent].Heading : 0);
         var u = new Vector3((float)up.X, (float)up.Y, (float)up.Z);
         var right = Vector3.Normalize(Vector3.Cross(new Vector3((float)Math.Sin(yaw), 0, (float)Math.Cos(yaw)), u));
@@ -493,6 +515,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
             // The engineer's toolbox (train_stores' repair_kit, GDD §12), lying where it was put down or dropped.
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A charge for a gun's rack (note 374): a powder bag from the shot locker.
+            Sim.Physics.BodyKind.Powder => props.Get("powder_bag") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
@@ -697,20 +721,15 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 30)
             return;
         var m = FrameMatrix(engine, eye);
-        // The gauge lamp under the cab roof (T101): the backhead and its dials lit enough to read whatever the fire's doing;
-        // cab forward (note 276), at the back wall (the map at the front has the cab lamp).
+        // The gauge lamp under the cab roof (T101): the dials lit enough to read whatever the fire's doing; at the cab's
+        // front over the work (note 280).
         var cab = engine.Shape.Cab!.Value;
-        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Max.Z - 0.9)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
-        // Everything on the backhead is placed in its frame (it faces forward from the back wall).
-        var bh = TrainKit.BackheadFrame(engine.Shape) * m;
+        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0.3f, (float)cab.Max.Y - 0.3f, (float)(cab.Min.Z + 1.3)), m), new Vector3(1.0f, 0.78f, 0.5f) * 0.55f, 3.2f));
         var needle = Piece("needle", () => TrainKit.Needle(Look));
-        // Two sets (note 276): the backhead's, in its frame, for the fireman; the driver's over the front window, facing
-        // back into the cab as the engine's frame does.
+        // The one set (note 280: the firebox is at the front, so whoever's firing reads the same dials the driver does), over
+        // the right-hand front window, facing back into the cab as the engine's frame does.
         for (int i = 0; i < 4 && i < fractions.Length; i++)
-        {
-            Dial(mesh, needle, TrainKit.GaugeLocal(engine.Shape, i), TrainKit.GaugeRadius, bh, i, fractions[i]);
             Dial(mesh, needle, TrainKit.DriverGauge(engine.Shape, i), TrainKit.DriverGaugeRadius, m, i, fractions[i]);
-        }
     }
 
     /// <summary>One dial's reading: its needle, or (the tender's, <paramref name="index"/> 2) the coal's level in its glass.</summary>
@@ -842,7 +861,8 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
             return;
         mesh.Instances.Add(new MeshInstance(Piece("rupture-tear", () => TrainKit.RuptureTear(Look)),
-            Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape)) * FrameMatrix(engine, eye)));
+            Matrix4x4.CreateScale(TrainKit.RuptureSize(engine.Shape)) * Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape))
+            * FrameMatrix(engine, eye)));
     }
 
     /// <summary>

@@ -21,12 +21,19 @@ public sealed record LootTuning
     /// as bought): every village container and yard crate stack and strongroom, each rolled on its own stream.
     /// </summary>
     public double RepairKitChance { get; init; }
+    /// <summary>
+    /// How far out along the main line (m) a stop's loot, and its facility's crates, come out (the director, 8 Oct 2026:
+    /// he watched it appear after he'd stopped; note 352). 0: when the train first stops there.
+    /// </summary>
+    public double StockAhead { get; init; }
     /// <summary>Toys found at the stops (note 264: none ride from the fortress now). Unset, none.</summary>
     public ToyLootTuning? Toys { get; init; }
     /// <summary>The finds that heal when used (GDD App. F.1, the damage model; note 272). Unset, none do.</summary>
     public HealingTuning? Healing { get; init; }
     /// <summary>The held search of an open house's hiding spots (GDD App. F.3; note 326). Unset, the finds lie out.</summary>
     public SearchTuning? Search { get; init; }
+    /// <summary>A creature's trophy when it's killed (the Gannet's head, note 340), by the kind's tuning name. Unset, none.</summary>
+    public Dictionary<string, TrophyTuning> Trophies { get; init; } = new();
 
     public LootKindTuning Of(ContainerKind kind) =>
         Kinds.TryGetValue(char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..], out var k) ? k : throw new KeyNotFoundException($"loot.json has no kind {kind}");
@@ -154,3 +161,6 @@ public static class StopLoot
     /// <summary>The tier key run.json's economy prices by.</summary>
     public static string TierKey(RouteTier tier) => char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
 }
+
+/// <summary>A creature's trophy (loot.json <c>trophies</c>; note 340): the find it is, and what it pays in the tier's car-loads.</summary>
+public sealed record TrophyTuning(string Item, double PerCar);

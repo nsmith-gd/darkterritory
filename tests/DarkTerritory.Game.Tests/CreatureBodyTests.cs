@@ -23,6 +23,7 @@ public class CreatureBodyTests
         { EnemyKind.Grumbler, "grumbler", 1 }, { EnemyKind.Whistler, "whistler", 1 }, { EnemyKind.Dragger, "dragger", 1 },
         { EnemyKind.Follower, "follower", 1 }, { EnemyKind.SootChildren, "soot_child", 1 }, { EnemyKind.CarHugger, "car_hugger", 1 },
         { EnemyKind.Passenger, "passenger", 1 }, { EnemyKind.Stoker, "stoker", 1 }, { EnemyKind.TippyToesie, "tippy_toesie", 1 },
+        { EnemyKind.Moose, "moose", 1 }, { EnemyKind.Gannet, "gannet", 1 },
     };
 
     [Theory]

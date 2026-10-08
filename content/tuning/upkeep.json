@@ -26,5 +26,36 @@
     "greaseSeconds": 3,
     "reach": 3.0,
     "bogieInset": 1.6
+  },
+  // U3, a lamp guttering (note 346): a lit car's lamp running low. One starts, on a lit car with a room drawn at random,
+  // every everyMetres of the train's running (± jitter of it), none in the first firstAfterMetres, none in the yard or a
+  // fort, and never more guttering than there are crewmates alive. It flickers and dims, worse as it goes (the tell);
+  // whoever's in the car trims it with the lamp key, and it burns steady. Left outAfter seconds it goes out: the car is
+  // dark (Climbers make for an unlit car, App. A.4) until someone lights it again.
+  "lamp": {
+    "enabled": true,
+    "everyMetres": 3000,
+    "jitter": 0.5,
+    "firstAfterMetres": 3000,
+    "outAfter": 45
+  },
+  // U2, a coupling working loose (note 356): a gap's pin worked loose by the running. One comes loose, in a gap drawn
+  // from the engine's rake (never the engine's own coupling: that would be the whole train), every everyMetres of the
+  // train's running (± jitter of it), the metres counting roughFactor times over on a bend tighter than roughRadius (m;
+  // the outline's "rough track"), none in the first firstAfterMetres, none in the yard or a fort, and never more loose
+  // than there are crewmates alive. It knocks at the gap, faster as it goes, and it's called out as every break is (the
+  // tell). The wrench in hand, Use held tightenSeconds with the hands within reach m of the pin (from the plate in the
+  // gap, an end ladder over it, the ground beside), it's tight. Left partAfter seconds the pin drops and the rake parts
+  // behind it (§24's cut-car rules). The worst job, so the rarest: the outline's every 6 km.
+  "coupling": {
+    "enabled": true,
+    "everyMetres": 6000,
+    "jitter": 0.5,
+    "roughRadius": 800,
+    "roughFactor": 3,
+    "firstAfterMetres": 4000,
+    "partAfter": 90,
+    "tightenSeconds": 4,
+    "reach": 2.2
   }
 }

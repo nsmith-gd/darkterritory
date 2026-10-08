@@ -93,12 +93,36 @@ public sealed class Director
     /// </summary>
     public int Active { get; private set; }
 
-    /// <summary>The live census (note 336): the crew alive this second; none seen leaves it as it was.</summary>
-    public void Census(World world)
+    /// <summary>The orchestrator's census of posts and slack (note 345), as of the director's last second.</summary>
+    public Census Posts { get; } = new();
+
+    /// <summary>
+    /// The live census, once a second (notes 336, 345): the crew alive this second (none seen leaves it as it was); and each
+    /// one's post, the threats on them and their slack, which counts only on the run between stops: the train on the move,
+    /// past the grace, out of the forts and the facilities, short of the final approach and the terminus' safe stretch.
+    /// </summary>
+    public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
+        // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
+        if (!_t.Orchestrator.On)
+            return;
+        double front = world.Train.Dynamics.Distance;
+        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        // Not at a facility either: the stop's work is the crew's to answer there (App. F.1: "slowing opens the doors"; the stops
+        // are the heightened part of the night), and the census is for the run between them (App. F.3).
+        // And only with the train on the move: a generated stop keeps the run under way while the train stands to be worked.
+        bool counting = elapsed >= Grace && !world.TrainInFort && !home && world.Run?.Phase is null or Run.RunPhase.Underway
+            && Math.Abs(world.Train.Dynamics.Velocity) > _t.Orchestrator.DrivingAbove;
+        Posts.Count(world, active, _t.Orchestrator, _t.Abandoned.BehindM, counting);
     }
+
+    /// <summary>
+    /// The census at work (note 345): it counts, and the crew it counted is big enough for it to steer (a crew of one is App.
+    /// B.1's). The crew it saw, not the crew planned: a night with nobody aboard yet has no posts to steer by.
+    /// </summary>
+    bool Steering => _t.Orchestrator is { On: true, Census: true } o && Posts.Entries.Count >= o.MinCrew;
 
     /// <summary>
     /// The most threats engaged at once (App. B.1's hard caps; note 336, orchestrator.md §3.2 3, 5): the flat 4 (crew ≤ 4) or
@@ -295,6 +319,10 @@ public sealed class Director
                 return Held("terrain at its ceiling");
         }
         Build(world, active, elapsed, s);
+        // Slack presses (note 345; orchestrator.md §3.2 4): each crewmate who's had nothing to answer for slackPress seconds
+        // adds slackPerSecond, on top of the pressure's own terms, so a crew with several people idle fills faster.
+        if (Steering)
+            _pressure = Math.Min(_t.Pressure.Max, _pressure + _t.Orchestrator.SlackPerSecond * Posts.Entries.Count(c => c.Slack >= _t.Orchestrator.SlackPress));
         // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
         // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
         // big the pressure waits (listening) up to holdUntil, and then the biggest draw standing takes it. A quiet crew buys
@@ -415,6 +443,12 @@ public sealed class Director
         // the stops' sites) weighs more, by their share: more of the night is met off the train.
         if (_t.Afoot.On && AfootShare > 0 && _t.Afoot.OutsideWeight != 1)
             options = [.. options.Select(o => (o.Kind, Outdoors(o.Kind) ? o.Weight * (1 + (_t.Afoot.OutsideWeight - 1) * AfootShare) : o.Weight))];
+        // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
+        // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
+        bool weighed = options.Any(op => op.Weight > 0);
+        options = WhoseNext(options);
+        if (weighed && options.All(op => op.Weight <= 0))
+            return Held("one on each");
         options = WeighVotes(options);
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
@@ -432,6 +466,41 @@ public sealed class Director
         Charge(world, kind, active, paced: due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)));
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
         return kind;
+    }
+
+    /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
+    public CensusEntry? Next => Steering
+        ? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
+        : null;
+
+    /// <summary>
+    /// Who's next (note 345; orchestrator.md §3.2 2, 3): a kind answered at the post of the free crewmate with the most slack
+    /// weighs ×slackWeight; a kind answered only at posts nobody holds, ×emptyPostWeight (but for those whose rule is an empty
+    /// post: the Track Doll's cab). And one threat on any one player (perTarget): a kind whose every answering crewmate already
+    /// has one on them weighs nothing. (With the engaged cap at ceil(0.75 × active) the crew as a whole is never all taken
+    /// before the cap holds, so the rule is per post, not a hold.) Kinds with no answer post in the tuning are left as they are.
+    /// </summary>
+    public List<(EnemyKind Kind, double Weight)> WhoseNext(List<(EnemyKind Kind, double Weight)> options)
+    {
+        if (!Steering)
+            return options;
+        var o = _t.Orchestrator;
+        var entries = Posts.Entries;
+        var held = entries.Select(c => c.Post).ToHashSet();
+        var next = Next;
+        return [.. options.Select(op =>
+        {
+            var posts = Census.AnswerPosts(o, op.Kind).ToList();
+            if (posts.Count == 0)
+                return op;
+            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering && answering.All(c => c.On > 0))
+                return (op.Kind, 0.0);
+            if (next is not null && posts.Contains(next.Post))
+                return (op.Kind, op.Weight * o.SlackWeight);
+            if (!posts.Any(held.Contains) && !o.EmptyPostExempt.Contains(Key(op.Kind)))
+                return (op.Kind, op.Weight * o.EmptyPostWeight);
+            return op;
+        })];
     }
 
     /// <summary>
@@ -965,9 +1034,13 @@ public sealed class Director
     /// caps full, and the night went quiet).
     /// </summary>
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
+        // A Gannet that's peeled off (note 340) isn't there to answer.
+        && e is not Gannet { Mode: GannetMode.Away }
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
-            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie));
+            || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
+                // A grazing Moose (note 339) only waits to be bothered.
+                or EnemyKind.Moose));
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
@@ -1017,6 +1090,8 @@ public sealed class Director
                 EnemyKind.FireFlies => new FireFlies(0),
                 EnemyKind.Ribbit => new Ribbit(0, 0),
                 EnemyKind.Grumbler => new Grumbler(0),
+                EnemyKind.Moose => new Moose(0),
+                EnemyKind.Gannet => new Gannet(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

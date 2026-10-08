@@ -33,6 +33,12 @@ public sealed partial class Run
     /// <summary>A find's body's owner: the stop, and the container in its layout.</summary>
     public static int LootOwner(int stop, int container) => stop << 12 | container;
 
+    /// <summary>The "stop" a creature's trophy's owner names (note 340): past any line's stops, its container the creature's kind.</summary>
+    public const int TrophyStop = 0xFFF;
+
+    /// <summary>A creature's trophy's owner (the Gannet's head, note 340): a find that's the kind's, not a stop's.</summary>
+    public static int TrophyOwner(Enemies.EnemyKind kind) => LootOwner(TrophyStop, (int)kind);
+
     /// <summary>
     /// Fills the stops from the economy and builds their yards' cranes. Host and clients both do this (after
     /// <see cref="EnableSites"/>), so a client can name a find from its body.
@@ -95,6 +101,12 @@ public sealed partial class Run
         if (b.Kind != Physics.BodyKind.Loot)
             return null;
         int stop = b.Owner >> 12, container = b.Owner & 0xFFF;
+        // A creature's trophy (the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"; note 340): loot.json
+        // trophies, by the kind, paying its share of the tier's car-load. The same on every machine.
+        if (stop == TrophyStop)
+            return _loot is { } lt && _route is { } r && lt.Trophies.TryGetValue(Enemies.Director.Key((Enemies.EnemyKind)container), out var trophy)
+                ? new LootFind(container, trophy.Item, trophy.PerCar * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(r.Tier), 700))
+                : null;
         if (stop < 0 || stop >= _stopLoot.Count)
             return null;
         foreach (var f in _stopLoot[stop].Finds)
@@ -121,13 +133,9 @@ public sealed partial class Run
             return;
         var train = world.Train;
         var engine = EngineRake(train);
-        if (engine.Speed < Tuning.StopBelowSpeed)
-            for (int k = 0; k < _stopLoot.Count; k++)
-            {
-                var f = _stopLoot[k].Feature;
-                if (!_stocked[k] && engine.Distance >= f.Start && engine.Distance <= f.End + 100)
-                    Stock(world.Bodies, line, t, k);
-            }
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (!_stocked[k] && Due(_stopLoot[k].Feature, train, engine, t.StockAhead))
+                Stock(world.Bodies, line, t, k);
 
         // A find put down inside a car, and lying still there, is stowed. (Only a stop's finds: other hand loot, the salvage
         // the Gaunt and the Followers go for, stays a body.)
@@ -151,8 +159,18 @@ public sealed partial class Run
     }
 
     /// <summary>
-    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does when the train
-    /// first stops there (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
+    /// Whether a stop's loot is due out. Note 352 (the director, 8 Oct 2026: "[I] watched the loot spawn in the yard after I'd
+    /// already stopped the train"): with the engine on the main line within <paramref name="ahead"/> m of the stop's zone,
+    /// whatever its speed, before anyone's near enough to be sent it (enemies.json interestRadius). With no look-ahead, once
+    /// the train first stops there.
+    /// </summary>
+    bool Due(RouteFeature f, TrainOnLine train, TrainDynamics engine, double ahead) => ahead > 0
+        ? train.OnMain && engine.Distance >= f.Start - ahead && engine.Distance <= f.End + ahead
+        : engine.Speed < Tuning.StopBelowSpeed && engine.Distance >= f.Start && engine.Distance <= f.End + 100;
+
+    /// <summary>
+    /// Puts stop <paramref name="stop"/>'s loot out into <paramref name="bodies"/> now, as the host does as the train comes
+    /// up to it (for tools: `dt screenshot --site`). Does nothing before <see cref="EnableLoot"/>.
     /// </summary>
     /// <param name="searched">Its open houses searched too (note 326), every find out where it was kept (and only that, if its
     /// loot's already out).</param>

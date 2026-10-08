@@ -23,6 +23,7 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
 
     /// <summary>The forts are safe from creatures all night (GDD §9, T128; ARCHITECTURE §8 note 273): run.json <c>forts</c>.</summary>
     public FortTuning Forts { get; init; } = new();
+    public WallTuning Walls { get; init; } = new();
 
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
@@ -65,6 +66,9 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 /// to <paramref name="HalfWidthM"/> either side of the line. Field docs live in run.json <c>forts</c>.
 /// </summary>
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
+
+/// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
+public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
@@ -228,7 +232,7 @@ public sealed partial class Run
     /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
     public double StopSeconds { get; private set; }
     /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
-    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding);
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>
@@ -274,7 +278,9 @@ public sealed partial class Run
         // §23.2: the check runs every tick. Ruptured with the kit lost, the night ends once the train comes to rest (the
         // crew get the whole coast to work out what just happened).
         _kitStocked |= world.KitStocked || world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed);
-        Kit = EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
+        // Note 301: where the wrench is the repair tool, it's the last wrench aboard that §23.2 reads (the director, 8 Oct).
+        bool wrench = Train.Repairs.ByWrench(train);
+        Kit = wrench ? EngineeringKit.Wrench(world, crew, Tuning.Stranded) : EngineeringKit.Where(world, crew, Tuning.Stranded, _kitStocked);
         // App. C.9: a rupture, with who last fired or vented it, and how long it sat at 100 (the spec's hold, by then).
         if (train.Boiler.Ruptured && !_wasRuptured && train.BoilerTuning is { } bt)
         {
@@ -285,9 +291,7 @@ public sealed partial class Run
         }
         _wasRuptured = train.Boiler.Ruptured;
         _kitLostFor = Kit.Lost ? _kitLostFor + dt : 0;
-        // Note 301: where the wrench mends the boiler (and everyone carries one), a lost kit strands nobody.
-        bool stranded = !Train.Repairs.ByWrench(train) && train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds
-            && engine.Speed < Tuning.StopBelowSpeed;
+        bool stranded = train.Boiler.Ruptured && _kitLostFor >= Tuning.Stranded.LostForSeconds && engine.Speed < Tuning.StopBelowSpeed;
 
         if (world.Derailed)
             Finish(world, crew, RunPhase.Failed, RunEnd.Derailed);
@@ -358,21 +362,33 @@ public sealed partial class Run
 
     readonly Dictionary<int, double> _loadSeen = new();
 
+    /// <summary>A facility's crates and heavy crates out on its platform, as its cargo (spec D; note 352 for when).</summary>
+    static void StockSite(World world, FacilityTuning t, Site site)
+    {
+        site.Stocked = true;
+        var cargo = site.Feature.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
+        foreach (var at in site.CrateStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
+        foreach (var at in site.HeavyStack)
+            world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
+    }
+
     void StepLoading(World world, FacilityTuning t, double dt)
     {
         var train = world.Train;
         world.Bodies.HeavySpan = t.Crates.Heavy.Span;
+        // The facility's crates come out with its stop's loot, before the train's near enough to see them (note 352).
+        if (_loot is { StockAhead: > 0 } loot)
+        {
+            var engine = EngineRake(train);
+            foreach (var s in _sites)
+                if (s is { Stocked: false } && Due(s.Feature, train, engine, loot.StockAhead))
+                    StockSite(world, t, s);
+        }
         if (CurrentSite is { } site)
         {
             if (!site.Stocked && Phase == RunPhase.AtFacility)
-            {
-                site.Stocked = true;
-                var cargo = FacilityFeature?.Facility is { } facility ? t.CargoOf(facility) : CargoKind.None;
-                foreach (var at in site.CrateStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, cargo: cargo);
-                foreach (var at in site.HeavyStack)
-                    world.Bodies.SpawnCargo(at, site.CrateLineHint, t.Crates.Heavy.Radius, cargo);
-            }
+                StockSite(world, t, site);
             Crank(site, t.Winch, dt);
             Restart(world, site, t.Power, dt);
             _drop = null;
@@ -665,8 +681,10 @@ public sealed partial class Run
         {
             int coupler = Kit.Loss == KitLoss.LeftBehind && Kit.Vehicle > 0 ? a.CouplerPulledBy(Kit.Vehicle) : -1;
             string pulled = coupler >= 0 ? $" Coupler: {IncidentLog.NameOf(world, coupler)}." : "";
-            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, a.KitHolder,
-                $"{Capital(EngineeringKit.Line(Kit.Loss).ToLowerInvariant())}. Last held: {{actor}}.{pulled}"));
+            // Note 301: the last wrench has no one holder to name.
+            bool byWrench = Train.Repairs.ByWrench(world.Train);
+            a.Add(new Incident(IncidentKind.Stranded, Seconds, -1, "Consist stranded", where, byWrench ? -1 : a.KitHolder,
+                $"{Capital(EngineeringKit.Line(Kit.Loss, byWrench).ToLowerInvariant())}.{(byWrench ? "" : " Last held: {actor}.")}{pulled}"));
         }
         // D.12: a derailment's still of each crew member, or the outro's last frame.
         if (world.Authority)

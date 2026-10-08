@@ -80,7 +80,7 @@ public static class Footing
 
     /// <summary>The ground at a world point, as a surface material.</summary>
     public static string Ground(World world, Double3 at, ref double hint) =>
-        OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint));
+        OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint, world.Town));
 
     /// <summary>
     /// A ground texture as it sounds underfoot (hooks-map §1): loose stone, mud and bog, grass and heath, the forest's floor,

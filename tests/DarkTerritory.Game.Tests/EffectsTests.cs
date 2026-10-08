@@ -311,11 +311,15 @@ public class EffectsTests
     [Fact]
     public void TheBoilerTearsInItsFlankAndTheBurstBlowsOutOfItThenHisses()
     {
-        // Spec B.6, GDD §23 "loud, spectacular": the seam is on the boiler's casing, its left face, behind the cab.
+        // Spec B.6, GDD §23 "loud, spectacular": the seam is on the engine's left side behind the cab. The boiler's cased in
+        // the armoured hood (note 338), so the tear is through the hood's plate (note 360): on its outer face, just proud
+        // of its straps, between its deck and roof, where it's seen from the line.
         var seam = TrainKit.RuptureSeam(EngineShape);
         var boiler = EngineShape.Solids.First(s => s.Part == Sim.Train.PartKind.Boiler).Box;
-        Assert.Equal(boiler.Min.X, seam.X, 3);
-        Assert.InRange(seam.Y, boiler.Min.Y, boiler.Max.Y);
+        var hood = EngineShape.Solids.Where(s => s.Part == Sim.Train.PartKind.CabWall && s.Box.Max.X < -boiler.Max.X)
+            .Select(s => s.Box).First(b => seam.Z >= b.Min.Z && seam.Z <= b.Max.Z && b.Max.Y - b.Min.Y > 2);
+        Assert.InRange(seam.X, hood.Min.X - 0.06, hood.Min.X - 0.01);
+        Assert.InRange(seam.Y, hood.Min.Y + 0.4, hood.Max.Y - 0.4);
         Assert.InRange(seam.Z, EngineShape.Cab!.Value.Max.Z, boiler.Max.Z);
         // The burst: out of the tear, away from the boiler (−X), at its height a big cloud; half a minute on, a hiss.
         static float Out(MeshBuilder m) => m.AlphaFx.Count == 0 ? 0 : -m.AlphaFx.ToArray().Min(v => v.Position.X);

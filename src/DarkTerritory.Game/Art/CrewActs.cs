@@ -19,6 +19,9 @@ public static class CrewActs
     /// <summary>Falling faster than this (m/s down), someone in the air is falling, not at the top of a jump.</summary>
     const double Falling = 3;
 
+    /// <summary>Rising faster than this (m/s up), someone in the air has jumped (a step off a ledge never rises).</summary>
+    const double Rising = 0.5;
+
     /// <summary>
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
@@ -70,15 +73,20 @@ public static class CrewActs
             && (e.WorldPosition(world.Train) - at).Length < StressRange);
 
     /// <summary>Who has hold of them (App. A.1 GRAB), as the pose that says so from across the car.</summary>
-    static CrewPose HeldBy(int id, World world) =>
-        world.ActiveEnemies.FirstOrDefault(e => e.Holding == id)?.Kind switch
+    static CrewPose HeldBy(int id, World world) => HeldPose(world.ActiveEnemies.FirstOrDefault(e => e.Holding == id)?.Kind);
+
+    /// <summary>The pose someone held by a <paramref name="kind"/> is drawn in (App. A.1 GRAB).</summary>
+    public static CrewPose HeldPose(EnemyKind? kind) =>
+        kind switch
         {
             EnemyKind.Dragger => CrewPose.HeldHang,
             EnemyKind.CarHugger => CrewPose.HeldMouth,
             EnemyKind.Whistler => CrewPose.HeldCarried,
             EnemyKind.TippyToesie => CrewPose.HeldCover,
             EnemyKind.Ribbit => CrewPose.HeldFrozen,
-            EnemyKind.SootChildren => CrewPose.HeldPinned,
+            // (Ground into the peat under the Moose's rack: on their back, pushing at it. Note 311. Flat on the roof under the
+            // Gannet's foot, the same: note 340.)
+            EnemyKind.SootChildren or EnemyKind.Moose or EnemyKind.Gannet => CrewPose.HeldPinned,
             EnemyKind.Choir => CrewPose.HeldSeized,
             EnemyKind.Passenger => CrewPose.HeldDragged,
             _ => CrewPose.Held,
@@ -165,6 +173,33 @@ public static class CrewActs
     }
 
     /// <summary>
+    /// How a friend held by something is hauled at, by what has them (note 378; App. A.1's rescue): out of the Car Hugger's
+    /// mouth, heaved back hand over hand; the Tippy Toesie's fingers prised off their face; lifted away by the Whistler or
+    /// the Choir, hauled back down by the legs; over an edge below (a Dragger's), hauled up; otherwise down on a knee at
+    /// their collar. What has them is the holding creature nearest them (every machine mirrors the enemies).
+    /// </summary>
+    static CrewPose Rescue(in PlayerState friend, in PlayerState s, World world)
+    {
+        var train = world.Train;
+        var at = PlayerMotor.WorldPosition(friend, train);
+        Enemy? holder = null;
+        double best = double.MaxValue;
+        foreach (var e in world.ActiveEnemies)
+            if (e.Holding >= 0 && (e.WorldPosition(train) - at).Length is var d && d < best)
+                (holder, best) = (e, d);
+        return RescueOf(HeldPose(holder?.Kind), below: friend.Position.Y < s.Position.Y - 0.5);
+    }
+
+    /// <summary>The rescuer's act for a friend held in <paramref name="held"/> (<see cref="HeldPose"/>), and whether they're below the edge.</summary>
+    public static CrewPose RescueOf(CrewPose held, bool below) => held switch
+    {
+        CrewPose.HeldMouth => CrewPose.PullMouth,
+        CrewPose.HeldCover => CrewPose.PryOff,
+        CrewPose.HeldCarried or CrewPose.HeldSeized => CrewPose.HaulDown,
+        _ => below ? CrewPose.HaulUp : CrewPose.Haul,
+    };
+
+    /// <summary>
     /// Stood at the door of a Holdout that's being breached (App. D.7): the act by its kind: a barricade pried, a lock picked
     /// with the repair kit (Holdout.Quiet), or smashed.
     /// </summary>
@@ -210,8 +245,9 @@ public static class CrewActs
             return CrewPose.GetUp;
         if (s.Surface == Surface.Ladder)
             return s.Has(PlayerFlags.SoloCarry) ? CrewPose.ClimbCarry : CrewPose.Climb;
+        // In the air: going up off a jump, the leap (note 375; SceneArt holds it over the top); coming down hard, falling.
         if (s.Surface == Surface.Air)
-            return s.Velocity.Y < -Falling ? CrewPose.Fall : null;
+            return s.Velocity.Y < -Falling ? CrewPose.Fall : s.Velocity.Y > Rising ? CrewPose.Jump : null;
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
@@ -247,14 +283,14 @@ public static class CrewActs
             if (world.Run is { } run && run.LeverInReach(s, train))
                 return CrewPose.Chute;
         }
-        if (world.Run is { } r && r.SpoutLeverInReach(s, train) is not null)
+        if (world.Run is { } r && (r.SpoutLeverInReach(s, train) is not null || r.LiftLeverInReach(s, train) is not null))
             return CrewPose.Spout;
         if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count)
             return null;
         // Beside a friend something's got hold of (App. A.1's rescue), down hauling them free; one hanging over the edge
         // below (a Dragger's, App. A.4), stood leaning back hauling them up.
         if (others is not null && HeldNear(s, others) is { } friend)
-            return friend.Position.Y < s.Position.Y - 0.5 ? CrewPose.HaulUp : CrewPose.Haul;
+            return Rescue(friend, s, world);
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)

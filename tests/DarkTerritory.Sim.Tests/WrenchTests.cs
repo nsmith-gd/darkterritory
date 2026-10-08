@@ -24,6 +24,9 @@ public class WrenchTests
         var at = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == kind).Position;
         var s = PlayerMotor.SpawnInCab(world.Train, Tuning.Player);
         s.Position = s.Position with { X = Math.Clamp(at.X, -1.05, 1.05), Z = at.Z };
+        // Facing it (note 280: the vent's on the side wall now, beside you, not ahead): what's looked at is what's worked.
+        if (Math.Abs(at.X - s.Position.X) > 0.05)
+            s.Yaw = Math.Atan2(-(at.X - s.Position.X), 0);
         return s;
     }
 
@@ -56,11 +59,12 @@ public class WrenchTests
         return new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 3, 1)), line, 1_000, Tuning.Boiler));
     }
 
-    /// <summary>In front of the fire door (cab forward, note 276).</summary>
+    /// <summary>Behind the fire door, facing forward (note 280: the firebox at the cab's front).</summary>
     static void AtTheFireDoor(World world, ref PlayerState s)
     {
         var firebox = world.Train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-        s.Position = s.Position with { X = 0.35, Z = firebox.Z - 0.45 };
+        s.Position = s.Position with { X = firebox.X + 0.15, Z = firebox.Z + 0.45 };
+        s.Yaw = 0;
     }
 
     [Fact]
@@ -108,12 +112,10 @@ public class WrenchTests
         AtTheFireDoor(world, ref s);
         Assert.True(Kit.Has(s.Kit, Tool.Wrench));
         Assert.Equal(BreakKind.Rupture, Repairs.At(s, train));
-        // The kit carried, the wrench not in hand: nothing.
-        var kit = world.Bodies.All.Single(b => b.Kind == Physics.BodyKind.RepairKit);
-        kit.Carrier = 1;
+        // The kit's gone (slice 2): none rides in the fitter's locker. And the crowbar in hand mends nothing.
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);
         Hold(world, ref s, Tuning.Boiler.RepairSeconds + 1);
         Assert.True(train.Boiler.Ruptured);
-        kit.Carrier = -1;
         // The wrench in hand (its number key, Repairs.WrenchKey).
         Assert.Equal(2, Repairs.WrenchKey(s));
         s.HeldSlot = 1;
@@ -157,7 +159,7 @@ public class WrenchTests
     [Fact]
     public void TheRepairKitRidesInTheFittersLockerInCarOne()
     {
-        var world = World();
+        var world = KitWorld();
         world.EnableBodies();
         world.Stock();
         var kit = Assert.Single(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);
@@ -165,9 +167,9 @@ public class WrenchTests
         Assert.Equal(1, kit.Parent);
         var shape = world.Train.Frames[1].Shape;
         Assert.True(shape.Interior!.Value.Contains(kit.Centre));
-        // Note 151: on the fitter's bottom shelf, its door shut, ahead of the side door and clear of the aisle.
+        // Note 151: on locker 8's bottom shelf (note 280: numbered, no role names), its door shut, ahead of the side door and clear of the aisle.
         var bay = shape.Lockers[kit.Locker];
-        Assert.Equal("FITTER", bay.Name);
+        Assert.Equal("8", bay.Name);
         Assert.Equal(0, kit.Slot);
         Assert.True(bay.Box.Contains(kit.Centre));
         Assert.False(world.Train.Vehicles[1].LockerOpen(bay.Index));

@@ -51,13 +51,13 @@ public sealed partial class GameAudio
     {
         public EnemyKind Kind;
         public SpinePhase Phase;
-        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance;
+        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance, Height;
         public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
         // moved and was last hit, and whether its car's breaking away has been heard.
         public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity;
-        public bool CutAway;
+        public bool CutAway, Passing;
 
         public void Take(Enemy e, Double3 at, int space)
         {
@@ -69,6 +69,7 @@ public sealed partial class GameAudio
             Extra2 = e.Extra2;
             GrabWindow = e.GrabWindow;
             LineDistance = e.LineDistance;
+            Height = e.Height;
             Attached = e.Attached;
             Holding = e.Holding;
             Local = e.Local;
@@ -152,6 +153,10 @@ public sealed partial class GameAudio
                 // Bludgeoned from the rear platform (it heals between blows: only a real drop is a blow).
                 if (struck)
                     Cue("cs-car-hugger.hit", at, occ);
+                // Note 310: the crew pull the swallowed crewmate back out. Eaten or pulled free, its grab ends the same way on
+                // the wire (back to grinding on the car), so it's the one it held still alive that says they got out.
+                if (was.Phase == SpinePhase.Grab && e.Phase != SpinePhase.Grab && Crewmate(was.Holding) is { Health: > 0 })
+                    Cue("cs-car-hugger.spit-out", at, occ);
                 BreakAway(world.Train, e.Attached, was, at);
                 break;
             case Whistler:
@@ -200,14 +205,19 @@ public sealed partial class GameAudio
                 // are heard from the crew's records (Mauled).
                 if (grabbed)
                     Cue("cs-gaunt.blow", Victim(world.Train, e.Holding, 1.2) ?? at, occ);
+                Pained("cs-gaunt.hit", e, at, occ, struck);
                 break;
             case Follower:
                 // App. A.6: its nest being beaten in, for as long as the blows keep coming (the swing is 0.8 s).
                 if (e.Phase == SpinePhase.Punish && _time - was.HitAt <= 1.2)
                     Hold("cs-followers.nest-smash", e.Id, at, occ);
+                // A blow on its nest is the nest's (above); one on the creature itself, off a back, is its own.
+                else
+                    Pained("cs-followers.hit", e, at, occ, struck);
                 break;
             case SootChildren soot:
                 SootSounds(soot, was, at, occ, grabbed);
+                Pained("cs-soot-children.hit", e, at, occ, struck);
                 break;
             case Passenger:
                 PassengerSounds(e, was, at, occ);
@@ -219,11 +229,28 @@ public sealed partial class GameAudio
                     Cue("cs-switchman.flicker", Lamp(world, sw.Branch, at), Occlusion(PlayerMotor.Outside));
                     was.Next = _time + 0.25 + 0.55 * _creatureRng.Next();
                 }
+                Pained("cs-switchman.hit", e, at, occ, struck);
                 break;
             case Grumbler g:
                 GrumblerSounds(g, was, at, occ);
+                // The blow that turns it feral is heard as it turning (GrumblerSounds); one before that, or after, is a hurt.
+                if (!(g.Feral && was.Extra2 <= 0.5))
+                    Pained("cs-grumbler.hit", e, at, occ, struck);
+                break;
+            case Moose m:
+                MooseSounds(world, m, was, at, occ);
                 break;
         }
+    }
+
+    /// <summary>
+    /// A ball or a blow landing on a creature and not killing it (note 290: the gun hits what it's laid on now, and per-creature
+    /// pain is the audio chat's). One that kills it is its death, when its record goes (Vanished).
+    /// </summary>
+    void Pained(string cue, Enemy e, Double3 at, float occ, bool struck)
+    {
+        if (struck && e.Health > 0)
+            Cue(cue, at, occ);
     }
 
     // ---- The kinds ------------------------------------------------------------------------------------------------------
@@ -509,6 +536,95 @@ public sealed partial class GameAudio
             Cue("cs-grumbler.feral", at, occ);
         if (e.Attached >= 0 && e.Phase == SpinePhase.Telegraph && !e.Feral)
             Hold("cs-grumbler.eat", e.Id, at, occ);
+    }
+
+    static readonly string[] MooseGrazing = ["tell-moose-grazing.browse", "tell-moose-grazing.creak", "tell-moose-grazing.grunt"];
+    static readonly string[] MooseWarning = ["tell-moose-warning.grunt", "tell-moose-warning.clack", "tell-moose-warning.hoof-drag"];
+
+    /// <summary>
+    /// The Moose (note 339; queue #73, note 334), read off its record as G1 answered on #247: its <see cref="MooseMode"/> in
+    /// Height, its aggro in Extra2 against <see cref="MooseTuning.ListenAt"/> and <see cref="MooseTuning.WarnAt"/>, its rams in
+    /// Health. Grazing it chews (held) and browses, creaks and grunts now and then; listening, the chewing stops dead (the
+    /// silence is the tell, so nothing plays); warning, a cough-like grunt, teeth clacks and a hoof raked back. Squaring up,
+    /// two stamps and a snort; charging, its hooves and its wheeze held and brush breaking; snagged, the wood groaning and a
+    /// bellow, then the rack grinding; searching, its breath held and the rack knocking now and then; a boom on each ram,
+    /// landed on the shudder, the rack scraping after. Grazing as the train goes by (the art's trainPass rule), a call after
+    /// it and the verge thrashed: the sim's +25 on the same condition, so sound, clip and temper agree.
+    /// </summary>
+    void MooseSounds(World world, Moose m, Creature was, Double3 at, float occ)
+    {
+        var t = world.Enemies?.Moose ?? new MooseTuning();
+        var mode = m.Mode;
+        bool began = mode != (MooseMode)(int)was.Height;
+        if (began)
+            was.Next = 0;
+        string Pick(string[] of) => of[(int)(_creatureRng.Next() * of.Length) % of.Length];
+        switch (mode)
+        {
+            case MooseMode.Graze when m.Aggro < t.ListenAt:
+                Hold("tell-moose-grazing.chew", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue(Pick(MooseGrazing), at, occ);
+                    was.Next = _time + 3 + 5 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Graze when m.Aggro >= t.WarnAt:
+                if (_time >= was.Next)
+                {
+                    Cue(Pick(MooseWarning), at, occ);
+                    was.Next = _time + 1.2 + 1.6 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.SquareUp when began:
+                Cue("tell-moose-square-up.stamp", at, occ);
+                CueLater(0.38, "tell-moose-square-up.stamp", at, occ);
+                CueLater(1.1, "tell-moose-square-up.snort", at, occ);
+                break;
+            case MooseMode.Charge:
+                Hold("tell-moose-charge.hooves", m.Id, at, occ);
+                Hold("tell-moose-charge.wheeze", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("tell-moose-charge.brush", at, occ);
+                    was.Next = _time + 0.8 + 1.4 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Snag:
+                if (began)
+                {
+                    Cue("cs-moose-snag.groan", at, occ);
+                    CueLater(0.5, "cs-moose-snag.bellow", at, occ);
+                }
+                Hold("cs-moose-snag.grind", m.Id, at, occ);
+                break;
+            case MooseMode.Search:
+                Hold("cs-moose-search.breath", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("cs-moose-search.knock", at, occ);
+                    was.Next = _time + 3 + 4 * _creatureRng.Next();
+                }
+                break;
+        }
+        // A ram, on the shudder (RamCount, replicated in Health).
+        if (m.RamCount > Math.Max(0, (int)Math.Round(was.Health) - 1))
+        {
+            Cue("cs-moose-ram.boom", at, occ);
+            CueLater(0.2, "cs-moose-ram.scrape", at, occ);
+        }
+        var train = world.Train;
+        bool passing = mode == MooseMode.Graze && m.Aggro < t.WarnAt && Math.Abs(train.Dynamics.Speed) > 1 && train.Frames.Count > 0
+            && train.Frames.Min(f => ((f.Origin - at) with { Y = 0 }).Length - f.Shape.HalfLength) <= t.TrainPassAt;
+        if (passing && !was.Passing)
+        {
+            Cue("cs-moose-train-pass.bellow", at, occ);
+            CueLater(0.6, "cs-moose-train-pass.thrash", at, occ);
+        }
+        was.Passing = passing;
     }
 
     // ---- Records gone -----------------------------------------------------------------------------------------------------

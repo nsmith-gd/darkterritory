@@ -28,6 +28,8 @@ public sealed record EnemyTuning(
     public CreatureSitesTuning Sites { get; init; } = new();
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
+    public MooseTuning Moose { get; init; } = new();
+    public GannetTuning Gannet { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -35,6 +37,8 @@ public sealed record EnemyTuning(
     /// creatures driven off by its rules only with this many crewmates on it at once.
     /// </summary>
     public CoordinatedKillTuning CoordinatedKill { get; init; } = new();
+    /// <summary>Note 279: what holds a creature loose in the world (enemies.json <c>solidity</c>).</summary>
+    public SolidityTuning Solidity { get; init; } = new();
     /// <summary>
     /// Whether a creature at the controls (the Stoker's runaway, the Track Doll's tampering) may let a standing train off its
     /// held brake (enemies.json; build 1121 playtest, note 263). False: a train nobody's driving never moves off by itself.
@@ -751,6 +755,19 @@ public sealed record OrchestratorTuning
     public bool LiveCrew { get; init; } = true;
     public double EngagedPerActive { get; init; } = 0.75;
     public double PerPlayer { get; init; } = 1;
+    // The census (note 345; orchestrator.md §3.1, §3.2 items 2 and 4).
+    public bool Census { get; init; } = true;
+    public int MinCrew { get; init; } = 2;
+    public double OnRadius { get; init; } = 20;
+    public double DrivingAbove { get; init; } = 0.5;
+    public double SlackWeight { get; init; } = 2;
+    public double EmptyPostWeight { get; init; } = 0.5;
+    public string[] EmptyPostExempt { get; init; } = ["trackDoll"];
+    public double MinSlack { get; init; } = 30;
+    public double SlackPress { get; init; } = 150;
+    public double SlackPerSecond { get; init; } = 0.05;
+    public bool PerTarget { get; init; } = true;
+    public Dictionary<string, string[]> Answers { get; init; } = new();
 }
 
 /// <summary>
@@ -804,6 +821,58 @@ public sealed record HoundRunTuning
 /// </summary>
 public sealed record VoteTuning(double PerVote = 1.2, double Cap = 1.5, int Options = 3, double BotSeconds = 6);
 
+/// <summary>The Moose (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 339). Field docs live in enemies.json.</summary>
+public sealed record MooseTuning
+{
+    public double CrowdAt { get; init; } = 20;
+    public double CrowdPerSecond { get; init; } = 25;
+    public double CloseAt { get; init; } = 12;
+    public double ClosePerSecond { get; init; } = 70;
+    public double HearVoice { get; init; } = 15;
+    public int TalkingAbove { get; init; } = 40;
+    public double VoicePerSecond { get; init; } = 40;
+    public double TrainPassAt { get; init; } = 25;
+    public double TrainPass { get; init; } = 25;
+    public double CalmPerSecond { get; init; } = 15;
+    public double ListenAt { get; init; } = 20;
+    public double WarnAt { get; init; } = 50;
+    public double[] SquareUpAt { get; init; } = [12, 30];
+    public double SquareUpSeconds { get; init; } = 2.5;
+    public double HuntSpeed { get; init; } = 4.5;
+    public double ChargeSpeed { get; init; } = 11;
+    public double Overrun { get; init; } = 8;
+    public double WheelSeconds { get; init; } = 2.5;
+    public double RackSpan { get; init; } = 3.2;
+    public double HitReach { get; init; } = 0.5;
+    public double SnagSeconds { get; init; } = 4;
+    public int BlockedCharges { get; init; } = 3;
+    public int ChargeDamage { get; init; } = 60;
+    public double GrabBelowHealth { get; init; } = 40;
+    public double PinSeconds { get; init; } = 12;
+    public double SightRange { get; init; } = 60;
+    public double SearchSpeed { get; init; } = 2.5;
+    public double SearchSeconds { get; init; } = 25;
+    public double LeashRadius { get; init; } = 80;
+    public double LostAtCar { get; init; } = 5;
+    public double RamEvery { get; init; } = 3;
+    public double RamSeconds { get; init; } = 15;
+    public double TrackClearance { get; init; } = 3.2;
+    public double MovingClearance { get; init; } = 6;
+    public double GoneBeyond { get; init; } = 600;
+    public double[] GroundAt { get; init; } = [30, 60];
+    public int MinCrew { get; init; } = 1;
+    public double PerGroundWeight { get; init; } = 0.5;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> Lineside { get; init; } = new() { ["local"] = 2, ["frontier"] = 3, ["deadLines"] = 4, ["deepTerritory"] = 5 };
+    public double[] LinesideOut { get; init; } = [8, 22];
+    public double LinesideAhead { get; init; } = 300;
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
+
+    /// <summary>A tier's weight in a table keyed by its camel-cased name (1 where it isn't listed).</summary>
+    public static double ByTier(IReadOnlyDictionary<string, double> table, Route.RouteTier tier) =>
+        table.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 1);
+}
+
 /// <summary>Where the outside creatures start: their sites in the stops' layouts (level-design H.2; note 309). Field docs in enemies.json.</summary>
 public sealed record CreatureSitesTuning
 {
@@ -813,4 +882,55 @@ public sealed record CreatureSitesTuning
     public double RoostReach { get; init; } = 400;
     public double CallReach { get; init; } = 160;
     public double GroundMargin { get; init; } = 4;
+}
+
+/// <summary>How a creature loose in the world is held by it (note 279): on the land, in the air over it, or its own way.</summary>
+public enum Solid : byte { None, Ground, Air }
+
+/// <summary>The world is solid for the creatures (note 279). Field docs live in enemies.json <c>solidity</c>.</summary>
+public sealed record SolidityTuning
+{
+    public double ClimbM { get; init; } = 2.5;
+    public double AirClearM { get; init; } = 0.2;
+    public Dictionary<string, string> Kinds { get; init; } = new();
+
+    Dictionary<EnemyKind, Solid>? _kinds;
+
+    public Solid Of(EnemyKind kind)
+    {
+        _kinds ??= Kinds.ToDictionary(k => Enum.Parse<EnemyKind>(k.Key, ignoreCase: true), k => Enum.Parse<Solid>(k.Value, ignoreCase: true));
+        return _kinds.TryGetValue(kind, out var s) ? s : Solid.None;
+    }
+}
+
+/// <summary>The Gannet (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 340). Field docs live in enemies.json.</summary>
+public sealed record GannetTuning
+{
+    public double ArriveAbove { get; init; } = 18;
+    public double ArriveSeconds { get; init; } = 30;
+    public double StallBelow { get; init; } = 12;
+    public double StallSeconds { get; init; } = 6;
+    public double QuietSeconds { get; init; } = 60;
+    public double ReturnSeconds { get; init; } = 180;
+    public double[] SoarHeight { get; init; } = [20, 35];
+    public double SoarRadius { get; init; } = 14;
+    public double FlySpeed { get; init; } = 12;
+    public double PreyAbove { get; init; } = 0.8;
+    public double HangSeconds { get; init; } = 2;
+    public double FoldSeconds { get; init; } = 1.6;
+    public double[] DiveEvery { get; init; } = [8, 12];
+    public double StrikeRadius { get; init; } = 0.9;
+    public int StabDamage { get; init; } = 35;
+    public double StuckSeconds { get; init; } = 4;
+    public double BankSeconds { get; init; } = 2.5;
+    public int Pecks { get; init; } = 4;
+    public double PeckEvery { get; init; } = 3;
+    public int DriveOffBlows { get; init; } = 3;
+    public double Health { get; init; } = 12;
+    public double GiveUpBelow { get; init; } = 4;
+    public double MarkReach { get; init; } = 200;
+    public int MinCars { get; init; } = 2;
+    public double PerRoofWeight { get; init; } = 1;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
 }

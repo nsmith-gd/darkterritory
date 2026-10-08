@@ -860,6 +860,25 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AtTheMineHeadTheDriverVentsIntoTheSteamLiftWhileTheShunterWindsIt()
+    {
+        // Queue #105 (note 368). With nothing else to load (no crates, the cars run in empty), the winch fills what it reaches
+        // and the steam lift the rest: walked under the chute a car at a time, the driver venting into it while the shunter's
+        // on its lever.
+        var (route, facility) = FacilityWork.Find(Tuning.Route, FacilityKind.MineHead)!.Value;
+        var noCrates = F with { Crates = F.Crates with { Count = [0, 0], Heavy = F.Crates.Heavy with { Count = [0, 0] } } };
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run with { DepartureLoad = 0 }, noCrates, Tuning.Route.Junctions,
+            cars: 8, hands: 2, seconds: 1500, yardLength: Tuning.Route.YardLength);
+        LeftWellAndWhole(r);
+        Assert.Contains("Lifting", r.Legs);
+        Assert.Contains("winding", r.Doing);
+        var ore = r.Loads.Where(c => c.Cargo == CargoKind.Ore).ToList();
+        // The winch's two sleds are a car-load; more than that came up the shaft.
+        Assert.True(ore.Sum(c => c.Load) > F.Winch.Sleds * F.Winch.LoadPerSled + 2 * F.Lift.PerSkip, $"ore {string.Join(", ", ore.Select(c => c.Load))}");
+        Assert.All(r.Loads, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
+    }
+
+    [Fact]
     public void AtTheSlaughterhouseThePairDriveTheHerdUpTheRamp()
     {
         var r = Work(FacilityKind.Slaughterhouse);

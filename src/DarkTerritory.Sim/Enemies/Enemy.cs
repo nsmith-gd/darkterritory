@@ -11,7 +11,11 @@ public enum EnemyKind : byte
     // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
     Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
-    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30
+    TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
+    // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
+    Moose = 31,
+    // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
+    Gannet = 32
 }
 
 /// <summary>
@@ -183,7 +187,17 @@ public abstract class Enemy
             return Local;
         var t = OnMainLine ? train.Line.Sample(LineDistance) : train.Line.Sample(train.Dynamics.Path, LineDistance);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-        return t.Position + right * Lateral + Double3.Up * Height;
+        double lateral = Lateral, lift = 0;
+        // The world is solid (note 279): beside the train in a tunnel it runs inside the bore, on a bridge on the deck (not in
+        // the rock or the air), and out past the formation on the land (not through a cutting's wall).
+        if (Lateral != 0 && train.Line.Conditions is { } land)
+        {
+            double room = land.LateralRoom(OnMainLine ? Rail.RailLine.MainPath : train.Dynamics.Path, LineDistance);
+            lateral = Math.Clamp(Lateral, -room, room);
+            if (Math.Abs(lateral) > land.FormationM)
+                lift = land.Ground(t.Position + right * lateral) - t.Position.Y;
+        }
+        return t.Position + right * lateral + Double3.Up * (Height + lift);
     }
 
     /// <summary>Advances the enemy one tick. A grab's rescue and its end are the spine's, the same for every enemy (App. A.9).</summary>
