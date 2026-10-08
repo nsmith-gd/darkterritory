@@ -738,6 +738,53 @@ CUES = {
         O("hit", "A blow or a ball landing on it", vars=3),
         O("death", "Killed: crashing across the roof", vars=2),
     ],
+    # G1's six new creatures (queue #125, note 388; #99-#104, G1's requests on the audio checklist): candidates ahead of their
+    # sims, hooked as each lands. Each in its own sound, none like another's tell (A.1): the Mourners' keening is never in
+    # unison (not the Choir's chorus, not the Soot Children's call); Hotbox's knock is low and dull, once a wheel turn (never
+    # the hot box's squeal, state-hotbox).
+    "tell-mourners": [
+        L("keening", "After a death: a soft keening from the dark beyond the body, several voices never in unison"),
+        O("clicks", "Startled: dry clicks", vars=3),
+    ],
+    "cs-mourners-drag": [
+        L("drag", "A body hauled away in tugs: cloth and gravel, breathless keening"),
+    ],
+    "tell-tower-jaw": [
+        L("gnaw", "Deep rhythmic chiselling, wood splitting off in chunks, carrying across a stop"),
+        O("creak", "The tower creaking, from half gnawed", vars=3),
+        L("groan", "The tower's groan in its last 5 s"),
+        O("crack", "A crack like a shot as it goes", vars=2),
+    ],
+    "cs-tower-jaw": [
+        O("tail-slap", "Its threat: a flat, heavy tail whack on the ground", vars=3),
+        O("lunge", "The lunge: a snarl and a bite", vars=3),
+        O("fall", "The tower crashing down across the line", vars=2),
+    ],
+    "tell-brakeman": [
+        O("ratchet", "A brake wheel wound on: the ratchet's click-click-click", vars=3),
+        L("squeal", "The brake shoes' long squeal from the car he's on"),
+        O("step", "Iron-shod, uneven steps on the roofs", vars=4),
+        L("chain", "A chain dragged along the roofs"),
+    ],
+    "cs-brakeman": [
+        L("wheeze", "Cornered: a low wheeze"),
+        O("chain-up", "The chain rattling up", vars=2),
+        O("lash", "The chain's lash", vars=3),
+    ],
+    "tell-knotter": [
+        L("creep", "Wet creaking: rope under load at a coupling (4 s: cut it now)"),
+        O("stretch", "A long groaning stretch, the buffers parting and a jolt down the train", vars=2),
+        O("hawser", "Taut: a hawser's creak as the speed changes", vars=3),
+    ],
+    "cs-freight-beetle": [
+        L("push", "A crate pushed: its scrape on gravel or boards in time with heavy strides, a chitinous creak", mats=["ground", "wood"]),
+        O("startle", "Startled: a clatter of plates and a hiss", vars=2),
+    ],
+    "tell-hotbox": [
+        O("knock", "A heavy, dull metallic knock, once a wheel turn of its axle (a hammer on a casting)", vars=4),
+        L("sizzle", "The glow: the knock gone ragged and wet, a sizzle"),
+        L("grind", "Seized: a long grinding scrape"),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
