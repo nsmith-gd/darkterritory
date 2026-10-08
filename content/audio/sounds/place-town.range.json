@@ -1,0 +1,20 @@
+// The walled town: A kitchen range lit in a lived-in house: the fire shut in iron, a kettle on the hob. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 6,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 1,
+ "maxDistance": 14,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-town/range",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

@@ -51,7 +51,7 @@ public static class ReliefDriver
     }
 
     /// <summary>m: to the side of the centreline, round the engine's stack.</summary>
-    const double Beside = 0.7;
+    internal const double Beside = 0.7;
 
     /// <summary>
     /// Along the car's roof to its front end on the centreline, facing forward, and a running jump onto the engine's hood when
