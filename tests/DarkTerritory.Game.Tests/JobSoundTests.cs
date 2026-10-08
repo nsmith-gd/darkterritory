@@ -148,8 +148,12 @@ public class JobSoundTests
         var dent = Repairs.DentAt(train, 2)!.Value;
         var mender = new PlayerState
         {
-            Parent = 2, Surface = Surface.Deck, Position = dent with { Y = train.Frames[2].Shape.Interior!.Value.Min.Y }, Health = 100,
-            Kit = Kit.Of([Tool.Shovel, Tool.Wrench]), HeldSlot = 1,
+            Parent = 2,
+            Surface = Surface.Deck,
+            Position = dent with { Y = train.Frames[2].Shape.Interior!.Value.Min.Y },
+            Health = 100,
+            Kit = Kit.Of([Tool.Shovel, Tool.Wrench]),
+            HeldSlot = 1,
         };
         Assert.Equal(2, Repairs.Dent(mender, train));
         Assert.Empty(b.Update((1, mender)));
