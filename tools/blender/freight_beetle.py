@@ -145,7 +145,7 @@ flesh.carve((0, 1.05, 0.34), (0.06, 0.04, 0.025), 0.02)                         
 # ----------------------------------------------------------------------------------------------------------------
 # The shell: broad bands over the dome, each a thick curved plate lapped over the next; the hood over the head.
 shell = kit.part("shell")
-DOME_C, DOME_R = Vector((0, -0.28, 0.56)), Vector((0.74, 0.98, 0.84))
+DOME_C, DOME_R = Vector((0, -0.28, 0.56)), Vector((0.74, 0.98, 0.72))
 
 
 def dome(phi, y, lift=0.0, c=DOME_C, r=DOME_R):
@@ -227,6 +227,9 @@ for s, sx in (("r", 1), ("l", -1)):
             a, b = j[seg + 1], j[seg + 2]
             bone = f"{leg}_{s}_{seg + 2:02d}"
             r0, r1 = radii[seg]
+            if seg == 2:
+                # (The last sleeve ends on the foot, its rim clear of the ground the foot stands on.)
+                b = b + Vector((0, 0, r1))
             d = (b - a).normalized()
             n = 7 if big else 5
             pts, rr = [], []
@@ -260,8 +263,10 @@ for s, sx in (("r", 1), ("l", -1)):
             fwd = (b - a).normalized()
             fwd = Vector((fwd.x, fwd.y, 0)).normalized()
             tip = root + fwd * (0.09 if big else 0.06) + side * 0.4 + Vector((0, 0, -0.012))
+            # (Their points on the ground, not through it.)
+            tip.z = max(tip.z, 0.014)
             FEET.append(tip)
-            legs.tube([root, root.lerp(tip, 0.5) + Vector((0, 0, 0.02 if big else 0.012)), tip, tip + Vector((0, 0, -0.012)) - fwd * 0.012],
+            legs.tube([root, root.lerp(tip, 0.5) + Vector((0, 0, 0.02 if big else 0.012)), tip, tip + Vector((0, 0, -0.01)) - fwd * 0.012],
                       [0.024 if big else 0.012, 0.018 if big else 0.009, 0.01 if big else 0.005, 0.002], 6, CLAW, foot, ref=(0, 0, 1), cap1="point")
 
 # The eyes, glossy and dark, set in the cheeks; the palps, segmented feelers hanging from the lips and working.

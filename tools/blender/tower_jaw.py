@@ -168,7 +168,7 @@ for s, sx in (("r", 1), ("l", -1)):
     leg = chain([hp, kn, an, ball, tt], [f"thigh_{s}", f"calf_{s}", f"foot_{s}", f"toe_{s}"], soft=0.07)
     flesh.limb([hp, hp.lerp(kn, 0.5), kn], [0.24, 0.2, 0.15], 0.08, FUR, lambda p, leg=leg: mix(leg(p), trunk_w(p), smooth01(0.7, 0.9, p[2]) * 0.6))
     flesh.limb([kn, kn.lerp(an, 0.5), an], [0.14, 0.12, 0.09], 0.05, FUR, leg)
-    foot = an.lerp(tt, 0.5) + Vector((0, 0, -0.035))
+    foot = an.lerp(tt, 0.5) + Vector((0, 0, -0.022))
     FEET[s] = foot
     flesh.blob(foot, (0.17, 0.3, 0.05), 0.05, PAW, leg, fmat=lambda pts, n: FUR if n.z > 0.6 else PAW)
 # The tail: its thick furred root, then the paddle, broad and flat and scaled, lying on the ground.
@@ -267,6 +267,8 @@ for i in range(560):
     r = 0.026 + 0.016 * h01(505, i)
     base = p - n * 0.012
     tip = base + way * L + Vector((0, 0, -0.012 * L / 0.1))
+    if tip.z < 0.03:
+        continue
     hide.tube([base, base.lerp(tip, 0.5) + n * 0.008, tip], [(r * 1.2, r * 0.6), (r * 0.7, r * 0.35), 0.0], 3, FUR, near_w, ref=tuple(n),
               twist=h01(506, i) * 1.5)
     SPIKES += 1

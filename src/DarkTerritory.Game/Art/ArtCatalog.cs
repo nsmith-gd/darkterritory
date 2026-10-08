@@ -181,6 +181,9 @@ public static class ArtCatalog
             var k = kind;
             list.Add(new($"facility-{kind.ToString().ToLowerInvariant()}", Facility, () => StructureKit.Facility(look, k, 1)));
         }
+        // The coaling tower Tower Jaw's brought down across the line, and its heap cleared off it (note 363).
+        list.Add(new("coaling-fallen", Facility, () => StructureKit.CoalingTowerFallen(look, cleared: false)));
+        list.Add(new("coaling-fallen-cleared", Facility, () => StructureKit.CoalingTowerFallen(look, cleared: true)));
         return list;
     }
 
