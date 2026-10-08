@@ -38,7 +38,6 @@ public class CensusTests
         var n = OnTheRun();
         var layout = Tuning.Train.Geometry.Interior!;
         n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P) with { Surface = Surface.Deck, Position = new Double3(0, layout.FloorHeight, 0) };
-        n.Crew[4] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Flags = PlayerFlags.Seated };
         double rear = n.Train.Dynamics.RearDistance;
         n.Crew[5] = PlayerMotor.SpawnOnGround(Beside(n, rear + 10, 4), n.Train.Line, rear + 10, P);
         n.Crew[6] = PlayerMotor.SpawnOnGround(Beside(n, rear - 400, 4), n.Train.Line, rear - 400, P);
@@ -46,7 +45,8 @@ public class CensusTests
         Assert.Equal(Post.Cab, Of(n, 1).Post);
         Assert.Equal(Post.Walker, Of(n, 2).Post);
         Assert.Equal(Post.Rider, Of(n, 3).Post);
-        Assert.Equal(Post.Gunner, Of(n, 4).Post);
+        // Seated at a gun (the motor keeps the seat only at a gun, so read straight off the state).
+        Assert.Equal(Post.Gunner, Census.PostOf(PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Flags = PlayerFlags.Seated }, n.Train, 150));
         Assert.Equal(Post.Ground, Of(n, 5).Post);
         Assert.Equal(Post.LeftBehind, Of(n, 6).Post);
     }

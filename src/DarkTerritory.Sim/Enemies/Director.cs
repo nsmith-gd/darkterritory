@@ -118,8 +118,11 @@ public sealed class Director
         Posts.Count(world, active, _t.Orchestrator, _t.Abandoned.BehindM, counting);
     }
 
-    /// <summary>The census at work (note 345): it counts, and the crew is big enough for it to steer (a crew of one is App. B.1's).</summary>
-    bool Steering => _t.Orchestrator is { On: true, Census: true } o && Active >= o.MinCrew;
+    /// <summary>
+    /// The census at work (note 345): it counts, and the crew it counted is big enough for it to steer (a crew of one is App.
+    /// B.1's). The crew it saw, not the crew planned: a night with nobody aboard yet has no posts to steer by.
+    /// </summary>
+    bool Steering => _t.Orchestrator is { On: true, Census: true } o && Posts.Entries.Count >= o.MinCrew;
 
     /// <summary>
     /// The most threats engaged at once (App. B.1's hard caps; note 336, orchestrator.md §3.2 3, 5): the flat 4 (crew ≤ 4) or
@@ -440,11 +443,13 @@ public sealed class Director
         // the stops' sites) weighs more, by their share: more of the night is met off the train.
         if (_t.Afoot.On && AfootShare > 0 && _t.Afoot.OutsideWeight != 1)
             options = [.. options.Select(o => (o.Kind, Outdoors(o.Kind) ? o.Weight * (1 + (_t.Afoot.OutsideWeight - 1) * AfootShare) : o.Weight))];
+        // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
+        // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
+        bool weighed = options.Any(op => op.Weight > 0);
         options = WhoseNext(options);
-        options = WeighVotes(options);
-        // Everything that could come is for someone who has one on them already (note 345): nothing, this second.
-        if (options.Count > 0 && options.All(op => op.Weight <= 0))
+        if (weighed && options.All(op => op.Weight <= 0))
             return Held("one on each");
+        options = WeighVotes(options);
 
         double pick = _rng.NextDouble() * options.Sum(o => o.Weight);
         var kind = options[^1].Kind;
