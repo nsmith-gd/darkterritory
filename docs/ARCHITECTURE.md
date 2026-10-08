@@ -5649,7 +5649,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **The elevator:** the grain left (`Site.Bin`) shows in the sight glass, and its lever (`SpoutLever`) is up and ready or pulled down while it pours, with the pour.
         - **The lift:** the ore left (`Ore`) shows in its gauge, and the skip (`Wind`) rides 0.9 + 9.8 m up the guides as far as it's wound. Its lever is down while it winds, with ore down the chute as a skip tips.
         - **The hose stand:** its gauge's face goes from green to red with `Pressure`, brighter while it leaks. The hose hangs off the coupling, or runs over to the filler on the car it's coupled to (`HoseCar`) as a ten-piece sag, tarred and banded yellow. There's the leak's cloud.
-        - **The pen:** eight panels of pen fence round the sim's pen (`PenRadius` 4: an octagon of 3.06 m sides, which is the panel's span), open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
+        - **The pen:** seven panels of pen fence round the sim's pen, an octagon's (`PenRadius` 4: 3.06 m sides, which is the panel's span) with its eighth left open toward the track where the ramp leaves. The ramp is stretched to the sim's run and rise. The herd milling in the pen is the livestock cars' sheep, playing their idle, shuffle and startle clips (startled when `Stirred`), and the one being driven up the ramp shuffles up it (`Herd`).
     - **`dt screenshot --site --facility <kind> --close`:** the set pieces' site cameras at half the distance.
     - **Verified:**
         - `SetPieceArtTests` covers each set piece. The elevator's bin stands on the ground under the sim's spout mouth, and its lever's handle rises when ready and falls while pouring. The lift's works stand under its chute, and its skip climbs 7.8 m when wound to 0.8. The hose stand is at the sim's stand. The pen is seven panels at its edge plus the ramp.
@@ -5690,6 +5690,98 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       With no house for it, it puts down what it carries and leaves the stop to the walker, who gets aboard and into a shut car, the run's own shelter.
     - **Verified:** `StopCrewTests.WithTheChoirGatheringAHandOutInTheVillageShutsItselfIntoAHouseAndComesOutAfter`. A crate hand searching a house when the Choir gathers shuts itself into an open house (the door shut, its space a house's) while the rest get behind shut doors aboard. It's still there 20 s on, with the train still standing for it. Quiet, it opens the door, and the train leaves whole with everyone aboard and alive.
     - **Not yet:** a hand inside a cargo car at a stop, loading with its side door open, still stands there through it (the walker's shelter starts from a roof); a house of two doors (the paired cottages) isn't sheltered in. The doors' sound is AU1's #145.
+
+414. **A bot on the forward gun (queue #150, D1; note 405's "not yet").** The lane ahead (note 405) is the forward gun's, and a bot crew had one gunner, the guard van's, so every pair ahead boarded the first car.
+   - **Who.** A bot crew of `guns.forwardGunnerFrom` (6) or more, bots and all, has a second gunner (`GunnerBot.Forward`, named `forward-gunner`): the crew's last place. Its stop job is a crate hand's. The driver, the guard van's gunner, the shunter and the winch pair come first, so five keep their parts as before.
+   - **Its way to the gun.** It walks forward along the roofs. From car 1's roof it makes the relief driver's running jump onto the engine's hood (note 399, `ReliefDriver.OntoTheEngine`), goes round the stack, and walks forward over the cab's roof to the seat behind the gun. From the cab it goes up the roof hatch ladder, which is the gun's. With hounds aboard it goes off the hood to the pack fight (`ReliefDriver.OffTheEngine`). The Car Hugger on the rear car is the guard van's gunner's.
+   - **Otherwise it's the gunner** (`GunnerBot`): it lays on whatever the gun answers within its range, nearest first. That covers the lane's pairs, the Track Doll and the Switchman. It goes off the gun for the cold and its stop job. The walkers feed it powder (note 377, `feedAtFar`).
+   - **Tests.** `HoundRunTests`: put down on car 2's roof, it is seated at the engine's gun inside a minute at 21 m/s and answers an ahead pair before it boards. A crew of 5 has none; crews of 6 and 8 have one, in the last place.
+   - **Bot nights.** `dt harness --route frontier:7 --bots 6 --enemies --upkeep --express 21 --seconds 900`, seeds 1-3, before and after:
+     - Each night's first run: 3, 2 and 5 boarded before; 0, 0 and 0 after.
+     - Rounds fired: 3, 4 and 0 before; 14, 7 and 5 after.
+     - Deaths: 5, 1 and 3 before; 4, 0 and 3 after (the rest at speed are #117's). 12.0, 9.6 and 12.0 km before; 12.7, 9.6 and 12.0 after.
+
+410. **The mine head's and the chemical works' buildings modelled (queue #146, C1; the art checklist's `mine-head` and `chemical-works`; GDD §18, §30 "oversized, partially abandoned, barely operable"; notes 381 and 393 did the elevator and the slaughterhouse).** Past their headframe and tanks, both sites were still the structure kit's boxes. Now they are modelled in facility_pieces.py and set by `StructureKit.Facility`, with the kit kept as the fallback.
+    - **The mine head:**
+        - `winding_house` (384 triangles, a 1024 layer) stands 38 m out, its gable facing the headframe. It is a brick engine house on a stone plinth, with tall arched windows down both sides (one lit, two out), a louvred ventilator on its slate ridge, and the date stone in the apex. Behind it are the boiler house, then the banded 30 m chimney.
+        - The headframe's back ropes now land on the winding drum, 2 m inside the house's front wall with its top 5 m up (`ROPE_END`). They cross the gable at the timber-framed slots at 9.75 m (`ROPE_Z`), where the straight line from the sheaves meets it. They used to end in the air past the kit's house.
+        - `spoil_heap` (896) is the tip, 12 m of dark shale 32 m across: lobed, gullied, burnt in seams down the fall line, and black where the last tubs tipped. Its incline climbs one flank on a timber trestle, with a tub tipped at the top and another fallen at the foot. Its game mesh is the tip's coarse shape, and its bake reaches deeper than the props' (`build`'s new `reach` and `cage`).
+    - **Where the mine head's pieces stand** comes from the sim, not from taste:
+        - The facility's frame (GreyboxScene: 25 m short of the layout down the spur, 4 m out) has its +Z back along the track, and that doesn't flip with the side.
+        - The winch's sleds come in from 41 m out at z −33 (`SledFrom`), so the tip stands at +33 for either side, turned so its incline always climbs toward the house.
+        - The boiler house and chimney are behind the engine house rather than beside it, so the house's footprint along the line is the same from either side. The old kit's comment that "the winch hauls from" the heap was never true; it stood at +26.
+    - **The chemical works:**
+        - `chem_works` (1,554, a 1024 layer) is the process house. It has a brick base and a steel frame above, clad in rusting corrugated iron, acid-streaked, with sheets fallen off and one hanging. A louvred monitor runs along its ridge, and its band of steel windows is broken (one bay boarded). There is a sliding door half open, the outside stair to the upper floor's door, and NO NAKED LIGHTS stencilled by the door (GDD §18's "do not fire indoors").
+        - Two guyed iron stacks rise behind its ridge, and the lead-clad acid tower, banded, seamed and laddered, stands off its −X end. Two pipe bridges run out from its front over the gap between the tanks, on a post pair each, and drop onto the rack.
+        - `pipe_rack` (460) is a 12 m bay on its steel portal. It carries four pipes flanged bay to bay, a valve with its wheel and the acid crust under it, and torn lagging. `pipe_rack_end` turns the last bay's pipes down into a pit.
+        - Four bays at s·(−18, −6, 6, 18) run the rack ±24 m along its tanks from either side. A bay turns with its side, so it is set at s·z.
+    - **`dt screenshot --building m`:**
+        - `--aerial` gives the whole site from up over the far side of the track.
+        - `--shift z` centres the view on another part of the buildings' frame (the tip at 33).
+        - `--close` halves the camera's distance back along the line.
+    - **Verified:**
+        - `FacilityBuildingArtTests` covers two things. Neither side's mine head puts a vertex on the winch's sled run, measured from the real site's `SledFrom`. From either side, the chemical works' rack meets at −24, −12, 0 and 12 and ends short of 24.
+        - `dt art check`: everything is well under the large prop's 8,000; the chemical works' facility is 5,410 of its 90,000.
+        - The Game suite.
+        - Looked at: each site from its building camera, closer, from the air and (the tip) shifted, at dawn, before and after, and each piece on the turntable.
+409. **The village houses' doors heard (AU1, queue #145; B4's note 401: "a house shut up is behind a closed door").** A house door shut or opened was silent, though shutting it is the Choir's rule (GDD §21, "not behind a closed door"). The Choir's BESIEGE beat on the door of a shut car (`GameAudio.ChoirSwarm`) but not of a house shut up, so whoever hid in one heard nothing at the door.
+    - **How:**
+        - `GameAudio.HouseDoors` plays `crew-house-door.shut` or `.open` when a door flips, read off `StopWalls.Shut`, the doors shut as replicated (`RecordKind.Door`). Host and client hear the same. The 0.6 s hold is the host's alone (`World.DoorAct`), so the sound starts as the door flips and the art pops it.
+        - The sound plays at `GameAudio.DoorSound`: the leaf, a hand's height up, half a metre in from the doorway's outside edge, inside the house's footprint (`EarRoom.Holds`).
+            - From inside the house, it's in the room with the ear: no `roomWall` (note 396), no occlusion.
+            - From the street, it's clear.
+            - From a shut car, or from another house shut up, it's muffled as anything outside (`DoorOcclusion`).
+        - BESIEGE counts a house shut up as a space somebody's shut in (`PlayerMotor.HouseSpace`), the listener's own or a crewmate's. It beats on one of that house's doors at random, with the wooden `cs-choir.bang-door` at the same spot.
+        - Inside a shut house, the outside was already muffled before this note: the house is a space of its own, so `GameAudio.Occlusion` gives anything outside it a full wall, which is more than `roomWall`.
+    - **The sounds** (`tools/audio/recipes/house_doors.py`): a ledged plank door, swollen in its frame, on strap hinges with a thumb latch. Four candidates are on the Audio Checklist's new `crew-house-door` line. The installed pick (`install.py` `FIRST_CHOICE`) is listed first for each.
+        - Shut, `sag`: the hinge's creak, the foot dragging over the sill, a hard bang, and the latch's bar dropping last. Installed because a shut door must be heard and trusted. It carries 60 m at +3 dB (`CUE_DEF`), across a village street.
+        - Shut, `pull`: Kenney's door closing with a dull thump.
+        - Open, `creak`: the latch lifted, the leaf jerking free, a long creak with the leaf's weight groaning under it, and a bump against the wall.
+        - Open, `door`: Kenney's door opening, with the foot catching the sill.
+    - **Captions** (note 349): A DOOR SLAMMING SHUT, A DOOR CREAKING OPEN, and BANGING ON THE DOOR. The Choir's beating at a shut car had no caption either.
+    - **Not yet:**
+        - The hold itself, 0.6 s of a hand on a sagging door, isn't heard. It's the host's alone and isn't replicated.
+        - Searching an open house's cupboards and cellars (note 326) is silent. That's the next item.
+    - **Pinned:**
+        - `WorldSoundTests.AVillageHouseDoorIsHeardShutAndOpenedInTheDoorwayAndTheChoirBeatsOnItWhenItsShutUp`. A door shut from the street is heard once, at `DoorSound`, clear. Opened and shut again from inside, the ear is in the house's space, the space is "room", and nothing stands between the ear and the door. Shut up in the house while the Choir besieges, 2–5 beats in 3 s on its door, with nothing between.
+        - `CaptionsTests`' theory names the three captions.
+412. **Searching the open houses heard (AU1, queue #148; note 326's hiding spots).** A crewmate going through an open house's cupboard, cabinet, cellar or boards (`Run.SearchAct`: Use held for loot.json `search.seconds`) did it in silence, and the find came out in silence. A crewmate across the street had no way of knowing a house was being gone through, and a searcher heard nothing of their own hands.
+    - **How:** `GameAudio.HouseSearch` holds each kind's sound where the spot keeps its things (`HidingSpot.Kept`). Cupboards and cabinets play at shelf and drawer height; a cellar's hatch and the boards play at the floor.
+        - The sound plays while the spot's replicated search is under way (`Run.SearchProgress`: the host's furthest hand on it, or the progress a client was sent). Every crewmate hears it, and it's cut when the hands come off.
+        - Each kind's sound runs about as long as its search: a cupboard 2.5 s, a cabinet 2, a cellar 4, the boards 5. A held one-shot that ends early starts again.
+        - `crew-search.found` plays once as the spot is gone through, when it turns `Searched`.
+    - **Occlusion:** a sound in a village house is in that house's space while the house is shut up (`StopWalls.ShutIn`, note 401). An ear shut in there with it hears it clear; an ear shut in a car or another house hears it through the walls.
+    - **The sounds** (`tools/audio/recipes/house_search.py`): eight candidates on the Audio Checklist's new `crew-search` line, built from the packs' real handling.
+        - The cupboard, `crockery` (installed): its door pulled open, then jars and crockery knocked about, a tin, cloth, a box shoved along.
+        - The cupboard, `pantry`: the same door, with no glass.
+        - The cabinet: drawers pulled on dry wooden runners and their oddments rattled. There's no drawer in the packs, so the runner is stick-slip friction.
+        - The cellar: the hatch heaved up and laid back, two steps creaking down, and crates shifted and a bottle knocked in the stone hole below, which has its own small, dark stone room.
+        - The boards: a bar's bite into the wood, the deal groaning, the nails squealing out (iron stick-slip, since there's no nail drawn in the packs), the board cracking free and laid aside, board after board.
+        - The find: set down on the boards.
+        - A barn's hayloft (up its ladder, hay shoved about, a tin knocked) and a shed's workbench (tools rattled, a drawer of nails, the vice). These are ready for B4's #153 (note 417), which makes them searchable; they play once loot.json's `search.seconds` has their kinds.
+    - **Not yet:**
+        - Heard from the street, a search inside a house that isn't shut up comes through no walls (note 396's not-yet).
+        - The search isn't captioned. It's a crewmate's work, not a threat or a call, like the car doors.
+    - **Pinned:** `WorldSoundTests.AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough`, on a client night's spots of each kind (at least 3): held where the spot keeps its things while under way, cut when the hands come off, and the find heard once when the spot's gone through.
+
+420. **The foundry's buildings modelled (queue #156, C1; the art checklist's `foundry`; GDD §18 "overhead crane run from a gantry", §30 "oversized, partially abandoned, barely operable, dimly lit"; notes 381, 393 and 410 did the other facilities).** The foundry was the last facility whose buildings were all the structure kit's: a long brick box, flat sawtooth quads for a roof, glowing window panels and a cone of a stack. Now it is `foundry_shed` (928 triangles, a 1024 layer), set by `StructureKit.Facility` where the kit's sheds stood, 22 m out. The kit is kept as the fallback.
+    - **The shed:**
+        - 80 m of soot-black brick on a stone plinth, pilastered every 8 m.
+        - Its roof is ten north-light teeth, each a slate slope rising to an iron-glazed face. Panes are out and the furnace's light shows in some. One tooth's slope has fallen in.
+        - Tall arched windows run down both sides, most of the front's lit orange. Their glazing bars are thicker than the other buildings' (`_arched`'s `bar`), since 13 cm texels lose 3 cm bars.
+        - A great doorway stands at each end of its front, its iron leaf slid half across one, the furnace's glow low on the floor inside. With one at each end, one faces the crane's yard whichever side of the spur the shed is turned to.
+        - The cupola furnace rises through its roof on a charging stage, its door glowing, and the 40 m stack stands behind.
+    - **The glow:**
+        - A modelled piece's windows had no light of their own. The baked game mesh has no emission, so a "lit" window was only a bright colour, dark at night.
+        - Now a recipe can hand `build` a third thing, a `_Glow`: the regions of its windows the furnace lights, brightest at their foot.
+        - `cook.bake_down` bakes it as a mask, and `_emission` links an image of the glow's colour there to the low mesh's Emission Color. `cook.bake_layers` writes that as the layer's emissive (spec B) and flags it (`dt_glow`), as the Gannet's sacs were done.
+        - The shed's windows glow in the dark as the kit's panels did, and `Kit.Append` keeps the layer when the piece is merged into the facility.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheFoundrysCastingShedIsTheModelAndAFurnaceLightsItsWindows`: the model's material glows, and from either side it stands there with its stack.
+        - `LookTests.AFacilitysBuildingsLeaveItsYardToItsModules` still holds: it starts 13.9 m out, past the crane's 9.
+        - `dt art check`: 928 of the large prop's 8,000.
+        - The Game suite.
+        - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
 
 408. **The dead card says what there is to do, with the player's own keys (queue #144, B3; GDD App. D.6, D.7, D.10's UI row "Queue list and position · Defer · Call Out (when available) · Live Mic toggle (assigned player only) · Creature vote (dead players who haven't voted) · Bookmark"; note 179's not-yet; note 285's "shown when it matters").**
     - **A joiner is JOINING.** A crewmate who joins mid-run waits in the queue lobbied (`DeathCause.Waiting`, HostSession) and so on the dead's card, which was headed DEAD in red. D.10 gives lobbied players the dead's experience minus the vote: same card, headed JOINING in amber, over "WAITING TO BE PICKED UP" and the queue with their place in it.

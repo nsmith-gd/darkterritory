@@ -172,6 +172,12 @@ CUES = {
         O("locker-open", "Locker or tool rack opened"),
         O("locker-shut", "Locker or tool rack shut"),
     ],
+    # The village houses' doors (B4's note 401; queue #145, note 409): a held Use at an open house's doorway shuts its door,
+    # or opens it again. The Choir's rule ("behind a closed door"): the shut must be heard and trusted from either side.
+    "crew-house-door": [
+        O("shut", "A house door shut: a swollen plank door shoved home into its frame, the thumb latch dropping", vars=3),
+        O("open", "A house door opened: the latch lifted, the leaf jerked free and creaking in on its strap hinges", vars=3),
+    ],
     "crew-lamps": [
         O("car-lamp-on", "A car's lamp switched on", cand={"_": S("switch_01", "switch_02")}),
         O("car-lamp-off", "A car's lamp switched off", cand={"_": S("switch_01", "switch_02")}),
@@ -258,6 +264,18 @@ CUES = {
         O("take", "A charge taken from the powder locker: the iron-bound lid, the canvas bag hefted out", vars=3),
         L("fill", "The ready rack filled: canvas charges pushed into the rack's slots (held while at it)"),
         O("filled", "The rack full: its bar dropped across", vars=3),
+    ],
+    # Searching an open house's hiding spots (note 326; queue #148, note 412): held while the replicated search is under way,
+    # each kind about its loot.json `search.seconds`, cut when the hands come off; and the find coming out.
+    "crew-search": [
+        O("cupboard", "A cupboard gone through: its door pulled open, its shelves rummaged (about 2.5 s)", vars=3),
+        O("cabinet", "A cabinet's drawers pulled out, rattled through and shoved back (about 2 s)", vars=3),
+        O("cellar", "A cellar's hatch lifted and laid back, the steps down, crates shifted in the stone below (about 4 s)", vars=3),
+        O("boards", "Floorboards prised up: the bar's bite, the nails squealing out, laid aside (about 5 s)", vars=3),
+        # B4's #153 (note 417): a barn's hayloft and a shed's workbench, searched as a house's spots are.
+        O("hayloft", "A hayloft gone through: up the ladder, hay shoved about, a tin knocked", vars=3),
+        O("bench", "A workbench gone through: tools rattled, a drawer of nails, the vice", vars=3),
+        O("found", "The spot gone through: the find lifted out and set down", vars=3),
     ],
     "crew-cannon-ball": [
         O("ball-in", "The ball dropped into the muzzle", vars=2),

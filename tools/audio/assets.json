@@ -1094,6 +1094,26 @@
   "url": "/_blob/a5114855623af9018a39ad933cddaab8",
   "sha": "95d857d979e45bb5"
  },
+ "previews/crew-house-door--open--creak.mp4": {
+  "id": "a7ac0b36055ae6b9c3b4a56224633deb",
+  "url": "/_blob/a7ac0b36055ae6b9c3b4a56224633deb",
+  "sha": "12c0f2c9a50b9903"
+ },
+ "previews/crew-house-door--open--door.mp4": {
+  "id": "59d165beba2647002c4afd3cb61ae6a1",
+  "url": "/_blob/59d165beba2647002c4afd3cb61ae6a1",
+  "sha": "d12343b47ff46022"
+ },
+ "previews/crew-house-door--shut--pull.mp4": {
+  "id": "86bec3c95e1a170ba3620190700fbe86",
+  "url": "/_blob/86bec3c95e1a170ba3620190700fbe86",
+  "sha": "5a2b2fa825062e93"
+ },
+ "previews/crew-house-door--shut--sag.mp4": {
+  "id": "5341ebe7189b9b8942fcad5750fbf1a4",
+  "url": "/_blob/5341ebe7189b9b8942fcad5750fbf1a4",
+  "sha": "5b894c545adc08d8"
+ },
  "previews/crew-hurt--body-fall--collapse--concrete.mp4": {
   "id": "811d249111f728e91f39ef6f321a6ac8",
   "url": "/_blob/811d249111f728e91f39ef6f321a6ac8",
@@ -1638,6 +1658,46 @@
   "id": "ff2535c1b2aef258379f9214991daafc",
   "url": "/_blob/ff2535c1b2aef258379f9214991daafc",
   "sha": "54f5884d70c0564d"
+ },
+ "previews/crew-search--bench--tools.mp4": {
+  "id": "eaa06c4e02ebf2ac3c076b95bdbd1c40",
+  "url": "/_blob/eaa06c4e02ebf2ac3c076b95bdbd1c40",
+  "sha": "348877e67e97a30a"
+ },
+ "previews/crew-search--boards--prise.mp4": {
+  "id": "5ba56491825aa0f165b12673a861e8f3",
+  "url": "/_blob/5ba56491825aa0f165b12673a861e8f3",
+  "sha": "854f5e3c19c84b2a"
+ },
+ "previews/crew-search--cabinet--drawers.mp4": {
+  "id": "486ed2e8164ca933f4eafea62d0bf4cb",
+  "url": "/_blob/486ed2e8164ca933f4eafea62d0bf4cb",
+  "sha": "98696f23f2a2f20d"
+ },
+ "previews/crew-search--cellar--hatch.mp4": {
+  "id": "6557a1d7da4065416ca2ba7135ada399",
+  "url": "/_blob/6557a1d7da4065416ca2ba7135ada399",
+  "sha": "f052a17290ac88b6"
+ },
+ "previews/crew-search--cupboard--crockery.mp4": {
+  "id": "9e07b2a7ac3d4ee8291889ca014eb1b0",
+  "url": "/_blob/9e07b2a7ac3d4ee8291889ca014eb1b0",
+  "sha": "b9b90f9f5584f694"
+ },
+ "previews/crew-search--cupboard--pantry.mp4": {
+  "id": "bb5c0425e133b6431875a959258b2263",
+  "url": "/_blob/bb5c0425e133b6431875a959258b2263",
+  "sha": "015f7679ae4a1812"
+ },
+ "previews/crew-search--found--find.mp4": {
+  "id": "4edc95cb26bae8ac93b49b8cf596b6af",
+  "url": "/_blob/4edc95cb26bae8ac93b49b8cf596b6af",
+  "sha": "2d306b862d4a822a"
+ },
+ "previews/crew-search--hayloft--ladder.mp4": {
+  "id": "4f0e586a951bb70fd0d09986ffd1bca0",
+  "url": "/_blob/4f0e586a951bb70fd0d09986ffd1bca0",
+  "sha": "ec2b70ebb82558a5"
  },
  "previews/crew-shovel--knock--blade.mp4": {
   "id": "9e7dfa384134f14aeaea443c4dcca8ad",

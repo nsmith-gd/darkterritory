@@ -226,7 +226,7 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards 
 4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
-7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).**
+7. **The lane ahead** (§5.3 6), for the forward gun: **built (note 405, queue #141).** A bot crew of six or more puts its last place on the forward gun (note 414, queue #150).
 
 ## 7. What changes in the existing director
 
