@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -86,6 +87,15 @@ public sealed record CarState(int Id, double Load, double Integrity, double Carg
 public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Handbrake, bool Locked);
 
 /// <summary>
+/// A thing aboard at the autosave (note 500): its kind, the car it's in and where its middle is in that car's frame, its size
+/// and how it lies, the locker it's on a shelf of and which shelf (−1: none), and what's its own: a crate's cargo, a find's
+/// owner (which find), an extinguisher's mount and charge, a toy's noise, a radio broken.
+/// </summary>
+public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
+    int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
+    ToyNoise Noise = ToyNoise.None, bool Broken = false);
+
+/// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
 /// train last left, if the session is lost.
 /// </summary>
@@ -104,6 +114,18 @@ public sealed record RunCheckpoint(string Route, int Facility, double Seconds, d
     /// older save, which rebuilds the train from its own cars.
     /// </summary>
     public RakeSave[]? Rakes { get; init; }
+
+    /// <summary>
+    /// What the night had taken and spent (note 500): its finds stowed and their pay, the mail, the coal and rounds on the
+    /// bill. Null for an older save, whose resumed night counts from the save.
+    /// </summary>
+    public RunTakings? Takings { get; init; }
+
+    /// <summary>
+    /// Everything aboard the train's cars as it left (note 500), put back in place of a fresh stocking: the kit where it was
+    /// put, a rescued child, the lamps, radios, toys and finds. Null for an older save, which stocks the train afresh.
+    /// </summary>
+    public ThingAboard[]? Aboard { get; init; }
 }
 
 /// <summary>What a host owns between nights (spec E: the host owns the campaign). Saved as text, one file a slot.</summary>
