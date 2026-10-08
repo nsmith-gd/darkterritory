@@ -879,6 +879,9 @@ public sealed class FrontEnd
             // Note 349: what's heard, named, and where.
             new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
                 Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 404: a band behind the print in play, as a subtitle's.
+            new(new($"TEXT BACKING: {(Settings.TextBacking ? "ON" : "OFF")}", "A dark band behind the HUD's print and the captions, to read them over a bright night."),
+                Toggle(s => s with { TextBacking = !s.TextBacking }), _ => Change(Settings with { TextBacking = !Settings.TextBacking })),
             // Note 383: holds as toggles.
             new(new($"HOLD KEYS: {(Settings.ToggleHolds ? "TOGGLE" : "HOLD")}", Settings.ToggleHolds
                     ? "Run, the brake, talk, the radio and the crew: press once for on, again for off."
