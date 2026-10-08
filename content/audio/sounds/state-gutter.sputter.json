@@ -1,0 +1,20 @@
+// A lamp guttering: A car's lamp guttering: the wick spitting, quick and uneven, worse as it goes. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 5,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 4,
+ "maxDistance": 300,
+ "rolloff": 0.8,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "state-gutter/sputter",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

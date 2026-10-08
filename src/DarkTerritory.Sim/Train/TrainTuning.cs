@@ -54,6 +54,15 @@ public sealed record OverspeedTuning
     /// decision of 7 Oct 2026, note 286; <see cref="DeadEnds"/>), once this tuning's warning has been up its lead.
     /// </summary>
     public double DeadEndDerailAbove { get; init; } = 6.9;
+    /// <summary>
+    /// The cars lean out on a bend taken too fast (note 370): this far at the derailing speed (degrees), about the outer
+    /// rail. Presentation only (DarkTerritory.Game's CarLean): the sim's frames never lean.
+    /// </summary>
+    public double LeanDegrees { get; init; } = 4;
+    /// <summary>How long a car takes to settle into its lean (s, the time constant).</summary>
+    public double LeanSeconds { get; init; } = 0.35;
+    /// <summary>Past half way to derailing, a car rocks on its springs by this share of <see cref="LeanDegrees"/>.</summary>
+    public double LeanRock { get; init; } = 0.18;
 
     /// <summary>
     /// How far ahead a demand at <paramref name="safe"/> must be told of to a train at <paramref name="speed"/> braking at
@@ -255,17 +264,25 @@ public sealed record InteriorLayout(double FloorHeight, double WallThickness, do
 }
 
 /// <summary>
-/// Greybox layout of the 20 m engine, cab forward (note 276), front to back: the pilot, the cab (the driver's controls at
-/// its front windows, the firebox in its back wall, the coal bunker beside it), the boiler with the stack at the rear.
+/// Greybox layout of the 20 m engine, cab forward (note 276), front to back: the pilot, the cab (everything at its front,
+/// facing forward, run by one: the coal bunker, the firebox and the driver's console across it under the windows, note
+/// 280), the boiler with the stack at the rear.
 /// </summary>
 public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, double BoilerTop, double CabLength)
 {
     /// <summary>The pilot ahead of the cab: buffer beam, plough and headlamp.</summary>
     public double PilotLength { get; init; } = 0.6;
-    /// <summary>The coal bunker in the cab (note 276): along the left wall ahead of the left doorway, this long.</summary>
+    /// <summary>The coal bunker in the cab (note 280): in its front left corner, back along the left wall this long.</summary>
     public double BunkerLength { get; init; } = 1.8;
     /// <summary>How far in from the cab's left wall the bunker reaches.</summary>
-    public double BunkerDepth { get; init; } = 0.85;
+    public double BunkerDepth { get; init; } = 0.62;
+    /// <summary>
+    /// The firebox (note 280): against the cab's front wall beside the bunker, under the windows, its door facing back into
+    /// the cab: this wide, this deep from the front wall, this high over the floor (under the sill, out of the line's view).
+    /// </summary>
+    public double FireboxWidth { get; init; } = 0.96;
+    public double FireboxDepth { get; init; } = 0.7;
+    public double FireboxHeight { get; init; } = 1.05;
     /// <summary>The bunker's top over the cab floor.</summary>
     public double BunkerHeight { get; init; } = 1.0;
     /// <summary>The running boards: how far out past the body's sides they stand (App. A.2 GREASE: "sanding from the running boards").</summary>

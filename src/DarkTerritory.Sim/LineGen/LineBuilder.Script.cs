@@ -142,7 +142,7 @@ sealed partial class LineBuilder
         bool Room(Item c) => (Plain(c) || Carries(c)) && c.Length >= least && c.S0 >= from && c.S1 <= to;
         bool Lay(Item best, ref Pcg32 rng)
         {
-            if (BendShape(def, best.Length - 2 * run, ref rng) is not { } fit)
+            if (BendShape(def, best.Length - 2 * run, best.S0, ref rng) is not { } fit)
                 return false;
             if (Carries(best))
             {
@@ -384,13 +384,14 @@ sealed partial class LineBuilder
     /// chord, so the two stay apart; turned away, the main line bowed over towards the alternate and crossed its way back in
     /// (frontier:7). The separation check lets track be within 2 km of a junction two edges share, so <see cref="CrossesMain"/>
     /// refuses what this misses. A branch's side, right +1 (its turnout first bends right); turning away from the right is a
-    /// left turn, a positive deflection.
+    /// left turn, a positive deflection. An S-bend (<paramref name="s"/>, note 359) comes out on the side it first turns to,
+    /// as its heading was: in a window it first turns away from the alternate, so it steps the main line away from it.
     /// </summary>
-    int AwayFromBranches(double s0, double s1)
+    int AwayFromBranches(double s0, double s1, bool s = false)
     {
         foreach (var w in _alts)
             if (s1 > w.T - 200 && s0 < w.J + 200)
-                return w.MainBow != 0 ? w.MainBow : -w.Side;
+                return s ? w.Side : w.MainBow != 0 ? w.MainBow : -w.Side;
         foreach (var d in _deads)
             if (s1 > d.Toe - 200 && s0 < d.Toe + _t.Curves.BendDeadLineClearM)
                 return d.Side;
@@ -840,7 +841,7 @@ sealed partial class LineBuilder
                 }
             case "bend":
                 {
-                    if (BendShape(def, max, ref rng) is not { } bend)
+                    if (BendShape(def, max, s, ref rng) is not { } bend)
                         return null;
                     item = Make(def, s, bend.Length);
                     Bend(item, bend);
@@ -995,15 +996,16 @@ sealed partial class LineBuilder
     int _weakBridgesUsed;
     int _bendsWanted;
 
-    /// <summary>A hard bend's shape (note 278): its radius, its turn, and the length it takes with its straights.</summary>
-    readonly record struct BendFit(double Radius, double Deflection, double Length, double Spur, double Fall);
+    /// <summary>A hard bend's shape (note 278): its radius, its turn, and the length it takes with its straights; an S-bend's
+    /// straight between its two turns (note 359), 0 for one turn.</summary>
+    readonly record struct BendFit(double Radius, double Deflection, double Length, double Spur, double Fall, double Gap = 0);
 
     /// <summary>
     /// A bend that derails the train under its top speed, at a radius from the tier's derailing speeds (never under its
     /// minimum radius), with straight track either side so it's seen coming, in no more than <paramref name="room"/>.
     /// Where room is short, shorter straights first, then a smaller turn, and no bend at all under 60% of the least.
     /// </summary>
-    BendFit? BendShape(PieceDef def, double room, ref Pcg32 rng)
+    BendFit? BendShape(PieceDef def, double room, double at, ref Pcg32 rng)
     {
         var c = _t.Curves;
         double v = rng.Range(_l.BendDerail);
@@ -1012,6 +1014,11 @@ sealed partial class LineBuilder
         double deflection = rng.Range(degrees) * Math.PI / 180;
         double tangent = rng.Range(def.Range("tangentM"));
         double spur = Math.Round(rng.Range(def.Range("spurM")), 1), fall = Math.Round(rng.Range(def.Range("fallM")), 1);
+        // Note 359: on a tier with them, some are S-bends, rolled on a stream of their own by where the bend is, so a night
+        // without one lays as it did.
+        var roll = Rng("sBend", "", (long)Math.Round(at));
+        if (_l.SBends > 0 && roll.Chance(_l.SBends) && SBend(def, room, radius, tangent, ref roll) is { } s)
+            return s with { Spur = spur, Fall = fall };
         double turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
         if (turn + 2 * tangent > room)
         {
@@ -1024,10 +1031,36 @@ sealed partial class LineBuilder
         return new BendFit(radius, deflection, turn + 2 * tangent, spur, fall);
     }
 
+    /// <summary>
+    /// An S-bend (note 359): two turns of the same radius either way, a short straight between, its straights either side,
+    /// in no more than <paramref name="room"/>. Shorter straights where room is short, then smaller turns; none under its
+    /// least turn (a single bend is laid instead). The authority holds the first turn's limit on till the train's tail is
+    /// round the second, so the pair is one demand, not two inside a braking distance (the lethal spacing check, §7.3).
+    /// </summary>
+    BendFit? SBend(PieceDef def, double room, double radius, double tangent, ref Pcg32 rng)
+    {
+        var c = _t.Curves;
+        var degrees = def.Range("sDeflectionDeg");
+        double deflection = rng.Range(degrees) * Math.PI / 180, gap = Math.Round(rng.Range(def.Range("sGapM")));
+        double turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        if (2 * turn + gap + 2 * tangent > room)
+        {
+            tangent = Math.Max(def.Range("tangentM")[0] * 0.5, Math.Min(tangent, (room - 2 * turn - gap) / 2));
+            double each = (room - 2 * tangent - gap) / 2;
+            if (each <= 0)
+                return null;
+            deflection = Math.Min(deflection, Geometry.MaxDeflection(c, each, radius, _l.LineSpeed));
+            if (deflection < degrees[0] * Math.PI / 180)
+                return null;
+            turn = Geometry.TurnLength(c, deflection, radius, _l.LineSpeed);
+        }
+        return new BendFit(radius, deflection, 2 * turn + gap + 2 * tangent, 0, 0, gap);
+    }
+
     /// <summary>Gives <paramref name="item"/> a hard bend's turn: its own piece, or a climb or descent laid round a hill.</summary>
     void Bend(Item item, BendFit bend)
     {
-        item.H = HShape.Turn;
+        item.H = bend.Gap > 0 ? HShape.Reverse : HShape.Turn;
         item.Radius = bend.Radius;
         item.Deflection = bend.Deflection;
         item.Params["hardBend"] = 1;
@@ -1035,7 +1068,12 @@ sealed partial class LineBuilder
         item.Params["derailMs"] = Math.Round(Math.Sqrt(_t.Curves.ADerail * bend.Radius), 1);
         item.Params["spurM"] = bend.Spur;
         item.Params["fallM"] = bend.Fall;
-        if (AwayFromBranches(item.S0, item.S1) is var turn and not 0)
+        if (bend.Gap > 0)
+        {
+            item.Params["sBend"] = 1;
+            item.Params["gapM"] = bend.Gap;
+        }
+        if (AwayFromBranches(item.S0, item.S1, bend.Gap > 0) is var turn and not 0)
             item.Params["turn"] = turn;
     }
 

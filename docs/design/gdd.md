@@ -137,34 +137,45 @@ This makes every town dependent on freight. One settlement produces coal. Anothe
 
 No town is self-sufficient. **The railway is what makes civilization possible.**
 
-### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 note 281)*
+### 3.1 Fortress towns *(the director's direction of 2026-10-06 and 2026-10-07, App. F.1 T133; built for review, ARCHITECTURE §8 notes 281 and 323)*
 
 The towns are where the world is built. They tell the story of what happened and how people survived, by inference: a line from somebody at their table, a little posted on a board, never a speech.
 
-**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three hundred and fifty people, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+**Maritime towns, walled.** They are towns of Maritime Canada (Nova Scotia, New Brunswick, the Island) with walls round them: twenty to three thousand people, most of them small, fewer than lived there before. Every town has lost people and every culture is marked by it. The plaque at the way in says how many live there now and how many did.
+
+**The wall goes round the town** (the director, 7 Oct). A hamlet's houses fit down the yard's street, and its fortress is the yard's two walls. A bigger town (most of them, past about 165 people) has streets beside the line, a pair at a time, as many as it needs and up to five a side, each with a row of houses either side, fronts to the street. Lanes cross from the line to the streets every hundred metres or so, never through the square. The fortress wall goes round all of it: down both sides past the last street's back gardens, across the front from the gatehouse, and across the back where the line's way out is shut. Towers stand at the corners and along the sides. It is all the fort: nothing comes in over the streets, and nobody out at the furthest is left behind. The crew can walk the town while the train stands: down a lane, along a street of painted houses with lamps at their doors, and back to the train.
 
 **A town is its custom.** The Corruption exaggerates whatever lets a thing survive (§2), and the towns did the same. Each one got through one bad winter by doing one thing, kept doing it, and did it harder until it was the town's custom. Every custom is the human answer to one creature's rule, said sideways: the crew hear the custom, and the rule is theirs to work out. In a hush town nobody sings, not even at a burying, and the bell's clapper is bound in felt (the Choir). In a pairs town nobody sleeps or waits alone (Tippy Toesie). In an offerings town the children have no toys, because the toys go on a shelf by the gate (the Track Doll). The towns name the creatures in their own words, never the game's. A custom only ever answers a creature the edition fields. Fourteen customs are written (content/world/towns.json), one for each of the demo's five and the Choir among them.
 
 **Each town is different from the last.** It is made from the night's seed: the line's fortress name, its custom (never the one the crew left last night), one or two smaller habits (they wear their dead's coats; every clock stopped at the same minute; the foghorn sounded for the ones still out), and what it makes (a pit town, a growing town, a foundry town).
 
-**The square** is where the walls step back, beside the engine as the night starts. It holds:
+**The square** is where the walls step back, beside the engine as the night starts (in a walled town it opens between its buildings onto the first street). It holds:
 - the custom's own building in a Maritime form: a white clapboard church with a steeple over its door, a one-room school with its belfry, a car shed, a hall;
 - the clerk's office and the stores, lit;
 - the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
 - a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
 
-**The houses.** Down the yard's street from the square, both sides, fronts to the line:
+**The houses.** Down the yard's street from the square, both sides, fronts to the line, and in a walled town down its streets, the lived-in ones nearest the square and the lost at the edges:
 - the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
-- a few houses standing open with their household at home, explorable: a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
+- a few houses standing open with their household at home, explorable (two to six, more in a bigger town): a kitchen with its range, table and dresser, a parlour with the boxed stair and its shut door, the household's own thing (the laid place, the letters, the ankle bell, the cradle). Two to four of them are at home, at the range, at the table, in the chair, at the window.
 - then the houses of the people the town has lost: boarded, burnt to the sills, or left open on the dark. Each has something to say when you look at it.
 
-*The director is finding references for the houses; this is the first pass at them.*
+**Every house its own** (the director's photographs, 7 Oct). Each house is drawn from many independent choices, so no two in a town match:
+- gable to the street or eaves;
+- one to two and a half storeys;
+- a gable, saltbox, gambrel or hip roof;
+- dormers, a Lunenburg bump or the Island's centre gable;
+- a side wing, and a hood or an enclosed porch at the door;
+- grey cedar shingle or painted clapboard, in teal, butter yellow, periwinkle, barn red, maroon, ochre or white;
+- white or coloured trim, a bright door, shutters, Victorian brackets.
+
+Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
 
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
 - the clerk, the fitter, the lampman and the rest talk about their work;
-- a few are out in the street with a lamp;
+- a few are out in the street with a lamp (a town of thousands is mostly shut in at night: its lit windows say so);
 - the households at home tell their own story: the empty chair kept for somebody, the child who walks in their sleep, the letters to a town that stopped answering.
 
 Use talks to someone, and Use again hears their next line. They turn to face you. Nobody can be talked to through a wall.
@@ -178,7 +189,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 **Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
 
 **Not yet** (for the next passes):
-- the houses to the director's references;
+- fish sheds, fences, granite and lobster traps between the houses;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
 - the terminus as a town of its own, and the town you arrive at becoming the one you leave from;
 - townspeople who move about, and faces of their own (they wear the crew's model);
@@ -304,22 +315,21 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 ## 12. Roles
 
-**Four roles, none of them assigned.** You are whatever the train needs where you happen to be standing.
+**Three roles, none of them assigned** *(the director's decision, 7 Oct 2026: "the whole cab being operable by one person … the rest of the crew is gunners and labourmen")*. You are whatever the train needs where you happen to be standing.
 
 | Role | Where | Does | Blind to |
 |---|---|---|---|
-| **Conductor** | Engine car | Throttle, brake, whistle, reverse | Everything mechanical, everything behind |
-| **Boiler** | Engine car | Fuel, pressure, heat, water | Outside entirely. No windows. |
+| **Driver** | Engine cab | Everything at the cab's front, alone: throttle, brake, reverser, whistle, the vent, and the fire (the coal at the left hand, the fire door ahead, the controls at the right) | Everything behind |
 | **Gunner** | Engine or guard car | Crude cannon: arc-limited, slow to reload, loud | Whichever direction they aren't facing |
-| **Engineer** | Anywhere | Carries the engineering kit | Nothing — but has no firing arc |
+| **Labourer** | Anywhere | Loading and hauling at the stops, the couplings and the brakes, mending what breaks, fighting off what boards | Nothing — but has no firing arc |
 
 ### Fluidity
 
-**The engineering kit is an item, not a station.** It's a carried kit, kept in the fitter's locker in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. The fitter's empty shelf shows whether the kit is home.
+**The engineering kit is an item, not a station.** It's a carried kit, kept in locker 8 in car one, a walk back from the footplate. The engineer is whoever picked it up. There is no post to be stuck at — there's a kit somebody grabbed, and when they die on the roofs it's lying in car four and someone has to go and get it. It mends a ruptured boiler (§23), and nothing else can; the wrench in the cab is just a tool to swing. Locker 8's empty shelf shows whether the kit is home.
 
-**The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, each with a crew grade on an enamel plate: DRIVER, FIREMAN, GUARD, SHUNTER, SIGNALMAN, BRAKESMAN, LAMPMAN, FITTER, GANGER, WHEELTAPPER, PORTER, YARDMASTER. Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in the **fitter's**: the fitter is the shed's mechanic, who mends engines.
+**The crew lockers.** Along car one's left wall, ahead of its side door, stands a row of twelve tall iron lockers, numbered 1 to 12 on their enamel plates (no role names: the director, 7 Oct 2026). Hold Use at one to open or shut its door; tap Use to put what's in your hands on a shelf, or take the top thing off one. Each has two shelves and takes anything hand-sized: a lamp, a radio, a toy, a find, an extinguisher, the kit. What's in a locker stays put through any stop or curve, and a shut locker keeps it from the Gaunt. A locker in a car the Territory takes is lost with the car. The kit starts in **locker 8**.
 
-**Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on the fitter's other shelf, then in the lockers after his. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
+**Spare kits.** The fortress sells spare engineering kits, and kits also turn up rarely as loot at stops (E.12, question 4). A spare starts the night on locker 8's other shelf, then in the lockers after it. A spare lost in the night is gone; a kit found at a stop and brought home is kept.
 
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
 
@@ -394,7 +404,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 | **Wreck yard** | Salvage, high value | Pull cargo off derailed trains. Unstable, unlit, already occupied. |
 | **Slaughterhouse** | Livestock, food | Animals are loud, and something already lives here. |
 | **Chemical works** | Volatile, top payout | Leaks. Do not fire indoors. |
-| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. |
+| **Mine head** | Ore | The spur descends underground. Radio blackout in and out. Its steam lift runs off the engine's own boiler: the engine stands by the headframe and vents into it while someone holds the lever, and loading empties the gauge (spec D.2; note 368). |
 | **Military depot** | Gunpowder and shot | Best payout, worst cargo to be carrying when something boards. |
 
 **Every facility is optional. Skipping them is safe and poor.** The payout exists to force bad decisions, not to reward good ones.
@@ -583,7 +593,7 @@ Interrupt it and it hunts whoever hit it last. No one player can kill it. Crane 
 | **Weak bridges** | Length. Your longer, richer train may not clear it. |
 | **Tunnels** | Radio. Compressed proximity voice, no exterior reference. |
 | **Brass growth** | Speed. Cut through slowly or ram it and pay. |
-| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window. Run right up to it and brake hard, or slow early and deal with what's on the roof. |
+| **Curves** *(a bend taken too fast)* | Speed. Every bend that can derail the train is boarded and marked in red on the cab map with its figure; over its derailing speed the train comes off, after the stress has warned the cab (flanges, creaking couplings, the lurch, the cab's bell) for a full reaction window, and shown it: sparks off the outer rail and the cars leaning out over it, their inner wheels lifting as it nears coming off (notes 277, 370). Run right up to it and brake hard, or slow early and deal with what's on the roof. |
 | ~~Track debris~~ | *Retired: the director's decision, 6 Oct 2026. "A derailment needs to be clearly a mistake by the driver, someone not paying attention to the map." Debris forced a derailment on the game's behalf. Off by a tuning flag (enemies.json sleepers.enabled), kept in the code for mods.* |
 | **Marsh** | Movement. Something in the reeds surges toward motion; stand still for ~4s and it loses you. |
 | **Dawn** | Time. Every careful option becomes unaffordable. |
@@ -2203,6 +2213,9 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 **Yards and loot**
 - Pulling into a yard's siding took real work (the switch thrown, the cut eased in), and the siding had no loot; then the loot appeared in the yard after the train had already stopped. Loot should be on every yard line in the early and mid game. *Done (queue #89, ARCHITECTURE §8 note 352): on local, frontier and dead-lines yards every siding has something to load beside its loading face (before, about one yard in thirteen had a bare one); and a stop's loot, and a facility's crates, are out 800 m before the train gets there, so nothing appears in front of the crew.*
 
+**Switches**
+- Found following up the switch audit (A1): holding Use at a switch stand to throw it also put down the lamp you'd carried out to it, or picked up whatever lay by the stand, and the prompt offered that thing before the switch. *Done (queue #94, ARCHITECTURE §8 note 357): at a switch's lever, a stand's or the cab's thrower's, Use is the lever's: what's in your hands stays there, what's lying by it stays down, Throw still lets go, and the prompt says THROW TO first.*
+
 **Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
 
 ## F.3 2026-10-07 — main at 8442eee, and the integration test builds
@@ -2220,7 +2233,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Level design**
 - The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Every house stands open, the L, cross and paired ones too. Bots that search are next.*
-  - *The director, 8 Oct, on the first interiors:* "These interiors are looking good but a few things: they need some lighting inside, dim to keep it scary, I like that they look worn down; sometimes a monster should be nesting in there; they need procedurally generated furniture scattered about, like the place has been ransacked many times before; loot needs to be discoverable in there, that's the whole point of this. They need a bit of a brighter more unique look to them so that they stand out from the background as interactable objects. Do this with good texture work, not VFX." *(B4, under queue #65. In: a dim candle or lamp in each house, the night kept out; each kind of find its own model in bright printed stock. Every house ransacked, heavy furniture against its walls and things underfoot; the Gaunt's house dark, its nest on the floor.)*
+  - *The director, 8 Oct, on the first interiors:* "These interiors are looking good but a few things: they need some lighting inside, dim to keep it scary, I like that they look worn down; sometimes a monster should be nesting in there; they need procedurally generated furniture scattered about, like the place has been ransacked many times before; loot needs to be discoverable in there, that's the whole point of this. They need a bit of a brighter more unique look to them so that they stand out from the background as interactable objects. Do this with good texture work, not VFX." *(B4, under queue #65. In: a dim candle or lamp in each house, the night kept out; each kind of find its own model in bright printed stock, and the toys found with them re-painted to stand out the same way (C1, note 372). Every house ransacked, heavy furniture against its walls and things underfoot; the Gaunt's house dark, its nest on the floor.)*
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Done (note 327): off the train the crew are watched: now and then eyes at the lamp's edge toward where something that lives at the stop is, and its sound; and the night's pressure builds faster while anyone's afoot, so encounters come sooner (`enemies.json` `director.afoot`).*
@@ -2349,7 +2362,8 @@ Further decisions (the director, 6 Oct 2026):
 - *Every culture is somewhat traumatised* by the events of the world.
 - *Towns of 20 to 350 people.*
 - Later the same day, with photographs of Maritime houses (a Cape Breton cedar-shingled studio with a gable window and blue barn shutters; Peggy's Cove, painted houses on the granite above the fish sheds and the wharf; a Lunenburg house in periwinkle clapboard with coral trim and a bump; Shelburne's waterfront row in red, blue, ochre and weathered shingle under a church cupola; Blue Rocks' shingled fish shacks on cribwork): *"Village houses should feel like these, they should have lots of variations so it doesn't feel like the same 10 assets recycled across towns over and over again."*
-- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335.)
+- *"Towns can go up to 3000, and fortresses aren't just some straight line around the railroad: they should surround towns. Towns should be explorable. This is our big worldbuilding work that makes it feel interesting and exciting to go around."* (Queue #74, walled towns, note 335; *built for review: "The wall goes round the town" above.*)
+- The director, 8 Oct, with two shots of an open house's residents: *"We need townsfolk models who wear some sort of respirator mask or oxygen mask or other breathing apparatuses to indicate the air is foul. Note some of the animation positions are off. Towns don't feel like they have a natural layout to them. There needs to be a behaviour loop for all the NPCs, it's weird that so many of them are just standing around doing nothing. These towns need layouts, parks, signs of governance, signs of culture, statues, things that tell the story of a people walled in for fear of the outside world and what becomes of those who rarely leave the walls. They'd be trying to find ways of making the world feel tolerable."* (Queue #90, note 353: claimed, B2.)
 
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
