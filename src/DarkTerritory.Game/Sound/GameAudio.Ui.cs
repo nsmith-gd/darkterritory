@@ -21,6 +21,16 @@ public static class UiCue
     public const string Back = "ui-menus.back";
     public const string Title = "ui-menus.title";
     public const string EndCard = "ui-menus.end-card";
+    /// <summary>A letter typed into a name, or one rubbed out (note 320's crew names, the player's and the lobby's).</summary>
+    public const string Type = "ui-menus.type";
+    /// <summary>A crew deleted for good (note 320): the stamp in place of the choice's select.</summary>
+    public const string Delete = "ui-menus.delete";
+    // ui-panels: the roster, the supplies and the route card (note 316), opened, put away and paged (App/Program.cs).
+    public const string PanelOpen = "ui-panels.open";
+    public const string PanelClose = "ui-panels.close";
+    public const string PanelPage = "ui-panels.page";
+    /// <summary>This player's own film skipped (note 315).</summary>
+    public const string FilmSkip = "ui-film.skip";
     // ui-prompts: a hold-to-interact action (GameAudio.Interface).
     public const string Hold = "ui-prompts.hold";
     public const string Complete = "ui-prompts.complete";
@@ -110,6 +120,7 @@ public sealed partial class GameAudio
     }
 
     int _ballotPick = -1;
+    double _skipHold;
     bool _ballotSent, _ballotLocked, _commendGiven, _choicesPrimed;
     readonly HashSet<int> _heardBookmarks = [];
 
@@ -139,6 +150,12 @@ public sealed partial class GameAudio
         if (primed && given && !_commendGiven)
             Ui(UiCue.Commendation);
         _commendGiven = given;
+        // This player's own film skipped (note 315): their hold came to its end and went, the film cut (note 322). Let go
+        // short of the end, it falls back from further down and nothing's heard.
+        double skip = s.SkipHold, end = 1 - 1.5 * SimConstants.TickSeconds / Math.Max(s.World.WreckTuning.Skip.HoldSeconds, 1e-6);
+        if (primed && _skipHold >= end && skip <= 0)
+            Ui(UiCue.FilmSkip);
+        _skipHold = skip;
         _choicesPrimed = true;
     }
 
@@ -159,6 +176,7 @@ public sealed partial class GameAudio
         _uiWorld = null;
         _ballotPick = -1;
         _ballotSent = _ballotLocked = _commendGiven = _choicesPrimed = false;
+        _skipHold = 0;
         _heardBookmarks.Clear();
     }
 

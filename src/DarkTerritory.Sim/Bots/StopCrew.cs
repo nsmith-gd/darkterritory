@@ -2513,8 +2513,8 @@ public sealed class StopHand(StopJob job, CrewCalls calls, int member, ColdTunin
         {
             Doing = "out of the cab";
             double door = CabDoorZ(train);
-            // Cab forward (note 276), the coal bunker stands along the left wall ahead of its doorway: on that side, down the
-            // aisle beside it to the doorway's height first, then out.
+            // The coal bunker stands along the left wall at the cab's front (note 280): on that side, back down the floor
+            // clear of it to the doorway's height first, then out.
             var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
             if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
                 return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);

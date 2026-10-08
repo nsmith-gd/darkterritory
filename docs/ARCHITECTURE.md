@@ -4330,6 +4330,24 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `AGauntSleepsInItsRoostAndWalksOutOfItAwake`.
     - **Others' tests the walls met:** `CraneTests` and `StopCrewTests` (the foundry's crane stand in a shed, above), `SpawnSiteTests.TheWhistlerCarriesItsVictimToTheStopsNestAndThroughNoWall` (B4's, above), `LeftBehindPressureTests` (the fort's gate pier, above). The Sim and Game suites.
         - `TheWhistlersRunToItsNestGoesThroughNoBuilding`.
+280. **The cab facing forward, run by one (queue #15, C1; the director, 7 Oct 2026: "I don't like the new design, I feel like the controls and firebox need to be in front not facing the back"; then "I like firebox at the front but no need to turn around for coal, the whole cab being operable by one person … the rest of the crew is gunners and labourmen. Remove role names on lockers").** Note 276's cab put the firebox in its back wall, where the boiler comes through: the driver faced the line and the fireman faced the other way.
+    - **The front of the cab is the work** (`EnginePlan`, train.json `geometry.engine`). Across it under the windows, from left to right:
+        - The coal bunker, in the front left corner and back along the left wall (`bunkerLength` 1.8, `bunkerDepth` 0.62). Its gate is low in its inner side, just behind the firebox.
+        - The firebox, standing against the front wall under the sill (`fireboxWidth` 0.96, `fireboxDepth` 0.7, `fireboxHeight` 1.05; `PartKind.Firebox`, a solid). Its door faces back into the cab.
+        - The driver's console under the right-hand window.
+        - The blow-off cock on the right side wall a step behind the console. Its pipe goes up the side window's post, so it isn't in front of the line.
+    - **Reach.** One person stood behind the fire door has the coal at the left hand, the fire ahead, the levers a step to the right and the vent a step further, and never turns round (`CabSightTests.OnePersonRunsTheCabFacingForwardTheCoalTheFireAndTheControlsInReach`). Driving already worked from anywhere in the cab (`CabControls.CanDrive`).
+    - **The firebox's frame** (`TrainKit.BackheadFrame`) is now the engine's own, set at the firebox's face. It carries the shut door, the fire seen through the hole, the furnace's light, the Stoker in the fire and the firebox camera.
+    - **The art.** The backhead's full-height plate, its four gauges and the modelled fittings (`cab_backhead`) would stand in the windows at the front, so they're gone. In their place is a squat riveted firebox: a firebrick-lined firehole, the door's frame and hinges, the water glass, the ashpan damper, and a steam pipe up the front wall. The driver's four dials over the right window are the one set now. The back wall is plated across where the boiler's end was. The Stoker in an open door is turned to look out of it at the cab.
+    - **The crew is the driver, gunners and labourers.** `BotCrew` makes no fireman bot. T75's fireman, a second `ConductorBot` in crews of six or more, goes, and that place is a labourer now. `ConductorBot { Fireman = true }` stays for a player-made second hand, and its tests stand. GDD §12's roles table is now Driver, Gunner and Labourer.
+    - **The lockers are numbered 1–12** (train.json `kit.lockers.names`). The kit's locker is 8 (`kitLocker`), and the stock goes by number. The HUD says "LOCKER 8".
+    - **Knock-ons.**
+        - `PlayerMotor.CabFloorZ` puts a spawn on the open floor between the bunker's end and the doorways.
+        - The cab's hatch ladder up to the gun is behind the bunker (the front left corner is the coal's).
+        - The bots fire from behind the door facing forward (`ConductorBot.FiringSpot`, `FacingFire` 0) and step across to the vent (`VentWay`).
+        - With a Climber in the cab, the driver keeps to the front right corner and a second hand to the back left (`KeepClear`).
+    - **Views:** `fireman` looks forward from behind the work at the coal, the fire door, the console, the dials and the line. `firebox` looks into the open door.
+    - **Verified:** Sim suite green, apart from the locker, vent, firing-spot and kit-position tests restated for the new places. Game suite: `CabSightTests` (the line from 8 m past the plough unchanged, plus the one-person test above). Looked at: fireman, cab, firebox and engine.
 284. **The bend's stress heard building, and main's synth sounds on the audio checklist (AU1, queue #20; build 1121, the director: "we'll want to telegraph using sound design that the train is going under stress").** Note 265 made the stress a telegraph (the flange squeal up to the board, the creaks, the slack's lurch, the scream over the last half, the cab's bell) and left the bell, the roof warnings (note 260) and five other synth sounds without checklist lines.
     - **`dt audio render --scenario bend [--listener n] [--route r] [--cars n]`** (`AudioBench.RenderBend`): `Staging.BendWarning`'s train on deepTerritory:2's first bend that can derail it, at its board until the engine's on the bend, then up steadily over 8 s to 1.1× its derailing speed and held there until it comes off. It reports, a second at a time, the speed, the stress (`TrackRules.Assess`), whether the warning's up, each of `AudioBench.StressSounds`' levels and the mix; a WAV and a spectrogram beside it.
     - **What it found** (the cab, 6 cars, board 38 km/h, derailing at 45.5): the flange squeal 23 dB under the mix as the bend began (−41.6 dB against −18.7) and silent most of its loop (three swells in 10 s); the scream one held chord, so nothing built.
@@ -4745,6 +4763,47 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **The flake, found.** `CrewAudioTests.ABotCrewIsHeardOverTheNetworkAsTheAppHearsIt` hosted the night, then built `new GameAudio(Content)`, which loads and decodes every sample in the bank. Nobody stepped the session meanwhile. Under a full suite's load that took 13 s, past the transport's 8 s silence timeout (`DatagramOptions.TimeoutSeconds`), so the host dropped all three bots and the test saw 1 of 4 aboard. Reproduced with 12 busy loops on 4 cores (1 of 4, as A1.2, A1.4 and A1.7 logged), with the session's state logged each second: all four aboard when hosted, then three dropped.
     - **Fixed** by loading the bank before hosting, as the app does. The test was flaky, not the netcode: a real host steps every frame. Under the same load it passed 3 of 3.
 
+322. **Main's new features heard (AU1, queue #61).** An audit of what landed since 7 Oct found sixteen things a player would expect to hear with no sound of their own. Each hook reads only replicated state (GameAudio's rule), and each cue is a line on the audio checklist (`tools/audio/cues.py`).
+    - **Healing finds** (note 272), `crew-heal`:
+        - while Use is held on one, `apply` per find (`bandages`, `medicine`, `morphine`; the client names a find as the HUD does, `Run.FindOf`);
+        - once it's used up (its body gone mid-dose), `done`, a breath let out.
+    - **Emotes and outfits** (note 298), `crew-emotes`:
+        - `dance`, `wave` and `point` once each where the player stands (a dance moves nobody, so it has no footsteps of its own);
+        - `outfit` when a player's outfit changes in the yard.
+
+      What's already on the wire when the client first looks is old news.
+    - **The Car Hugger lets go** (note 310), `cs-car-hugger.spit-out`. Eaten or pulled free, its grab ends the same way on the wire, so the spit-out plays only when the crewmate it held is still alive.
+    - **A ball lands as what it struck** (note 290), `crew-cannon-impact.flesh`, `.structure` and `.train`. The Track Doll keeps her porcelain, and a surface with no take installed is the boom it was.
+    - **Per-creature hurts** (note 290 handed them over), `.hit` for the Gaunt, the Switchman, the Soot Children, the Followers and the Grumbler:
+        - a health drop on a record still there (a killing blow takes the record, and that's its death);
+        - a Follower's blow on its nest stays the nest's;
+        - the blow that turns the Grumbler feral is heard as it turning.
+    - **The shovel's rack** (note 275), `crew-melee.shovel-rack-off` and `-on`, at the cab's tool rack as `ShovelOut` changes.
+    - **An engine short of steam** (note 319), `state-starved.labour`: a loop under the chuff, as loud as `StarvedDrag` is near its worst (`BedStarved`).
+    - **Derelicts shunted out** (note 294), `place-derelict.roll`: a car's seized axles, while a derelict near the ears is moving.
+    - **The interface:**
+        - `ui-menus.type`, a key for each typing that took into a name (`FrontEnd.Type`, `Erase`);
+        - `ui-menus.delete`, the stamp for a crew deleted (the entry's own `Sound`, in place of select);
+        - `ui-panels.open`, `close` and `page` for the route card, the supplies and the roster (App);
+        - `ui-film.skip`, this player's own film skipped (the session's `SkipHold` reaching its end; `Choices`).
+    - **The sounds:** 46 candidates, two per cue where the approach was open, uploaded to the audio checklist and installed first-choice (L1 until kept):
+        - foley built from the CC0 packs, the real thing where they have it (`recipes/heard_foley.py`);
+        - each creature's hurt from its own established voice and body (`recipes/heard_creatures_ui.py`);
+        - the interface matched to the existing paperwork set (ledger, card, typewriter, rubber stamp, the projector's shutter).
+    - **Tuning in install.py:**
+        - the starved engine's first choice is the beatless one (`FIRST_CHOICE`), since the chuff already beats;
+        - a derelict's flats thump once a turn, built at 2.4 m/s, so its loop's rate follows the car's speed (`LAYER_EXTRAS`, the "speed" param `BedWheels` sets).
+    - **Not yet:**
+        - The mail crane's catch and miss: host-only today, so it needs a replicated field first.
+        - D1.1's `sign.<creature>` hook (note 327: a sign shown a crewmate afoot, something moving out there, never its tell) plays each creature's own movement until its sign has a sound of its own.
+        - The jig is on wood only; a dance on the ballast or a roof wants its own surfaces.
+        - Breaths, swallows, the cork, the syrette's tube, the Switchman's lamp chain and the projector are stand-ins until the Sonniss library.
+    - **Verified:**
+        - `FeatureSoundTests` (the healing find on a generated night, emotes and outfits, the shovel's rack, the starved engine's level, a derelict shunted, a ball by surface);
+        - `CreatureSoundTests.TheCarHuggerIsHeardSpittingOutACrewmatePulledFreeButNotOneEaten` and `ABallOrABlowThatDoesntKillACreatureIsItsOwnHurt`;
+        - `UiSoundTests.ANameIsTypedAKeyAtATimeAndACrewDeletedIsStamped`;
+        - `ChoiceSoundTests.YourOwnFilmSkippedIsTheCutAndALetGoHoldIsNothing`.
+
 323. **The MODS screen (F1, UI/UX 3; queue #62; note 53's "not yet": "an in-game mods screen"; the wiki's "Playing modded").** What was laid over the game, and what couldn't be, was only on the console (`mods: …`) and in `dt mods`: a player couldn't see from the game which mods they had, though a refused joiner is told which differ.
     - **MODS on the title** (before CREDITS) when anything's installed or couldn't load; with none, there's no MODS. Its line says how many are laid over and how many problems ("2 laid over the game, 1 problem.").
     - **The screen** lists the mods in load order, a row each: its name as it reads (Thunderstore's "LateDispatch" or "Late_Dispatch" as LATE DISPATCH) and version, its description under it. Then each problem from `ContentMods.Scan` ("… isn't loaded: it needs …", "… is installed 2 times …") as a row of its own, the sentence under it. It changes nothing: mods are laid over as the game starts, from its folders or a manager's profile, and BACK's line says so.
@@ -4924,6 +4983,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
       - `dt art clearance --only cinder_hound` clean (the bite and the hit first put an upper arm into the keel by up to 7 cm).
       - `dt art clip` side, front quarter and front.
       - `dt art reel --only cinder_hound` (run, prowl, crouch, lunge, board, hit, bite).
+
+333. **The gun's laying, recorded low and slow (AU1, queue #72; GDD App. F.3, the director, 7 Oct 2026: "there's a weird sound that is happening when the cannon turns ... make it something that's a lot more low and slow").** D1's #252 (note 329) made `gun-lay`'s synth low and slow. The recorded candidates #205 swapped in were the same high repeated sound: ten exhaust chuffs and fifteen gear teeth a second, centred at 1.8 kHz with 40% of their energy over 1 kHz. #205 dropped them.
+    - **Two new candidates** (`recipes/gunlay_low.py`, AU1.7), both from the packs' real recordings and each one seamless cycle:
+        - `slow`: the worm wheel's clunk on each stroke of a double-acting motor at 1.2 turns a second (2.4 clunks a second, heavy and lighter), over the motor's hum and a soft breath of steam.
+        - `deep`: the worm grinding round under load, a tooth giving with a deep thud twice a second, over a labouring motor.
+
+      Both are centred at 135–150 Hz, with under 0.05% of their energy over 1 kHz. At the game's 0.8–1.2 rate they clunk 1.6–2.9 times a second.
+    - **Held until kept:** install.py's `HELD` keeps a cue out of the game (no first-candidate install) until the director keeps one of its candidates. Meanwhile `gun-lay` falls back to its synth backup (`tools/audio/synth-defs/gun-lay.json`, D1's). A kept candidate is swapped in through `SWAPS` as before; then `swaplevel.py` matches it to the synth's loudness.
+    - **Verified:** the install leaves `gun-lay.json` equal to D1's synth while nothing's kept; `CrewAudioTests.LayingTheSeatedGunRunsItsSteamMotorWhileItTurnsAndClunksAsItStops`.
 
 337. **The Cinder Hounds' own light (queue #70, E1; first claimed as #62 and 323, then 331 and 335: F1's MODS screen, D1's hot box and B2's walled towns landed with them first; note 209's "not yet": "read at range in the rear lamp, and as a pack: more glow, and a light of their own").** At night a hound was its ember slashes and nothing else: climbing the rear car's end in shadow, or running behind the train past the rear lamp, a pack of three read as a few yellow specks.
     - **Now each hound carries its own light** (`CreatureArt`, `HoundEmber`, `HoundLightRange`): its cracks' heat, a point light a little under its keel (the `belly` bone), flickering, and scaled by the glow its phase already gives its cracks (brighter on the run in, on the bite).
