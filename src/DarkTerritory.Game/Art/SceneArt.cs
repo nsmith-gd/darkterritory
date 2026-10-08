@@ -419,7 +419,7 @@ public sealed partial class SceneArt(Look look)
 
     // The reverser thrown (note 445; GDD §12): the hand goes to it, hauls it over, holds a moment and goes back. The sim's
     // reverser flips at once (CabControls, stopped); the lever and the hand take these.
-    internal const double ReverserReach = 0.2, ReverserThrowSeconds = 0.35, ReverserHold = 0.25;
+    public const double ReverserReach = 0.2, ReverserThrowSeconds = 0.35, ReverserHold = 0.25;
     int _reverserFrom = 1, _reverserTo = 1;
     double _reverserSince = double.NegativeInfinity;
     bool _reverserSeen;
@@ -446,8 +446,11 @@ public sealed partial class SceneArt(Look look)
         return from + (levers.ReverserAt(_reverserTo) - from) * p;
     }
 
+    /// <summary>Where the reverser's handle was last drawn (world): where the driver's hand goes to throw it.</summary>
+    public Double3 ReverserGrip => _reverserGrip;
+
     /// <summary>How far the driver's hand is over on the reverser (0..1): to it, through the throw, back.</summary>
-    double ReverserHand(double time)
+    public double ReverserHand(double time)
     {
         double s = time - _reverserSince, held = ReverserReach + ReverserThrowSeconds + ReverserHold;
         return s < 0 ? 0 : s < ReverserReach ? Smooth(s / ReverserReach) : s < held ? 1 : 1 - Smooth((s - held) / ReverserReach);
@@ -466,7 +469,7 @@ public sealed partial class SceneArt(Look look)
     double _pulledSince = double.NegativeInfinity;
 
     /// <summary>How far the whistle's lever is pulled down (0..1), easing to where the cord has it (where it's first seen, there).</summary>
-    double Pull(bool pulled, double time)
+    public double Pull(bool pulled, double time)
     {
         if (!_pullSeen)
             (_pulled, _pullSeen) = (pulled, true);
