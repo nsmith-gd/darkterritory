@@ -122,6 +122,9 @@ public static class Views
             // In the middle car, under its forward lantern, up at what's round it (the staged Fire Flies).
             "flies" => FliesCamera(train),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
+            // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
+            // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
+            "lampshadow" => Camera.LookAt(target.ToWorld(new Double3(2.2, roof + 2.3, -2.2)), target.ToWorld(new Double3(-0.2, roof + 0.3, -5.6)), 60),
             "cab" => CabCamera(engine),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),

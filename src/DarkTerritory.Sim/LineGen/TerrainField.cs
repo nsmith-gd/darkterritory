@@ -265,7 +265,8 @@ public sealed class TerrainField
         double h = height;
         foreach (var lake in _lakes)
         {
-            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + 40;
+            // (Out as far as its rim's bank can reach down a 12 m fall to the land, note 424.)
+            double reach = lake.RadiusM * lake.Stretch * (1 + lake.Wobble) + Math.Max(40, _r.Lakes.RimCrestM + 12 / Math.Max(_r.Lakes.RimSlope, 0.05));
             if (Math.Abs(x - lake.X) > reach || Math.Abs(z - lake.Z) > reach)
                 continue;
             // Metres past the shore, near enough (the metric is in radii).
@@ -274,6 +275,9 @@ public sealed class TerrainField
                 ? lake.LevelM + 0.35 + past * _r.Lakes.ShoreSlope
                 : lake.LevelM + 0.35 - (lake.DepthM + 0.35) * Smooth(0, 14, -past);
             h = Math.Min(h, target);
+            // Its rim (note 424): where the land outside its shore lies lower than its water, a bank holds the water in.
+            if (past >= 0 && _r.Lakes.RimM > 0)
+                h = Math.Max(h, lake.LevelM + _r.Lakes.RimM - Math.Max(0, past - _r.Lakes.RimCrestM) * _r.Lakes.RimSlope);
         }
         if (_shores.Length > 0 && MainOf(near) is { } n)
         {
@@ -381,7 +385,13 @@ public sealed class TerrainField
     /// The water nearest (x, z) and whether it's near enough to shape the shore's ground: a lake's or a shore's level
     /// and kind (lake, sea, fundy, dyke), within <paramref name="margin"/> metres of its edge. For the art's shore materials.
     /// </summary>
-    public (double Level, string Kind)? WaterNear(double x, double z, double margin)
+    public (double Level, string Kind)? WaterNear(double x, double z, double margin) => WaterNear(x, z, margin, null);
+
+    /// <summary>
+    /// <see cref="WaterNear(double, double, double)"/> where the main line's nearest point is already known (the art's
+    /// land, laid out by the line's own distance and lateral: note 424), which saves finding it.
+    /// </summary>
+    public (double Level, string Kind)? WaterNear(double x, double z, double margin, Near? main)
     {
         foreach (var lake in _lakes)
         {
@@ -394,7 +404,7 @@ public sealed class TerrainField
         bool tidal = false;
         foreach (var w in _plan.Water)
             tidal |= w.Type == "tidal";
-        if ((_shores.Length == 0 && !tidal) || MainOf(Nearby(x, z, _r.CorridorM + 60)) is not { } n)
+        if ((_shores.Length == 0 && !tidal) || (main ?? MainOf(Nearby(x, z, _r.CorridorM + 60))) is not { } n)
             return null;
         foreach (var sh in _shores)
         {

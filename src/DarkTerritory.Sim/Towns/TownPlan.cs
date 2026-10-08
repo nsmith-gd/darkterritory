@@ -40,7 +40,7 @@ public sealed record TownGreen(double S0, double S1, double Near, double Far, in
 }
 
 /// <summary>
-/// A walled town's works (queue #166, note 430): its <see cref="Trade"/> (towns.json industries: "coal", "farm",
+/// A walled town's works (queue #183, note 447): its <see cref="Trade"/> (towns.json industries: "coal", "farm",
 /// "foundry") at work inside its wall, across the line from the green, between the far side's first and second streets:
 /// from <see cref="S0"/> to <see cref="S1"/> along the line and <see cref="Near"/> to <see cref="Far"/> out from it on
 /// <see cref="Side"/>, where the houses would have been. Its pieces are the plan's fixtures standing in it.

@@ -93,7 +93,7 @@ public static class TownRounds
                 case "crate":
                     places.Add(new($"crate{f.Id}", f.S, f.D + f.FaceD * (f.SolidD + 0.7), -f.FaceS, -f.FaceD, "mend", null));
                     break;
-                // The works (note 430): at a piece's front seeing to it, at the coal and the pig iron; warming their hands
+                // The works (note 447): at a piece's front seeing to it, at the coal and the pig iron; warming their hands
                 // at the slag's glow.
                 case "headframe" or "winding" or "casting" or "glasshouse" or "elevator" or "warehouse" or "cellar" or "coal" or "pigs":
                     foreach (double along in (double[])[-1.1, 1.1])

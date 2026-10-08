@@ -6,7 +6,7 @@ using DarkTerritory.Sim.Towns;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// A walled town's works drawn (queue #166, note 430): the facilities' modelled pieces stand on their fixtures' footprints,
+/// A walled town's works drawn (queue #183, note 447): the facilities' modelled pieces stand on their fixtures' footprints,
 /// so what's solid is what's drawn; the kit's own pieces are built, cheap and their fixtures' size.
 /// </summary>
 public class TownWorksArtTests
