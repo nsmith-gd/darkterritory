@@ -630,15 +630,24 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     {
         var train = world.Train;
         return new Sim.Campaign.RunCheckpoint(route, facility, world.Run!.Seconds, train.Dynamics.Distance, train.Boiler.Tender,
-            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo))],
+            [.. train.Vehicles.Select(v => new Sim.Campaign.CarState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun.Ammo, v.Cargo, v.Eaten))],
             world.Holdouts?.Spent ?? [])
-        { Plan = world.TrackPlan?.Compress() };
+        {
+            Plan = world.TrackPlan?.Compress(),
+            Rakes = [.. train.Capture().Rakes.Select(r => new Sim.Campaign.RakeSave(r.Vehicles, r.Path, r.Distance, r.Handbrake, r.FrontCouplerLocked))],
+        };
     }
 
-    /// <summary>Puts a night back as it was saved: the cars, the coal, the clock, and the stops already made.</summary>
+    /// <summary>
+    /// Puts a night back as it was saved: the train as it left (note 481: its rakes, a car lost before the save still lost,
+    /// a switchyard's cars picked up still ahead of the engine), the cars, the coal, the clock, and the stops already made.
+    /// </summary>
     static void Restore(World world, Sim.Campaign.RunCheckpoint c)
     {
         var train = world.Train;
+        // An older save, or one whose cars aren't this night's, keeps the train as built: its own cars, from the save's front.
+        if (c.Rakes is { Length: > 0 } rakes)
+            train.Resume([.. rakes.Select(r => new RakeState(r.Vehicles, r.Distance, 0, 1, r.Handbrake, r.Locked, r.Path))]);
         foreach (var car in c.Cars)
             if (car.Id < train.Vehicles.Count)
             {
@@ -647,6 +656,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 v.Integrity = car.Integrity;
                 v.CargoIntegrity = car.CargoIntegrity;
                 v.Gun = v.Gun with { Ammo = car.Ammo };
+                v.Eaten = car.Eaten;
                 // An older save has no cargo types: its loaded cars keep the goods they were built with.
                 if (car.Cargo != CargoKind.None)
                     v.Cargo = car.Cargo;
