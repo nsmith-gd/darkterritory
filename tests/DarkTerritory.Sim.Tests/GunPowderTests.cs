@@ -190,6 +190,46 @@ public class GunPowderTests
     }
 
     [Fact]
+    public void WithTheGuardGunnerDeadTheNearestWalkerTakesTheGun()
+    {
+        // Note 456 (#183's seed 2 on main: the guard gunner Devoured, and the gun stood unmanned all night): at the run's speed,
+        // the nearer of two free walkers goes back to the guard gun and takes the seat; the other stays a walker.
+        var n = new Night(5, 20, enemies: Quiet);
+        int van = Rear(n);
+        var rake = n.Train.Dynamics.Consist.Vehicles;
+        var calls = new CrewCalls();
+        n.Crew[1] = AtTheGun(n);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, rake[^3].Id, 0, P);
+        n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, rake[2].Id, 0, P);
+        var gunner = new GunnerBot(G) { Me = 1, Calls = calls };
+        var near = new RoofWalkerBot(7, job: null) { Me = 2, Calls = calls };
+        var far = new RoofWalkerBot(8, job: null) { Me = 3, Calls = calls };
+        PlayerIntent Decide(int id)
+        {
+            List<(int, PlayerState)> crew = [.. n.Crew.Where(c => c.Key != id).Select(c => (c.Key, c.Value))];
+            if (id == 1)
+            {
+                gunner.Crew = crew;
+                return gunner.Decide(n.Crew[1], n.World, n.World.Tick, out _);
+            }
+            var w = id == 2 ? near : far;
+            w.Crew = crew;
+            return w.Decide(n.Crew[id], n.World, n.World.Tick, out _);
+        }
+        n.Run(3, Decide);
+        Assert.Equal(1, calls.Gunner(false));
+        Assert.Null(near.Manning);
+        n.Crew[1] = n.Crew[1] with { Death = DeathCause.Devoured, Health = 0 };
+        for (int t = 0; t < 60 && !(n.Crew[2].Has(PlayerFlags.Seated) && Guns.MannedGun(n.Crew[2], n.Train, G) == van); t++)
+            n.Run(1, Decide);
+        Assert.True(n.Crew[2].Has(PlayerFlags.Seated) && Guns.MannedGun(n.Crew[2], n.Train, G) == van,
+            $"not at the gun: {n.Crew[2].Surface} on {n.Crew[2].Parent}");
+        Assert.Equal(false, near.Manning);
+        Assert.Null(far.Manning);
+        Assert.Equal(2, calls.Gunner(false));
+    }
+
+    [Fact]
     public void TheForwardGunnerDoesntTakeTheGuardGun()
     {
         // Note 447: warmed up in the guard van, the forward gunner sat down at the guard gun beside its own gunner, and the
