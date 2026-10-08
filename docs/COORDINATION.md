@@ -298,7 +298,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
-| Bots off the roofs for a truss Dragger: its scrape is a roof warning like a tunnel's mouth, so walkers are into a car or the gap before their car's under it, and back up after; seated gunners keep their guns (queue #178) | #PR | 442 |
+| Bots off the roofs for a truss Dragger: its scrape is a roof warning like a tunnel's mouth, so walkers are into a car or the gap before their car's under it, and back up after; seated gunners keep their guns (queue #178) | [#485](https://github.com/nsmith-gd/darkterritory/pull/485) | 442 |
 | The top rung leaves a climber in the air at speed: a climber on a car's rear end ladder when the car behind is lost (the last car has none) topped out by a side ladder, past the car's end onto nothing; now over the end it holds (queue #174) | [#472](https://github.com/nsmith-gd/darkterritory/pull/472) | 438 |
 | The driver left on the ground: it went to a far Holdout (a facility's lockup, up to 186 m off) by the track-side walk and got lost in the lineside trees; now by FootPath there and back to the cab, the track-side walk where FootPath finds no way (queue #142) | [#430](https://github.com/nsmith-gd/darkterritory/pull/430) | 406 |
 | Walkers who live through a hot run (queue #117, D1.2 for D1) | [#425](https://github.com/nsmith-gd/darkterritory/pull/425) | 380 |
