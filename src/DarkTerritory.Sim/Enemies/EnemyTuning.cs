@@ -29,6 +29,7 @@ public sealed record EnemyTuning(
     public GrumblerTuning Grumbler { get; init; } = new();
     public ChoirSwarmV11 Choir { get; init; } = new();
     public MooseTuning Moose { get; init; } = new();
+    public GannetTuning Gannet { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -900,4 +901,36 @@ public sealed record SolidityTuning
         _kinds ??= Kinds.ToDictionary(k => Enum.Parse<EnemyKind>(k.Key, ignoreCase: true), k => Enum.Parse<Solid>(k.Value, ignoreCase: true));
         return _kinds.TryGetValue(kind, out var s) ? s : Solid.None;
     }
+}
+
+/// <summary>The Gannet (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 340). Field docs live in enemies.json.</summary>
+public sealed record GannetTuning
+{
+    public double ArriveAbove { get; init; } = 18;
+    public double ArriveSeconds { get; init; } = 30;
+    public double StallBelow { get; init; } = 12;
+    public double StallSeconds { get; init; } = 6;
+    public double QuietSeconds { get; init; } = 60;
+    public double ReturnSeconds { get; init; } = 180;
+    public double[] SoarHeight { get; init; } = [20, 35];
+    public double SoarRadius { get; init; } = 14;
+    public double FlySpeed { get; init; } = 12;
+    public double PreyAbove { get; init; } = 0.8;
+    public double HangSeconds { get; init; } = 2;
+    public double FoldSeconds { get; init; } = 1.6;
+    public double[] DiveEvery { get; init; } = [8, 12];
+    public double StrikeRadius { get; init; } = 0.9;
+    public int StabDamage { get; init; } = 35;
+    public double StuckSeconds { get; init; } = 4;
+    public double BankSeconds { get; init; } = 2.5;
+    public int Pecks { get; init; } = 4;
+    public double PeckEvery { get; init; } = 3;
+    public int DriveOffBlows { get; init; } = 3;
+    public double Health { get; init; } = 12;
+    public double GiveUpBelow { get; init; } = 4;
+    public double MarkReach { get; init; } = 200;
+    public int MinCars { get; init; } = 2;
+    public double PerRoofWeight { get; init; } = 1;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    public Dictionary<string, double> BiomeWeights { get; init; } = new();
 }

@@ -13,7 +13,9 @@ public enum EnemyKind : byte
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
     TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
-    Moose = 31
+    Moose = 31,
+    // The Gannet (GDD §21, the director's decisions of 7 Oct 2026; note 340).
+    Gannet = 32
 }
 
 /// <summary>

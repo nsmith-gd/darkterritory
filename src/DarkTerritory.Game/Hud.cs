@@ -1448,6 +1448,7 @@ public static partial class Hud
         DeathCause.Seized => "SEIZED BY THE CHOIR. YOU WERE OUTSIDE, AND IT WAS LOUD",
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
+        DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };

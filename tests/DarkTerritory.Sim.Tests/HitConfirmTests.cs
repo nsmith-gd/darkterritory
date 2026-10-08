@@ -125,7 +125,7 @@ public class HitConfirmTests
     [
         EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
-        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose,
+        EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
@@ -148,6 +148,7 @@ public class HitConfirmTests
         EnemyKind.Grumbler => new Grumbler(id),
         EnemyKind.Choir => new ChoirGhost(id),
         EnemyKind.Moose => new Moose(id),
+        EnemyKind.Gannet => new Gannet(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -176,13 +177,14 @@ public class HitConfirmTests
             EnemyKind.Whistler => SpinePhase.Commit,
             _ => SpinePhase.Telegraph,
         };
-        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie or EnemyKind.Moose => -1, _ => 0 };
+        double extra = kind switch { EnemyKind.TrackDoll => 1, EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.Choir or EnemyKind.TippyToesie or EnemyKind.Moose or EnemyKind.Gannet => -1, _ => 0 };
         // A Stoker on its way in from the tender (note 263): in the open, where a blow lands (in the fire, only with the door open).
         double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         var e = n.World.AddEnemy(id =>
         {
             var made = Make(kind, id);
-            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, 0, extra, extra2);
+            // (A Gannet's height is its mode: down in the planks, stuck, where a blow can land.)
+            made.Restore(phase, 0.5, 5, car, s.Position + new Double3(0, 0, -1.5), 0, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Stuck : 0, extra, extra2);
             return made;
         });
         return (n, e);
@@ -263,12 +265,13 @@ public class HitConfirmTests
     static Enemy Ahead(Night n, EnemyKind kind, double health = 2)
     {
         var phase = kind == EnemyKind.Whistler ? SpinePhase.Commit : SpinePhase.Telegraph;
-        double extra = kind is EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.TippyToesie or EnemyKind.Moose ? -1 : 0;
+        double extra = kind is EnemyKind.Follower or EnemyKind.Ribbit or EnemyKind.Gaunt or EnemyKind.TippyToesie or EnemyKind.Moose or EnemyKind.Gannet ? -1 : 0;
         double extra2 = kind is EnemyKind.SootChildren or EnemyKind.Stoker ? 1 : 0;
         return n.World.AddEnemy(id =>
         {
             var made = Make(kind, id);
-            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, 0, extra, extra2);
+            // (A Gannet's height is its mode: in the air, soaring.)
+            made.Restore(phase, 0.5, health, -1, default, n.Train.Dynamics.Distance + 64, 0, kind == EnemyKind.Gannet ? (double)GannetMode.Soar : 0, extra, extra2);
             return made;
         });
     }
