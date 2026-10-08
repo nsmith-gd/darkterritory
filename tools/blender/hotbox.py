@@ -35,54 +35,36 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rig  # noqa: E402
 import flesh as fl  # noqa: E402
-from rig import Bone, Clip, Mat, Skeleton, Vector, hexc, noise3  # noqa: E402
+from rig import Bone, Clip, Mat, Quaternion, Skeleton, Vector, hexc, noise3  # noqa: E402
 
 rig.reset()
 
 # The brief's numbers (hotbox.md §3), printed at the end and pinned by CreatureArtTests.
 LENGTH, HEIGHT = 1.1, 0.4
 LEGS = 8
-# The legs' roots along each side (y), front to back.
-LEG_Y = [0.36 - 0.1 * k for k in range(LEGS)]
+# The carapace's outline: a broad oval (a superellipse, blunt at both ends) wider than the body under it and overhanging it
+# all round; its crown and its rim's height.
+YC, HALF_L, HALF_W, SQUARE = 0.03, 0.6, 0.5, 2.4
+RIM, TOP = 0.18, 0.38
+# The legs splay out from under the rim all round, front to back: each leg's angle from straight ahead (degrees), and its
+# hip on an oval under the body.
+LEG_ANGLE = [32 + (152 - 32) * k / (LEGS - 1) for k in range(LEGS)]
+HIP_X, HIP_Y = 0.3, 0.42
 
 
-def skeleton():
-    b = [
-        Bone("root", None, (0, 0, 0), (0, 0.2, 0)),
-        Bone("body", "root", (0, -0.1, 0.2), (0, 0.15, 0.2)),
-        Bone("abd_1", "body", (0, 0.12, 0.17), (0, -0.05, 0.17)),
-        Bone("abd_2", "abd_1", (0, -0.05, 0.17), (0, -0.25, 0.16)),
-        Bone("abd_3", "abd_2", (0, -0.25, 0.16), (0, -0.45, 0.15)),
-        Bone("head", "body", (0, 0.36, 0.15), (0, 0.5, 0.13)),
-        Bone("shield", "body", (0, 0.05, 0.3), (0, 0.5, 0.3)),
-    ]
-    for side, sx in (("r", 1), ("l", -1)):
-        b.append(Bone(f"mandible_{side}", "head", (sx * 0.05, 0.47, 0.1), (sx * 0.04, 0.6, 0.07)))
-    for k in range(4):
-        y0 = 0.04 - 0.14 * k
-        b.append(Bone(f"plate_{k + 1}", "body" if k == 0 else f"plate_{k}", (0, y0, 0.3 - 0.03 * k), (0, y0 - 0.14, 0.28 - 0.03 * k)))
-    for side, sx in (("r", 1), ("l", -1)):
-        for k, y in enumerate(LEG_Y):
-            hip = Vector((sx * 0.26, y, 0.09))
-            knee = Vector((sx * 0.45, y + 0.015, 0.16))
-            foot = Vector((sx * 0.58, y + 0.03, 0.01))
-            b.append(Bone(f"leg_{side}{k + 1}_a", "body", tuple(hip), tuple(knee)))
-            b.append(Bone(f"leg_{side}{k + 1}_b", f"leg_{side}{k + 1}_a", tuple(knee), tuple(foot)))
-    return Skeleton("SK_Hotbox", b)
+def leg_dir(sx, k):
+    a = math.radians(LEG_ANGLE[k])
+    return Vector((sx * math.sin(a), math.cos(a), 0.0))
 
 
-sk = skeleton()
-sk.build()
-kit = rig.Kit(sk, "hotbox")
-SKIN_FACES = 1500
-
-# Built alone, each region wears the shared tiling texture its name starts with; baked (tools/models/recipes/hotbox.py),
-# the names say what to paint: the scorched plates, the glowing belly, the black legs and claws, the head's chitin.
-PLATE = Mat("iron_plate.hotbox_plate", hexc("#2a1c22"), shine=0.35)
-BELLY = Mat("sac.hotbox_belly", hexc("#c2481c"), shine=0.85, emissive=0.0)
-CHITIN = Mat("tar.hotbox_chitin", hexc("#1a1416"), shine=0.5)
-LEG = Mat("tar.hotbox_leg", hexc("#120e0e"), shine=0.55)
-CLAW = Mat("tar.hotbox_claw", hexc("#080606"), shine=0.7)
+def leg_joints(sx, k):
+    """Hip, knee and ankle: the thigh out under the rim, the knee just past it, the shin down steep to the ground."""
+    a = math.radians(LEG_ANGLE[k])
+    d = leg_dir(sx, k)
+    hip = Vector((sx * HIP_X * math.sin(a), YC + HIP_Y * math.cos(a), 0.06))
+    knee = hip + d * 0.33 + Vector((0, 0, 0.08))
+    ankle = knee + d * 0.09 + Vector((0, 0, -0.085))
+    return hip, knee, ankle
 
 
 def bell(x):
@@ -96,6 +78,64 @@ def smooth01(a, b, x):
 
 def h01(*k):
     return 0.5 + 0.5 * noise3(Vector((k[0] * 1.37 + 0.11, (k[1] if len(k) > 1 else 0) * 2.11 + 0.37, (k[2] if len(k) > 2 else 0) * 0.71 + 0.53)), 367, 1.0)
+
+
+def outline(y):
+    """The carapace's half-width at y."""
+    t = abs(y - YC) / HALF_L
+    return 0.0 if t >= 1 else HALF_W * (1 - t ** SQUARE) ** (1 / SQUARE)
+
+
+def dome(x, y):
+    """The carapace's outside at (x, y), before each plate's own lumps: high and round in the middle, flattening out to a
+    broad brim at the rim (its slope going to nothing there, so the rim stands out level over the legs), lumped all over
+    like a rough casting (the same lumps for every plate, so where they overlap they keep their order)."""
+    rho = ((abs(x) / HALF_W) ** SQUARE + (abs(y - YC) / HALF_L) ** SQUARE) ** (1 / SQUARE)
+    crown = max(0.0, 1 - rho ** 2.5) ** 1.3
+    z = RIM + (TOP - RIM) * crown
+    return z + 0.02 * noise3(Vector((x * 4, y * 4, 0.3)), 3669, 1.0) * (0.3 + 0.7 * crown)
+
+
+# The plates behind the shield: each one's front edge (y), each overlapping the next by most of a third of it.
+PLATE_Y = [0.06 - 0.145 * k for k in range(4)]
+PLATE_LEN = 0.23
+
+
+def skeleton():
+    b = [
+        Bone("root", None, (0, 0, 0), (0, 0.2, 0)),
+        Bone("body", "root", (0, -0.1, 0.18), (0, 0.15, 0.18)),
+        Bone("abd_1", "body", (0, 0.14, 0.12), (0, -0.06, 0.12)),
+        Bone("abd_2", "abd_1", (0, -0.06, 0.12), (0, -0.26, 0.12)),
+        Bone("abd_3", "abd_2", (0, -0.26, 0.12), (0, -0.48, 0.11)),
+        Bone("head", "body", (0, 0.42, 0.1), (0, 0.58, 0.09)),
+        Bone("shield", "body", (0, 0.0, 0.36), (0, 0.55, 0.3)),
+    ]
+    for side, sx in (("r", 1), ("l", -1)):
+        b.append(Bone(f"mandible_{side}", "head", (sx * 0.055, 0.55, 0.07), (sx * 0.045, 0.67, 0.05)))
+    for k in range(4):
+        y0 = PLATE_Y[k]
+        b.append(Bone(f"plate_{k + 1}", "body" if k == 0 else f"plate_{k}", (0, y0, dome(0, y0)), (0, y0 - 0.14, dome(0, y0 - 0.14))))
+    for side, sx in (("r", 1), ("l", -1)):
+        for k in range(LEGS):
+            hip, knee, ankle = leg_joints(sx, k)
+            b.append(Bone(f"leg_{side}{k + 1}_a", "body", tuple(hip), tuple(knee)))
+            b.append(Bone(f"leg_{side}{k + 1}_b", f"leg_{side}{k + 1}_a", tuple(knee), tuple(ankle)))
+    return Skeleton("SK_Hotbox", b)
+
+
+sk = skeleton()
+sk.build()
+kit = rig.Kit(sk, "hotbox")
+SKIN_FACES = 1300
+
+# Built alone, each region wears the shared tiling texture its name starts with; baked (tools/models/recipes/hotbox.py),
+# the names say what to paint: the scorched plates, the glowing belly, the black legs and claws, the head's chitin.
+PLATE = Mat("iron_plate.hotbox_plate", hexc("#3a2430"), shine=0.35)
+BELLY = Mat("sac.hotbox_belly", hexc("#c2481c"), shine=0.85, emissive=0.0)
+CHITIN = Mat("tar.hotbox_chitin", hexc("#1a1416"), shine=0.5)
+LEG = Mat("tar.hotbox_leg", hexc("#120e0e"), shine=0.55)
+CLAW = Mat("tar.hotbox_claw", hexc("#080606"), shine=0.7)
 
 
 def abd_w(p):
@@ -117,58 +157,54 @@ def abd_w(p):
 # The soft body: the swollen abdomen in its segments, the head, the legs' roots (flesh.fuse, settled on `F`).
 body = kit.part("body")
 F = fl.Flesh(body, "hotbox flesh")
-# (Low and wide, bulging out under the carapace's rim at the sides, where it's seen glowing.)
-SEGS = [(0.26, 0.22, 0.09, 0.1), (0.12, 0.33, 0.11, 0.12), (-0.04, 0.36, 0.115, 0.12), (-0.2, 0.34, 0.11, 0.12), (-0.35, 0.28, 0.1, 0.1),
-        (-0.48, 0.18, 0.08, 0.08)]
+# (Low and wide, filling the space under the carapace and bulging out under its rim at the sides and the back in fat
+# glowing bands, pinched between: what's seen of it is between the rim and the ground.)
+SEGS = [(0.28, 0.27, 0.085, 0.09), (0.15, 0.38, 0.105, 0.1), (0.01, 0.43, 0.115, 0.1), (-0.14, 0.43, 0.115, 0.1), (-0.29, 0.39, 0.11, 0.1),
+        (-0.43, 0.3, 0.095, 0.09), (-0.54, 0.17, 0.07, 0.07)]
 for y, rx, rz, ry in SEGS:
-    F.blob((0, y, 0.135), (rx, ry * 1.1, rz), 0.035, BELLY, abd_w, around=22, rings=10)
-# Pinched between its segments, a ridge of chitin round each pinch.
+    F.blob((0, y, 0.115), (rx, ry * 1.1, rz), 0.03, BELLY, abd_w, around=22, rings=10)
+# Pinched between its segments.
 for (y0, *_), (y1, *_) in zip(SEGS, SEGS[1:]):
-    ym = (y0 + y1) / 2
-    F.carve((0, ym, 0.135), (0.45, 0.016, 0.45), 0.02)
+    F.carve((0, (y0 + y1) / 2, 0.115), (0.5, 0.018, 0.5), 0.022)
 # The head: short and blunt, under the shield's front, the mouthparts' roots either side.
-F.blob((0, 0.38, 0.1), (0.16, 0.1, 0.07), 0.04, CHITIN, "head", around=16, rings=8)
-F.blob((0, 0.46, 0.085), (0.11, 0.06, 0.05), 0.03, CHITIN, "head")
+F.blob((0, 0.45, 0.09), (0.15, 0.1, 0.07), 0.04, CHITIN, "head", around=16, rings=8)
+F.blob((0, 0.53, 0.075), (0.1, 0.06, 0.05), 0.03, CHITIN, "head")
 for sx in (1, -1):
-    F.blob((sx * 0.06, 0.48, 0.07), (0.035, 0.035, 0.03), 0.02, CHITIN, "head", around=10, rings=6)
-# The legs' roots: a knob of chitin for each leg along the body's sides.
+    F.blob((sx * 0.06, 0.55, 0.065), (0.035, 0.035, 0.03), 0.02, CHITIN, "head", around=10, rings=6)
+# The legs' roots: a knob of chitin for each leg, round the body's edge under the rim.
 for side, sx in (("r", 1), ("l", -1)):
-    for k, y in enumerate(LEG_Y):
-        hip = sk[f"leg_{side}{k + 1}_a"].head
-        F.limb([Vector((sx * 0.16, y, 0.1)), hip], [0.04, 0.032], 0.02, CHITIN, {f"leg_{side}{k + 1}_a": 0.4, "body": 0.6}, sides=10, ref=(0, 0, 1))
+    for k in range(LEGS):
+        hip, _, _ = leg_joints(sx, k)
+        d = leg_dir(sx, k)
+        F.limb([hip - d * 0.12 + Vector((0, 0, 0.02)), hip], [0.045, 0.036], 0.02, CHITIN, {f"leg_{side}{k + 1}_a": 0.4, "body": 0.6}, sides=10,
+               ref=(0, 0, 1))
 
 # ----------------------------------------------------------------------------------------------------------------
-# The carapace: thick domed plates, overlapping front to back, scorched and pitted (the bake's); each a shell with a
-# knobbed rim and a keel down its middle.
+# The carapace: one broad low dome over all of it, wider than the body and overhanging it all round, made of thick plates
+# lying over each other front to back like shingles (each one's back edge proud of the next), lumped, ridged and
+# pitted, the rim ragged.
 plates = kit.part("plates")
 
 
-def shell(part, y0, y1, half, top, rim, thick, mat, bone, nu=9, nv=13, horseshoe=False, keel=0.012):
-    """A domed plate from y0 (front) to y1 (back), `half` wide at its widest, its crown `top` high and its edge `rim` high:
-    its outer face smooth, its underside and its edge hard."""
-    def width(u):
-        if horseshoe:
-            # Round at the front (a horseshoe), squared at the back where the next plate tucks under.
-            return half * math.sqrt(max(0.0, 1 - ((1 - u) ** 2.2)))
-        return half * (1 - 0.18 * u)
-
+def shell(part, y0, y1, thick, mat, bone, nu, nv, lift=0.05, exposed_from=0.4, seed=0):
+    """One plate of the dome from y0 (its front) to y1 (its back), across the whole width there: its outer face lumped
+    where it's seen (past `exposed_from` along it: in front of that it's under the plate before), its back edge lifted
+    `lift` proud of the dome so it overlaps the next; its underside and its edge hard."""
     def at(u, v, inner=False):
         y = y0 + (y1 - y0) * u
-        w = max(width(u), 0.02)
+        # (The rim ragged, as if broken and grown back.)
+        w = max(outline(y), 0.025) * (1 + 0.05 * noise3(Vector((v * 2.5, y * 7, seed)), 3671, 1.0) * smooth01(0.6, 1.0, abs(v)))
         x = v * w
-        crown = (1 - abs(v) ** 1.7) ** 1.15
-        z = rim + (top - rim) * crown * (0.35 + 0.65 * smooth01(0.0, 0.45, u) if horseshoe else 1.0)
-        # The rim's lip, turned up a little at the very edge.
-        z += 0.012 * smooth01(0.82, 1.0, abs(v))
-        z += keel * bell(v / 0.12)
-        # Lumped like a rough casting (bosses, sunk places), its rim knobbed and ragged with flash; each plate's back edge
-        # lifted a little proud of the next, shingled.
-        z += 0.022 * noise3(Vector((x * 5, y * 5, 0.3)), 3669, 1.0) * crown
-        z += 0.01 * noise3(Vector((x * 14, y * 14, 0.7)), 3670, 1.0)
-        if not horseshoe:
-            z += 0.02 * u * u
+        z = dome(x, y) + lift * u ** 1.5
+        seen = smooth01(exposed_from, exposed_from + 0.25, u) if exposed_from > 0 else 1.0
+        rho = min(1.0, abs(v))
+        # Its own lumps and ridges where it's seen: raised whorls like overlapping smaller plates, sunk pits between.
+        ridge = (1 - abs(noise3(Vector((x * 6, y * 6, seed * 1.3)), 3672, 1.0))) ** 3
+        z += seen * (0.026 * ridge + 0.012 * noise3(Vector((x * 11, y * 11, seed)), 3673, 1.0)) * (1 - rho ** 4)
+        # Its rim turned down a little at the very edge, so it overhangs.
+        z -= 0.015 * smooth01(0.82, 1.0, rho) ** 2
         if inner:
-            z -= thick
+            z -= thick * (1 - 0.4 * smooth01(0.85, 1.0, rho))
         return Vector((x, y, z))
 
     uvs_at = lambda p: (p.x * 2, p.y * 2)  # noqa: E731
@@ -183,56 +219,64 @@ def shell(part, y0, y1, half, top, rim, thick, mat, bone, nu=9, nv=13, horseshoe
     # The edge all round, hard.
     loop = [(0, j) for j in range(nv)] + [(i, nv - 1) for i in range(1, nu)] + [(nu - 1, j) for j in range(nv - 2, -1, -1)] + \
            [(i, 0) for i in range(nu - 2, 0, -1)]
-    c = at(0.5, 0.0) - Vector((0, 0, thick * 2))
+    c = at(0.5, 0.0) - Vector((0, 0, thick * 3))
     for a, b in zip(loop, loop[1:] + loop[:1]):
         q = [outer[a[0]][a[1]], outer[b[0]][b[1]], inner[b[0]][b[1]], inner[a[0]][a[1]]]
         part.face(q, [uvs_at(part.v[k]) for k in q], mat, False, outward=c)
 
 
-# The front shield: a horseshoe over the head and the front of the body, its edge down over the head; two eye pits in it
-# (the bake's).
-shell(plates, 0.6, 0.0, 0.46, 0.33, 0.1, 0.028, PLATE, "shield", nu=11, nv=15, horseshoe=True, keel=0.02)
-# Four plates behind it, each tucked under the one before, narrowing to the tail.
+# The front shield: the horseshoe front of the dome, over the head (the mandibles showing under its front edge).
+shell(plates, YC + HALF_L - 0.005, -0.04, 0.024, PLATE, "shield", nu=12, nv=17, lift=0.05, exposed_from=0.0, seed=1)
+# Four plates behind it, each tucked under the one before, the last the dome's back.
 for k in range(4):
-    y0 = 0.08 - 0.14 * k
-    shell(plates, y0, y0 - 0.2, 0.44 - 0.05 * k, 0.33 - 0.025 * k, 0.11 - 0.008 * k, 0.024, PLATE, f"plate_{k + 1}", nu=5, nv=13, keel=0.016)
-# Knobs along the keels and the shield's ridges (its casting's sprues).
-for k in range(7):
-    y = 0.48 - 0.15 * k
-    z = 0.35 - 0.012 * k if y < 0.3 else 0.33 - 0.25 * (y - 0.3)
-    plates.blob(Vector((0, y, z)), (0.02, 0.035, 0.018), 6, 3, PLATE, "shield" if y > 0.05 else f"plate_{min(4, max(1, int((0.08 - y) / 0.14) + 1))}",
-                smooth=False)
+    y0 = PLATE_Y[k]
+    y1 = max(y0 - PLATE_LEN, YC - HALF_L + 0.005)
+    shell(plates, y0, y1, 0.022, PLATE, f"plate_{k + 1}", nu=7, nv=15, lift=0.05 if k < 3 else 0.0, seed=2 + k)
 
 # ----------------------------------------------------------------------------------------------------------------
-# The legs: eight pairs, black, jointed, each a thigh up and out, a shin down to a hooked claw. Centipede's legs.
+# The legs: eight pairs splayed out from under the rim all round it, black, thick, jointed: a thigh out and up to a knee
+# just past the rim, a spur on it, a shin down steep to a long claw hooked into the ground.
 legs = kit.part("legs")
 CLAWS = []
 for side, sx in (("r", 1), ("l", -1)):
-    for k, y in enumerate(LEG_Y):
+    for k in range(LEGS):
         a, b = f"leg_{side}{k + 1}_a", f"leg_{side}{k + 1}_b"
-        hip, knee, foot = sk[a].head, sk[a].tail, sk[b].tail
-        # (Thick at the thigh, a spur at the knee, the shin bowed out and hooked: a crab's leg as much as a centipede's.)
-        legs.tube([hip, hip.lerp(knee, 0.5) + Vector((0, 0, 0.018)), knee], [0.034, 0.03, 0.024], 6, LEG, a, ref=(0, 1, 0), cap0=True)
-        legs.blob(knee, (0.028, 0.026, 0.026), 6, 4, LEG, a)
-        legs.tube([knee, knee + Vector((sx * 0.02, -0.01, 0.045))], [0.012, 0.002], 4, CLAW, a, ref=(0, 1, 0), cap1="point", smooth=False)
-        shin = [knee, knee.lerp(foot, 0.45) + Vector((sx * 0.03, 0, 0.01)), foot + Vector((0, 0, 0.03))]
-        legs.tube(shin, [0.022, 0.018, 0.012], 6, LEG, b, ref=(0, 1, 0))
-        # The claw: hooked in under it.
-        c0 = foot + Vector((0, 0, 0.03))
-        tip = foot + Vector((-sx * 0.035, 0.012, -0.002))
+        hip, knee, ankle = leg_joints(sx, k)
+        d = leg_dir(sx, k)
+        up = Vector((0, 0, 1))
+        legs.tube([hip - d * 0.02, hip.lerp(knee, 0.5) + up * 0.006, knee], [0.036, 0.033, 0.027], 6, LEG, a, ref=(0, 0, 1), cap0=True)
+        legs.blob(knee, (0.031, 0.031, 0.029), 6, 4, LEG, a)
+        legs.tube([knee + up * 0.01, knee + d * 0.012 + up * 0.05], [0.012, 0.002], 4, CLAW, a, ref=(0, 0, 1), cap1="point", smooth=False)
+        legs.tube([knee, knee.lerp(ankle, 0.5) + d * 0.012, ankle], [0.026, 0.022, 0.018], 6, LEG, b, ref=(0, 0, 1))
+        legs.blob(ankle, (0.019, 0.019, 0.019), 5, 3, LEG, b)
+        # The claw: long, black, glossy, hooked down and back in under it into the ground.
+        c1 = ankle + d * 0.03 - up * 0.022
+        tip = ankle + d * 0.012 - up * (ankle.z - 0.002)
         CLAWS.append(tip)
-        legs.tube([c0, foot + Vector((sx * 0.004, 0.004, 0.006)), tip], [0.011, 0.008, 0.0015], 5, CLAW, b, ref=(0, 1, 0), cap1="point",
-                  smooth=False)
-# The mandibles: short, hooked, toothed, under the shield's front.
+        legs.tube([ankle, c1, tip], [0.016, 0.011, 0.0015], 5, CLAW, b, ref=(0, 0, 1), cap1="point", smooth=False)
+# The mandibles: short, hooked, toothed, out under the shield's front.
 for side, sx in (("r", 1), ("l", -1)):
     m = sk[f"mandible_{side}"]
     h, t = m.head, m.tail
-    legs.tube([h, h.lerp(t, 0.5) + Vector((sx * 0.012, 0, 0)), t, t + Vector((-sx * 0.04, 0.01, -0.01))], [0.022, 0.018, 0.012, 0.002], 6, CLAW,
+    legs.tube([h, h.lerp(t, 0.5) + Vector((sx * 0.014, 0, 0)), t, t + Vector((-sx * 0.045, 0.012, -0.01))], [0.024, 0.02, 0.013, 0.002], 6, CLAW,
               f"mandible_{side}", ref=(0, 0, 1), cap1="point", smooth=False)
+    for j in range(3):
+        p = h.lerp(t, 0.35 + 0.22 * j)
+        legs.tube([p, p + Vector((-sx * 0.022, 0.004, -0.004))], [0.006, 0.001], 3, CLAW, f"mandible_{side}", ref=(0, 0, 1), cap1="point", smooth=False)
 
 # ----------------------------------------------------------------------------------------------------------------
 # Clips. In its truck it's rolled onto its right side, its back out (+X), centred on the origin (the axle box).
 LEG_NAMES = [(side, k) for side in "rl" for k in range(1, LEGS + 1)]
+
+
+def leg_q(side, k, up=0.0, bend=0.0, swing=0.0):
+    """A leg's two joints: the thigh raised `up` degrees (its tip up; negative folds it down under), the shin bent `bend`
+    further down and in, the whole leg swung `swing` about the vertical (forward, toward its head, for +)."""
+    sx = 1 if side == "r" else -1
+    d = leg_dir(sx, k - 1)
+    axis = d.cross(Vector((0, 0, 1))).normalized()
+    turn = Quaternion((0, 0, 1), math.radians(sx * swing))
+    return {f"leg_{side}{k}_a": turn @ Quaternion(axis, math.radians(up)), f"leg_{side}{k}_b": Quaternion(axis, math.radians(-bend))}
 
 
 def legs_pose(fold=0.0, splay=0.0, wave=None, t=0.0, curl=0.0):
@@ -240,16 +284,15 @@ def legs_pose(fold=0.0, splay=0.0, wave=None, t=0.0, curl=0.0):
     walking wave (wave: its phase speed; t 0..1), curled under (curl 1: dead)."""
     p = {}
     for side, k in LEG_NAMES:
-        sx = 1 if side == "r" else -1
         lift = 0.0
         swing = 0.0
         if wave is not None:
             ph = 2 * math.pi * (t * wave - k * 0.17 + (0.5 if side == "l" else 0))
             lift = max(0.0, math.sin(ph)) * 25
             swing = math.cos(ph) * 18
-        up = -40 * fold + 10 * splay + lift + 50 * curl
-        p[f"leg_{side}{k}_a"] = (swing * 0.3, -sx * up, swing)
-        p[f"leg_{side}{k}_b"] = (0, sx * (40 * fold - 15 * splay + 60 * curl), 0)
+        # (Lifted at the knee more than the hip: the rim is just over the thighs. Dead, they curl in over the belly.)
+        up = -40 * fold + 10 * splay + 0.35 * lift - 30 * curl
+        p.update(leg_q(side, k, up, 40 * fold - 15 * splay - 0.9 * lift + 70 * curl, swing))
     return p
 
 
@@ -281,8 +324,7 @@ clamped.close(60)
 knock = Clip("knock")
 for f, hammer in ((0, 0.0), (5, 1.0), (7, -0.3), (15, 0.0)):
     p = {**legs_pose(fold=1.0), **SHUT, **belly(0.2)}
-    p["leg_r1_a"] = (-20 * hammer, -40 + 30 * hammer, 0)
-    p["leg_r1_b"] = (0, 60 * hammer, 0)
+    p.update(leg_q("r", 1, -40 + 70 * hammer, 40 - 60 * hammer, 20 * hammer))
     knock.key(f, rolled(p, **IN_TRUCK), "LINEAR" if f in (5, 7) else "BEZIER")
 knock.close(15)
 
