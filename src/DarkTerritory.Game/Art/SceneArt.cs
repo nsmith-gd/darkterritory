@@ -240,9 +240,70 @@ public sealed partial class SceneArt(Look look)
                 var (clip, ct) = inRound < 2.4 ? ("bleat", inRound) : startled && inRound < 3.7 ? ("startle", inRound - 2.4)
                     : ((h + (uint)round) % 2 == 0 ? "shuffle" : "idle", inRound);
                 var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation((float)x, (float)box.Min.Y + 0.05f, (float)z) * m;
-                Creatures.Draw(mesh, "sheep", clip, ct, true, at, seed: (int)(h % 13));
+                // Looking round at whoever's come in (note 455), each at its own pace.
+                var feet = new Double3(x, box.Min.Y + 0.05, z);
+                var (turn, tip) = SheepLook((frame.Index, n), frame, feet, yaw, t, 2 + (h >> 12) % 4);
+                Creatures.DrawTurned(mesh, "sheep", clip, ct, true, at, turn, tip, seed: (int)(h % 13));
             }
         }
+    }
+
+    /// <summary>
+    /// Who's about to be looked at (note 455): the eye and the crew's heads, world (GreyboxScene, before the cars are drawn).
+    /// </summary>
+    public IReadOnlyList<Double3>? Onlookers { get; set; }
+
+    // A sheep's head over its feet, in its own frame (sheep.py: the head's at 0.8 forward, 0.5 up); how far round it looks
+    // (past that, what's behind it is left behind it), how far up or down; and how near whoever it is must be (the car's
+    // width and a pen's length or so) to be looked at, fading out a metre further.
+    static readonly Vector3 SheepHead = new(0, 0.55f, -0.8f);
+    const float SheepTurn = 1.3f, SheepBehind = 2.4f, SheepUp = 0.5f, SheepDown = 0.35f;
+    const double SheepSees = 6, SheepFade = 1;
+    readonly Dictionary<(int, int), (float Turn, float Tip, double Time)> _sheepLook = new();
+
+    /// <summary>
+    /// Where a sheep at <paramref name="feet"/> (car frame, turned <paramref name="yaw"/>) is looking (note 455): its head's
+    /// turn and tip toward the nearest onlooker in front of it and in reach, eased there at <paramref name="rate"/> per
+    /// second from where it was looking (first seen, there at once).
+    /// </summary>
+    (float Turn, float Tip) SheepLook((int, int) key, in CarFrame frame, Double3 feet, float yaw, double time, double rate)
+    {
+        var head = feet + ToD(Vector3.Transform(SheepHead, Matrix4x4.CreateRotationY(yaw)));
+        var (turn, tip) = (0f, 0f);
+        double best = SheepSees + SheepFade;
+        foreach (var who in Onlookers ?? [])
+        {
+            var d = frame.ToLocal(who) - head;
+            double dist = d.Length;
+            if (dist >= best)
+                continue;
+            var (t, p) = SheepAim(ToF(d), yaw);
+            if (Math.Abs(t) > SheepBehind)
+                continue;
+            float weight = (float)Math.Clamp((SheepSees + SheepFade - dist) / SheepFade, 0, 1);
+            (turn, tip, best) = (Math.Clamp(t, -SheepTurn, SheepTurn) * weight, p * weight, dist);
+        }
+        if (_sheepLook.TryGetValue(key, out var was) && time > was.Time && time - was.Time < 1)
+        {
+            float k = (float)(1 - Math.Exp(-(time - was.Time) * rate));
+            (turn, tip) = (was.Turn + (turn - was.Turn) * k, was.Tip + (tip - was.Tip) * k);
+        }
+        else if (_sheepLook.TryGetValue(key, out was) && time == was.Time)
+            (turn, tip) = (was.Turn, was.Tip);
+        _sheepLook[key] = (turn, tip, time);
+        return (turn, tip);
+    }
+
+    /// <summary>
+    /// The turn (radians, left positive) and tip (up positive) that point a sheep's head along <paramref name="toward"/> (car
+    /// frame), the sheep turned <paramref name="yaw"/>: its own forward is −Z (CreateRotationY(a) takes −Z to (−sin a, −cos a)).
+    /// </summary>
+    public static (float Turn, float Tip) SheepAim(Vector3 toward, float yaw)
+    {
+        var d = Vector3.Transform(toward, Matrix4x4.CreateRotationY(-yaw));
+        float turn = MathF.Atan2(-d.X, -d.Z);
+        float tip = Math.Clamp(MathF.Atan2(d.Y, MathF.Sqrt(d.X * d.X + d.Z * d.Z)), -SheepDown, SheepUp);
+        return (turn, tip);
     }
 
     /// <summary>What a gutted car's paint and boards go to: charcoal, a little warm where the timber's charred through.</summary>

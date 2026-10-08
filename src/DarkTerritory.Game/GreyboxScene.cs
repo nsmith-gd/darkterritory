@@ -170,6 +170,9 @@ public sealed class GreyboxScene
     public OwnView? Own { get; set; }
     /// <summary>Other players, drawn as greybox figures.</summary>
     public IReadOnlyList<Crewmate>? Crew { get; set; }
+
+    /// <summary>Whether the livestock look round at the eye and the crew (note 455); off for a still of them not (dt screenshot --unseen).</summary>
+    public bool Onlook { get; set; } = true;
     /// <summary>For a still frame (<c>dt screenshot</c>), how fast staged enemies are going (m/s, by id): one frame can't measure it (Pace).</summary>
     public IReadOnlyDictionary<int, float>? StagedPaces { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
@@ -335,7 +338,8 @@ public sealed class GreyboxScene
                         || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
                         // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
-                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true);
+                        SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true,
+                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -438,6 +442,9 @@ public sealed class GreyboxScene
             foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Firebox && FireGlow > 0))
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(i.Position + new Double3(0, 0.7, 0.3)), eye), FireColour(0.6f + 1.6f * FireGlow), 5f));
         }
+        // Who the livestock look round at (note 455): the eye, and the crew's heads.
+        if (Look is not null)
+            Look.Art.Onlookers = Onlook ? [eye, .. (Crew ?? []).Where(c => c.Alive).Select(c => c.Feet + new Double3(0, 1.5, 0))] : null;
         foreach (var frame in frames)
             if (CutAway?.Contains(frame.Index) != true)
                 Car(mesh, frame, eye);
@@ -2604,7 +2611,9 @@ public sealed class GreyboxScene
     /// pressure, the hose to the car it's on, and the leak's cloud.
     /// </summary>
     /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
-    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false)
+    /// <param name="conveyorDrawn">The art pass drew the conveyor line (note 430).</param>
+    static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false,
+        bool conveyorDrawn = false)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2691,7 +2700,7 @@ public sealed class GreyboxScene
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.16f, 0.16f, 0.16f), i % 2 == 0 ? Palette.Charcoal : Palette.IronGrey * 0.7f);
                 }
         }
-        if (site.Has(Sim.Run.ModuleKind.Conveyor))
+        if (!conveyorDrawn && site.Has(Sim.Run.ModuleKind.Conveyor))
         {
             // The grain elevator's conveyor line (note 400): its belt low on trestles from the drive house at the elevator's end
             // to the knee beside the track, the riser up from there to its head over the track on a frame astride it, the

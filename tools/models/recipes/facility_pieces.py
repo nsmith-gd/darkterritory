@@ -52,6 +52,10 @@ so each kind reads by its shape from the line:
     gone, its roof fallen in; dead_gondola, a steel one rusted and holed, a side stove in, scrap heaped in it;
     loose_truck, a freight truck off its car; yard_shed, the engine shed, corrugated iron rusted through, a bay fallen
     in, its open end's doors off and the rails running in.
+  * the grain elevator's conveyor line (A1's note 400; its art note 430), as SceneArt.Conveyor lays them along the sim's
+    line: belt_section, 3 m of the troughed belt on its idlers and a trestle; belt_riser, the covered gallery up to the
+    head; belt_head, the gantry astride the track, the head pulley's hood and the chute; drive_house, the hut at its tail
+    with its exhaust and tail drum; drive_flywheel, turned while it runs.
 
 Axes (Blender): +Z up, the model's front (-Y, the engine's +Z) toward the line.
 """
@@ -98,6 +102,8 @@ def materials():
         "glow": make.flat("glow", (1.0, 0.42, 0.12), rough=0.5),
         "coal": make.lib("coal", 0.5, tint=(0.5, 0.5, 0.52), rough=0.55),
         "chalk": make.flat("chalk", (0.42, 0.4, 0.36), rough=0.9),
+        "rubber": make.flat("rubber", (0.035, 0.034, 0.033), rough=0.75),
+        "grain": make.flat("grain", (0.5, 0.4, 0.22), rough=0.9),
     }
 
 
@@ -1522,6 +1528,159 @@ def yard_shed(m):
     return p, []
 
 
+# The grain elevator's conveyor line (A1's #136, note 400; its art note 430): its pieces as SceneArt.Conveyor lays them
+# along the sim's line, +X along the belt, +Y across it, the belt's top BELT_TOP over the ground (the sim's belt is 1 m up).
+BELT_TOP = 1.06
+RISER_LENGTH = 6.2  # the riser modelled this long (the knee 4.6 m out and 1 m up to the head 4.8 up); stretched to fit
+
+
+def _belt(p, m, x0, x1, z, width=0.42, name="belt"):
+    """A troughed belt from x0 to x1: its flat middle and its two wings up at 30°, rubber."""
+    hx = (x1 - x0) / 2
+    cx = (x0 + x1) / 2
+    p.append(make.box((cx, 0, z), (hx, width / 2, 0.01), m["rubber"], bevel=0.002, name=name))
+    for sy in (-1, 1):
+        p.append(make.box((cx, sy * (width / 2 + 0.11), z + 0.06), (hx, 0.13, 0.01), m["rubber"], bevel=0.002, name=name + "_wing",
+                          rot=Matrix.Rotation(sy * math.radians(30), 4, "X")))
+
+
+def _idlers(p, m, x, z, width=0.42):
+    """A troughing idler set at x under a belt whose middle is at z: three rollers on their bracket."""
+    p.append(make.cyl((x, -width / 2, z - 0.06), (x, width / 2, z - 0.06), 0.05, m["steel"], n=10, bevel=0, name="idler", low=6))
+    for sy in (-1, 1):
+        a = Vector((x, sy * (width / 2 + 0.02), z - 0.05))
+        b = Vector((x, sy * (width / 2 + 0.24), z + 0.08))
+        p.append(make.cyl(a, b, 0.05, m["steel"], n=10, bevel=0, name="idler", low=6))
+    p.append(make.box((x, 0, z - 0.14), (0.04, width / 2 + 0.3, 0.025), m["rust"], bevel=0.003, name="bracket"))
+
+
+def belt_section(m):
+    """A 3 m section of the conveyor's low run: two channel stringers, three troughing idler sets and the belt on them,
+    its return roller and the slack return under, on a timber trestle with its feet on pads. Its origin is on the ground
+    under its middle."""
+    p = []
+    z = BELT_TOP - 0.02
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * 0.48, z - 0.2), (1.5, 0.04, 0.08), m["rust"], bevel=0.004, name="stringer"))
+    for x in (-1.0, 0.0, 1.0):
+        _idlers(p, m, x, z)
+    _belt(p, m, -1.5, 1.5, z)
+    p.append(make.cyl((0.5, -0.46, z - 0.42), (0.5, 0.46, z - 0.42), 0.045, m["steel"], n=10, bevel=0, name="return_roller", low=6))
+    p.append(make.box((0, 0, z - 0.37), (1.5, 0.3, 0.006), m["rubber"], bevel=0, name="return_belt"))
+    for sy in (-1, 1):
+        p.append(_beam(Vector((0, sy * 0.62, 0.0)), Vector((0, sy * 0.48, z - 0.2)), 0.11, m["grey"], "leg"))
+        p.append(make.box((0, sy * 0.62, 0.05), (0.16, 0.16, 0.06), m["concrete"], bevel=0.01, name="pad"))
+    p.append(_beam(Vector((0, -0.58, 0.22)), Vector((0, 0.58, 0.22)), 0.07, m["grey"], "tie"))
+    p.append(_beam(Vector((0, -0.6, 0.12)), Vector((0, 0.5, z - 0.3)), 0.06, m["grey"], "brace"))
+    # Grain spilled along it, dust in the stringers' channels.
+    p.append(make.box((0.6, 0.47, z - 0.13), (0.8, 0.02, 0.01), m["grain"], bevel=0, name="dust", low=False))
+    return p, []
+
+
+def belt_riser(m):
+    """The conveyor's riser from the knee to its head over the track: a covered gallery of two light trusses, its floor
+    a walkway beside the belt on its idlers, its roof of corrugated iron, RISER_LENGTH along +X (SceneArt stretches it to
+    the sim's knee and head and tips it up the slope). Its origin is at the knee end, on the belt's line."""
+    p = []
+    L, half, h = RISER_LENGTH, 0.55, 1.25
+    for sy in (-1, 1):
+        y = sy * half
+        p.append(make.box((L / 2, y, -0.2), (L / 2, 0.04, 0.05), m["rust"], bevel=0.004, name="chord"))
+        p.append(make.box((L / 2, y, h - 0.2), (L / 2, 0.04, 0.05), m["rust"], bevel=0.004, name="chord"))
+        n = 5
+        for k in range(n + 1):
+            x = k * L / n
+            p.append(make.box((x, y, (h - 0.4) / 2), (0.035, 0.035, h / 2), m["rust"], bevel=0.003, name="vertical"))
+            if k < n:
+                a, b = Vector((x, y, -0.15)), Vector((x + L / n, y, h - 0.25))
+                p.append(_beam(a, b, 0.05, m["rust"], "diagonal"))
+    p.append(make.box((L / 2, 0, -0.22), (L / 2, half, 0.02), m["steel"], bevel=0.003, name="floor"))
+    pitch = math.atan2(0.15, half + 0.15)
+    for sy in (-1, 1):
+        p.append(make.box((L / 2, sy * (half + 0.15) / 2, h - 0.08), (L / 2 + 0.1, (half + 0.2) / 2 / math.cos(pitch), 0.02), m["roof"],
+                          bevel=0.003, name="roof", rot=Matrix.Rotation(-sy * pitch, 4, "X")))
+    for x in [0.6 + 1.25 * k for k in range(5)]:
+        _idlers(p, m, x, 0.08, width=0.36)
+    _belt(p, m, 0.0, L, 0.08, width=0.36)
+    # A bent under its middle down to the ground (the riser's middle is some 2.3 m up off the slope's foot).
+    for sy in (-1, 1):
+        p.append(_beam(Vector((L / 2, sy * half, -0.22)), Vector((L / 2 - 0.4, sy * (half + 0.5), -3.2)), 0.12, m["rust"], "bent"))
+    return p, []
+
+
+def belt_head(m):
+    """The conveyor's head over the track: a steel gantry astride it, braced, its deck and rail, the head pulley in its
+    hood where the riser comes in, the discharge chute down to over a car's roof. Its origin is on the ground at the
+    track's middle under the head, +X along the track, +Y across it toward the riser."""
+    p = []
+    HEAD, DECK = 4.8, 5.7
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.append(_beam(Vector((sx * 1.4, sy * 2.6, 0.0)), Vector((sx * 1.2, sy * 2.2, DECK)), 0.2, m["rust"], "leg"))
+            p.append(make.box((sx * 1.4, sy * 2.6, 0.08), (0.28, 0.28, 0.1), m["concrete"], bevel=0.01, name="foot"))
+        p.append(_beam(Vector((sx * 1.2, -2.2, DECK)), Vector((sx * 1.2, 2.2, DECK)), 0.22, m["rust"], "beam"))
+    for sy in (-1, 1):
+        p.append(_beam(Vector((-1.2, sy * 2.2, DECK)), Vector((1.2, sy * 2.2, DECK)), 0.2, m["rust"], "beam"))
+        for z0, z1 in ((0.6, 3.0), (3.0, DECK - 0.2)):
+            p.append(_beam(Vector((-1.35, sy * 2.5, z0)), Vector((1.3, sy * 2.3, z1)), 0.08, m["rust"], "brace"))
+            p.append(_beam(Vector((1.35, sy * 2.5, z0)), Vector((-1.3, sy * 2.3, z1)), 0.08, m["rust"], "brace"))
+    p.append(make.box((0, 0, DECK + 0.14), (1.5, 2.5, 0.04), m["steel"], bevel=0.003, name="deck"))
+    for sx in (-1, 1):
+        for y in (-2.4, -0.8, 0.8, 2.4):
+            p.append(make.cyl((sx * 1.45, y, DECK + 0.18), (sx * 1.45, y, DECK + 1.15), 0.025, m["rust"], n=6, bevel=0, name="post", low=4))
+        p.append(make.cyl((sx * 1.45, -2.45, DECK + 1.1), (sx * 1.45, 2.45, DECK + 1.1), 0.025, m["rust"], n=6, bevel=0, name="rail", low=4))
+    # The head pulley's hood where the riser comes in, the chute down from it.
+    p.append(make.box((0, 0.45, HEAD + 0.55), (0.7, 0.8, 0.5), m["rust"], bevel=0.01, name="hood"))
+    p.append(make.cyl((0.0, -0.3, HEAD + 0.5), (0.0, 1.0, HEAD + 0.5), 0.32, m["steel"], n=14, bevel=0, name="pulley", low=8))
+    p.append(make.cyl((0, 0, HEAD + 0.1), (0, 0, HEAD - 0.4), 0.3, m["rust"], n=12, bevel=0.005, name="chute", r1=0.22, low=8))
+    p.append(make.box((0, 0, HEAD + 0.12), (0.45, 0.45, 0.06), m["rust"], bevel=0.005, name="chute_collar"))
+    p.append(make.box((0.0, -0.36, HEAD + 0.62), (0.5, 0.01, 0.3), m["grain"], bevel=0, name="dust", low=False))
+    return p, []
+
+
+def drive_house(m):
+    """The conveyor's drive house at its tail: a corrugated iron hut on a sill, its pitched roof and the engine's
+    exhaust through it, a door, a window with its pane out; the tail drum on its bearings at its +X end where the belt
+    comes in, the drive's guard; its starter and lamp are SceneArt's (they move). Its origin is on the ground at its
+    middle, +X toward the belt, +Y to the flywheel's side."""
+    p = []
+    L, W, H = 1.6, 1.4, 2.6
+    p.append(make.box((0, 0, 0.12), (L + 0.08, W + 0.08, 0.14), m["concrete"], bevel=0.01, name="sill"))
+    p.append(make.box((0, 0, (0.26 + H) / 2), (L, W, (H - 0.26) / 2), m["clad"], bevel=0.005, name="walls"))
+    pitch = math.atan2(0.5, W + 0.15)
+    for sy in (-1, 1):
+        p.append(make.box((0, sy * (W + 0.15) / 2, H + 0.25), (L + 0.2, (W + 0.25) / 2 / math.cos(pitch), 0.03), m["roof"], bevel=0.003,
+                          name="roof", rot=Matrix.Rotation(-sy * pitch, 4, "X")))
+    for sx in (-1, 1):
+        _prism(p, [(sx * L, -W, H), (sx * L, W, H), (sx * L, 0, H + 0.5)], [(0, 1, 2) if sx > 0 else (0, 2, 1)], m["clad"], "gable")
+    p.append(make.box((-L - 0.02, -0.4, 1.15), (0.02, 0.45, 0.95), m["dark"], bevel=0, name="door", low=False))
+    p.append(make.box((0.5, -W - 0.02, 1.7), (0.4, 0.02, 0.3), m["dark"], bevel=0, name="window", low=False))
+    p.append(make.cyl((-0.6, 0.5, H), (-0.6, 0.5, H + 1.6), 0.09, m["rust"], n=10, bevel=0, name="exhaust", low=6))
+    p.append(make.cyl((-0.6, 0.5, H + 1.6), (-0.6, 0.5, H + 1.75), 0.2, m["rust"], n=10, bevel=0, name="exhaust_cap", r1=0.05, low=6))
+    p.append(make.box((-0.6, 0.5, H + 1.2), (0.12, 0.12, 0.35), m["streak"], bevel=0, name="soot", low=False))
+    # The tail drum at its +X end, on its bearings, at the belt's height; the drive's guard down the +Y side.
+    p.append(make.cyl((L + 0.45, -0.35, BELT_TOP - 0.15), (L + 0.45, 0.35, BELT_TOP - 0.15), 0.18, m["steel"], n=14, bevel=0, name="tail_drum", low=8))
+    for sy in (-1, 1):
+        p.append(make.box((L + 0.45, sy * 0.42, BELT_TOP - 0.45), (0.12, 0.06, 0.45), m["rust"], bevel=0.005, name="bearing"))
+    p.append(make.box((0.2, W + 0.18, 0.95), (1.1, 0.12, 0.55), m["rust"], bevel=0.005, name="guard"))
+    p.append(make.cyl((-0.6, W + 0.05, 1.0), (-0.6, W + 0.35, 1.0), 0.08, m["steel"], n=10, bevel=0, name="shaft", low=6))
+    return p, []
+
+
+def drive_flywheel(m):
+    """The drive's flywheel (SceneArt turns it while the belt runs): a cast rim on six spokes and its hub, in the XZ
+    plane about its origin."""
+    p = []
+    p.append(make.torus((0, 0, 0), (0, 1, 0), 0.62, 0.07, m["rust"], n=32, m=8, name="rim", low=(16, 4)))
+    for k in range(6):
+        a = k * math.pi / 3
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        p.append(make.cyl(d * 0.08, d * 0.58, 0.035, m["rust"], n=6, bevel=0, name="spoke", low=4))
+    p.append(make.cyl((0, -0.08, 0), (0, 0.08, 0), 0.11, m["steel"], n=12, bevel=0, name="hub", low=6))
+    p.append(make.box((0.6, 0, 0), (0.04, 0.05, 0.05), m["grip"], bevel=0, name="mark", low=False))
+    return p, []
+
+
 PIECES = {
     "headframe": lambda: build("headframe", headframe, "the mine head's headframe", budget=3500),
     "chem_tank": lambda: build("chem_tank", chem_tank, "a chemical works' storage tank", budget=2500),
@@ -1559,6 +1718,11 @@ PIECES = {
     "dead_gondola": lambda: build("dead_gondola", dead_gondola, "an old steel gondola dead in the wreck yard", budget=1200),
     "loose_truck": lambda: build("loose_truck", loose_truck, "a freight truck off its car", size=512, budget=900),
     "yard_shed": lambda: build("yard_shed", yard_shed, "the wreck yard's engine shed, rusted through", size=2048, budget=2500, layer=1024),
+    "belt_section": lambda: build("belt_section", belt_section, "a section of the conveyor's low run", size=512, budget=700),
+    "belt_riser": lambda: build("belt_riser", belt_riser, "the conveyor's riser up to its head", size=512, budget=1200),
+    "belt_head": lambda: build("belt_head", belt_head, "the conveyor's head over the track", budget=1500),
+    "drive_house": lambda: build("drive_house", drive_house, "the conveyor's drive house", size=512, budget=800),
+    "drive_flywheel": lambda: build("drive_flywheel", drive_flywheel, "the conveyor drive's flywheel", size=256, budget=300),
 }
 # tools/models/build.sh builds them all; `blender -b --python facility_pieces.py -- grain_elevator` just the one.
 want = set(cook.args()) or set(PIECES)
