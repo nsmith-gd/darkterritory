@@ -261,6 +261,25 @@ public sealed class DerailSequence
                 Owner = film.Start.Players[d].Id,
             });
         }
+        // What they were carrying (note 370): in their hands till they let go, then thrown free and tumbling.
+        if (a.Loads is { } loads && b.Loads is { } next)
+            foreach (var load in loads)
+            {
+                if (load.Doll >= film.Start.Players.Count || film.Start.Players[load.Doll] is not { Carried: { } kind } p)
+                    continue;
+                var to = next.FirstOrDefault(l => l.Doll == load.Doll, load);
+                var at = Double3.Lerp(load.At, to.At, u);
+                var up = Double3.Lerp(load.Up, to.Up, u);
+                double turn = Math.IEEERemainder(to.Yaw - load.Yaw, Math.Tau);
+                bodies.Add(new Sim.Physics.Body(-100 - load.Doll, kind, Sim.Player.PlayerState.World,
+                    new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(at, 1, 0.3)]))
+                {
+                    Owner = -1,
+                    Cargo = p.CarriedCargo,
+                    Yaw = load.Yaw + turn * u,
+                    Tilt = up.Length > 1e-6 ? up.Normalized : Double3.Up,
+                });
+            }
         return bodies;
     }
 

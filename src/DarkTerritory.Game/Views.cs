@@ -45,6 +45,10 @@ public static class Views
             "poses" => Camera.LookAt(target.ToWorld(new Double3(7.4, 1.3, -target.Shape.HalfLength * 0.6 + 1.95)),
                 target.ToWorld(new Double3(2.6, 0.85, -target.Shape.HalfLength * 0.6 + 1.95)), 55),
             "flanges" => Camera.LookAt(target.ToWorld(new Double3(4.5, 0.9, -target.Shape.HalfLength - 3)), target.ToWorld(new Double3(0.6, 0.3, 0)), 60),
+            // On the line behind the last car, low, looking up the train: how far the cars lean out on a bend taken too fast
+            // (note 370: dt screenshot --view lean --strain x), their ends against the rails and the horizon.
+            "lean" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.3, 1.3, train.Frames[^1].Shape.HalfLength + 8)),
+                train.Frames[^1].ToWorld(new Double3(0, 1.9, -12)), 45),
             // From the left of the middle car's gap (the staged Whistler's), out along its trail to the nest (--whistler nest).
             "trail" => TrailCamera(train),
             // Behind the rear car and off its side, a little over its roof, looking at the roof's end and down the car's end: where

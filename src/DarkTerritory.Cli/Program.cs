@@ -1435,7 +1435,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 new Ballast.Physics.PbdBody(joints))
             { Owner = k + 1 };
         });
-        scene.Bodies = [.. scene.Bodies ?? [], .. posed];
+        // ... and what the carrier has in their arms (note 370): a crate, as the film starts it.
+        var arms = WreckFilm.TaskPose(FilmTask.Carrying).Select(j => by.ToWorld(new Double3(2.6, 0, -by.Shape.HalfLength * 0.6 + 3 * 1.3) + j)).ToArray();
+        var (load, loadUp, across) = WreckFilm.InArms(arms);
+        var forward = Double3.Cross(across, loadUp) * -1;
+        var crate = new DarkTerritory.Sim.Physics.Body(-10, DarkTerritory.Sim.Physics.BodyKind.Crate, DarkTerritory.Sim.Player.PlayerState.World,
+            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(load, 1, 0.3)]))
+        { Tilt = loadUp, Yaw = Math.Atan2(forward.X, forward.Z) };
+        scene.Bodies = [.. scene.Bodies ?? [], .. posed, crate];
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
@@ -1526,12 +1533,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --rolled m: the engine's wheels turned as if it had rolled that far (its drivers and rods, SceneArt.Gear).
     scene.Rolled = Opt(args, "--rolled", 0);
-    scene.Build(mesh, train, camera.Position);
+    // --strain x leans the cars out too, about their right-hand rail, as far as that strain leans them (note 370).
+    IReadOnlyList<CarFrame>? leaned = args.Contains("--strain")
+        ? [.. train.Frames.Select(f => DarkTerritory.Game.CarLean.Lean(f, DarkTerritory.Game.CarLean.Angle((float)Opt(args, "--strain", 0.8), train.Dynamics.Tuning.Overspeed)))]
+        : null;
+    scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
     int builds = (int)Opt(args, "--builds", 5);
     for (int b = 0; b < builds; b++)
-        scene.Build(mesh, train, camera.Position);
+        scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern"))
