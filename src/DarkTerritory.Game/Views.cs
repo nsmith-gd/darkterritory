@@ -153,10 +153,10 @@ public static class Views
             // (Not one of Names.) Close on the whistle's lever and its rod forward along the roof (note 445).
             "whistlelever" => Camera.LookAt(engine.ToWorld(new Double3(1.5, engine.Shape.Bounds.Max.Y + 0.8, Art.TrainKit.WhistleZ(engine.Shape) + 1.4)),
                 engine.ToWorld(new Double3(0.4, engine.Shape.Bounds.Max.Y + 0.4, Art.TrainKit.WhistleZ(engine.Shape) - 0.6)), 50),
-            // (Not one of Names.) In the cab behind the driver's right shoulder, down at the brake and the reverser (dt
-            // screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
+            // (Not one of Names.) In the cab's front corner on the driver's side, back at the driver, the brake and the reverser
+            // (dt screenshot --driver [--reverser s], note 445): the hand on the reverser as it's thrown.
             "driverside" => engine.Shape.Levers is { } driverLevers
-                ? Camera.LookAt(engine.ToWorld(driverLevers.Reverser + new Double3(0.15, 1.15, 1.6)), engine.ToWorld(driverLevers.Reverser + new Double3(-0.2, 0.1, -0.2)), 60)
+                ? Camera.LookAt(engine.ToWorld(driverLevers.Reverser + new Double3(0.1, 0.95, -0.75)), engine.ToWorld(driverLevers.Reverser + new Double3(-0.35, 0.05, 0.3)), 70)
                 : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
             // The engine's front (note 311): low off its front quarter, the prow, the brow and the eye; and square off its
             // left side, the cab's run into the boiler.

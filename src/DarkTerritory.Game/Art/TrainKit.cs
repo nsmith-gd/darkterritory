@@ -1541,7 +1541,7 @@ public static class TrainKit
     static float RoofTop(CarShape shape) => (float)shape.Solids.Where(x => x.Part == PartKind.CabRoof).Select(x => x.Box.Max.Y).DefaultIfEmpty(shape.Cab!.Value.Max.Y).Max();
 
     /// <summary>The lever's length, pivot to tip, and its angle up off level at rest and pulled down (radians).</summary>
-    public const float WhistleLeverLength = 0.45f, WhistleLeverRest = 0.25f, WhistleLeverPulled = -0.65f;
+    public const float WhistleLeverLength = 0.6f, WhistleLeverRest = 0.25f, WhistleLeverPulled = -0.65f;
 
     /// <summary>
     /// The whistle's valve lever (note 445): a flat iron bar out across the hood off its pivot on the whistle's top, its
@@ -1554,11 +1554,11 @@ public static class TrainKit
         var k = new Kit(look, 64);
         k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.6f, tile: 0.3f);
         k.Cylinder(new Vector3(0, 0, -0.05f), new Vector3(0, 0, 0.05f), 0.024f, 6);
-        k.Box(new Vector3(-0.03f, -0.02f, -0.016f), new Vector3(WhistleLeverLength * 0.5f, 0.02f, 0.016f));
+        k.Box(new Vector3(-0.03f, -0.022f, -0.018f), new Vector3(WhistleLeverLength * 0.35f, 0.022f, 0.018f));
         k.Use("paint_oxide", Palette.BoardEnamel, 0.5f, 0.2f, tile: 0.2f);
-        k.Box(new Vector3(WhistleLeverLength * 0.4f, -0.03f, -0.02f), new Vector3(WhistleLeverLength * 0.8f, 0.03f, 0.02f));
+        k.Box(new Vector3(WhistleLeverLength * 0.35f, -0.04f, -0.022f), new Vector3(WhistleLeverLength * 0.78f, 0.04f, 0.022f));
         k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
-        k.Box(new Vector3(WhistleLeverLength * 0.8f, -0.03f, -0.02f), new Vector3(WhistleLeverLength, 0.03f, 0.02f));
+        k.Box(new Vector3(WhistleLeverLength * 0.78f, -0.04f, -0.022f), new Vector3(WhistleLeverLength, 0.04f, 0.022f));
         return k.Build("whistle-lever");
     }
 
