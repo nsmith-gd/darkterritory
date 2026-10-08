@@ -34,6 +34,11 @@ public sealed record HarnessOptions
     /// </summary>
     public Run.FacilityTuning? Facilities { get; init; }
     /// <summary>
+    /// The stops' loot (loot.json), as the game has it: the yards' crates, the villages' finds in their open houses, toys and
+    /// kits. Null, none, as the harness's nights have always been (note 326's bots that search the village only go with it).
+    /// </summary>
+    public Stops.LootTuning? Loot { get; init; }
+    /// <summary>
     /// With it (and a run), the dead come back through the route's Holdouts (GDD App. D): a walker or the gunner breaches
     /// one lit with the train standing (T96), or the driver with neither of them left (note 259).
     /// </summary>
@@ -272,7 +277,7 @@ public static class Harness
         host.World.EnableBodies();
         host.World.Stock();
         if (o.Run is { } rt && o.Route is { } route)
-            host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities);
+            host.World.EnableRun(rt, route, o.YardLength, authority: true, o.Facilities, o.Loot);
         if (o.Holdouts is { } ht && o.Run is not null && o.Route is { } hroute)
             host.World.EnableHoldouts(ht, hroute);
         if (o.Sight is { } sight && o.Route is { } sightRoute)
@@ -310,7 +315,7 @@ public static class Harness
                 session.World.EnableEnemies(cet, o.Route, (ulong)o.Seed, crewSize, authority: false);
             // Clients see the night as players do: the phase, and each site's winch (mirrored from the host).
             if (o.Run is { } crt && o.Route is { } croute)
-                session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities);
+                session.World.EnableRun(crt, croute, o.YardLength, authority: false, o.Facilities, o.Loot);
             if (o.Holdouts is { } h && o.Run is not null && o.Route is { } hr)
                 session.World.EnableHoldouts(h, hr);
             if (o.Sight is { } csight && o.Route is { } lroute)

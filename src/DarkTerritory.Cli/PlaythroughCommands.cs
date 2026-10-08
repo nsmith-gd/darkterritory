@@ -340,6 +340,14 @@ static class PlaythroughCommands
                 spawnsAll = ld.Log.Count,
                 telegraphs = encountersAfoot,
             } : null,
+            // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
+            loot = last.Run is { } lr ? new
+            {
+                searched = lr.HidingSpots.Count(h => lr.Searched(h.Stop, h.Container.Index)),
+                spots = lr.HidingSpots.Count,
+                stowed = lr.Stowed.Count,
+                scavenged = Math.Round(lr.Scavenged),
+            } : null,
             index = Path.GetFullPath(index),
             renderSeconds = Math.Round(watch.Elapsed.TotalSeconds),
         };
@@ -373,6 +381,8 @@ static class PlaythroughCommands
             Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
             Sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)),
             YardLength = yard,
+            // --loot: the stops' loot as the game has it (note 326: a bot crew searches the village's houses with it).
+            Loot = args.Contains("--loot") ? DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)) : null,
             Insist = Str(args, "--insist", "") is { Length: > 0 } insist ? [.. insist.Split(',').Select(k => Enum.Parse<EnemyKind>(k, ignoreCase: true))] : null,
             InsistEvery = Opt(args, "--insist-every", 20),
             Observe = (_, crew, world) =>

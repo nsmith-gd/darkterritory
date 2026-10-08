@@ -428,5 +428,5 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 
 ## I.4 Not yet
 - **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
-- **Bots don't scavenge villages yet, or clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259).
-- **Buildings have no collision, and their interiors aren't modelled.** Finds lie where their container is; a Holdout's occupant comes back at its middle.
+- **Bots don't clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259), and once a yard's crates are in, half the crate hands search the village's open houses and bring the finds aboard (note 326).
+- **Only the village houses have interiors.** They stand open, one floor and one room (an L or a cross its parts together), searched spot by spot (note 326); the rest of the stops' buildings are solid boxes (T114), and a Holdout's occupant comes back at its middle.

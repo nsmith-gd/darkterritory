@@ -171,6 +171,8 @@ object RunHarness(string[] args)
         Run = runTuning,
         Facilities = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File)),
         YardLength = route?.GateOr(routeTuning.YardLength) ?? routeTuning.YardLength,
+        // --loot: the stops' loot as the game has it (note 326).
+        Loot = route is not null && args.Contains("--loot") ? DataFile.Load<DarkTerritory.Sim.Stops.LootTuning>(Path.Combine(content, DarkTerritory.Sim.Stops.LootTuning.File)) : null,
         Voice = Voice(args),
         // --drop-rejoin bot:at:seconds (note 253): one bot's link drops at seconds in and it connects again that long after,
         // asking for its slot back. bot: its index in the crew (0, the driver) or its name (roof-walker: the first).

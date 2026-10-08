@@ -114,6 +114,12 @@ public sealed record StopCrewTuning
     public bool DriverWorks { get; init; } = true;
     public bool PeopleAreHands { get; init; } = true;
     public double PeopleWait { get; init; } = 45;
+    /// <summary>Note 326: the share of the crate hands that go to search the village's houses once the crates are in (0: none).</summary>
+    public double VillageShare { get; init; }
+    /// <summary>How far from the train a hiding spot may be for a hand to go to it (m).</summary>
+    public double VillageReach { get; init; } = 150;
+    /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
+    public double VillageDawnSpare { get; init; } = 900;
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>

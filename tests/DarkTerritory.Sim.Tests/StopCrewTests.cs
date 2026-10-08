@@ -18,23 +18,27 @@ public class StopCrewTests
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
     static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    static readonly Stops.LootTuning L = DataFile.Load<Stops.LootTuning>(Path.Combine(DataFile.FindContentRoot(), Stops.LootTuning.File));
 
     /// <summary>
     /// A route whose first facility (before any other kind of stop) has these modules down its spur: the facility's index
     /// and where the spur's points are.
     /// </summary>
-    static (Route.Route Route, int Facility, double Toe) StopWith(params ModuleKind[] modules)
+    static (Route.Route Route, int Facility, double Toe) StopWith(params ModuleKind[] modules) => StopWith(null, modules);
+
+    /// <param name="village">The facility's stop must also have this (a village with open houses, say).</param>
+    static (Route.Route Route, int Facility, double Toe) StopWith(Func<RouteFeature, bool>? village, params ModuleKind[] modules)
     {
         for (ulong seed = 1; seed < 200; seed++)
         {
             var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
             var facilities = route.Of(FeatureKind.Facility).ToList();
-            int i = facilities.FindIndex(f => f.Facility is { } k && F.ModulesOf(k).Order().SequenceEqual(modules.Order()));
+            int i = facilities.FindIndex(f => f.Facility is { } k && F.ModulesOf(k).Order().SequenceEqual(modules.Order()) && (village is null || village(f)));
             // Or one offering those and more, given just those (a route's own modules, T44): the switchyard's crates without its
             // standing cars, the wreck yard's winch without its wreck (note 187).
             bool own = i < 0;
             if (own)
-                i = facilities.FindIndex(f => f.Facility is { } k && f.Modules is null && modules.All(F.ModulesOf(k).Contains));
+                i = facilities.FindIndex(f => f.Facility is { } k && f.Modules is null && modules.All(F.ModulesOf(k).Contains) && (village is null || village(f)));
             if (i >= 0 && route.Branches.FirstOrDefault(b => b.Kind == BranchKind.Spur && facilities[i].Contains(b.Toe)) is { } spur)
             {
                 if (!own)
@@ -96,16 +100,23 @@ public class StopCrewTests
         /// <param name="hands">Of the shunter and the winch pair, how many there are (note 261: a crew of two is the driver and a shunter).</param>
         /// <param name="facilities">The facilities' tuning, if not the game's (note 261's crew flags).</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
-            bool ids = false, int hands = 3, FacilityTuning? facilities = null, params ModuleKind[] modules)
+            bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, params ModuleKind[] modules)
         {
-            var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(modules.Length > 0 ? modules : [ModuleKind.Winch]);
+            // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
+            Func<RouteFeature, bool>? village = loot
+                ? f => f.Stop is { } st && st.Containers.Any(c => c.Zone == Stops.StopZone.Village && c.Building >= 0 && st.Buildings[c.Building].Open)
+                : null;
+            var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(village, modules.Length > 0 ? modules : [ModuleKind.Winch]);
             Calls = new CrewCalls();
             var calls = Calls;
             var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, Tuning.Run.DepartureLoad)), route.Build(), toe - 600, Tuning.Boiler);
             World = new World(train);
             World.EnableBodies();
             World.EnableSwitches(Tuning.Route.Junctions);
-            World.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true, facilities ?? F);
+            World.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true, facilities ?? F, loot ? L : null);
+            // The stops' finds and their houses' walls (note 326), for a crew that searches the village.
+            if (loot)
+                train.Walls = StopWalls.Of(route, train.Line);
             Site = deadLine ? null! : World.Run!.Sites[facility]!;
             Branch = deadLine ? facility : -1;
             Driver = new ConductorBot(calls, 0);
@@ -594,6 +605,40 @@ public class StopCrewTests
         // Nobody left behind on the ballast (in the air over a gap is aboard), and the doors shut before it moved.
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Empty(OpenSideDoors(train, night.Site.Side));
+        Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
+    public void WithTheCratesInHalfTheHandsSearchTheVillageAndBringTheFindsAboard()
+    {
+        // Note 326 (GDD App. F.3: "split up for more loot, or work the yard together, or the village together"): the crates
+        // loaded, a share of the crate hands go round the walls into the village's open houses, search the hiding spots
+        // nearest them, and carry what they find back into the cars; the driver waits for them, and they all leave together.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        Assert.Contains(run.HidingSpots, h => h.Stop == k);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        int most = 0;
+        var doing = new List<string>();
+        night.Until(() => run.Departures > 0, 1800, () =>
+        {
+            most = Math.Max(most, hands.Count(h => h.Searching is not null));
+            foreach (var h in hands)
+                if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
+                    doing.Add(h.Doing);
+        });
+        string trace = $"spots {run.HidingSpots.Count(h => h.Stop == k)}, searched {run.HidingSpots.Count(h => h.Stop == k && run.Searched(k, h.Container.Index))}, most out {most}, stowed {run.Stowed.Count}; the hands were {string.Join(", ", doing)}";
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}");
+        // Some of the village searched, its finds stowed aboard, by no more than half the crate hands at once.
+        Assert.True(run.HidingSpots.Any(h => h.Stop == k && run.Searched(k, h.Container.Index)), trace);
+        Assert.True(run.Stowed.Any(f => run.HidingSpots.Any(h => h.Stop == k && h.Container.Index == f.Container)), trace);
+        Assert.InRange(most, 1, (int)Math.Ceiling(hands.Count * F.Crew.VillageShare));
+        // Nobody left behind, nobody dead, the train whole.
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Equal(1, train.TrainRakes);
     }
 

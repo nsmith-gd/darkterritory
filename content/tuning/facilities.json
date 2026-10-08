@@ -226,7 +226,15 @@
     "peopleAreHands": true,
     // A pair module only people playing can make up (one bot at the winch, someone playing for the other handle) is waited
     // on while the loading's getting somewhere: this long with nothing loading, and the bots leave it (seconds).
-    "peopleWait": 45
+    "peopleWait": 45,
+    // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
+    // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
+    // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it
+    // stands, and bring back what they find. The driver waits for them, up to its give-ups; nobody goes with less than
+    // villageDawnSpare (s) of the night left. Not in the spec: half, so the yard's still minded.
+    "villageShare": 0.5,
+    "villageReach": 150,
+    "villageDawnSpare": 900
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
