@@ -170,6 +170,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     VkDeviceMemory _vertexMemory;
     ulong _vertexCapacity;
     int _vertexCount;
+    // What of the soup is within the hand lamp's reach: its cube draws only that, a face at a time.
+    readonly List<Vertex> _handSoup = new();
+    VkBuffer _handSoupVertices;
+    VkDeviceMemory _handSoupMemory;
+    ulong _handSoupCapacity;
 
     // Cooked meshes on the GPU, for as long as their asset lives (MeshInstance.Asset).
     readonly ConditionalWeakTable<MeshAsset, GpuMesh> _meshes = new();
@@ -705,6 +710,19 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _lights.Clear();
         _lights.AddRange(mesh.PointLights);
         _hand = mesh.ShadowLight;
+        _handSoup.Clear();
+        if (_hand is { } hand)
+        {
+            var soup = mesh.Vertices;
+            for (int i = 0; i + 2 < soup.Length; i += 3)
+            {
+                Vector3 a = soup[i].Position, b = soup[i + 1].Position, c = soup[i + 2].Position, g = (a + b + c) / 3;
+                float r = MathF.Sqrt(MathF.Max(Vector3.DistanceSquared(a, g), MathF.Max(Vector3.DistanceSquared(b, g), Vector3.DistanceSquared(c, g))));
+                if (Vector3.Distance(g, hand.Position) - r < hand.Range)
+                    _handSoup.AddRange(soup.Slice(i, 3));
+            }
+            Upload(CollectionsMarshal.AsSpan(_handSoup), (uint)Vertex.Stride, ref _handSoupVertices, ref _handSoupMemory, ref _handSoupCapacity);
+        }
         if (_lights.Count > FrameData.MaxLights)
         {
             // The nearest win: past the budget, a light far off lights little you can see.
@@ -1201,15 +1219,17 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Span<Vector4> planes = stackalloc Vector4[6 * views.Length];
         for (int v = 0; v < views.Length; v++)
             FrustumPlanes(views[v], planes.Slice(v * 6, 6));
-        int triangles = _vertexCount / 3, draws = _vertexCount > 0 ? 1 : 0;
+        // (A light's reach: only the soup within it, Prepare's.)
+        int soupCount = reach > 0 ? _handSoup.Count : _vertexCount;
+        int triangles = soupCount / 3, draws = soupCount > 0 ? 1 : 0;
         var identity = new DrawConstants { Model = Matrix4x4.Identity, Tint = Vector4.One };
-        if (_vertexCount > 0)
+        if (soupCount > 0)
         {
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &identity);
-            var vb = _vertices;
+            var vb = reach > 0 ? _handSoupVertices : _vertices;
             ulong offset = 0;
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
-            Api.vkCmdDraw(cmd, (uint)_vertexCount, 1, 0, face);
+            Api.vkCmdDraw(cmd, (uint)soupCount, 1, 0, face);
         }
         foreach (var (mesh, draw, sphere, shadowless) in _draws)
         {
@@ -1766,6 +1786,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             Api.vkDestroyBuffer(_vertices, null);
             Api.vkFreeMemory(_vertexMemory, null);
+        }
+        if (_handSoupCapacity > 0)
+        {
+            Api.vkDestroyBuffer(_handSoupVertices, null);
+            Api.vkFreeMemory(_handSoupMemory, null);
         }
         Api.vkUnmapMemory(_frameMemory);
         Api.vkDestroyBuffer(_frame, null);
