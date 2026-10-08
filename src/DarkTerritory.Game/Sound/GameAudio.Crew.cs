@@ -159,6 +159,9 @@ public sealed partial class GameAudio
         _crewCouplings = null;
         _crewEngine = null;
         _crewLater.Clear();
+        _jets.Clear();
+        _fireWas.Clear();
+        _jetOnCar.Clear();
     }
 
     readonly Dictionary<int, CrewMember> _crewMembers = new();
@@ -189,6 +192,7 @@ public sealed partial class GameAudio
         CrewCouplings(world);
         CrewSwitchStands(world);
         CrewCarried(world, firePressed);
+        FireDoused(world);
     }
 
     /// <summary>Plays what was put off till now (a latch after a slam, a pin after the knuckles).</summary>
@@ -1323,7 +1327,12 @@ public sealed partial class GameAudio
                 if (spraying && !m.Spraying)
                     Cue("crew-extinguisher.spray-start", at, occlusion);
                 if (spraying)
+                {
                     Hold("crew-extinguisher.spray", b.Id, at, occlusion);
+                    // Where the jet lands on a fire (note 469): GameAudio.Douse, once every carried thing's been heard.
+                    if (carried)
+                        _jets.Add((b.Carrier, b.Id));
+                }
                 else if (m.Spraying)
                 {
                     Cue(b.Charge <= 0 ? "crew-extinguisher.run-dry" : "crew-extinguisher.spray-stop", at, occlusion);
