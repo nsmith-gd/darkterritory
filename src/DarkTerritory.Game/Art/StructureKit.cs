@@ -778,8 +778,9 @@ public static class StructureKit
         k.Box(new Vector3(a, -0.5f, z0), new Vector3(b, 0.8f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
         k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: wall == "brick_soot" ? 1.2f : 1.5f);
         k.Box(new Vector3(a, 0.8f, z0), new Vector3(b, height, z1), Kit.Faces.Sides);
-        foreach (float zz in new[] { z0, z1 })
-            k.Tri(new Vector3(a, height, zz), new Vector3(b, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(a, -height), new(b, -height), new(mid, -height - width * 0.3f));
+        // Both gables facing out (the −Z one was wound inwards, so from outside it wasn't there: note 387).
+        foreach (var (zz, l, r) in new[] { (z0, b, a), (z1, a, b) })
+            k.Tri(new Vector3(l, height, zz), new Vector3(r, height, zz), new Vector3(mid, height + width * 0.3f, zz), new(l, -height), new(r, -height), new(mid, -height - width * 0.3f));
         k.Use("corrugated_iron", Palette.IronGrey, 0.9f, 0.3f, tile: 1.5f);
         k.Quad(new Vector3(a - 0.4f, height - 0.1f, z1 + 0.4f), new Vector3(a - 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(mid, height + width * 0.3f, z1 + 0.4f), twoSided: true);
         k.Quad(new Vector3(mid, height + width * 0.3f, z1 + 0.4f), new Vector3(mid, height + width * 0.3f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z0 - 0.4f), new Vector3(b + 0.4f, height - 0.1f, z1 + 0.4f), twoSided: true);

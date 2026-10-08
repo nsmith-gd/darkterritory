@@ -240,6 +240,11 @@ public sealed class Look
     public DoorwayTuning Doorway { get; init; } = new();
     /// <summary>A headset crewmate's body (vr.json <c>body</c>, T82): everyone draws it, headset or not.</summary>
     public VrBodyTuning VrBody { get; init; } = new();
+    /// <summary>
+    /// The stops' walls as the sim stands them (run.json <c>walls</c>, note 279): the art draws a shed's, the hero's and a
+    /// Holdout's shell from <see cref="Sim.Run.StopWalls.Shell"/> with these, so its doors are where you walk in (note 387).
+    /// </summary>
+    public Sim.Run.WallTuning Walls { get; init; } = new();
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -260,10 +265,12 @@ public sealed class Look
         var doorway = System.IO.File.Exists(trainFile) ? DataFile.Load<TrainTuning>(trainFile).Geometry.Doorway : new DoorwayTuning();
         string vrFile = Path.Combine(content, VrTuning.File);
         var body = System.IO.File.Exists(vrFile) ? DataFile.Load<VrTuning>(vrFile).Body : new VrBodyTuning();
+        string runFile = Path.Combine(content, Sim.Run.RunTuning.File);
+        var walls = System.IO.File.Exists(runFile) ? DataFile.Load<Sim.Run.RunTuning>(runFile).Walls : new Sim.Run.WallTuning();
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning) { Doorway = doorway, VrBody = body };
+            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -272,7 +279,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>
