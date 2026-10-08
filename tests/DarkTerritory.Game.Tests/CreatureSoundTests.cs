@@ -431,4 +431,30 @@ public class CreatureSoundTests
         heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 2)));
         Assert.Equal(2, heard.Count(h => h == "cs-moose-ram.boom"));
     }
+
+    [Fact]
+    public void ASignShownAfootIsHeardOnceAsItsOwnSoundAndTheGauntsIsItsEyesAlone()
+    {
+        // Note 342 (queue #79): a sign shown a crewmate afoot (note 327, World.Watcher) is heard once as it starts, from where
+        // its eyes are: the checklist's sign.<kind> where there is one, the creature's own movement where not; the Gaunt
+        // and the Followers make no sound of their own till they're on you.
+        using var scene = new Scene(1, GameAudio.SignCue(EnemyKind.Ribbit), "cs-grumbler.scuttle", "cs-gaunt.step");
+        var at = scene.Ear.Position + new Double3(14, -2, 0);
+        void Show(EnemyKind kind) => scene.World.Watcher = new Watcher(3.5, kind, at, 1);
+        Show(EnemyKind.Ribbit);
+        Assert.Equal(["sign.ribbits"], scene.Tick());
+        Assert.Empty(scene.Tick());
+        scene.World.Watcher = default;
+        Assert.Empty(scene.Tick());
+        Show(EnemyKind.Grumbler);
+        Assert.Equal(["cs-grumbler.scuttle"], scene.Tick());
+        scene.World.Watcher = default;
+        scene.Tick();
+        Show(EnemyKind.Gaunt);
+        Assert.Empty(scene.Tick());
+        // The game's own: the four that move out there have theirs installed; the two that don't, none.
+        var installed = new SoundBank(Path.Combine(Content, "audio", "sounds"));
+        Assert.All(new[] { EnemyKind.Ribbit, EnemyKind.SootChildren, EnemyKind.Whistler, EnemyKind.Grumbler }, k => Assert.NotNull(installed.Get(GameAudio.SignCue(k))));
+        Assert.All(new[] { EnemyKind.Gaunt, EnemyKind.Follower }, k => Assert.Null(installed.Get(GameAudio.SignCue(k))));
+    }
 }

@@ -128,6 +128,10 @@ public static partial class Hud
     /// <summary>A still frame's flash (<c>dt screenshot --hud --hurt s</c>): at this strength, fresh, whatever the health did.</summary>
     public static double? StagedHurt { get; set; }
 
+    /// <summary>A still frame's commendation picker at the run's end (<c>dt screenshot --report --commend-pick</c>, note 369):
+    /// only a networked night has one of its own (<see cref="IPlaySession.CommendPick"/>).</summary>
+    public static (string To, string What, bool Given)? StagedCommendPick { get; set; }
+
     /// <summary>
     /// How strong the edge flash is now (0 to 1): this machine's player's health fell, by how much, and how long ago (from
     /// the replicated health, so it's what the host applied). Called once a frame, by <see cref="Build"/>.
@@ -606,22 +610,22 @@ public static partial class Hud
             y += (line + 2) * k;
         }
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
-            && ColdLine(s.Player, s.Train, s.PlayerTuning) is { } cold)
+            && ColdLine(s.Player, s.Train) is { } cold)
             o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
     }
 
     /// <summary>
     /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
-    /// conditions from its seed, so a client knows it as the host does.
+    /// conditions from its seed, so a client knows it as the host does. Its name only: how much faster it comes on outside
+    /// is learned out in it (note 285's "nothing foretells"; note 369).
     /// </summary>
-    public static string? ColdLine(in PlayerState p, TrainOnLine train, PlayerTuning tuning)
+    public static string? ColdLine(in PlayerState p, TrainOnLine train) => PlayerMotor.ColdStep(p, train) switch
     {
-        int step = PlayerMotor.ColdStep(p, train);
-        if (step <= 0)
-            return null;
-        string name = step switch { 1 => "DEEP COLD", 2 => "BITTER COLD", _ => "KILLING COLD" };
-        return $"{name}: OUTSIDE, IT COMES ON {1 + tuning.Cold.PerColdStep * step:0.##}X FASTER";
-    }
+        <= 0 => null,
+        1 => "DEEP COLD",
+        2 => "BITTER COLD",
+        _ => "KILLING COLD",
+    };
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
     {
@@ -722,17 +726,22 @@ public static partial class Hud
             var given = s.World.Commendations;
             if (_commendations is null && given.Count > 0)
                 _commendations = [.. given.Select(c => (IncidentLog.NameOf(s.World, c.To), (UiStyle.Commendation)c.Which, IncidentLog.NameOf(s.World, c.From)))];
-            if (s.CommendPick is { } pick)
+            int above = height;
+            if ((s.CommendPick ?? StagedCommendPick) is { } pick)
             {
-                string text = pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}"
-                    : Headset ? $"COMMEND [STICK LEFT/RIGHT] {pick.To}   [STICK UP/DOWN] {pick.What}   [CLICK STICK] GIVE"
-                    : $"COMMEND [LEFT/RIGHT] {pick.To}   [UP/DOWN] {pick.What}   [SPACE] GIVE";
-                UiStyle.Keyed(o, MathF.Round((width - UiStyle.MeasureKeyed(o, text)) / 2), height - 12, text, pick.Given ? Green : Amber);
+                // What to do, in fine print with keycaps (note 285), along the foot under the commendations: on two lines
+                // where one won't go, the report and the commendations raised to make room.
+                var picker = CommendLines(o, pick, Headset, width, Fine);
+                float step = (line + 4) * Fine;
+                for (int i = 0; i < picker.Count; i++)
+                    UiStyle.Keyed(o, Overlay.Snap((width - UiStyle.MeasureKeyed(o, picker[i], Fine)) / 2, Fine),
+                        height - 12 - (picker.Count - 1 - i) * step, picker[i], pick.Given ? Green : Amber, Fine);
+                above -= (int)MathF.Ceiling((picker.Count - 1) * step);
             }
             bool awards = _commendations is { Count: > 0 };
-            IncidentReport(o, width, awards ? height - (int)Commendations(o, width, height, _commendations!, draw: false) : height, y + line, r, line, _stills);
+            IncidentReport(o, width, awards ? above - (int)Commendations(o, width, above, _commendations!, draw: false) : above, y + line, r, line, _stills);
             if (awards)
-                Commendations(o, width, height, _commendations!);
+                Commendations(o, width, above, _commendations!);
             return;
         }
         if (!p.Alive)
@@ -1208,6 +1217,49 @@ public static partial class Hud
     }
 
     /// <summary>
+    /// The commendation picker at the run's end (D.12) in note 285's form (note 369): who and what, each with the key
+    /// that changes it, then COMMEND with its key; once given, what you gave.
+    /// </summary>
+    public static string CommendLine((string To, string What, bool Given) pick, bool headset) =>
+        pick.Given ? $"YOU COMMENDED {pick.To}: {pick.What}" : $"{CommendParts(pick, headset).Choice}   {CommendParts(pick, headset).Give}";
+
+    static (string Choice, string Give) CommendParts((string To, string What, bool Given) pick, bool headset) => headset
+        ? ($"{pick.To} : [STICK LEFT/RIGHT]   {pick.What} : [STICK UP/DOWN]", "COMMEND : [CLICK STICK]")
+        : ($"{pick.To} : [LEFT/RIGHT]   {pick.What} : [UP/DOWN]", "COMMEND : [SPACE]");
+
+    /// <summary>
+    /// <see cref="CommendLine"/> as drawn in <paramref name="width"/> at <paramref name="scale"/>: one line where it goes,
+    /// with a name too long for it (twenty letters at 720p) cut short, the name being the one part of it of any length.
+    /// Where not even that goes (a large TEXT SIZE at 720p), the choice over COMMEND. One line keeps the report's room: at
+    /// 720p with a few bookmarks it's down to its last lines already.
+    /// </summary>
+    public static IReadOnlyList<string> CommendLines(Overlay o, (string To, string What, bool Given) pick, bool headset, float width, float scale)
+    {
+        bool Fits(string text) => UiStyle.MeasureKeyed(o, text, scale) <= width - 12;
+        string Cut(Func<string, string> make)
+        {
+            string text = make(pick.To);
+            for (int n = pick.To.Length - 1; n >= 3 && !Fits(text); n--)
+                text = make(pick.To[..n].TrimEnd() + ".");
+            return text;
+        }
+        string one = Cut(to => CommendLine(pick with { To = to }, headset));
+        if (Fits(one) || pick.Given)
+            return [one];
+        return [Cut(to => CommendParts(pick with { To = to }, headset).Choice), CommendParts(pick, headset).Give];
+    }
+
+    /// <summary>
+    /// The skip's line (E.5, E.9), as every other hold (note 285's form, note 369): under the crew's vote, the votes so far
+    /// of the crew's.
+    /// </summary>
+    public static string SkipLine(IPlaySession s)
+    {
+        var (votes, of) = s.World.FilmVotes;
+        return !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"SKIP : HOLD [SPACE]   {votes}/{of}" : "SKIP : HOLD [SPACE]";
+    }
+
+    /// <summary>
     /// The skip (E.5, E.9), once it counts: hold the key. Each player's own (note 315), the hold filling under it; under the
     /// crew's vote, the votes so far of the crew's.
     /// </summary>
@@ -1215,8 +1267,7 @@ public static partial class Hud
     {
         if (!s.Skippable)
             return;
-        var (votes, of) = s.World.FilmVotes;
-        string text = !s.World.WreckTuning.Skip.Own && of > 0 && votes > 0 ? $"HOLD [SPACE] TO SKIP   {votes}/{of}" : "HOLD [SPACE] TO SKIP";
+        string text = SkipLine(s);
         float w = UiStyle.MeasureKeyed(o, text), x = width - 12 - w;
         UiStyle.Keyed(o, x, height - 18, text, Dim);
         if (s.SkipHold > 0)
@@ -1578,7 +1629,7 @@ public static partial class Hud
                 : "THE COUPLING : LOOK DOWN";
         // Note 267: the vent's feedback while it's held open (its key, or Use at the valve), from the cab: it's working.
         if (PlayerMotor.InCab(p, train) && train.BoilerTuning is not null && train.Boiler.Vented && !train.Boiler.Ruptured)
-            return "VENTING";
+            return world.Run?.CurrentSite is { Winding: true } ? "STEAM TO THE LIFT" : "VENTING";
         switch (near)
         {
             // GDD §12's whistle cord (note 264), looked at (the director, 7 Oct: "PULL CORD : [E]").
@@ -1651,6 +1702,13 @@ public static partial class Hud
             var under = world.Run.CarUnderSpout(train, spout);
             return spout.Pouring ? under is { } filling ? $"POURING   CAR {filling.Load * 100:0}% FULL" : "POURING"
                 : under is { } car ? $"SPOUT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE SPOUT";
+        }
+        // The mine head's steam lift (note 368): the car under its chute, and the skip coming up while the engine's steam winds it.
+        if (world.Run?.LiftLeverInReach(p, train, hand) is { } lift)
+        {
+            var under = world.Run.CarUnderChute(train, lift);
+            return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
+                : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"

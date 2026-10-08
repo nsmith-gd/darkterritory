@@ -111,6 +111,35 @@
     "bin": 3.0,
     "overfillDamagePerLoad": 0.6
   },
+  // The mine head's steam lift (spec D.2: "requires the locomotive coupled nearby and venting pressure to power it. 2 crew. Ties
+  // loading directly to the boiler; you're at zero pressure while it runs"; the Wiki's Loading table; ARCHITECTURE §8 note 368).
+  // A headframe over its shaft "frameLateral" out on the site's side, "along" from the layout point (where the mine head's
+  // buildings put their headframe: StructureKit's, centred 25 m back and 4 + 12 m out), its chute reaching over the track
+  // "chuteHeight" up, so the cars are walked under it one at a time as under the spout; its lever "leverAlong" on from the chute,
+  // "leverLateral" out, worked within "leverReach". The engine's steam line reaches it with the engine's middle within
+  // "steamReach" of the chute (the first three cars behind it come under the chute in reach; the rest are the winch's and the
+  // crates'). With someone holding the lever, the engine in reach and its vent held open in the cab, the vented steam winds the
+  // skip up the shaft instead of into the air: each point of pressure vented (boiler.json ventRate, 12 a second) is
+  // 1/"steamPerSkip" of a wind. Wound, the skip tips "perSkip" of a car-load of ore down the chute, into the cargo car whose middle
+  // is within "tolerance" of it (none there, it's on the ballast; a full one overflows and strains, "overfillDamagePerLoad" a
+  // car-load, as the spout's), out of "ore" car-loads down the shaft. A full boiler winds about four skips (a car); then the fire
+  // has to make the steam again (a standing engine's full firebox about 1.8 a second, so a skip in about 11 s), and the engine
+  // pulls nothing till it's back over boiler.json powerFloor. The winding engine's loud while it runs (combat.json
+  // machineryLoudness), as the other machinery is.
+  "lift": {
+    "along": -25,
+    "chuteHeight": 4.6,
+    "frameLateral": 16,
+    "leverAlong": -3,
+    "leverLateral": 3.4,
+    "leverReach": 1.2,
+    "steamReach": 56,
+    "steamPerSkip": 20,
+    "perSkip": 0.25,
+    "tolerance": 1.5,
+    "ore": 3.0,
+    "overfillDamagePerLoad": 0.6
+  },
   // The slaughterhouse's livestock ramp (spec D.2: "herd animals up a ramp into a stock car. 2–3 crew. Constant noise. Raises
   // Choir floor while active"). The ramp's top is "rampLateral" out from the track at "along"; the pen "penLateral" out,
   // "penRadius" across, with "head" animals in it. With "herders" or more in the pen holding Use and a cargo car with room
@@ -235,7 +264,8 @@
     "foundry": ["crane", "winch", "crates"],
     "slaughterhouse": ["ramp", "crates"],
     "wreckYard": ["wreck", "winch"],
-    "mineHead": ["winch", "crates"],
+    // The mine head's steam lift (note 368) beside its winch: two 2-person modules (spec D.3, "someone is alone somewhere").
+    "mineHead": ["lift", "winch", "crates"],
     "chemicalWorks": ["hose", "crates"],
     "militaryDepot": ["crates", "winch"]
   },
