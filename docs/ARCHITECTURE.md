@@ -7076,3 +7076,15 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - **Now** (`tools/audio/recipes/crew_items.py`), on concrete only: the crate's corner bites the floor and drags a hand's breadth (stick-slip on concrete), grit crunching under it, and its slats knock as it settles. Its takes centre at 298-440 Hz; the wood, the grate and the ground are untouched.
     - **Installed:** only those six takes changed of the two lines' 117. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass.
     - Neither old take had a verdict; both lines are on the Audio Checklist for a Keep or Redo.
+508. **Bodies on the grating heard on steel (AU1, queue #245; the weak-sounds audit; note 503's fault in three more cues).** Three sounds of a body coming down on the train's steel grating were the body alone, the grating's steel lost under it:
+    - a crewmate falling (`crew-hurt.body-fall.grate`), 212 Hz;
+    - a body thrown down (`crew-carry.body-land.grate`), 248 Hz;
+    - a body laid down (`crew-carry.body-set.grate`), 255 Hz.
+    Their wood, ground and concrete sets sit at 162-282 Hz, while a boot landing on the same grating rings at 1.5 kHz. The bodies' shared helper (`crew_items.limbs`) asks the floor for a soft knock (`hard` 0.15, right for flesh on planks or earth), and on the grating that knock is a choked thin-plate clatter that the body buries.
+    - **Now** (`tools/audio/recipes/crew_items.py`, `grating`, on the grating only, after every random draw so the other floors are byte-identical):
+        - the grating's heavy plate crashing, choked later the harder the body comes down;
+        - its thin plate ringing on;
+        - its bars buzzing, longer and louder the harder the body comes down (thrown 1.8, fallen 1.3, laid 1.0, as `limbs`' force).
+        - A crewmate's collapse rings it lighter under the knees first (`crew_body.py`'s fall).
+    - **Measured:** they centre at 369-386 Hz now, with steel through 1-8 kHz for the first quarter second; a body is still heavier and lower than a boot, as it should be.
+    - **Installed:** only those nine takes changed of the two lines' 130. Their hooks are unchanged; `AudioTests` and `CrewAudioTests` pass. No verdicts on the old takes.
