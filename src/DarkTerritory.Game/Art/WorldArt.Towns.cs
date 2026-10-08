@@ -376,7 +376,7 @@ public sealed partial class WorldArt
     /// the rear wall to the gate, the front wall out from the gatehouse to each corner, the rear wall across the line, a
     /// tower at each corner and down the sides, their lamps lit near you.
     /// </summary>
-    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit)
+    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time)
     {
         var start = line.Sample(0);
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
@@ -405,12 +405,29 @@ public sealed partial class WorldArt
             var towers = new List<double> { town.Rear, town.Gate };
             for (double s = town.Rear + every; s < town.Gate - every / 2; s += every)
                 towers.Add(s);
-            foreach (double s in towers)
+            for (int i = 0; i < towers.Count; i++)
             {
+                double s = towers[i];
                 if (!Near(s, d))
                     continue;
                 var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
                 mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d), eye, 0)));
+                // Artillery on every other tower down the sides (GDD §3: "watchtowers, artillery"; queue #74, note 335): the
+                // train's own cannon and its shield on the tower's top, laid out over the wall, swinging slowly across the
+                // dark beyond it as if somebody's at it all night.
+                if (i >= 2 && i % 2 == 0 && (P(s, d) - eye).Length < TowerGunReach && TrainKit.Cannon(_look) is { } cannon)
+                {
+                    float sweep = TowerGunSweep * MathF.Sin((float)(time * TowerGunRate + s * 0.013));
+                    var gun = Matrix4x4.CreateScale(TowerGunScale) * Basis(start.Tangent, P(s, d) + Double3.Up * TowerGunUp, eye, -side * MathF.PI / 2);
+                    var carriage = Matrix4x4.CreateScale(TowerGunScale) * Matrix4x4.CreateRotationY(sweep)
+                        * Basis(start.Tangent, P(s, d) + Double3.Up * TowerGunUp, eye, -side * MathF.PI / 2);
+                    mesh.Instances.Add(new MeshInstance(Piece("tower-gun-pedestal", () => StructureKit.GunPedestal(_look, TowerGunPedestal)),
+                        Basis(start.Tangent, P(s, d) + Double3.Up * TowerTop, eye, 0)));
+                    mesh.Instances.Add(new MeshInstance(cannon.Mount, gun));
+                    mesh.Instances.Add(new MeshInstance(cannon.Carriage, carriage));
+                    mesh.Instances.Add(new MeshInstance(Piece("gun-shield", () => TrainKit.GunShield(_look)), carriage, Shadowless: true));
+                    mesh.Instances.Add(new MeshInstance(cannon.Barrel, Matrix4x4.CreateRotationX(TowerGunElevation) * carriage));
+                }
                 if (!lit || (P(s, d) - eye).Length > 220)
                     continue;
                 // Its lamp, facing into the town, a lit pool on the street below it.
@@ -420,6 +437,18 @@ public sealed partial class WorldArt
             }
         }
     }
+
+    /// <summary>
+    /// A wall tower's gun (note 335): the train's cannon at a fortress's size on an iron pedestal (so it shows over the
+    /// merlons from the street), its pivot over the pedestal (the cannon's 0.9 over its roof at that size), how far it's drawn, how far it swings either
+    /// side of straight out (rad) and how fast, and the barrel's lay (rad up).
+    /// </summary>
+    const float TowerGunScale = 1.8f, TowerGunUp = TowerTop + TowerGunPedestal + 0.9f * TowerGunScale, TowerGunReach = 320, TowerGunSweep = 0.55f,
+        TowerGunElevation = 0.06f;
+
+    /// <summary>The top of a wall tower's platform (<see cref="StructureKit.Tower"/>), and the gun's pedestal on it (up to the merlons' tops).</summary>
+    const float TowerTop = 13.4f, TowerGunPedestal = 1.0f;
+    const double TowerGunRate = 0.06;
 
     /// <summary>A walled town's streets and lanes are laid in strips this long.</summary>
     const double TownChunk = 20;

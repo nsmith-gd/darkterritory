@@ -69,7 +69,7 @@ public static class Staging
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
@@ -88,6 +88,10 @@ public static class Staging
                 "crooked" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(st.D) + 12)), -side * (Math.Abs(st.D) + 12), 1.8),
                         town.World(lane.At(-side * (Math.Abs(st.D) + 30)), -side * (Math.Abs(st.D) + 50), 1.4), 70),
+                // Up at the first tower down the far side with a gun on it (note 335), from the street inside the wall.
+                "towergun" when wall.Streets.Where(x => x.D > 0).MaxBy(x => x.D) is { } outer
+                    => Ballast.Render.Camera.LookAt(town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28, outer.At(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28), 1.8),
+                        town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery, wall.Right, 14.5), 40),
                 "crookedover" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),

@@ -469,6 +469,25 @@ public static class StructureKit
         return k.Build($"tower-{side}");
     }
 
+    /// <summary>
+    /// A wall tower's gun pedestal (note 335): an iron drum <paramref name="height"/> high on the tower's platform, riveted,
+    /// a ring of plate at its top for the gun's mount to traverse on.
+    /// </summary>
+    public static MeshAsset GunPedestal(Look? look, float height)
+    {
+        var k = new Kit(look, 958);
+        k.Use("iron_plate", Palette.IronGrey, 0.85f, 0.35f, tile: 1);
+        k.Cylinder(new Vector3(0, -0.05f, 0), new Vector3(0, height - 0.12f, 0), 0.85f, 14, radiusB: 0.7f);
+        k.Cylinder(new Vector3(0, height - 0.12f, 0), new Vector3(0, height, 0), 1.0f, 16);
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1);
+        for (int i = 0; i < 12; i++)
+        {
+            float a = MathF.Tau * i / 12;
+            k.BoxAt(new Vector3(MathF.Cos(a) * 0.86f, height * 0.5f, MathF.Sin(a) * 0.86f), new Vector3(0.04f, height * 0.42f, 0.04f));
+        }
+        return k.Build("tower-gun-pedestal");
+    }
+
     /// <summary>The gatehouse over the line: two drum-less square towers and a deep arch between them, a lamp at the keystone.</summary>
     public static MeshAsset Gatehouse(Look? look)
     {
