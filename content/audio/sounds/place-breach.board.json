@@ -1,0 +1,20 @@
+// Holdout breach: smash, pry, repair kit: A board torn off the barricade, at each fifth of the breach. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 8,
+ "maxDistance": 300,
+ "rolloff": 0.7,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-breach/board",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

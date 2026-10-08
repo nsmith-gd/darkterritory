@@ -721,6 +721,11 @@
 
   // A knock at one of the square's doors: the custom's own building, the clerk's office, the stores. One a door.
   "doors": {
+    "council": ["Nobody answers. Through the glass, a long table, a chair at its end pulled out, papers squared at every place but that one.",
+      "A clerk's voice through the slot: the council sits Thursdays, write it down and put it through. The slot has been taped over from inside."],
+    "quiet": ["Something moves inside, then stops. Whoever it is doesn't come to the door. On the step, the bowl is full.",
+      "Nobody answers. The bar is new; the brackets are old. Chalked small on the door, at a child's height: COME OUT WHEN YOU'RE YOU.",
+      "Silence, and then a knock back from inside, the same knock as yours, exactly."],
     "hall": ["No answer. Somebody inside says, very quietly: not tonight.", "Barred from inside. Through the door, somebody is reading names aloud.",
       "A slot opens at eye height, looks at you a long while, and shuts."],
     "office": ["Locked. A card in the glass: FREIGHT PAID AT THE FAR GATE. FEES PAYABLE REGARDLESS.", "Nobody in. Ledgers floor to ceiling, and one chair."],
@@ -794,6 +799,34 @@
       { "title": "a painted sunrise", "text": "A sunrise across the wall, ten metres of it: a yellow sun, a blue sea, a white house on a hill. In chalk underneath, in a child's hand: THIS IS WHAT IT LOOKS LIKE." },
       { "title": "a painted window", "text": "A window painted on the stone, its shutters open on a field and a summer sky. Real curtains hang either side of it, tied back." },
       { "title": "the day", "text": "A sky painted the length of the wall, morning at one end and evening at the other, so the children can walk the day. The evening end's been painted over darker, more than once." }
+    ]
+  },
+
+  // A walled town's works by its trade (queue #90, note 353; the industries' keys, then "any"): the pieces in the order
+  // they stand along the line, what each is called and what looking at it tells you. "after": stands that far along the
+  // line from the piece before it (the winding house from its headframe: the ropes run between them).
+  "works": {
+    "coal": [
+      { "kind": "tip", "title": "the tip", "text": "Shale from under the town, heaped against the wall's inside. It's taller every year. The children are told not to climb it. There are paths to the top anyway, and a shirt tied to a stick up there like a flag." },
+      { "kind": "headframe", "title": "{town} Pit", "text": "They sank their own shaft in the second winter, inside the wall, so nobody would have to go out to the seam. The cage is down. The bell beside the shaft is tied off so it can't ring." },
+      { "kind": "coal", "title": "the town's coal", "text": "Coal from under the houses, heaped for the ranges and the train. In some kitchens you can hear the picks under the floor at night. There's no night shift.", "after": 11, "across": -6.5 },
+      { "kind": "winding", "title": "the winding house", "text": "The engine that turns the drum, warm through the bricks. A chalk tally by the door: the shifts gone down and the shifts come up. The columns are the same length. Somebody has gone over them twice to be sure.", "after": 21.9 }
+    ],
+    "farm": [
+      { "kind": "glasshouse", "title": "a glasshouse", "text": "Beans and kale under lamps, the glass whitewashed so the light doesn't get out. A rota on the door: who turns the lamps, who waters, who sits with them overnight. Nobody leaves the plants alone in the dark." },
+      { "kind": "glasshouse", "title": "a glasshouse", "text": "Potatoes in sacks of soil under a low lamp, the warmest place in the town. Somebody has left a chair and a blanket in the corner, and a book open face down." },
+      { "kind": "glasshouse", "title": "the seed house", "text": "Shelves of seed in tins, each labelled with the year and the bed. The oldest tins are labelled in a hand nobody here writes. Those they don't open." },
+      { "kind": "elevator", "title": "the elevator", "text": "The town's grain, kept against the year the train doesn't come. The gallery light is on all night. Somebody sits up there and listens to the grain settle." },
+      { "kind": "cellar", "title": "the root cellar", "text": "A turf mound with a door in it, padlocked. Inside, by the smell, turnips. A notice on the door: COUNTED. Under it, in another hand: COUNTED AGAIN." }
+    ],
+    "foundry": [
+      { "kind": "casting", "title": "the casting shed", "text": "The cupola's lit and the windows are orange all night. They cast what the town needs: pans, hinges, firebars, the bell. They never let the fire go out. The last time it went out, the bell they cast didn't ring true, and they hung it anyway. The stack is the tallest thing inside the wall; the children say it's how the town breathes out." },
+      { "kind": "slag", "title": "the slag", "text": "Slag tipped out still glowing, crusted over in black glass. In the cold it ticks, like something settling." },
+      { "kind": "pigs", "title": "pig iron", "text": "Pig iron stacked like loaves, each stamped with the town's mark and a number. The numbers go back years. A few are missing, and their gaps are left in the stack." }
+    ],
+    "any": [
+      { "kind": "warehouse", "title": "the warehouse", "text": "Where what the train brings is kept and what it takes is counted out. Chalked on the door, what came last: salt, lamp oil, nails, and one crate unmarked. NOT OPENED." },
+      { "kind": "watertower", "title": "the water tower", "text": "The town's water, from the well under the square, pumped up by hand at every bell. A waterline is painted round the tank, and under it, in white: ENOUGH." }
     ]
   },
 
