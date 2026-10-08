@@ -689,6 +689,11 @@
   "url": "/_blob/c7a3fa3070e0c59bd75a4dcf3c471f9f",
   "sha": "6e4640998c92effa"
  },
+ "previews/crew-extinguisher--cell-out--gasp.mp4": {
+  "id": "a4e7d65f99910179606f4f398619b9c3",
+  "url": "/_blob/a4e7d65f99910179606f4f398619b9c3",
+  "sha": "6c3063061d088906"
+ },
  "previews/crew-extinguisher--drop--cylinder--concrete.mp4": {
   "id": "f87821b11d3c286d8f0827d6f1e172b5",
   "url": "/_blob/f87821b11d3c286d8f0827d6f1e172b5",
@@ -719,10 +724,20 @@
   "url": "/_blob/d41e524e23d127c06f7302fa56d59593",
   "sha": "5dbe2d6d8f8a7628"
  },
+ "previews/crew-extinguisher--fire-out--cooling.mp4": {
+  "id": "bbfd37a4c7dff2227575019981c8e7d6",
+  "url": "/_blob/bbfd37a4c7dff2227575019981c8e7d6",
+  "sha": "ba0af96e0a87a5a3"
+ },
  "previews/crew-extinguisher--grab-mount--cradle.mp4": {
   "id": "fa95641db149ebd97a5649436465cffd",
   "url": "/_blob/fa95641db149ebd97a5649436465cffd",
   "sha": "ba3dffc868ec910e"
+ },
+ "previews/crew-extinguisher--on-fire--steam.mp4": {
+  "id": "b982a1ee964f38420f39fd37afdc4729",
+  "url": "/_blob/b982a1ee964f38420f39fd37afdc4729",
+  "sha": "09f3fba1a590cc65"
  },
  "previews/crew-extinguisher--return-mount--cradle.mp4": {
   "id": "2e80747cf32af4658cab3f1fea171d4f",
@@ -2674,6 +2689,56 @@
   "url": "/_blob/ee334581bde2c123858d60603169c11a",
   "sha": "f67b7b788321f26b"
  },
+ "previews/place-conveyor--belt--idlers.mp4": {
+  "id": "02cf8bf966bc94a8eb75e0af911fc0ea",
+  "url": "/_blob/02cf8bf966bc94a8eb75e0af911fc0ea",
+  "sha": "9ce80847d8b6df7f"
+ },
+ "previews/place-conveyor--catch--fires.mp4": {
+  "id": "73342f35b602ae275e80cbd755a2af44",
+  "url": "/_blob/73342f35b602ae275e80cbd755a2af44",
+  "sha": "ab37c8ddbf42af9c"
+ },
+ "previews/place-conveyor--clearing--hands.mp4": {
+  "id": "f9ded86f0e23d496f83cb3be1bcefe33",
+  "url": "/_blob/f9ded86f0e23d496f83cb3be1bcefe33",
+  "sha": "9577caefcad95515"
+ },
+ "previews/place-conveyor--cranking--starter.mp4": {
+  "id": "55c950cad117730170c7077e55b57d19",
+  "url": "/_blob/55c950cad117730170c7077e55b57d19",
+  "sha": "3943b61cd0e92ded"
+ },
+ "previews/place-conveyor--engine--oil-engine.mp4": {
+  "id": "ec1bbd64710c645035c7d0f0c3b84426",
+  "url": "/_blob/ec1bbd64710c645035c7d0f0c3b84426",
+  "sha": "91f81ab1db21a749"
+ },
+ "previews/place-conveyor--free--slap.mp4": {
+  "id": "4609bef1d27576a98678764394feac67",
+  "url": "/_blob/4609bef1d27576a98678764394feac67",
+  "sha": "dc5e5f5e7d22a6d4"
+ },
+ "previews/place-conveyor--jam--bunch.mp4": {
+  "id": "0df1461ee076f3e07a03544a47258f99",
+  "url": "/_blob/0df1461ee076f3e07a03544a47258f99",
+  "sha": "d2c1da6c84cfed75"
+ },
+ "previews/place-conveyor--labour--slip.mp4": {
+  "id": "d5a099220d24978792d3edbd31194f19",
+  "url": "/_blob/d5a099220d24978792d3edbd31194f19",
+  "sha": "247da74b8edc30e2"
+ },
+ "previews/place-conveyor--pour--head.mp4": {
+  "id": "a8a718adacd0aed97df117287514264a",
+  "url": "/_blob/a8a718adacd0aed97df117287514264a",
+  "sha": "8eb187c47e9af882"
+ },
+ "previews/place-conveyor--stall--dies.mp4": {
+  "id": "a13c48df0eb060c8b309b1d15c98f8a4",
+  "url": "/_blob/a13c48df0eb060c8b309b1d15c98f8a4",
+  "sha": "cbddf5eb17e4ff8f"
+ },
  "previews/place-crane--chain--links.mp4": {
   "id": "36abfde6939477e2f4834c56f230a004",
   "url": "/_blob/36abfde6939477e2f4834c56f230a004",
@@ -2883,6 +2948,26 @@
   "id": "db951c74e725cac3fdecdb838618bfd3",
   "url": "/_blob/db951c74e725cac3fdecdb838618bfd3",
   "sha": "cb1b7bb236c699e9"
+ },
+ "previews/place-winch--capstan--drum.mp4": {
+  "id": "e7abfc702fcc64a79bbbc97b3ce3470d",
+  "url": "/_blob/e7abfc702fcc64a79bbbc97b3ce3470d",
+  "sha": "47d011eadb15e4ad"
+ },
+ "previews/place-winch--drag--skids.mp4": {
+  "id": "d93f8352712dc608b4e496eeb54cdb11",
+  "url": "/_blob/d93f8352712dc608b4e496eeb54cdb11",
+  "sha": "85b94e3011716c9e"
+ },
+ "previews/place-winch--in--stop.mp4": {
+  "id": "93f42fd2e5f497160b378f57dbc98a5a",
+  "url": "/_blob/93f42fd2e5f497160b378f57dbc98a5a",
+  "sha": "68f133956b22037f"
+ },
+ "previews/place-winch--stall--snatch.mp4": {
+  "id": "641821944d3dfb393cf3cd4b267b1c9c",
+  "url": "/_blob/641821944d3dfb393cf3cd4b267b1c9c",
+  "sha": "afe253df75a4a823"
  },
  "previews/place-wreck--cargo-pull--drag.mp4": {
   "id": "5349f7b1800a00061a7f04b2a98e4347",
