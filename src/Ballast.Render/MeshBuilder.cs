@@ -155,7 +155,7 @@ public sealed class MeshBuilder
     /// <summary>
     /// The one practical light that casts shadows (a hand lamp near the eye, GDD §31: its shadows swing as it swings): lit
     /// like <see cref="PointLights"/> (not also in them), and shadowed through a cube map of its own round it, out to its
-    /// range. Unshadowed where the device can't draw the cube in one pass (<see cref="GreyboxRenderer.HandShadows"/>).
+    /// range.
     /// </summary>
     public PointLight? ShadowLight { get; set; }
 

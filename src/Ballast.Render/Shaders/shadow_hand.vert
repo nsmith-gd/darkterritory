@@ -1,7 +1,7 @@
 #version 450
 // The hand lamp's cube shadow (MeshBuilder.ShadowLight, GDD 31: a carried lamp's shadows swing as it swings): depth
-// only, from its flame, for everything the scene draws within its reach. Compiled with CUBE (and GL_EXT_multiview): the
-// six faces are six views of one pass, gl_ViewIndex the face and its layer (shadow.vert's twin).
+// only, from its flame, for everything the scene draws within its reach. A pass a face, each into its own layer; the
+// face is the draw's first instance (shadow.vert's twin).
 #include "frame.glsl"
 
 layout(push_constant) uniform Draw {
@@ -32,5 +32,5 @@ void main() {
 #ifdef SKINNED
     model = model * skinOf(draw.skin.w);
 #endif
-    gl_Position = frame.handViewProj[gl_ViewIndex] * model * vec4(inPos, 1.0);
+    gl_Position = frame.handViewProj[gl_InstanceIndex] * model * vec4(inPos, 1.0);
 }

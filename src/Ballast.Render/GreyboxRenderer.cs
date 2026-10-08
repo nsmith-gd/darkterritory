@@ -118,14 +118,16 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     readonly VkSampler _shadowSampler;
     readonly VkPipeline _shadowPipeline;
     bool _lampOn;
-    // The hand lamp's cube shadow (MeshBuilder.ShadowLight, GDD §31): six layers, one a face, drawn in one multiview pass
-    // where the device can draw six views at once (HandShadows); cleared, and the lamp unshadowed, where it can't.
+    // The hand lamp's cube shadow (MeshBuilder.ShadowLight, GDD §31): six layers, one a face, each drawn in a pass of its
+    // own with only what that face sees (one multiview pass drew everything near the lamp into all six, note 436).
     const int HandShadowSize = 512;
     // A little over 90 degrees a face, so the filter's taps at a face's edge stay on it.
     const float HandFaceDegrees = 96;
     // Its near plane: the lantern's own cage and cap, round the flame, cast nothing.
     const float HandNear = 0.1f;
     readonly Target _handShadow;
+    // Its layers one by one, each a face's depth attachment.
+    readonly VkImageView[] _handFaceViews = new VkImageView[6];
     readonly VkPipeline _handShadowPipeline, _handShadowSkinPipeline;
     PointLight? _hand;
     bool _handOn;
@@ -251,8 +253,20 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _ldr = CreateTarget(LdrFormat, width, height, VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Color, views);
         _shadow = CreateTarget(DepthFormat, ShadowSize, ShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
         _moonShadow = CreateTarget(DepthFormat, MoonShadowSize, MoonShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth);
-        HandShadows = gpu.MultiviewViews >= 6;
         _handShadow = CreateTarget(DepthFormat, HandShadowSize, HandShadowSize, VkImageUsageFlags.DepthStencilAttachment | VkImageUsageFlags.Sampled, VkImageAspectFlags.Depth, 6);
+        for (int face = 0; face < 6; face++)
+        {
+            var info = new VkImageViewCreateInfo
+            {
+                image = _handShadow.Image,
+                viewType = VkImageViewType.Image2D,
+                format = DepthFormat,
+                subresourceRange = new VkImageSubresourceRange(VkImageAspectFlags.Depth, 0, 1, (uint)face, 1),
+            };
+            VkImageView view;
+            Check(Api.vkCreateImageView(&info, null, &view), "vkCreateImageView");
+            _handFaceViews[face] = view;
+        }
         {
             var info = new VkSamplerCreateInfo
             {
@@ -332,11 +346,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _sceneSkinPipeline = Pipeline(_sceneLayout, "scene.vert", "scene.frag", SceneFormat, PipelineKind.Scene, depth: true, skinned: true);
         _shadowSkinPipeline = Pipeline(_sceneLayout, "shadow.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true, skinned: true);
         _moonShadowSkinPipeline = Pipeline(_sceneLayout, "shadow_moon.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true, skinned: true);
-        if (HandShadows)
-        {
-            _handShadowPipeline = Pipeline(_sceneLayout, "shadow_hand.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true, cube: true);
-            _handShadowSkinPipeline = Pipeline(_sceneLayout, "shadow_hand.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true, skinned: true, cube: true);
-        }
+        _handShadowPipeline = Pipeline(_sceneLayout, "shadow_hand.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true);
+        _handShadowSkinPipeline = Pipeline(_sceneLayout, "shadow_hand.vert", "shadow.frag", VkFormat.Undefined, PipelineKind.Shadow, depth: true, skinned: true);
         _fxAlphaPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAlpha, depth: true);
         _fxAddPipeline = Pipeline(_sceneLayout, "fx.vert", "fx.frag", SceneFormat, PipelineKind.FxAdditive, depth: true);
         _brightPipeline = Pipeline(_postLayout, "fullscreen.vert", "bright.frag", SceneFormat, PipelineKind.Fullscreen, depth: false);
@@ -381,12 +392,6 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <summary>How many views a frame draws: 1, or 2 for both of a headset's eyes in one pass (multiview).</summary>
     public int Views { get; }
-
-    /// <summary>
-    /// Whether <see cref="MeshBuilder.ShadowLight"/> casts shadows here: its cube's six faces are drawn in one multiview
-    /// pass, which needs a device that draws six views at once (<see cref="GpuContext.MultiviewViews"/>).
-    /// </summary>
-    public bool HandShadows { get; }
 
     /// <summary>
     /// The rendered frame. After <see cref="Record"/> it is in TransferSrcOptimal layout. With <see cref="Views"/> 2 it's
@@ -828,7 +833,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->LampViewProj = LampViewProjection(camera, lighting);
         _moonOn = lighting.MoonStrength > 0.01f && lighting.MoonDirection.Y > 0.05f && !Post.Ps2;
         f->MoonViewProj = MoonViewProjection(camera, lighting, (float)Width / Height);
-        _handOn = _hand is { Range: > 0.5f } && HandShadows;
+        _handOn = _hand is { Range: > 0.5f };
         if (_hand is { } hand)
             HandFaces(hand, _handFaces);
         // Sampling another's shadow maps: its views, exactly as it drew them.
@@ -1039,25 +1044,20 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Transition(cmd, _moonShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.DepthAttachmentOptimal, VkImageLayout.ShaderReadOnlyOptimal);
             Mark(cmd, 2);
 
-            // 0c: the hand lamp's cube, its six faces in one pass (each a view, into its own layer; culled to what any
-            // face sees, which is what's within its reach). Cleared to "nothing in the way" with no lamp.
+            // 0c: the hand lamp's cube, a pass a face (into its own layer, with only what that face sees within the lamp's
+            // reach; the face is each draw's first instance, shadow_hand.vert). Cleared to "nothing in the way" with no lamp.
             Transition(cmd, _handShadow.Image, VkImageAspectFlags.Depth, VkImageLayout.Undefined, VkImageLayout.DepthAttachmentOptimal);
+            for (int face = 0; face < 6; face++)
             {
                 var depthAttachment = new VkRenderingAttachmentInfo
                 {
-                    imageView = _handShadow.View,
+                    imageView = _handFaceViews[face],
                     imageLayout = VkImageLayout.DepthAttachmentOptimal,
                     loadOp = VkAttachmentLoadOp.Clear,
                     storeOp = VkAttachmentStoreOp.Store,
                     clearValue = new VkClearValue { depthStencil = new VkClearDepthStencilValue(1, 0) },
                 };
-                var rendering = new VkRenderingInfo
-                {
-                    renderArea = new VkRect2D(0, 0, HandShadowSize, HandShadowSize),
-                    layerCount = 6,
-                    viewMask = HandShadows ? ViewMask(6) : 0,
-                    pDepthAttachment = &depthAttachment,
-                };
+                var rendering = new VkRenderingInfo { renderArea = new VkRect2D(0, 0, HandShadowSize, HandShadowSize), layerCount = 1, pDepthAttachment = &depthAttachment };
                 Api.vkCmdBeginRendering(cmd, &rendering);
                 if (_handOn)
                 {
@@ -1068,7 +1068,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                     var set = _sceneSet;
                     Api.vkCmdBindDescriptorSets(cmd, VkPipelineBindPoint.Graphics, _sceneLayout, 0, 1, &set, 0, null);
                     Api.vkCmdBindPipeline(cmd, VkPipelineBindPoint.Graphics, _handShadowPipeline);
-                    handDrawn = DrawGeometry(cmd, _handShadowSkinPipeline, _handFaces, shadow: true, reach: _hand!.Value.Range);
+                    var drawn = DrawGeometry(cmd, _handShadowSkinPipeline, _handFaces.AsSpan(face, 1), shadow: true, reach: _hand!.Value.Range, face: (uint)face);
+                    handDrawn = (handDrawn.Triangles + drawn.Triangles, handDrawn.Draws + drawn.Draws);
                 }
                 Api.vkCmdEndRendering(cmd);
             }
@@ -1194,7 +1195,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <param name="views">The pass's views (one, or both eyes'): instances wholly outside all of them aren't drawn.</param>
     /// <param name="reach">A point light's reach (the hand lamp's cube): the land's cells aren't drawn, and the skinned pieces
     /// are culled too, loosely (0: neither).</param>
-    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views, bool shadow = false, float reach = 0)
+    /// <param name="face">Each draw's first instance: which of the hand lamp's cube faces it's for (shadow_hand.vert).</param>
+    (int Triangles, int Draws) DrawGeometry(VkCommandBuffer cmd, VkPipeline skinned, ReadOnlySpan<Matrix4x4> views, bool shadow = false, float reach = 0, uint face = 0)
     {
         Span<Vector4> planes = stackalloc Vector4[6 * views.Length];
         for (int v = 0; v < views.Length; v++)
@@ -1207,7 +1209,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var vb = _vertices;
             ulong offset = 0;
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
-            Api.vkCmdDraw(cmd, (uint)_vertexCount, 1, 0, 0);
+            Api.vkCmdDraw(cmd, (uint)_vertexCount, 1, 0, face);
         }
         foreach (var (mesh, draw, sphere, shadowless) in _draws)
         {
@@ -1224,7 +1226,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var vb = mesh.Buffer;
             ulong offset = 0;
             Api.vkCmdBindVertexBuffers(cmd, 0, 1, &vb, &offset);
-            Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, 0);
+            Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, face);
             triangles += mesh.Count / 3;
             draws++;
         }
@@ -1240,7 +1242,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);
             (buffers[0], buffers[1]) = (mesh.Buffer, mesh.Skin);
             Api.vkCmdBindVertexBuffers(cmd, 0, 2, buffers, offsets);
-            Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, 0);
+            Api.vkCmdDraw(cmd, (uint)mesh.Count, 1, 0, face);
             triangles += mesh.Count / 3;
             draws++;
         }
@@ -1513,13 +1515,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
 
     /// <param name="skinned">A scene or shadow pipeline's GPU-skinning twin: SKINNED defined in its vertex shader, and the
     /// bones and weights as a second vertex stream (skin.glsl).</param>
-    VkPipeline Pipeline(VkPipelineLayout layout, string vertName, string fragName, VkFormat colorFormat, PipelineKind kind, bool depth, bool skinned = false, bool cube = false)
+    VkPipeline Pipeline(VkPipelineLayout layout, string vertName, string fragName, VkFormat colorFormat, PipelineKind kind, bool depth, bool skinned = false)
     {
         // Everything but the shadow maps (the body's, drawn once) draws each eye's view, both at once with multiview.
         bool multiview = Views > 1 && kind != PipelineKind.Shadow;
         string? mv = multiview ? "MULTIVIEW" : null;
-        // (The hand lamp's cube: its six faces as six views, gl_ViewIndex the face: shadow_hand.vert.)
-        var vert = CreateShader(vertName, ShaderKind.VertexShader, skinned ? "SKINNED" : null, cube ? "CUBE" : mv);
+        var vert = CreateShader(vertName, ShaderKind.VertexShader, skinned ? "SKINNED" : null, mv);
         var frag = CreateShader(fragName, ShaderKind.FragmentShader, view: mv);
         var entry = "main\0"u8;
         fixed (byte* pEntry = entry)
@@ -1629,7 +1630,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var dynamic = new VkPipelineDynamicStateCreateInfo { dynamicStateCount = 2, pDynamicStates = dynamicStates };
             var renderingInfo = new VkPipelineRenderingCreateInfo
             {
-                viewMask = cube ? ViewMask(6) : multiview ? ViewMask(Views) : 0,
+                viewMask = multiview ? ViewMask(Views) : 0,
                 colorAttachmentCount = kind == PipelineKind.Shadow ? 0u : 1u,
                 pColorAttachmentFormats = kind == PipelineKind.Shadow ? null : &colorFormat,
                 depthAttachmentFormat = depth ? DepthFormat : VkFormat.Undefined,
@@ -1728,11 +1729,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         foreach (var p in new[] { _shadowPipeline, _fxAlphaPipeline, _fxAddPipeline, _skyPipeline, _scenePipeline, _brightPipeline, _blurPipeline, _compositePipeline, _overlayPipeline, _fxaaPipeline, _aoPipeline, _moonShadowPipeline,
             _sceneSkinPipeline, _shadowSkinPipeline, _moonShadowSkinPipeline })
             Api.vkDestroyPipeline(p, null);
-        if (HandShadows)
-        {
-            Api.vkDestroyPipeline(_handShadowPipeline, null);
-            Api.vkDestroyPipeline(_handShadowSkinPipeline, null);
-        }
+        Api.vkDestroyPipeline(_handShadowPipeline, null);
+        Api.vkDestroyPipeline(_handShadowSkinPipeline, null);
+        foreach (var view in _handFaceViews)
+            Api.vkDestroyImageView(view, null);
         foreach (var l in new[] { _sceneLayout, _postLayout, _compositeLayout, _overlayLayout })
             Api.vkDestroyPipelineLayout(l, null);
         Api.vkDestroyDescriptorPool(_pool, null);

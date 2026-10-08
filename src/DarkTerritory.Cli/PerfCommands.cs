@@ -106,8 +106,8 @@ static class PerfCommands
                             submitted += clock.Elapsed.TotalMilliseconds - inRecord;
                             recorded += inRecord;
                             stats = r.Stats;
-                            // A multiview pass's triangles go through the GPU once an eye (the hand lamp's cube: once a face).
-                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles + stats.HandTriangles * 6;
+                            // A multiview pass's triangles go through the GPU once an eye.
+                            triangles += stats.Triangles * stats.Views + stats.LampTriangles + stats.MoonTriangles + stats.HandTriangles;
                             draws += stats.Draws + stats.LampDraws + stats.MoonDraws + stats.HandDraws;
                             maxDraws = Math.Max(maxDraws, Math.Max(Math.Max(stats.Draws, stats.HandDraws), Math.Max(stats.LampDraws, stats.MoonDraws)));
                             if (f >= 0)

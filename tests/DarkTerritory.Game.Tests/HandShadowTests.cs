@@ -8,7 +8,6 @@ namespace DarkTerritory.Game.Tests;
 /// The hand lamp's shadows (MeshBuilder.ShadowLight, ARCHITECTURE §8 note 436; GDD §31): a lamp hung half a metre over a
 /// floor, posts round it and a plate under it, seen from above. What's behind a post or under the plate is dark with the
 /// lamp shadowed and lit with it plain; the open floor is lit alike either way (no acne: the cube's faces meet cleanly).
-/// Lavapipe draws six views a pass, so this runs in CI; a device that can't skips.
 /// </summary>
 public class HandShadowTests
 {
@@ -65,8 +64,6 @@ public class HandShadowTests
     {
         using var gpu = Gpu();
         using var renderer = new GreyboxRenderer(gpu, W, H, moonShadowSize: 1024);
-        if (!renderer.HandShadows)
-            Assert.Skip($"{gpu.DeviceName} can't draw six views a pass");
         var light = Dark();
         var shadowed = renderer.Render(Scene(true, true), Above, light, light.FogColor);
         Assert.True(renderer.Stats.HandDraws > 0, "the hand lamp's cube wasn't drawn");
@@ -96,8 +93,6 @@ public class HandShadowTests
     {
         using var gpu = Gpu();
         using var renderer = new GreyboxRenderer(gpu, W, H, moonShadowSize: 1024);
-        if (!renderer.HandShadows)
-            Assert.Skip($"{gpu.DeviceName} can't draw six views a pass");
         var light = Dark();
         var shadowed = renderer.Render(Scene(false, true), Above, light, light.FogColor);
         var plain = renderer.Render(Scene(false, false), Above, light, light.FogColor);

@@ -64,8 +64,8 @@ public class PerfBudgetTests
                         {
                             eye.Render(mesh, camera, light, light.FogColor);
                             var s = eye.Stats;
-                            // (The hand lamp's cube draws what it draws once a face.)
-                            triangles += s.Triangles + s.LampTriangles + s.MoonTriangles + s.HandTriangles * 6;
+                            // (The hand lamp's cube: what each of its faces drew.)
+                            triangles += s.Triangles + s.LampTriangles + s.MoonTriangles + s.HandTriangles;
                             draws = Math.Max(draws, Math.Max(Math.Max(s.Draws, s.HandDraws), Math.Max(s.LampDraws, s.MoonDraws)));
                         }
                         string with = lamp ? " with a hand lamp" : "";

@@ -43,10 +43,6 @@ public sealed unsafe class GpuContext : IDisposable
     /// </summary>
     public bool Multiview { get; private set; }
 
-    /// <summary>How many views one multiview pass can draw (0 without multiview): six draws a hand lamp's cube shadow in one
-    /// pass (<see cref="GreyboxRenderer.HandShadows"/>).</summary>
-    public int MultiviewViews { get; private set; }
-
     /// <summary>Nanoseconds per GPU timestamp tick, or 0 when the graphics queue can't time its work.</summary>
     public double TimestampPeriod { get; private set; }
 
@@ -118,7 +114,6 @@ public sealed unsafe class GpuContext : IDisposable
         var props2 = new VkPhysicalDeviceProperties2 { pNext = &multiviewProps };
         InstanceApi.vkGetPhysicalDeviceProperties2(PhysicalDevice, &props2);
         Multiview = has11.multiview && multiviewProps.maxMultiviewViewCount >= 2;
-        MultiviewViews = Multiview ? (int)multiviewProps.maxMultiviewViewCount : 0;
         var features11 = new VkPhysicalDeviceVulkan11Features { multiview = Multiview };
         var features13 = new VkPhysicalDeviceVulkan13Features { pNext = &features11, dynamicRendering = true, synchronization2 = true };
         // Anisotropic filtering where the device has it (every desktop GPU, and lavapipe): textures stay sharp at a

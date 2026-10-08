@@ -1790,7 +1790,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         triangles = renderer.Stats.Triangles,
         draws = renderer.Stats.Draws,
         lights = renderer.Stats.Lights,
-        // The hand lamp's cube (note 436): what it drew, once a face.
+        // The hand lamp's cube (note 436): what its six faces drew.
         handTriangles = renderer.Stats.HandTriangles,
         buildMs = Math.Round(buildMs, 2),
         width = width * scale,
