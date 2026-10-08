@@ -335,11 +335,13 @@ public sealed class GreyboxScene
                         Winch(mesh, site, eye);
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
-                        || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor))
+                        || site.Has(Sim.Run.ModuleKind.Lift) || site.Has(Sim.Run.ModuleKind.Conveyor) || site.Has(Sim.Run.ModuleKind.Tipple))
                         && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
-                        // The art pass's models where it has them (#135); the conveyor line (note 400) is the greybox's either way.
+                        // The art pass's models where it has them (#135); the conveyor line its own (note 430); the tipple (note 423)
+                        // is the greybox's either way.
                         SetPieces(mesh, site, frames, eye, Time, artDrawn: Look?.Art.SetPieces(mesh, site, frames, eye, Time) == true,
-                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true);
+                            conveyorDrawn: site.Has(Sim.Run.ModuleKind.Conveyor) && Look?.Art.Conveyor(mesh, site, eye, Time) == true,
+                            tipple: Run.FacilityTuning?.Tipple);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).
                     if (site is { Heaps.Count: > 0 } && (site.Heaps[0].Centre - eye).Length < DrawDistance + 120
@@ -371,7 +373,7 @@ public sealed class GreyboxScene
                 HouseDoors(mesh, line, Route, doored, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
-                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth);
+                Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);
             // A Holdout's lamp (App. D.7): lit while it's occupied, seen from the approach board; a world light, not a car's.
             if (Holdouts is not null)
                 foreach (var h in Holdouts.All)
@@ -2705,8 +2707,9 @@ public sealed class GreyboxScene
     /// </summary>
     /// <param name="artDrawn">The art pass drew the site's modelled set pieces (#135): only what it doesn't model here.</param>
     /// <param name="conveyorDrawn">The art pass drew the conveyor line (note 430).</param>
+    /// <param name="tipple">The tipple's tuning (note 423): how far over its cradle turns at the top of the roll.</param>
     static void SetPieces(MeshBuilder mesh, Sim.Run.Site site, IReadOnlyList<CarFrame> frames, Double3 eye, double time, bool artDrawn = false,
-        bool conveyorDrawn = false)
+        bool conveyorDrawn = false, Sim.Run.TippleTuning? tipple = null)
     {
         static (Vector3 Along, Vector3 Across) Axes(Double3 from, Double3 to)
         {
@@ -2860,6 +2863,70 @@ public sealed class GreyboxScene
                     var p = head - Double3.Up * (0.4 + fall) + a * (0.15 * Math.Sin(i * 2.3)) + x * (0.15 * Math.Cos(i * 1.7));
                     mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.12f, 0.2f, 0.12f), grain * (i % 2 == 0 ? 1f : 0.8f));
                 }
+        }
+        if (site.Has(Sim.Run.ModuleKind.Tipple))
+        {
+            // The mine head's tipple (note 423): the cradle's two hoops round the track a car's length apart on their rollers,
+            // turning with the car clamped in them (TippleTilt rolls the car itself), the clamp beam down on its roof once it's
+            // clamped and the side platen it's rolled against; the ore bin up on its legs out on the site's side with its chute
+            // reaching over where the car's open top comes round to, ore in it as much as is left and falling at the top of a
+            // roll; the lever on its post, over while it's worked.
+            var c = site.Cradle;
+            var (along, across) = Axes(c, site.TippleBin);
+            var a = ToD(along);
+            var x = ToD(across);
+            var axis = c + Double3.Up * TippleTilt.AxisHeight;
+            double turned = tipple is { } tp && site.Clamped >= 0 ? site.Roll * tp.RollDegrees * Math.PI / 180 : 0;
+            // Up and toward the bin, turned about the axis as the car is (its top comes round to the bin).
+            var up = Double3.Up * Math.Cos(turned) + x * Math.Sin(turned);
+            var toBin = x * Math.Cos(turned) - Double3.Up * Math.Sin(turned);
+            const double Radius = 2.9, Half = 7.6;
+            var ore = Palette.Charcoal;
+            foreach (int end in new[] { -1, 1 })
+            {
+                var hub = axis + a * (end * Half);
+                for (int i = 0; i < 20; i++)
+                {
+                    double t0 = i * Math.Tau / 20, t1 = (i + 1) * Math.Tau / 20;
+                    Rod(hub + (up * Math.Cos(t0) + toBin * Math.Sin(t0)) * Radius, hub + (up * Math.Cos(t1) + toBin * Math.Sin(t1)) * Radius, 0.16f,
+                        i % 5 == 0 ? Palette.RustRed : Palette.IronGrey * 0.8f);
+                }
+                // Its rollers under it either side, and their bed.
+                foreach (int j in new[] { -1, 1 })
+                    mesh.Box(V(c + a * (end * Half) + x * (j * 1.7) + Double3.Up * 0.3, eye), along, Vector3.UnitY, across, new Vector3(0.35f, 0.3f, 0.3f), Palette.SootBlack * 1.3f);
+                mesh.Box(V(c + a * (end * Half) - Double3.Up * 0.05, eye), along, Vector3.UnitY, across, new Vector3(0.6f, 0.1f, 2.4f), Palette.DeepBrown);
+            }
+            // The clamp beam over the car's roof (down on it once clamped, up clear of it otherwise) and the side platen it's
+            // rolled against, both turning with the hoops.
+            double clamp = site.Clamped >= 0 ? 1.65 : 2.5;
+            Rod(axis + up * clamp - a * Half, axis + up * clamp + a * Half, 0.18f, Palette.HazardYellow * 0.8f);
+            Rod(axis + toBin * 1.75 - a * Half, axis + toBin * 1.75 + a * Half, 0.16f, Palette.IronGrey);
+            // The bin on its four legs, the ore in it, its chute down toward the cradle.
+            var bin = site.TippleBin;
+            foreach (int i in new[] { -1, 1 })
+                foreach (int j in new[] { -1, 1 })
+                    Rod(bin + a * (i * 1.6) + x * (j * 1.3) - Double3.Up * 1.2, (bin + a * (i * 1.6) + x * (j * 1.3)) with { Y = c.Y }, 0.12f, Palette.DeepBrown);
+            mesh.Box(V(bin, eye), along, Vector3.UnitY, across, new Vector3(1.9f, 1.2f, 1.6f), Palette.RustRed * 0.85f);
+            if (tipple is { Ore: > 0 } full && site.TippleOre > 0)
+            {
+                float fill = (float)Math.Clamp(site.TippleOre / full.Ore, 0, 1);
+                mesh.Box(V(bin + Double3.Up * (1.2 + 0.25 * fill), eye), along, Vector3.UnitY, across, new Vector3(1.7f, 0.25f * fill + 0.02f, 1.4f), ore);
+            }
+            var mouth = c + x * 3.1 + Double3.Up * (TippleTilt.AxisHeight + 1.4);
+            Rod(bin - Double3.Up * 0.9 - x * 1.2, mouth, 0.45f, Palette.IronGrey * 0.9f);
+            // Ore coming down the chute at the top of the roll, into the car's open top come round under it.
+            if (site.Clamped >= 0 && site.RollingBack && site.Roll > 0.75)
+                for (int i = 0; i < 16; i++)
+                {
+                    double fall = (time * 5 + i * 0.29) % 1.6;
+                    var p = mouth - x * (0.5 + fall * 0.4) - Double3.Up * fall + a * (0.5 * Math.Sin(i * 2.3));
+                    mesh.Box(V(p, eye), along, Vector3.UnitY, across, new Vector3(0.18f, 0.16f, 0.18f), i % 2 == 0 ? ore : Palette.IronGrey * 0.7f);
+                }
+            // The lever on its post: over while the cradle's clamped or turning.
+            var lever = site.TippleLever;
+            Rod(lever with { Y = c.Y }, lever, 0.07f, Palette.IronGrey);
+            double pulled = site.Clamped >= 0 ? 0.9 : site.Clamp > 0 ? 0.5 : 0;
+            Rod(lever, lever + Double3.Up * (0.55 * Math.Cos(pulled)) + x * (0.55 * Math.Sin(pulled)), 0.04f, Palette.HazardYellow);
         }
         if (!artDrawn && site.Has(Sim.Run.ModuleKind.Ramp))
         {

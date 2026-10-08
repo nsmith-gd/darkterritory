@@ -2864,6 +2864,27 @@
   "takes": 3,
   "sha": "d93dced829c8d138"
  },
+ "crew-extinguisher/cell-out": {
+  "cue": "crew-extinguisher.cell-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A patch of the fire put out: the flames collapsing with a soft whump and a hissing gasp of steam, an ember ticking",
+    "key": "gasp",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0dc3a14f3266dfa7"
+ },
  "crew-extinguisher/drop/concrete": {
   "cue": "crew-extinguisher.drop",
   "surface": "concrete",
@@ -2945,7 +2966,7 @@
    }
   ],
   "takes": 3,
-  "sha": "d12df2f7b54b43e4"
+  "sha": "b50e5b00eab8d29f"
  },
  "crew-extinguisher/drop/wood": {
   "cue": "crew-extinguisher.drop",
@@ -3017,6 +3038,27 @@
   "takes": 3,
   "sha": "ee4e17db8579ddfa"
  },
+ "crew-extinguisher/fire-out": {
+  "cue": "crew-extinguisher.fire-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fire out: a long sigh of steam off the boards, water dripping off the char, the boards ticking as they cool",
+    "key": "cooling",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "cd17ae235390f977"
+ },
  "crew-extinguisher/grab-mount": {
   "cue": "crew-extinguisher.grab-mount",
   "surface": null,
@@ -3038,6 +3080,21 @@
   ],
   "takes": 3,
   "sha": "8b6f61090b412b51"
+ },
+ "crew-extinguisher/on-fire": {
+  "cue": "crew-extinguisher.on-fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The jet on the flames: the water flashing to steam, a sizzle and a rush of hiss, the fire's roar beaten down",
+    "key": "steam",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "57d1ab1556365c47"
  },
  "crew-extinguisher/return-mount": {
   "cue": "crew-extinguisher.return-mount",
@@ -10717,6 +10774,234 @@
   "takes": 2,
   "sha": "e17f22e2aab38eca"
  },
+ "place-conveyor/belt": {
+  "cue": "place-conveyor.belt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The belt running: its idlers rumbling under the load, a dry bearing squeaking, the splice ticking over, grain shifting",
+    "key": "idlers",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "910c11e10fc5473e"
+ },
+ "place-conveyor/catch": {
+  "cue": "place-conveyor.catch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The engine catching: a hard first pop, the starter thrown out, the pops quickening, the clutch in and the belt taking up",
+    "key": "fires",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3b75bc79352de12a"
+ },
+ "place-conveyor/clearing": {
+  "cue": "place-conveyor.clearing",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Clearing the jam by hand: grain dug out and flung down, the bunched belt hauled at, the idler frame knocked",
+    "key": "hands",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2adb522859d55acf"
+ },
+ "place-conveyor/cranking": {
+  "cue": "place-conveyor.cranking",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The starter held: its motor whining against the engine's compression, slowing on each, the pinion grinding",
+    "key": "starter",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0f0acc930dab0a97"
+ },
+ "place-conveyor/engine": {
+  "cue": "place-conveyor.engine",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The belt's drive running: a big single-cylinder oil engine's slow pop-pop out of its stack, the flywheel swinging",
+    "key": "oil-engine",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8aa85e90b7515590"
+ },
+ "place-conveyor/free": {
+  "cue": "place-conveyor.free",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The jam cleared: the belt jerking free with a slap, running on, the grain sliding off the heap",
+    "key": "slap",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d78d7711b6660d28"
+ },
+ "place-conveyor/jam": {
+  "cue": "place-conveyor.jam",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The belt jamming: grain heaping, the belt bunching and riding up onto the stringer with a bang, rubber dragged on steel",
+    "key": "bunch",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_medium_000",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "kenney_impact-sounds:impactPlate_medium_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "f6da131129997f15"
+ },
+ "place-conveyor/labour": {
+  "cue": "place-conveyor.labour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jammed: the belt slipping on the drive drum, squealing and juddering, the engine bogged down and labouring",
+    "key": "slip",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "8ee91dfc1ebc0aa5"
+ },
+ "place-conveyor/pour": {
+  "cue": "place-conveyor.pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Grain off the belt's head: a steady stream down the short chute, drumming into the car, the head pulley rumbling",
+    "key": "head",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "c4f804ef36a5d204"
+ },
+ "place-conveyor/stall": {
+  "cue": "place-conveyor.stall",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The drive stalling: the engine dragged down by the jammed belt, its pops slower and weaker, a last cough, the flywheel coasting",
+    "key": "dies",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c8e9e62399cba432"
+ },
  "place-crane/chain": {
   "cue": "place-crane.chain",
   "surface": null,
@@ -11705,6 +11990,103 @@
   ],
   "takes": 3,
   "sha": "f400ded8c1209711"
+ },
+ "place-winch/capstan": {
+  "cue": "place-winch.capstan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The capstan turning: the pawl clicking over its ratchet, the cranks creaking once a turn, the rope winding on",
+    "key": "drum",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "fe7fbbacb75b0270"
+ },
+ "place-winch/drag": {
+  "cue": "place-winch.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The sled hauled in: its skids grinding over the gravel in heaves, stones crunching, the load rattling, the rope taut",
+    "key": "skids",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7a27bd97ffca6845"
+ },
+ "place-winch/in": {
+  "cue": "place-winch.in",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sled hauled in: its nose bumping the stop timber, the load settling with a shift, the rope going slack",
+    "key": "stop",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7edbb72272d8aeae"
+ },
+ "place-winch/stall": {
+  "cue": "place-winch.stall",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Out of rhythm: the drum snatched to a stop, the pawl catching hard, the rope twanging, a crank jarring",
+    "key": "snatch",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cbb674e2d1e1b898"
  },
  "place-wreck/cargo-pull": {
   "cue": "place-wreck.cargo-pull",
