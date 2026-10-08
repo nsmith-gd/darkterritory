@@ -67,6 +67,10 @@ public sealed partial class GameAudio
         _castings.Clear();
         _beltStarted.Clear();
         _jamWas.Clear();
+        _tippleRolled.Clear();
+        _tippleRerailed.Clear();
+        _tippleOffAt.Clear();
+        _tippleCar.Clear();
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
@@ -510,9 +514,9 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain) and conveyor line
-    /// (place-conveyor, note 466), the cranes (place-crane), the wreck yard's winch and its wrecks (place-wreck), the
-    /// slaughterhouse and the chemical works near their buildings, the dead towns (place-villages), and the mine underground
-    /// (place-mine).
+    /// (place-conveyor, note 466), the mine head's tipple (place-tipple, note 480), the cranes (place-crane), the wreck yard's
+    /// winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their buildings, the dead towns
+    /// (place-villages), and the mine underground (place-mine).
     /// </summary>
     void PlaceWorks(World world, Run? run, TrainOnLine train, Places places, Double3 ear, bool underground, double dt, bool primed)
     {
@@ -571,6 +575,8 @@ public sealed partial class GameAudio
                 PlaceSite(site, train, ear, dt, primed);
                 if (site.Has(ModuleKind.Conveyor))
                     ConveyorSounds(site, run.FacilityTuning?.Conveyor, ear, outside, primed);
+                if (site.Has(ModuleKind.Tipple))
+                    TippleSounds(site, train, ear, outside, primed);
             }
             if (underground)
             {

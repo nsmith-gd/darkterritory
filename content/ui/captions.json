@@ -76,6 +76,10 @@
     "place-conveyor.catch": "AN ENGINE STARTING",
     "place-conveyor.jam": "A BELT JAMMING",
     "place-conveyor.labour": "A BELT SQUEALING, AN ENGINE LABOURING",
-    "place-conveyor.stall": "AN ENGINE DYING"
+    "place-conveyor.stall": "AN ENGINE DYING",
+    // The tipple (note 480): a car coming off its rails in the cradle holds the train till it's put back; a reader's told it
+    // happened and that it's back on, as a hearing player is.
+    "place-tipple.derail": "A CAR CRASHING OFF ITS RAILS",
+    "place-tipple.rerailed": "WHEELS DROPPING BACK ONTO THE RAILS"
   }
 }
