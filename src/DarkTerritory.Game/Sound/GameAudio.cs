@@ -217,9 +217,20 @@ public sealed partial class GameAudio
     /// </summary>
     static readonly WallsTuning DefaultWalls = new();
 
+    // The voices of a house's door (its shutting and opening, the Choir beating on it): heard at the doorway, so no building's
+    // walls are between them and anyone (note 409); let go of as they finish.
+    readonly HashSet<SoundInstance> _atADoor = [];
+
+    void AtADoor(SoundInstance? door)
+    {
+        if (door is not null)
+            _atADoor.Add(door);
+    }
+
     void HearWalls(World world)
     {
         _walls?.Refresh();
+        _atADoor.RemoveWhere(v => v.Finished);
         var tuning = _walls?.Value ?? DefaultWalls;
         var ear = Mixer.Listener.Position;
         var room = _earRoom;
@@ -236,8 +247,9 @@ public sealed partial class GameAudio
             if (room is { } r && !r.Holds(v.Position))
                 walls = Math.Max(walls, (float)(r.Shed ? tuning.ShedWall : tuning.RoomWall));
             // And what's in one the ear isn't in comes out through its walls (note 428): a crewmate going through a house's
-            // cupboard heard from the street, boots in a shed from the yard. Not the train's bed: the train's never in one.
-            if (v.Def.Tier != 5)
+            // cupboard heard from the street, boots in a shed from the yard. Not the train's bed: the train's never in one;
+            // nor a house's door, which is the house and the street both (note 409), from whichever way along the street.
+            if (v.Def.Tier != 5 && !_atADoor.Contains(v))
                 foreach (var other in _roomsNear)
                     if (!ReferenceEquals(other.Building, room?.Building) && other.ShutsIn(v.Position, ear, tuning.RoomEdge))
                     {

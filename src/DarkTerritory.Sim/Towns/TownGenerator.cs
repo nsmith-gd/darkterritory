@@ -119,7 +119,7 @@ public static partial class TownGenerator
         Fix("stall", "a market stall", wares.Length > 1 ? wares.First(x => x != fixtures[^1].Text) : "", s1 - 2.2, side * (front - 4), -1, 0);
 
         // The houses down the yard's street, and the households in the open ones (TownGenerator.Houses).
-        // Who the people are and what they're called (note 453), when the content has the townsfolk's matrix.
+        // Who the people are and what they're called (note 470), when the content has the townsfolk's matrix.
         var folk = content.Folk is { } fc ? new TownFolk(fc, w, site, culture.Id, seed) : null;
         var homes = Houses(content, site, square, population, former, Rng, folk);
 
@@ -227,7 +227,7 @@ public static partial class TownGenerator
                 people.Add((role, NewName(family), spot, null));
                 continue;
             }
-            // Who they are, then what they're called by it (note 453). A lamp-carrier on the street is "street" to the
+            // Who they are, then what they're called by it (note 470). A lamp-carrier on the street is "street" to the
             // matrix (their role's a passer-by's).
             string? absent = spot.House >= 0 && homes.Vars(spot.House) is { } hv && hv.TryGetValue("{absent}", out var lost) ? lost : null;
             var mind = folk.Person(people.Count, spot.Street ? "street" : role, spot.Part, spot.House, family, absent, names);
@@ -280,7 +280,7 @@ public static partial class TownGenerator
             var lines = new List<string>();
             int first = 1;
             int want = lrng.RangeInclusive(t.LinesPerPerson[0], t.LinesPerPerson[1]);
-            // How much they'll tell (note 453): somebody close keeps the custom to themselves (its keeper never does) and
+            // How much they'll tell (note 470): somebody close keeps the custom to themselves (its keeper never does) and
             // says as little as anyone; somebody open says as much as anyone.
             var mind = people[i].Mind;
             bool close = mind is not null && mind.Traits.Telling < folk!.Tuning.Telling.Close && role != "keeper";
@@ -306,7 +306,7 @@ public static partial class TownGenerator
                     if (line is not null)
                         lines.Add(line);
             }
-            // How they carry it (their temperament's line, note 453): the second thing they say, after a household's story
+            // How they carry it (their temperament's line, note 470): the second thing they say, after a household's story
             // or the gate's law.
             if (mind is not null && TemperDeck(mind.Temperament)?.Next() is { } temper)
                 lines.Insert(Math.Min(lines.Count, first), temper);

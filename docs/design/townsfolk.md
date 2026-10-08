@@ -1,6 +1,6 @@
 # The townsfolk: who they are and what they're called
 
-The personality matrix for the fortress towns' people (GDD §3.1; ARCHITECTURE §8 note 453). The numbers are
+The personality matrix for the fortress towns' people (GDD §3.1; ARCHITECTURE §8 note 470). The numbers are
 `content/tuning/townsfolk.json`, the words `content/world/townsfolk.json`, the code `Sim/Towns/TownFolk.cs`.
 `dt town` shows each person's traits, temperament, people and generation; `dt town sweep` shows each custom's mean
 traits, its temperaments' shares and how many have a byname.

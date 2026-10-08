@@ -3,7 +3,7 @@ using DarkTerritory.Sim.Towns;
 
 namespace DarkTerritory.Sim.Tests;
 
-/// <summary>The townsfolk's personality matrix and their names (ARCHITECTURE §8 note 453; tuning and world townsfolk.json).</summary>
+/// <summary>The townsfolk's personality matrix and their names (ARCHITECTURE §8 note 470; tuning and world townsfolk.json).</summary>
 public class TownFolkTests
 {
     static readonly string Content = DataFile.FindContentRoot();

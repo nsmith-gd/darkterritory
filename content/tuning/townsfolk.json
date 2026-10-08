@@ -1,4 +1,4 @@
-// The townsfolk's personality matrix (GDD §3.1; ARCHITECTURE §8 note 453; docs/design/townsfolk.md). The words (the
+// The townsfolk's personality matrix (GDD §3.1; ARCHITECTURE §8 note 470; docs/design/townsfolk.md). The words (the
 // temperaments' lines, the heritages' names, the bynames) are content/world/townsfolk.json; this file is the numbers,
 // read by Sim/Towns/TownFolk. Nothing here is in the systems spec: every number is a first reading, made so a sweep
 // (`dt town sweep`) shows each custom with its own lean and every temperament in it.

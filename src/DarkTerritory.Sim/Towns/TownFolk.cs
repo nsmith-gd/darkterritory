@@ -4,7 +4,7 @@ using DarkTerritory.Sim.LineGen;
 namespace DarkTerritory.Sim.Towns;
 
 /// <summary>
-/// Somebody's six traits (tuning/townsfolk.json; ARCHITECTURE §8 note 453), each from −1 to 1: how hard they keep the
+/// Somebody's six traits (tuning/townsfolk.json; ARCHITECTURE §8 note 470), each from −1 to 1: how hard they keep the
 /// custom, how much of it they'll tell, their nerve, how raw their grief is, how warm they are to those from away, and
 /// how much they try to make the world tolerable.
 /// </summary>
@@ -60,7 +60,7 @@ public readonly record struct TownTraits(double Keeping, double Telling, double 
 }
 
 /// <summary>
-/// Who a townsperson is (note 453): their traits, the temperament those make them (and how strongly: its score), the
+/// Who a townsperson is (note 470): their traits, the temperament those make them (and how strongly: its score), the
 /// people they come from, their given name and surname, the byname the town knows them by ("Holy Annie"; empty for
 /// none), and whether they were born before the fall ("elder", "adult") or inside the walls ("after").
 /// </summary>
@@ -71,7 +71,7 @@ public sealed record TownPersonality(TownTraits Traits, string Temperament, doub
     public string Name => Byname.Length > 0 ? $"{Byname} {Surname}" : $"{Given} {Surname}";
 }
 
-/// <summary>Mirror of content/tuning/townsfolk.json (note 453). Field docs live in that file.</summary>
+/// <summary>Mirror of content/tuning/townsfolk.json (note 470). Field docs live in that file.</summary>
 public sealed record TownFolkTuning
 {
     public const string File = "tuning/townsfolk.json";
@@ -111,7 +111,7 @@ public sealed record FolkNaming
     public double Patronymic { get; init; }
 }
 
-/// <summary>Mirror of content/world/townsfolk.json (note 453): the heritages' names and the temperaments' words.</summary>
+/// <summary>Mirror of content/world/townsfolk.json (note 470): the heritages' names and the temperaments' words.</summary>
 public sealed record TownFolkWriting
 {
     public const string File = "world/townsfolk.json";
@@ -164,7 +164,7 @@ public sealed record TownFolkContent(TownFolkTuning Tuning, TownFolkWriting Writ
 }
 
 /// <summary>
-/// One town's people as persons (GDD §3.1; ARCHITECTURE §8 note 453): who each is, from the town's custom, its mood, their
+/// One town's people as persons (GDD §3.1; ARCHITECTURE §8 note 470): who each is, from the town's custom, its mood, their
 /// household's, their job or part in the house and their own draw (the personality matrix, tuning/townsfolk.json); and
 /// what they're called, from the town's mix of the province's peoples, when they were born, and who they are (a zealous
 /// house's daughter is Patience; the widow who talks to her husband at the window is Black Flora). Every draw is on its

@@ -136,6 +136,8 @@ public sealed class CreatureArt
 
     /// <summary>How long one of the Choir's ghosts is seen going when the swarm's driven off (GreyboxScene.Leaving).</summary>
     public const double ChoirLeaveSeconds = 3.0;
+    /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
+    public const double HoundRunOffSeconds = 4.0;
 
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
@@ -1103,6 +1105,22 @@ public sealed class CreatureArt
         return m;
     }
 
+    /// <summary>
+    /// A creature drawn on its clip with its head turned over it (note 455: a sheep looking round at whoever's come in):
+    /// <paramref name="yaw"/> (radians, left positive) shared down the neck and head, the head tipped up by
+    /// <paramref name="pitch"/>. For four-legged models with a neck_01, neck_02, head chain (sheep.py).
+    /// </summary>
+    public bool DrawTurned(MeshBuilder mesh, string name, string clip, double time, bool loop, in Matrix4x4 at, float yaw, float pitch, int seed = 0) =>
+        Draw(mesh, name, clip, time, loop, at, m =>
+        {
+            if (MathF.Abs(yaw) + MathF.Abs(pitch) < 1e-3f)
+                return;
+            Bend(m, "head", Matrix4x4.CreateRotationX(pitch));
+            Bend(m, "neck_01", Matrix4x4.CreateRotationY(yaw * 0.4f));
+            Bend(m, "neck_02", Matrix4x4.CreateRotationY(yaw * 0.25f));
+            Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
+        }, seed: seed);
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1380,6 +1398,8 @@ public sealed class CreatureArt
                         SpinePhase.Commit when aboard => 1.1f + 0.3f * pulse,
                         SpinePhase.Commit => 1.25f + 0.25f * (float)Math.Sin(t * 5),
                         SpinePhase.Telegraph => 1.05f,
+                        // Scattered, running off (note 451, GreyboxScene.Fleeing): its embers going out as it goes.
+                        SpinePhase.BreakOff => 1.05f * (float)Math.Max(0, 1 - t / HoundRunOffSeconds),
                         _ => 0.75f,
                     };
                     string clip;
