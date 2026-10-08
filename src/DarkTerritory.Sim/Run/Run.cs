@@ -23,6 +23,7 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
 
     /// <summary>The forts are safe from creatures all night (GDD §9, T128; ARCHITECTURE §8 note 273): run.json <c>forts</c>.</summary>
     public FortTuning Forts { get; init; } = new();
+    public WallTuning Walls { get; init; } = new();
 
     /// <summary>Stranded, unable to repair (GDD v1.4 §23.2): run.json <c>stranded</c>.</summary>
     public StrandedTuning Stranded { get; init; } = new();
@@ -65,6 +66,9 @@ public enum RunPhase : byte { Yard, Underway, AtFacility, Arrived, Failed }
 /// to <paramref name="HalfWidthM"/> either side of the line. Field docs live in run.json <c>forts</c>.
 /// </summary>
 public sealed record FortTuning(bool Safe = true, double HalfWidthM = 80);
+
+/// <summary>Note 279: the stops' buildings as walls (<see cref="StopWalls"/>). Field docs live in run.json <c>walls</c>.</summary>
+public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double PersonDoorM = 1.2, double WellTopM = 0.85, double TopM = 9);
 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
