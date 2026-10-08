@@ -81,6 +81,8 @@
     // a reader is told the jet's on the flames, a patch of them going out, and the fire out, as a hearing player is.
     "crew-extinguisher.on-fire": "WATER HISSING ON THE FLAMES",
     "crew-extinguisher.cell-out": "FLAMES HISSING OUT",
-    "crew-extinguisher.fire-out": "THE FIRE OUT, STEAM HISSING"
+    "crew-extinguisher.fire-out": "THE FIRE OUT, STEAM HISSING",
+    // A capstan winch's cranks out of rhythm (note 468; D.2's desync): the drum snatched to a stop.
+    "place-winch.stall": "A WINCH JARRING TO A STOP"
   }
 }
