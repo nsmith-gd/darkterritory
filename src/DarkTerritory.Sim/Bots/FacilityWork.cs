@@ -24,6 +24,8 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     public IReadOnlyList<int> Order { get; init; } = [];
     /// <summary>The wreck yard's heaps (note 187): found by a lamp or not, salvage left unfound, how often each shifted.</summary>
     public IReadOnlyList<(bool Found, int Unfound, int Shifts, double Stability)> Heaps { get; init; } = [];
+    /// <summary>Hand lamps lying loose on the ground when it ended (note 492): what a bot crew took out to the heaps comes back aboard.</summary>
+    public int LampsLeft { get; init; }
     /// <summary>The conveyor line's (note 400): the grain left for it, and how often it jammed.</summary>
     public double Grain { get; init; }
     public int Jams { get; init; }
@@ -45,7 +47,8 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
 public static class FacilityWork
 {
     public static FacilityWorkReport Run(Route.Route route, int facility, TrainTuning t, PlayerTuning p, BoilerTuning? boiler, RunTuning run,
-        FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600)
+        FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600,
+        bool stock = false)
     {
         var features = route.Of(FeatureKind.Facility).ToList();
         var line = route.Build();
@@ -56,6 +59,9 @@ public static class FacilityWork
         world.EnableBodies();
         world.EnableSwitches(junctions);
         world.EnableRun(run, route, yardLength, authority: true, facilities);
+        // As a night leaves the fortress (note 492): the guard van's hand lamps, the radios, the extinguishers and the lockers.
+        if (stock)
+            world.Stock();
         var site = world.Run!.Sites[facility]!;
         var bots = new List<IWorldBot>();
         var crew = new List<PlayerState>();
@@ -121,6 +127,7 @@ public static class FacilityWork
             StillStanding = world.Run.YardTracks(facility).Sum(b => Sim.Run.Run.StandingOn(train, b)),
             Order = [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)],
             Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
+            LampsLeft = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Lamp && b.Parent == PlayerState.World && b.Carrier < 0),
             Grain = Math.Round(site.Grain, 3),
             Jams = site.JamCount,
             TippleOre = Math.Round(site.TippleOre, 3),
