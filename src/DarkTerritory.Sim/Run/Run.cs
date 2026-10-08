@@ -191,7 +191,8 @@ public sealed partial class Run
         _facilityTuning = t;
         _sites = [.. _facilities.Select((f, i) =>
         {
-            var modules = t.ModulesOf(f);
+            // Each stop's own, drawn from its kind's (spec D.1, note 449): the host and every client draw the same from the seed.
+            var modules = t.ModulesFor(f, _route.Seed, i);
             if (modules.Count == 0)
                 return null;
             int span = Math.Max(0, t.Crates.Count[1] - t.Crates.Count[0]);
@@ -233,7 +234,8 @@ public sealed partial class Run
     /// <summary>Seconds at the facility this stop (the Gaunt comes on long stops, v1.1 App. B.6); 0 away from one.</summary>
     public double StopSeconds { get; private set; }
     /// <summary>The loading machinery going (the winch turning, the crane's hook moving): it's loud (v1.1 App. C.7).</summary>
-    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding || site.Running);
+    public bool Machinery => CurrentSite is { } site && (site.Turning || site.Crane?.Hooked is not null || site.Pouring || site.Herding || site.Winding || site.Running
+        || site.Clamped >= 0 && site.Roll > 0);
     public double DawnIn => _route.DawnSeconds - Seconds;
     public bool LineLive => Seconds >= _route.DawnSeconds;
     /// <summary>The facility the train is stopped at, or −1.</summary>

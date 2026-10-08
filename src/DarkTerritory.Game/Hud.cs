@@ -2030,6 +2030,32 @@ public static partial class Hud
             return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
                 : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
         }
+        // The mine head's tipple (note 423): a car off its rails beside you and the wrench that puts it back; at the lever, how
+        // true the car stands in the cradle is what you read before you clamp it (a clamp shut on one stood off its mark is a bad
+        // one, and the roll derails it), then how far over it's rolled.
+        if (world.Run is { FacilityTuning.Tipple: { } tip } tipples)
+        {
+            if (tipples.OffRailsInReach(p, train) is { } derailed)
+                return Repairs.MendsBoiler(p, train) ? Hold("PUT IT BACK ON ITS RAILS", derailed.Site.Rerail / tip.RerailSeconds)
+                    : !Repairs.ByWrench(train) ? "THE CAR'S OFF ITS RAILS   NO REPAIR KIT"
+                    : Repairs.WrenchKey(p) is var key and > 0 ? $"THE CAR'S OFF ITS RAILS   WRENCH : [{key}]" : "THE CAR'S OFF ITS RAILS   NO WRENCH";
+            if (tipples.TippleLeverInReach(p, train, hand) is { } tipple)
+            {
+                if (tipples.OffRailsAt(train, tipple) is not null)
+                    return "THE CAR'S OFF ITS RAILS : WRENCH IT BACK ON";
+                if (tipple.Clamped >= 0)
+                    return tipple.RollingBack ? "ROLLING BACK" : $"TIP IT : HOLD [E] ({tipple.Roll * 100:0}%)";
+                if (tipples.CarInCradle(train, tipple) is not { } car)
+                    return "NO CAR IN THE CRADLE";
+                if (car.Load >= 1 - 1e-6)
+                    return "THE CAR'S FULL";
+                if (Math.Abs(train.RakeOf(car.Id).Velocity) >= 0.05)
+                    return "WAIT FOR THE CAR TO STAND";
+                double off = Sim.Run.Run.OffCradle(train, tipple, car);
+                string stood = off <= tip.GoodClamp ? "CAR STOOD TRUE" : $"CAR {off:0.0} M OFF ITS MARK";
+                return $"{Hold("CLAMP", tipple.Clamp / tip.ClampSeconds)}   {stood}";
+            }
+        }
         // The grain elevator's conveyor line (note 400): a jam beside you, and its drive house's starter.
         if (world.Run is { FacilityTuning.Conveyor: { } belt } conveyors)
         {
@@ -2094,6 +2120,14 @@ public static partial class Hud
                 return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
             if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
                 return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
+        }
+        // In the cab at the tipple (note 423): a car clamped in it is one the train mustn't move, and one off its rails holds it.
+        if (PlayerMotor.InCab(p, train) && world.Run is { } tippling && tippling.CurrentSite is { } here && here.Has(ModuleKind.Tipple))
+        {
+            if (tippling.OffRailsAt(train, here) is not null)
+                return "A CAR'S OFF ITS RAILS AT THE TIPPLE";
+            if (here.Clamped >= 0)
+                return "A CAR'S CLAMPED IN THE TIPPLE : DON'T MOVE";
         }
         return null;
     }

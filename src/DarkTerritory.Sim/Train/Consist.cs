@@ -163,6 +163,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double Gutter { get; set; }
     /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
     public double Loose { get; set; }
+    /// <summary>
+    /// Off its rails (the tipple's bad clamp, spec D.2; note 423): it holds its rake fast, nothing pulls it, until it's put back on
+    /// with a wrench.
+    /// </summary>
+    public bool OffRails { get; set; }
     /// <summary>Where the hole is (car frame): what's boarded up (<see cref="Breaches"/>).</summary>
     public Double3 BreachAt { get; set; }
 
