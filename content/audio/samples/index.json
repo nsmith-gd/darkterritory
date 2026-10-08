@@ -8347,6 +8347,230 @@
   "takes": 1,
   "sha": "38d34c0a72843009"
  },
+ "cs-gannet-strike/death": {
+  "cue": "cs-gannet-strike.death",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Killed: crashing across the car roof, the body tumbling over the boards, a wing flailing, a last croak",
+    "key": "crash",
+    "sources": [
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "98d6a201ba2e686d"
+ },
+ "cs-gannet-strike/driven": {
+  "cue": "cs-gannet-strike.driven",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Beaten off, kitbashed: a real roar torn up into a screech, real heavy cloth for the wings' burst, talons",
+    "key": "flurry",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "a189a952e1c95364"
+ },
+ "cs-gannet-strike/hit": {
+  "cue": "cs-gannet-strike.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A blow or a ball landing on it: a heavy feathered thud, feathers puffing, a short pained squawk",
+    "key": "squawk",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c09ef1461acc0da9"
+ },
+ "cs-gannet-strike/land": {
+  "cue": "cs-gannet-strike.land",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its weight dropped onto its mark, modelled: wings braking, a body slammed onto a plank roof, feathers settling",
+    "key": "drop",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2e2696d7cda65601"
+ },
+ "cs-gannet-strike/peck": {
+  "cue": "cs-gannet-strike.peck",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The peck landing: two ring on a steel helmet, two land wet and dull on a cloth cap",
+    "key": "beak",
+    "sources": [
+     "kenney_rpg-audio:metalPot1",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "6df7c553a8534918"
+ },
+ "cs-gannet-strike/stab": {
+  "cue": "cs-gannet-strike.stab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The stab from real recordings: a heavy blow on a body lowered, a wet step for the wound, a crunch",
+    "key": "gore",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2310def67b9edbc2"
+ },
+ "cs-gannet-strike/tear": {
+  "cue": "cs-gannet-strike.tear",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Tearing free of the roof: the plank groaning, then splintering as the beak rips out, a flurry of wings",
+    "key": "splinter",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:creak2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "6c53cc757875cfce"
+ },
+ "cs-gannet-strike/thrash": {
+  "cue": "cs-gannet-strike.thrash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Stuck in the roof: its wings beating the planks in frantic bursts, the wood creaking on the beak, a hiss",
+    "key": "flail",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:creak2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "610e6e2394646835"
+ },
+ "cs-gannet-strike/thunk": {
+  "cue": "cs-gannet-strike.thunk",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The beak into the planks, modelled: a point splitting the fibres, the plank and the car's hollow ringing dull",
+    "key": "modal",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "6f7ef8d86df5c037"
+ },
+ "cs-gannet-strike/windup": {
+  "cue": "cs-gannet-strike.windup",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The wind-up from real creaks: a door's slips fired as a rattle that quickens, rung through its throat",
+    "key": "rattle",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "13a532170ca1ddf4"
+ },
  "cs-gaunt/blow": {
   "cue": "cs-gaunt.blow",
   "surface": null,
@@ -11649,6 +11873,104 @@
   ],
   "takes": 1,
   "sha": "cf25545ae84a3384"
+ },
+ "tell-gannet-bank/scream": {
+  "cue": "tell-gannet-bank.scream",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A long rising seabird scream from something huge: raw, two-voiced, climbing in pitch and force",
+    "key": "scream",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ec1851c1c3d94004"
+ },
+ "tell-gannet-bank/wingbeats": {
+  "cue": "tell-gannet-bank.wingbeats",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Heavy wingbeats closing low along the train, 1.75 a second: a deep whump of air, the feathers' rush and creak",
+    "key": "beat",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5a9549706e49f82e"
+ },
+ "tell-gannet-calls/call": {
+  "cue": "tell-gannet-calls.call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A harsh pulsed 'arrr-arrr' overhead, slowed and huge: a seabird's rasp from a throat the size of a man",
+    "key": "rasp",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "3b6d9fbf36c96f09"
+ },
+ "tell-gannet-calls/wings": {
+  "cue": "tell-gannet-calls.wings",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One great wingbeat built from real cloth: a heavy flap dropped to a wing's size, its air, a shaft's creak",
+    "key": "canvas",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "59c3bd09344061dd"
+ },
+ "tell-gannet-fold/crack": {
+  "cue": "tell-gannet-fold.crack",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The wings snapped back, modelled: a short luff, then a big canvas snapping taut, its jolt ringing for a moment",
+    "key": "sail",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "241f76243cdd384f"
+ },
+ "tell-gannet-fold/whistle": {
+  "cue": "tell-gannet-fold.whistle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The air whistling past a folded dart as it drops: a noisy, airy whistle rising 2-5 kHz, loudest at the end",
+    "key": "dive",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "2c6575193de11554"
  },
  "tell-grumbler/gnaw": {
   "cue": "tell-grumbler.gnaw",

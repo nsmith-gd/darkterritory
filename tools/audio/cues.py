@@ -709,6 +709,35 @@ CUES = {
         O("bellow", "A long carrying call after the train, no grunts (the grunt is the warning's)", vars=3),
         O("thrash", "Hooves thrashing the verge", vars=3),
     ],
+    # The Gannet (G1's note 340, docs/design/creatures/gannet.md §4; queue #121, note 384): one enormous corrupted seabird
+    # riding a fast train. Its calls overhead stop when it hangs over a walker (the silence is the tell); the fold is a crack
+    # of wings and a rising whistle of air, 2-5 kHz for its 1.6 s (not the Whistler's 200-800 Hz, steady); the bank is the
+    # scream and the wingbeats closing (2.5 s: get inside). Its strike is the creature's own: the stab, the beak stuck in
+    # the planks, the pin and its pecks on the sim's 3 s beat (GameAudio.GannetSounds).
+    "tell-gannet-calls": [
+        O("call", "A harsh guttural call overhead, slowed and enormous (a gannet's arrr-arrr)", vars=4),
+        O("wings", "The creak and rush of one great wingbeat overhead", vars=3),
+    ],
+    "tell-gannet-fold": [
+        O("crack", "Wings snapping back", vars=3),
+        O("whistle", "The air whistling up as it drops beak-first (1.6 s, rising 2-5 kHz)", vars=3),
+    ],
+    "tell-gannet-bank": [
+        O("scream", "A long rising scream as it comes round for its mark", vars=3),
+        L("wingbeats", "Heavy wingbeats closing low along the train"),
+    ],
+    "cs-gannet-strike": [
+        O("stab", "The beak's stab into a body", vars=3),
+        O("thunk", "A deep thunk into the roof planks (a miss)", vars=3),
+        L("thrash", "Stuck: wings beating the roof, the planks creaking, a hiss"),
+        O("tear", "Tearing free, the planks splintering", vars=3),
+        O("land", "Its weight landing on its mark", vars=3),
+        O("windup", "A peck's wind-up: a rattle in the throat", vars=3),
+        O("peck", "The peck: ringing on a helmet or wet on a cap", vars=4),
+        O("driven", "Driven off its pin: a screech as it lurches up", vars=3),
+        O("hit", "A blow or a ball landing on it", vars=3),
+        O("death", "Killed: crashing across the roof", vars=2),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers

@@ -193,6 +193,8 @@ FIRST_CHOICE = {"crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": 
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
                 "state-starved.labour": "drag",
+                # Note 384: the croak's voice is a tenth of a second (the roar it's cut from has no more); the squawk's is a cry.
+                "cs-gannet-strike.hit": "squawk",
                 # Note 385: a real plate's knock first (the casting's is the synth's tone again); the engine house's beat over
                 # the headframe's rope, whose tones can read as a whine.
                 "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine"}
