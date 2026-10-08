@@ -110,10 +110,24 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
         intent = Heed.Coupling(intent, session.Predicted, session.World);
+        // Note NNN: the six of 8 Oct, for a crewmate who isn't the driver (nor a walker gone forward to take the controls):
+        // the Mourners off a body, Tower Jaw clubbed or its wreck cleared, the Freight Beetle clubbed, the Knotter clubbed
+        // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
+        var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];
+        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot)
+        {
+            var hand = (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job;
+            intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
+            intent = Heed.Beetle(intent, session.Predicted, session.World, me);
+            intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
+            intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
+            intent = Heed.Hotbox(intent, session.Predicted, session.World, me, hand, others);
+            intent = Heed.Brakeman(intent, session.Predicted, session.World, me, others, calls);
+        }
         // Note 463: not the driver at the controls of a moving train. Gone back along the hood for a walker grabbed on the
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
         if (!(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
-            intent = Heed.Rescue(intent, session.Predicted, session.World, me);
+            intent = Heed.Rescue(intent, session.Predicted, session.World, me, others);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);

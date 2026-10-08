@@ -12,6 +12,8 @@ public sealed record LookTuning
     public double GauntM { get; init; } = 3;
     public double RibbitM { get; init; } = 5;
     public double MooseM { get; init; } = 10;
+    public double TowerJawM { get; init; } = 20;
+    public double BeetleM { get; init; } = 12;
     public double EdgeM { get; init; } = 0.6;
 }
 
@@ -28,7 +30,7 @@ public sealed record LookTuning
 public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
 {
     readonly HashSet<int> _looked = [];
-    readonly bool _ground = insisted.Contains(EnemyKind.Gaunt) || insisted.Contains(EnemyKind.Ribbit) || insisted.Contains(EnemyKind.Moose);
+    readonly bool _ground = insisted.Any(k => k is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle);
     readonly bool _roof = insisted.Contains(EnemyKind.Dragger);
     bool _metDragger;
 
@@ -46,7 +48,10 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
         foreach (var e in world.ActiveEnemies)
         {
             // Gone unmet (lingered out) isn't met.
-            if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger or EnemyKind.Moose))
+            // Tower Jaw at its post and the Freight Beetle by its freight too (note NNN): what comes to the train, or only after
+            // a death (the Mourners, the Brakeman, the Knotter, Hotbox), needs nobody to go and look.
+            if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger or EnemyKind.Moose
+                    or EnemyKind.TowerJaw or EnemyKind.FreightBeetle))
                 continue;
             if (!Lying(e))
             {
@@ -77,13 +82,20 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
         {
             // Out on the ballast: over to the nearest thing asleep or waiting out there, by its kind's distance.
             var me = self.Position;
-            var near = waiting.Where(e => e.Kind is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose)
+            var near = waiting.Where(e => e.Kind is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle)
                 .Select(e => (e, At: e.WorldPosition(train))).Select(x => (x.e, x.At, D: ((x.At - me) with { Y = 0 }).Length))
                 .Where(x => x.D <= t.SeekM).OrderBy(x => x.D).ThenBy(x => x.e.Id).FirstOrDefault();
             if (near.e is not null)
             {
                 Doing = $"look:{near.e.Kind}";
-                double stop = near.e.Kind switch { EnemyKind.Gaunt => t.GauntM, EnemyKind.Moose => t.MooseM, _ => t.RibbitM };
+                double stop = near.e.Kind switch
+                {
+                    EnemyKind.Gaunt => t.GauntM,
+                    EnemyKind.Moose => t.MooseM,
+                    EnemyKind.TowerJaw => t.TowerJawM,
+                    EnemyKind.FreightBeetle => t.BeetleM,
+                    _ => t.RibbitM,
+                };
                 return Walk(self, near.At, near.D, stop);
             }
             // Nothing out there yet that it's for: it waits on the ballast a while for it (it's sent once someone's down).

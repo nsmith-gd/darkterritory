@@ -36,6 +36,8 @@ public sealed record EnemyTuning(
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
     public TowerJawTuning TowerJaw { get; init; } = new();
+    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note NNN). Field docs live in enemies.json.</summary>
+    public CrewBotsTuning CrewBots { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
     /// <summary>
@@ -1143,4 +1145,23 @@ public sealed record TowerJawTuning
     /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
     public double GnawFor(Route.RouteTier tier) =>
         GnawSeconds.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 120);
+}
+
+/// <summary>
+/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note NNN):
+/// how near is near enough to go, and where to stand. Not the creatures' own numbers. Field docs live in enemies.json.
+/// </summary>
+public sealed record CrewBotsTuning
+{
+    public double MournersWithin { get; init; } = 30;
+    public double MournersLeash { get; init; } = 20;
+    public double TowerJawWithin { get; init; } = 25;
+    public double TowerJawClearFrom { get; init; } = 0.9;
+    public double TowerJawClearBy { get; init; } = 2.5;
+    public double WreckWithin { get; init; } = 250;
+    public double WreckStopShort { get; init; } = 15;
+    public double WreckHoldWithin { get; init; } = 60;
+    public double BeetleWithin { get; init; } = 15;
+    public double BrakemanStandOff { get; init; } = 1.5;
+    public double StandGiveUp { get; init; } = 240;
 }

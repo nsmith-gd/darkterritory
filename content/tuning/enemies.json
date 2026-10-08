@@ -462,6 +462,20 @@
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
   },
 
+  // The crew bots' answers to the six of 8 Oct (ARCHITECTURE §8 note NNN; notes 362–367; not the creatures' own numbers, the
+  // bots' judgement of them). A bot not driving goes to a body the Mourners are about within mournersWithin m of it, stands
+  // over it and clubs them, chasing none further than mournersLeash m from it. On foot within towerJawWithin m of Tower Jaw
+  // at its post it clubs it; gnawed past towerJawClearFrom it keeps crushRadius + towerJawClearBy m from where it falls. A
+  // wreck across the line within wreckWithin m of a standing train is cleared (Use held at it); the driver stops
+  // wreckStopShort m short of its near edge, braking hard from wreckHoldWithin m out. On foot within beetleWithin m of the
+  // Freight Beetle it clubs it. Cornering the Brakeman, each of the pair closes to brakemanStandOff m off him on its side.
+  // The driver stands for a seized axle or a wreck no longer than standGiveUp s.
+  "crewBots": {
+    "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
+    "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "brakemanStandOff": 1.5,
+    "standGiveUp": 240
+  },
+
   // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
   // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
   // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
