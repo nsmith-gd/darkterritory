@@ -22,15 +22,19 @@ public sealed class Town
 {
     readonly RailLine _line;
 
-    public Town(TownPlan plan, TownTuning tuning, RailLine line)
+    public Town(TownPlan plan, TownTuning tuning, RailLine line, HouseLooks? looks = null)
     {
         Plan = plan;
         Tuning = tuning;
+        Looks = looks ?? new HouseLooks();
         _line = line;
         Walls = [.. BuildWalls()];
     }
 
     public TownPlan Plan { get; }
+
+    /// <summary>How its houses look (content/world/houses.json's palettes): the art's, carried with the town.</summary>
+    public HouseLooks Looks { get; }
     public TownTuning Tuning { get; }
 
     /// <summary>The square's walls, its buildings, the solid things in it and its people, as boxes nobody walks through.</summary>
@@ -62,10 +66,10 @@ public sealed class Town
         return World(b.S, b.D - side * (b.Depth / 2 + 0.05), 1.2);
     }
 
-    /// <summary>A shut house's front door, at a door's height: in the middle of its front.</summary>
+    /// <summary>A shut house's front door, at a door's height: where its design puts it (an enclosed porch's, out in front).</summary>
     public Double3 Door(TownHouse h)
     {
-        var (s, d) = h.Rail(0, -0.05);
+        var (s, d) = h.Rail(h.Design.DoorU, h.DoorV - 0.05);
         return World(s, d, 1.2);
     }
 
@@ -180,11 +184,15 @@ public sealed class Town
         var sq = Plan.Square;
         int side = sq.Side;
         const double half = 0.8; // the fortress wall's own half-thickness (StructureKit.Wall: 1.6 m)
-        // The square's far wall, and its two ends back to the line of the yard's walls (14.8 m out).
-        yield return Box((sq.S0 + sq.S1) / 2, sq.WallD, (sq.S1 - sq.S0) / 2 + half, half, 9);
-        double inner = side * 14.8, mid = (inner + sq.WallD) / 2, across = Math.Abs(sq.WallD - inner) / 2 + half;
-        yield return Box(sq.S0, mid, half, across, 9);
-        yield return Box(sq.S1, mid, half, across, 9);
+        // The square's far wall, and its two ends back to the line of the yard's walls (14.8 m out). A walled town's square
+        // is open to its streets: the wall's round the town (Run.Fortresses.Round).
+        if (Plan.Bounds is null)
+        {
+            yield return Box((sq.S0 + sq.S1) / 2, sq.WallD, (sq.S1 - sq.S0) / 2 + half, half, 9);
+            double inner = side * 14.8, mid = (inner + sq.WallD) / 2, across = Math.Abs(sq.WallD - inner) / 2 + half;
+            yield return Box(sq.S0, mid, half, across, 9);
+            yield return Box(sq.S1, mid, half, across, 9);
+        }
         foreach (var b in Plan.Buildings)
             yield return Box(b.S, b.D, b.Length / 2, b.Depth / 2, 9);
         foreach (var f in Plan.Fixtures)
@@ -208,11 +216,14 @@ public sealed class Town
     /// </summary>
     IEnumerable<Wall> HouseWalls(TownHouse h)
     {
-        if (h.Layout is not { } l)
+        // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign).
+        foreach (var (u0, u1, v0, v1, height) in h.Parts())
         {
-            yield return Box(h.S, h.D, h.Width / 2, h.Depth / 2, h.Kind == HouseKind.Burnt ? 1.0 : 9);
-            yield break;
+            var (s, d) = h.Rail((u0 + u1) / 2, (v0 + v1) / 2);
+            yield return Box(s, d, (u1 - u0) / 2, (v1 - v0) / 2, height);
         }
+        if (h.Layout is not { } l)
+            yield break;
         const double t = HouseLayout.Wall, high = 4;
         double w = h.Width / 2, dp = h.Depth;
         Wall Part(double u0, double u1, double v0, double v1, double height = high)

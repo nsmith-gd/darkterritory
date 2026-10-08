@@ -9,7 +9,8 @@ namespace DarkTerritory.Game.Tests;
 /// their own ... players should clearly see the firebox, map, gauges, speed, brake, and vent"), cab forward (ARCHITECTURE
 /// §8 note 276, the director's sketch: "controls at the front with full vis of the rail"): from the driver's place the line
 /// ahead is in sight through the front window from a few metres past the plough, with nothing of the engine in the way;
-/// the driver's gauges, the map and the brake are in front of them, and turned round, the fire door's in plain view.
+/// the driver's gauges, the map and the brake are in front of them, and (note 280) so are the fire and the coal: one person
+/// runs the cab facing forward.
 /// </summary>
 public class CabSightTests
 {
@@ -31,7 +32,7 @@ public class CabSightTests
     static bool Clear(Double3 eye, Double3 at)
     {
         foreach (var s in Engine.Solids)
-            if (s.Part is PartKind.Boiler or PartKind.Stack or PartKind.CabWall or PartKind.Tender && Hits(eye, at, s.Box))
+            if (s.Part is PartKind.Boiler or PartKind.Stack or PartKind.CabWall or PartKind.Tender or PartKind.Firebox && Hits(eye, at, s.Box))
                 return false;
         return true;
     }
@@ -123,16 +124,31 @@ public class CabSightTests
     }
 
     [Fact]
-    public void TurnedRoundTheFireDoorAndTheCoalAreInPlainViewFromTheDriversPlace()
+    public void OnePersonRunsTheCabFacingForwardTheCoalTheFireAndTheControlsInReach()
     {
-        // Cab forward the firebox is in the cab's back wall, behind the driver: the length of the cab off, nothing between.
+        // Note 280, the director: "firebox at the front but no need to turn around for coal, the whole cab being operable by
+        // one person". The fire door faces back into the cab from its front: whoever fires faces down the line.
+        Assert.True(TrainKit.OutOfBackhead(Engine).Z > 0.99, "the fire door faces back into the cab");
+        var fire = Engine.Interactables.Single(i => i.Kind == InteractableKind.Firebox);
+        var coal = Engine.Interactables.Single(i => i.Kind == InteractableKind.Coal);
+        var vent = Engine.Interactables.Single(i => i.Kind == InteractableKind.Vent);
+        var firebox = Engine.Solids.Single(s => s.Part == PartKind.Firebox).Box;
+        Assert.True(firebox.Min.Z - CabFront < 0.2, "against the front wall");
+        Assert.True(firebox.Max.Y < TrainKit.FrontWindow(Engine, 1).Y0 + 1e-6, "under the windows");
+        // One place behind the fire door where the fire and the coal are both in reach, the coal ahead or beside, never behind.
+        var stand = new Double3(fire.Position.X + 0.4, fire.Position.Y, fire.Position.Z + 0.3);
+        static double Flat(Double3 a, Double3 b) => ((a - b) with { Y = 0 }).Length;
+        Assert.True(Flat(stand, fire.Position) < fire.Radius);
+        Assert.True(Flat(stand, coal.Position) < coal.Radius + 0.4, $"the coal {Flat(stand, coal.Position):0.00} m off");
+        Assert.True(coal.Position.Z <= stand.Z + 0.1, "the coal isn't behind whoever's firing");
+        // The levers a step to the right, the vent a step further, all forward of the doorways.
+        var levers = Engine.Levers!.Value;
+        foreach (var lever in new[] { levers.Regulator, levers.Brake, levers.Reverser, vent.Position })
+            Assert.True(Flat(stand, lever) < 1.6, $"{lever} is {Flat(stand, lever):0.00} m off");
+        // And the line's view over it all: the fire door from the driver's place, nothing between.
         var eye = Views.CabEye(Engine);
         var door = TrainKit.FireDoor(Engine);
-        var at = new Double3(door.X, door.Y, door.Z);
-        Assert.True(at.Z > eye.Z, "behind the driver");
-        Assert.True((at - eye).Length < 5, $"{(at - eye).Length:0.0} m off");
-        Assert.True(Clear(eye, at + new Double3(0, 0, -0.05)));
-        var coal = Engine.Interactables.Single(i => i.Kind == InteractableKind.Coal).Position;
-        Assert.True(Clear(eye, coal + new Double3(0, 0.6, 0)));
+        Assert.True(door.Z < eye.Z, "ahead of the driver");
+        Assert.True(Clear(eye, new Double3(door.X, door.Y, door.Z + 0.05)));
     }
 }

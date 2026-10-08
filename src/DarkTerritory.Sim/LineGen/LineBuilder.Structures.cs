@@ -19,7 +19,15 @@ sealed partial class LineBuilder
             foreach (var item in e.Items)
             {
                 var (left, right) = IntentsFor(item, e, ref rng);
-                spans.Add(new PlanIntent(e.Id, R(item.S0), R(item.S1), left, right, BiomeFor(e, item.S0)));
+                // An S-bend's hill is on its first turn's inside, then on its second's (note 359): its land changes sides
+                // halfway along the straight between.
+                if (item.All().FirstOrDefault(i => i.Params.ContainsKey("sBend")) is { } sBend && SBendMiddle(sBend) is { } mid)
+                {
+                    spans.Add(new PlanIntent(e.Id, R(item.S0), R(mid), left, right, BiomeFor(e, item.S0)));
+                    spans.Add(new PlanIntent(e.Id, R(mid), R(item.S1), right, left, BiomeFor(e, mid)));
+                }
+                else
+                    spans.Add(new PlanIntent(e.Id, R(item.S0), R(item.S1), left, right, BiomeFor(e, item.S0)));
                 foreach (var piece in item.All())
                     Structures(piece, e, ref rng, ref tunnels, ref bridges, spans);
             }
@@ -98,7 +106,8 @@ sealed partial class LineBuilder
                     // way out of it), and the fall it would go off into on the outside.
                     var spur = new SideIntent(IntentType.LedgeUp, top.Params.GetValueOrDefault("spurM", 12));
                     var fall = new SideIntent(IntentType.Embankment, -top.Params.GetValueOrDefault("fallM", 3));
-                    bool leftTurn = top.Prims.Sum(p => p.Deflection) > 0;
+                    // An S-bend's by its first turn (its two cancel): the caller swaps them for its second.
+                    bool leftTurn = top.Params.ContainsKey("sBend") ? top.Prims.FirstOrDefault(p => p.Deflection != 0).Deflection > 0 : top.Prims.Sum(p => p.Deflection) > 0;
                     return leftTurn ? (spur, fall) : (fall, spur);
                 }
             case "tunnel":
@@ -124,6 +133,23 @@ sealed partial class LineBuilder
             "settlement" => (pad, pad),
             _ => (Plain(ref rng), Plain(ref rng)),
         };
+    }
+
+    /// <summary>Halfway along an S-bend's straight between its turns (note 359); null if it was laid straight after all.</summary>
+    static double? SBendMiddle(Item sBend)
+    {
+        double at = sBend.S0;
+        bool turned = false;
+        for (int i = 0; i < sBend.Prims.Count; i++)
+        {
+            var p = sBend.Prims[i];
+            bool curved = p.K0 != 0 || p.K1 != 0;
+            if (!curved && turned && sBend.Prims.Skip(i + 1).Any(q => q.K0 != 0 || q.K1 != 0))
+                return at + p.Length / 2;
+            turned |= curved;
+            at += p.Length;
+        }
+        return null;
     }
 
     /// <summary>The structures a piece carries (§12.3), and the extra intents they want over part of it.</summary>

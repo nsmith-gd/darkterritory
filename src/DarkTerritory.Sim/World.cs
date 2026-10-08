@@ -454,15 +454,14 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
-        // The radios (T41, train.json kit): one on the cab floor against its right wall ahead of the right doorway, out of
-        // the reach of a crewmate arriving in the cab, the driver at the controls, the cord, the vent and the fire door (cab
-        // forward, note 276); the rest in the guard van.
+        // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
+        // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
+        // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
         int radios = Train.Dynamics.Tuning.Kit.Radios;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
-            double doorFront = EnginePlan.Of(Train.Dynamics.Tuning.Geometry).DoorFront;
-            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(cab.Max.X - 0.4, cab.Min.Y + 0.2, doorFront - 0.8), Physics.BodyKind.Radio);
+            Bodies.SpawnCrate(Train, 0, new Ballast.Double3(0.45, cab.Min.Y + 0.2, cab.Max.Z - 0.4), Physics.BodyKind.Radio);
             radios--;
         }
         StowRepairKits();
@@ -725,10 +724,10 @@ public sealed class World
         if (!content.Tuning.Enabled)
             return;
         var plan = Towns.TownGenerator.Generate(content, Towns.TownSite.Of(route, gate, roster, content, last));
-        Town = new Towns.Town(plan, content.Tuning, Train.Line);
+        Town = new Towns.Town(plan, content.Tuning, Train.Line, content.Looks);
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
-            Forts = [forts[0] with { Square = plan.Square }, .. forts.Skip(1)];
+            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
         Train.Walls = ClearSiteWork(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls));
         Train.Walls.Add(Town.Walls);
     }
@@ -863,8 +862,11 @@ public sealed class World
                 : Bodies.CarriedBy(id) is not null ? FilmTask.Carrying
                 : PlayerMotor.InCab(s, Train) ? Net.CabControls.CanDrive(s, Train) && Attribution.Driver == id ? FilmTask.Driving : FilmTask.Firing
                 : FilmTask.None;
+            // In their arms, a load goes into the wreck with them (note 370); someone carried isn't one.
+            var load = task == FilmTask.Carrying && Bodies.CarriedBy(id) is { Kind: not (Physics.BodyKind.Ragdoll or Physics.BodyKind.Child) } carried ? carried : null;
             crew.Add(new FilmPlayer(id, Sim.Run.IncidentLog.NameOf(this, id), Sim.Run.IncidentLog.Role(this, s, id),
-                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task));
+                PlayerMotor.WorldPosition(s, Train), PlayerMotor.WorldVelocity(s, Train), PlayerMotor.WorldYaw(s, Train), inside, s.Has(PlayerFlags.Seated), task,
+                load?.Kind, load?.Cargo ?? CargoKind.None));
         }
         return crew;
     }
@@ -976,8 +978,11 @@ public sealed class World
         bool kit = Authority && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
         // Smash and pry are a melee tool's (D.7; note 275): with empty hands only the kit opens a lock.
         bool breaching = Authority && Holdouts?.CrewAct(s, intent, playerId, Train, kit, Player.Kit.Held(s) != Player.Tool.None) == true;
-        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever.
-        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)));
+        // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
+        // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
+        // in your hand while you throw it, and a crate lying by it stays down.
+        bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        bool handsTookIt = Authority && Bodies.Handle(s, intent, playerId, Train, Hand, keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)), lever: lever);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1256,7 +1261,11 @@ public sealed class World
         Train.Line.Nearest(world, ref hint);
         double along = hint;
         var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
-        if (((world - rail.Position) with { Y = 0 }).Length > forts.HalfWidthM)
+        double off = ((world - rail.Position) with { Y = 0 }).Length;
+        // A walled town's fort reaches its wall (queue #74, note 335), past the radius every other fort keeps.
+        if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
+            return off <= Math.Max(forts.HalfWidthM, Math.Max(walled.Left, walled.Right) + 5);
+        if (off > forts.HalfWidthM)
             return false;
         if (along <= run.YardLength)
             return true;
