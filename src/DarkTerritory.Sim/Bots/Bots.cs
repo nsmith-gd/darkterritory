@@ -317,7 +317,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (coming is { } c)
             return c;
         double dip = -LaneDip * Math.PI / 180;
-        return frame.DirToWorld(mount.Facing * Math.Cos(dip) + new Double3(0, Math.Sin(dip), 0));
+        return frame.DirToWorld(mount.Facing * DMath.Cos(dip) + new Double3(0, DMath.Sin(dip), 0));
     }
 
     static double Wrap(double a)
