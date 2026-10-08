@@ -11343,6 +11343,115 @@
   "takes": 1,
   "sha": "801c41fe26413275"
  },
+ "place-town/clock": {
+  "cue": "place-town.clock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A clock ticking in a house: a longcase's slow tick-tock in its wooden case",
+    "key": "case",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7a9ece34440bc0a2"
+ },
+ "place-town/cough": {
+  "cue": "place-town.cough",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A townsperson coughing into their mask: a dry cough, a fit of two or three, a wet one",
+    "key": "mask",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "03b646f1dad1cb38"
+ },
+ "place-town/fire": {
+  "cue": "place-town.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A fire barrel: wood burning in an oil drum, flames lapping out of its mouth, the drum ticking",
+    "key": "drum",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "7476d6fe21017138"
+ },
+ "place-town/murmur": {
+  "cue": "place-town.murmur",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Townsfolk talking low among themselves through their masks: three or four voices, no words",
+    "key": "masks",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "cf9990b58a61fb18"
+ },
+ "place-town/radio": {
+  "cue": "place-town.radio",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wireless left on in a house: static, and a far station fading in and out",
+    "key": "wireless",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "1d49cbf70194ef54"
+ },
+ "place-town/range": {
+  "cue": "place-town.range",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A kitchen range lit: the fire shut in cast iron, its draught murmuring, the iron ticking, a kettle",
+    "key": "stove",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4b6e526ea68d7cda"
+ },
  "place-villages/dead-town": {
   "cue": "place-villages.dead-town",
   "surface": null,

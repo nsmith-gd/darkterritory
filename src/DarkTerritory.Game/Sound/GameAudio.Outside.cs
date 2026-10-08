@@ -104,6 +104,7 @@ public sealed partial class GameAudio
             || run is not null && run.Underground(earState, train, reach);
         RadioDevice(ear, radioDead, primed);
         RoofGust(train);
+        TownSounds(world, ear, dt);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
