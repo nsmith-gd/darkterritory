@@ -375,8 +375,9 @@
 
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
   // docs/design/creatures/tower-jaw.md). A corrupted beaver gnawing a structure's support: a coaling tower's leg (towerLegOut
-  // m out from the line, on the lever's side) or the loading crane's gantry leg; never a bridge. It's at work when the train
-  // comes (startGnawed through, the train within approachReach m of the facility or stopped at it), gnawAt m off the leg;
+  // m out from the line, on the lever's side: the drawn tower's middle stilt there, StructureKit) or the loading crane's gantry
+  // leg; never a bridge. It's at work when the train comes (startGnawed through, the train within approachReach m of the
+  // facility or stopped at it), gnawAt m off the leg;
   // through in gnawSeconds (by tier). The structure leans from leanFrom gnawed and groans its last groanSeconds. A crewmate
   // within notice m: it rears (threatSeconds, the telegraph); within lungeWithin m, a bite of bite (never a kill). driveOffBlows
   // blows inside driveOffSeconds drive it awayTo m off (lope m/s) for awaySeconds, its gnawing kept; health in blows. Through:
@@ -386,7 +387,7 @@
   // clearCrewSeconds of the crew's seconds in all. Spawns (B.6): every tier, tierWeights; one at a stop.
   "towerJaw": {
     "gnawSeconds": { "local": 150, "frontier": 120, "deadLines": 100, "deepTerritory": 90 },
-    "startGnawed": 0.2, "approachReach": 800, "towerLegOut": 2.6, "gnawAt": 0.9, "leanFrom": 0.5, "groanSeconds": 5,
+    "startGnawed": 0.2, "approachReach": 800, "towerLegOut": 3.5, "gnawAt": 0.9, "leanFrom": 0.5, "groanSeconds": 5,
     "notice": 10, "lungeWithin": 3, "threatSeconds": 1.5, "bite": 35,
     "driveOffBlows": 4, "driveOffSeconds": 15, "awaySeconds": 120, "awayTo": 40, "lope": 4, "health": 12,
     "crush": 45, "crushRadius": 3.5, "clearCrewSeconds": 30, "clearReach": 4, "wreckHalf": 3, "safeSpeed": 1, "damagePerSpeed": 0.06,

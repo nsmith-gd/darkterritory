@@ -1066,7 +1066,7 @@ public sealed record TowerJawTuning
     public Dictionary<string, double> GnawSeconds { get; init; } = new() { ["local"] = 150, ["frontier"] = 120, ["deadLines"] = 100, ["deepTerritory"] = 90 };
     public double StartGnawed { get; init; } = 0.2;
     public double ApproachReach { get; init; } = 800;
-    public double TowerLegOut { get; init; } = 2.6;
+    public double TowerLegOut { get; init; } = 3.5;
     public double GnawAt { get; init; } = 0.9;
     public double LeanFrom { get; init; } = 0.5;
     public double GroanSeconds { get; init; } = 5;

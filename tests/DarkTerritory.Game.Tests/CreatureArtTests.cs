@@ -86,6 +86,14 @@ public class CreatureArtTests
         // wing, three sacs that swell, a jaw that gapes, the spear's tip a socket); every clip the brief asks for.
         ["gannet"] = new(8000, 16000, 25, 45, ["soar", "circle", "hang", "dive", "stuck", "climb", "bank", "pin"],
             ["fold", "stab", "tearFree", "swoop", "land", "peckWindup", "peck", "driven", "hit", "death"]),
+        // A character's, light (docs/design/creatures/mourners.md §3: three to six at a body), on its own rig (SK_Mourner:
+        // three two-boned hooked fingers a hand, the veil a bone); every clip the brief asks for.
+        ["mourner"] = new(3000, 7500, 30, 45, ["wait", "creep", "drag", "scatter"], ["startle", "hit", "death"]),
+        // A beast's, between a character and a large monster (freight-beetle.md §3: a handcart's bulk), on its own rig
+        // (SK_Beetle: six four-boned legs, two palps).
+        ["freight_beetle"] = new(6000, 14000, 28, 40, ["idle", "walk", "brace", "push", "turn"], ["startle", "hit", "death"]),
+        // A large monster (GDD §27: 8-16k; tower-jaw.md §3), on its own rig (SK_TowerJaw: a jaw, a three-boned tail).
+        ["tower_jaw"] = new(8000, 16000, 22, 34, ["gnaw", "turn", "threat", "retreat"], ["lunge", "hit", "death"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -147,6 +155,21 @@ public class CreatureArtTests
         Assert.InRange(Height(moose), 3.2f, 3.5f);
         Assert.InRange(moose.Max.X - moose.Min.X, 3.1f, 3.35f);
         Assert.True(moose.Min.Z < -1.5f, "the moose's head is forward (−Z)");
+        // The Mourners (mourners.md §3): about 1.2 m stood, but never stood: stooped to about a metre; their hands (hooked)
+        // forward of them (−Z).
+        var mourner = Get("mourner");
+        Assert.InRange(Height(mourner), 0.95f, 1.25f);
+        Assert.True(mourner.Min.Z < -0.3f, "the mourner's hands are forward (−Z)");
+        // The Freight Beetle (freight-beetle.md §3): 2.4 m long, 1.4 m to the top of its back; its shovel forward (−Z).
+        var beetle = Get("freight_beetle");
+        Assert.InRange(Height(beetle), 1.3f, 1.55f);
+        Assert.InRange(beetle.Max.Z - beetle.Min.Z, 2.3f, 2.6f);
+        Assert.True(beetle.Min.Z < -1.0f, "the beetle's shovel is forward (−Z)");
+        // Tower Jaw (tower-jaw.md §3): about 1.6 m at the shoulder (its spines over that), its incisors forward (−Z), its
+        // tail out behind.
+        var jaw = Get("tower_jaw");
+        Assert.InRange(Height(jaw), 1.75f, 2.35f);
+        Assert.True(jaw.Min.Z < -1.5f && jaw.Max.Z > 2.0f, "tower jaw's teeth forward (−Z), its tail behind");
         var sleeper = Get("sleeper");
         Assert.InRange(sleeper.Max.X - sleeper.Min.X, 2.5f, 3.1f);
         Assert.InRange(Height(sleeper), 0.2f, 0.45f);

@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game;
 
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
-public static class Staging
+public static partial class Staging
 {
     /// <summary>
     /// Where to stand to talk to, read or look at a town's <paramref name="what"/> (person, board, paper, fixture, door; the
