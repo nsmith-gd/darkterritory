@@ -5763,3 +5763,22 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Heard from the street, a search inside a house that isn't shut up comes through no walls (note 396's not-yet).
         - The search isn't captioned. It's a crewmate's work, not a threat or a call, like the car doors.
     - **Pinned:** `WorldSoundTests.AnOpenHousesHidingSpotIsHeardWhileItsSearchedAndItsFindOnceWhenItsGoneThrough`, on a client night's spots of each kind (at least 3): held where the spot keeps its things while under way, cut when the hands come off, and the find heard once when the spot's gone through.
+
+420. **The foundry's buildings modelled (queue #156, C1; the art checklist's `foundry`; GDD §18 "overhead crane run from a gantry", §30 "oversized, partially abandoned, barely operable, dimly lit"; notes 381, 393 and 410 did the other facilities).** The foundry was the last facility whose buildings were all the structure kit's: a long brick box, flat sawtooth quads for a roof, glowing window panels and a cone of a stack. Now it is `foundry_shed` (928 triangles, a 1024 layer), set by `StructureKit.Facility` where the kit's sheds stood, 22 m out. The kit is kept as the fallback.
+    - **The shed:**
+        - 80 m of soot-black brick on a stone plinth, pilastered every 8 m.
+        - Its roof is ten north-light teeth, each a slate slope rising to an iron-glazed face. Panes are out and the furnace's light shows in some. One tooth's slope has fallen in.
+        - Tall arched windows run down both sides, most of the front's lit orange. Their glazing bars are thicker than the other buildings' (`_arched`'s `bar`), since 13 cm texels lose 3 cm bars.
+        - A great doorway stands at each end of its front, its iron leaf slid half across one, the furnace's glow low on the floor inside. With one at each end, one faces the crane's yard whichever side of the spur the shed is turned to.
+        - The cupola furnace rises through its roof on a charging stage, its door glowing, and the 40 m stack stands behind.
+    - **The glow:**
+        - A modelled piece's windows had no light of their own. The baked game mesh has no emission, so a "lit" window was only a bright colour, dark at night.
+        - Now a recipe can hand `build` a third thing, a `_Glow`: the regions of its windows the furnace lights, brightest at their foot.
+        - `cook.bake_down` bakes it as a mask, and `_emission` links an image of the glow's colour there to the low mesh's Emission Color. `cook.bake_layers` writes that as the layer's emissive (spec B) and flags it (`dt_glow`), as the Gannet's sacs were done.
+        - The shed's windows glow in the dark as the kit's panels did, and `Kit.Append` keeps the layer when the piece is merged into the facility.
+    - **Verified:**
+        - `FacilityBuildingArtTests.TheFoundrysCastingShedIsTheModelAndAFurnaceLightsItsWindows`: the model's material glows, and from either side it stands there with its stack.
+        - `LookTests.AFacilitysBuildingsLeaveItsYardToItsModules` still holds: it starts 13.9 m out, past the crane's 9.
+        - `dt art check`: 928 of the large prop's 8,000.
+        - The Game suite.
+        - Looked at: from the building camera, closer, at night, from the air and from the crane, before and after, and on the turntable.
