@@ -168,14 +168,17 @@ public class GunPowderTests
     /// <paramref name="every"/> s (the round taken off as firing does), with a walker bot (id 2, starting on car 2's roof)
     /// bringing the powder. Returns the rounds fired before the rack ran dry (12: never), the walker's steps, and the charges.
     /// </summary>
-    static (int Fired, List<string> Steps, int Charges) String(Night n, int gunCar, PlayerState gunnerAt, double every)
+    static (int Fired, List<string> Steps, int Charges) String(Night n, int gunCar, PlayerState gunnerAt, double every, bool asCrew = false)
     {
         n.Crew[1] = gunnerAt;
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var calls = new CrewCalls();
         calls.Feeder(2);
-        var gunner = new GunnerBot(G) { Me = 1 };
-        var walker = new RoofWalkerBot(7) { Me = 2, Calls = calls };
+        var gunner = asCrew ? (GunnerBot)BotCrew.Make(1, 4, calls, Tuning.Combat, P, 1) : new GunnerBot(G);
+        gunner.Me = 1;
+        var walker = asCrew ? (RoofWalkerBot)BotCrew.Make(2, 4, calls, Tuning.Combat, P, 1) : new RoofWalkerBot(7);
+        walker.Me = 2;
+        walker.Calls = calls;
         PlayerIntent Think(int id)
         {
             List<(int, PlayerState)> others = [.. n.Crew.Where(c => c.Key != id).Select(c => (c.Key, c.Value))];
@@ -226,6 +229,14 @@ public class GunPowderTests
         Assert.True(charges >= 1, $"{charges} charges");
         Assert.Contains("take", steps);
         Assert.Contains("charge", steps);
+    }
+
+    [Fact]
+    public void AsTheHarnessMakesThemTheWalkerStillBringsIt()
+    {
+        var n = new Night(4, 12);
+        var (fired, steps, charges) = String(n, Rear(n), AtTheGun(n), every: 6, asCrew: true);
+        Assert.True(fired == 12, $"ran dry after {fired}: {string.Join(" > ", steps)}; walker at {n.Crew[2].Parent}/{n.Crew[2].Surface} {n.Crew[2].Position}");
     }
 
     [Fact]

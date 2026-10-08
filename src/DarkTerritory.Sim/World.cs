@@ -947,11 +947,16 @@ public sealed class World
         if (++charge.MendTicks * SimConstants.TickSeconds < t.ChargeSeconds)
             return;
         if (Guns.Fill(Train, gun, t) > 0)
+        {
             Bodies.Remove(charge);
+            RacksFilledBy[playerId] = RacksFilledBy.GetValueOrDefault(playerId) + 1;
+        }
         else
             charge.MendTicks = 0;
     }
 
+    /// <summary>Host: the racks filled so far (note 377, the harness's upkeep report), by who carried the charge up.</summary>
+    public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>

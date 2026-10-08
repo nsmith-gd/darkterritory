@@ -12,8 +12,8 @@ namespace DarkTerritory.Sim.Bots;
 /// train), and the walker fills it from beside the gun while the gunner keeps the seat.
 /// <para>
 /// <b>Who goes</b> is worked out alike by every bot from what each sees, with nobody calling it (as <see cref="KitCarry"/>):
-/// whoever already has a charge in hand, or else the lowest player id among the bots out on the cars (never the cab's, nor a
-/// gunner in its seat), which doesn't change as they move about, so two never take turns at it.
+/// whoever already has a charge in hand, or else the lowest player id among the bots free to go (out on the roofs, or already
+/// at the locker; never the cab's, nor a gunner in its seat), so two never take turns at it.
 /// </para>
 /// </summary>
 public static class PowderCarry
@@ -43,7 +43,7 @@ public static class PowderCarry
 
     /// <summary>
     /// Who brings it (see the class): a crewmate with a charge already in hand, or, with a gun <see cref="Wanting"/> one, the
-    /// lowest id among the bots (<paramref name="isBot"/>; all of them without it) alive out on the cars and not in a gun's
+    /// lowest id among the bots (<paramref name="isBot"/>; all of them without it) alive and free to go (out on the roofs, or at the locker) and not in a gun's
     /// seat. Null with nobody to go, or nothing wanted.
     /// </summary>
     public static int? Carrier(World world, IReadOnlyList<(int Id, PlayerState State)> crew, GunTuning t, Func<int, bool>? isBot = null)
@@ -55,11 +55,23 @@ public static class PowderCarry
                 return id;
         if (Wanting(world, crew.Select(c => c.State), t) is null)
             return null;
+        int locker = LockerCar(world.Train);
         foreach (var (id, s) in crew.OrderBy(c => c.Id))
-            if (s.Alive && (s.Parent > 0 || s.Surface == Surface.Roof) && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Held) && (isBot?.Invoke(id) ?? true)
+            if (s.Alive && Free(s, world.Train, locker) && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Held) && (isBot?.Invoke(id) ?? true)
                 && world.Bodies.CarriedBy(id) is null)
                 return id;
         return null;
+    }
+
+    /// <summary>
+    /// Free to go, as anyone can see it: out on the roofs (on a coupler plate, in a car or down by the line, it's about
+    /// something else: warming up, a hot box, a fire), or already at the locker (in the guard van, or on its hatch ladder).
+    /// </summary>
+    static bool Free(in PlayerState s, Train.TrainOnLine train, int locker)
+    {
+        if (s.Surface == Surface.Roof)
+            return true;
+        return s.Parent == locker && locker > 0 && (s.Surface == Surface.Ladder || PlayerMotor.Indoors(s, train));
     }
 
     /// <summary>The car with the powder locker in it (the guard van), the last in the engine's rake; -1 with none.</summary>

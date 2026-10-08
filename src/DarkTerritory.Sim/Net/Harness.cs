@@ -133,11 +133,19 @@ public sealed record ClientReport(byte Id, string Bot, double MaxCorrectionM, in
 
 /// <param name="WarmUps">Times a bot went in out of the cold (down to a coupler plate, in through a door and shut it; T31).</param>
 /// <param name="Stops">The facility stops the crew worked, as the driver saw them (T32).</param>
+/// <summary>Powder to the guns in a harness night (note 377): see <see cref="HarnessReport.Upkeep"/>.</summary>
+public sealed record UpkeepReport(int Rounds, int RacksFilled, IReadOnlyDictionary<string, int> FilledBy, double DrySeconds);
+
 public sealed record HarnessReport(int Ticks, double Seconds, string Link, double TrainDistance, double TrainSpeed, double BoilerPressure, double Tender,
     int SnapshotBytes, double DownKbpsPerClient, double UpKbpsPerClient, double MaxCorrectionM, int Deaths,
     IReadOnlyList<ClientReport> Clients, ThreatReport? Threats = null, Run.RunReport? Run = null, int WarmUps = 0,
     IReadOnlyList<StopRecord>? Stops = null, PacingReport? Pacing = null)
 {
+    /// <summary>
+    /// With <see cref="HarnessOptions.Upkeep"/> and the guns' racks (note 377): rounds fired, the racks filled and who carried
+    /// each charge up (by bot), and the seconds a manned gun stood with its rack dry while there was powder below.
+    /// </summary>
+    public UpkeepReport? Upkeep { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>With <see cref="HarnessOptions.DropRejoin"/>: how the bot that dropped came back (note 253).</summary>
@@ -356,7 +364,7 @@ public static class Harness
         var pressureTrace = new List<PressureSample>();
         var per5Min = new List<int>();
         int logged = 0, outSeconds = 0;
-        int rounds = 0;
+        int rounds = 0, dryTicks = 0;
         var quiet = new List<double>();
         var beatKinds = new Dictionary<string, int>();
         int beats = 0, outTicks = 0, quietTicks = 0;
@@ -411,6 +419,11 @@ public static class Harness
                 }
             }
             rounds += host.World.Shots.Count;
+            // A manned gun stood dry with powder below (note 377): its gunner seated, nothing in the rack.
+            if (host.World.Combat?.Guns is { Rack: > 0 } rg && Combat.Guns.Stowed(host.Train, rg) > 0
+                && host.Players.Any(p => p.State.Alive && p.State.Has(PlayerFlags.Seated) && Combat.Guns.MannedGun(p.State, host.Train, rg) is { } g
+                    && Combat.Guns.Ready(host.Train.Vehicles[g].Gun, rg) <= 0))
+                dryTicks++;
             beats += host.World.Beats.Count;
             foreach (var b in host.World.Beats)
                 beatKinds[b] = beatKinds.GetValueOrDefault(b) + 1;
@@ -583,6 +596,10 @@ public static class Harness
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
             Posts = clients.Where(c => c.Session.PlayerId is not null).ToDictionary(c => $"{c.Bot.Name}#{c.Session.PlayerId}",
                 c => Math.Round(posted.TryGetValue(c.Session.PlayerId!.Value, out var at) ? at : -1, 1)),
+            Upkeep = o.Upkeep is null ? null : new UpkeepReport(rounds, host.World.RacksFilledBy.Values.Sum(),
+                host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
+                    .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
+                Math.Round(dryTicks * SimConstants.TickSeconds, 1)),
             Holdouts = host.World.Holdouts is null ? null : new HoldoutReport(litCount,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Assigned), breached,
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Freed),
