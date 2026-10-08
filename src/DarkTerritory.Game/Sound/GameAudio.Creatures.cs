@@ -1,4 +1,5 @@
 using Ballast;
+using Ballast.Audio;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
@@ -51,13 +52,15 @@ public sealed partial class GameAudio
     {
         public EnemyKind Kind;
         public SpinePhase Phase;
-        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance;
+        public double PhaseSeconds, Health, Extra, Extra2, GrabWindow, LineDistance, Height;
         public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
         // moved and was last hit, and whether its car's breaking away has been heard.
-        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity;
-        public bool CutAway;
+        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt;
+        public bool CutAway, Passing;
+        // A one-shot that goes where it goes (the Gannet's dive whistle, down its line).
+        public SoundInstance? Moving;
 
         public void Take(Enemy e, Double3 at, int space)
         {
@@ -69,6 +72,7 @@ public sealed partial class GameAudio
             Extra2 = e.Extra2;
             GrabWindow = e.GrabWindow;
             LineDistance = e.LineDistance;
+            Height = e.Height;
             Attached = e.Attached;
             Holding = e.Holding;
             Local = e.Local;
@@ -235,6 +239,13 @@ public sealed partial class GameAudio
                 // The blow that turns it feral is heard as it turning (GrumblerSounds); one before that, or after, is a hurt.
                 if (!(g.Feral && was.Extra2 <= 0.5))
                     Pained("cs-grumbler.hit", e, at, occ, struck);
+                break;
+            case Moose m:
+                MooseSounds(world, m, was, at, occ);
+                break;
+            case Gannet g:
+                GannetSounds(world, g, was, at, occ, dt);
+                Pained("cs-gannet-strike.hit", e, at, occ, struck);
                 break;
         }
     }
@@ -534,6 +545,175 @@ public sealed partial class GameAudio
             Hold("cs-grumbler.eat", e.Id, at, occ);
     }
 
+    static readonly string[] MooseGrazing = ["tell-moose-grazing.browse", "tell-moose-grazing.creak", "tell-moose-grazing.grunt"];
+    static readonly string[] MooseWarning = ["tell-moose-warning.grunt", "tell-moose-warning.clack", "tell-moose-warning.hoof-drag"];
+
+    /// <summary>
+    /// The Moose (note 339; queue #73, note 334), read off its record as G1 answered on #247: its <see cref="MooseMode"/> in
+    /// Height, its aggro in Extra2 against <see cref="MooseTuning.ListenAt"/> and <see cref="MooseTuning.WarnAt"/>, its rams in
+    /// Health. Grazing it chews (held) and browses, creaks and grunts now and then; listening, the chewing stops dead (the
+    /// silence is the tell, so nothing plays); warning, a cough-like grunt, teeth clacks and a hoof raked back. Squaring up,
+    /// two stamps and a snort; charging, its hooves and its wheeze held and brush breaking; snagged, the wood groaning and a
+    /// bellow, then the rack grinding; searching, its breath held and the rack knocking now and then; a boom on each ram,
+    /// landed on the shudder, the rack scraping after. Grazing as the train goes by (the art's trainPass rule), a call after
+    /// it and the verge thrashed: the sim's +25 on the same condition, so sound, clip and temper agree.
+    /// </summary>
+    void MooseSounds(World world, Moose m, Creature was, Double3 at, float occ)
+    {
+        var t = world.Enemies?.Moose ?? new MooseTuning();
+        var mode = m.Mode;
+        bool began = mode != (MooseMode)(int)was.Height;
+        if (began)
+            was.Next = 0;
+        string Pick(string[] of) => of[(int)(_creatureRng.Next() * of.Length) % of.Length];
+        switch (mode)
+        {
+            case MooseMode.Graze when m.Aggro < t.ListenAt:
+                Hold("tell-moose-grazing.chew", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue(Pick(MooseGrazing), at, occ);
+                    was.Next = _time + 3 + 5 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Graze when m.Aggro >= t.WarnAt:
+                if (_time >= was.Next)
+                {
+                    Cue(Pick(MooseWarning), at, occ);
+                    was.Next = _time + 1.2 + 1.6 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.SquareUp when began:
+                Cue("tell-moose-square-up.stamp", at, occ);
+                CueLater(0.38, "tell-moose-square-up.stamp", at, occ);
+                CueLater(1.1, "tell-moose-square-up.snort", at, occ);
+                break;
+            case MooseMode.Charge:
+                Hold("tell-moose-charge.hooves", m.Id, at, occ);
+                Hold("tell-moose-charge.wheeze", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("tell-moose-charge.brush", at, occ);
+                    was.Next = _time + 0.8 + 1.4 * _creatureRng.Next();
+                }
+                break;
+            case MooseMode.Snag:
+                if (began)
+                {
+                    Cue("cs-moose-snag.groan", at, occ);
+                    CueLater(0.5, "cs-moose-snag.bellow", at, occ);
+                }
+                Hold("cs-moose-snag.grind", m.Id, at, occ);
+                break;
+            case MooseMode.Search:
+                Hold("cs-moose-search.breath", m.Id, at, occ);
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue("cs-moose-search.knock", at, occ);
+                    was.Next = _time + 3 + 4 * _creatureRng.Next();
+                }
+                break;
+        }
+        // A ram, on the shudder (RamCount, replicated in Health).
+        if (m.RamCount > Math.Max(0, (int)Math.Round(was.Health) - 1))
+        {
+            Cue("cs-moose-ram.boom", at, occ);
+            CueLater(0.2, "cs-moose-ram.scrape", at, occ);
+        }
+        var train = world.Train;
+        bool passing = mode == MooseMode.Graze && m.Aggro < t.WarnAt && Math.Abs(train.Dynamics.Speed) > 1 && train.Frames.Count > 0
+            && train.Frames.Min(f => ((f.Origin - at) with { Y = 0 }).Length - f.Shape.HalfLength) <= t.TrainPassAt;
+        if (passing && !was.Passing)
+        {
+            Cue("cs-moose-train-pass.bellow", at, occ);
+            CueLater(0.6, "cs-moose-train-pass.thrash", at, occ);
+        }
+        was.Passing = passing;
+    }
+
+    /// <summary>
+    /// The Gannet (note 340; queue #121, note 384; docs/design/creatures/gannet.md §4), read off its record: its
+    /// <see cref="GannetMode"/> in Height, the spine's phase and time (its pecks on the sim's beat, <see cref="Gannet.PecksLanded"/>),
+    /// its Health. Soaring or climbing over the train, its calls now and then and a great wingbeat between; hanging over a
+    /// walker, nothing (the calls stop: the silence is the tell). The fold, a crack of wings and the air whistling up as it
+    /// drops, following it down its line. A stab that landed (a crewmate hurt under the beak as it climbs out of the dive);
+    /// a miss, the thunk into the planks, thrashing held while it's stuck, and the tear free as the art's tearFree starts.
+    /// The bank, the scream and the wingbeats closing (held, coming with it). The pin, its weight landing, then each peck's
+    /// wind-up and blow as <see cref="CreatureArt.GannetClip"/> draws them; driven off it with its victim alive, a screech.
+    /// </summary>
+    void GannetSounds(World world, Gannet g, Creature was, Double3 at, float occ, double dt)
+    {
+        var t = world.Enemies?.Gannet ?? new GannetTuning();
+        var mode = g.Mode;
+        var before = (GannetMode)(int)was.Height;
+        bool began = mode != before;
+        if (began)
+            was.ModeAt = _time;
+        if (mode != GannetMode.Fold)
+            was.Moving = null;
+        else if (was.Moving is { } whistle)
+            whistle.Position = at;
+        switch (mode)
+        {
+            case GannetMode.Soar or GannetMode.Climb:
+                if (began && before == GannetMode.Fold && _hurts.Any(h => (h.At - at).Length <= GannetStabReach))
+                    Cue("cs-gannet-strike.stab", at, occ);
+                if (began && before == GannetMode.Pin && Crewmate(was.Holding) is { Health: > 0 })
+                    Cue("cs-gannet-strike.driven", at, occ);
+                // Overhead: a call, or a wingbeat, every few seconds; the first a while after it's come or climbed away.
+                if (began && before is not (GannetMode.Soar or GannetMode.Climb))
+                    was.Next = _time + 1.5 + 2 * _creatureRng.Next();
+                if (_time >= was.Next)
+                {
+                    if (was.Next > 0)
+                        Cue(_creatureRng.Next() < 0.7 ? "tell-gannet-calls.call" : "tell-gannet-calls.wings", at, occ);
+                    was.Next = _time + 2.5 + 3.5 * _creatureRng.Next();
+                }
+                break;
+            case GannetMode.Fold when began:
+                Cue("tell-gannet-fold.crack", at, occ);
+                was.Moving = Cue("tell-gannet-fold.whistle", at, occ);
+                break;
+            case GannetMode.Stuck:
+                if (began)
+                    Cue("cs-gannet-strike.thunk", at, occ);
+                double tear = was.ModeAt + Math.Max(0, t.StuckSeconds - CreatureArt.GannetTearFreeSeconds);
+                if (_time < tear)
+                    Hold("cs-gannet-strike.thrash", g.Id, at, occ);
+                else if (_time - dt < tear)
+                    Cue("cs-gannet-strike.tear", at, occ);
+                break;
+            case GannetMode.Bank:
+                if (began)
+                    Cue("tell-gannet-bank.scream", at, occ);
+                Hold("tell-gannet-bank.wingbeats", g.Id, at, occ);
+                break;
+            case GannetMode.Pin:
+                if (began)
+                    Cue("cs-gannet-strike.land", at, occ);
+                // Each peck as the art draws it (GannetClip): its wind-up, then the blow on the peckEvery beat.
+                if (g.Phase == SpinePhase.Grab && was.Phase == SpinePhase.Grab)
+                    for (int k = 1; k <= t.Pecks; k++)
+                    {
+                        double strike = k * t.PeckEvery - CreatureArt.GannetPeckStrike;
+                        if (Crossed(was.PhaseSeconds, g.PhaseSeconds, strike - CreatureArt.GannetWindupSeconds))
+                            Cue("cs-gannet-strike.windup", at, occ);
+                        if (Crossed(was.PhaseSeconds, g.PhaseSeconds, strike))
+                            Cue("cs-gannet-strike.peck", Victim(world.Train, g.Holding, 0.3) ?? at, occ);
+                    }
+                break;
+        }
+    }
+
+    /// <summary>How near a crewmate hurt as the Gannet climbs out of its dive was to it: the stab's (its strikeRadius, and the
+    /// beak's reach down to them).</summary>
+    const double GannetStabReach = 3;
+
+    static bool Crossed(double from, double to, double mark) => from < mark && to >= mark;
+
     // ---- Records gone -----------------------------------------------------------------------------------------------------
 
     /// <summary>
@@ -617,7 +797,29 @@ public sealed partial class GameAudio
                 // Its limb clubbed off the one it held (one blow kills it): they're free, hauled back up.
                 DraggerLetGo(train, c);
                 break;
+            case EnemyKind.Gannet when killed:
+                GannetDown(train, c, occ);
+                break;
         }
+    }
+
+    /// <summary>
+    /// A Gannet killed: its crash across the roof (gannet.py's death). Shot out of the air over a car it falls to that roof
+    /// first, as GreyboxScene draws it (dead weight from where it was), so the crash is heard when it lands there, where the
+    /// car will be by then.
+    /// </summary>
+    void GannetDown(TrainOnLine train, Creature c, float occ)
+    {
+        if (c.Attached < 0 || c.Attached >= train.Frames.Count)
+        {
+            Cue("cs-gannet-strike.death", c.At, occ);
+            return;
+        }
+        var f = train.Frames[c.Attached];
+        double roof = f.Shape.RoofHeight, drop = Math.Max(0, c.Local.Y - roof);
+        double fall = Math.Sqrt(2 * drop / 9.81);
+        var lands = f.ToWorld(c.Local with { Y = roof }) - f.Back * (train.Dynamics.Speed * fall);
+        CueLater(fall, "cs-gannet-strike.death", lands, occ);
     }
 
     /// <summary>
