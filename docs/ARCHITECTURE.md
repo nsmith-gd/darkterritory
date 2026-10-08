@@ -6866,6 +6866,27 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - a bad clamp, one derail and no second release;
         - the wrench heard at it, and once back on.
 
+486. **A stop hand goes round the train to its winch handle (queue #223, D1.3 for D1; found on #220's playthrough).** `dt playthrough --route frontier:7 --bots 2 --minutes 20 --insist cinderhound --seed 2` stood at the first stop, the Foundry (@5764), from about 433 s to 811 s. From 642 s a car fire started every 20 s.
+    - **The fires** are a pack of four aboard cars 5 and 6, which followed the train into the spur and boarded there, lighting each car they're on (`CinderHound.Feed`). With two bots nobody fights it or cuts it. That's D1.2's #221 (the pack fight and the cut), and the trace has gone to D1.2.
+    - **The stand** happens with `--no-enemies` too, so the hounds aren't its cause.
+      - The shunter, which is the gunner in a crew of two, is lent to the winch pair once the train's in (Winch0). Its handle is across the spur from where it came down.
+      - `StopHand.Crank` walked there by `WalkTo`, which routes round the train only on the walker's own side of the track. So it walked straight at car 3's side, up its side steps, onto the deck and off again, for six minutes.
+      - The winch turns only with both handles held, so the driver cranked alone and hauled nothing.
+    - **Now** `StopHand.OnFoot` takes the `FootPath` (which plans round the cars) whenever the target is across the track with the train standing between (`Across`), as well as for targets more than 10 m off. `Crank` walks by `OnFoot`, and says "to the winch" on the way.
+    - **Measured** (`dt harness --route frontier:7 --cars 6 --upkeep --seconds 1200`, against current main):
+
+      | Night | Winch sleds | Cargo delivered | Stop | km | Deaths |
+      |---|---|---|---|---|---|
+      | 2 bots, `--no-enemies`, seed 2 | 0 → 2 | 3.5 → 4.5 | 360 s → 376 s loading | 9.66 → 9.67 | 0 → 0 |
+      | 2 bots, `--insist cinderhound`, seed 2 | 0 → 1 | 0.31 → 2.34 (cars 1 → 5) | 377 s → 367 s loading | 7.33 → 9.69 | 1 → 0 |
+      | 4 bots, `--enemies`, seed 1 | 0 → 2 | 3.5 → 5 | 553 s → 534 s | 8.76 → 8.65 | 0 → 1 (Dragged, later in the night) |
+      | 4 bots, `--enemies`, seed 2 | 0 → 1 | 2.34 → 2.68 | 709 s → 565 s | 7.64 → 9.14 | 2 → 2 |
+      | 4 bots, `--enemies`, seed 3 | 0 → 2 | 3.5 → 5 | 554 s → 539 s | 8.12 → 8.82 | 0 → 0 |
+
+      So on main the Foundry's winch hauled nothing for a crew of four either.
+    - **Test:** `CrewOfTwoTests.ACrewOfTwosGunnerLentToTheWinchGoesRoundTheTrainToItsHandle` (frontier:7, seed 2, two bots, no enemies, 900 s): the stop's done and at least one sled hauled. It fails without the change. Sim 1383/1383; ClerkVoice, CrewAudio, Hud, LobbyBrowser and NetPlay 99/99.
+    - **Not yet:** the pack aboard a 2-bot train, which nobody fights or cuts (D1.2's #221).
+
 488. **The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28).** Since note 475 every open barn, outbuilding and goods shed, and each roofed length of a yard's shed or strongroom, hangs a lantern turned low. The Gaunt's roost was among them. The roost falls in a barn or outbuilding when it's the village's furthest building on foot, and in a yard shed or the strongroom at a stop with no village, which is most facilities: across local, frontier, deadLines and deepTerritory seeds 1 to 12, nearly every stop whose roost isn't a house has it in a yard shed or the hero, and deadLines nights put it in a barn at about one stop in two. A house the Gaunt nests in has no candle, and that dark is its tell (`TownKit.HouseLight`). A lit barn with the Gaunt asleep in it said the opposite.
     - **Its lanterns out** (`GreyboxScene.HouseInteriors`, `OpenHouse.Dark`): a barn, outbuilding, goods shed, yard shed or strongroom that `StopWalls.Nest` names keeps its Room (the moon stays out, and the room's own fill, note 475, still shows the walls close to) but hangs no lantern. A dark building among lit ones is where the Gaunt is, as a house with no candle is.
     - **Its nest** (`WorldArt.OpenShed`): in an open barn, outbuilding or goods shed, `RansackKit.Nest` lies on the boards where the Gaunt sleeps (the lair's place, its middle), as in a house.
@@ -6891,6 +6912,30 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Verified:**
         - Looked at down the line (trackside), in the coupling gap (gapside), and off a car's side with its doors shut and open.
         - The Game suite.
+
+433. **Holes in the land, found headless and closed (queue #169, B1; the director, 8 Oct, GDD App. F.4: "lots of textures in the landscape generation that are see through or missing"; note 424's follow-on).** #441 closed the holes found by eye (a lake over its rim, the shingle up the bank). Nothing looked for the rest.
+    - **`dt holes --route r`** (`HolesCommands`): down a night's main line every `--every` m (400), three cameras: at the track looking on down it, up over it (18 m out, 30 up) looking ahead, and out across the land to one side, the sides taken in turn. An eye that's in the ground (beside a bore, in a cutting's wall) is skipped. Each frame is drawn in a flat survey light with the renderer's probe on, and the frames with any of it are saved to `out/holes/<night>/` and listed, worst first.
+        - **The hole probe** (`GreyboxRenderer.HoleSlope`, the frame's `probe.x`; `sky.frag`): the sky is painted magenta wherever it shows lower than the land could hide it, which is steeper below the horizon than the eye's height over the land, plus 30 m, over `--reach` (300 m). So the land's far edge and a valley's far side never count, and a magenta pixel is a hole whatever made it. With the reach made huge it paints the land's far edge, which shows it works.
+        - **The untextured probe** (`--untextured`; `ShowUntextured`, `probe.y`; `scene.frag`): every surface drawn without a texture, cyan.
+    - **Found:** frontier:7, frontier:3, deadLines:3, deepTerritory:2 and local:1, every 300 m (255 frames a night, about 5 minutes each). The holes were all at the tunnels:
+        - **The hill over a bore** was a mound of `tunnelCoverM` (18 m, rising 0.25 a metre out) whatever the land round it. deadLines:3's Hensley tunnel bores a mountain that stands 134 m over the rail 60 m out beside its cutting, but over its 253 m the land fell to 33–48 m. That left a trench 100 m deep over the bore, its walls cliffs at the portals.
+        - **Above every portal's face** (its coping 11.5 m up), the land's step was left out across the face's width, and the hill's edge stood at 17–20 m. A 5–7 m slot was open to the sky behind: 821 px from the high camera at Hensley.
+        - **The lining's 10 m lengths** were each laid on their own tangent with a 5 cm overlap. Round a curve a length's end stood off the line by its sag (12 cm at 400 m), and a wedge opened at the outer wall's joints. deepTerritory:2's Holt Brook tunnel showed the sky through every one.
+        - **The far land's edge** (a wider sweep, below): its rows were 40 m apart, straight between, and its first column, 292 m out, only 0.6 m under the corridor ground's edge at 300. Over a hollow along the line that chord rode above the corridor's ground, and the sky showed under it (frontier:3 at 12.2 km).
+        - **Untextured:** only the signal lamps, which glow by design. No surface of the land was drawn without its texture.
+    - **Closed:**
+        - **The hill over a bore** (`TerrainField.EdgeHeight`) is the land the cutting goes up into: its walls carried on in over the bore as if the cut went that many metres further out (how far in from the nearer portal), the relief with it, never under the old cover. It runs from the portal's face in, not from a metre short of it, so the cutting goes right up to the face. Hensley's hill is 157 m over the bore at its middle.
+        - **At a portal** (`WorldArt.Track`): where the land's step across the face was left out, a cap runs from the coping (`StructureKit.PortalTop`, `PortalHalf`) back onto the hill, with a headwall up from the coping where the cutting beside the face stands higher. Past the face's edge, where the cutting beside it is lower than the coping, a flank closes the gap from the cutting's ground up to the cap (deepTerritory:4's portal corners). The cap starts 0.15 m under the coping and the flank 0.25 m in from the face's edge: two meshes that only meet edge to edge showed pinholes of sky along the seam (a ray cast found nothing; the GPU did).
+        - **The far land** (`PlanArt.FarLand`): rows every 20 m (`FarStep`), its first column 3 m under the ground.
+        - **The lining** (`WorldArt.Tunnel`): each length laid on the chord between its ends, and longer by the outer wall's wedge, (`TunnelHalf` + 0.5)·turn.
+    - **After:** swept again every 300 m, eight nights: frontier:3 and :7, deadLines:1, :3 and :8, deepTerritory:2 and :4, and local:1. deadLines:8's and deepTerritory:4's tunnels were new to the sweep. Two more turned up and were closed (the far land's edge on frontier:3, deepTerritory:4's portal corners); after that, none.
+    - **Verified:**
+        - `TunnelHillTests` (Sim), on deadLines:3, deepTerritory:2, deadLines:8 and deepTerritory:4. The bore is covered by `boreCrownM` + 5 m. The hill across it is nowhere lower than 0.6 of the cutting's walls at both its portals, less 2 m (the land's own lie varies: deadLines:8's Marsh tunnel runs along a sidehill whose ridge falls from 100 m to 14 m along it). The bed is at rail height right to the face. All four nights fail on the old terrain.
+        - `TunnelArtTests` (Game). From the high camera's two places at each portal, 189 sight lines through the ground round the face land on something (the old art left up to 9 open). At and either side of every joint of Holt Brook's lining, out from the bore's middle to beyond its wall, the wall is there (the old lining was open at the joint 100 m in). Where frontier:3's far land meets its corridor, every sight line from that camera through the seam lands on one or the other (the old far land left 32 of 775 open). All three fail on the old art.
+        - Looked at: Hensley's portal from the front, from below and from above, before and after.
+    - **Not yet:**
+        - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
+        - The fog cards still cut where they meet the land and water (soft particles stay off).
 489. **The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips, note 477; AU1's note 478 heard the patrol by its motion).** Note 478 heard a hound aboard by where its record went. Its leap over a gap played when the record's car changed, half-way through E1's arc, with the landing a fixed moment after. Its climb back out at a door played as a leap. A hound stopped to sniff (every 8-15 s on patrol) made no sound at all. And the leap it played was the boarding's, a landing on the rear platform's boards, whichever roof it came off.
     - **How** (`GameAudio.HoundAboard` and `HoundMove`, off the hound's replicated mode and when it began, `ModeSeconds`; alike on every machine):
         - **On a change of mode** each move's sounds are set for when they come in it, counted from when the mode began, so a record that arrives a snapshot late still lands them on time. Joined more than 0.25 s past one, it's missed rather than played late. Each plays where the hound is when it comes (its latest record).

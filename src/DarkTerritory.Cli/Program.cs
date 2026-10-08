@@ -72,6 +72,7 @@ return args switch
     ["art", "clearance", ..] => Print(ArtClearance(content, args)),
     // dt perf: a frame's cost against the frame-rate targets (tuning/perf.json), flat and in a headset.
     ["perf", ..] => Print(PerfCommands.Run(train, content, args)),
+    ["holes", ..] => Print(HolesCommands.Run(train, content, args)),
     ["screenshot", ..] when args.Contains("--film") => Print(FilmStill(content, args)),
     ["screenshot", ..] when args.Contains("--hud") || args.Contains("--hurt") => Print(HudShot(content, args)),
     ["screenshot", ..] when args.Contains("--menu") => Print(MenuShot(train, content, args)),
