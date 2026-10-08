@@ -107,6 +107,22 @@ public sealed partial class StopWalls
     }
 
     /// <summary>
+    /// Which open house a world point stands inside, shut up or not (an index alike on every machine, <see cref="HouseDoor.House"/>),
+    /// or −1: the bots keep out of one with the Gaunt in it (note 413).
+    /// </summary>
+    public int HouseAt(Double3 p)
+    {
+        for (int h = 0; h < _houses.Count; h++)
+        {
+            var house = _houses[h];
+            var d = p - house.Origin;
+            if (Math.Abs(d.Y) < 3 && InParts(house.B, d.X * house.Ex.X + d.Z * house.Ex.Z, d.X * house.Ey.X + d.Z * house.Ey.Z))
+                return h;
+        }
+        return -1;
+    }
+
+    /// <summary>
     /// An open house's doors (from <see cref="Of"/>): a wall in each doorway, that stands only while it's shut, and the house as
     /// a space. <paramref name="place"/> stands a box in the house's frame in the world, with its door's key.
     /// </summary>

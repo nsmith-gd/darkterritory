@@ -42,6 +42,8 @@ public abstract record Launch
     public sealed record Invite : Launch;
     /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
     public sealed record Leave : Launch;
+    /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
+    public sealed record OpenFolder(string Path) : Launch;
 }
 
 /// <summary>
@@ -58,7 +60,7 @@ public abstract record Launch
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
     bool Yard = false);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed }
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -159,6 +161,12 @@ public sealed class FrontEnd
     public PlayerProfile.Data Profile { get; set; } = new();
     /// <summary>Where the nights' bookmark stills are kept (note 203), said on the PROFILE page; null, nowhere to say.</summary>
     public string? StillsFolder { get; set; }
+
+    /// <summary>
+    /// Note 411: crash reports written since the player last put the notice away (<see cref="CrashReports.Unseen"/>). The app
+    /// opens on <see cref="Screen.Crashed"/> while there are; OK or Escape puts it away for good.
+    /// </summary>
+    public CrashNotice? Crash { get; set; }
     /// <summary>Who's playing, for the lobby's default name when the settings have none (the app sets it: the Steam name, or the system's).</summary>
     public string DefaultPlayerName { get; set; } = Environment.UserName;
     /// <summary>The lobby's name as the host screen has it: the one set, or "&lt;PLAYER NAME&gt;'S RUN".</summary>
@@ -272,6 +280,12 @@ public sealed class FrontEnd
         if (Night is not null && Screen == Screen.Night)
         {
             CloseNight();
+            return;
+        }
+        // The crash notice (note 411): Escape is its OK.
+        if (Screen == Screen.Crashed)
+        {
+            PutCrashAway();
             return;
         }
         Show(Screen switch
@@ -420,6 +434,8 @@ public sealed class FrontEnd
             screen = Screen.Title;
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
+        if (screen is Screen.Crashed && Crash is null)
+            screen = Screen.Title;
         _blankName = false;
         Editing = null;
         Screen = screen;
@@ -551,6 +567,29 @@ public sealed class FrontEnd
                 return null;
             }, Sound: UiCue.Delete),
         ];
+    }
+
+    /// <summary>
+    /// The crash notice (note 411): OK first and lit, so the Enter that's pressed on arriving puts it away; where the report
+    /// is, said under both, since the console that said it was never seen.
+    /// </summary>
+    List<Entry> CrashEntries(CrashNotice c)
+    {
+        string where = $"Its report is {c.Newest}{(c.Count > 1 ? $", the newest of {c.Count}" : "")}. Send it in with a few words on what you were doing.";
+        return
+        [
+            new(new("OK", where), () => { PutCrashAway(); return null; }, Back: true),
+            new(new("OPEN THE REPORTS", where), () => new Launch.OpenFolder(c.Directory)),
+        ];
+    }
+
+    /// <summary>The crash notice put away: its reports aren't said again, and the title's up.</summary>
+    void PutCrashAway()
+    {
+        if (Crash is { } c)
+            CrashReports.MarkSeen(c);
+        Crash = null;
+        Show(Screen.Title);
     }
 
     static string DefaultCrewName(int slot) => $"Crew {slot}";
@@ -879,6 +918,9 @@ public sealed class FrontEnd
             // Note 349: what's heard, named, and where.
             new(new($"CAPTIONS: {(Settings.Captions ? "ON" : "OFF")}", "The sounds worth hearing named as you hear them, and where they are."),
                 Toggle(s => s with { Captions = !s.Captions }), _ => Change(Settings with { Captions = !Settings.Captions })),
+            // Note 404: a band behind the print in play, as a subtitle's.
+            new(new($"TEXT BACKING: {(Settings.TextBacking ? "ON" : "OFF")}", "A dark band behind the HUD's print and the captions, to read them over a bright night."),
+                Toggle(s => s with { TextBacking = !s.TextBacking }), _ => Change(Settings with { TextBacking = !Settings.TextBacking })),
             // Note 383: holds as toggles.
             new(new($"HOLD KEYS: {(Settings.ToggleHolds ? "TOGGLE" : "HOLD")}", Settings.ToggleHolds
                     ? "Run, the brake, talk, the radio and the crew: press once for on, again for off."
@@ -896,6 +938,7 @@ public sealed class FrontEnd
         Screen.Night when Night is { } n => NightEntries(n),
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
+        Screen.Crashed when Crash is { } c => CrashEntries(c),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -1267,6 +1310,7 @@ public sealed class FrontEnd
             Screen.Leave => Night is { Hosting: true, Others: > 0 } ? "END THE NIGHT?" : "LEAVE THE NIGHT?",
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
+            Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",

@@ -134,6 +134,8 @@ public static partial class Hud
     /// <summary>One slot: a dark square, its edge lit for the one in hand, the picture, and its key small in the corner.</summary>
     static void Slot(Overlay o, float x, float y, string[] picture, string key, bool lit, float alpha, Vector4? tint = null)
     {
+        // The slot's its own dark square: its key needs no band (TEXT BACKING, note 404).
+        using var plate = UiStyle.OnPlate(o);
         o.Rect(x, y, SlotSize, SlotSize, UiStyle.Iron with { W = (lit ? 0.6f : 0.4f) * alpha });
         o.Outline(x, y, SlotSize, SlotSize, (lit ? UiStyle.Lit : Dim) with { W = (lit ? 0.95f : 0.3f) * alpha });
         var ink = (tint ?? (lit ? Ink : Dim)) with { W = alpha };

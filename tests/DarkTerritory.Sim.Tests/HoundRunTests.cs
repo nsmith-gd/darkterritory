@@ -62,10 +62,12 @@ public class HoundRunTests
         // Both flanks.
         Assert.Contains(runners, h => h.Lateral > 0);
         Assert.Contains(runners, h => h.Lateral < 0);
-        // Nobody shoots: every one of them reaches the rear car and boards it at 21 m/s.
-        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        // Nobody shoots: every one of them reaches the train and boards it at 21 m/s: the first pair the rear car from behind,
+        // the second (the lane ahead, note 405) the first car behind the engine from in front.
+        int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id, first = n.Train.Dynamics.Consist.Vehicles[1].Id;
+        Assert.Equal(2, runners.Count(h => h.Ahead));
         n.Run((R.SpawnBehind + 10) / R.Closing + E.CinderHounds.HowlSeconds + 2);
-        Assert.All(runners, h => Assert.Equal(rear, h.Attached));
+        Assert.All(runners, h => Assert.Equal(h.Ahead ? first : rear, h.Attached));
         Assert.Equal((0, 0, run.Size), d.RunOutcome(run.Pack));
         n.AssertFair();
         // One run at a time: with its runners still aboard, no second run, however far the train goes.
@@ -151,6 +153,123 @@ public class HoundRunTests
         // One gunner, a run of two: 7 rounds, both killed on the line, neither aboard (first pass).
         Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
         n.AssertFair();
+    }
+
+    /// <summary>Every pair of a run from ahead (note 405), to test the lane on its own.</summary>
+    static readonly EnemyTuning AllAhead = Quiet with { Director = Quiet.Director with { Run = R with { AheadEvery = 1 } } };
+
+    [Fact]
+    public void TheLaneAheadComesAcrossTheLineInTheLampAndLeapsOntoTheFirstCar()
+    {
+        // Note 405 (orchestrator.md §5.3 6): put down in front of the engine off to a flank, they howl, run in to meet the
+        // train, cross the line in front of it and are aboard the first car behind the engine as it comes by.
+        var n = new Night(4, 21, enemies: AllAhead);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1);
+        var pair = Runners(n);
+        Assert.Equal(2, pair.Count);
+        Assert.All(pair, h => Assert.True(h.Ahead));
+        double front = n.Train.Dynamics.Distance;
+        Assert.All(pair, h => Assert.InRange(h.LineDistance - front, R.AheadMetres - 30, R.AheadMetres + 10));
+        int flank = Math.Sign(pair[0].Lateral);
+        Assert.All(pair, h => Assert.Equal(flank, Math.Sign(h.Lateral)));
+        Assert.All(pair, h => Assert.True(Math.Abs(h.Lateral) >= R.AheadLateral[0] - 1));
+        // They hold in the lamp for the howl: the gun's mark doesn't move along the line.
+        double held = pair[0].LineDistance;
+        n.Run(E.CinderHounds.HowlSeconds - 1.5); // drawn up to a second ago
+        Assert.Equal(held, pair[0].LineDistance, 6);
+        Assert.Equal(SpinePhase.Telegraph, pair[0].Phase);
+        // Running in: across the line before the train's on them.
+        int first = n.Train.Dynamics.Consist.Vehicles[1].Id;
+        for (int i = 0; i < 40 * SimConstants.TickRate && pair.Any(h => h.Attached < 0); i++)
+            n.Run(SimConstants.TickSeconds);
+        Assert.All(pair, h => Assert.Equal(first, h.Attached));
+        Assert.All(pair, h => Assert.True(h.Local.Z < 0, "at the car's front end"));
+        Assert.All(pair, h => Assert.Equal(-flank, Math.Sign(h.Local.X))); // crossed: aboard on the far side
+        Assert.Equal((0, 0, 2), d.RunOutcome(pair[0].Pack));
+        Assert.Equal(1, d.AheadPairs);
+        n.AssertFair();
+    }
+
+    [Fact]
+    public void WithNoGunLaidForwardTheRunAllComesFromBehind()
+    {
+        var n = new Night(4, 21, enemies: AllAhead);
+        n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
+        foreach (var v in n.Train.Vehicles)
+            if (v.Gun.Facing < 0)
+                v.Gun = default;
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1);
+        Assert.Single(d.HoundRuns);
+        Assert.All(Runners(n), h => Assert.False(h.Ahead));
+        Assert.Equal(0, d.AheadPairs);
+    }
+
+    [Fact]
+    public void TheGunnerAtTheForwardGunAnswersTheLaneAhead()
+    {
+        // The forward gun's wave (note 405): the gunner bot at the engine's gun, a pair coming in ahead of a 21 m/s train.
+        var e = AllAhead with { Director = AllAhead.Director with { Run = AllAhead.Director.Run with { AfterMetres = 200 } } };
+        var n = new Night(4, 21, enemies: e);
+        int engine = n.Train.Dynamics.Consist.Vehicles.First(v => n.Train.Vehicles[v.Id].Gun is { Mounted: true, Facing: < 0 }).Id;
+        var mount = Guns.Mount(n.Train, engine)!.Value;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, engine, mount.Position.Z + 0.7, P) with { Yaw = 0 };
+        var gunner = new GunnerBot(Tuning.Combat.Guns);
+        var d = n.World.Director!;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var run = Assert.Single(d.HoundRuns);
+        n.Run(R.AheadMetres / 21 + E.CinderHounds.HowlSeconds + 4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var (scattered, killed, boarded) = d.RunOutcome(run.Pack);
+        Assert.True(n.Shots.Count > 0);
+        Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
+        n.AssertFair();
+    }
+
+    [Fact]
+    public void TheForwardGunnerGoesForwardOntoTheEngineAndAnswersTheLaneAhead()
+    {
+        // Note 414: a bot crew's second gunner, put down on car 2's roof, walks forward, jumps onto the engine's hood, goes
+        // round the stack to the gun's seat and answers the pair coming in ahead.
+        var e = AllAhead with { Director = AllAhead.Director with { Run = AllAhead.Director.Run with { AfterMetres = 2000 } } };
+        var n = new Night(4, 21, enemies: e);
+        int engine = n.Train.Dynamics.Consist.Vehicles[0].Id, car2 = n.Train.Dynamics.Consist.Vehicles[2].Id;
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car2, 0, P);
+        var gunner = new GunnerBot(Tuning.Combat.Guns) { Forward = true };
+        Assert.Equal("forward-gunner", gunner.Name);
+        var guns = Tuning.Combat.Guns;
+        var d = n.World.Director!;
+        double seated = -1;
+        for (int s = 0; s < 300 && d.HoundRuns.Count == 0; s++)
+        {
+            n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+            if (seated < 0 && Guns.MannedGun(n.Crew[1], n.Train, guns) == engine && n.Crew[1].Has(PlayerFlags.Seated))
+                seated = n.World.ElapsedSeconds;
+        }
+        Assert.True(seated >= 0, $"never seated at the engine's gun: on {n.Crew[1].Parent} {n.Crew[1].Surface} at {n.Crew[1].Position}");
+        Assert.True(seated < 60, $"seated after {seated} s");
+        var run = Assert.Single(d.HoundRuns);
+        n.Run(R.AheadMetres / 21 + E.CinderHounds.HowlSeconds + 4, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
+        var (scattered, killed, boarded) = d.RunOutcome(run.Pack);
+        Assert.True(scattered + killed == run.Size && boarded == 0, $"rounds {n.Shots.Count}: scattered {scattered}, killed {killed}, aboard {boarded}");
+        n.AssertFair();
+    }
+
+    [Theory]
+    [InlineData(5, false)]
+    [InlineData(6, true)]
+    [InlineData(8, true)]
+    public void ABotCrewOfSixOrMoreHasAForwardGunnerInItsLastPlace(int count, bool forward)
+    {
+        var crew = Enumerable.Range(0, count).Select(i => BotCrew.Make(i, count, null, Tuning.Combat, P, 1)).ToList();
+        Assert.Equal(forward ? 1 : 0, crew.Count(b => b is GunnerBot { Forward: true }));
+        Assert.Equal(1, crew.Count(b => b is GunnerBot { Forward: false }));
+        if (forward)
+            Assert.True(crew[^1] is GunnerBot { Forward: true });
     }
 
     [Fact]
