@@ -442,6 +442,11 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         found = DarkTerritory.Sim.Bots.FacilityWork.Find(routeTuning, kind);
     if (found is not { } at)
         return new { error = $"no route with a {kind} down a spur" };
+    // --empty: the cars run in empty (run.json departureLoad 0); --no-crates: none on the platform, so the machinery fills them.
+    if (args.Contains("--empty"))
+        run = run with { DepartureLoad = 0 };
+    if (args.Contains("--no-crates"))
+        facilities = facilities with { Crates = facilities.Crates with { Count = [0, 0], Heavy = facilities.Crates.Heavy with { Count = [0, 0] } } };
     var r = DarkTerritory.Sim.Bots.FacilityWork.Run(at.Route, at.Facility, train, player, boiler, run, facilities, routeTuning.Junctions, cars,
         (int)Opt(args, "--hands", 2), Opt(args, "--seconds", 1500), at.Route.GateOr(routeTuning.YardLength));
     return new
@@ -462,6 +467,9 @@ object FacilityWorkDrill(FacilityKind kind, string[] args)
         // The conveyor line's (note 400): the grain left for it, and how often it jammed.
         grain = r.Grain,
         jams = r.Jams,
+        // The tipple's (note 423): the ore left in its bin, and the cars off their rails at the end.
+        tippleOre = r.TippleOre,
+        offRails = r.OffRails,
         leaking = r.Leaking,
         rakes = r.Rakes,
         switchBack = r.SwitchBack,
