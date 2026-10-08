@@ -56,10 +56,12 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
   the line's `current` (what's there now, with PR and note), `status` and `notes` on its `items` row, not only `assignee`,
   `queue` and `assignedAt`; and add its shots (`shots`, the image uploaded to the artifact's assets).
 - **The Look Review** (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm): post a round for visual work the director should judge, as
-  E1 did on 8 Oct (rounds `r-armour-276`, `r-hound-312`, `r-leavings-325`): its page is near the 16 MB cap with the older
-  rounds' images inline, so a new round's images go up as files (`stills/<name>.jpg`, 960 wide, `files` on the publish) and
-  the page only gains the `<article class="shot">` entries (Latest, "Awaiting the director", a `.nb` notes box) and a
-  `<section class="round">` in the log. Build from a fresh `read` of it (others publish it too).
+  E1 did on 8 Oct (rounds `r-armour-276`, `r-hound-312`, `r-leavings-325`): the page gains the `<article class="shot">`
+  entries (Latest, "Awaiting the director", a `.nb` notes box) and a `<section class="round">` in the log. Build from a
+  fresh `read` of it (others publish it too). Mind two caps: 16 MB for the page and **512 files** a version. Since 8 Oct
+  (E1, version 101) the older rounds' 507 inline images are in seven `stills/still-pack-N.json` files the page fetches as
+  each image nears the screen (`<img data-pack="N:id">`), so the page is 0.9 MB, but it holds 464 files: put a round's
+  images inline (`data:` JPEG, 960 wide), or in a pack of its own, not a `stills/<name>.jpg` file each.
 
 ## UI/UX notes and assignments (the director, 7 Oct 2026)
 
