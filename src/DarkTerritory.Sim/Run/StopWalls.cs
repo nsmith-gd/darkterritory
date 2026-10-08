@@ -340,13 +340,15 @@ public sealed partial class StopWalls
             {
                 var b = stop.Buildings[i];
                 owner++;
-                // An open house stands as its four walls with a door, and its cupboards and cabinets (note 326); the rest of the
-                // shut ones as their footprints' boxes; a shed, the hero and a Holdout as their shells by their doors (note 279).
+                // An open house stands as its four walls with a door, its cupboards and cabinets, and the heavy furniture a
+                // ransack left against its walls (note 326); the rest of the shut ones as their footprints' boxes; a shed, the hero
+                // and a Holdout as their shells by their doors (note 279).
                 int index = i;
                 IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> boxes = !Walled(stop, i)
                     ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top)) : []
                     : b.Open
                         ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
+                            .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))
                             .Select(w => (w.X, w.Y, w.HalfX, w.HalfY, t.TopM))
                         : (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)])
                             .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, b.Kind == BuildingKind.Well ? t.WellTopM : t.TopM));

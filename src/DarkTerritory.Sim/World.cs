@@ -914,11 +914,16 @@ public sealed class World
         {
             _upkeep = value;
             Train.HotBoxTuning = value?.HotBox is { Enabled: true } hb ? hb : null;
+            Train.Gutter = value?.Lamp is { Enabled: true } lt ? lt : null;
             _hotBoxes = null;
+            _gutters = null;
         }
     }
     UpkeepTuning? _upkeep;
     HotBoxes? _hotBoxes;
+    Gutters? _gutters;
+    /// <summary>Host: the night's guttering lamps so far (note 346): how many started, and how many went out.</summary>
+    public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
     public (int Came, int Caught) HotBoxCount => _hotBoxes is { } h ? (h.Came, h.Caught) : (0, 0);
 
@@ -1053,12 +1058,19 @@ public sealed class World
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))
         {
-            Train.Vehicles[s.Parent].LampLit = !Train.Vehicles[s.Parent].LampLit;
-            if (Train.Vehicles[s.Parent].LampLit)
+            // Guttering (note 346), the press trims it: it burns steady again, and stays lit (nothing newly lit to be seen).
+            var car = Train.Vehicles[s.Parent];
+            if (car is { LampLit: true, Gutter: > 0 })
+                car.Gutter = 0;
+            else
             {
-                Attribution.LitLamp(s.Parent, playerId);
-                // A light in the dark is seen (note 287).
-                Drew(DrawCause.Lamp, playerId, Director?.Tuning.Draw.Weight(DrawCause.Lamp) ?? 0);
+                car.LampLit = !car.LampLit;
+                if (car.LampLit)
+                {
+                    Attribution.LitLamp(s.Parent, playerId);
+                    // A light in the dark is seen (note 287).
+                    Drew(DrawCause.Lamp, playerId, Director?.Tuning.Draw.Weight(DrawCause.Lamp) ?? 0);
+                }
             }
         }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
@@ -1309,6 +1321,11 @@ public sealed class World
         // Made on the first step, when the night's route (its seed) is known: the host's enemies come after its run.
         if (Authority && _hotBoxes is null && Train.HotBoxTuning is { } hbt)
             _hotBoxes = new HotBoxes(hbt, (Route?.Seed ?? 0) ^ 0x407B0UL);
+        if (Authority && _gutters is null && Train.Gutter is { } gt)
+            _gutters = new Gutters(gt, (Route?.Seed ?? 0) ^ 0x6077UL);
+        // The lamps (note 346): one guttering for each crewmate at most, none in the yard or a fort; one left too long goes out.
+        if (Authority && !Derailed && _gutters is { } lamps)
+            lamps.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort);
         if (Authority && !Derailed && _hotBoxes is { } boxes)
         {
             int open = Math.Max(1, _actors.Count(a => a.State.Alive));

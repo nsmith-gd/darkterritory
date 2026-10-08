@@ -29,7 +29,7 @@ public class HotBoxTests
                 route: null, 1, crew: 1, authority: true);
         else
             world.EnableBodies();
-        world.Upkeep = new UpkeepTuning { HotBox = H };
+        world.Upkeep = new UpkeepTuning { HotBox = H, Lamp = new() { Enabled = false } };
         return world;
     }
 
@@ -115,7 +115,7 @@ public class HotBoxTests
         // goes along the roofs to it, down the end ladder into the gap behind car 4, and greases it before it drags.
         double? cameAt = null, greasedAt = null;
         var report = CrewOfTwoTests.Night("frontier:7", 6, 90, null, start: 2500, bots: 3,
-            upkeep: new UpkeepTuning { HotBox = H with { FirstAfterMetres = 1e9 } },
+            upkeep: new UpkeepTuning { HotBox = H with { FirstAfterMetres = 1e9 }, Lamp = new() { Enabled = false } },
             each: w =>
             {
                 if (cameAt is null && w.ElapsedSeconds >= 20)
