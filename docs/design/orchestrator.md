@@ -210,7 +210,7 @@ Outside the director's budget and caps, like the left-behind's hunts (note 273):
 running fast gets it. `fromSpeed` is the director's packs' own top speed (19 m/s). Under it they can board, and outrunning
 them is still their counter (App. F.1, Decided; note 286); the run is what answers a train run faster than that, the
 top-speed strategy App. F.1 left open. One gunner bot at the guard gun answers a run of two with 7 rounds, both killed on
-the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness night never draws one. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
+the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), and the boards hold any driver to the line speed (18 m/s on Frontier), so a hauling night never draws one; `dt harness --express` (note 376) runs hot, and its first night drew a run that the gunner answered with 3 rounds, none aboard. Nothing in the grace, the forts, the final approach, or while the train's at a stop.
 
 ### 6.2 Next, in order
 

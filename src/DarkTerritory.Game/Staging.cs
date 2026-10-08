@@ -300,7 +300,9 @@ public static class Staging
         Crewmate At(byte id, double x, double z, double yaw, Double3 hand = default, Double3 other = default)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other);
+            // In car 2's frame, as a live crewmate is (so a strained car has them stumbling: --strain, note 375).
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other,
+                Car: s.Parent, Local: s.Position);
         }
         return
         [
@@ -359,7 +361,7 @@ public static class Staging
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         var crew = new List<Crewmate>();
-        int i = 0, swings = 0;
+        int i = 0, swings = 0, jumps = 0;
         foreach (var name in acts)
         {
             var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
@@ -372,7 +374,14 @@ public static class Staging
                 tool = (swings % 3) switch { 0 => Sim.Player.Tool.Shovel, 1 => Sim.Player.Tool.Crowbar, _ => Sim.Player.Tool.Wrench };
                 swing = 0.12 + 0.18 * swings++;
             }
-            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+            // A jump (note 375): each further into the leap than the last, and up off the roof.
+            var feet = Sim.Player.PlayerMotor.WorldPosition(s, train);
+            if (act == Art.CrewPose.Jump)
+            {
+                swing = 0.12 + 0.2 * jumps++;
+                feet += new Double3(0, 0.15 + 0.3 * Math.Min(jumps, 2), 0);
+            }
+            crew.Add(new Crewmate((byte)(20 + i), feet, Sim.Player.PlayerMotor.WorldYaw(s, train), true,
                 Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
             i++;
         }

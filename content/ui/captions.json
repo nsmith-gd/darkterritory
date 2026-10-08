@@ -1,0 +1,45 @@
+// CAPTIONS (ARCHITECTURE §8 note 349; GDD §32 "Accessibility"; the director, 8 Oct 2026: "these are all quite important").
+// What a sound is, as someone hearing it would say it, never which creature makes it or what to do about it: a hearing
+// player learns that tiptoeing means Tippy Toesie, and so does a reader. The silent-by-design creatures (the Gaunt, the
+// Passenger, the Followers) have nothing here: there's nothing to hear.
+{
+  // How loud at the ear (linear gain, after distance and walls) before a sound is captioned: under it, it isn't heard.
+  "threshold": 0.03,
+  // How long a caption stays up after its sound was last heard (s), and how many are up at once (the newest kept).
+  "holdSeconds": 2.5,
+  "lines": 3,
+
+  // A playing sound's name (or its name before a '.', "tippy-tiptoe.wood") and its caption.
+  "sounds": {
+    "tippy-tiptoe": "TIPTOEING",
+    "child-call": "A CHILD CALLING",
+    "hound-howl": "HOWLING",
+    "tell-hounds.howl-near": "HOWLING, CLOSE",
+    "dragger-scrape": "A SCRAPE AT THE EDGE",
+    "climber-scrabble": "SCRABBLING",
+    "hugger-grind": "GRINDING",
+    "doll-giggle": "A CHILD GIGGLING",
+    "fireflies-buzz": "BUZZING",
+    "ribbit-swell": "A BUBBLING CROAK",
+    "grumbler-gnaw": "GNAWING",
+    "stoker-hiss": "THE FIRE HISSING",
+    "drift-rustle": "REEDS RUSTLING",
+    "sleepers-writhe": "SOMETHING WET ON THE RAIL",
+    "car-fire": "FIRE CRACKLING",
+    "choir-voice": "VOICES SINGING",
+    "train-whistle": "THE WHISTLE",
+    "crew-mishaps.whistle-wheeze": "THE WHISTLE, WHEEZING",
+    "toy-squeaker": "A TOY SQUEAKING",
+    "toy-musicbox": "A MUSIC BOX",
+    "toy-drummer": "A TOY DRUM",
+    // Signs (note 327): something moving out there, heard as it is.
+    "cs-ribbits.hop-land": "SOMETHING HOPPING",
+    "cs-grumbler.scuttle": "SCUTTLING",
+    "hotbox": "A SQUEAL AT THE WHEELS",
+    "heap-groan": "THE HEAP GROANING",
+    "boiler-strain": "THE BOILER SHRIEKING",
+    "state-strain.groan": "THE BOILER SHRIEKING",
+    "safety-valve": "THE SAFETY VALVE",
+    "state-valve.blow": "THE SAFETY VALVE"
+  }
+}
