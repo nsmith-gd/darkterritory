@@ -134,6 +134,8 @@ public sealed record VillageTuning
     public required HaltTuning Halt { get; init; }
     /// <summary>Whether the plain houses (a rectangle or a square) stand open to walk into and search (note 326).</summary>
     public bool OpenHouses { get; init; }
+    /// <summary>Whether the barns, outbuildings and a dead town's goods shed stand open to walk into, their finds inside to search (note 417).</summary>
+    public bool OpenSheds { get; init; }
 }
 
 public sealed record BlocksTuning
