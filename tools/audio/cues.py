@@ -638,6 +638,47 @@ CUES = {
     "tell-track-debris": [O("writhe", "One brief wet writhe (the game fires them at uneven intervals)", vars=4)],
     "tell-marsh": [L("reeds", "Reeds rustling")],
     "tell-grumbler": [L("gnaw", "Gnawing on the crates")],
+    # The Moose (G1's design, docs/design/creatures/moose.md §4; queue #73, note 334): heard before it's seen, and nothing
+    # it does may sound like another creature's tell (spec A.1, A.4). Its lines and cue ids are G1's, as on the checklist.
+    "tell-moose-grazing": [
+        O("browse", "Tearing browse", vars=3),
+        L("chew", "Slow chewing"),
+        O("creak", "A sac's wet creak", vars=4),
+        O("grunt", "The occasional low grunt", vars=3),
+    ],
+    "tell-moose-listening": [O("none", "The chewing stops: the silence is the tell", vars=1, silent=True)],
+    "tell-moose-warning": [
+        O("grunt", "A cough-like grunt", vars=3),
+        O("clack", "A run of teeth clacks", vars=4),
+        O("hoof-drag", "A hoof raked back through the ground (pawing)", vars=3),
+    ],
+    "tell-moose-square-up": [
+        O("stamp", "A hoof stamp (two in a row)", vars=4),
+        O("snort", "A snort", vars=3),
+    ],
+    "tell-moose-charge": [
+        L("hooves", "Hooves at a charge, on ballast and ground"),
+        L("wheeze", "A wheeze"),
+        O("brush", "Brush breaking", vars=3),
+    ],
+    "cs-moose-snag": [
+        O("groan", "Wood groaning", vars=3),
+        L("grind", "The rack grinding"),
+        O("bellow", "A bellow of rage", vars=3),
+    ],
+    "cs-moose-search": [
+        # Breathing and sniffing, not snorting: the snort is the square-up's tell (AU1.6).
+        L("breath", "Heavy breathing and sniffing, close"),
+        O("knock", "The rack knocking on a wall", vars=4),
+    ],
+    "cs-moose-ram": [
+        O("boom", "A deep iron boom through the whole car", vars=4),
+        O("scrape", "The rack scraping the plates", vars=3),
+    ],
+    "cs-moose-train-pass": [
+        O("bellow", "A long carrying call after the train, no grunts (the grunt is the warning's)", vars=3),
+        O("thrash", "Hooves thrashing the verge", vars=3),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
