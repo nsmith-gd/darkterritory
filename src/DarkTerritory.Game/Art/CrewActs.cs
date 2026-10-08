@@ -19,6 +19,9 @@ public static class CrewActs
     /// <summary>Falling faster than this (m/s down), someone in the air is falling, not at the top of a jump.</summary>
     const double Falling = 3;
 
+    /// <summary>Rising faster than this (m/s up), someone in the air has jumped (a step off a ledge never rises).</summary>
+    const double Rising = 0.5;
+
     /// <summary>
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
@@ -215,8 +218,9 @@ public static class CrewActs
             return CrewPose.GetUp;
         if (s.Surface == Surface.Ladder)
             return s.Has(PlayerFlags.SoloCarry) ? CrewPose.ClimbCarry : CrewPose.Climb;
+        // In the air: going up off a jump, the leap (note 375; SceneArt holds it over the top); coming down hard, falling.
         if (s.Surface == Surface.Air)
-            return s.Velocity.Y < -Falling ? CrewPose.Fall : null;
+            return s.Velocity.Y < -Falling ? CrewPose.Fall : s.Velocity.Y > Rising ? CrewPose.Jump : null;
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
