@@ -583,6 +583,41 @@ public class CreatureArtTests
     }
 
     [Fact]
+    public void ACarHuggerClubbedToDeathDropsOffItsCarsEndAndIsLeftThere()
+    {
+        // Note 458: killed (from the rear platform, the guard van's door), it isn't one Deaths rolled where it was (Falls
+        // leaves it out: it's latched on the car's end), and it vanished 1-2 m from the crew. Now its grip's gone: it's left
+        // where it was in the world, clear of the car's end, and drops onto the track as the train runs on.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+        var f = train.Frames[rear];
+        var hugger = new CarHugger(46);
+        hugger.Restore(SpinePhase.Commit, 4, 12, rear, new Double3(0, 1.0, f.Shape.HalfLength + 0.4), 0, 0, 0, 0, 0);
+        var eye = f.ToWorld(new Double3(-8, 3, f.Shape.HalfLength + 6));
+        var staged = new List<Enemy> { hugger };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("car_hugger", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        staged.Clear();
+        scene.Killed(hugger, (uint)Staging.StrikeTick, new Vector3(0, 0, 1));
+        var down = Assert.Single(Drawn(0.8));
+        Assert.True(down.Y < was.Y - 0.5, $"dropped: {was.Y:0.00} → {down.Y:0.00}");
+        // Clear of the car's end: further back from the car's middle than it hung.
+        var middle = f.ToWorld(default) - eye;
+        var mid = new Vector3((float)middle.X, (float)middle.Y, (float)middle.Z);
+        Assert.True((down - mid).Length() > (was - mid).Length() + 1, $"clear of the end: {(was - mid).Length():0.0} → {(down - mid).Length():0.0} m");
+        Assert.Empty(Drawn(Effects.DeathSeconds + 0.2));
+    }
+
+    [Fact]
     public void TheOneTheCarHuggerSwallowsIsBentIntoItsMouthWhereverTheyWereCaught()
     {
         // GreyboxScene.Hung: the sim holds them wherever in reach they were caught; the scene stands them SwallowReach in
