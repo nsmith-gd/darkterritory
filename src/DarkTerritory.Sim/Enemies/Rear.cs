@@ -15,7 +15,7 @@ namespace DarkTerritory.Sim.Enemies;
 public sealed class CinderHound(int id, int pack) : Enemy(id)
 {
     public override Want Want => Want.Kill;
-    double _biteTimer, _boredTimer;
+    double _biteTimer, _boredTimer, _from;
     bool _stays;
 
     public override EnemyKind Kind => EnemyKind.CinderHound;
@@ -32,6 +32,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// near it, not by any round fired near the pack. Host only (the director's; a client's mirror never steps it).
     /// </summary>
     public bool Runner { get; init; }
+    /// <summary>
+    /// A runner of the lane ahead (note 405): put down in front of the train, it meets it, across the line in the lamp, and
+    /// leaps aboard the first car behind the engine. The forward gun's.
+    /// </summary>
+    public bool Ahead { get; init; }
     public override bool StaysAboard => _stays && Attached >= 0;
 
     protected override void Tick(EnemyContext ctx)
@@ -71,6 +76,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                 if (PhaseSeconds >= ctx.Tuning.MinReactionSeconds)
                     Enter(ctx, SpinePhase.Commit);
                 break;
+            case SpinePhase.Telegraph when Ahead:
+                // Howling in the lamp ahead, where it was put down: the train comes on.
+                if (PhaseSeconds >= t.HowlSeconds)
+                    Enter(ctx, SpinePhase.Commit);
+                break;
             case SpinePhase.Telegraph:
                 Run(ctx, t, closing: 0);
                 if (PhaseSeconds >= t.HowlSeconds)
@@ -84,6 +94,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                     break;
                 }
                 Maul(ctx, t);
+                break;
+            case SpinePhase.Commit when Ahead:
+                Meet(ctx);
                 break;
             case SpinePhase.Commit:
                 double gap = train.RearDistance - LineDistance;
@@ -110,6 +123,39 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         // A runner keeps up with any train and closes on it (note 328: a hot train can't outrun the run).
         double speed = Runner ? ctx.Train.Dynamics.Speed + closing : Math.Min(t.MaxSpeed, ctx.Train.Dynamics.Speed + closing);
         LineDistance += speed * SimConstants.TickSeconds;
+    }
+
+    /// <summary>
+    /// The lane ahead (note 405): running in against the train, across the line to its far side by the time they meet, and
+    /// aboard the first car behind the engine as it comes alongside (the engine's hooded, nothing to leap onto: note 338).
+    /// </summary>
+    void Meet(EnemyContext ctx)
+    {
+        var run = ctx.World.Director?.Tuning.Run ?? new HoundRunTuning();
+        var train = ctx.Train;
+        var consist = train.Dynamics.Consist.Vehicles;
+        int car = consist[Math.Min(1, consist.Count - 1)].Id;
+        var frame = train.Frames[car];
+        if (frame.ToLocal(WorldPosition(train)).Z >= -frame.Shape.HalfLength)
+        {
+            ctx.World.Director?.RunnerEnded(Pack, 2);
+            Attached = car;
+            Local = new Double3(Lateral > 0 ? 0.6 : -0.6, frame.Shape.RoofHeight, -(frame.Shape.HalfLength - 2.5));
+            return;
+        }
+        if (LineDistance < train.Dynamics.RearDistance)
+        {
+            Enter(ctx, SpinePhase.BreakOff); // the train's by: nothing left to leap onto
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        double closing = train.Dynamics.Speed + run.AheadSpeed;
+        double meet = Math.Max(SimConstants.TickSeconds, (LineDistance - train.Dynamics.Distance) / Math.Max(1, closing));
+        if (_from == 0)
+            _from = Math.Sign(Lateral); // the flank it came in from
+        double across = -_from * run.AheadCross;
+        Lateral += (across - Lateral) * Math.Min(1, SimConstants.TickSeconds / meet);
+        LineDistance -= run.AheadSpeed * SimConstants.TickSeconds;
     }
 
     void Board(EnemyContext ctx)

@@ -85,6 +85,45 @@ public sealed class CrashReports
         }
     }
 
+    /// <summary>
+    /// The reports written since the player last put the notice away (note 411): a crash says so on the console, which a
+    /// player launched from Steam never sees, so the next launch's title says it instead. Null when there's none new, or
+    /// the folder can't be read.
+    /// </summary>
+    public static CrashNotice? Unseen(string directory)
+    {
+        try
+        {
+            if (!System.IO.Directory.Exists(directory))
+                return null;
+            // The names carry their time (crash-yyyyMMdd-HHmmss), so ordinal order is the order they were written in.
+            string seen = File.Exists(Path.Combine(directory, SeenFile)) ? File.ReadAllText(Path.Combine(directory, SeenFile)).Trim() : "";
+            var fresh = System.IO.Directory.GetFiles(directory, "crash-*.txt").Select(Path.GetFileName)
+                .Where(n => string.CompareOrdinal(n, seen) > 0).Order(StringComparer.Ordinal).ToList();
+            return fresh.Count == 0 ? null : new CrashNotice(directory, Path.Combine(directory, fresh[^1]!), fresh.Count);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The notice put away (note 411): the reports up to <paramref name="notice"/>'s newest aren't said again.</summary>
+    public static void MarkSeen(CrashNotice notice)
+    {
+        try
+        {
+            File.WriteAllText(Path.Combine(notice.Directory, SeenFile), Path.GetFileName(notice.Newest) + "\n");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Said again next time: no worse than before.
+        }
+    }
+
+    /// <summary>The newest report the title's notice was put away at.</summary>
+    public const string SeenFile = "seen.txt";
+
     /// <summary>Writes through to the real console and keeps each finished line.</summary>
     sealed class Tee(TextWriter inner, CrashReports reports) : TextWriter
     {
@@ -120,3 +159,6 @@ public sealed class CrashReports
         public override void Flush() => inner.Flush();
     }
 }
+
+/// <summary>Crash reports the player hasn't been told of (note 411): where they are, the newest, and how many.</summary>
+public sealed record CrashNotice(string Directory, string Newest, int Count);

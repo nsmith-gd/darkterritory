@@ -898,6 +898,18 @@ public sealed class Director
     /// <summary>A hound run sent (note 328): when, how many in all, the crew alive it was sized to, and whether the boiler's heat drew it.</summary>
     public readonly record struct HoundRun(uint Tick, int Pack, int Size, int Active, bool Hot, double TrainSpeed, double Distance);
 
+    /// <summary>How many of tonight's runs' pairs came from ahead, for the forward gun (note 405).</summary>
+    public int AheadPairs => _aheadSent;
+    int _aheadSent;
+    readonly SortedDictionary<int, int> _aheadRunners = [];
+
+    /// <summary>How many of a run's runners came from ahead (note 405).</summary>
+    public int AheadRunners(int pack) => _aheadRunners.GetValueOrDefault(pack);
+
+    /// <summary>Whether the engine's rake carries a gun laid forward (the engine's own): the lane ahead's (note 405).</summary>
+    static bool ForwardGun(TrainOnLine train) =>
+        train.Dynamics.Consist.Vehicles.Any(v => train.Vehicles[v.Id].Gun is { Mounted: true, Facing: < 0 });
+
     /// <summary>Every hound run sent tonight (note 328).</summary>
     public List<HoundRun> HoundRuns { get; } = new();
 
@@ -984,18 +996,28 @@ public sealed class Director
             var h = t.CinderHounds;
             double side = _pairsSent % 2 == 0 ? 1 : -1;
             int n = Math.Min(2, _runnersLeft);
+            // The lane ahead (note 405): every aheadEvery-th pair from the second on (1: every pair), for a forward gun, from in front.
+            bool ahead = rt.AheadEvery > 0 && _pairsSent % rt.AheadEvery == Math.Min(1, rt.AheadEvery - 1) && ForwardGun(w.Train);
             for (int i = 0; i < n; i++)
             {
                 int k = i;
-                double lateral = side * (k == 0 ? rt.Lateral[0] : rt.Lateral[1]) + _runRng.Range(-0.5, 0.5);
+                double lateral = ahead
+                    ? side * (k == 0 ? rt.AheadLateral[0] : rt.AheadLateral[1]) + _runRng.Range(-0.5, 0.5)
+                    : side * (k == 0 ? rt.Lateral[0] : rt.Lateral[1]) + _runRng.Range(-0.5, 0.5);
                 w.AddEnemy(id => new CinderHound(id, _runPack)
                 {
                     Runner = true,
-                    LineDistance = w.Train.Dynamics.RearDistance - rt.SpawnBehind - k * 3,
+                    Ahead = ahead,
+                    LineDistance = ahead ? w.Train.Dynamics.Distance + rt.AheadMetres + k * 3 : w.Train.Dynamics.RearDistance - rt.SpawnBehind - k * 3,
                     Lateral = lateral,
                     Height = 0.6,
                     Health = h.Health,
                 });
+            }
+            if (ahead)
+            {
+                _aheadSent++;
+                _aheadRunners[_runPack] = AheadRunners(_runPack) + n;
             }
             _runnersLeft -= n;
             _pairsSent++;
