@@ -59,6 +59,14 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 
 ### 3.1 The census (once a second, host only, deterministic)
 
+**Built (note 345, queue #82)**, with these readings. One cab post: the driver and the fireman share it, and while the
+train is moving the line and the fire are its answer, so it isn't slack. A threat is on the crewmate it's holding, or
+the nearest within `onRadius` (20 m), or failing that the nearest at a post that answers it (`answers`: a pack running
+behind is the gunner's). An open hot box (note 331) is something to answer for anyone on its car and any walker; a guttering lamp (note 346) for
+anyone on its car and any rider; a coupling working loose (note 356) for anyone on either car of its gap and any walker. Slack
+counts only on the run between stops: the train moving, past the grace, out of the forts and facilities, short of the
+final approach.
+
 1. **Active players.** Alive, in the night (not spectating or in a Holdout), and not in a fort. A player who has dropped,
    died or is held in a grab isn't active. `active` is their count.
 2. **Each one's post**, from where they stand and what their hands are doing (the bots' `posts` already compute most of
@@ -87,14 +95,18 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
 2. **Who's next.** When the director's pressure passes its threshold, it weighs its options as now, then multiplies
    each by how well it answers the post with the most slack: ×`slackWeight` (2) for a threat whose answer is at that
    post, ×1 otherwise. A threat whose answer is at a post nobody holds is weighed ×`emptyPostWeight` (0.5) unless its rule is
-   to punish an empty post (the Track Doll's empty cab, B.2).
+   to punish an empty post (the Track Doll's empty cab, B.2). **Built (note 345)**: "the post with the most slack" is
+   that of the free crewmate with the most, `minSlack` (30 s) or more.
 3. **Per-player caps.** At most `perPlayer` (1) threat engaging any one player at once, and at most
    `ceil(active × 0.75)` engaged in all (1 at crew 1, 2 at crew 2, 3 at crew 4, 6 at crew 8). That's under App. B.1's
    flat 4/6, which stay as the ceiling. **Built (note 336)**, as a count: the cap is the least of the flat cap,
    `ceil(active × 0.75)` and `perPlayer × active`. The director doesn't yet know which player a threat is on (that's the
-   census of §3.1 2, item 4 below), so "one on any one player" holds only as the total.
+   census of §3.1 2, item 4 below), so "one on any one player" holds only as the total. **Per player (note 345):** a kind
+   whose every answering crewmate already has a threat on them weighs nothing. That is applied to the pick, not as a
+   hold: with the cap at `ceil(0.75 × active)`, the whole crew is never taken before the cap holds.
 4. **Slack presses.** A player at `slackPress` (150 s) of slack adds `slackPerSecond` (0.05) a second to the director's
-   pressure, for each such player, so a crew with several people idle fills faster than one with one idle.
+   pressure, for each such player, so a crew with several people idle fills faster than one with one idle. **Built
+   (note 345).**
 5. **Solo and crew 2.** `active` 1: one threat at a time, never two. `active` 2: two, never both on one player. The
    per-player cap means note 305's crew-2 answers still hold. **Built (note 336):** the hound run waits while the crew
    is at its cap.
@@ -106,7 +118,9 @@ pressure). The orchestrator decides *at whom*: which post gets the next threat, 
   "engagedPerActive": 0.75, "slackPress": 150, "slackPerSecond": 0.05 }
 ```
 
-Built so far (note 336): `on`, `liveCrew`, `engagedPerActive` and `perPlayer`. The slack fields come with §3.1's census.
+Built: `on`, `liveCrew`, `engagedPerActive` and `perPlayer` (note 336); the rest (note 345), with `census` (steering on
+or off), `minCrew` (2: a crew of one is App. B.1's as it was), `onRadius`, `drivingAbove`, `minSlack` and the `answers`
+table.
 
 ## 4. Pacing targets
 
@@ -202,8 +216,8 @@ the line (`HoundRunTests`). A bot crew hauls at cruise (14 m/s), so a harness ni
 
 1. **The live crew multiplier and per-player caps** (§3.2 1, 3, 5): **built (note 336, queue #75).**
 2. **Powder to the guns** (U4): the rack, the magazine and the carry. It makes the guns a two-person job in a wave.
-3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train.
-4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next; the bots' `posts` already compute most of it.
+3. **Hot boxes and loose couplings** (U1, U2): the upkeep that gets walkers onto the train. **Built: the hot box (note 331, queue #71), the lamp (U3; note 346, queue #83) and the loose coupling (note 356, queue #93).**
+4. **Slack and posts** (§3.1, §3.2 2, 4): the census and who's next. **Built (note 345, queue #82).**
 5. **Climbers at speed** (S2): only if the director wants it over note 286's grip; tuning and a sweep.
 6. **The kites** (S3): a new creature, after the director's yes.
 

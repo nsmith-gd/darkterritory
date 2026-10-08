@@ -155,6 +155,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double HotBox { get; set; }
     /// <summary>Seconds its lamp has been guttering (note 346, <see cref="Gutters"/>); 0 burning steady.</summary>
     public double Gutter { get; set; }
+    /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
+    public double Loose { get; set; }
     /// <summary>
     /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.

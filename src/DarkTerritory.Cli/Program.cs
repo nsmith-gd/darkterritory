@@ -1011,6 +1011,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         train.HotBoxTuning = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).HotBox;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].HotBox = hotFor;
     }
+    // --loose s: the coupling behind car 2 that many seconds loose (note 356): its callout in the gap (--view gapside).
+    if (Opt(args, "--loose", -1) is var looseFor and >= 0)
+    {
+        train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+        train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+    }
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
     // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
@@ -1410,6 +1416,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var breaks = RepairCallouts.Of(train);
         if (scene.Ruptured && !train.Boiler.Ruptured && train.Frames[0].Shape.Interactables.FirstOrDefault(i => i.Kind == InteractableKind.Firebox) is { Kind: InteractableKind.Firebox } fire)
             breaks.Insert(0, new BreakCallout(BreakKind.Rupture, 0, fire.Position + Double3.Up * fire.Aim));
+        Couplings.Callouts(train, breaks);
         scene.Breaks = breaks;
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();

@@ -838,7 +838,8 @@ public sealed partial class SceneArt(Look look)
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
             return;
         mesh.Instances.Add(new MeshInstance(Piece("rupture-tear", () => TrainKit.RuptureTear(Look)),
-            Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape)) * FrameMatrix(engine, eye)));
+            Matrix4x4.CreateScale(TrainKit.RuptureSize(engine.Shape)) * Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape))
+            * FrameMatrix(engine, eye)));
     }
 
     /// <summary>
