@@ -3286,7 +3286,7 @@
    }
   ],
   "takes": 3,
-  "sha": "c263261255d21f5c"
+  "sha": "bf6f03f6a49464b4"
  },
  "crew-footsteps/jump/coal": {
   "cue": "crew-footsteps.jump",
@@ -3326,11 +3326,6 @@
     "label": "Push-off into a jump: boots on cobbles and stone setts, outdoors",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -3346,7 +3341,7 @@
    }
   ],
   "takes": 3,
-  "sha": "fa0f3aa2cfb0bb78"
+  "sha": "2742fefe93757485"
  },
  "crew-footsteps/jump/concrete": {
   "cue": "crew-footsteps.jump",
@@ -3357,11 +3352,6 @@
     "label": "Push-off into a jump: boots on an indoor concrete floor",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -3377,7 +3367,7 @@
    }
   ],
   "takes": 3,
-  "sha": "a212f95a17da3c87"
+  "sha": "fd730e23e0ad4110"
  },
  "crew-footsteps/jump/dirt": {
   "cue": "crew-footsteps.jump",
@@ -3408,7 +3398,7 @@
    }
   ],
   "takes": 3,
-  "sha": "21ba5d13b0c48a16"
+  "sha": "35f4ca5be57cace9"
  },
  "crew-footsteps/jump/grass": {
   "cue": "crew-footsteps.jump",
@@ -3439,7 +3429,7 @@
    }
   ],
   "takes": 3,
-  "sha": "8078557d839dab2f"
+  "sha": "ee7624d16c5dd5e2"
  },
  "crew-footsteps/jump/grate": {
   "cue": "crew-footsteps.jump",
@@ -3504,7 +3494,7 @@
    }
   ],
   "takes": 3,
-  "sha": "fcfa5a0a2f655f7c"
+  "sha": "a44c856eb4ca1d0b"
  },
  "crew-footsteps/jump/plate": {
   "cue": "crew-footsteps.jump",
@@ -3635,7 +3625,7 @@
    }
   ],
   "takes": 3,
-  "sha": "6d3fa693cb74a04a"
+  "sha": "9060a2e22f9e3bf1"
  },
  "crew-footsteps/land/coal": {
   "cue": "crew-footsteps.land",
@@ -3675,11 +3665,6 @@
     "label": "Landing from a jump or drop: boots on cobbles and stone setts, outdoors",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -3695,7 +3680,7 @@
    }
   ],
   "takes": 3,
-  "sha": "31bc2b60e1c9e629"
+  "sha": "fc0e25363de8df17"
  },
  "crew-footsteps/land/concrete": {
   "cue": "crew-footsteps.land",
@@ -3706,11 +3691,6 @@
     "label": "Landing from a jump or drop: boots on an indoor concrete floor",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -3726,7 +3706,7 @@
    }
   ],
   "takes": 3,
-  "sha": "1d0e67442f4a60af"
+  "sha": "afe1fe6fe0b09df6"
  },
  "crew-footsteps/land/dirt": {
   "cue": "crew-footsteps.land",
@@ -3757,7 +3737,7 @@
    }
   ],
   "takes": 3,
-  "sha": "1b5d367dc07d6de3"
+  "sha": "9b6889331e877aff"
  },
  "crew-footsteps/land/grass": {
   "cue": "crew-footsteps.land",
@@ -3788,7 +3768,7 @@
    }
   ],
   "takes": 3,
-  "sha": "5e8df7288fbc45f0"
+  "sha": "12c29bdc754c065a"
  },
  "crew-footsteps/land/grate": {
   "cue": "crew-footsteps.land",
@@ -3853,7 +3833,7 @@
    }
   ],
   "takes": 3,
-  "sha": "40e15c2654c14a2d"
+  "sha": "2dc5bd0fe1d0583d"
  },
  "crew-footsteps/land/plate": {
   "cue": "crew-footsteps.land",
@@ -3984,7 +3964,7 @@
    }
   ],
   "takes": 6,
-  "sha": "779f4c3077f27159"
+  "sha": "1188b4d90d3ce60f"
  },
  "crew-footsteps/run/coal": {
   "cue": "crew-footsteps.run",
@@ -4024,11 +4004,6 @@
     "label": "Running: boots on cobbles and stone setts, outdoors",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4044,7 +4019,7 @@
    }
   ],
   "takes": 6,
-  "sha": "75aeb789907196e3"
+  "sha": "bfacd396343d4d4c"
  },
  "crew-footsteps/run/concrete": {
   "cue": "crew-footsteps.run",
@@ -4055,11 +4030,6 @@
     "label": "Running: boots on an indoor concrete floor",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4075,7 +4045,7 @@
    }
   ],
   "takes": 6,
-  "sha": "35b46745e34aa519"
+  "sha": "27577989acafe7dc"
  },
  "crew-footsteps/run/dirt": {
   "cue": "crew-footsteps.run",
@@ -4106,7 +4076,7 @@
    }
   ],
   "takes": 6,
-  "sha": "d2c67db413a05304"
+  "sha": "734cecd0f4ee6c26"
  },
  "crew-footsteps/run/grass": {
   "cue": "crew-footsteps.run",
@@ -4137,7 +4107,7 @@
    }
   ],
   "takes": 6,
-  "sha": "b1843d544e2ad173"
+  "sha": "e4d584ee315e8465"
  },
  "crew-footsteps/run/grate": {
   "cue": "crew-footsteps.run",
@@ -4202,7 +4172,7 @@
    }
   ],
   "takes": 6,
-  "sha": "dc37e5336a8c45fb"
+  "sha": "f8fcde5816eccc79"
  },
  "crew-footsteps/run/plate": {
   "cue": "crew-footsteps.run",
@@ -4333,7 +4303,7 @@
    }
   ],
   "takes": 3,
-  "sha": "3102da94c02316f9"
+  "sha": "c88537d39184165a"
  },
  "crew-footsteps/scuff/coal": {
   "cue": "crew-footsteps.scuff",
@@ -4373,11 +4343,6 @@
     "label": "Turning or stopping short: boots on cobbles and stone setts, outdoors",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4393,7 +4358,7 @@
    }
   ],
   "takes": 3,
-  "sha": "4bfdac77a2ada35a"
+  "sha": "d7f83d910e85d495"
  },
  "crew-footsteps/scuff/concrete": {
   "cue": "crew-footsteps.scuff",
@@ -4404,11 +4369,6 @@
     "label": "Turning or stopping short: boots on an indoor concrete floor",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4424,7 +4384,7 @@
    }
   ],
   "takes": 3,
-  "sha": "a4351b439834571e"
+  "sha": "da9790f5960a9bd5"
  },
  "crew-footsteps/scuff/dirt": {
   "cue": "crew-footsteps.scuff",
@@ -4455,7 +4415,7 @@
    }
   ],
   "takes": 3,
-  "sha": "1731732c2281a995"
+  "sha": "28b8117a37b414e9"
  },
  "crew-footsteps/scuff/grass": {
   "cue": "crew-footsteps.scuff",
@@ -4486,7 +4446,7 @@
    }
   ],
   "takes": 3,
-  "sha": "0c416e06fa96a86d"
+  "sha": "bf1d3dc13ae00caa"
  },
  "crew-footsteps/scuff/grate": {
   "cue": "crew-footsteps.scuff",
@@ -4551,7 +4511,7 @@
    }
   ],
   "takes": 3,
-  "sha": "ee191170c5033c73"
+  "sha": "511458a19fecb449"
  },
  "crew-footsteps/scuff/plate": {
   "cue": "crew-footsteps.scuff",
@@ -4682,7 +4642,7 @@
    }
   ],
   "takes": 6,
-  "sha": "fb65747c7747277a"
+  "sha": "7bdcbd62e91cca42"
  },
  "crew-footsteps/walk/coal": {
   "cue": "crew-footsteps.walk",
@@ -4722,11 +4682,6 @@
     "label": "Walking: boots on cobbles and stone setts, outdoors",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4742,7 +4697,7 @@
    }
   ],
   "takes": 6,
-  "sha": "98c16497d68be419"
+  "sha": "7638fd35c46a89e2"
  },
  "crew-footsteps/walk/concrete": {
   "cue": "crew-footsteps.walk",
@@ -4753,11 +4708,6 @@
     "label": "Walking: boots on an indoor concrete floor",
     "key": "boots",
     "sources": [
-     "kenney_impact-sounds:footstep_concrete_000",
-     "kenney_impact-sounds:footstep_concrete_001",
-     "kenney_impact-sounds:footstep_concrete_002",
-     "kenney_impact-sounds:footstep_concrete_003",
-     "kenney_impact-sounds:footstep_concrete_004",
      "kenney_rpg-audio:footstep00",
      "kenney_rpg-audio:footstep01",
      "kenney_rpg-audio:footstep02",
@@ -4773,7 +4723,7 @@
    }
   ],
   "takes": 6,
-  "sha": "9fcc24ba7ad14c56"
+  "sha": "0ff0a7295e1dc4fd"
  },
  "crew-footsteps/walk/dirt": {
   "cue": "crew-footsteps.walk",
@@ -4804,7 +4754,7 @@
    }
   ],
   "takes": 6,
-  "sha": "7328cf7b68238fd1"
+  "sha": "eb9909a89bb3fa7d"
  },
  "crew-footsteps/walk/grass": {
   "cue": "crew-footsteps.walk",
@@ -4835,7 +4785,7 @@
    }
   ],
   "takes": 6,
-  "sha": "62d42d7940c22034"
+  "sha": "d1f21d158405623f"
  },
  "crew-footsteps/walk/grate": {
   "cue": "crew-footsteps.walk",
@@ -4900,7 +4850,7 @@
    }
   ],
   "takes": 6,
-  "sha": "9152006405551b5d"
+  "sha": "64e55746a0289b0d"
  },
  "crew-footsteps/walk/plate": {
   "cue": "crew-footsteps.walk",

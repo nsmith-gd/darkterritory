@@ -2303,7 +2303,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 
 **Audio**
 - Turning on the spot shouldn't make a sound; only walking should. *Done (note 355): turning on the spot is silent; stopping short from a run still scuffs.*
-- Footsteps on the ground sound wrong; on wood and grates they're good. *Open.*
+- Footsteps on the ground sound wrong; on wood and grates they're good. *Done (queue #91, note 354), with the director's 8 Oct note on the test build ("a super weird squishy footstep sound when I walk on the stones in the town"): every ground set was a boom or a soft wobble a step (the packs' steps lowpassed, or soft soles). Stone (the streets, the halts, inside the buildings) is now a hard boot's crack and the stone's dead knock; dirt a short dead tup with dry crumbs and needles; grass its swish over a soft tup; ballast a stone heel under the crunch; mud the squelch without the boom. And B2's walled towns (#267): their streets are heard as the beaten stones they're drawn in and their lanes as mud, where the land under them (grass, or the shore's red mud) played.*
 - The boiler over-pressure sound is good (§23, Boiler rupture). *Keep.*
 - The gun's traverse sound is bad. *Done (note 329, #252; again in App. F.3): the lay is a low motor hum with a slow, deep gear clunk.*
 - The train is near-silent on the rail: no rolling sound to reinforce speed. *Done (T127): the wheels' roll under each car near you, a roar with speed and the rail joints' click-clack (`bed-wheel-rail`).*
