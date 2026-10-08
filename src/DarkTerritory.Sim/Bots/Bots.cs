@@ -2299,8 +2299,11 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (!Repairs.LampSmashed(train) || !self.Alive || !PlayerMotor.InCab(self, train) || train.Frames[0].Shape.Cab is not { } cab
             || world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
             return null;
-        // Forward to the windows first (the driver works the controls from anywhere in the cab).
-        if (!Repairs.AtLamp(self, train))
+        // Forward to the windows first (the driver works the controls from anywhere in the cab): to the floor behind the fire
+        // and the coal, where Use with the wrench is the lamp's. Not by the vent (its corner while a Climber was in): Use there
+        // is the vent's, and a harness night's driver held it open from there with the wrench, the lamp never mended and the
+        // boiler drained to nothing.
+        if (!Repairs.AtLamp(self, train) || CrewActions.Nearest(self, train) is not (InteractableKind.Coal or InteractableKind.Firebox or null))
             return WarmUp.Steer(self, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
         if (Repairs.WrenchKey(self) is var key and > 0)
             return new PlayerIntent { Select = key };
