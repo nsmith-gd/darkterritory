@@ -81,8 +81,11 @@ public sealed partial class WorldArt
         foreach (var st in b.Streets)
             if (s >= st.S0 && s <= st.S1 && Math.Abs(lateral - st.D) <= st.Width / 2)
                 return "ballast";
+        // A lane (crooked, note 353): within its half-width of its middle there, square to it, off the line's bed.
         foreach (var lane in b.Lanes)
-            if (Math.Abs(s - lane.S) <= lane.Width / 2 && LaneMids(lane, TownChunk).Any(mid => Math.Abs(lateral - mid) <= TownChunk / 2))
+            if (lateral >= lane.D0 && lateral <= lane.D1 && Math.Abs(lateral) >= LaneBed
+                && (lane.At(lateral + 1) - lane.At(lateral - 1)) / 2 is var slope
+                && Math.Abs(s - lane.At(lateral)) <= lane.Width / 2 * Math.Sqrt(1 + slope * slope))
                 return "ground_mud";
         return null;
     }

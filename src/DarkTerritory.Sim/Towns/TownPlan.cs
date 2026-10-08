@@ -25,7 +25,8 @@ public sealed record TownPlan(
     IReadOnlyList<TownFixture> Fixtures,
     string Character = "",
     TownBounds? Bounds = null,
-    TownGreen? Green = null);
+    TownGreen? Green = null,
+    TownWorks? Works = null);
 
 /// <summary>
 /// A walled town's green (note 353): across the first street from the square, from <see cref="S0"/> to <see cref="S1"/>
@@ -33,6 +34,18 @@ public sealed record TownPlan(
 /// houses would have been. The statue, the wall of names, the bandstand, the lamp garden and the trees stand on it.
 /// </summary>
 public sealed record TownGreen(double S0, double S1, double Near, double Far, int Side)
+{
+    public bool Holds(double s, double d, double pad = 0) =>
+        s >= S0 - pad && s <= S1 + pad && Math.Sign(d) == Side && Math.Abs(d) >= Near - pad && Math.Abs(d) <= Far + pad;
+}
+
+/// <summary>
+/// A walled town's works (queue #166, note 430): its <see cref="Trade"/> (towns.json industries: "coal", "farm",
+/// "foundry") at work inside its wall, across the line from the green, between the far side's first and second streets:
+/// from <see cref="S0"/> to <see cref="S1"/> along the line and <see cref="Near"/> to <see cref="Far"/> out from it on
+/// <see cref="Side"/>, where the houses would have been. Its pieces are the plan's fixtures standing in it.
+/// </summary>
+public sealed record TownWorks(double S0, double S1, double Near, double Far, int Side, string Trade)
 {
     public bool Holds(double s, double d, double pad = 0) =>
         s >= S0 - pad && s <= S1 + pad && Math.Sign(d) == Side && Math.Abs(d) >= Near - pad && Math.Abs(d) <= Far + pad;
@@ -75,8 +88,48 @@ public sealed record TownWave(double Phase, double Length, double Quiet0, double
     }
 }
 
-/// <summary>A lane across the streets at <see cref="S"/>, from <see cref="D0"/> to <see cref="D1"/>, its width.</summary>
-public sealed record TownLane(double S, double D0, double D1, double Width);
+/// <summary>
+/// A lane across the streets at <see cref="S"/> where it crosses the line, from <see cref="D0"/> to <see cref="D1"/>, its
+/// width; and where it runs crooked (note 353), the <see cref="Kinks"/> it turns at, (D, S) in order out across the line
+/// (one where it meets each street), straight between them and on past the last.
+/// </summary>
+public sealed record TownLane(double S, double D0, double D1, double Width, IReadOnlyList<(double D, double S)>? Kinks = null)
+{
+    /// <summary>Its middle (along the line) at <paramref name="d"/> across it.</summary>
+    public double At(double d)
+    {
+        if (Kinks is not { Count: > 0 } k)
+            return S;
+        if (d <= k[0].D)
+            return k[0].S;
+        for (int i = 1; i < k.Count; i++)
+            if (d <= k[i].D)
+                return k[i - 1].S + (k[i].S - k[i - 1].S) * (d - k[i - 1].D) / Math.Max(1e-9, k[i].D - k[i - 1].D);
+        return k[^1].S;
+    }
+
+    /// <summary>
+    /// How far along the line its ground reaches either way anywhere from <paramref name="da"/> to <paramref name="db"/>
+    /// across it: its middle's least and most there, out by its half-width (wider along the line where it runs at an angle).
+    /// </summary>
+    public (double Lo, double Hi) Span(double da, double db)
+    {
+        if (da > db)
+            (da, db) = (db, da);
+        double lo = Math.Min(At(da), At(db)), hi = Math.Max(At(da), At(db)), slope = 0;
+        if (Kinks is { Count: > 0 } k)
+            for (int i = 0; i < k.Count; i++)
+            {
+                if (k[i].D > da && k[i].D < db)
+                    (lo, hi) = (Math.Min(lo, k[i].S), Math.Max(hi, k[i].S));
+                // The steepest of the stretches that touch the band.
+                if (i > 0 && k[i].D > da && k[i - 1].D < db)
+                    slope = Math.Max(slope, Math.Abs((k[i].S - k[i - 1].S) / Math.Max(1e-9, k[i].D - k[i - 1].D)));
+            }
+        double half = Width / 2 * Math.Sqrt(1 + slope * slope);
+        return (lo - half, hi + half);
+    }
+}
 
 /// <summary>Where the walls step back for the square: along the line from <see cref="S0"/> to <see cref="S1"/>, out to
 /// <see cref="WallD"/> on <see cref="Side"/>.</summary>

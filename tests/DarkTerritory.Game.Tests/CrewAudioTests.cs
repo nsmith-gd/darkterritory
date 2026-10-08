@@ -766,7 +766,7 @@ public class CrewAudioTests
             foreach (double s in new[] { st.S0 + 2, (st.S0 + st.S1) / 2, st.S1 - 2 })
                 Assert.Equal("ballast", Under(s, st.D));
         var lane = bounds.Lanes[0];
-        Assert.Equal("mud", Under(lane.S, lane.D0 + 10));
+        Assert.Equal("mud", Under(lane.At(lane.D0 + 10), lane.D0 + 10));
         // Off them, the land: what the streets were heard as.
         var first = bounds.Streets[0];
         Assert.NotEqual("ballast", Under((first.S0 + first.S1) / 2, first.D + Math.Sign(first.D) * (first.Width / 2 + 3)));

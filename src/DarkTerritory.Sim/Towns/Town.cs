@@ -248,7 +248,7 @@ public sealed class Town
             if (f.Kind == "board" && Plan.Papers.Any(x => x.OnBoard))
                 Consider(TownTargetKind.Board, f.Id, World(f.S, f.D, 1.5), r.Read + f.SolidS);
             else if (f.Text.Length > 0)
-                Consider(TownTargetKind.Fixture, f.Id, World(f.S, f.D, Math.Max(0.3, f.Height * 0.6)), r.Read + Math.Max(f.SolidS, f.SolidD));
+                Consider(TownTargetKind.Fixture, f.Id, LookAt(f), r.Read + Math.Max(f.SolidS, f.SolidD));
         }
         for (int i = 0; i < Plan.Buildings.Count; i++)
             if (Plan.Buildings[i].Knock.Length > 0)
@@ -314,6 +314,15 @@ public sealed class Town
         }
         return Slab(la.X, lb.X, -w.HalfLength, w.HalfLength) && Slab(la.Z, lb.Z, -w.HalfWidth, w.HalfWidth) && Slab(la.Y, lb.Y, w.Bottom, w.Top);
     }
+
+    /// <summary>
+    /// Where a thing is looked at: most of the way up it, but no higher than a head (a works' headframe, the flag: note 430),
+    /// so a tall one is read from its foot like anything else.
+    /// </summary>
+    public Double3 LookAt(TownFixture f) => World(f.S, f.D, Math.Clamp(f.Height * 0.6, 0.3, LookTop));
+
+    /// <summary>The highest a thing is looked at (m).</summary>
+    const double LookTop = 2.4;
 
     /// <summary>Where a target is (for how far away it's got, and for the person turning to face you).</summary>
     public Double3 Where(TownTarget target) => target.Kind switch

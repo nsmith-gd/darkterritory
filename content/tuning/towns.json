@@ -43,9 +43,17 @@
   // side's swing out and back on one wave "bendWavelength" m long, the first street "bendBase" m and each further out
   // "bendStep" m more (the rows between them keep their room) up to "bendMax",
   // straight within "bendClear" m of the square's ends; a house stands "setbackJitter" m further back than the setback.
-  "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8,
+  // A lane runs crooked: where it meets each street it turns "laneJog" m along the line, one way or the other, straight
+  // between (never into the square or across its green).
+  "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8, "laneJog": [3, 10],
     "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5,
-    "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2] },
+    "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2],
+    // The town's works (queue #166, note 430; GDD §3 "furnaces, rail yards and warehouses"): its trade at work across the
+    // line from the green, between the far side's first and second streets, from "worksBefore" m before the square's rear
+    // end to "worksPast" m past its gate end (no lane crosses them); its pieces "worksMargin" m in from their streets and
+    // the works' ends, "worksGap" m apart (world/towns.json "works" says which, in what order); "worksHands" of the town's
+    // hands at work there at night.
+    "worksBefore": 30, "worksPast": 6, "worksMargin": 1.5, "worksGap": 3, "worksHands": 3 },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs

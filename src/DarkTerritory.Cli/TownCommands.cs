@@ -38,6 +38,14 @@ static class TownCommands
                 streets = b.Streets.Select(x => Math.Round(x.D, 1)).Order(),
                 lanes = b.Lanes.Select(x => Math.Round(x.S - gate, 1)),
             } : null,
+            // Its works (note 430): its trade, where they stand, and each piece along the line from their start.
+            works = plan.Works is { } wk ? new
+            {
+                wk.Trade,
+                along = new[] { Math.Round(wk.S0 - gate, 1), Math.Round(wk.S1 - gate, 1) },
+                across = new[] { Math.Round(wk.Side * wk.Near, 1), Math.Round(wk.Side * wk.Far, 1) },
+                pieces = plan.Fixtures.Where(f => wk.Holds(f.S, f.D)).Select(f => $"{f.Kind} at {f.S - wk.S0:0.0} ({f.Name})"),
+            } : null,
             open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
             {
                 h.Family,

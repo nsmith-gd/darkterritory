@@ -101,6 +101,8 @@ public sealed record WalledTuning
     /// <summary>A lane across the streets every so often (m), this wide.</summary>
     public double[] LaneEvery { get; init; } = [90, 130];
     public double LaneWidth { get; init; } = 8;
+    /// <summary>How far along the line a lane turns, one way or the other, where it meets each street (m; note 353).</summary>
+    public double[] LaneJog { get; init; } = [3, 10];
     /// <summary>Where the street rows run along the line: from this far up from the yard's start to this far inside the gate (m).</summary>
     public double From { get; init; } = 22;
     public double ToGate { get; init; } = 22;
@@ -122,6 +124,17 @@ public sealed record WalledTuning
     public double[] SetbackJitter { get; init; } = [0, 0];
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
+    /// <summary>
+    /// The town's works (queue #166, note 430), across the line from the green: how far before the square's rear end and
+    /// past its gate end they run along the line, how far their pieces keep from their streets and the works' ends, and
+    /// the room between pieces (m).
+    /// </summary>
+    public double WorksBefore { get; init; } = 30;
+    public double WorksPast { get; init; } = 6;
+    public double WorksMargin { get; init; } = 1.5;
+    public double WorksGap { get; init; } = 3;
+    /// <summary>How many of the town's hands are out at its works at night (note 430).</summary>
+    public int WorksHands { get; init; } = 3;
 }
 
 public sealed record TownReach
@@ -167,6 +180,11 @@ public sealed record TownWriting
     public string[] Laws { get; init; } = [];
     /// <summary>The green's and the walls' pieces by kind (statue, memorial, bandstand, garden, tree, flag, mural): what each is called and what looking at it tells you.</summary>
     public Dictionary<string, TownText[]> Civic { get; init; } = [];
+    /// <summary>
+    /// A walled town's works by its trade (queue #166, note 430; the industries' keys, and "any" for what every town's works
+    /// have after its own): the pieces in the order they stand along the line, each with what looking at it tells you.
+    /// </summary>
+    public Dictionary<string, TownWork[]> Works { get; init; } = [];
     /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
     public string[] Walled { get; init; } = [];
 }
@@ -185,6 +203,14 @@ public sealed record TownHousehold
 
 /// <summary>A paper: a notice, a letter, a page.</summary>
 public sealed record TownText(string Title, string Text);
+
+/// <summary>
+/// A piece of a town's works (note 430): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what
+/// it's called and what looking at it tells you; <see cref="After"/>, where it must stand that far along the line from the
+/// piece before it (the winding house from its headframe, its ropes run between them), else packed after it; and
+/// <see cref="Across"/>, how far from the works' middle it stands toward their far street (negative: toward the line).
+/// </summary>
+public sealed record TownWork(string Kind, string Title, string Text, double After = 0, double Across = 0);
 
 /// <summary>
 /// A town's custom (GDD §3.1): the human answer to one creature's rule, kept harder than it needs keeping. <see
