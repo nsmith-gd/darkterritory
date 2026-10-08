@@ -56,6 +56,9 @@ return args switch
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    // dt art footprints [--write]: what each kit piece the lineside deals stands on, measured off its mesh (note 389);
+    // --write puts it in content/linegen/footprints.json, which the sim stands the walls from.
+    ["art", "footprints", ..] => ArtFootprints(content, args),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     ["art", "reel", ..] => Print(ArtReel(content, args)),
@@ -1710,6 +1713,23 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
     var textures = look.Textures.Select(x => x.Name).ToHashSet();
     Print(new { pieces = rows, textures = textures.Count, over = rows.Where(r => r.over).Select(r => r.piece) });
     return rows.Any(r => r.over) ? 1 : 0;
+}
+
+// What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
+static int ArtFootprints(string content, string[] args)
+{
+    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null);
+    var text = DarkTerritory.Game.Art.LinesideFootprints.Json(all);
+    string path = Path.Combine(content, DarkTerritory.Sim.LineGen.LineGenConfig.Directory, "footprints.json");
+    if (args.Contains("--write"))
+    {
+        File.WriteAllText(path, text);
+        Print(new { wrote = path, pieces = all.Count, boxes = all.Values.Sum(v => v.Sum(b => b.Length)) });
+        return 0;
+    }
+    bool same = File.Exists(path) && File.ReadAllText(path) == text;
+    Print(new { path, same, pieces = all.ToDictionary(kv => kv.Key, kv => kv.Value) });
+    return same ? 0 : 1;
 }
 
 // A kit piece on a turntable (pipeline plan: "an in-engine turntable viewer with era-mode toggle"): four quarters,
