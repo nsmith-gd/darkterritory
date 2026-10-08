@@ -2203,6 +2203,9 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 **Yards and loot**
 - Pulling into a yard's siding took real work (the switch thrown, the cut eased in), and the siding had no loot; then the loot appeared in the yard after the train had already stopped. Loot should be on every yard line in the early and mid game. *Done (queue #89, ARCHITECTURE §8 note 352): on local, frontier and dead-lines yards every siding has something to load beside its loading face (before, about one yard in thirteen had a bare one); and a stop's loot, and a facility's crates, are out 800 m before the train gets there, so nothing appears in front of the crew.*
 
+**Switches**
+- Found following up the switch audit (A1): holding Use at a switch stand to throw it also put down the lamp you'd carried out to it, or picked up whatever lay by the stand, and the prompt offered that thing before the switch. *Done (queue #94, ARCHITECTURE §8 note 357): at a switch's lever, a stand's or the cab's thrower's, Use is the lever's: what's in your hands stays there, what's lying by it stays down, Throw still lets go, and the prompt says THROW TO first.*
+
 **Decided** (the director, 8 Oct 2026): every yard line holds loot on the early and mid tiers, and loot is never seen appearing. Level-design P14 (and stops.json `everyTrack`, loot.json `stockAhead`).
 
 ## F.3 2026-10-07 — main at 8442eee, and the integration test builds
