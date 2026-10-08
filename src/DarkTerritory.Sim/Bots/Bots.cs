@@ -98,6 +98,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // for it to shoot), and back to it once there's nothing left to look at from here.
         if (!hounds && _legs.Errand is { } errand && errand.Wants(self, world, tick))
             return _legs.Decide(self, world, tick, out aimed);
+        // The rack run dry (note 374): down to the powder locker for a charge, and back up with it.
+        if (Powder(self, world, tick) is { } powder)
+            return powder;
+        if (_powderAlong)
+            return _legs.Decide(self, world, tick, out aimed);
         // Hounds that got aboard can't be shot from the gun they're standing next to: off it, to the pack fight with the
         // rest (they stay aboard, note 269; or, with stayAboard off, get clear: they drop off once nobody's near), then walk
         // back to the guard car and take the gun again.
@@ -158,6 +163,107 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;
+    }
+
+    int _gunCar = -1;
+    bool _powderAlong;
+    /// <summary>Where it's got to on a powder run (note 374), or null (for tests and the harness's trace).</summary>
+    public string? PowderStep { get; private set; }
+
+    /// <summary>
+    /// Powder to the guns (note 374, orchestrator.md §5.1 U4). Its gun's ready rack run dry with powder in the lockers: up out
+    /// of the seat, down the guard van's hatch ladder (beside the gun), along the room to the powder locker in its front
+    /// corner, a charge into its hands, back up the ladder and Use held at the gun until the rack's full. On the roof of
+    /// another car, its legs take it along the roofs to the guard van (null, with <see cref="_powderAlong"/>). Null with nothing to fetch.
+    /// </summary>
+    PlayerIntent? Powder(in PlayerState self, World world, uint tick)
+    {
+        PowderStep = null;
+        _powderAlong = false;
+        var train = world.Train;
+        if (guns.Rack <= 0 || !self.Alive)
+            return null;
+        if (Guns.MannedGun(self, train, guns) is { } manned)
+            _gunCar = manned;
+        int gunCar = _gunCar >= 0 && _gunCar < train.Vehicles.Count && train.Vehicles[_gunCar].HasGun ? _gunCar : -1;
+        bool carrying = world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder };
+        if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0))
+            return null;
+        int lockerCar = -1;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+            if (v.Id < train.Frames.Count && Guns.Locker(train.Frames[v.Id].Shape) is not null)
+                lockerCar = v.Id;
+        if (lockerCar < 0)
+            return null;
+        var shape = train.Frames[lockerCar].Shape;
+        var room = shape.Interior!.Value;
+        // The hatch ladder: the one whose foot is on the room's floor.
+        Ladder? hatch = null;
+        foreach (var l in shape.Ladders)
+            if (room.Contains(l.Foot + new Double3(0, 0.2, 0)))
+                hatch = l;
+        if (hatch is not { } ladder)
+            return null;
+        bool inside = self.Parent == lockerCar && PlayerMotor.Indoors(self, train);
+        if (carrying)
+        {
+            if (Guns.MannedGun(self, train, guns) == gunCar)
+            {
+                PowderStep = "charge";
+                return new PlayerIntent { Buttons = PlayerButtons.Use };
+            }
+            if (self.Surface == Surface.Ladder)
+            {
+                PowderStep = "up";
+                return new PlayerIntent { MoveZ = 1 };
+            }
+            if (inside)
+            {
+                PowderStep = "to the ladder";
+                var (step, there) = WarmUp.Steer(self, ladder.Foot - ladder.Inward * 0.3, DMath.Atan2(-ladder.Inward.X, -ladder.Inward.Z) + Math.PI);
+                return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+            }
+            if (self.Surface == Surface.Roof && self.Parent == gunCar && Guns.Mount(train, gunCar) is { } mount)
+            {
+                PowderStep = "to the gun";
+                var behind = mount.Position with { Y = self.Position.Y, Z = mount.Position.Z - mount.Facing.Z * (guns.SeatBehind + 0.1) };
+                return WarmUp.Steer(self, behind, DMath.Atan2(-mount.Facing.X, -mount.Facing.Z) + Math.PI).Step;
+            }
+            if (self.Surface == Surface.Roof)
+                _legs.Head(gunCar < self.Parent ? -1 : 1);
+            PowderStep = "along";
+            _powderAlong = true;
+            return null;
+        }
+        if (Guns.AtLocker(self, train, guns) is not null)
+        {
+            // A press, let go, and pressed again: the hands take a charge on the press.
+            PowderStep = "take";
+            return tick % 2 == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
+        }
+        if (inside)
+        {
+            PowderStep = "to the locker";
+            var at = Guns.Locker(shape)!.Value;
+            return WarmUp.Steer(self, at + new Double3(0.6, 0, 0.4), Math.PI / 2).Step;
+        }
+        if (self.Surface == Surface.Ladder && self.Parent == lockerCar)
+        {
+            PowderStep = "down";
+            return new PlayerIntent { MoveZ = -1 };
+        }
+        if (self.Surface == Surface.Roof && self.Parent == lockerCar)
+        {
+            PowderStep = "to the hatch";
+            var top = ladder.Foot with { Y = self.Position.Y };
+            var (step, there) = WarmUp.Steer(self, top, self.Yaw);
+            return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
+        }
+        if (self.Surface == Surface.Roof)
+            _legs.Head(lockerCar < self.Parent ? -1 : 1);
+        PowderStep = "along";
+        _powderAlong = true;
+        return null;
     }
 
     /// <summary>Pushing the gun off a held car (T103), and where that's got to (for the harness's trace).</summary>

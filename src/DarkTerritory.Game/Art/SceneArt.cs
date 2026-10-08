@@ -494,6 +494,8 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
             // The engineer's toolbox (train_stores' repair_kit, GDD §12), lying where it was put down or dropped.
             Sim.Physics.BodyKind.RepairKit => props.Get("repair_kit") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
+            // A charge for a gun's rack (note 374): a powder bag from the shot locker.
+            Sim.Physics.BodyKind.Powder => props.Get("powder_bag") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
             Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
