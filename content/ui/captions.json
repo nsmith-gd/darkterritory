@@ -70,6 +70,11 @@
     // A truss's Dragger (note 444): its weight landing on the roof of a car with someone on it, before its grab; with
     // nobody up there, its fall onto the track behind.
     "cs-draggers.drop": "SOMETHING HEAVY LANDING ON THE ROOF",
-    "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND"
+    "cs-draggers.fall": "SOMETHING FALLING ONTO THE TRACK BEHIND",
+    // The extinguisher on a fire (note 469; the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"):
+    // a reader is told the jet's on the flames, a patch of them going out, and the fire out, as a hearing player is.
+    "crew-extinguisher.on-fire": "WATER HISSING ON THE FLAMES",
+    "crew-extinguisher.cell-out": "FLAMES HISSING OUT",
+    "crew-extinguisher.fire-out": "THE FIRE OUT, STEAM HISSING"
   }
 }

@@ -2864,6 +2864,27 @@
   "takes": 3,
   "sha": "d93dced829c8d138"
  },
+ "crew-extinguisher/cell-out": {
+  "cue": "crew-extinguisher.cell-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A patch of the fire put out: the flames collapsing with a soft whump and a hissing gasp of steam, an ember ticking",
+    "key": "gasp",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0dc3a14f3266dfa7"
+ },
  "crew-extinguisher/drop/concrete": {
   "cue": "crew-extinguisher.drop",
   "surface": "concrete",
@@ -2945,7 +2966,7 @@
    }
   ],
   "takes": 3,
-  "sha": "d12df2f7b54b43e4"
+  "sha": "b50e5b00eab8d29f"
  },
  "crew-extinguisher/drop/wood": {
   "cue": "crew-extinguisher.drop",
@@ -3017,6 +3038,27 @@
   "takes": 3,
   "sha": "ee4e17db8579ddfa"
  },
+ "crew-extinguisher/fire-out": {
+  "cue": "crew-extinguisher.fire-out",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fire out: a long sigh of steam off the boards, water dripping off the char, the boards ticking as they cool",
+    "key": "cooling",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "cd17ae235390f977"
+ },
  "crew-extinguisher/grab-mount": {
   "cue": "crew-extinguisher.grab-mount",
   "surface": null,
@@ -3038,6 +3080,21 @@
   ],
   "takes": 3,
   "sha": "8b6f61090b412b51"
+ },
+ "crew-extinguisher/on-fire": {
+  "cue": "crew-extinguisher.on-fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The jet on the flames: the water flashing to steam, a sizzle and a rush of hiss, the fire's roar beaten down",
+    "key": "steam",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "57d1ab1556365c47"
  },
  "crew-extinguisher/return-mount": {
   "cue": "crew-extinguisher.return-mount",
