@@ -111,16 +111,18 @@ public class HouseDoorTests
         Assert.Equal(PlayerMotor.HouseSpace(door.House), PlayerMotor.Space(inside, world.Train));
         Assert.True(PlayerMotor.Space(inside, world.Train) < PlayerMotor.Outside);
         Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(outside, world.Train));
-        // A pair of cottages is shut up only with both its doors shut.
-        if (walls.HouseDoors.GroupBy(d => d.House).FirstOrDefault(g => g.Count() == 2) is { } pair)
-        {
-            var one = pair.First();
-            var inPair = At(world, one.At - one.Out * 1.5);
-            walls.SetShut(one.Key, true);
-            Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(inPair, world.Train));
-            walls.SetShut(pair.Last().Key, true);
-            Assert.Equal(PlayerMotor.HouseSpace(one.House), PlayerMotor.Space(inPair, world.Train));
-        }
+        // A pair of cottages (a building of two doors) is two homes, each shut up behind its own door (note 453).
+        var pair = walls.HouseDoors.GroupBy(d => (d.Key - 1) >> 2).First(g => g.Count() == 2).ToList();
+        var (one, other) = (pair[0], pair[1]);
+        Assert.NotEqual(one.House, other.House);
+        var inOne = At(world, one.At - one.Out * 1.5);
+        var inOther = At(world, other.At - other.Out * 1.5);
+        walls.SetShut(one.Key, true);
+        Assert.Equal(PlayerMotor.HouseSpace(one.House), PlayerMotor.Space(inOne, world.Train));
+        Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(inOther, world.Train));
+        walls.SetShut(other.Key, true);
+        Assert.Equal(PlayerMotor.HouseSpace(other.House), PlayerMotor.Space(inOther, world.Train));
+        Assert.Equal(PlayerMotor.HouseSpace(one.House), PlayerMotor.Space(inOne, world.Train));
     }
 
     [Fact]
