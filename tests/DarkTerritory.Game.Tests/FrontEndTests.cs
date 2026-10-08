@@ -7,6 +7,8 @@ using DarkTerritory.Sim.Run;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The front door and the fortress screen (T30): what each choice does, and that it's all saved.</summary>
+// Hud.Keys is the HUD's settings, static: the tests that set it don't run beside the one that compares two builds (note 390).
+[Collection("Hud.Keys")]
 public sealed class FrontEndTests : IDisposable
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -26,7 +28,7 @@ public sealed class FrontEndTests : IDisposable
 
     static void Pick(FrontEnd m, string label)
     {
-        int i = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+        int i = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(i >= 0, $"no '{label}' on {m.Screen}: {string.Join(" | ", m.Items.Select(x => x.Label))}");
         while (m.Selected != i)
             m.Down();
@@ -47,8 +49,11 @@ public sealed class FrontEndTests : IDisposable
         m.Music = music;
         Choose(m, "CREDITS");
         Assert.Equal(Screen.Credits, m.Screen);
-        Assert.Equal(music.Length + 1, m.Items.Count);
-        foreach (var (t, item) in music.Zip(m.Items))
+        // Under the opera's heading (greyed: the selection starts on the first track), then BACK; no other credits loaded.
+        Assert.Equal(music.Length + 2, m.Items.Count);
+        Assert.False(m.Items[0].Enabled);
+        Assert.Equal(1, m.Selected);
+        foreach (var (t, item) in music.Zip(m.Items.Skip(1)))
         {
             Assert.Contains(t.Work, item.Label);
             Assert.Contains(t.Composer, item.Label);
@@ -375,7 +380,7 @@ public sealed class FrontEndTests : IDisposable
         Assert.False(m.WantsText);
         // WASD moves, as on every other screen.
         Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "S", m.WantsText)));
-        Assert.StartsWith("SOUND", m.Items[m.Selected].Label);
+        Assert.StartsWith("OUTFIT", m.Items[m.Selected].Label); // the next row under YOU (note 386)
         Assert.Null(MenuInput.Apply(m, MenuInput.Keys(k => k == "W", m.WantsText)));
         Assert.Null(MenuInput.Apply(m, MenuKey.Select));
         Assert.True(m.WantsText);
@@ -395,7 +400,7 @@ public sealed class FrontEndTests : IDisposable
         // The row called that, or else the first that starts so (the controls have a BACK: S as well as BACK).
         int item = m.Items.ToList().FindIndex(x => x.Label == label);
         if (item < 0)
-            item = m.Items.ToList().FindIndex(x => x.Label.StartsWith(label, StringComparison.Ordinal));
+            item = m.Items.ToList().FindIndex(x => !x.Heading && x.Label.StartsWith(label, StringComparison.Ordinal));
         Assert.True(item >= 0, $"no '{label}' on {m.Screen}");
         var hits = new List<System.Numerics.Vector2>();
         for (int y = 0; y < 270; y++)

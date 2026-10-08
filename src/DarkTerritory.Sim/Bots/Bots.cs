@@ -37,9 +37,11 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public StopHand? Job => _legs.Job;
     bool _holding;
     // Off the gun, it gets about like anyone else on the roofs, goes in to get warm like them, and works stops like them.
-    readonly RoofWalkerBot _legs = new(seed, cold, job);
+    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
+    /// <summary>The crew's calls (note 377: who brings the powder), passed to its legs.</summary>
+    public CrewCalls? Calls { get => _legs.Calls; set => _legs.Calls = value; }
     /// <summary>The rest of the crew as its client sees them (its legs need them to know whether the kit's theirs to bring).</summary>
     public IReadOnlyList<(int Id, PlayerState State)> Crew { get => _legs.Crew; set => _legs.Crew = value; }
     /// <summary>What it's doing about the repair kit, or null.</summary>
@@ -170,14 +172,17 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
 
     int _gunCar = -1;
     bool _powderAlong;
+    PowderRun? _powderRun;
+    uint? _dryAt;
+    readonly ShotWatch _shots = new();
     /// <summary>Where it's got to on a powder run (note 374), or null (for tests and the harness's trace).</summary>
     public string? PowderStep { get; private set; }
 
     /// <summary>
-    /// Powder to the guns (note 374, orchestrator.md §5.1 U4). Its gun's ready rack run dry with powder in the lockers: up out
-    /// of the seat, down the guard van's hatch ladder (beside the gun), along the room to the powder locker in its front
-    /// corner, a charge into its hands, back up the ladder and Use held at the gun until the rack's full. On the roof of
-    /// another car, its legs take it along the roofs to the guard van (null, with <see cref="_powderAlong"/>). Null with nothing to fetch.
+    /// Powder to the guns (note 374, orchestrator.md §5.1 U4). Its gun's ready rack run dry with powder in the lockers, and
+    /// nobody else bringing a charge (note 377: a walker on its way up with one, <see cref="PowderCarry"/>): the run
+    /// (<see cref="PowderRun"/>), to stand behind the gun with the charge. On the roof of another car, its legs take it along
+    /// the roofs (null, with <see cref="_powderAlong"/>). Null with nothing to fetch.
     /// </summary>
     PlayerIntent? Powder(in PlayerState self, World world, uint tick)
     {
@@ -190,83 +195,29 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             _gunCar = manned;
         int gunCar = _gunCar >= 0 && _gunCar < train.Vehicles.Count && train.Vehicles[_gunCar].HasGun ? _gunCar : -1;
         bool carrying = world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder };
-        if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0))
-            return null;
-        int lockerCar = -1;
-        foreach (var v in train.Dynamics.Consist.Vehicles)
-            if (v.Id < train.Frames.Count && Guns.Locker(train.Frames[v.Id].Shape) is not null)
-                lockerCar = v.Id;
-        if (lockerCar < 0)
-            return null;
-        var shape = train.Frames[lockerCar].Shape;
-        var room = shape.Interior!.Value;
-        // The hatch ladder: the one whose foot is on the room's floor.
-        Ladder? hatch = null;
-        foreach (var l in shape.Ladders)
-            if (room.Contains(l.Foot + new Double3(0, 0.2, 0)))
-                hatch = l;
-        if (hatch is not { } ladder)
-            return null;
-        bool inside = self.Parent == lockerCar && PlayerMotor.Indoors(self, train);
-        if (carrying)
+        if (gunCar < 0 || !carrying && (Guns.Ready(train.Vehicles[gunCar].Gun, guns) > 0 || Guns.Stowed(train, guns) <= 0
+            || PowderCarry.Brought(world, Crew, Me)))
         {
-            if (Guns.MannedGun(self, train, guns) == gunCar)
-            {
-                PowderStep = "charge";
-                return new PlayerIntent { Buttons = PlayerButtons.Use };
-            }
-            if (self.Surface == Surface.Ladder)
-            {
-                PowderStep = "up";
-                return new PlayerIntent { MoveZ = 1 };
-            }
-            if (inside)
-            {
-                PowderStep = "to the ladder";
-                var (step, there) = WarmUp.Steer(self, ladder.Foot - ladder.Inward * 0.3, DMath.Atan2(-ladder.Inward.X, -ladder.Inward.Z) + Math.PI);
-                return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
-            }
-            if (self.Surface == Surface.Roof && self.Parent == gunCar && Guns.Mount(train, gunCar) is { } mount)
-            {
-                PowderStep = "to the gun";
-                var behind = mount.Position with { Y = self.Position.Y, Z = mount.Position.Z - mount.Facing.Z * (guns.SeatBehind + 0.1) };
-                return WarmUp.Steer(self, behind, DMath.Atan2(-mount.Facing.X, -mount.Facing.Z) + Math.PI).Step;
-            }
-            if (self.Surface == Surface.Roof)
-                _legs.Head(gunCar < self.Parent ? -1 : 1);
-            PowderStep = "along";
-            _powderAlong = true;
+            _dryAt = null;
             return null;
         }
-        if (Guns.AtLocker(self, train, guns) is not null)
+        // Note 377: a walker on its way with it (whoever every bot works out is to go), so it keeps its seat, for a while:
+        // up out of it, the gun's unmanned and the walker stands down.
+        if (!carrying && self.Has(PlayerFlags.Seated))
         {
-            // A press, let go, and pressed again: the hands take a charge on the press.
-            PowderStep = "take";
-            return tick % 2 == 0 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default;
+            _dryAt ??= tick;
+            List<(int Id, PlayerState State)> all = [(Me, self), .. Crew.Where(c => c.Id != Me)];
+            _shots.See(train, tick);
+            if (tick - _dryAt.Value < guns.GunnerWaits * SimConstants.TickRate
+                && PowderCarry.Carrier(world, all, guns, Calls is { } calls ? calls.IsFeeder : null,
+                    gun => _shots.Firing(gun, tick, guns.FeedWhileFiring)) is { } walker && walker != Me)
+                return null;
         }
-        if (inside)
-        {
-            PowderStep = "to the locker";
-            var at = Guns.Locker(shape)!.Value;
-            return WarmUp.Steer(self, at + new Double3(0.6, 0, 0.4), Math.PI / 2).Step;
-        }
-        if (self.Surface == Surface.Ladder && self.Parent == lockerCar)
-        {
-            PowderStep = "down";
-            return new PlayerIntent { MoveZ = -1 };
-        }
-        if (self.Surface == Surface.Roof && self.Parent == lockerCar)
-        {
-            PowderStep = "to the hatch";
-            var top = ladder.Foot with { Y = self.Position.Y };
-            var (step, there) = WarmUp.Steer(self, top, self.Yaw);
-            return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
-        }
-        if (self.Surface == Surface.Roof)
-            _legs.Head(lockerCar < self.Parent ? -1 : 1);
-        PowderStep = "along";
-        _powderAlong = true;
-        return null;
+        _powderRun ??= new PowderRun(guns);
+        var intent = _powderRun.Go(self, world, Me, gunCar, beside: false, tick, _legs.Head);
+        PowderStep = _powderRun.Step;
+        _powderAlong = _powderRun.Along;
+        return intent;
     }
 
     /// <summary>Pushing the gun off a held car (T103), and where that's got to (for the harness's trace).</summary>
@@ -333,6 +284,86 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>The look-out's errand, on an insisted night only (the combination sweep's, note 212); null otherwise.</summary>
     public LookErrand? Errand { get; set; }
+
+    /// <summary>The crew's calls (who's driving, and who's gone forward to relieve a dead driver: note 399; who brings the
+    /// powder: note 377), or null (then every crewmate's taken for a walker).</summary>
+    public CrewCalls? Calls { get; set; }
+
+    /// <summary>Whether it brings the guns their powder (note 377): a walker does; a gunner's legs don't (its own run is the gunner's).</summary>
+    public bool Feeds { get; set; } = true;
+
+    /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
+    public bool Relieving { get; private set; }
+
+    ConductorBot? _relief;
+    bool _sawDriver;
+    bool _cameForward;
+
+    /// <summary>
+    /// The relief driver (note 399, <see cref="ReliefDriver"/>): a driver heard, and now none alive on the calls, and nobody
+    /// living gone forward for it: claimed, and forward to the cab (along the roofs, onto the engine, down its roof hatch),
+    /// then the controls as a <see cref="ConductorBot"/> in the dead driver's place (member 0). Null otherwise, or with the
+    /// legs walking it forward (<see cref="Relieving"/> still set).
+    /// </summary>
+    PlayerIntent? Relieve(in PlayerState self, World world, uint tick, out PlayerState aimed)
+    {
+        aimed = self;
+        Relieving = false;
+        if (Calls is not { } calls || Me < 0)
+            return null;
+        if (!self.Alive)
+        {
+            if (calls.Relief == Me)
+                calls.Relief = null;
+            return null;
+        }
+        var train = world.Train;
+        // A Climber in the cab (App. A.4): it stays while anyone's in there, and only two clubbing it together hurt it (note
+        // 288), so the driver alone keeps clear of it, the fire unworked, till the train stands (a harness night's, at km 3.9).
+        var climber = world.ActiveEnemies.OfType<Climber>().FirstOrDefault(c => c.Inside && c.Attached == 0 && !c.Gone);
+        if (_relief is null)
+            _sawDriver |= calls.Has(StopJob.Driver);
+        bool driverGone = _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
+        if (!driverGone && climber is null)
+        {
+            if (calls.Relief == Me)
+                calls.Relief = null;
+            // Back out of the cab it came forward to, or off the engine's roof: only a walker that came forward for it (one
+            // up there with the forward gun's powder, note 377, is about something else).
+            if (self.Parent != 0 || !_cameForward)
+            {
+                _cameForward &= self.Parent == 0;
+                return null;
+            }
+            return self.Surface == Surface.Roof ? ReliefDriver.OffTheEngine(self, train) : KitRun.BackToTheTrain(self, train);
+        }
+        _cameForward = true;
+        if (calls.Relief != Me)
+        {
+            // Someone living's gone already: theirs.
+            if (calls.Relief is { } other && Crew.Any(c => c.Id == other && c.State.Alive))
+                return null;
+            calls.Relief = Me;
+        }
+        Relieving = true;
+        if (PlayerMotor.InCab(self, train))
+        {
+            if (driverGone)
+            {
+                _relief ??= new ConductorBot(calls, 0);
+                _relief.Crewmates = [.. Crew.Select(c => c.State)];
+                _relief.Players = [.. Crew.Where(c => !calls.IsBot(c.Id)).Select(c => c.State)];
+                return _relief.Decide(self, world, tick, out aimed);
+            }
+            // The Climber, clubbed with the driver (it clubs it too with someone else in the cab: KeepClear).
+            return Heed.Strike(self, train, climber!.WorldPosition(train), 1.6) ?? default;
+        }
+        if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
+            return going;
+        if (forward)
+            Head(-1);
+        return null;
+    }
 
     uint _workedTick = uint.MaxValue;
     PlayerIntent? _work;
@@ -413,8 +444,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Trouble aside, a guttering lamp (note 346) in a car nobody's in, the nearest: in there, Heed.Gutter trims it. Before a
         // bag: the lamp's on a clock (45 s and the car's dark, the Climbers' way in); a bag is pay. Only for whoever takes the
         // errands (a gunner only with nobody else to send), and not with the Choir about.
-        _lampCar = tend && catches && !choir && _trouble is null ? GutterCar(world, here) : null;
-        _drop = tend && catches && !choir && _trouble is null && _lampCar is null ? NextDrop(world) : null;
+        _lampCar = tend && catches && !_feedRun && !choir && _trouble is null ? GutterCar(world, here) : null;
+        _drop = tend && catches && !_feedRun && !choir && _trouble is null && _lampCar is null ? NextDrop(world) : null;
         _catchCar = _drop is { } d ? CatchCar(train, d, self.Parent) : null;
         _warm.Into = _trouble?.Attached ?? _catchCar ?? _lampCar;
         if (_trouble is { } trouble)
@@ -837,9 +868,26 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
         }
+        // The driver's dead (note 399): forward to take the controls, before anything else.
+        if (Relieve(self, world, tick, out aimed) is { } relieving)
+        {
+            Calls?.CanFeed(Me, false); // forward to the cab: not one to bring the powder (note 377)
+            return relieving;
+        }
+        if (Relieving)
+        {
+            Calls?.CanFeed(Me, false);
+            return Decide(self, world.Train, tick);
+        }
         if (!_looked)
             Look(world, self);
         _looked = false;
+        // Note 377: free to bring a gun its powder (nothing on but, at most, a mail bag to catch: the gun's first), and said
+        // so for the crew, who work out who goes from it (PowderCarry.Carrier).
+        // Already on a run, its way out of a car (the warm-up's way out) is the run's.
+        bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false)
+            && !(_warm is { Active: true } && _catchCar is null && !_feedRun);
+        Calls?.CanFeed(Me, free);
         // The look-out on an insisted night (note 212): a Dragger to meet keeps it out on the roofs, not in for a bag.
         if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
         {
@@ -854,6 +902,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             return looking;
         if (Work(self, world) is { } working)
             return working;
+        // A manned gun's rack low (note 377): down to the guard van's locker for a charge, and up to fill it from beside it.
+        _feedRun = false;
+        if ((free || world.Bodies.CarriedBy(Me) is { Kind: Physics.BodyKind.Powder }) && Feed(self, world, tick) is { } feeding)
+            return feeding;
+        if (_feeding?.Along == true)
+            return Decide(self, world.Train, tick);
         var train = world.Train;
         // The Car Hugger on the car we're on, and it has a platform to get at it from (v1.1 App. A.3): down and club it off.
         // Only with someone near enough to pull us from its mouth (A.3: "swallowSeconds for friends to pull them free",
@@ -918,6 +972,57 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
                 return greasing;
         }
         return Decide(self, train, tick);
+    }
+
+    PowderRun? _feeding;
+    int _feedGun = -1;
+    readonly ShotWatch _shots = new();
+    bool _feedRun;
+
+    /// <summary>Not bringing powder this tick: the run's put by, and this is the intent.</summary>
+    PlayerIntent? Stand(PlayerIntent? intent)
+    {
+        _feeding = null;
+        return intent;
+    }
+    /// <summary>Where it's got to bringing a gun its powder (note 377), or null (for tests and the harness's trace).</summary>
+    public string? FeedStep => _feeding?.Step;
+
+    /// <summary>
+    /// Bots bring the powder (note 377, orchestrator.md §5.1 U4): if it's this walker's to go (<see cref="PowderCarry.Carrier"/>),
+    /// the run to the gun that wants it (<see cref="PowderRun"/>), to fill it from beside the gun while the gunner keeps the
+    /// seat. With the charge in hand at a gun whose rack's full, it's free for anything else, the charge kept for the next shot.
+    /// Null with nothing to bring, or the legs walking it (<see cref="PowderRun.Along"/>).
+    /// </summary>
+    PlayerIntent? Feed(in PlayerState self, World world, uint tick)
+    {
+        var train = world.Train;
+        if (!Feeds || Me < 0 || !self.Alive || world.Combat?.Guns is not { Rack: > 0 } guns)
+            return Stand(null);
+        List<(int Id, PlayerState State)> all = [(Me, self), .. Crew.Where(c => c.Id != Me)];
+        _shots.See(world.Train, tick);
+        Func<int, bool> firing = gun => _shots.Firing(gun, tick, guns.FeedWhileFiring);
+        if (PowderCarry.Carrier(world, all, guns, Calls is { } calls ? calls.IsFeeder : null, firing) != Me)
+            // Left up on the engine's roof by a run to its gun: back down onto the train (the legs' walk keeps off the engine).
+            return Stand(ReliefDriver.OffTheEngine(self, train));
+        if (PowderCarry.Wanting(world, all.Select(c => c.State), guns, firing) is { } wanted)
+            _feedGun = wanted;
+        if (_feedGun < 0 || _feedGun >= train.Vehicles.Count || !train.Vehicles[_feedGun].HasGun || train.Vehicles[_feedGun].Taken)
+            return Stand(null);
+        // At the gun with the charge and its rack full: free for anything else till the next shot.
+        if (Guns.MannedGun(self, train, guns) == _feedGun && Guns.Ready(train.Vehicles[_feedGun].Gun, guns) >= guns.Rack)
+            return Stand(null);
+        _feeding ??= new PowderRun(guns);
+        // Its own: a bag it was waiting in a car to catch is left (Look takes no catches while it's on a run).
+        _feedRun = true;
+        if (_warm is { Active: true } && _catchCar is not null)
+        {
+            (_drop, _catchCar) = (null, null);
+            _warm.Into = null;
+            _warm.Indoors = null;
+            _warm.Abandon();
+        }
+        return _feeding.Go(self, world, Me, _feedGun, beside: true, tick, Head);
     }
 
     /// <summary>
@@ -1900,12 +2005,26 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
     /// (the Deadman's there for an empty one). So nobody leaves: the driver and a second hand keep to the cab's free corners
     /// (<paramref name="side"/>: +1 the driver's, the front right by the console; −1 the back left by the doorway, the front
     /// left being the coal's, note 280), out of its reach. The controls as the intent had them; only where it stands changes.
+    /// With another crewmate in the cab, they club it together instead (note 399).
     /// </summary>
-    static PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
+    PlayerIntent KeepClear(in PlayerState self, World world, PlayerIntent intent, int side)
     {
         var train = world.Train;
-        if (!self.Alive || !PlayerMotor.InCab(self, train) || !world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
+        if (!self.Alive || !PlayerMotor.InCab(self, train) || world.ActiveEnemies.FirstOrDefault(e => e is Climber { Inside: true } c && c.Attached == 0) is not { } climber)
             return intent;
+        // A crewmate come forward into the cab for it (note 399): the two of them club it (only a gang's blows hurt it, note
+        // 288), the controls as they were.
+        var me = self;
+        if (Crewmates?.Any(c => c.Alive && PlayerMotor.InCab(c, train) && (c.Position - me.Position).Length > 0.01) == true
+            && Heed.Strike(self, train, climber.WorldPosition(train), 1.6) is { } clubbing)
+            return intent with
+            {
+                MoveX = clubbing.MoveX,
+                MoveZ = clubbing.MoveZ,
+                LookYaw = clubbing.LookYaw,
+                Actions = intent.Actions | clubbing.Actions,
+                Buttons = intent.Buttons | (clubbing.Buttons & PlayerButtons.Run)
+            };
         var cab = train.Frames[0].Shape.Cab!.Value;
         var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
         var (step, _) = WarmUp.Steer(self, corner, 0);
@@ -2305,8 +2424,11 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         if (!Repairs.LampSmashed(train) || !self.Alive || !PlayerMotor.InCab(self, train) || train.Frames[0].Shape.Cab is not { } cab
             || world.ActiveEnemies.Any(e => e is Climber { Inside: true } c && c.Attached == 0))
             return null;
-        // Forward to the windows first (the driver works the controls from anywhere in the cab).
-        if (!Repairs.AtLamp(self, train))
+        // Forward to the windows first (the driver works the controls from anywhere in the cab): to the floor behind the fire
+        // and the coal, where Use with the wrench is the lamp's. Not by the vent (its corner while a Climber was in): Use there
+        // is the vent's, and a harness night's driver held it open from there with the wrench, the lamp never mended and the
+        // boiler drained to nothing.
+        if (!Repairs.AtLamp(self, train) || CrewActions.Nearest(self, train) is not (InteractableKind.Coal or InteractableKind.Firebox or null))
             return WarmUp.Steer(self, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
         if (Repairs.WrenchKey(self) is var key and > 0)
             return new PlayerIntent { Select = key };
@@ -2597,8 +2719,10 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
     /// <summary>Times it's been in and got warm.</summary>
     public int Done { get; private set; }
 
-    public bool Wants(in PlayerState s) => Shelter || Into is not null ||
-        s.Cold >= cold.OnsetSeconds * goInAt;
+    public bool Wants(in PlayerState s) => Shelter || Into is not null || Chilled(s);
+
+    /// <summary>Cold enough to go in for it (not for a tunnel or a job in there).</summary>
+    public bool Chilled(in PlayerState s) => s.Cold >= cold.OnsetSeconds * goInAt;
 
     /// <summary>
     /// Off the roofs and indoors, cold or not, for as long as it's set (a tunnel's mouth ahead, sight.json): the same way

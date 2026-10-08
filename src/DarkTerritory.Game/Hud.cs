@@ -1503,7 +1503,10 @@ public static partial class Hud
     public static float PromptScaleAt(float pixels, float textScale) =>
         Math.Clamp(MathF.Ceiling(2 * 2 * textScale / MathF.Max(1, pixels)) / 2, 0.5f, 1);
 
-    static float _promptScale = 0.5f;
+    // Per thread: each Build sets it for its own canvas, and the tests build HUDs on parallel threads at their own sizes; one
+    // build's scale landing in another's moved its print (note 390, CaptionsTests on Windows CI). 0 until this thread builds one.
+    [ThreadStatic]
+    static float _promptScale;
 
     /// <summary>How far under the screen's middle (the crosshair) the prompt's strip sits, in canvas pixels.</summary>
     public const float PromptDrop = 16;
@@ -1511,7 +1514,7 @@ public static partial class Hud
     /// <summary>The prompt, small, under the crosshair; a hold under way ("... (40%)") as a bar along its foot.</summary>
     static void PromptPlate(Overlay o, int width, int height, string prompt)
     {
-        float k = _promptScale;
+        float k = Fine;
         float w = UiStyle.MeasureKeyed(o, prompt, k) + 8 * k, h = (o.Font.LineHeight + 6) * k;
         float px = MathF.Round((width - w) / 2), py = MathF.Round(height / 2f + PromptDrop);
         o.Rect(px, py, w, h, UiStyle.Iron with { W = 0.55f });
@@ -1764,6 +1767,9 @@ public static partial class Hud
             return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
                 ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
+        // An open house's door (note 401), empty-handed, as the hands and the search leave it.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
+            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
