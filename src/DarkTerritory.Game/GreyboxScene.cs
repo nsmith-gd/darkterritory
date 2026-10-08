@@ -494,6 +494,7 @@ public sealed class GreyboxScene
                 perching.Draw(mesh, "stoker", "perch", Time, true, basis);
         }
         Look?.Art.Creatures?.Clutches.Clear();
+        Look?.Art.Creatures?.Pins.Clear();
         // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
         if (Look?.Art.Effects is { } cells)
             cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
@@ -531,6 +532,9 @@ public sealed class GreyboxScene
                             && Crew is { } crew && crew.Any(c => c.Alive)
                             ? crew.Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
+                    // A Moose pinning someone stands over them (note 339): the one it holds.
+                    if (e.Kind == EnemyKind.Moose && e.Holding >= 0)
+                        after = Crew?.FirstOrDefault(c => c.Id == e.Holding);
                     Art.CreatureArt.Prey? prey = leaving && GauntHeading(e, frames) is { } going
                         ? new(V(going, eye), Vector3.Zero)
                         : after is { } victim
@@ -540,7 +544,13 @@ public sealed class GreyboxScene
                     Art.CreatureArt.Room? room = e.Kind is EnemyKind.TippyToesie or EnemyKind.Gaunt && e.Attached >= 0 && e.Attached < frames.Count
                         ? Art.CreatureArt.Room.Of(frames[e.Attached].Shape, e.Local)
                         : null;
-                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room, e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler ? Pace(e) : 0, Flinch(e), HitAge(e));
+                    // A Moose by the line as the train goes by (note 339): it takes it for a rival, tossing its head after it.
+                    if (e.Kind == EnemyKind.Moose && Look?.Art.Creatures is { } herd)
+                        herd.TrainPassing = Math.Abs(_speed) > 1 && frames.Count > 0
+                            && frames.Min(f => ((f.Origin - e.Local) with { Y = 0 }).Length - f.Shape.HalfLength) <= herd.MooseTuning.TrainPassAt;
+                    DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
+                        e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose ? Pace(e) : 0, Flinch(e), HitAge(e),
+                        modeSeconds: e is Sim.Enemies.Moose moose ? MooseSince(moose) : -1);
                 }
         Deaths(mesh, line, frames, eye, from, to);
         Lap(mesh, "enemies");
@@ -1122,6 +1132,10 @@ public sealed class GreyboxScene
     /// </summary>
     Crewmate Hung(Crewmate c, Double3 eye)
     {
+        // Pinned under a Moose's rack (note 339; Art/CreatureArt.Pins): where the sim has them, on their back, laid with their
+        // head toward it (it's stood over them).
+        if (Look?.Art.Creatures?.Pins.TryGetValue(c.Id, out var pin) == true)
+            return c with { Yaw = Math.Atan2(-pin.Forward.X, -pin.Forward.Z), Act = Art.CrewPose.HeldPinned };
         if (Look?.Art.Creatures?.Clutches.TryGetValue(c.Id, out var clutch) != true)
             return c.Act == Art.CrewPose.HeldCarried ? c with { Act = Art.CrewPose.HeldPinned } : c;
         var yaw = Math.Atan2(-clutch.Forward.X, -clutch.Forward.Z);
@@ -1354,6 +1368,23 @@ public sealed class GreyboxScene
     // Seconds a pace takes to come round to a new speed (the sim moves things in tick steps; this smooths them out).
     const double PaceEasing = 0.25;
 
+    // What each Moose was doing when last drawn, and when it started (scene time).
+    readonly Dictionary<int, (Sim.Enemies.MooseMode Mode, double Since)> _mooseModes = new();
+
+    /// <summary>
+    /// How long a Moose has been at what it's doing (its <see cref="Sim.Enemies.MooseMode"/>, s), for its clips to start with
+    /// it: its square-up, its skid and wheel (Art/CreatureArt.MooseClip). Its mode isn't timed on the wire, only its phase, so
+    /// this watches it change; first seen (a screenshot, a client joining), its phase's time stands in.
+    /// </summary>
+    double MooseSince(Sim.Enemies.Moose m)
+    {
+        if (!_mooseModes.TryGetValue(m.Id, out var was) || Time < was.Since)
+            _mooseModes[m.Id] = was = (m.Mode, Time - m.PhaseSeconds);
+        else if (was.Mode != m.Mode)
+            _mooseModes[m.Id] = was = (m.Mode, Time);
+        return Time - was.Since;
+    }
+
     /// <summary>
     /// The Whistler's trail (App. A.4: "findable in a chase on foot"), from the gap it took them at to where it's got to
     /// with them: two heel furrows dragged through the ground, the dirt kicked up dark either side where they fought it,
@@ -1440,11 +1471,18 @@ public sealed class GreyboxScene
     /// </summary>
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
-        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0)
+        (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0, double modeSeconds = -1)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
-        if (e.Attached >= 0)
+        if (e.Kind == EnemyKind.Moose && e.Attached == Enemy.Loose)
+        {
+            // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
+            origin = e.Local;
+            back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
+            right = Double3.Cross(Double3.Up, back).Normalized;
+        }
+        else if (e.Attached >= 0)
         {
             if (e.Attached >= frames.Count)
                 return;
@@ -1516,7 +1554,7 @@ public sealed class GreyboxScene
         if (flinch.Tip != default && flinch.Tip != Quaternion.Identity)
             (r, u, b) = (Vector3.Transform(r, flinch.Tip), Vector3.Transform(u, flinch.Tip), Vector3.Transform(b, flinch.Tip));
         // The art pass's creature, where it has one (Art/CreatureArt): the same place, the thing itself.
-        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge, dying))
+        if (creatures is not null && creatures.Enemy(mesh, Art.CreatureArt.Basis(o, r, u, b), e, bite, prey, room, pace, hitAge, dying, modeSeconds))
             return;
         // The dead are the art pass's (Deaths): the greybox's boxes don't fall over.
         if (dying)
@@ -1530,6 +1568,28 @@ public sealed class GreyboxScene
             return;
         switch (e.Kind)
         {
+            case EnemyKind.Moose:
+                {
+                    // A pale bulk on long legs under a slab of a rack wider than a doorway (note 339): the head up listening,
+                    // down warning, and the rack stood up level in front of it squaring up and charging.
+                    var hide = Palette.BlueGrey * 1.5f;
+                    bool levelled = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish;
+                    var tells = creatures?.MooseTuning ?? new Sim.Enemies.MooseTuning();
+                    double head = levelled || e.Extra2 >= tells.WarnAt ? 1.1 : e.Extra2 >= tells.ListenAt ? 2.15 : 1.0;
+                    Draw(0, 1.78, 0, 0.42, 0.45, 1.1, hide);
+                    Draw(0, 2.4, -0.8, 0.3, 0.22, 0.32, hide);
+                    foreach (double x in new[] { -0.28, 0.28 })
+                        foreach (double z in new[] { -0.8, 0.85 })
+                            Draw(x, 0.68, z, 0.07, 0.68, 0.07, hide * 0.8f);
+                    Draw(0, (head + 2.2) / 2, -1.3, 0.16, Math.Abs(2.2 - head) / 2 + 0.15, 0.18, hide);
+                    Draw(0, head, -1.7, 0.14, 0.18, 0.35, hide);
+                    foreach (double x in new[] { -0.95, 0.95 })
+                        if (levelled)
+                            Draw(x, head + 0.4, -1.85, 0.62, 0.42, 0.05, Palette.Charcoal);
+                        else
+                            Draw(x, head + 0.55, -1.45, 0.62, 0.05, 0.38, Palette.Charcoal);
+                    break;
+                }
             case EnemyKind.Sleepers:
                 // Ties that aren't: across the rail, and braced (lifting, writhing) once they've telegraphed.
                 bool braced = e.Phase >= SpinePhase.Telegraph;

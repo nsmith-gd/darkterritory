@@ -126,14 +126,17 @@ public sealed partial class GameAudio
         public int Still, MendTicks;
         public int? CarrierSpace;
         public bool Broken;
+        // A healing find being used: where it was last heard, so its end is heard there once it's gone (note 322).
+        public Double3 At;
+        public float Occlusion;
     }
 
-    // Hold owners for a radio's mending, clear of the players' ids (the boiler's ratchet is held by player).
-    const int RadioMendOwner = 20_000;
+    // Hold owners for a radio's mending and a find's dose, clear of the players' ids (the boiler's ratchet is held by player).
+    const int RadioMendOwner = 20_000, HealOwner = 21_000;
 
     sealed class CrewEngine
     {
-        public bool FireDoor, Vented, Lamp, WrenchOut, Ruptured, Sanding, Released, MendedSinceWrench;
+        public bool FireDoor, Vented, Lamp, WrenchOut, ShovelOut, Ruptured, Sanding, Released, MendedSinceWrench;
         public double Tender, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
         public int Reverser, WhistleFalling, SandIdle;
     }
@@ -786,6 +789,7 @@ public sealed partial class GameAudio
                 Vented = boiler.Vented,
                 Lamp = world.LampLit,
                 WrenchOut = boiler.WrenchOut,
+                ShovelOut = boiler.ShovelOut,
                 Ruptured = boiler.Ruptured,
                 Tender = boiler.Tender,
                 SinceShovel = sinceShovel,
@@ -907,12 +911,16 @@ public sealed partial class GameAudio
         }
         if (!boiler.WrenchOut && e.WrenchOut)
             Cue(e.MendedSinceWrench || boiler.Ruptured ? "crew-repair.kit-shut" : "crew-doors.locker-shut", rack, cab);
+        // The fireman's shovel stands by the same rack (note 275): lifted off its iron, and hung back on it (note 322).
+        if (boiler.ShovelOut != e.ShovelOut)
+            Cue(boiler.ShovelOut ? "crew-melee.shovel-rack-off" : "crew-melee.shovel-rack-on", rack, cab);
 
         e.FireDoor = boiler.FireDoorOpen;
         e.Vented = boiler.Vented;
         e.Lamp = world.LampLit;
         e.LampOut = world.LampOutSeconds;
         e.WrenchOut = boiler.WrenchOut;
+        e.ShovelOut = boiler.ShovelOut;
         e.Ruptured = boiler.Ruptured;
         e.Tender = boiler.Tender;
         e.SinceShovel = sinceShovel;
@@ -1311,6 +1319,16 @@ public sealed partial class GameAudio
                 m.MendTicks = b.MendTicks;
                 m.Broken = b.Broken;
             }
+            // A healing find used with Use held standing (note 272): its own sound while the hands are at it, a bandage wound,
+            // medicine drunk, morphine pressed home (loot.json healing's finds; note 322). Its end is heard when it's gone.
+            if (b.Kind == BodyKind.Loot)
+            {
+                if (b.MendTicks > 0 && world.Run?.FindOf(b) is { } find)
+                    Hold("crew-heal.apply." + find.Item, HealOwner + b.Id, centre, occlusion);
+                m.MendTicks = b.MendTicks;
+                m.At = centre;
+                m.Occlusion = occlusion;
+            }
             m.Carrier = b.Carrier;
             m.Lifted = lifted;
             m.Parent = b.Parent;
@@ -1320,7 +1338,12 @@ public sealed partial class GameAudio
                 m.OnMount = OnMount(train, b);
         }
         foreach (var gone in _crewBodies.Keys.Where(k => !live.Contains(k)).ToList())
+        {
+            // A find gone while it was being used was used up (Bodies.Dose takes it the tick the dose is done): the hurt eased.
+            if (_crewBodies[gone] is { MendTicks: > 0, Broken: false } used && used.At != default)
+                Cue("crew-heal.done", used.At, used.Occlusion);
             _crewBodies.Remove(gone);
+        }
     }
 
     /// <summary>A body come to rest after it left someone's hands: set down, or thrown and landed, on what it lies on.</summary>
