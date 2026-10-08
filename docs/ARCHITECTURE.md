@@ -6651,7 +6651,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - `HudTests.AtTheTippleThePromptsSayHowTrueTheCarStandsAndPutItBackOnItsRails`.
         - `dt screenshot --route deepTerritory:3 --site --facility mineHead --tipple [--tip r [--tipping]] [--offrails]`.
 
-
 460. **The Follower's nest built up over its 60 s (queue #196, E1; the art checklist's `follower-nest` "next", "the nest building up over its 60 s rather than at its swell's size"; GDD App. A.6).** The nest was drawn whole from its first second, scaled from a quarter of its size up with the Follower's swell: a small finished heap growing.
     - **Built from its own pieces:** the follower_nest model (tools/models/recipes/follower_nest.py) keeps each of its parts a piece of its own in the baked mesh, welded to no other. `NestBuild` finds them (triangles that share a corner) and tells them by their shape: the loot it's built on (the spill and the sack low down, the crates' boxes), ten strands (thin twelve-triangle cylinders), the crust's six lobes, and the hollow (the highest).
     - **In turn:** the loot there from the start; the strands down to the floor over the first fifth of the build, one after another round it, each grown from its foot on the floor; the lobes from 0.15 to 0.85, lowest first, each over a quarter of the build, swelling up out of the heap from its own foot; the hollow over the last sixth. Each eased in (smoothstep). Drawn at 48 steps, each cooked once.
@@ -6750,7 +6749,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - over the gap to the next car, one leap and two paws landing on its roof;
         - down in at its door, one leap and two paws on the boards, and walking there, the boards (never the ballast's).
 
-
 477. **The hounds' patrol clips (queue #213, E1; for D1's #208, note 472; the director, 8 Oct: "It matters that they dont just stand there and howl, they should either patrol between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump"; the art checklist's `cinder-hounds-anim`).** Five new clips in tools/blender/cinder_hound.py, which D1 wires in CreatureArt's hound case:
     - **`patrol`** (64 frames, loop): the hunting walk along the roofs. The prowl's slink without its stop and stare: nose down at the boards, the head swept slowly side to side over two strides, the ears pricked forward.
     - **`leap`** (27 frames, once): over a coupling gap. In place along the line: the gather, the arc up off the roof (0.62 m), the landing on the forelegs and on into the walk; the Sim carries it the 2-3 m across between 0.25 s and 0.65 s.
@@ -6811,6 +6809,37 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **`dt town`** shows each person's mind and the town's peoples; **`dt town sweep`** shows each custom's mean traits, temperament shares and bynamed share. At 200 seeds every custom has its own mix: the Passenger's 31% faithful and 16% watchers, the Gaunt's 26% talkers, the Track Doll's 29% mourners, the Tippy Toesie's the most comforters. About a third have a byname. Doubters are 1–5% everywhere, since these towns keep their customs harder every year.
     - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
     - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
+
+476. **The link's corner in note 285's form, and `--radio tally` without a route (B3, queue #212; found sweeping main's prompts after notes 441 and 459).**
+    - **The corner.** With the link lost, the HUD's top-right corner said "[F5] RECONNECT", and "CREW FULL (8/8): [F5] TRY AGAIN" when turned away. That's key first. The ballot's menu keys aside (note 285 kept them), it was the only line in play not in note 285's ACTION : [KEY] form, and it sat right over the centre's alarm saying the same thing as RECONNECT : [F5]. It now says it as the alarm does: RECONNECT : [F5], and CREW FULL (8/8)   TRY AGAIN : [F5] (`Hud.LinkLine`).
+    - **The staged report.** `dt screenshot --radio tally` on the default test loop crashed on a null: its staged report (`Staging.Report`) needs a night's run, and the test loop has none. It now says so: "give it a --route (e.g. --route frontier:7)".
+    - **Verified.** `QuietHudTests.TheLinksCornerSaysWhatToDoAsTheAlarmDoes` checks each line of the corner, and that none is key first or has words after a key. There's no screenshot: no `dt` staging draws a lost link, and the line is the same print in the same place.
+480. **The tipple heard (AU1, queue #216; A1's #458, note 423: "its sound (the clamp, the roll, the derail) AU1's"; spec D.2 "Clamp the car, rotate it to load. 1 crew. Bad clamp derails the car on the spur").** The mine head's tipple clamps a car in a cradle of iron hoops, rolls it over toward the ore bin (its chute tipping ore in at the top) and back by itself, and a bad clamp throws the car off its rails and holds the train till the wrench puts it back. None of it made a sound, though "the roll is machinery, so it's loud".
+    - **How** (`GameAudio.TippleSounds`, from `PlaceWorks` for every site with a tipple; off the run record's site, `Clamp`, `Clamped`, `Roll`, `RollingBack`, `Rerail`, and the clamped car's `Vehicle.OffRails`, alike on every machine):
+        - **The clamp:** `place-tipple.clamping` at the beam while the lever's held (`Clamp` counting), and `place-tipple.clamp` once as it shuts.
+        - **The roll:** `place-tipple.roll` at the hoops' axis while the cradle moves, over or back by itself (a little lighter going back), within 0.25 s of its last move, since the record comes in snapshots. Held still mid-roll, it's quiet.
+        - **The top:** `place-tipple.pour` at the bin once as the roll reaches the top.
+        - **Let go:** rolled back and unclamped, `place-tipple.release` once.
+        - **A bad clamp:** the car the tipple last clamped coming off its rails is `place-tipple.derail` there, and not a release (`Run.Derail` lets the clamp go with it). The train moving with a car clamped does the same.
+        - **The wrench:** `place-tipple.rerail` at the car while its re-railing goes on (`Rerail` counting), and `place-tipple.rerailed` once as it's back on.
+        - Heard within 250 m of the cradle; the edges are read wherever the ear is, so nothing plays late.
+        - **The HUD's hold ticks:** the clamp and the re-railing (`GameAudio.Holding`: `Clamp`, `Rerail`), done when it's clamped or back on its rails.
+        - **Captions:** a car crashing off its rails, and its wheels back on.
+    - **The sounds** (`tools/audio/recipes/tipple.py`): eight candidates on the Audio Checklist's new `place-tipple` line, all installed. Built from the packs' real iron, plate, wood and stones; the rollers' rumble, the creaks and the pour are the kits' models.
+        - `clamping`, `screw`: the clamp's ratchet about five clicks a second, the beam's screw grinding, iron creaking.
+        - `clamp`, `bite`: the beam's heavy clank on the roof, the platen's crunch of timber, the car creaking once.
+        - `roll`, `hoops`: the hoops grinding round on their rollers (a flat thudding twice a second), the pinion clanking through the ring gear, the car's timber twisting, its load shifting. 8 s exact cycle.
+        - `pour`, `chute`: the bin's gate knocked open and ore down its steel chute into the car (the steam lift's pour, from a bin).
+        - `release`, `springs`: the beam lifting off with a clank and rattle, the car dropping onto its springs.
+        - `derail`, `off`: the trucks dropping off the rail heads onto the sleepers one after the other, the body slamming into the hoop, the timbers groaning, ore spilling.
+        - `rerail`, `jack`: a rerailing jack's ratchet in heaves, a bar scraping, the car's weight creaking up. 4 s exact cycle.
+        - `rerailed`, `back-on`: the wheels dropping onto the rail heads, one truck then the other, the car settling.
+    - **Pinned:** `WorldSoundTests.TheTippleIsHeardClampingRollingTippingAndDerailingABadClamp`, at a mine head with every module (the draw off) on a client night, off the mirrored record:
+        - the clamp wound while held, and one bite;
+        - the roll while it moves and quiet held still, the ore once at the top;
+        - rolled back, one release;
+        - a bad clamp, one derail and no second release;
+        - the wrench heard at it, and once back on.
 
 482. **The comet's green out of its car's seams (queue #219, C1; the art checklist's `comet` "next": "the green leaking out of the car's seams at night"; GDD §19 "attracts everything; should look like it").** A comet-loaded car's sick green was all inside it: a point light and a glow over each stack, which read from the aisle. From outside, the car was as dark as any other. Now its light gets out where the car isn't tight:
     - **The seams** (`SceneArt.CometSeams`: where, in the car's frame):

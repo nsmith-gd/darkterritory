@@ -1129,12 +1129,12 @@ public sealed class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
-        // At the crane's controls, the stick drives the crane, not your feet (T48). Worked out the same everywhere, so a
-        // client predicts standing still at the stand.
+        // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
+        // the stand (Crane.Operates). Worked out the same everywhere, so a client predicts standing still at the stand.
         bool operating = false;
         if (Run?.CurrentSite is { } site)
             foreach (var crane in site.Cranes)
-                operating |= crane.AtControls(s, intent, Train);
+                operating |= crane.Operates(s, intent, Train);
         s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
         if (Authority)
         {
