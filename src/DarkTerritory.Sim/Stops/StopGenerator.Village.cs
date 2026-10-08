@@ -116,7 +116,7 @@ public static partial class StopGenerator
                             double yaw = DMath.Atan2(tan.D, tan.S) + R.Range(-0.3, 0.3);
                             var h = House(R, t, c) with { Yaw = yaw };
                             var bc = end + nn * 6 + tan * (R.Range(14, 18) * R.Sign());
-                            var barn = new StopBuilding(BuildingKind.Barn, StopZone.Village, bc.S, bc.D, 14, 9, yaw + R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3) };
+                            var barn = new StopBuilding(BuildingKind.Barn, StopZone.Village, bc.S, bc.D, 14, 9, yaw + R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3), Open = t.Village.OpenSheds };
                             var drive = new List<Pt> { p, end };
                             if (!g.Clear(drive, 2) || !g.Fits(h, fit) || !g.Fits(barn, fit with { Road = 2 }) || Plan.Overlap(h, barn, 3))
                                 continue;
@@ -162,7 +162,7 @@ public static partial class StopGenerator
         for (int tries = 0, want = R.Int(v.Outbuildings), got = 0; tries < 30 && got < want; tries++)
         {
             var c = new Pt(entry.S + R.Range(-40, 40), side * R.Range(tt.Buffer + 4, Math.Max(tt.Buffer + 5, offset - 6)));
-            var b = new StopBuilding(BuildingKind.Outbuilding, StopZone.Village, c.S, c.D, 8, 6, R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3) };
+            var b = new StopBuilding(BuildingKind.Outbuilding, StopZone.Village, c.S, c.D, 8, 6, R.Range(-0.2, 0.2)) { Variant = R.Int(0, 3), Open = t.Village.OpenSheds };
             if (g.Fits(b, fit with { Gap = 2, Road = 2 }))
             {
                 sheds.Add(g.Add(b));

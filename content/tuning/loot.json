@@ -46,14 +46,15 @@
   // Searching an open house (GDD App. F.3, "searchable for finds"; level-design P14 "hiding spots ... that take time to
   // search"; ARCHITECTURE §8 note 326): what a plain village house keeps in a cupboard, a cabinet, its cellar or under its
   // boards (and a toy with it) isn't there to see until a crewmate on foot, empty-handed and within `reach` of the spot,
-  // holds Use there for that kind's `seconds`; let go and it starts again. A shut house's finds stay out on its step, and a
-  // barn's hayloft and a shed's bench are as they were. Not in the spec's numbers: a cupboard or a cabinet is opened and
+  // holds Use there for that kind's `seconds`; let go and it starts again. A shut house's finds stay out on its step. An
+  // open barn's hayloft (up the ladder, through the hay) and an open shed's workbench (its drawers, its tool rack) are
+  // searched the same way (note 417). Not in the spec's numbers: a cupboard or a cabinet is opened and
   // gone through, a cellar's hatch lifted and the steps gone down, boards prised up one by one; a house's few spots take a
   // crewmate about ten seconds, a village a few minutes alone, which is what splitting up buys back. Unset, no search:
   // the finds lie out.
   "search": {
     "reach": 1.0,
-    "seconds": { "cupboard": 2.5, "cabinet": 2, "cellar": 4, "underFloor": 5 }
+    "seconds": { "cupboard": 2.5, "cabinet": 2, "cellar": 4, "underFloor": 5, "hayloft": 4, "bench": 2.5 }
   },
 
   // The damage model (the director's decision of 6 Oct 2026, GDD App. F.1; ARCHITECTURE §8 note 272): "Healing items are

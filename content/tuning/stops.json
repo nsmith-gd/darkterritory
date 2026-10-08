@@ -44,6 +44,10 @@
     // toward the line (each of a pair's cottages its own), its finds inside; the L and cross houses one floor, their parts
     // open into each other. Off, they're shut, their finds put out on the step.
     "openHouses": true,
+    // Note 417 (level-design I.4; the same notes of 7 Oct): a barn, an outbuilding and a dead town's goods shed stand open
+    // too, as their walls with a wide door toward the line, a hayloft's or a workbench's find inside to search. Off, they're
+    // shut boxes, their finds put out on the step.
+    "openSheds": true,
     "yawJitter": 0.44,
     "roadReach": 18,
     "houseGap": 2.5,
