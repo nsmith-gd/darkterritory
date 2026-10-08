@@ -39,6 +39,15 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// <summary>How finely a ball's path is searched for the ground, water or a wall it lands on (m; T121).</summary>
     public double ImpactStep { get; init; } = 0.5;
     /// <summary>
+    /// The ready rack at the gun (note 374, orchestrator.md §5.1 U4): how many of its rounds it holds; the rest are in the
+    /// powder lockers. 0: no rack, the gun's whole stock is at it (the gun before note 374).
+    /// </summary>
+    public int Rack { get; init; }
+    /// <summary>Seconds of Use held at the gun with a charge in hand to fill its rack.</summary>
+    public double ChargeSeconds { get; init; } = 2;
+    /// <summary>How near the powder locker a crewmate's hands must be to take a charge from it (m).</summary>
+    public double LockerReach { get; init; } = 1.3;
+    /// <summary>
     /// GDD §23 "gun jams: someone repairs it by hand, under fire" (note 183): the chance a shot fouls the bore, times
     /// <see cref="FoulWetFactor"/> on wet rail (rain); then <see cref="ClearSeconds"/> of Use held at the gun clears it.
     /// </summary>

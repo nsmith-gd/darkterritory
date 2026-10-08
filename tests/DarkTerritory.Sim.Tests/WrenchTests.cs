@@ -112,12 +112,10 @@ public class WrenchTests
         AtTheFireDoor(world, ref s);
         Assert.True(Kit.Has(s.Kit, Tool.Wrench));
         Assert.Equal(BreakKind.Rupture, Repairs.At(s, train));
-        // The kit carried, the wrench not in hand: nothing.
-        var kit = world.Bodies.All.Single(b => b.Kind == Physics.BodyKind.RepairKit);
-        kit.Carrier = 1;
+        // The kit's gone (slice 2): none rides in the fitter's locker. And the crowbar in hand mends nothing.
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);
         Hold(world, ref s, Tuning.Boiler.RepairSeconds + 1);
         Assert.True(train.Boiler.Ruptured);
-        kit.Carrier = -1;
         // The wrench in hand (its number key, Repairs.WrenchKey).
         Assert.Equal(2, Repairs.WrenchKey(s));
         s.HeldSlot = 1;
@@ -161,7 +159,7 @@ public class WrenchTests
     [Fact]
     public void TheRepairKitRidesInTheFittersLockerInCarOne()
     {
-        var world = World();
+        var world = KitWorld();
         world.EnableBodies();
         world.Stock();
         var kit = Assert.Single(world.Bodies.All, b => b.Kind == Physics.BodyKind.RepairKit);

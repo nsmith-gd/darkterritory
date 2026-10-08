@@ -67,6 +67,18 @@ public static class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
+        // outside the gate as the train leaves, its front wall either side of the gatehouse.
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside")
+        {
+            var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
+            return where switch
+            {
+                "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
+                "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
+            };
+        }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
         if (home is not null && where is "houses" or "house" or "kitchen" or "parlour")
@@ -288,7 +300,9 @@ public static class Staging
         Crewmate At(byte id, double x, double z, double yaw, Double3 hand = default, Double3 other = default)
         {
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, z, player, x) with { Yaw = yaw };
-            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other);
+            // In car 2's frame, as a live crewmate is (so a strained car has them stumbling: --strain, note 375).
+            return new Crewmate(id, Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true, hand, other,
+                Car: s.Parent, Local: s.Position);
         }
         return
         [
@@ -347,7 +361,7 @@ public static class Staging
     {
         var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
         var crew = new List<Crewmate>();
-        int i = 0, swings = 0;
+        int i = 0, swings = 0, jumps = 0;
         foreach (var name in acts)
         {
             var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
@@ -360,7 +374,14 @@ public static class Staging
                 tool = (swings % 3) switch { 0 => Sim.Player.Tool.Shovel, 1 => Sim.Player.Tool.Crowbar, _ => Sim.Player.Tool.Wrench };
                 swing = 0.12 + 0.18 * swings++;
             }
-            crew.Add(new Crewmate((byte)(20 + i), Sim.Player.PlayerMotor.WorldPosition(s, train), Sim.Player.PlayerMotor.WorldYaw(s, train), true,
+            // A jump (note 375): each further into the leap than the last, and up off the roof.
+            var feet = Sim.Player.PlayerMotor.WorldPosition(s, train);
+            if (act == Art.CrewPose.Jump)
+            {
+                swing = 0.12 + 0.2 * jumps++;
+                feet += new Double3(0, 0.15 + 0.3 * Math.Min(jumps, 2), 0);
+            }
+            crew.Add(new Crewmate((byte)(20 + i), feet, Sim.Player.PlayerMotor.WorldYaw(s, train), true,
                 Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
             i++;
         }
@@ -780,6 +801,19 @@ public static class Staging
         return new Crewmate(LoneId, at, Math.Atan2(-facing.X, -facing.Z), true, Act: Art.CrewPose.HeldMouth);
     }
 
+    /// <summary>A friend hauling the swallowed one back out (<c>--hugger swallow --rescue</c>; note 378): a step behind them inside
+    /// the car, facing the mouth, at the rescue CrewActs gives for the Car Hugger's hold.</summary>
+    public static Crewmate SwallowRescuer(TrainOnLine train)
+    {
+        var rear = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
+        // Off to the swallowed one's left (the swallow view's camera looks past them both), turned to them.
+        var at = rear.ToWorld(new Double3(-0.5, floor, rear.Shape.HalfLength - 2.1));
+        var facing = rear.DirToWorld(new Double3(0.7, 0, 0.7).Normalized);
+        return new Crewmate(2, at, Math.Atan2(-facing.X, -facing.Z), true,
+            Act: Art.CrewActs.RescueOf(Art.CrewActs.HeldPose(EnemyKind.CarHugger), below: false));
+    }
+
     /// <summary>The one the staged Passenger is dragging (<c>--passenger drag</c>): down on the floor at its feet, where the sim has them.</summary>
     public static Crewmate Dragged(TrainOnLine train)
     {
@@ -920,6 +954,173 @@ public static class Staging
         var t = train.Line.Sample(train.Dynamics.Distance + ahead);
         var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
         return OnGround(train, t.Position + right * lateral);
+    }
+
+    /// <summary>
+    /// The staged Gannet (<c>dt screenshot --gannet</c>; note 340, docs/design/creatures/gannet.md) over the moving train,
+    /// after crewmate 4 walking forward along the second car's roof (<see cref="GannetWalker"/>): <c>soar</c> high in the
+    /// engine's smoke ahead of them, <c>circle</c> banking round in it; <c>hang</c> still over them, head down; <c>fold</c>
+    /// folding into its dive and <c>dive</c> half way down its line at where they'll be; <c>stuck</c> its beak in the roof
+    /// where they were (they broke stride: stood aside with a crowbar), <c>tearfree</c> wrenching it out; <c>climb</c> off
+    /// the roof; marked by them, <c>bank</c> wheeling in low, <c>swoop</c> on them; <c>pin</c> stood on them, mantled,
+    /// <c>windup</c> and <c>peck</c> its second peck's wind-up and strike.
+    /// </summary>
+    public static List<Enemy> Gannet(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Gannet);
+        var t = new GannetTuning();
+        var (phase, doing, seconds) = mode switch
+        {
+            "soar" => (SpinePhase.Dormant, GannetMode.Soar, 1.3),
+            "circle" => (SpinePhase.Dormant, GannetMode.Soar, Art.CreatureArt.GannetSoarHold + 1.4),
+            "hang" => (SpinePhase.Alert, GannetMode.Hang, 1.2),
+            "fold" => (SpinePhase.Telegraph, GannetMode.Fold, 0.2),
+            "dive" => (SpinePhase.Telegraph, GannetMode.Fold, 1.3),
+            "stuck" => (SpinePhase.Commit, GannetMode.Stuck, 1.1),
+            "tearfree" => (SpinePhase.Commit, GannetMode.Stuck, t.StuckSeconds - 0.42),
+            "climb" => (SpinePhase.Dormant, GannetMode.Climb, 0.9),
+            "bank" => (SpinePhase.Telegraph, GannetMode.Bank, 0.9),
+            "swoop" => (SpinePhase.Telegraph, GannetMode.Bank, t.BankSeconds - 0.4),
+            "pin" => (SpinePhase.Grab, GannetMode.Pin, 1.75),
+            "windup" => (SpinePhase.Grab, GannetMode.Pin, t.PeckEvery * 2 - 0.35),
+            "peck" => (SpinePhase.Grab, GannetMode.Pin, t.PeckEvery * 2 + 0.02),
+            _ => throw new ArgumentException($"--gannet {mode}: soar, circle, hang, fold, dive, stuck, tearfree, climb, bank, swoop, pin, windup or peck"),
+        };
+        var (car, at, yaw) = GannetAt(train, mode);
+        var gannet = new Sim.Enemies.Gannet(GannetId);
+        bool marked = doing is GannetMode.Bank or GannetMode.Pin;
+        gannet.Restore(phase, seconds, t.Health, car, at, train.Dynamics.Distance, yaw, (double)doing,
+            doing is GannetMode.Hang or GannetMode.Fold || marked ? LoneId : -1, marked ? LoneId : -1,
+            holding: phase == SpinePhase.Grab ? LoneId : -1, grabWindow: t.Pecks * t.PeckEvery);
+        threats.Add(gannet);
+        return threats;
+    }
+
+    public const int GannetId = 340;
+    /// <summary>The car the staged Gannet's after someone on (the second car: the roof view's).</summary>
+    public const int GannetCar = 2;
+
+    /// <summary>Where the staged walker is on <see cref="GannetCar"/>'s roof (its frame: x across, z along, back +), and how
+    /// far up the staged Gannet soars over the roofs (m).</summary>
+    static readonly Double3 GannetWalk = new(0.3, 0, -2.5);
+    const double GannetSoars = 8.5;
+
+    /// <summary>
+    /// The staged Gannet's car, where it is in that car's frame, and its heading there (a player's yaw: forward, −Z, at 0).
+    /// Its dive's line is the sim's: from straight over the walker to where they'd be <c>foldSeconds</c> on at a walk (1.5
+    /// m/s up the roof), eased in (its square), so a dive half way down is a third of the drop on.
+    /// </summary>
+    public static (int Car, Double3 Local, double Yaw) GannetAt(TrainOnLine train, string mode)
+    {
+        var shape = train.Frames[GannetCar].Shape;
+        double roof = shape.RoofHeight;
+        var t = new GannetTuning();
+        var walker = GannetWalk with { Y = roof };
+        var aim = walker + new Double3(0, 0, -1.5 * t.FoldSeconds);
+        var above = walker with { Y = roof + GannetSoars };
+        switch (mode)
+        {
+            case "soar" or "circle":
+                // Up in the smoke ahead of them over the front of their car, coming back over them on its circuit (riding
+                // the train's air), its underside to them.
+                return (GannetCar, new Double3(-1.2, roof + GannetSoars, -5.5), Math.PI - 0.35);
+            case "hang":
+                return (GannetCar, above, 0);
+            case "fold" or "dive":
+                {
+                    double f = Math.Min(1, (mode == "fold" ? 0.2 : 1.3) / t.FoldSeconds);
+                    return (GannetCar, Double3.Lerp(above, aim, f * f), 0);
+                }
+            case "stuck" or "tearfree":
+                return (GannetCar, aim, 0.12);
+            case "climb":
+                return (GannetCar, aim + new Double3(0, 3.5, 1.5), 0.3);
+            case "bank":
+                return (GannetCar, walker + new Double3(-5.5, 3.2, -7), Math.Atan2(-5.5, -7) + Math.PI);
+            case "swoop":
+                return (GannetCar, walker + new Double3(-1.0, 1.5, -1.6), Math.Atan2(-1.0, -1.6) + Math.PI);
+            default:
+                // On them (pin, windup, peck): where the sim has them, a little over them (CreatureArt stands it on them).
+                return (GannetCar, walker + new Double3(0, 0.3, 0), 0);
+        }
+    }
+
+    /// <summary>
+    /// Crewmate 4 on the second car's roof, the staged Gannet's prey: walking forward up the roof (soaring, hanging,
+    /// diving); stood aside from where it struck with a crowbar up (stuck: they broke stride); running for the hatch from
+    /// the bank; on their back under its foot (pinned).
+    /// </summary>
+    public static Crewmate GannetWalker(TrainOnLine train, string mode)
+    {
+        var frame = train.Frames[GannetCar];
+        double roof = frame.Shape.RoofHeight;
+        var local = GannetWalk with { Y = roof };
+        double yaw = 0;
+        Art.CrewPose? act = Art.CrewPose.Walk;
+        var tool = Sim.Player.Tool.None;
+        switch (mode)
+        {
+            case "stuck" or "tearfree" or "climb":
+                // Stopped dead and stepped aside after the fold, turned to it with a crowbar.
+                local = new Double3(-0.85, roof, -2.6);
+                yaw = -2.4;
+                (act, tool) = (null, Sim.Player.Tool.Crowbar);
+                break;
+            case "bank" or "swoop":
+                act = Art.CrewPose.Run;
+                break;
+            case "pin" or "windup" or "peck":
+                act = Art.CrewPose.HeldPinned;
+                break;
+        }
+        var feet = frame.ToWorld(local);
+        var fwd = frame.DirToWorld(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+        return new Crewmate(LoneId, feet, Math.Atan2(-fwd.X, -fwd.Z), true, Act: act, Holding: tool, Car: GannetCar, Local: local);
+    }
+
+    public const byte GannetRescuerId = 5;
+
+    /// <summary>
+    /// Crewmate 5, come to beat it off the pinned one (pin, windup, peck): stood on the roof's edge by its mantled wing with a
+    /// crowbar, a man's height against its 2.3 m and its wings over both edges of the car. Nobody otherwise.
+    /// </summary>
+    public static Crewmate? GannetRescuer(TrainOnLine train, string mode)
+    {
+        if (mode is not ("pin" or "windup" or "peck"))
+            return null;
+        var frame = train.Frames[GannetCar];
+        var local = new Double3(1.05, frame.Shape.RoofHeight, -2.2);
+        double yaw = 0.6;
+        var fwd = frame.DirToWorld(new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw)));
+        return new Crewmate(GannetRescuerId, frame.ToWorld(local), Math.Atan2(-fwd.X, -fwd.Z), true, Holding: Sim.Player.Tool.Crowbar,
+            Car: GannetCar, Local: local);
+    }
+
+    /// <summary>The eye the Gannet's views look out of: a crewmate standing on the second car's roof (m, its frame), and
+    /// what they look at (the staged Gannet, or for the dive the line from it down to its walker).</summary>
+    public static (Double3 Eye, Double3 Look) GannetEye(TrainOnLine train, string view)
+    {
+        var frame = train.Frames[GannetCar];
+        double roof = frame.Shape.RoofHeight;
+        const double eye = 1.65;
+        Double3 W(double x, double y, double z) => frame.ToWorld(new Double3(x, roof + y, z));
+        var (car, at, _) = GannetAt(train, view switch { "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "soar" });
+        var gannet = train.Frames[car].ToWorld(at);
+        return view switch
+        {
+            // From the roof's edge up ahead, back at the walker coming on and it coming down its line at them.
+            "gannetfold" => (W(1.3, eye, -10.5), W(0.0, 3.0, -3.4)),
+            // From the roof's edge a few steps past it, back at its face: the spear in the planks, the sacs, the wings
+            // thrashing over it, and the one who broke stride beyond.
+            "gannetstuck" => (W(1.25, eye, -8.6), W(-0.1, 1.0, -3.6)),
+            // Low at the roof's edge ahead, on the pinned one's side: their head and shoulders under its foot, it stood on
+            // them, mantled, its face over theirs.
+            "gannetpin" => (W(1.35, 1.2, -7.4), W(0.15, 1.15, -3.2)),
+            // At the back of the roof, up at it in the smoke ahead.
+            _ => (W(0.5, eye, 5.5), gannet + (W(0, 0, -5.5) - gannet) * 0.3),
+        };
     }
 
     static Double3 OnGround(TrainOnLine train, Double3 at)

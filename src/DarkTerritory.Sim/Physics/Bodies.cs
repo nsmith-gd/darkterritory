@@ -16,9 +16,10 @@ namespace DarkTerritory.Sim.Physics;
 /// </summary>
 /// <summary>
 /// <see cref="RepairKit"/> is the engineer's toolbox (GDD §12 "the repair kit is an item, not a station"): whoever carries
-/// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell.
+/// it opens a Holdout's lock quietly (App. D.7), and when they die it's lying where they fell. <see cref="Powder"/> is a charge
+/// for a gun's ready rack (note 374), taken from a powder locker and carried up to the gun.
 /// </summary>
-public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11 }
+public enum BodyKind : byte { Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12 }
 
 /// <summary>
 /// What a toy sounds like while it's carried (GDD v1.4 §19, App. C.7): most are quiet; a squeaker, a music box and a wind-up
@@ -431,8 +432,9 @@ public sealed class Bodies
     /// At a switch's lever, a stand's or the cab's thrower's (queue #94, note 357): Use is the lever's, so what's carried stays
     /// carried and nothing lying by it is picked up. Throw still lets go.
     /// </param>
+    /// <param name="fetch">Empty hands here take a new one of these on a Use press (a powder locker's charge, note 374).</param>
     public bool Handle(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
-        bool lever = false)
+        bool lever = false, BodyKind? fetch = null)
     {
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
         bool usePressed = use && !_useWas.GetValueOrDefault(playerId);
@@ -492,7 +494,17 @@ public sealed class Bodies
             Release(worn, s, train, 0);
             return false;
         }
-        if (!usePressed || carried is not null || lever || intent.MoveZ > 0.5 || CrewActions.NearestInteractable(s, train, hand) is not null)
+        if (!usePressed || carried is not null || lever || intent.MoveZ > 0.5)
+            return false;
+        // A charge from the powder locker (note 374): into the hands, in the car's frame where they are.
+        if (fetch is { } kind)
+        {
+            var taken = SpawnItem(PlayerMotor.WorldPosition(s, train) + Double3.Up * 1.0, s.LineHint, kind);
+            taken.Carrier = playerId;
+            taken.Claimed = true;
+            return true;
+        }
+        if (CrewActions.NearestInteractable(s, train, hand) is not null)
             return false;
         if (InReach(s, train, hand, wearingRadio: worn is not null, playerId) is not { } nearest)
             return false;
@@ -518,11 +530,13 @@ public sealed class Bodies
     /// anything Use works, and a broken radio on your belt or lying in reach. Use held there, standing, for train.json
     /// <c>kit.radioMendSeconds</c> mends it; moving or letting go starts it over. Like a locker's tap and hold, the hands
     /// wait for the release: a tap still puts the kit down. Returns whether it had the hands this tick.
+    /// <para>Note 301: where the wrench is the repair tool, it's the wrench in empty hands that mends it (<see cref="Mends"/>),
+    /// and a tap does nothing.</para>
     /// </summary>
     bool Mend(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
         bool use, bool usePressed, bool throwPressed)
     {
-        var radio = carried is { Kind: BodyKind.RepairKit } && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
+        var radio = Mends(s, train, carried) && !throwPressed ? MendableRadio(s, train, hand, playerId) : null;
         bool had = _mending.TryGetValue(playerId, out var was);
         if (had && (radio is null || radio.Id != was.Radio))
         {
@@ -541,9 +555,9 @@ public sealed class Bodies
         {
             _mending.Remove(playerId);
             radio.MendTicks = 0;
-            // A tap: it was the hands', putting the kit down.
-            if (was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
-                Release(carried!, s, train, 0);
+            // A tap: it was the hands', putting the kit down (the wrench stays in hand).
+            if (carried is not null && was.Ticks * Dt < Lockers.DoorSeconds(train) - Dt / 2)
+                Release(carried, s, train, 0);
             return true;
         }
         if (!use || !_mending.ContainsKey(playerId))
@@ -604,6 +618,13 @@ public sealed class Bodies
         }
         return true;
     }
+
+    /// <summary>
+    /// Whether these hands mend a broken radio (note 201): the wrench in otherwise empty hands where it's the repair tool
+    /// (note 301), else the repair kit carried.
+    /// </summary>
+    public static bool Mends(in PlayerState s, TrainOnLine train, Body? carried) =>
+        Repairs.ByWrench(train) ? carried is null && Repairs.WrenchInHand(s) : carried is { Kind: BodyKind.RepairKit };
 
     /// <summary>
     /// The broken radio a player with the repair kit would mend (note 201): their own, on their belt, or else the nearest one

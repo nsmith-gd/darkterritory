@@ -40,6 +40,9 @@ ALBEDO = {
     # granite the palest ground there is (it catches the headlamp), the bog near black
     "ground_heath": 0.075, "ground_needles": 0.065, "granite_lichen": 0.13, "ground_red_clay": 0.075, "water_dark": 0.016,
     "bog_sphagnum": 0.06, "shore_shingle": 0.10,
+    # the towns' walls (note 281): silver cedar shingle a touch lighter than grey boards; the clapboard's white paint
+    # the lightest wood there is, so a house's paint (the kit's tint over it) reads under a door lamp
+    "shingle_cedar": 0.13, "clapboard": 0.26,
     # masonry
     "stone_block": 0.11, "brick_soot": 0.075, "concrete_stain": 0.13, "plaster_ruin": 0.13, "roof_slate": 0.06,
     # foliage
