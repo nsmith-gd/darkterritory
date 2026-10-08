@@ -260,6 +260,9 @@ static class LineGenCommands
                     meanTerrainCost = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("terrainCost")), 1),
                     meanDemands = Math.Round(plans.Average(p => p.Authority.Demands.Count), 1),
                     meanAverageSpeed = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("averageSpeed")), 2),
+                    meanHardBends = Math.Round(plans.Average(p => p.Validation.Metrics.GetValueOrDefault("hardBends")), 2),
+                    sBends = plans.Sum(p => (int)p.Validation.Metrics.GetValueOrDefault("sBends")),
+                    nightsWithSBends = plans.Count(p => p.Validation.Metrics.GetValueOrDefault("sBends") > 0),
                     failures = failures.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value),
                 });
             }

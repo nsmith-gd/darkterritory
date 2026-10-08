@@ -111,6 +111,8 @@ public sealed class Limits
         BrassFields = R(c => c.BrassFields);
         Bends = R(c => c.Bends);
         BendDerail = R(c => c.BendDerail);
+        // None on a tier without them (Local's one or two teach the board), however near the next tier it lerps.
+        SBends = a.SBends <= 0 ? 0 : L(c => c.SBends);
         if (cfg.Demo.Enabled)
         {
             if (cfg.Demo.NoWashouts)
@@ -185,6 +187,8 @@ public sealed class Limits
     /// <summary>Note 278: hard bends a night carries, and the speeds (m/s) they derail at.</summary>
     public double[] Bends { get; }
     public double[] BendDerail { get; }
+    /// <summary>Note 359: the chance a hard bend is an S-bend.</summary>
+    public double SBends { get; }
     public double BudgetPerKm { get; }
     public double Corruption { get; }
     public double[] Fog { get; }

@@ -306,11 +306,29 @@ public sealed class FrontEnd
         if (e.Select is null)
             return null;
         // Choosing BACK is backing out.
-        Cue?.Invoke(e.Back ? UiCue.Back : UiCue.Select);
+        Cue?.Invoke(e.Back ? UiCue.Back : e.Sound ?? UiCue.Select);
         return e.Select();
     }
 
     public void Type(string text)
+    {
+        // A key heard for each typing that took (note 322): a field full, or a character it won't take, is silent.
+        string before = TypedText();
+        TypeInto(text);
+        if (TypedText() != before)
+            Cue?.Invoke(UiCue.Type);
+    }
+
+    /// <summary>What's in the field being typed into, to hear whether a key took.</summary>
+    string TypedText() => Editing switch
+    {
+        TextField.PlayerName => Settings.PlayerName,
+        TextField.CrewName => Open?.Name ?? "",
+        TextField.Address => Address,
+        _ => NamingLobby ? LobbyName : "",
+    };
+
+    void TypeInto(string text)
     {
         if (Editing == TextField.PlayerName)
         {
@@ -355,6 +373,14 @@ public sealed class FrontEnd
     public const int MaxCrewName = 24;
 
     public void Erase()
+    {
+        string before = TypedText();
+        EraseOne();
+        if (TypedText() != before)
+            Cue?.Invoke(UiCue.Type);
+    }
+
+    void EraseOne()
     {
         if (Editing == TextField.PlayerName)
         {
@@ -517,7 +543,7 @@ public sealed class FrontEnd
                 Show(Screen.Slots);
                 Message = $"Slot {s.Slot} is empty.";
                 return null;
-            }),
+            }, Sound: UiCue.Delete),
         ];
     }
 
@@ -739,7 +765,8 @@ public sealed class FrontEnd
 
     /// <param name="Back">A BACK item: choosing it sounds as backing out.</param>
     /// <param name="Field">A text field: choosing it starts typing into it (note 264).</param>
-    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null);
+    readonly record struct Entry(MenuItem Item, Func<Launch?>? Select = null, Action<int>? Adjust = null, bool Back = false, TextField? Field = null,
+        string? Sound = null);
 
     List<Entry> Entries() => Screen switch
     {
