@@ -249,7 +249,10 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # the headframe's rope, whose tones can read as a whine.
                 "state-coupling-loose.knock": "clank", "place-mine-lift.winding": "engine",
                 # Note 409: the shut's the Choir's rule, so the one that bangs home and drops its latch last; the open's long creak.
-                "crew-house-door.shut": "sag", "crew-house-door.open": "creak"}
+                "crew-house-door.shut": "sag", "crew-house-door.open": "creak",
+                # Note 429: the quick river over its stones, the deep one a candidate; the Atlantic's shingle beaches drag
+                # their stones back, the rocky ledges' surf a candidate.
+                "world-water.river": "run", "world-water.surf": "shingle"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. The plank
@@ -411,6 +414,12 @@ CUE_DEF = {
     "place-town.radio": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
     "place-town.murmur": {"minDistance": 3, "maxDistance": 35, "rolloff": 1.0},
     "place-town.cough": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
+    # surf a long way inland, the tide's flats across their width.
+    "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},
+    "world-water.lake": {"minDistance": 3, "maxDistance": 50, "rolloff": 1.0},
+    "world-water.surf": {"minDistance": 15, "maxDistance": 400, "rolloff": 0.6},
+    "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
 }
 
 
