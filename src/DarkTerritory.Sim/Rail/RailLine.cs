@@ -93,6 +93,12 @@ public interface ITrackConditions
     /// blended along the track so it never steps. For the eye only: authority plans at the night's thickest (note 313).
     /// </summary>
     double Fog(int path, double distance) => 1;
+    /// <summary>The world is solid (note 279): a point held inside what it's in (a tunnel's lining), for something of <paramref name="radius"/>.</summary>
+    Double3 Confine(Double3 world, double radius) => world;
+    /// <summary>Note 279: how far either side of the rail something beside the train can be there (a tunnel's bore, a bridge's deck).</summary>
+    double LateralRoom(int path, double distance) => double.PositiveInfinity;
+    /// <summary>Note 279: how far out from the rail the ground stays at rail height (the formation).</summary>
+    double FormationM => double.PositiveInfinity;
 }
 
 /// <summary>A built branch: its own line, laid from the main line's points onwards.</summary>

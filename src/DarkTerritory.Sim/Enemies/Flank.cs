@@ -310,15 +310,20 @@ public sealed class Whistler(int id) : Enemy(id)
 
     static Double3? Runnable(TrainOnLine train, Double3 gap, Double3 dir, double distance, double rail, LineGen.TerrainField? water, WhistlerTuning t, ref double hint)
     {
-        const double Pace = 2;
+        const double Pace = 2, WallPace = 0.5;
         double last = rail;
         for (double x = Pace; x <= distance + 1e-6; x += Pace)
         {
             var at = gap + dir * Math.Min(x, distance);
             double ground = PlayerMotor.GroundAt(at, train.Line, ref hint);
             if (Math.Abs(ground - rail) > t.NestMaxRise || Math.Abs(ground - last) > t.NestMaxSlope * Pace
-                || water?.WaterNear(at.X, at.Z, 1) is not null || InWall(train, at))
+                || water?.WaterNear(at.X, at.Z, 1) is not null)
                 return null;
+            // The walls at a finer pace than the land: a shed's or a Holdout's wall is 0.3 m thick (note 279), so a pace's
+            // samples could step either side of one.
+            for (double y = x - Pace + WallPace; y <= Math.Min(x, distance) + 1e-6; y += WallPace)
+                if (InWall(train, gap + dir * y))
+                    return null;
             last = ground;
         }
         var nest = gap + dir * distance;
