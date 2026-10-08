@@ -1610,7 +1610,9 @@ public sealed class CreatureArt
                     {
                         var (built, top) = Nest.At(heap, swell);
                         mesh.Append(built, model);
-                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * at;
+                        // (Swollen about itself, then set on the heap: lifted after the swell's scale, its 0.6 m went up
+                        // with it to 1.5 m, the Follower hanging in the air over its own nest.)
+                        at = Matrix4x4.CreateScale(1 + FollowerSwell * swell) * Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * model;
                     }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
