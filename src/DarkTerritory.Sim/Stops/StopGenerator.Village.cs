@@ -358,8 +358,8 @@ public static partial class StopGenerator
             Shape = s,
             Parts = parts,
             Variant = R.Int(0, 8),
-            // The plain ones open to walk into (note 326): no dice, so the rest of the stop is laid as before.
-            Open = t.Village.OpenHouses && s is HouseShape.Rect or HouseShape.Square,
+            // Open to walk into (note 326): no dice, so the rest of the stop is laid as before.
+            Open = t.Village.OpenHouses,
         };
     }
 }
