@@ -36,7 +36,6 @@ public class PackFireTests
             bot.Crew = [(1, n.Crew[1])];
             n.Run(0.5, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
             inside |= n.Crew[1].Parent == rear && n.Crew[1].Surface == Surface.Deck;
-            File.AppendAllText("/tmp/claude-0/pf.txt", $"{pack} {health} t={i * 0.5} {n.Crew[1].Parent} {n.Crew[1].Surface} {n.Crew[1].Position} hp={n.Crew[1].Health} dead={n.Crew[1].Death}\n");
         }
         return (inside, n.Crew[1]);
     }

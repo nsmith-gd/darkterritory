@@ -488,7 +488,7 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // inside, fighting it, the walker burns while the pack relights it overhead. The fit go at the pack on the roof instead
         // (below), and the fire's fought once it's theirs alone.
         _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && e.Extra > 0.85 && e.Attached != here)
-                && !(false && e is CarFire && Boarded(world, e.Attached))
+                && !(e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
             .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault() : null;
