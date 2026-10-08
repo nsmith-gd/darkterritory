@@ -136,7 +136,15 @@ public sealed partial class SceneArt(Look look)
         if (c.Reach is { } reach)
         {
             // Hands on what the act works (the regulator and the brake, the whistle cord: CrewActs.Crewmate), each to its side.
-            var (l, r) = Arms.Hands(reach.A, reach.B);
+            // The reverser thrown (note 445): the brake hand, the nearer, off the brake onto it, over with it and back.
+            var other = reach.B;
+            if (pose == CrewPose.Drive && ReverserHand(time) is > 0 and var w)
+            {
+                var d = _reverserGrip - c.Feet;
+                var grip = new Double3(d.X * Math.Cos(c.Yaw) - d.Z * Math.Sin(c.Yaw), d.Y, d.X * Math.Sin(c.Yaw) + d.Z * Math.Cos(c.Yaw));
+                other += (grip - other) * w;
+            }
+            var (l, r) = Arms.Hands(reach.A, other);
             left = ToF(l);
             rightHand = ToF(r);
         }
@@ -339,13 +347,16 @@ public sealed partial class SceneArt(Look look)
     static readonly Matrix4x4 ShovelStood = Matrix4x4.CreateRotationX(-MathF.PI / 2) * Matrix4x4.CreateRotationZ(-0.2f)
         * Matrix4x4.CreateTranslation(0.02f, 0.76f, 0.6f);
 
+    /// <param name="time">Seconds, for the reverser's throw and the whistle lever's swing (note 445).</param>
     public bool CabControls(MeshBuilder mesh, in CarFrame frame, Double3 eye, TrainControls controls, bool wrenchRacked = true, bool cordPulled = false,
-        bool shovelRacked = true)
+        bool shovelRacked = true, double time = 0)
     {
         var props = PropArt.Of(Look);
         if (frame.Shape.Levers is not { } levers || props.Get("lever_regulator") is not { } regulator)
             return false;
         var m = FrameMatrix(frame, eye);
+        var reverser = ReverserHandle(levers, controls.Reverser, time);
+        _reverserGrip = frame.ToWorld(reverser);
         mesh.Append(regulator, Matrix4x4.CreateTranslation(ToF(levers.RegulatorAt(controls.Throttle))) * m);
         void Swung(string lever, string stand, Double3 rest, Double3 now, float length)
         {
@@ -357,7 +368,7 @@ public sealed partial class SceneArt(Look look)
                 mesh.Append(l, Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m);
         }
         Swung("lever_brake", "brake_stand", levers.Brake, levers.BrakeAt(controls.Brake), BrakeLever);
-        Swung("lever_reverser", "reverser_quadrant", levers.Reverser, levers.ReverserAt(controls.Reverser), ReverserLever);
+        Swung("lever_reverser", "reverser_quadrant", levers.Reverser, reverser, ReverserLever);
         // T101: the brake reads at a glance, a red-painted handle on its lever. (These are for whoever's on the engine:
         // farther off they're a few pixels, and the headset's frame budget has no room for them.)
         bool near = (frame.Origin - eye).Length < 30;
@@ -370,6 +381,10 @@ public sealed partial class SceneArt(Look look)
             float length = (float)(roof.Max.Y - handle.Y);
             mesh.Append(Piece($"whistle-cord-{length:0.00}", () => TrainKit.WhistleCord(Look, length)), Matrix4x4.CreateTranslation(ToF(handle)) * m);
         }
+        // Outside, the whistle's own lever on its top, pulled by its rod from over the driver (note 445): down only while a
+        // crewmate's hand is on the cord, so from the roofs the real whistle is told from the Whistler's (App. A.4).
+        if (frame.Shape.Cab is { } cab && (frame.Origin - eye).Length < WhistleLeverSeen)
+            WhistleLever(mesh, m, frame.Shape, cab, Pull(cordPulled, time));
         // The tool rack (T109), and the wrench on it while it's there.
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.ToolRack && near))
         {
@@ -400,6 +415,93 @@ public sealed partial class SceneArt(Look look)
             mesh.Billboard(lamp, 0.22f, 0, new Vector4(1.0f, 0.35f, 0.15f, 1), -1, FxBlend.Additive);
         }
         return true;
+    }
+
+    // The reverser thrown (note 445; GDD §12): the hand goes to it, hauls it over, holds a moment and goes back. The sim's
+    // reverser flips at once (CabControls, stopped); the lever and the hand take these.
+    public const double ReverserReach = 0.2, ReverserThrowSeconds = 0.35, ReverserHold = 0.25;
+    int _reverserFrom = 1, _reverserTo = 1;
+    double _reverserSince = double.NegativeInfinity;
+    bool _reverserSeen;
+    Double3 _reverserGrip;
+
+    /// <summary>
+    /// Staged (dt screenshot --reverser s): the reverser thrown this many seconds ago, from the other way, so a still shows
+    /// it mid-throw with the driver's hand on it.
+    /// </summary>
+    public double? ReverserThrown { get; set; }
+
+    /// <summary>Where the reverser's handle is (cab frame): swung over from where it was to where the controls have it.</summary>
+    Double3 ReverserHandle(CabLevers levers, int reverser, double time)
+    {
+        int to = reverser >= 0 ? 1 : -1;
+        if (ReverserThrown is { } ago)
+            (_reverserFrom, _reverserTo, _reverserSince, _reverserSeen) = (-to, to, time - ago, true);
+        else if (!_reverserSeen)
+            (_reverserFrom, _reverserTo, _reverserSeen) = (to, to, true);
+        else if (to != _reverserTo)
+            (_reverserFrom, _reverserTo, _reverserSince) = (_reverserTo, to, time);
+        double p = Smooth((time - _reverserSince - ReverserReach) / ReverserThrowSeconds);
+        var from = levers.ReverserAt(_reverserFrom);
+        return from + (levers.ReverserAt(_reverserTo) - from) * p;
+    }
+
+    /// <summary>Where the reverser's handle was last drawn (world): where the driver's hand goes to throw it.</summary>
+    public Double3 ReverserGrip => _reverserGrip;
+
+    /// <summary>How far the driver's hand is over on the reverser (0..1): to it, through the throw, back.</summary>
+    public double ReverserHand(double time)
+    {
+        double s = time - _reverserSince, held = ReverserReach + ReverserThrowSeconds + ReverserHold;
+        return s < 0 ? 0 : s < ReverserReach ? Smooth(s / ReverserReach) : s < held ? 1 : 1 - Smooth((s - held) / ReverserReach);
+    }
+
+    static double Smooth(double x)
+    {
+        x = Math.Clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+    }
+
+    // The whistle's lever (note 445): how far off it's seen (it's small, but it's the one thing that tells the Whistler's
+    // whistle from a crewmate's), and how quickly it swings to and from the pull.
+    const double WhistleLeverSeen = 160, WhistlePullSeconds = 0.15;
+    bool _pulled, _pullSeen;
+    double _pulledSince = double.NegativeInfinity;
+
+    /// <summary>How far the whistle's lever is pulled down (0..1), easing to where the cord has it (where it's first seen, there).</summary>
+    public double Pull(bool pulled, double time)
+    {
+        if (!_pullSeen)
+            (_pulled, _pullSeen) = (pulled, true);
+        else if (pulled != _pulled)
+            (_pulled, _pulledSince) = (pulled, time);
+        double p = Smooth((time - _pulledSince) / WhistlePullSeconds);
+        return pulled ? p : 1 - p;
+    }
+
+    /// <summary>
+    /// The whistle's valve lever on its top, and the pull rod forward along the cab roof to the crank over the driver's cord
+    /// (TrainKit.WhistleLever, PullRod, PullCrank): up at rest, swung down <paramref name="pull"/> of the way.
+    /// </summary>
+    void WhistleLever(MeshBuilder mesh, in Matrix4x4 m, CarShape shape, Box cab, double pull)
+    {
+        var pivot = TrainKit.WhistleLeverPivot(shape);
+        float angle = (float)(TrainKit.WhistleLeverRest + (TrainKit.WhistleLeverPulled - TrainKit.WhistleLeverRest) * pull);
+        mesh.Append(Piece("whistle-lever", () => TrainKit.WhistleLever(Look)), Matrix4x4.CreateRotationZ(angle) * Matrix4x4.CreateTranslation(pivot) * m);
+        // The lever's tip: out along its +X, turned up by the angle.
+        var tip = pivot + new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0) * TrainKit.WhistleLeverLength;
+        var crank = TrainKit.WhistleCrank(shape, cab);
+        mesh.Append(Piece("whistle-crank", () => TrainKit.PullCrank(Look)), Matrix4x4.CreateTranslation(crank) * m);
+        // The rod from the tip to the crank's arm, which the cord in the cab hauls forward as the tip comes down.
+        var arm = crank + new Vector3(0, 0.12f, (float)pull * -0.08f);
+        var along = arm - tip;
+        float length = along.Length();
+        var dir = along / length;
+        // A unit rod up +Y, stretched to its length and turned onto the line from tip to arm.
+        var turn = Quaternion.CreateFromAxisAngle(Vector3.Normalize(Vector3.Cross(Vector3.UnitY, dir) + new Vector3(1e-6f, 0, 0)),
+            MathF.Acos(Math.Clamp(Vector3.Dot(Vector3.UnitY, dir), -1, 1)));
+        mesh.Append(Piece("pull-rod", () => TrainKit.PullRod(Look)),
+            Matrix4x4.CreateScale(1, length, 1) * Matrix4x4.CreateFromQuaternion(turn) * Matrix4x4.CreateTranslation(tip) * m);
     }
 
     /// <summary>A car frame's transform to camera-relative space: its axes as rows, its origin relative to the eye.</summary>
