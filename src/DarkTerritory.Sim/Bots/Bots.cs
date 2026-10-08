@@ -2706,7 +2706,7 @@ public static class Heed
     {
         if (!self.Alive || self.Has(PlayerFlags.Held) || world.Run is not { Healing: { } h } run || self.Health >= h.BotBelow
             || world.Bodies.CarriedBy(selfId) is not { } find || run.HealOf(find) <= 0
-            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null)
+            || CrewActions.NearestInteractable(self, world.Train, world.Hand) is not null || world.Switches?.InReach(self, world.Train, world.Hand) is not null)
             return intent;
         return intent with { MoveX = 0, MoveZ = 0, Buttons = (intent.Buttons | PlayerButtons.Use) & ~(PlayerButtons.Run | PlayerButtons.Jump | PlayerButtons.Throw) };
     }

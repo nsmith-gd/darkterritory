@@ -91,6 +91,15 @@ public static class Views
             // staged Follower).
             "follower" => Camera.LookAt(train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 1.1), 1.6, -1.25)),
                 train.Frames[Math.Min(2, train.Frames.Count - 1)].ToWorld(new Double3(-(train.Frames[Math.Min(2, train.Frames.Count - 1)].Shape.HalfWidth + 2.2), 1.25, -1.5)), 50),
+            // (Not one of Names.) A crewmate's eye on the ground beside the stopped engine's front, out at the staged Moose 15 m
+            // off up the line in the headlamp's spill (Staging.Moose: graze, listen, warn).
+            "moose" => MooseCamera(train),
+            // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
+            // or on them (Staging.Moose: squareup, charge, pin...).
+            "moosecharge" => MooseChargeCamera(train),
+            // (Not one of Names.) Across the line, close, side on to crewmate 4 pinned under its rack (--moose pin).
+            "moosepin" => Camera.LookAt(Staging.Lineside(train, 7, 1.6) + Double3.Up * EyeHeight,
+                Staging.MooseCrewmate(train, "pin").Feet + (Staging.MooseAt(train, "pin").At - Staging.MooseCrewmate(train, "pin").Feet) * 0.4 + Double3.Up * 0.9, 55),
             // Off the last car's side, looking up at what's over its roof (the staged Choir besieging the guard van).
             "choir" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(4.6, train.Frames[^1].Shape.RoofHeight + 0.6, 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0, train.Frames[^1].Shape.RoofHeight + 2.0, 0)), 55),
@@ -263,6 +272,28 @@ public static class Views
         var at = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double z = at.Shape.HalfLength + train.Dynamics.Tuning.Geometry.CouplingGap / 2, w = at.Shape.HalfWidth;
         return Camera.LookAt(at.ToWorld(new Double3(w + 2.6, 1.7, z + 0.6)), at.ToWorld(new Double3(0, 1.0, z)), 55);
+    }
+
+    // A crewmate's eye, over the ground they stand on (m).
+    const double EyeHeight = 1.65;
+
+    static Camera MooseCamera(TrainOnLine train)
+    {
+        var eye = Staging.MooseWatcher(train) + Double3.Up * EyeHeight;
+        var (at, _) = Staging.MooseAt(train, "warn");
+        // At it, turned a little toward the engine and its lamp behind it.
+        var engine = Staging.Lineside(train, 0, 0);
+        return Camera.LookAt(eye, at + (engine - at) * 0.3 + Double3.Up * 1.7, 55);
+    }
+
+    static Camera MooseChargeCamera(TrainOnLine train)
+    {
+        var them = Staging.MooseCrewmate(train, "charge");
+        var (at, _) = Staging.MooseAt(train, "charge");
+        // Across the line from them, side on to the charge between them and what's coming at them: its flank toward the
+        // headlamp, the rack levelled in front of it, the gallop, and the one it's after.
+        var eye = Staging.Lineside(train, 14, 3.5) + Double3.Up * EyeHeight;
+        return Camera.LookAt(eye, them.Feet + (at - them.Feet) * 0.5 + Double3.Up * 1.4, 55);
     }
 
     static Camera TrailCamera(TrainOnLine train)
