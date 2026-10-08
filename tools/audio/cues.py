@@ -215,6 +215,12 @@ CUES = {
         O("knuckle-close", "Knuckles slamming together on a recouple", vars=3),
         O("pin-drop", "Coupling pin dropping home", vars=3),
     ],
+    # The upkeep (queue #95, note 358; D1's notes 331 and 346): the hands on the jobs the train makes as it runs.
+    "crew-upkeep": [
+        L("grease", "Greasing a hot axle box: the grease gun worked, the grease spitting on hot iron (held while at it)"),
+        O("greased", "The box greased: the last of it hissing off as the iron cools", vars=3),
+        O("trim", "A guttering lamp trimmed: the wick screwed up a few clicks, the flame catching steady", vars=3),
+    ],
     "crew-repair": [
         O("kit-open", "Repair kit opened"),
         L("ratchet", "Wrench ratcheting on the boiler, held", cand={"_": S("misc_20")}),
@@ -353,6 +359,16 @@ CUES = {
     ],
     "state-brake-fade": [
         L("fade", "Hot brakes glazing and losing their bite (replaces drag-hot as they go)"),
+    ],
+    # The train's faults while it runs (queue #95, note 358): D1's hot box (note 331) and lamp guttering (note 346), the
+    # synths `hotbox` and `lamp-gutter` swapped for these (install.py TELL_SOUNDS), their params kept ("heat", "gutter").
+    "state-hotbox": [
+        L("squeal", "A car's axle box running dry: the bearing's dry squeal, catching once a wheel turn, rising as it heats"),
+        L("smoke", "The box smoking: the grease in it cooking off, crackling, a thin hiss (from halfway hot)"),
+    ],
+    "state-gutter": [
+        L("sputter", "A car's lamp guttering: the wick spitting, quick and uneven, worse as it goes"),
+        L("flutter", "The flame fluttering low and tearing as it starves"),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
