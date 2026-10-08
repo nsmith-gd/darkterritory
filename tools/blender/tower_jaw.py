@@ -143,13 +143,16 @@ flesh.blob((0, 1.1, 1.01), (0.36, 0.38, 0.27), 0.1, FUR, head_w, around=24, ring
 flesh.blob((0, 1.02, 1.13), (0.3, 0.28, 0.12), 0.08, FUR, head_w)                                  # its flat crown
 for sx in (1, -1):
     flesh.blob((sx * 0.24, 1.24, 0.9), (0.2, 0.22, 0.19), 0.07, FUR, head_w)                       # the cheeks
-    flesh.blob((sx * 0.29, 1.0, 1.25), (0.085, 0.05, 0.085), 0.03, FUR, head_w, rot=R(rz=sx * 25))  # the ears
     flesh.blob((sx * 0.11, 1.6, 0.82), (0.115, 0.1, 0.1), 0.035, MUZZLE, head_w)                  # the flews
 flesh.blob((0, 1.47, 0.92), (0.27, 0.23, 0.21), 0.07, MUZZLE, head_w)                              # the muzzle
 flesh.blob((0, 1.66, 0.98), (0.14, 0.075, 0.1), 0.035, NOSE, head_w)                               # the nose
 for sx in (1, -1):
     flesh.carve((sx * 0.06, 1.725, 0.99), (0.032, 0.022, 0.026), 0.012)                            # the nostrils
 flesh.blob((0, 1.4, 0.72), (0.19, 0.2, 0.1), 0.05, MUZZLE, head_w)                                 # the chin
+# The ears: small and round, stood on the skull's sides behind the eyes (placed on its surface, not sunk in it).
+for sx in (1, -1):
+    ear = flesh.surface(Vector((0, 1.0, 1.02)), (sx * 0.75, -0.1, 0.65), 0.6)
+    flesh.blob(ear + Vector((sx * 0.02, 0, 0.02)), (0.085, 0.05, 0.085), 0.025, FUR, head_w, rot=R(rz=sx * 25))
 
 # The front legs: thick as a bear's, the elbows out, down to broad flat shovel paws.
 PAWS = {}
@@ -186,9 +189,10 @@ flesh.blob((0, -2.17, 0.3), (0.29, 0.3, 0.048), 0.05, TAIL, TAIL_W, rot=R(rx=-8)
 hard = kit.part("hard")
 EYES = []
 for sx in (1, -1):
-    e = Vector((sx * 0.235, 1.3, 1.13))
+    # (Small, high on the skull at the muzzle's root, sat in its surface.)
+    e = flesh.surface(Vector((0, 1.25, 1.0)), (sx * 0.62, 0.55, 0.55), 0.6) - Vector((sx * 0.012, 0.008, 0.008))
     EYES.append(e)
-    hard.blob(e, (0.032, 0.03, 0.028), 12, 7, EYE, "head")
+    hard.blob(e, (0.036, 0.034, 0.03), 12, 7, EYE, "head")
 # The incisors: two great chisels out of the upper jaw, curved down and a little back, flat-faced and squared off at
 # their edges, chipped; the lower pair short behind them.
 TEETH = []
