@@ -6956,7 +6956,58 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
         - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
         - The fog cards still cut where they meet the land and water (soft particles stay off).
-
+494. **The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit it in the last ~5s", "gang up or leave it alone").** A lone crewmate's blow on a Grumbler closes again (enemies.json `grumbler`: 6 health, back at 1.5 a second), and since #224 it's seen: the stuff of it drawn back into the body, a wet pulse. It made no sound, so whoever wasn't looking at it, or reads the captions, didn't learn the rule.
+    - **How** (`GameAudio.GrumblerSounds`, off the mirrored record's `Health`, replicated, so every machine hears it): while its health climbs (and 0.35 s after it last rose, a snapshot's gap and more, as E1's knit is seen), `cs-grumbler.heal` is held at its middle, 0.45 m over its feet. Its level is E1's knit's: 0.35 + 1.3 × how far down it is from full (`grumbler.health`), at most 1. A gang's blows, which it doesn't heal, are never heard healing. It's layered over whatever else it's doing (scuttling, gnawing, after its hitter).
+        - **Caption:** wet flesh knitting.
+    - **The sound** (`tools/audio/recipes/grumbler_heal.py`): `heal`, `knit`, a new loop on the Audio Checklist's `cs-grumbler` line, installed. It's beasts.py's Grumbler (a man gone wrong, flesh, not chitin, and his own voice).
+        - Wet sucks every half second or so as what the blow knocked out of it is drawn back in (a seal pulling inward as its colour opens late), each then giving and closing round it (wet tissue squishing, small bubbles).
+        - Tissue ticking as it knits, a low wet throb about every 0.6 s under it, and his muttering, low, shut-mouthed and pleased with himself.
+        - 2.4 s exact cycle.
+    - **Pinned:** `CreatureSoundTests.AGrumblerIsHeardHealingALoneBlowLouderTheFurtherDownItIs`, off the mirrored record:
+        - a lone blow (6 to 2), the hit and no healing yet;
+        - climbing back at 1.5 a second, one heal held all the way, louder from 2 than from 5.5;
+        - back at full, it stops;
+        - ganged down and staying down, never heard healing.
+489. **The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips, note 477; AU1's note 478 heard the patrol by its motion).** Note 478 heard a hound aboard by where its record went. Its leap over a gap played when the record's car changed, half-way through E1's arc, with the landing a fixed moment after. Its climb back out at a door played as a leap. A hound stopped to sniff (every 8-15 s on patrol) made no sound at all. And the leap it played was the boarding's, a landing on the rear platform's boards, whichever roof it came off.
+    - **How** (`GameAudio.HoundAboard` and `HoundMove`, off the hound's replicated mode and when it began, `ModeSeconds`; alike on every machine):
+        - **On a change of mode** each move's sounds are set for when they come in it, counted from when the mode began, so a record that arrives a snapshot late still lands them on time. Joined more than 0.25 s past one, it's missed rather than played late. Each plays where the hound is when it comes (its latest record).
+        - **The leap:** `cs-hounds.spring` (new) as it drives off and four paws on the next car's tin as it lands, fore pair then hind (`cs-hounds.paw.roof`). Both are the sim's own times: it's carried across between `leapFrom` and `leapTo` of `leapSeconds` (enemies.json `cinderHounds.patrol`), and E1's clip drives off and lands with it.
+        - **The drop in at a door:** `cs-hounds.spring` off the roof's edge, then four paws landing on the boards (`cs-hounds.paw.wood`). These are at E1's clip's frames (`cinder_hound.py` drop, 30 fps: off the edge at 13, on the sill at 28). The spring is placed up at the roof over the door (`DROP_UP`, 2.9 m), where the clip has the hound, since the record has it on the floor from the start.
+        - **The climb out:** `cs-hounds.climb` (new), the whole climb in one sound timed to E1's clip, from the trot to the sill to its weight onto the roof. It's placed half-way up the car's side.
+        - **Sniffing:** `cs-hounds.sniff` (new) held at its nose while the mode is `Sniff`, and gone when it moves on.
+        - **Paws** are stepped only while it walks or stands (Patrol, Still). A change of car other than by a leap is the record catching up, not a step.
+        - **The snarl** (the pack fight's, now and then) waits while it's in the middle of a move or sniffing, which have their own breath.
+        - **Captions:** sniffing; claws scrabbling up the side.
+    - **The sounds** (`tools/audio/recipes/hound_moves.py`): three new cues on the Audio Checklist's `cs-hounds` line, installed. Each is built from beasts.py's hound (its breath through the same dog's tract, its claws, the kept paws on the tin and the boards, the embers and ash in its hide), so it's the same animal.
+        - `spring`, `tin`: a gathering forepaw, both hind feet driving off the tin a hair apart, the sheet popping back low, a huff, its body through the air with sparks off it. No landing: that's its paws, where it lands.
+        - `sniff`, `nose`: quick hard sniffs in runs of four to six, a wet snort between, a low rumble in its chest, the embers crackling. 3 s exact cycle (`sniffSeconds`).
+        - `climb`, `scrabble`: the trot to the sill on the boards, the spring out and up (frame 10), its forelegs hooking over the roof's edge (19), its hind legs scrabbling at the side (22-28), the heave (33), and its weight onto the tin (37).
+        - The kept `leap` stays the boarding's (onto the rear platform from the ballast).
+    - **Pinned:** `CreatureSoundTests.AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside`, off records carrying the mode as `Lateral` (mode × 4 + facing) and its start as `LineDistance`:
+        - walking the roof, its paws on the tin;
+        - over the gap, one spring at a quarter of the leap and four paws on the tin at two thirds, and no `leap`;
+        - down at a door, one spring and four paws on the boards, none on the tin;
+        - out again, one climb and no paws, spring or snarl;
+        - stopped, the sniffing held and no snarl; moving on, it stops.
+497. **The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are theirs"; App. D.7).** Since #200 a lock jumps on its hasp at each blow of the crew's smash clip (a blow every 0.8 s, frame 9 of 24), and a barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the breach. Both are on the scene's clock, the crew's clips' own. The sound didn't follow either:
+    - **The smash:** each of its takes was three seconds of blows, and it was played again every 0.45-0.7 s at random while the lock was worked. That's a din of six or more sequences over one another, never on the lock's jumps.
+    - **The pry:** a held loop with heaves of its own.
+    - **The boards** coming off made no sound.
+    - **How** (`GameAudio.BreachBeats`, off the replicated `Holdout.Progress` and state, as C1's drawing is):
+        - **The clock:** the app hands GameAudio the scene's clock (`GameAudio.SceneClock`, `GreyboxScene.Time`'s `now`), so the sound counts the clips' beats as the drawing does (`WorldArt.SmashCycle`, `SmashBlow`, `PryCycle`, shared with `WorldArt.Holdouts`). Headless, with no scene, it counts on its own clock.
+        - **The smash:** `place-breach.smash` is one blow now, played at the lock on each blow of the clip as the lock jumps. When it gives, `place-breach.smash-give`, the last blow tearing the hasp out (it was the three-second smash again).
+        - **The pry:** `place-breach.pry` is one heave now, played as each heave of the clip begins: the haul back, the board flexing out at the full heave, easing back. Each board coming off (`WorldArt.BoardsOff`, a fifth of the breach each) is `place-breach.board`; the fifth goes with the barricade giving way (`pry-give`, as before).
+        - **Being worked:** a breach is worked while its progress moved in the last 0.25 s (a snapshot's gap and more; it was only the tick it moved). A lock worked open with the wrench stays the quiet `pick` (note 385).
+        - **Captions:** a sledge on iron; wood creaking, nails squealing; a board torn away.
+    - **The sounds** (`tools/audio/recipes/world_places.py`), on the Audio Checklist's `place-breach` line, installed. Neither old take had a verdict.
+        - `smash`, `blow` (5 takes): one sledge blow on the padlock and hasp, steel on steel, the plank door booming, the lock rattling on its staple (the old sequence's own blow).
+        - `smash-give`, `tear` (2): the last blow, the staple torn out of the splintering plank, the lock and hasp clattering down.
+        - `pry`, `heave` (4): the bar seated with an iron knock, the board bending as it's hauled back, its nails squealing, a crack of splitting wood at the full heave (at the clip's frame 14), the board easing back. Timed to the clip's haul, hold and ease.
+        - `board`, `torn` (3): the last nails shrieking out of the jamb, the wood splitting, the board wrenched free and clattering down on the step.
+    - **Pinned:** `WorldSoundTests.ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff`, off the mirrored record with the scene's clock given:
+        - a lock's 3 s, three or four blows, each within a tick of the clip's blow, and one last blow as it gives;
+        - a barricade's 6 s, four or five heaves, each within a tick of the clip's haul, four boards off and the barricade giving way once, and no smash.
+    - `ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed` now hears a smashed lock give with its last blow.
 479. **Loading in the fog (queue #215, B2; the director, 8 Oct: "Performance is important so make sure there's ways to do good loading. We have all this fog we can certainly do good loading where we need to with this fog").** `dt perf` measured only the test loop, never a town or a generated line on the move. Measured now, the frames were well over tuning/perf.json:
     - **A walled town** (local:5, from the square, down its street, down a lane, over the gate): about 2.6M triangles a frame against 1.5M, and 37–50 ms of build on this container's CPU against 6.7 ms. Two causes:
         - **its people:** the survivors' figure is 8,400 triangles with no distance copy. Some 60 townsfolk and the watch were drawn at full detail, in the view and in both lights' maps, carrying 2,400-triangle lanterns, with their gear copied vertex by vertex into the frame;
