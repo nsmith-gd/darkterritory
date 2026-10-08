@@ -2095,6 +2095,12 @@ public static class TrainKit
         foreach (var solid in shape.Solids.Where(s => s.Part == PartKind.RunningBoard))
         {
             var (min, max) = (F(solid.Box.Min), F(solid.Box.Max));
+            // The one out over the coupling gap is the footplate off the coupler plate (T90): a step, drawn as one.
+            if (max.Z > shape.HalfLength + 0.05f)
+            {
+                Footplate(k, shape, min, max);
+                continue;
+            }
             float side = MathF.Sign(min.X + max.X);
             k.Use("steel_grate", Palette.IronGrey, 0.8f, 0.4f, tile: 0.8f);
             k.Box(min, max, Kit.Faces.All);
@@ -2116,6 +2122,47 @@ public static class TrainKit
             k.Rod(new Vector3((lo.X + hi.X) / 2, hi.Y, at.Z), new Vector3((lo.X + hi.X) / 2, hi.Y + 0.35f, at.Z), 0.02f, 5); // the lever
             k.Rod(new Vector3((lo.X + hi.X) / 2, at.Y, at.Z), new Vector3((lo.X + hi.X) / 2, 0.25f, at.Z - 0.6f), 0.02f, 5); // the pipe down
         }
+    }
+
+    /// <summary>
+    /// The footplate off the coupler plate onto the deck beside the boiler (T90's collision: 0.3 m up from the plate, one
+    /// step). It was drawn as the running boards are, a bare grated slab floating over the gap, and read as an awkward
+    /// shelf (the director, 8 Oct): now it's a step. Its tread is chequered plate with a worn bright nosing along the edge
+    /// you step up over, its riser is iron down to the plate's level on that side, and it hangs off the rear beam on two
+    /// struts. A grab iron stands up the engine's back at its outer corner, for the hand as the foot goes up.
+    /// </summary>
+    static void Footplate(Kit k, CarShape shape, Vector3 min, Vector3 max)
+    {
+        float l = (float)shape.HalfLength;
+        var plates = shape.Solids.Where(s => s.Part == PartKind.Coupler).Select(s => s.Box).ToList();
+        float plateTop = plates.Count == 0 ? min.Y - 0.3f : (float)plates[0].Max.Y;
+        // Which side the plate's on: the footplate's edge nearer it is the one you step up over.
+        float plateX = plates.Count == 0 ? 0 : (float)(plates[0].Min.X + plates[0].Max.X) / 2;
+        bool plateRight = plateX > (min.X + max.X) / 2;
+        float edge = plateRight ? max.X : min.X, outer = plateRight ? min.X : max.X, inward = plateRight ? -1 : 1;
+        k.Use("iron_plate", Palette.IronGrey * 0.75f, 0.9f, 0.45f, tile: 0.25f);
+        k.Box(min, max, Kit.Faces.All);
+        // On round the rear beam's top as the same plate, so the tread runs on to the deck it climbs to.
+        k.Box(new Vector3(-(float)shape.HalfWidth, max.Y, l - 0.25f), new Vector3((float)shape.HalfWidth, max.Y + 0.006f, l), Kit.Faces.PosY);
+        // The nosing: worn bright along the edge you step up over, and across its far end.
+        k.Use("iron_plate", new Vector3(0.7f, 0.68f, 0.62f), 0.3f, 0.8f, tile: 0.25f);
+        k.Box(new Vector3(MathF.Min(edge, edge + inward * 0.06f), max.Y, min.Z), new Vector3(MathF.Max(edge, edge + inward * 0.06f), max.Y + 0.008f, max.Z));
+        k.Box(new Vector3(min.X, max.Y, max.Z - 0.06f), new Vector3(max.X, max.Y + 0.008f, max.Z));
+        // The riser, the engine's iron, down from under the tread to the plate's level beside it.
+        k.Use("paint_oxide", Palette.RustRed, 0.9f, 0.1f);
+        k.Box(new Vector3(MathF.Min(edge, edge + inward * 0.03f), plateTop, min.Z), new Vector3(MathF.Max(edge, edge + inward * 0.03f), min.Y, max.Z),
+            Kit.Faces.All & ~Kit.Faces.NegY);
+        // Hung off the rear beam: a strut under each side, from the tread's far end back down to the beam's face.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        foreach (float x in new[] { outer + inward * 0.06f, edge - inward * 0.06f })
+            k.Rod(new Vector3(x, min.Y, max.Z - 0.06f), new Vector3(x, min.Y - 0.42f, l + 0.01f), 0.025f, 5);
+        // A handrail stanchion on the beam at the outer corner, and its rail forward to the boiler's back: a hand's hold
+        // as the foot goes up, and on along the boiler.
+        float gx = outer + inward * 0.12f, top = max.Y + 1.0f;
+        float back = shape.Solids.Where(s => s.Part == PartKind.Boiler).Select(s => (float)s.Box.Max.Z).DefaultIfEmpty(l - 1).First();
+        k.Rod(new Vector3(gx, max.Y, l - 0.12f), new Vector3(gx, top, l - 0.12f), 0.018f, 6);
+        k.Rod(new Vector3(gx, top, l - 0.12f), new Vector3(gx, top, MathF.Min(back + 0.3f, l - 0.12f)), 0.016f, 6);
+        k.BoxAt(new Vector3(gx, top + 0.02f, l - 0.12f), new Vector3(0.025f));
     }
 
     /// <summary>The plate over the coupling gap you cross on (spec B.4): an open grating, the ballast rushing under it.</summary>
