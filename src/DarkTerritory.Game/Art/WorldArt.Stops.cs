@@ -118,6 +118,15 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>One of a stop's buildings alone, as <see cref="Stops"/> draws it (for the tests: note 387's doors).</summary>
+    public void StopBuilding(MeshBuilder mesh, RailLine line, Route route, RouteFeature f, int index, Double3 eye, float valleyDepth)
+    {
+        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)) };
+        var b = f.Stop!.Buildings[index];
+        k.Reseed(b.Variant * 7.1f + (float)(b.S * 0.13));
+        Building(k, line, route, f, f.Stop, index, eye, valleyDepth);
+    }
+
     /// <summary>
     /// One building, standing on the levelled ground at its footprint: sheds and the hero as works buildings with their
     /// doors to the track they serve (P5, P7); houses one per part of the footprint, each roofed along its longer side
@@ -147,27 +156,19 @@ public sealed partial class WorldArt
                     var gap = CraneBay(stop, index);
                     k.With(frame, () =>
                     {
-                        double a = -b.Length / 2;
-                        foreach (var (g0, g1) in gap is { } g ? new[] { (a, g.From - b.S), (g.To - b.S, b.Length / 2) } : [(a, b.Length / 2)])
-                        {
-                            double lo = Math.Max(g0, a), hi = Math.Min(g1, b.Length / 2);
-                            if (hi - lo < 3)
-                                continue;
-                            k.With(Kit.At(0, 0, (float)-(lo + hi) / 2), () => StructureKit.Shed(k, width, (float)(hi - lo), height, wall, door));
-                        }
+                        // The shed as the sim stands it, its bay doors open to walk in by (note 387).
+                        ShedShell(k, stop, index, height, wall);
                         if (gap is { } open)
                         {
-                            // The cut: its floor, and the shell of the walls, roofless and below the gantry's rails.
-                            double lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
-                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2, shell = 4.5f;
+                            // The cut: its floor, and the old wall's footing along its back, flush, where the crew walk and
+                            // the gantry's operator stands (the sim leaves it open, note 279).
+                            double a = -b.Length / 2, lo = Math.Max(open.From - b.S, a), hi = Math.Min(open.To - b.S, b.Length / 2);
+                            float z0 = (float)-hi, z1 = (float)-lo, back = -door * width / 2;
                             k.Use("concrete_stain", Palette.BlueGrey, 0.9f, 0.1f, tile: 2.5f);
                             k.Box(new Vector3(-width / 2, -0.4f, z0), new Vector3(width / 2, 0.15f, z1), Kit.Faces.All & ~Kit.Faces.NegY);
-                            k.Use(wall, wall == "brick_soot" ? Palette.RustRed : Palette.DeepBrown, 0.9f, 0.1f, tile: 1.5f);
-                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), shell, z1));
-                            // An end wall where the cut reaches the shed's end (elsewhere the roofed part's gable closes it).
-                            foreach (var (edge, reaches) in new[] { (z0, hi >= b.Length / 2 - 0.01), (z1, lo <= a + 0.01) })
-                                if (reaches)
-                                    k.Box(new Vector3(-width / 2, 0.15f, edge - 0.15f), new Vector3(width / 2, shell * 0.7f, edge + 0.15f));
+                            k.Use("stone_block", Palette.Charcoal, 0.8f, 0.1f, tile: 2.5f);
+                            k.Box(new Vector3(MathF.Min(back, back + door * 0.3f), 0.15f, z0), new Vector3(MathF.Max(back, back + door * 0.3f), 0.2f, z1),
+                                Kit.Faces.All & ~Kit.Faces.NegY);
                         }
                     });
                     break;
@@ -217,7 +218,7 @@ public sealed partial class WorldArt
                     // Which way its door faces in the kit's frame (the building's axis is −Z, across it +X).
                     var (dx, dy) = Local(b, holdout.Door);
                     var facing = Math.Abs(dx) / b.Length > Math.Abs(dy) / b.Width ? new Vector3(0, 0, (float)-Math.Sign(dx)) : new Vector3((float)Math.Sign(dy), 0, 0);
-                    k.With(frame, () => Holdout(k, b, facing));
+                    k.With(frame, () => Holdout(k, stop, index, facing));
                     var lampAt = Sim.Run.Run.StopWorld(line, f, holdout.Lamp, Ground(route, f.Start + holdout.Lamp.S, (float)holdout.Lamp.D, valleyDepth) + LampHeight(b.Kind));
                     k.With(Basis(t.Tangent, lampAt, eye, 0), () => LampFixture(k, (float)LampHeight(b.Kind)));
                 }
