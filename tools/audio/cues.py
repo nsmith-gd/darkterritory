@@ -748,6 +748,8 @@ CUES = {
         L("eat", "Eating cargo aboard"),
         # Note 290: pain sounds for a ball are the audio chat's.
         O("hit", "A ball or a blow landing on it before it turns: an indignant bark", vars=3),
+        # Its healing (App. A.8, queue #231, note 494; E1's #224 shows it): held while its health climbs.
+        L("heal", "Healing a lone crewmate's blow: wet sucks drawn back in, tissue knitting, his muttering"),
     ],
 
     # ---- Enemy tells (the warning sounds; the director's In review stands) --------------------------------------------

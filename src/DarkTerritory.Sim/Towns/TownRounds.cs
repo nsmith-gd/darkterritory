@@ -93,6 +93,19 @@ public static class TownRounds
                 case "crate":
                     places.Add(new($"crate{f.Id}", f.S, f.D + f.FaceD * (f.SolidD + 0.7), -f.FaceS, -f.FaceD, "mend", null));
                     break;
+                // The works (note 353): at a piece's front seeing to it, at the coal and the pig iron; warming their hands
+                // at the slag's glow.
+                case "headframe" or "winding" or "casting" or "glasshouse" or "elevator" or "warehouse" or "cellar" or "coal" or "pigs":
+                    foreach (double along in (double[])[-1.1, 1.1])
+                        places.Add(new($"works{f.Id}{along}", f.S + along, f.D + f.FaceD * (f.SolidD + 0.8), -f.FaceS, -f.FaceD,
+                            f.Kind is "coal" or "pigs" ? "mend" : "work", null));
+                    break;
+                case "slag":
+                    foreach (double along in (double[])[-1.4, 0, 1.4])
+                        places.Add(new($"slag{f.Id}{along}", f.S + along, f.D + f.FaceD * (f.SolidD + 0.9), -f.FaceS, -f.FaceD, "warm", null));
+                    break;
+                case "tip" or "watertower":
+                    break;
                 default:
                     // The centrepiece: stood before it a while (the custom's vigil), at the side away from the line.
                     if (f.Id == 0)

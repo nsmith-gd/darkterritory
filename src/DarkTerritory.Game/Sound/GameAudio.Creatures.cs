@@ -59,8 +59,9 @@ public sealed partial class GameAudio
         public int Id, Attached, Holding, Space;
         public Double3 Local, At;
         // Kept across ticks (not last tick's record): distance toward the next step, the next irregular call, when it last
-        // moved and was last hit, and whether its car's breaking away has been heard.
-        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt;
+        // moved, was last hit and last healed, and whether its car's breaking away has been heard.
+        public double Stride, Next, MovedAt = double.NegativeInfinity, HitAt = double.NegativeInfinity, ModeAt,
+            HealAt = double.NegativeInfinity;
         public bool CutAway, Passing;
         // A one-shot that goes where it goes (the Gannet's dive whistle, down its line).
         public SoundInstance? Moving;
@@ -629,12 +630,26 @@ public sealed partial class GameAudio
             Hold(drag, e.Id, at, occ);
     }
 
+    // A Grumbler's still heard healing this long after its health last rose (a snapshot's gap and more, as E1's knit is
+    // seen: GreyboxScene.HealingFor), from this high over its feet (down on all fours).
+    const double GrumblerHealing = 0.35, GrumblerMiddle = 0.45;
+
     /// <summary>
     /// The Grumbler (App. A.8): scuttling about the crane it gnaws on (now and then) and after whoever hit it (as it runs);
-    /// going feral; eating the cargo of a car it was craned aboard in.
+    /// going feral; eating the cargo of a car it was craned aboard in; healing a lone crewmate's blow.
     /// </summary>
     void GrumblerSounds(Grumbler e, Creature was, Double3 at, float occ)
     {
+        // Healing (App. A.8 "heals if only one player has hit it"; note 494, E1's #224 shows it): held while its health
+        // climbs (replicated, so every machine hears it), louder the further down it is, as the knit is drawn. A gang's
+        // blows, which it doesn't heal, are never heard healing.
+        if (e.Health > was.Health + 1e-4)
+            was.HealAt = _time;
+        if (_time - was.HealAt < GrumblerHealing)
+        {
+            double full = _creatureWorld?.Enemies?.Grumbler.Health ?? new GrumblerTuning().Health;
+            HoldLevel("cs-grumbler.heal", e.Id, at + Double3.Up * GrumblerMiddle, occ, Math.Clamp(0.35 + 1.3 * (1 - e.Health / full), 0, 1));
+        }
         if (e.Phase == SpinePhase.Commit && e.Attached == was.Attached)
         {
             was.Stride += (e.Local - was.Local).Length;
