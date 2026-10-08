@@ -6957,3 +6957,40 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
         - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
         - The fog cards still cut where they meet the land and water (soft particles stay off).
+
+490. **Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the towers (queue #227, B2; the World Building board's open lines; the director, 8 Oct: "Towns dont feel like they have a natural layout to them ... These towns need layouts, parks, signs of governance, signs of culture"; GDD §3 "watchtowers, artillery").**
+    - **Off true** (`TownHouse.Turn`, `Body`, `BodyFacing`, `Extent`; towns.json `walled.turn`, `turnChance`, `crescent`):
+        - three in four of the shut houses on a walled town's streets stand 1–4° off true, either way;
+        - the row across the green's far street turns to the green's middle: none at the middle, up to 16° at its ends, a crescent round it;
+        - the turn is in the body, about the house's middle. Its block, wing and porch walls are turned (`Town.Box`'s `turn`: a wall's axis off the line's), and so is its door. The yard keeps to the square lot, so fences still line up with the neighbours' and the street;
+        - each turn is halved, up to four times, until the body keeps 0.4 m inside the lot's sides, 1.2 m off its street's edge and 1 m short of its back line (never worse than it stood square). Otherwise it stands square;
+        - an open house (its rooms are its walls) and the line's own row (the railway laid it out) stand square;
+        - the yard is laid out behind the turned body's furthest corner;
+        - `dt town` reports how many houses stand off true, and the crescent row's turns.
+    - **The art:** the house's body is built turned inside its mesh (`MaritimeKit.Turned`: the Sim's turn in the rail frame is a rotation of −Turn about Y in the kit's frame). The mesh is still placed square to its lot (`WorldArt.HouseAt`), so the yard drawn with it stays square. The door lamp and the chimney smoke go with the body. This holds for far houses and street blocks too.
+    - **A small town's green** (towns.json `square.greenAlong`, `greenOut`):
+        - in the square's rear end, 5–17 m along and 7–17 m out, clear of the clerk's office, the stall and the first bench;
+        - its pieces: a tin tree in the far corner, the lamp garden by the way in, and a bench facing it;
+        - two lamps at its corners nearest the line, and the square's lamp post that stood there left out.
+    - **Seen from outside** (`WorldArt.Glow`): a walled town's lights on the fog over it, as a Holdout's lamp is seen from its approach board (App. D.7). Additive light keeps 30% of itself through any fog, so these glows read from far off:
+        - a broad glow 38 m over the square;
+        - fainter ones over the first streets every 170 m on both sides of the line;
+        - the furnace's orange over a foundry's casting shed;
+        - a town that keeps its windows dark (the "shutters" custom) glows less;
+        - each glow is faint from inside the town (6%), where the lamps themselves are the light, and grows with distance.
+      From outside, nothing in the town clears its wall (the church's steeple tops out near 17.7 m, under the wall's line from the gate's view), so the glow is what says a town is there.
+    - **A fishing town's yards** (`YardKind.Loft`, `Flake`; houses.json characters' `yard.things`):
+        - a net loft: a shed with a loft over it, a dark loft door under a hoist beam, nets over a pole along its side toward the lot's middle;
+        - a fish flake: a knee-high rack of grey spruce boughs on posts, a few dried fish left on one in three, none on the rest;
+        - the cove keeps both (2 each), the town on the water one each, the mixed town an odd flake;
+        - they're last in the yard's list, so a character that keeps neither rolls its yards as before.
+    - **The guns on the towers:** note 335's addition, in this PR.
+    - **Verified:**
+        - `WalledTownTests.HousesStandOffTrueAndTheRowAcrossTheGreenTurnsToIt`: more than a third of the shut street houses are turned, and open houses and the line's row aren't. The crescent row faces the green's middle, one past the plain turns. Every turned body's corners are walled by its own walls only, off every street. Its yard things are outside its turned body;
+        - `TownTurnArtTests`: a turned house's body corners as the art draws them are within 2 cm of its walls, and its yard as drawn is square to its lot;
+        - `TownsfolkTests`: a small town's green in its square, its tree, garden and bench on it and lookable, nothing else of the square on it;
+        - looked at: local:5 from over a lane and frontier:3's green from over its square in survey light; frontier:7's small green at night and in survey light; local:5 from outside its gate and down a street at night; a cove's (local:1) net loft and fish flake (`dt screenshot --town greenover|loft|flake`).
+    - **Not yet:**
+        - goods sheds and a rail yard along the platform (C1's goods shed, #197, to place when it's modelled);
+        - the arrival fortress made a town;
+        - the works heard (AU1's).
