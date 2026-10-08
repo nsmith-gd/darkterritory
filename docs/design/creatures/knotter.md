@@ -131,7 +131,7 @@ the gap can save them.
   m and the train still pulls as one; a jump can't carry it; walking it at speed slips (deterministically, by the tick and
   the player) and the slip is a grab a friend can break; blows only land at a stand; killed, the cars are uncoupled where
   it was; backing the engine couples them up; deterministic on the client.
-- `BotsAnswerTheSixTests` (the bots, note NNN): roof walkers never jump, walk or drop into its gap. The driver stops
+- `BotsAnswerTheSixTests` (the bots, note 487): roof walkers never jump, walk or drop into its gap. The driver stops
   once it's forced the gap, the bots club it slack from the ground beside it, and the driver backs onto the cars it left
   and goes on whole. `AuditTests`: its coil is broken by friends at the gap.
 

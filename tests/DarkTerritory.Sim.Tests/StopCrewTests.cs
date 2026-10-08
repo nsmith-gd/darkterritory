@@ -1149,6 +1149,31 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AtTheMineHeadTheDriverStandsEachCarTrueInTheTippleAndTheShunterTipsIt()
+    {
+        // Queue #159 (note 423). With no crates and a lift with a car-load down its shaft, the winch and the lift fill what they
+        // reach and the tipple the rest: each car stood true in its cradle (a clamp shut on one stood off its middle derails it),
+        // the shunter on its lever through each roll, and nothing moved while a car's clamped.
+        var (route, facility) = FacilityWork.Find(Tuning.Route, FacilityKind.MineHead)!.Value;
+        var tuning = F with
+        {
+            Crates = F.Crates with { Count = [0, 0], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
+            Lift = F.Lift with { Ore = F.Lift.PerSkip * 2 },
+        };
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run with { DepartureLoad = 0 }, tuning, Tuning.Route.Junctions,
+            cars: 8, hands: 2, seconds: 1500, yardLength: Tuning.Route.YardLength);
+        LeftWellAndWhole(r);
+        Assert.Contains("Tippling", r.Legs);
+        Assert.Contains("tipping", r.Doing);
+        Assert.Equal(0, r.OffRails);
+        Assert.True(r.TippleOre <= F.Tipple.Ore - 2 * F.Tipple.PerRoll + 1e-6, $"the tipple's bin still has {r.TippleOre}");
+        var ore = r.Loads.Where(c => c.Cargo == CargoKind.Ore).ToList();
+        Assert.True(ore.Sum(c => c.Load) >= F.Winch.Sleds * F.Winch.LoadPerSled + 2 * F.Lift.PerSkip + 2 * F.Tipple.PerRoll - 1e-6,
+            $"ore {string.Join(", ", ore.Select(c => c.Load))}");
+        Assert.All(r.Loads, c => Assert.True(c.Integrity > 0.95, $"integrity {c.Integrity}"));
+    }
+
+    [Fact]
     public void AtTheSlaughterhouseThePairDriveTheHerdUpTheRamp()
     {
         var r = Work(FacilityKind.Slaughterhouse);

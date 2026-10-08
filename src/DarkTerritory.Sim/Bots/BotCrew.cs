@@ -110,7 +110,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
         intent = Heed.Coupling(intent, session.Predicted, session.World);
-        // Note NNN: the six of 8 Oct, for a crewmate who isn't the driver (nor a walker gone forward to take the controls):
+        // Note 487: the six of 8 Oct, for a crewmate who isn't the driver (nor a walker gone forward to take the controls):
         // the Mourners off a body, Tower Jaw clubbed or its wreck cleared, the Freight Beetle clubbed, the Knotter clubbed
         // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
         var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];

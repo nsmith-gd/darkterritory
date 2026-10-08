@@ -34,18 +34,21 @@ public class BoardingRuleTests
         var n = new Night(4, speed: 14);
         var hound = Boarded(n);
         int rear = hound.Attached;
+        // Its ground (note 472): the rear car it boarded, and the one ahead that it patrols to.
+        int[] ground = [rear, n.Train.VehicleAhead(rear)];
         bool alight = false;
         double seconds = Math.Max(E.CinderHounds.BoredSeconds, E.Director.LingerSeconds * 1.5) + 30;
         for (int s = 0; s < seconds; s++)
         {
             n.Run(1);
-            alight |= n.World.ActiveEnemies.Any(e => e is CarFire { Gone: false } f && f.Attached == rear);
+            alight |= n.World.ActiveEnemies.Any(e => e is CarFire { Gone: false } f && ground.Contains(f.Attached));
+            Assert.Contains(hound.Attached, ground);
         }
         Assert.False(hound.Gone, $"{hound.Phase}");
-        Assert.Equal(rear, hound.Attached);
+        Assert.Equal(rear, hound.Home);
         Assert.True(hound.StaysAboard);
         Assert.True(alight);
-        Assert.True(n.Train.Vehicles[rear].CargoIntegrity < 1);
+        Assert.Contains(ground, car => n.Train.Vehicles[car].CargoIntegrity < 1);
     }
 
     [Fact]

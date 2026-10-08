@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Bots;
 
 /// <summary>
-/// The crew bots' answers to the six creatures of 8 Oct (ARCHITECTURE §8 note NNN; the director: "have the bots handle the six
+/// The crew bots' answers to the six creatures of 8 Oct (ARCHITECTURE §8 note 487; the director: "have the bots handle the six
 /// new creatures too"), each the counter-play its design page gives (docs/design/creatures/), read off what every client has
 /// of them (their modes, where they are, the cars' wound, seized and knotted state). What takes a bot off the train only does
 /// so with the train standing under it (<see cref="CanGoDown"/>); done, it climbs back aboard as from any stop. The driver's
@@ -67,7 +67,7 @@ public static partial class Heed
     /// The Mourners (note 362: "stand over your dead, or carry them home"). A bot that can get down, within
     /// <c>crewBots.mournersWithin</c> of a crewmate's body they're about, goes to it: over it (inside their <c>dropWithin</c>)
     /// they drop it and start back, and it clubs the nearest of them within <c>mournersLeash</c> of the body (one blow kills
-    /// one and scatters the rest), and stands over it while none are near. Not carried home (see note NNN).
+    /// one and scatters the rest), and stands over it while none are near. Not carried home (see note 487).
     /// </summary>
     public static PlayerIntent Mourners(PlayerIntent intent, in PlayerState self, World world, int selfId, StopHand? hand)
     {
@@ -469,7 +469,7 @@ public static partial class Heed
     /// <summary>
     /// A crewmate the Knotter's coiled round (note 365: "broken by a friend at the gap"), as the rescue's generic way can't:
     /// what holds them is the rope's middle, its gap's width off both cars' ends, and walking out onto it at speed is the slip
-    /// itself (note NNN). Within <c>grab.pullReach</c> of the one held, Use held where we stand: hauled up. On the roof of
+    /// itself (note 487). Within <c>grab.pullReach</c> of the one held, Use held where we stand: hauled up. On the roof of
     /// the car in front of its gap (whose end ladder goes down into it), to the top of that ladder and down it toward them.
     /// Anywhere else, nothing: its coil is over in <c>coilSeconds</c>, and only someone at the gap is in time.
     /// </summary>

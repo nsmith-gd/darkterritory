@@ -88,6 +88,8 @@ public static class WorldRecords
                     Q(v.Loose, Fine),
                     // Its gun's ready rack (note 374): what it can fire before powder comes up from the lockers.
                     v.Gun.Rack,
+                    // Off its rails at the tipple (note 423): it holds its rake, and every client predicts the train held.
+                    v.OffRails ? 1 : 0,
                     // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels.
                     (v.Wound ? 1 : 0) | (v.Seized ? 2 : 0),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
@@ -162,8 +164,9 @@ public static class WorldRecords
         {
             // Per facility: the chute's coal left, then its loading modules (crates out, winch sled, sleds left, turning), then
             // the set pieces' (note 185: the spout's bin, the herd, the hose; note 368: the steam lift's ore and skip; note 400: the
-            // conveyor's grain, its jam and how far through starting it and clearing that someone is).
-            const int Each = 20, Head = RunHead;
+            // conveyor's grain, its jam and how far through starting it and clearing that someone is; note 423: the tipple's ore, its
+            // clamp and roll, and a derailed car's re-railing).
+            const int Each = 25, Head = RunHead;
             var f = new long[Head + run.FacilityCount * Each];
             f[0] = (long)run.Phase;
             f[1] = (long)run.End;
@@ -182,7 +185,8 @@ public static class WorldRecords
                 f[Head + i * Each] = Q(run.ChuteLeft(i), Fine);
                 f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
                     | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0)
-                    | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0);
+                    | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0)
+                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0);
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
@@ -201,6 +205,11 @@ public static class WorldRecords
                 f[Head + 17 + i * Each] = Q(site?.JamFor ?? 0, Fine);
                 f[Head + 18 + i * Each] = Q(site?.Start ?? 0, Fine);
                 f[Head + 19 + i * Each] = Q(site?.Clear ?? 0, Fine);
+                f[Head + 20 + i * Each] = Q(site?.TippleOre ?? 0, Fine);
+                f[Head + 21 + i * Each] = site?.Clamped ?? -1;
+                f[Head + 22 + i * Each] = Q(site?.Roll ?? 0, Fine);
+                f[Head + 23 + i * Each] = Q(site?.Clamp ?? 0, Fine);
+                f[Head + 24 + i * Each] = Q(site?.Rerail ?? 0, Fine);
             }
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Run, 0), f));
         }
@@ -361,9 +370,10 @@ public static class WorldRecords
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 29).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        [.. CarFire.Unpack(f, 30).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
-                        f.Length > 27 && (f[27] & 1) != 0, f.Length > 27 && (f[27] & 2) != 0, f.Length > 28 ? D(f[28], Fine) : 0));
+                        f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
+                        f.Length > 27 && f[27] != 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -466,7 +476,7 @@ public static class WorldRecords
                         f.Length > 4 ? (int)f[4] : 0, f.Length > 5 && f[5] != 0);
                     break;
                 case RecordKind.Run when !world.Authority && world.Run is { } run:
-                    const int Each = 20, Head = RunHead;
+                    const int Each = 25, Head = RunHead;
                     int facilities = (f.Length - Head) / Each;
                     run.Mirror((Run.RunPhase)f[0], (Run.RunEnd)f[1], D(f[2], Fine), (int)f[3], f[4] != 0,
                         [.. Enumerable.Range(0, facilities).Select(i => D(f[Head + i * Each], Fine))],
@@ -481,6 +491,9 @@ public static class WorldRecords
                             Running = (f[Head + 1 + i * Each] & 64) != 0, Carrying = (f[Head + 1 + i * Each] & 128) != 0,
                             Grain = D(f[Head + 15 + i * Each], Fine), Jam = D(f[Head + 16 + i * Each], Fine), JamFor = D(f[Head + 17 + i * Each], Fine),
                             Start = D(f[Head + 18 + i * Each], Fine), Clear = D(f[Head + 19 + i * Each], Fine),
+                            TippleOre = D(f[Head + 20 + i * Each], Fine), Clamped = (int)f[Head + 21 + i * Each],
+                            GoodClamp = (f[Head + 1 + i * Each] & 256) != 0, RollingBack = (f[Head + 1 + i * Each] & 512) != 0,
+                            Roll = D(f[Head + 22 + i * Each], Fine), Clamp = D(f[Head + 23 + i * Each], Fine), Rerail = D(f[Head + 24 + i * Each], Fine),
                         })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
                     break;
             }

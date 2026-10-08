@@ -22,7 +22,8 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 /// <param name="Path">The track the rake's front is on: <see cref="RailLine.MainPath"/>, or a branch index.</param>
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
-    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0);
+    CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
+    bool OffRails = false);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -279,6 +280,18 @@ public sealed class TrainOnLine
     public double RearDistance => Dynamics.RearDistance;
     TrainTuning Tuning => _engineRake.Tuning;
 
+    /// <summary>A rake with a car off its rails (note 423) is held by this much (m/s²): far past what any engine pulls or grade drives.</summary>
+    public const double OffRailsDrag = 1000;
+
+    static bool AnyOffRails(TrainDynamics rake)
+    {
+        var vehicles = rake.Consist.Vehicles;
+        for (int i = 0; i < vehicles.Count; i++)
+            if (vehicles[i].OffRails)
+                return true;
+        return false;
+    }
+
     double DragOn(TrainDynamics rake) =>
         DraggedVehicle >= 0 && rake.Consist.IndexOf(DraggedVehicle) >= 0 ? DragFactor * _engineRake.MaxTractiveForce / rake.Consist.MassTonnes : 0;
 
@@ -341,7 +354,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -368,6 +381,7 @@ public sealed class TrainOnLine
             vehicle.Wound = v.Wound;
             vehicle.Seized = v.Seized;
             vehicle.Knot = v.Knot;
+            vehicle.OffRails = v.OffRails;
         }
         var previous = _rakes.ToDictionary(r => r.Consist.Vehicles[0].Id);
         _rakes.Clear();
@@ -517,7 +531,9 @@ public sealed class TrainOnLine
             // And its hot boxes run dry (upkeep.json hotBox, note 331): each takes some top speed off it.
             + (HotBoxTuning is { } ht ? HotBoxes.Drag(ht, rake, rake.Tuning.MaxSpeed, _engineRake.MaxTractiveForce / rake.Consist.MassTonnes) : 0)
             // And what the creatures have done to its cars: brakes the Brakeman wound on, an axle Hotbox seized (notes 364, 367).
-            + CreatureDrag(rake),
+            + CreatureDrag(rake)
+            // And a car off its rails (the tipple's bad clamp, note 423) holds its whole rake fast: more than anything can pull.
+            + (AnyOffRails(rake) ? OffRailsDrag : 0),
     };
 
     /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>

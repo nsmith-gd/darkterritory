@@ -196,6 +196,8 @@ public sealed class PrototypeSession : IPlaySession
     {
         Train.FramesAt(alpha, _renderFrames);
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
+        // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
+        TippleTilt.Apply(_renderFrames, Train, World.Run);
         return _renderFrames;
     }
 
@@ -443,6 +445,10 @@ public sealed class PrototypeSession : IPlaySession
         // The mine head's steam lift (note 368).
         if (site.Has(ModuleKind.Lift))
             parts.Add(site.Ore <= 0 ? "the shaft's worked out" : site.Winding ? $"the lift WINDING ({site.Ore:0.0} loads left)" : $"a steam lift: {site.Ore:0.0} loads");
+        // The mine head's tipple (note 423).
+        if (site.Has(ModuleKind.Tipple))
+            parts.Add(site.TippleOre <= 0 ? "the tipple's bin is empty" : site.Clamped >= 0 ? $"the tipple ROLLING ({site.TippleOre:0.0} loads left)"
+                : $"a tipple: {site.TippleOre:0.0} loads");
         // The grain elevator's conveyor line (note 400).
         if (site.Has(ModuleKind.Conveyor))
             parts.Add(site.Grain <= 0 ? "the belt's carried it all" : site.Jam >= 0 ? $"the belt JAMMED ({site.Grain:0.0} loads left)"

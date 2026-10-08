@@ -5,7 +5,7 @@ namespace DarkTerritory.Sim.Bots;
 
 public sealed partial class ConductorBot
 {
-    /// <summary>Stood the train for one of the six (note NNN), and not yet away again.</summary>
+    /// <summary>Stood the train for one of the six (note 487), and not yet away again.</summary>
     bool _stoodForSix;
     /// <summary>Seconds stood so, for <c>crewBots.standGiveUp</c>.</summary>
     double _standingForSix;
@@ -18,7 +18,7 @@ public sealed partial class ConductorBot
     public string? SixStep { get; private set; }
 
     /// <summary>
-    /// The driver's part in answering the six creatures of 8 Oct (note NNN). Null when there's nothing of theirs to stand for.
+    /// The driver's part in answering the six creatures of 8 Oct (note 487). Null when there's nothing of theirs to stand for.
     /// <list type="bullet">
     /// <item>Tower Jaw's wreck across the line ahead (note 363): stopped short of it as for the Track Doll, on the braking curve
     /// to <c>crewBots.wreckStopShort</c> short of its near edge and on the brake from <c>wreckHoldWithin</c> beyond that,

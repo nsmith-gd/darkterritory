@@ -44,7 +44,7 @@ public class CreatureArtTests
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
-        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite"], ["lunge", "board", "hit"]),
+        ["cinder_hound"] = new(4000, 8000, 40, 55, ["prowl", "run", "crouch", "bite", "patrol", "sniff"], ["lunge", "board", "hit", "leap", "drop", "climb"]),
         // A chain of 8-12, plus a root.
         ["sleeper"] = new(400, 3000, 8, 13, ["dormant", "writhe"], ["lift"]),
         ["clinger"] = new(1500, 6000, 10, 45, ["cling", "drill"], ["punish"]),
@@ -576,10 +576,16 @@ public class CreatureArtTests
             scene.Build(mesh, train, eye);
             return [.. mesh.Instances.Where(i => i.Asset.Name.Contains(asset, StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
         }
-        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        // Where it's drawn: its model's place (the middle of them, were it several).
+        static Vector3 At(List<Vector3> drawn)
+        {
+            Assert.NotEmpty(drawn);
+            return drawn.Aggregate(Vector3.Zero, (a, b) => a + b) / drawn.Count;
+        }
+        var was = At(Drawn(-1.0 / Sim.SimConstants.TickRate));
         staged.Remove(e);
         scene.Retreated(e, (uint)(Staging.StrikeTick + 1), 0);
-        var going = Assert.Single(Drawn(1));
+        var going = At(Drawn(1));
         // Out from the line on its own side (the eye's on the train's other side): further from the eye, and off the train.
         var rel = start - eye;
         var from = new Vector3((float)rel.X, (float)rel.Y, (float)rel.Z);
@@ -622,6 +628,84 @@ public class CreatureArtTests
         scene.Hits = null;
         // A second on, it's still seen: falling, or going.
         Assert.Equal(1, Drawn(Staging.StrikeTick + 1 + (long)Sim.SimConstants.TickRate));
+    }
+
+    [Fact]
+    public void ACarHuggerClubbedToDeathDropsOffItsCarsEndAndIsLeftThere()
+    {
+        // Note 458: killed (from the rear platform, the guard van's door), it isn't one Deaths rolled where it was (Falls
+        // leaves it out: it's latched on the car's end), and it vanished 1-2 m from the crew. Now its grip's gone: it's left
+        // where it was in the world, clear of the car's end, and drops onto the track as the train runs on.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+        var f = train.Frames[rear];
+        var hugger = new CarHugger(46);
+        hugger.Restore(SpinePhase.Commit, 4, 12, rear, new Double3(0, 1.0, f.Shape.HalfLength + 0.4), 0, 0, 0, 0, 0);
+        var eye = f.ToWorld(new Double3(-8, 3, f.Shape.HalfLength + 6));
+        var staged = new List<Enemy> { hugger };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        List<Vector3> Drawn(double after)
+        {
+            scene.Tick = Staging.StrikeTick + (long)Math.Round(after * Sim.SimConstants.TickRate);
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return [.. mesh.Instances.Where(i => i.Asset.Name.Contains("car_hugger", StringComparison.OrdinalIgnoreCase)).Select(i => i.Model.Translation)];
+        }
+        var was = Assert.Single(Drawn(-1.0 / Sim.SimConstants.TickRate));
+        staged.Clear();
+        scene.Killed(hugger, (uint)Staging.StrikeTick, new Vector3(0, 0, 1));
+        var down = Assert.Single(Drawn(0.8));
+        Assert.True(down.Y < was.Y - 0.5, $"dropped: {was.Y:0.00} → {down.Y:0.00}");
+        // Clear of the car's end: further back from the car's middle than it hung.
+        var middle = f.ToWorld(default) - eye;
+        var mid = new Vector3((float)middle.X, (float)middle.Y, (float)middle.Z);
+        Assert.True((down - mid).Length() > (was - mid).Length() + 1, $"clear of the end: {(was - mid).Length():0.0} → {(down - mid).Length():0.0} m");
+        Assert.Empty(Drawn(Effects.DeathSeconds + 0.2));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACarCutLooseBurningBurnsOnAsItRollsAway(bool cut)
+    {
+        // Note 458 (GreyboxScene.Riding): the sim's done with a fire the tick its car's off the train, and its flames went
+        // out the moment the car was cut. Cut loose, it burns on, on the car, as the Car Hugger rides its car away. Not cut,
+        // a fire gone is one put out: nothing's left of it.
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        int car = 4;
+        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning());
+        fire.Restore(SpinePhase.Punish, 5, 1, car, fire.Local, 0, 0, 0, 0.7, 0);
+        var eye = train.Frames[car].ToWorld(new Double3(-6, 3, 0));
+        var staged = new List<Enemy> { fire };
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged, Tick = Staging.StrikeTick };
+        int Flames(long tick)
+        {
+            scene.Tick = tick;
+            var mesh = new MeshBuilder();
+            scene.Build(mesh, train, eye);
+            return mesh.AdditiveFx.Count;
+        }
+        int burning = Flames(Staging.StrikeTick);
+        staged.Clear();
+        int none = Flames(Staging.StrikeTick + 1000);
+        Assert.True(burning > none, $"burning {burning}, no fire {none}");
+        // Again, the fire there; then its car's cut from the train (its front end open: the car ahead's in another rake),
+        // and the sim's done with it.
+        scene = new GreyboxScene { Look = Look, Time = 0.37, Enemies = staged = [fire], Tick = Staging.StrikeTick };
+        Flames(Staging.StrikeTick);
+        if (cut)
+            Assert.True(train.Uncouple(train.VehicleAhead(car)));
+        staged.Clear();
+        int after = Flames(Staging.StrikeTick + 1);
+        int later = Flames(Staging.StrikeTick + 2 * (long)Sim.SimConstants.TickRate);
+        if (cut)
+            Assert.True(after > none && later > none, $"cut loose: {after}, then {later}, against {none}");
+        else
+            Assert.Equal(none, later);
     }
 
     [Fact]

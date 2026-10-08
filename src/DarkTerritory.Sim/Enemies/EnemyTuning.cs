@@ -36,7 +36,7 @@ public sealed record EnemyTuning(
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
     public TowerJawTuning TowerJaw { get; init; } = new();
-    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note NNN). Field docs live in enemies.json.</summary>
+    /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 487). Field docs live in enemies.json.</summary>
     public CrewBotsTuning CrewBots { get; init; } = new();
     /// <summary>The damage model (GDD App. F.1, the director's decision of 6 Oct 2026; note 272): no creature's hit is chip.</summary>
     public DamageModelTuning Damage { get; init; } = new();
@@ -629,6 +629,30 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
     public double CargoPerSecond { get; init; } = 0.002;
     /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
     public double IgniteEverySeconds { get; init; } = 20;
+    /// <summary>Note 472: aboard with nobody in reach, it patrols (enemies.json cinderHounds.patrol).</summary>
+    public HoundPatrolTuning Patrol { get; init; } = new();
+}
+
+/// <summary>
+/// Note 472 (the director, 8 Oct 2026: "they should either patrol between cars that have doors open or patrol the roofs of the
+/// cars, jumping between them if they can make the jump"). Field docs live in enemies.json cinderHounds.patrol.
+/// </summary>
+public sealed record HoundPatrolTuning
+{
+    public bool On { get; init; } = true;
+    public double Walk { get; init; } = 1.6;
+    public double Chase { get; init; } = 3.5;
+    public double ChaseFrom { get; init; } = 20;
+    public double LeapSeconds { get; init; } = 0.9;
+    public double LeapFrom { get; init; } = 0.25;
+    public double LeapTo { get; init; } = 0.65;
+    public double[] SniffEvery { get; init; } = [8, 15];
+    public double SniffSeconds { get; init; } = 3;
+    public double DropSeconds { get; init; } = 1.0;
+    public double ClimbSeconds { get; init; } = 1.2;
+    public double InChance { get; init; } = 0.5;
+    public double[] InsideSeconds { get; init; } = [8, 15];
+    public int CarsAhead { get; init; } = 1;
 }
 
 public sealed record ChoirSwarmTuning(int ExposedDamage, double EverySeconds);
@@ -1148,7 +1172,7 @@ public sealed record TowerJawTuning
 }
 
 /// <summary>
-/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note NNN):
+/// The crew bots' answers to the Mourners, Tower Jaw, the Brakeman, the Knotter, the Freight Beetle and Hotbox (note 487):
 /// how near is near enough to go, and where to stand. Not the creatures' own numbers. Field docs live in enemies.json.
 /// </summary>
 public sealed record CrewBotsTuning

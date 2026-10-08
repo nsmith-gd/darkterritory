@@ -27,6 +27,9 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     /// <summary>The conveyor line's (note 400): the grain left for it, and how often it jammed.</summary>
     public double Grain { get; init; }
     public int Jams { get; init; }
+    /// <summary>The tipple's (note 423): the ore left in its bin, and the cars off their rails when the drill ended.</summary>
+    public double TippleOre { get; init; }
+    public int OffRails { get; init; }
     /// <summary>The stop's modules, as drawn (note 449).</summary>
     public IReadOnlyList<ModuleKind> Modules { get; init; } = [];
     /// <summary>Every stop the driver made (a switchyard's pick-ups are stops of their own).</summary>
@@ -120,6 +123,8 @@ public static class FacilityWork
             Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
             Grain = Math.Round(site.Grain, 3),
             Jams = site.JamCount,
+            TippleOre = Math.Round(site.TippleOre, 3),
+            OffRails = train.Vehicles.Count(v => v.OffRails),
             Modules = site.Modules,
             Stops = driver.Stops?.Log ?? [],
         };
