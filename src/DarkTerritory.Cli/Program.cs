@@ -1203,12 +1203,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --ps2: the pipeline's debug era mode, for art direction to compare against (no spec maps, harder banding, no bloom).
     if (args.Contains("--ps2"))
         renderer.Post = renderer.Post with { Ps2 = true };
+    // The guns loaded as a night arms them (Guns.Arm): the powder and shot locker full, as aboard. Before --muzzle: arming
+    // sets each gun's state afresh, so a shot staged first was wiped and the flash and smoke never drawn.
+    DarkTerritory.Sim.Combat.Guns.Arm(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Guns);
     // --muzzle: the guns fired a tick ago (their flash, and its light).
     if (args.Contains("--muzzle"))
         foreach (var v in train.Vehicles.Where(v => v.HasGun))
             v.Gun.LastShotTick = 100;
-    // The guns loaded as a night arms them (Guns.Arm): the powder and shot locker full, as aboard.
-    DarkTerritory.Sim.Combat.Guns.Arm(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Guns);
     // --lamps-out i[,j,...]: those cars' lamps put out (Vehicle.LampLit: dark inside, their lanterns unlit).
     if (Str(args, "--lamps-out", "") is { Length: > 0 } outs)
         foreach (int i in outs.Split(',').Select(int.Parse))
