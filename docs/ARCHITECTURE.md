@@ -6770,7 +6770,6 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Screenshots before and after: `--cottage 0..2`, `--cottage 0 --lantern`, `--barn 0 --back` (with and without `--lantern`), `--barn 0 --find`, `--barn 1 --back`, `--shed 0 --inside`, `--view inside`. Means out of 255: cottages 5.6, 6.0, 5.9 → 10.6, 12.9, 10.7; barn 4.6 → 27; yard shed 6.9 → 12; car 27.6 → 28.6. Walls, furniture, the bench and the floorboards read; the yard shed's lanterns throw warm pools on its floor.
         - LookTests, PerfBudgetTests, ScreenshotTests, StopShellArtTests, HouseInteriorArtTests, VrTests, MultiviewTests, BookmarkStillsTests, DamageTests, CreatureArtTests and WorldSoundTests pass (the frame's constants grew a vec4 at their end).
 
-<<<<<<< HEAD
 485. **Frost from the cab windows' edges, and breath on the glass (queue #222, E1; the art checklist's `cold` "next": "frost creeping in from a window's edges, and breath fogging the cab glass"; GDD §22, §26 "frost on windows and metal, breath vapour").** The cold's rime (`FrameLighting.Frost`, scene.frag) lies on whatever faces the sky, but the cab's windows are open frames in the kit with no glass drawn, so a deep night left them as clear as a mild one. Nothing fogged them either: a breath was a puff in the air whether or not a face was at the glass.
     - **The panes:** `TrainKit.CabPanes` names the cab's glass in the engine's frame: the two front windows either side of the middle post (`FrontWindow`), and each side's slit in its three bays between the posts. Each pane has a corner, two edges and a normal into the cab.
     - **The frost:** `SceneArt.CabGlass` lays a frost on each pane as an alpha effect, grown in from its frame in a strip round all four edges:
@@ -6790,7 +6789,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - The frost creeps in further as it deepens and leaves the middle clear.
         - A face 0.3 m from the glass fogs it, without spilling off the pane, and one 1.5 m off doesn't.
         - The fog comes and goes on the breath.
-=======
+
 483. **A hound aboard seen as it patrols (queue #220, D1.3 for D1; note 472's "not yet").** A hound aboard faces up or down its car, or to a side door (`CinderHound.Facing`, replicated in its `Lateral`), and the art turned its model by it (`CreatureArt`). The greybox stand-in didn't: `GreyboxScene.DrawEnemy` drew everything on a car in the car's own basis, so in greybox every hound walked and leapt facing up the train, sideways or backwards to where it was going.
     - **Now** a hound aboard's basis is turned by its facing, by the same angles the art turns its model, as a player's yaw in the car's frame (the stand-in's head is at −Z).
     - **Seen:** `dt screenshot --patrol --view patrol --greybox`, before and after: the walker faces along its roof, the leaper faces the gap it's crossing to the third car, and the one dropping in at the open door faces into the car. The art's view (`--view patrol` without `--greybox`) is unchanged and matches.
@@ -6811,4 +6810,3 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **`dt town`** shows each person's mind and the town's peoples; **`dt town sweep`** shows each custom's mean traits, temperament shares and bynamed share. At 200 seeds every custom has its own mix: the Passenger's 31% faithful and 16% watchers, the Gaunt's 26% talkers, the Track Doll's 29% mourners, the Tippy Toesie's the most comforters. About a third have a byname. Doubters are 1–5% everywhere, since these towns keep their customs harder every year.
     - **Not yet:** the talk card's pace by nerve; rounds that read the matrix (the restless at the gate, the mender in the lamp garden); a household's members disagreeing.
     - **Verified:** `TownFolkTests`. Everyone has a personality, the same every time. Customs and jobs lean their people as the tuning says. Every temperament turns up, and none is most of a town. Surnames are their heritage's, households share one, and an after-name is from its stocks. A strong temperament's byname is its own, and 15–50% have a byname. A fort's name leads its people. The close never say the custom, and the open say the most. The town tests stay green: three lines at most, no repeats, every word in the font.
->>>>>>> origin/main
