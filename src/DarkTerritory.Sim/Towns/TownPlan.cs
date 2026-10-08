@@ -149,10 +149,11 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 /// (along the line, across it), what they do, and what they say, one line a word with them and round again.
 /// <see cref="Look"/> picks their clothes from the crew's. <see cref="House"/>: the open house they're in, or −1 out of
 /// doors; <see cref="Pose"/> how they are ("idle", "lantern", "seated", "crouch"). <see cref="Gear"/>: what they breathe
-/// through out of doors (<see cref="TownGear"/>, note 353).
+/// through out of doors (<see cref="TownGear"/>, note 353). <see cref="Personality"/>: who they are, their traits,
+/// temperament and how they came by their name (note 474); null where the content has no townsfolk matrix.
 /// </summary>
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
-    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator");
+    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null);
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at

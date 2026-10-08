@@ -778,7 +778,7 @@ public static class Staging
     /// <summary>
     /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
     /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
-    /// built in car 2's aisle (the <c>inside</c> view). The Ribbits are put away.
+    /// built in car 2's aisle (the <c>inside</c> view), <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
     /// </summary>
     public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
     {
@@ -799,8 +799,13 @@ public static class Staging
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
                 break;
+            // nest:p: the nest p of the way built (note 460), the Follower still building it.
+            case var building when building.StartsWith("nest:") && double.TryParse(building[5..], System.Globalization.CultureInfo.InvariantCulture, out double built):
+                double under = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                f.Restore(SpinePhase.Commit, 30, f.Health, car, new Double3(-0.45, under, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, Math.Clamp(built, 0.01, 1));
+                break;
             default:
-                throw new ArgumentException($"--follower {mode}: back, crawl or nest");
+                throw new ArgumentException($"--follower {mode}: back, crawl, nest or nest:p");
         }
         return threats;
     }
@@ -1277,7 +1282,8 @@ public static class Staging
         var train = world.Train;
         var log = world.Attribution;
         var marks = world.Bookmarks;
-        var run = world.Run!;
+        // A night's run keeps the report (note 476: `--radio tally` on the default test loop, which has none, was a null).
+        var run = world.Run ?? throw new ArgumentException("a staged report needs a night's run: give it a --route (e.g. --route frontier:7)");
         void At(double seconds) => run.Resume(seconds, -1, train.Boiler.Tender, 0);
         log.Drove(0);
         log.Fired(1, 100);
@@ -1439,6 +1445,40 @@ public static class Staging
                 id++;
             }
         return runners;
+    }
+
+    /// <summary>
+    /// Hounds aboard on patrol (note 472; <c>dt screenshot --patrol --view patrol</c>): with nobody they can reach, along the
+    /// second car's roof, one stopped sniffing, one mid-leap over the gap to the third car, and one dropping in at the second
+    /// car's open left side door (opened here). Each one's mode and facing in its Lateral, the mode's start in its LineDistance.
+    /// </summary>
+    public static List<Enemy> Patrol(TrainOnLine train)
+    {
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var shape = train.Frames[car].Shape;
+        double roof = shape.RoofHeight, end = shape.HalfLength;
+        var p = new HoundPatrolTuning();
+        if (shape.DoorList.FirstOrDefault(d => d.Box.Centre.X < -0.5 && Math.Abs(d.Box.Centre.Z) < 1) is { } door && !train.Vehicles[car].DoorOpen(door.Index))
+            train.Vehicles[car].ToggleDoor(door.Index);
+        var room = shape.Interior;
+        (HoundMode Mode, int Face, Double3 At, double Into)[] hounds =
+        [
+            (HoundMode.Patrol, 1, new Double3(0.6, roof, -end + 2.2), 0.4),
+            (HoundMode.Sniff, 0, new Double3(-0.6, roof, -end + 4.6), 1.2),
+            // Halfway over the coupling gap behind the car: the clip's arc carries it up off the roofs' line.
+            (HoundMode.Leap, 1, new Double3(0.6, roof, end + 0.75), p.LeapSeconds * 0.45),
+            (HoundMode.Drop, 3, room is { } r ? new Double3(-(r.HalfSize.X - 0.4), r.Min.Y, 0) : new Double3(-0.6, roof, 0), p.DropSeconds * 0.4),
+        ];
+        var list = new List<Enemy>();
+        for (int i = 0; i < hounds.Length; i++)
+        {
+            var (mode, face, at, into) = hounds[i];
+            var hound = new CinderHound(70 + i, 70);
+            const double seconds = 30;
+            hound.Restore(SpinePhase.Commit, seconds, 60, car, at, seconds - into, (int)mode * 4 + face, 0, 70, 0);
+            list.Add(hound);
+        }
+        return list;
     }
 
     /// <summary>

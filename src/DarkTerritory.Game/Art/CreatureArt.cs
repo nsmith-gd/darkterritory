@@ -328,6 +328,11 @@ public sealed class CreatureArt
     const float TippyFleeShow = 0.5f, TippyFleeSpeed = 4f, TippyBehind = 0.42f, PreyMouthY = 1.6f, PreyMouthFore = 0.12f;
 
     /// <summary>How long a Tippy Toesie pulled off or seen is held in its recoil before it scuttles (s): its clip's length.</summary>
+    bool HasClip(string model, string clip) => _models.TryGetValue(model, out var m) && m.Model.Clips.ContainsKey(clip);
+
+    // A Cinder Hound aboard's patrol (note 472), set for the one being drawn by the Enemy overload that has it.
+    (HoundMode Mode, double Seconds) _houndAboard;
+
     double TippyRecoil => _models.TryGetValue("tippy_toesie", out var tippy) && tippy.Model.Clips.TryGetValue("recoil", out var c) ? c.Duration : 0;
 
     static float SmoothStep(float a, float b, float x)
@@ -1142,6 +1147,9 @@ public sealed class CreatureArt
             Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.35f));
         }, seed: seed);
 
+    /// <summary>The Follower's nest built up as it builds it (note 460): the follower_nest model's own pieces, grown in turn.</summary>
+    readonly NestBuild Nest = new();
+
     /// <summary>A posed bone and everything hung off it turned by <paramref name="rotation"/> (model space) about the bone's head.</summary>
     static void Bend(Entry m, string bone, in Matrix4x4 rotation)
     {
@@ -1429,6 +1437,28 @@ public sealed class CreatureArt
                     if (phase is SpinePhase.Grab or SpinePhase.Punish)
                         // On someone: the leap, then the jaws clamped on them and the head wrenching (the pack fight's bite).
                         (clip, ct, loop) = t < 0.6 ? ("lunge", t, false) : ("bite", t - 0.6, true);
+                    else if (aboard && _houndAboard.Mode != HoundMode.Still)
+                    {
+                        // Its patrol (note 472, E1's clips, note 477): along the roof or the boards, over a gap, down in at a
+                        // side door and up out of one, and stopping to sniff; from when it began each.
+                        (clip, loop) = _houndAboard.Mode switch
+                        {
+                            HoundMode.Leap => ("leap", false),
+                            HoundMode.Drop => ("drop", false),
+                            HoundMode.Climb => ("climb", false),
+                            HoundMode.Sniff => ("sniff", true),
+                            _ => ("patrol", true),
+                        };
+                        ct = _houndAboard.Seconds;
+                        if (!HasClip("cinder_hound", clip))
+                            (clip, loop) = _houndAboard.Mode switch
+                            {
+                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Drop or HoundMode.Climb => ("board", false),
+                                HoundMode.Sniff => ("crouch", true),
+                                _ => ("prowl", true),
+                            };
+                    }
                     else if (aboard)
                     {
                         // Onto the rear car (its board: up off the ballast, scrabbling up the car's end, over the roof's lip), then
@@ -1622,11 +1652,15 @@ public sealed class CreatureArt
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
+                    // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the
+                    // lobes swelling up out of the heap one after another, the hollow last.)
                     if (nesting && PropArt.Of(Look).Get("follower_nest") is { } heap)
                     {
-                        float grown = 0.25f + 0.75f * swell;
-                        mesh.Append(heap, Matrix4x4.CreateScale(grown, grown * (0.6f + 0.4f * swell), grown) * model);
-                        at = Matrix4x4.CreateTranslation(0, FollowerNestTop * grown * (0.6f + 0.4f * swell), 0) * at;
+                        var (built, top) = Nest.At(heap, swell);
+                        mesh.Append(built, model);
+                        // (Swollen about itself, then set on the heap: lifted after the swell's scale, its 0.6 m went up
+                        // with it to 1.5 m, the Follower hanging in the air over its own nest.)
+                        at = Matrix4x4.CreateScale(1 + FollowerSwell * swell) * Matrix4x4.CreateTranslation(0, FollowerNestTop * top, 0) * model;
                     }
                     return Draw(mesh, "follower", clip, t, true, at, seed: 29);
                 }
@@ -2658,10 +2692,17 @@ public sealed class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
+            case EnemyKind.CinderHound when e is Sim.Enemies.CinderHound { Attached: >= 0 } hound:
+                // Aboard (note 472): turned the way the sim has it facing in its car (up or down the car, or to a side door),
+                // and doing what it's doing there, E1's clips (#213, note 477).
+                m = Matrix4x4.CreateRotationY(hound.Facing switch { 1 => MathF.PI, 2 => -MathF.PI / 2, 3 => MathF.PI / 2, _ => 0f }) * model;
+                _houndAboard = (hound.Aboard, hound.ModeSeconds);
+                break;
         }
         _clutch = null;
         bool drawn = Enemy(mesh, m, e.Kind, e.Phase, e.PhaseSeconds, e.Extra, e.Health, aboard: e.Attached >= 0,
             extra2: e.Kind == EnemyKind.Sleepers ? e.Id : e.Extra2);
+        _houndAboard = default;
         if (_clutch is { } clutch && e.Holding >= 0)
             Clutches[e.Holding] = clutch;
         _clutch = null;

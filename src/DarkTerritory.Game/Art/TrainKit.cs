@@ -570,11 +570,11 @@ public static class TrainKit
             }
             float ym = win.Y0 + (win.Y1 - win.Y0) * 0.55f;
             k.Box(new Vector3(win.X0, ym - 0.02f, z - 0.05f), new Vector3(win.X1, ym + 0.02f, z - 0.03f), Kit.Faces.All & ~Kit.Faces.PosZ);
-            // An armoured visor over the window's top third, propped out (the driver's eye is under it).
-            float yv = win.Y1 - (win.Y1 - win.Y0) / 3;
+            // An armoured hood over the window, out from its top and barely down (the director, 8 Oct: hung down over the
+            // glass's top third, as it was, it filled the driver's view ahead with plate).
             Plate(k, 1.0f);
             k.Quad(new Vector3(win.X0 - 0.04f, win.Y1 + 0.02f, z), new Vector3(win.X1 + 0.04f, win.Y1 + 0.02f, z),
-                new Vector3(win.X1 + 0.04f, yv, z - 0.16f), new Vector3(win.X0 - 0.04f, yv, z - 0.16f), twoSided: true);
+                new Vector3(win.X1 + 0.04f, win.Y1 - 0.03f, z - 0.24f), new Vector3(win.X0 - 0.04f, win.Y1 - 0.03f, z - 0.24f), twoSided: true);
             Rusted(k).Shade(0.5f);
         }
 
@@ -1225,6 +1225,45 @@ public static class TrainKit
         MathF.Abs(t) <= RoofFlat ? top : top - (top - low - 0.08f) * 0.9f * (MathF.Abs(t) - RoofFlat) / (1 - RoofFlat);
 
     /// <summary>
+    /// The hatch the cab's ladder goes up to (note 280's ladder up from the cab floor to the forward gun; the director, 8 Oct:
+    /// "ladder in cab to nowhere"): over the climber at its top, a riveted coaming under the ceiling round the shut lid's
+    /// underside, dogged by two handles and hung on two hinges; and up on the roof, its coaming standing proud and the lid
+    /// on it.
+    /// </summary>
+    static void RoofHatch(Kit k, CarShape shape, float w, float roofLow, float roofTop)
+    {
+        foreach (var ladder in shape.Ladders.Where(d => d.Foot.Y > 0.2 && d.Inward.Z > 0))
+        {
+            // Over the climber (the rungs face +Z, the climber on the −Z side of them).
+            var c = new Vector3((float)ladder.Foot.X, 0, (float)ladder.Foot.Z - 0.33f);
+            const float HalfX = 0.3f, HalfZ = 0.28f, Rim = 0.05f;
+            // Inside: the coaming round the opening, down from the ceiling...
+            Iron(k).Shade(0.8f);
+            foreach (int s in new[] { -1, 1 })
+            {
+                k.Box(new Vector3(c.X - HalfX - Rim, roofLow - 0.09f, c.Z + s * HalfZ - Rim / 2), new Vector3(c.X + HalfX + Rim, roofLow, c.Z + s * HalfZ + Rim / 2));
+                k.Box(new Vector3(c.X + s * HalfX - Rim / 2, roofLow - 0.09f, c.Z - HalfZ), new Vector3(c.X + s * HalfX + Rim / 2, roofLow, c.Z + HalfZ));
+            }
+            // ...and the shut lid's underside up in it, its dogs (a handle each side) and its hinges at the back edge.
+            Plate(k, 0.7f);
+            k.Box(new Vector3(c.X - HalfX, roofLow - 0.03f, c.Z - HalfZ), new Vector3(c.X + HalfX, roofLow - 0.01f, c.Z + HalfZ), top: false);
+            Rusted(k).Shade(0.6f);
+            foreach (int s in new[] { -1, 1 })
+            {
+                k.Rod(new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z - 0.08f), new Vector3(c.X + s * 0.16f, roofLow - 0.04f, c.Z + 0.08f), 0.012f);
+                k.Box(new Vector3(c.X + s * 0.18f - 0.04f, roofLow - 0.06f, c.Z + HalfZ - 0.03f), new Vector3(c.X + s * 0.18f + 0.04f, roofLow - 0.02f, c.Z + HalfZ + 0.02f));
+            }
+            // Outside: the coaming proud of the roof where it stands there, and the lid shut down on it.
+            float t = c.X / (w + 0.12f), y = RoofProfile(t, roofTop, roofLow);
+            Plate(k, 1.0f);
+            k.Box(new Vector3(c.X - HalfX - Rim, y - 0.04f, c.Z - HalfZ - Rim), new Vector3(c.X + HalfX + Rim, y + 0.08f, c.Z + HalfZ + Rim));
+            Rusted(k).Shade(0.7f);
+            k.Box(new Vector3(c.X - HalfX - 0.02f, y + 0.08f, c.Z - HalfZ - 0.02f), new Vector3(c.X + HalfX + 0.02f, y + 0.11f, c.Z + HalfZ + 0.02f));
+            k.Rod(new Vector3(c.X - 0.1f, y + 0.13f, c.Z), new Vector3(c.X + 0.1f, y + 0.13f, c.Z), 0.015f);
+        }
+    }
+
+    /// <summary>
     /// The cab's roof (note 311): a helmet. Arched across and overhanging the sides, it rides the cab's length; at the
     /// front it narrows and droops into a brow out over the windows, and at the back it sweeps down in two shoulders onto
     /// the boiler's flanks (clear over the way beside the boiler: they start head-high there), so the cab and the boiler
@@ -1360,6 +1399,7 @@ public static class TrainKit
         // The roof: a helmet over the cab, its front drooping into a brow over the windows, its back sweeping down onto
         // the boiler (note 311).
         Roof(k, w, cabFront, cabBack, (float)shape.Solids.Where(x => x.Part == PartKind.CabRoof).Max(x => x.Box.Max.Z), roofLow, roofTop);
+        RoofHatch(k, shape, w, roofLow, roofTop);
 
         // Inside: the floor, and the backhead, turned to face forward from the back wall.
         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0);
@@ -1484,8 +1524,48 @@ public static class TrainKit
         return (MathF.Min(a, b), MathF.Max(a, b), deck + 1.15f, (float)roof.Min.Y - BandHeight - 0.02f);
     }
 
+    /// <summary>
+    /// A pane of the cab's glass (note 485), in the engine's frame: its corner, the edge across it (<see cref="U"/>) and the
+    /// edge up it (<see cref="V"/>); <see cref="In"/>, its normal into the cab. The windows are open frames in the kit (the
+    /// glass itself isn't drawn), so this is where the frost lies and a breath fogs it.
+    /// </summary>
+    public readonly record struct Pane(Vector3 Corner, Vector3 U, Vector3 V, Vector3 In)
+    {
+        public Vector3 Centre => Corner + (U + V) / 2;
+    }
+
+    /// <summary>
+    /// The cab's panes (note 485): the two front windows either side of the middle post, and each side's slit in its three
+    /// bays between the posts (CabShell).
+    /// </summary>
+    public static IEnumerable<Pane> CabPanes(CarShape shape)
+    {
+        if (shape.Cab is not { } cab)
+            yield break;
+        float cabFront = (float)cab.Min.Z, w = (float)shape.HalfWidth;
+        float deck = (float)shape.Solids.First(s => s.Part == PartKind.Boiler).Box.Min.Y;
+        float z = cabFront + 0.06f;
+        foreach (int side in new[] { -1, 1 })
+        {
+            var win = FrontWindow(shape, side);
+            yield return new Pane(new Vector3(win.X0, win.Y0, z), new Vector3(win.X1 - win.X0, 0, 0), new Vector3(0, win.Y1 - win.Y0, 0), Vector3.UnitZ);
+        }
+        var doorFront = shape.Solids.Where(s => s.Part == PartKind.CabWall && s.Box.Min.Y > deck + 1.5).Select(s => (float)s.Box.Min.Z)
+            .DefaultIfEmpty((float)cab.Max.Z - 1.05f).Min();
+        float z0 = cabFront + 0.15f, span = doorFront - 0.02f - z0;
+        foreach (int side in new[] { -1, 1 })
+            for (int bay = 0; bay < 3; bay++)
+            {
+                // Between the posts' straps (0.06 m either side of each post).
+                float a = z0 + span * bay / 3 + (bay > 0 ? 0.06f : 0), b = z0 + span * (bay + 1) / 3 - (bay < 2 ? 0.06f : 0);
+                float x = side * (w - 0.02f);
+                yield return new Pane(new Vector3(x, deck + SlitBottom, side > 0 ? b : a), new Vector3(0, 0, side > 0 ? a - b : b - a),
+                    new Vector3(0, SlitTop - SlitBottom, 0), new Vector3(-side, 0, 0));
+            }
+    }
+
     /// <summary>How tall the run map's plate over the front windows is (m).</summary>
-    const float MapHeight = 0.42f;
+    const float MapHeight = 0.32f;
 
     /// <summary>
     /// The band over the front windows (m), from the window tops to the roof: the run map in the middle and the driver's
@@ -1504,18 +1584,35 @@ public static class TrainKit
     /// </summary>
     public static Vector3 DriverGauge(CarShape shape, int index)
     {
-        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        // In one row of four now, under the ceiling as it comes down in the roof's chamfer over the front (the director, 8
+        // Oct: "the map and gauges are still covered": in two rows under the roof's full height, the top row was up in it).
+        float z = (float)shape.Cab!.Value.Min.Z + 0.1f;
         float pitch = 2 * (DriverGaugeRadius + 0.035f);
-        float x = (float)shape.HalfWidth - 0.32f - (1 - index % 2) * pitch, top = (float)roof.Min.Y - 0.03f - DriverGaugeRadius - 0.025f;
-        return new Vector3(x, top - index / 2 * pitch, (float)shape.Cab!.Value.Min.Z + 0.1f);
+        float x = (float)shape.HalfWidth - 0.32f - (3 - index) * pitch, y = CeilingAt(shape, z) - 0.03f - DriverGaugeRadius - 0.025f;
+        return new Vector3(x, y, z);
+    }
+
+    /// <summary>
+    /// The cab's ceiling (the roof's underside) at <paramref name="z"/> (engine frame): its full height back from the front,
+    /// coming down by <see cref="CabChamfer"/> over the front windows where the roof's front corner is cut back (Roof's
+    /// first two rings).
+    /// </summary>
+    public static float CeilingAt(CarShape shape, float z)
+    {
+        var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
+        float front = (float)shape.Cab!.Value.Min.Z - 0.02f;
+        float back = Math.Clamp((z - front) / (CabChamfer + 0.02f), 0, 1);
+        return (float)roof.Min.Y - 0.02f - CabChamfer * (1 - back);
     }
 
     /// <summary>The run map's chart on the plate over the front windows (T101), in the engine's frame: its lower left corner and size.</summary>
     public static (Vector3 Corner, float Width, float Height) MapPlate(CarShape shape)
     {
         var roof = shape.Solids.First(s => s.Part == PartKind.CabRoof).Box;
-        const float half = 0.58f;
-        return (new Vector3(-half - 0.1f, (float)roof.Min.Y - MapHeight - 0.03f, (float)shape.Cab!.Value.Min.Z + 0.1f), 2 * half, MapHeight - 0.02f);
+        // (Over the left-hand window and the post, clear of the driver's row of gauges; under the ceiling as it comes down.)
+        const float half = 0.5f;
+        float z = (float)shape.Cab!.Value.Min.Z + 0.1f;
+        return (new Vector3(-half - 0.42f, CeilingAt(shape, z) - MapHeight - 0.03f, z), 2 * half, MapHeight - 0.02f);
     }
 
 

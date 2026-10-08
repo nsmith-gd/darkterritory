@@ -13,8 +13,9 @@
   "pushGun": 1.2,
   "jumpGap": 2.2,
   // How high a standing jump lifts your feet. Playtest (T90): the 0.48 m that a flat 2.2 m gap jump at roof run needs was
-  // too weak to feel like a jump at all; at this height a roof-run jump carries about 2.8 m, clearing the gap easily.
-  "jumpHeight": 0.8,
+  // too weak to feel like a jump at all, and it went to 0.8 m. The director, 8 Oct 2026 (note 473): "our base jump is too
+  // weak as well": 1.2 m, about a fifth longer in the air, so a roof-run jump carries about 3.4 m.
+  "jumpHeight": 1.2,
   "health": 100,
   // T108 (GDD §1322: the tools on the train are the weapons): what every crewmate carries from the start of the night, and
   // after every respawn, slot by slot from 1. Tools: crowbar, shovel, wrench. Note 301: the wrench is the repair tool

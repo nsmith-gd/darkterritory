@@ -98,7 +98,8 @@ public class BoardedPackTests
         n.Until(() => pack.All(h => h.Gone), 300);
         Assert.True(pack.All(h => h.Gone), $"driver {n.Self.Surface} on {n.Self.Parent}, health {n.Self.Health}; cutting {n.Driver.CuttingAlone}; path {string.Join(" ", n.Path.Take(40))}");
         Assert.True(n.Train.Dynamics.Consist.IndexOf(rear) < 0, "the pack's car is cut loose");
-        Assert.Equal(4, n.Train.Dynamics.Consist.Vehicles.Count); // the engine and the three cars ahead of it
+        // The engine and the two cars ahead of the pack's ground (note 472: the car it boarded and the one ahead it patrols to).
+        Assert.Equal(3, n.Train.Dynamics.Consist.Vehicles.Count);
         Assert.True(n.Self.Alive, $"died of {n.Self.Death}");
         // Back up into the cab, and away without it.
         n.Until(() => n.Train.Dynamics.Speed > 3, 120);

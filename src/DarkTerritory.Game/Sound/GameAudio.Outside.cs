@@ -36,6 +36,8 @@ public sealed partial class GameAudio
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
     // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
     const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000, LiftOwner = 14_000;
+    // How far from its drum a winch is listened for (the capstan's and the stall's maxDistance, install.py CUE_DEF; note 468).
+    const double WinchReach = 60;
     // The line's gust where the ear was last tick (PlayerMotor.Gust), for the gust cue as one rises.
     double _gustWas;
     Double3 _spoutAt;
@@ -65,6 +67,12 @@ public sealed partial class GameAudio
         _livestockAccel = double.NaN;
         _craneMoved.Clear();
         _castings.Clear();
+        _beltStarted.Clear();
+        _jamWas.Clear();
+        _tippleRolled.Clear();
+        _tippleRerailed.Clear();
+        _tippleOffAt.Clear();
+        _tippleCar.Clear();
         _earHint = _outsideClock = _engineFrontWas = double.NaN;
         _engineSpeedWas = _nextFar = _tenderAtPour = _rammedAgain = 0;
         _outsidePrimed = _radioWas = false;
@@ -507,9 +515,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain), the cranes
-    /// (place-crane), the wreck yard's winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their
-    /// buildings, the dead towns (place-villages), and the mine underground (place-mine).
+    /// The facilities at work: the coaling chute (place-coaling), the grain elevator's spout (place-grain) and conveyor line
+    /// (place-conveyor, note 466), the mine head's tipple (place-tipple, note 480), the cranes (place-crane), the wreck yard's
+    /// winch and its wrecks (place-wreck), the slaughterhouse and the chemical works near their buildings, the dead towns
+    /// (place-villages), and the mine underground (place-mine).
     /// </summary>
     void PlaceWorks(World world, Run? run, TrainOnLine train, Places places, Double3 ear, bool underground, double dt, bool primed)
     {
@@ -562,8 +571,15 @@ public sealed partial class GameAudio
                 Cue("place-grain.spout-stop", _spoutAt, outside);
 
             foreach (var site in run.Sites)
-                if (site is not null)
-                    PlaceSite(site, train, ear, dt, primed);
+            {
+                if (site is null)
+                    continue;
+                PlaceSite(site, train, ear, dt, primed);
+                if (site.Has(ModuleKind.Conveyor))
+                    ConveyorSounds(site, run.FacilityTuning?.Conveyor, ear, outside, primed);
+                if (site.Has(ModuleKind.Tipple))
+                    TippleSounds(site, train, ear, outside, primed);
+            }
             if (underground)
             {
                 HoldLevel("place-mine.underground", 0, ear, 0, 1);
@@ -611,6 +627,33 @@ public sealed partial class GameAudio
             if (houses.Count > 0 && Sometimes(0.06, dt))
                 Cue("place-villages.sign", houses[(int)(OutsideOdds() * houses.Count) % houses.Count] + Double3.Up * 3, outside, (float)(0.5 + 0.5 * OutsideOdds()));
         }
+    }
+
+    /// <summary>
+    /// The capstan winch (spec D.2 "two players hand-crank in rhythm to drag cargo from distance ... Desync stalls"; T43;
+    /// note 468), off the site's replicated record: the drum while it's cranked in rhythm, the stall as the cranks fall out
+    /// of it, and the sled hauled in over the ground and brought up to its stop. At a wreck yard the sled comes out of a
+    /// wreck, and that's place-wreck's (its cargo dragged out, the wreckage shifting as it comes in). The edges are read
+    /// wherever the ear is, so a stall or a sled in out of earshot plays nothing late.
+    /// </summary>
+    void WinchSounds(Site site, Double3 ear, float outside, bool primed)
+    {
+        int key = site.Index;
+        int stalled = Flipped("place-winch.stall", key, site.OutOfRhythm, primed);
+        bool came = Moved("place-winch.sleds", key, site.SledsLeft) < 0 && primed;
+        if ((site.Capstan - ear).Length > WinchReach)
+            return;
+        var drum = site.Capstan + Double3.Up * 0.8;
+        if (site.Turning)
+            HoldLevel("place-winch.capstan", key, drum, outside, 1);
+        if (stalled > 0)
+            Cue("place-winch.stall", drum, outside);
+        if (site.Feature.Facility == FacilityKind.WreckYard)
+            return;
+        if (site.Turning && site.Progress < 1)
+            HoldLevel("place-winch.drag", key, site.Sled, outside, 1);
+        if (came)
+            Cue("place-winch.in", site.SledTo, outside);
     }
 
     /// <summary>
@@ -663,6 +706,9 @@ public sealed partial class GameAudio
             if (Moved("place-mine-lift.ore", site.Index, site.Ore) < -1e-6 && primed)
                 Cue("place-mine-lift.tip", site.LiftChute, outside);
         }
+        // The capstan winch wherever it stands (spec D.2, T43; note 468).
+        if (site.Has(ModuleKind.Winch))
+            WinchSounds(site, ear, outside, primed);
         // The chemical works' hose (note 185): its leak hissing at the stand while the pressure's over or the hose is torn.
         if (site.Has(ModuleKind.Hose) && site.Leaking && (site.HoseStand - ear).Length < 150)
             HoldLevel("place-chemical.leak", HoseOwner + site.Index, site.HoseStand + Double3.Up * 1.5, outside, 1);

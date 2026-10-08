@@ -60,12 +60,36 @@ static class TownCommands
             plan.Industry,
             plan.Quirks,
             square = new { plan.Square.S0, plan.Square.S1, plan.Square.Side, plan.Square.WallD, gate },
-            people = plan.People.Select(p => new { p.Id, p.Name, p.Title, at = new[] { Math.Round(p.S - gate, 1), Math.Round(p.D, 1) }, p.House, p.Pose, p.Lines }),
+            // Who they are (note 474): the town's peoples, how many of each temperament, and each person's traits.
+            peoples = plan.People.Where(p => p.Personality is not null).GroupBy(p => p.Personality!.Heritage).OrderByDescending(g => g.Count())
+                .ToDictionary(g => g.Key, g => g.Count()),
+            temperaments = Temperaments(plan.People),
+            people = plan.People.Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Title,
+                at = new[] { Math.Round(p.S - gate, 1), Math.Round(p.D, 1) },
+                p.House,
+                p.Pose,
+                mind = p.Personality is { } m ? new
+                {
+                    m.Temperament,
+                    strength = Math.Round(m.Strength, 2),
+                    m.Heritage,
+                    m.Generation,
+                    traits = TownTraits.Axes.Select((a, i) => (a, v: Math.Round(m.Traits[i], 2))).ToDictionary(x => x.a, x => x.v),
+                } : null,
+                p.Lines,
+            }),
             papers = plan.Papers.Select(p => new { p.Title, p.Text, where = p.OnBoard ? "board" : $"{Math.Round(p.S - gate, 1)}, {Math.Round(p.D, 1)}" }),
             fixtures = plan.Fixtures.Where(f => f.Text.Length > 0).Select(f => new { f.Kind, f.Name, f.Text }),
             doors = plan.Buildings.Select(b => new { b.Name, b.Knock }),
         };
     }
+
+    static SortedDictionary<string, int> Temperaments(IEnumerable<Townsperson> people) =>
+        new(people.Where(p => p.Personality is not null).GroupBy(p => p.Personality!.Temperament).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal);
 
     /// <summary>Many towns from made-up sites: how often each custom comes up, and the longest line and paper against the
     /// cards' limits (TownTests holds the same).</summary>
@@ -76,6 +100,8 @@ static class TownCommands
         // Walled towns (note 335): how many, the smallest walled and the biggest that isn't, and the most streets a side.
         int walled = 0, smallestWalled = int.MaxValue, biggestYard = 0, mostStreets = 0;
         string? last = null;
+        // The personality matrix (note 474): each custom's people's mean traits and temperaments, and the bynamed share.
+        var minds = new SortedDictionary<string, List<TownPersonality>>(StringComparer.Ordinal);
         string[] industries = [.. towns.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         for (int i = 1; i <= seeds; i++)
         {
@@ -83,6 +109,9 @@ static class TownCommands
             var plan = TownGenerator.Generate(towns, site);
             cultures[plan.Culture] = cultures.GetValueOrDefault(plan.Culture) + 1;
             repeats += plan.Culture == last ? 1 : 0;
+            if (!minds.TryGetValue(plan.Culture, out var those))
+                minds[plan.Culture] = those = [];
+            those.AddRange(plan.People.Select(p => p.Personality).OfType<TownPersonality>());
             last = plan.Culture;
             longestLine = Math.Max(longestLine, plan.People.SelectMany(p => p.Lines).Max(l => l.Length));
             longestPaper = Math.Max(longestPaper, plan.Papers.Max(p => p.Text.Length));
@@ -107,6 +136,14 @@ static class TownCommands
             people = new[] { minPeople, maxPeople },
             population = new[] { minPop, maxPop },
             maxHouses,
+            personalities = minds.ToDictionary(m => m.Key, m => new
+            {
+                people = m.Value.Count,
+                traits = TownTraits.Axes.Select((a, i) => (a, v: Math.Round(m.Value.Average(p => p.Traits[i]), 2))).ToDictionary(x => x.a, x => x.v),
+                temperaments = new SortedDictionary<string, string>(m.Value.GroupBy(p => p.Temperament)
+                    .ToDictionary(g => g.Key, g => $"{100.0 * g.Count() / m.Value.Count:0}%"), StringComparer.Ordinal),
+                bynamed = $"{100.0 * m.Value.Count(p => p.Byname.Length > 0) / m.Value.Count:0}%",
+            }),
             walled = new { towns = walled, smallest = walled > 0 ? smallestWalled : 0, biggestUnwalled = biggestYard, mostStreetsASide = mostStreets }
         };
     }

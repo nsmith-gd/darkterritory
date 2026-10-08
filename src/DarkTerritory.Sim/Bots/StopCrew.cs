@@ -342,6 +342,32 @@ public sealed partial class CrewCalls
     /// </summary>
     public int? Relief { get; set; }
 
+    readonly int?[] _gunner = new int?[2];
+    readonly bool[] _gunHeard = new bool[2];
+    readonly int?[] _gunRelief = new int?[2];
+
+    /// <summary>
+    /// A gunner says, each tick, whether it's at its gun's post (note 456): alive and aboard, the guard gun's or, with
+    /// <paramref name="forward"/>, the engine's. Instant, like the claims: it's who goes where.
+    /// </summary>
+    public void Gunning(int playerId, bool forward, bool on)
+    {
+        int g = forward ? 1 : 0;
+        if (on)
+            (_gunner[g], _gunHeard[g]) = (playerId, true);
+        else if (_gunner[g] == playerId)
+            _gunner[g] = null;
+    }
+    /// <summary>The gunner at that gun's post now, if any.</summary>
+    public int? Gunner(bool forward) => _gunner[forward ? 1 : 0];
+    /// <summary>That gun has had a gunner tonight (a crew too small for a forward gunner never has, and nobody goes to it).</summary>
+    public bool GunHeard(bool forward) => _gunHeard[forward ? 1 : 0];
+    /// <summary>The walker gone to take that gun from a gunner who's dead or left behind (note 456): one a gun.</summary>
+    public int? GunRelief(bool forward) => _gunRelief[forward ? 1 : 0];
+    public void SetGunRelief(bool forward, int? playerId) => _gunRelief[forward ? 1 : 0] = playerId;
+    /// <summary>The walkers who said they're free to bring the powder (note 377): the ones free for other work too.</summary>
+    public IReadOnlyCollection<int> Feeders => _feeders;
+
     /// <summary>
     /// A bot says whether it's one to breach a Holdout (a walker or the gunner, alive): the driver leaves the breach to them,
     /// and goes itself only with none of them left (note 259). Instant, like the claims: it's who goes where.
@@ -2331,9 +2357,18 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             if (!heavy && open && _setDown is int put && world.Bodies.All.FirstOrDefault(b => b.Id == put && b.Carrier < 0) is { } setDown
                 && (Physics.Bodies.WorldCentre(setDown, train) - PlayerMotor.WorldPosition(self, train)).Length < 2.5)
             {
-                var lies = Physics.Bodies.WorldCentre(setDown, train);
-                var standing = PlayerMotor.WorldPosition(self, train);
-                double toward = DMath.Atan2(-(lies.X - standing.X), -(lies.Z - standing.Z));
+                // In the car's frame, as the hands' yaw is: a world heading turned them away from it wherever the car didn't
+                // point up world −Z (note 473's higher jump moved one night's timing onto that, and onto the door below).
+                var lies = frame.ToLocal(Physics.Bodies.WorldCentre(setDown, train));
+                var to = new Double3(lies.X - self.Position.X, 0, lies.Z - self.Position.Z);
+                double toward = DMath.Atan2(-to.X, -to.Z);
+                // Still at the door, Use works the door before it reaches the find (CrewActions first, Bodies.Hands); and a find
+                // set down on the steps is a step down from the landing: over to stand with the hands above it first.
+                if (to.Length > 0.8 || CrewActions.Nearest(self, train) is not null)
+                {
+                    var shortOf = self.Position + to * Math.Max(0, 1 - 0.6 / Math.Max(to.Length, 1e-6));
+                    return Walk(self, shortOf with { Y = layout.FloorHeight }, toward, "picking the find up again");
+                }
                 if (!Aligned(self, toward))
                     return new PlayerIntent { LookYaw = Turn(self, toward) };
                 Doing = "picking the find up again";

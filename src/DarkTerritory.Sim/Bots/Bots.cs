@@ -42,7 +42,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public StopHand? Job => _legs.Job;
     bool _holding;
     // Off the gun, it gets about like anyone else on the roofs, goes in to get warm like them, and works stops like them.
-    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
+    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false, Gunner = true }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
     /// <summary>The crew's calls (note 377: who brings the powder), passed to its legs.</summary>
@@ -75,6 +75,10 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     }
 
     bool _atGun;
+    double _offFor;
+
+    /// <summary>Off the train at speed this long, it's left behind and its gun's up for a walker (note 456).</summary>
+    const double LeftBehindSeconds = 5;
 
     PlayerIntent Gun(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
@@ -83,8 +87,14 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         if (!self.Alive)
         {
             _legs.Work(self, world); // the dead still say so, or the driver waits all night for them to get aboard
+            Calls?.Gunning(Me, Forward, false); // and its gun's up for a walker (note 456)
             return default;
         }
+        // Note 456: at its post while it's aboard (or the train's slow enough to catch); left behind, its gun's a walker's.
+        // Off the train a few seconds, not a jump's: mid-jump between two roofs it's in the air, off every car.
+        bool aboard = self.Parent >= 0 || SpeedBands.CanBeCaughtOnFoot(world.Train.Dynamics.Tuning, world.Train.Dynamics.Speed);
+        _offFor = aboard ? 0 : _offFor + SimConstants.TickSeconds;
+        Calls?.Gunning(Me, Forward, _offFor < LeftBehindSeconds);
         // A tunnel's mouth ahead: at the gun it's down behind the shield; anywhere else on the roofs, off them.
         // Trouble in a car: off the gun for it only while there's nothing at the back to shoot (hounds out).
         // From the first howl (the telegraph): back to the gun, it's a long walk from the front cars and the pack's closing.
@@ -485,6 +495,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>Whether it brings the guns their powder (note 377): a walker does; a gunner's legs don't (its own run is the gunner's).</summary>
     public bool Feeds { get; set; } = true;
+    /// <summary>A gunner's legs (<see cref="GunnerBot"/>): a gun saved onto the car ahead of a held car (T103) is still its post.</summary>
+    public bool Gunner { get; init; }
 
     /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
     public bool Relieving { get; private set; }
@@ -557,6 +569,90 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         if (forward)
             Head(-1);
         return null;
+    }
+
+    GunnerBot? _manning;
+
+    /// <summary>At a gun in its gunner's place (note 456, for tests and the harness): the engine's with true, the guard gun's with false.</summary>
+    public bool? Manning => _manning?.Forward;
+
+    /// <summary>
+    /// Note 456 (#183's seed 2 on main: the guard gunner Devoured, and its gun stood unmanned for the rest of the night): a
+    /// gun whose gunner the crew has heard at it tonight, and now has none (dead, or left behind on the ballast), with a run
+    /// coming in or due (the train at the run's speed), is taken by the nearest free walker, the relief driver's way (note
+    /// 399): one a gun, claimed on the crew's calls, and never the last free hand (one at a fire or a pack aboard isn't free).
+    /// At the gun it's a <see cref="GunnerBot"/> in the gunner's place, until it dies or the gunner's back at its post.
+    /// </summary>
+    PlayerIntent? ManGun(in PlayerState self, World world, uint tick, bool free, out PlayerState aimed)
+    {
+        aimed = self;
+        if (Calls is not { } calls || Me < 0 || !Feeds || world.Combat is not { } combat)
+            return null;
+        var train = world.Train;
+        if (_manning is { } gunner)
+        {
+            bool f = gunner.Forward;
+            if (self.Alive && (calls.Gunner(f) is not { } at || at == Me))
+            {
+                if (GunCar(train, f) is not null)
+                {
+                    (gunner.Me, gunner.Calls, gunner.Crew) = (Me, calls, Crew);
+                    return gunner.Decide(self, world, tick, out aimed);
+                }
+            }
+            // Dead, the gun's gone, or its own gunner's back at it: a walker again (up out of the seat first).
+            if (calls.GunRelief(f) == Me)
+                calls.SetGunRelief(f, null);
+            calls.Gunning(Me, f, false);
+            _manning = null;
+            return self.Alive && self.Has(PlayerFlags.Seated) ? new PlayerIntent { Buttons = PlayerButtons.Jump } : null;
+        }
+        if (!free || !self.Alive || self.Parent < 0)
+            return null;
+        bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        if (!due)
+            return null;
+        foreach (bool f in (ReadOnlySpan<bool>)[false, true])
+        {
+            if (!calls.GunHeard(f) || calls.Gunner(f) is not null || GunCar(train, f) is not { } car)
+                continue;
+            if (calls.GunRelief(f) is { } other && other != Me && Crew.Any(c => c.Id == other && c.State.Alive))
+                continue;
+            var others = calls.Feeders.Where(id => id != Me).ToList();
+            if (others.Count == 0 || !Nearest(self, train, car, others))
+                continue;
+            calls.SetGunRelief(f, Me);
+            _manning = new GunnerBot(combat.Guns, combat.Choir, seed, cold, job) { Forward = f, Me = Me, Calls = calls, Crew = Crew };
+            return _manning.Decide(self, world, tick, out aimed);
+        }
+        return null;
+    }
+
+    /// <summary>The car with that gun: the engine's (forward), or the guard gun's, the rearmost with one.</summary>
+    static int? GunCar(TrainOnLine train, bool forward)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        if (forward)
+            return train.Vehicles[rake[0].Id].HasGun ? rake[0].Id : null;
+        for (int i = rake.Count - 1; i > 0; i--)
+            if (train.Vehicles[rake[i].Id].HasGun)
+                return rake[i].Id;
+        return null;
+    }
+
+    /// <summary>Whether it's nearer the gun's car (by cars along the train; the lower id on a tie) than every other free hand.</summary>
+    bool Nearest(in PlayerState self, TrainOnLine train, int car, List<int> others)
+    {
+        var rake = train.Dynamics.Consist.Vehicles;
+        int Place(int parent) => Enumerable.Range(0, rake.Count).FirstOrDefault(i => rake[i].Id == parent, -1);
+        int gun = Place(car);
+        int Cars(in PlayerState s) => s.Parent >= 0 && Place(s.Parent) is var p and >= 0 ? Math.Abs(p - gun) : int.MaxValue;
+        int mine = Cars(self);
+        foreach (int o in others)
+            if (Crew.FirstOrDefault(c => c.Id == o) is { State.Alive: true } c && (Cars(c.State) < mine || Cars(c.State) == mine && o < Me))
+                return false;
+        return true;
     }
 
     uint _workedTick = uint.MaxValue;
@@ -1097,6 +1193,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             Calls?.CanFeed(Me, false);
             return Decide(self, world.Train, tick);
         }
+        // Note 456: at a gun whose gunner's dead or left behind, it's the gunner now (its own look and legs).
+        if (_manning is not null && ManGun(self, world, tick, false, out aimed) is { } gunning)
+        {
+            Calls?.CanFeed(Me, false);
+            return gunning;
+        }
         if (!_looked)
             Look(world, self);
         _looked = false;
@@ -1105,6 +1207,12 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         // Already on a run, its way out of a car (the warm-up's way out) is the run's.
         bool free = Feeds && self.Alive && _trouble is null && _warm is not { Shelter: true } && !(_warm?.Chilled(self) ?? false)
             && !(_warm is { Active: true } && _catchCar is null && !_feedRun);
+        // Note 456: free, and the nearest free hand to a gun nobody's at with a run coming or due: to the gun.
+        if (free && ManGun(self, world, tick, true, out aimed) is { } manning)
+        {
+            Calls?.CanFeed(Me, false);
+            return manning;
+        }
         Calls?.CanFeed(Me, free);
         // The look-out on an insisted night (note 212): a Dragger to meet keeps it out on the roofs, not in for a bag.
         if (Errand is { KeepOut: true } && _trouble is null && _warm is not null)
@@ -1182,7 +1290,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // The Car Hugger on a car with no platform to club it from: off that car and the one ahead of it, toward the engine,
             // clear of its mouth. It may take the car.
             int mine = train.Dynamics.Consist.IndexOf(parent);
-            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0 && mine >= held - 1))
+            // A gunner's gun saved onto the car ahead (T103) is its post again (note 447): it may go back along that car to it.
+            // At 1.2 m a jump off the held car lands it past the gun's seat, and this sent it on up the train, back over the gap
+            // for the gun and up again, all night (note 473).
+            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
+                    && (mine >= held || mine == held - 1 && !(Gunner && train.Vehicles[parent].HasGun))))
                 _direction = -1;
             // A hot axle box (note 331) or a loose coupling (note 356): to its car, down its end ladder into the gap behind it,
             // and grease it or tighten it.
@@ -1553,11 +1665,20 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         var train = world.Train;
         if (!self.Alive || self.Parent == PlayerState.World || self.Health < Heed.PackFightHealth)
             return null;
+        var consist = train.Dynamics.Consist;
         foreach (var e in world.ActiveEnemies)
             if (e is CarHugger { Latched: true } hugger && hugger.Attached is var car && car > 0 && train.VehicleAhead(car) > 0
-                && world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached == car)
+                && world.ActiveEnemies.Any(h => h is CinderHound { Gone: false } hound && hound.Attached >= 0 && hound.Home == car)
                 && !Crew.Any(c => c.State.Alive && c.State.Parent == car))
-                return car;
+            {
+                // Cut ahead of the front of the pack's ground (note 472: they patrol a car ahead of the one they boarded).
+                int cut = car;
+                foreach (var h in world.ActiveEnemies.OfType<CinderHound>())
+                    if (!h.Gone && h.Attached >= 0 && h.Home == car && h.FrontCar(train, world.Enemies!.CinderHounds) is var hf
+                        && consist.IndexOf(hf) is var i && i > 1 && i < consist.IndexOf(cut))
+                        cut = hf;
+                return cut;
+            }
         return null;
     }
 
@@ -1828,15 +1949,18 @@ public sealed class ConductorBot(CrewCalls? calls = null, int member = 0) : IWor
         }
         var consist = train.Dynamics.Consist;
         int front = -1;
+        // Ahead of the front of the pack's ground, not of where its patrol has it now (note 472): the cut holds as they roam.
         foreach (var h in world.ActiveEnemies.OfType<CinderHound>())
-            if (!h.Gone && h.Attached > 0 && consist.IndexOf(h.Attached) is var i && i > 1 && (front < 0 || i < consist.IndexOf(front)))
-                front = h.Attached;
+            if (!h.Gone && h.Attached > 0 && h.FrontCar(train, world.Enemies.CinderHounds) is var hf && consist.IndexOf(hf) is var i && i > 1
+                && (front < 0 || i < consist.IndexOf(front)))
+                front = hf;
         var hold = new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         _aloneHand ??= new StopHand(StopJob.None, calls, member);
         if (_outToCut)
         {
             // Still on the train with the hounds aboard: on to the cut. Done (or they're gone): back up into the cab.
-            if (_cutCar >= 0 && consist.IndexOf(_cutCar) > 1 && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached == _cutCar)
+            if (_cutCar >= 0 && consist.IndexOf(_cutCar) > 1 && world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached > 0
+                    && consist.IndexOf(h.Attached) >= consist.IndexOf(_cutCar))
                 && _aloneHand.CutLoose(self, world, train.VehicleAhead(_cutCar)) is { } cutting)
                 return cutting with { Buttons = cutting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
             if (_aloneHand.SetBackAlone(self, world, null) is { } back)

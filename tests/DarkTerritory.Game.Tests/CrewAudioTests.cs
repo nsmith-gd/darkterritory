@@ -514,6 +514,79 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void TheExtinguishersJetIsHeardOnTheFireItsCellsGoingOutAndTheFireOut()
+    {
+        // Note 469 (the director, 8 Oct: holding it on a fire "doesnt feel like its doing anything"): where the jet meets the
+        // flames, off the fire's cells as a client has them and the sprayer's aim as the host's Spraying finds it. The jet on
+        // a burning cell is heard there; a cell knocked out under it once; the fire out once; and a fire's cell burning out
+        // with no jet on it is the fire's own, and quiet.
+        var b = new Bench("crew-extinguisher.spray-start", "crew-extinguisher.cell-out", "crew-extinguisher.fire-out");
+        b.Audio.Bank.Add("crew-extinguisher.on-fire", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.Audio.Bank.Add("crew-extinguisher.spray", new SoundDef(4, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 64));
+        b.World.EnableBodies();
+        // A client's night with creatures: the fire's tuning as the host has it (enemies.json: its sprayReach, its cells).
+        var enemies = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(Content, Sim.Enemies.EnemyTuning.File));
+        b.World.EnableEnemies(enemies, null, 1, 1, authority: false);
+        int car = 2;
+        var t = enemies.CarFire;
+        var room = b.Train.Frames[car].Shape.Interior!.Value;
+        var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        int cell = grid.FloorAt(fire.Local), other = grid.Next[cell][0];
+        var heat = new double[grid.Count];
+        heat[cell] = heat[other] = 0.8;
+        heat[grid.Next[other].First(j => j != cell)] = 0.5;
+        fire.RestoreHeat((double[])heat.Clone());
+        b.World.MirrorEnemies([fire]);
+        var ext = b.World.Bodies.SpawnCrate(b.Train, car, new Double3(room.Centre.X, room.Min.Y + 1, grid.Centre[cell].Z - 2), Sim.Physics.BodyKind.Extinguisher);
+        ext.Carrier = 1;
+        var at = grid.Centre[cell];
+        var s = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2), Surface = Surface.Deck, Health = P.Health };
+        PlayerState Aim(Double3 to)
+        {
+            var d = to - (s.Position + Double3.Up * b.Train.Dynamics.Tuning.Pick.EyeHeight);
+            return s with { Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Atan2(d.Y, Math.Sqrt(d.X * d.X + d.Z * d.Z)) };
+        }
+        void Step(PlayerState who, int ticks = 1, bool spray = true)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                if (spray)
+                    ext.Charge = Math.Max(0.05, ext.Charge - 0.005);
+                b.Step((1, who));
+            }
+        }
+        bool OnFire() => b.Audio.Mixer.Voices.Any(v => v.Name == "crew-extinguisher.on-fire" && !v.Finished);
+        // Not sprayed: a cell burning out on its own goes quietly.
+        Step(Aim(at), 3, spray: false);
+        heat[grid.Next[other].First(j => j != cell)] = 0;
+        fire.RestoreHeat((double[])heat.Clone());
+        Step(Aim(at), 3, spray: false);
+        Assert.Equal(0, b.Count("crew-extinguisher.cell-out"));
+        Assert.False(OnFire());
+        // The jet on the burning cell: heard where it lands.
+        Step(Aim(at), 10);
+        Assert.True(OnFire());
+        var jet = b.Audio.Mixer.Voices.First(v => v.Name == "crew-extinguisher.on-fire" && !v.Finished);
+        Assert.True((jet.Position - b.Train.Frames[car].ToWorld(at)).Length < 1e-6);
+        // Knocked out under it: once, there; and the jet on a cell that's out sizzles on nothing.
+        heat[cell] = 0;
+        fire.RestoreHeat((double[])heat.Clone());
+        Step(Aim(at), 10);
+        Assert.Equal(1, b.Count("crew-extinguisher.cell-out"));
+        Assert.True((b.Heard.Single(h => h.Name == "crew-extinguisher.cell-out").At - b.Train.Frames[car].ToWorld(at)).Length < 1e-6);
+        Assert.False(OnFire());
+        // On to the last cell and out: the fire's gone the tick its last cell is (CarFire.Out), and heard out once.
+        Step(Aim(grid.Centre[other]), 10);
+        Assert.True(OnFire());
+        b.World.MirrorEnemies([]);
+        Step(Aim(grid.Centre[other]), 10);
+        Assert.Equal(1, b.Count("crew-extinguisher.fire-out"));
+        Assert.Equal(1, b.Count("crew-extinguisher.cell-out"));
+        Assert.False(OnFire());
+    }
+
+    [Fact]
     public void LivestockAreStartledByAHardJoltAndNotAgainStraightAway()
     {
         var b = new Bench("crew-mishaps.startle-cattle", "crew-mishaps.startle-pigs", "crew-mishaps.startle-sheep");
