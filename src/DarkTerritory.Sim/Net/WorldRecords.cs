@@ -548,37 +548,7 @@ public static class WorldRecords
     static Enemy ToEnemy(in WireRecord r)
     {
         var f = r.Fields;
-        Enemy e = (EnemyKind)f[0] switch
-        {
-            EnemyKind.Sleepers => new Sleepers(r.Id),
-            EnemyKind.CinderHound => new CinderHound(r.Id, (int)D(f[11], 1e3)),
-            EnemyKind.Switchman => new Switchman(r.Id),
-            EnemyKind.SootChildren => new SootChildren(r.Id),
-            EnemyKind.Dragger => new Dragger(r.Id),
-            EnemyKind.Stoker => new Stoker(r.Id),
-            EnemyKind.CarFire => new CarFire(r.Id),
-            EnemyKind.Climber => new Climber(r.Id),
-            EnemyKind.Gaunt => new Gaunt(r.Id),
-            EnemyKind.Passenger => new Passenger(r.Id),
-            EnemyKind.Follower => new Follower(r.Id),
-            EnemyKind.Drift => new Drift(r.Id),
-            EnemyKind.TrackDoll => new TrackDoll(r.Id),
-            EnemyKind.CarHugger => new CarHugger(r.Id),
-            EnemyKind.Whistler => new Whistler(r.Id),
-            EnemyKind.TippyToesie => new TippyToesie(r.Id),
-            EnemyKind.FireFlies => new FireFlies(r.Id),
-            EnemyKind.Ribbit => new Ribbit(r.Id, 0),
-            EnemyKind.Grumbler => new Grumbler(r.Id),
-            EnemyKind.Moose => new Moose(r.Id),
-            EnemyKind.Gannet => new Gannet(r.Id),
-            EnemyKind.Mourners => new Mourner(r.Id),
-            EnemyKind.TowerJaw => new TowerJaw(r.Id),
-            EnemyKind.FreightBeetle => new FreightBeetle(r.Id),
-            EnemyKind.Brakeman => new Brakeman(r.Id),
-            EnemyKind.Hotbox => new Hotbox(r.Id),
-            EnemyKind.Knotter => new Knotter(r.Id),
-            _ => new ChoirGhost(r.Id),
-        };
+        var e = Enemy.Blank((EnemyKind)f[0], r.Id, D(f[11], 1e3));
 
         e.Restore((SpinePhase)f[1], D(f[2], 1e3), D(f[3], 1e3), (int)f[4], new Double3(D(f[5], Pos), D(f[6], Pos), D(f[7], Pos)),
             D(f[8], Pos), D(f[9], Pos), D(f[10], Pos), D(f[11], 1e3), D(f[12], 1e3),

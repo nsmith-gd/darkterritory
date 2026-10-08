@@ -854,6 +854,18 @@ public sealed partial class GreyboxScene
     // The Cinder Hounds on the line scattered by a ball or driven off since (with the tick, and how fast they were running
     // along the line then): the sim has one gone the tick it breaks off.
     readonly Dictionary<int, (Enemy Body, uint Tick, double Speed)> _fleeing = new();
+    // The rest let go of in sight since, not killed (note 458): a copy as it was last seen, the tick, how fast it was going
+    // along the line then (the train's, aboard or pacing it), and where it set off from in the world (on its first frame).
+    readonly Dictionary<int, Retreat> _retreating = new();
+    sealed class Retreat(Enemy body, uint tick, double speed)
+    {
+        public Enemy Body { get; } = body;
+        public uint Tick { get; } = tick;
+        public double Speed { get; } = speed;
+        public Double3? From;
+        public Double3 Along, Out;
+        public double Hint;
+    }
     readonly List<(string Beat, Enemy Body)> _newBeats = new();
 
     /// <summary>What began in the last <see cref="Remember"/>, each as it was last seen: "killed", "dispersed" (a Choir
@@ -876,6 +888,7 @@ public sealed partial class GreyboxScene
         Vanishing(mesh, line, frames, eye, from, to);
         Riding(mesh, line, frames, eye, from, to);
         Fleeing(mesh, line, frames, eye, from, to);
+        Retreating(mesh, line, frames, eye, from, to);
         if (_dying.Count == 0)
             return;
         var fx = Look?.Art.Effects;
@@ -944,6 +957,19 @@ public sealed partial class GreyboxScene
             {
                 _fleeing[id] = (was, (uint)Tick, Math.Max(0, _speed));
                 _newBeats.Add(("scattered", was));
+            }
+        // The rest let go of, not killed (note 458): a Climber outnumbered or giving up, a Whistler found in its gap, a pack
+        // that's eaten, the Gaunt going with its loot, a Switchman at the lever, a hound aboard over the side. The sim has
+        // them gone the tick it's done with them; they're seen going.
+        foreach (var (id, was) in _seen)
+            if (Art.CreatureArt.Retreat(was.Kind) is not null && !(was.Kind == EnemyKind.CinderHound && was.Attached < 0)
+                && !(was.Kind == EnemyKind.CarHugger) && !_dying.ContainsKey(id) && !_retreating.ContainsKey(id)
+                && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
+            {
+                var copy = Enemy.Blank(was.Kind, id, was.Extra);
+                copy.Restore(SpinePhase.BreakOff, 0, was.Health, was.Attached, was.Local, was.LineDistance, was.Lateral, was.Height, was.Extra, was.Extra2);
+                _retreating[id] = new Retreat(copy, (uint)Tick, was.Attached >= 0 || was.Kind == EnemyKind.Climber ? Math.Max(0, _speed) : 0);
+                _newBeats.Add(("retreated", was));
             }
         _seen.Clear();
         foreach (var e in Enemies ?? [])
@@ -1080,6 +1106,78 @@ public sealed partial class GreyboxScene
             hound.Restore(SpinePhase.BreakOff, age, body.Health, -1, body.Local, along, lateral, body.Height, body.Extra, body.Extra2);
             DrawEnemy(mesh, line, frames, hound, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, turn)));
         }
+    }
+
+    /// <summary>
+    /// The ones let go of in sight going (note 458; <see cref="Art.CreatureArt.Retreat"/>): from where each was last seen, down
+    /// to the ground under it if it was up on a car, falling behind as the train it was going with runs on (pulling up along
+    /// the line), and out from the line on its own side, turned away from the train, in its break-off; then lost in the dark.
+    /// </summary>
+    void Retreating(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye, double from, double to)
+    {
+        foreach (var (id, r) in _retreating.ToArray())
+        {
+            double age = (Tick - r.Tick) * Sim.SimConstants.TickSeconds;
+            if (Art.CreatureArt.Retreat(r.Body.Kind) is not { } go || age > go.Seconds || age < 0 || _seen.ContainsKey(id))
+            {
+                _retreating.Remove(id);
+                continue;
+            }
+            if (r.From is null)
+            {
+                // Where it was, in the world: on its car, on the line beside it, or stood loose.
+                var b = r.Body;
+                Double3 at;
+                if (b.Attached >= 0 && b.Attached < frames.Count)
+                    at = frames[b.Attached].ToWorld(b.Local);
+                else if (b.Attached == Enemy.Loose)
+                    at = b.Local;
+                else
+                {
+                    var s = line.Sample(b.LineDistance);
+                    at = s.Position + Double3.Cross(s.Tangent, Double3.Up).Normalized * b.Lateral + Double3.Up * b.Height;
+                }
+                double hint = b.LineDistance;
+                var (path, d) = line.Nearest(at, ref hint);
+                var near = line.Sample(path, d);
+                r.Hint = hint;
+                r.From = at;
+                r.Along = (near.Tangent with { Y = 0 }).Normalized;
+                var off = (at - near.Position) with { Y = 0 };
+                var side = Double3.Cross(near.Tangent, Double3.Up).Normalized;
+                r.Out = Double3.Dot(off, side) >= 0 ? side : side * -1;
+            }
+            var (along, outward) = Away(r.Speed, go.Out, age);
+            var p = r.From.Value + r.Along * along + r.Out * outward;
+            double h = r.Hint;
+            double ground = Sim.Player.PlayerMotor.GroundAt(p, line, ref h);
+            // Down off whatever it was on (a roof, a car's floor, the gap's plate), as anything dropped falls.
+            double y = Math.Max(ground, r.From.Value.Y - 0.5 * 9.81 * age * age);
+            var copy = Enemy.Blank(r.Body.Kind, id, r.Body.Extra);
+            copy.Restore(SpinePhase.BreakOff, age, r.Body.Health, Enemy.Loose, p with { Y = y }, r.Body.LineDistance, r.Body.Lateral, 0, r.Body.Extra, r.Body.Extra2);
+            // Loose, it's drawn facing the nearest car: turned about, it faces away, the way it's going.
+            DrawEnemy(mesh, line, frames, copy, eye, from, to, Look?.Art.Creatures, flinch: (Vector3.Zero, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
+        }
+    }
+
+    // One let go of going: how hard it pulls up along the line (m/s²), from the speed it was going with the train.
+    const double AwaySlowing = 7;
+
+    /// <summary>How far one let go of <paramref name="age"/> s ago has gone along the line (going at <paramref name="speed"/>
+    /// with the train, pulling up at <see cref="AwaySlowing"/>) and out from it (at <paramref name="outSpeed"/>).</summary>
+    internal static (double Along, double Out) Away(double speed, double outSpeed, double age)
+    {
+        double run = Math.Min(age, speed / AwaySlowing);
+        return (speed * run - 0.5 * AwaySlowing * run * run, outSpeed * age);
+    }
+
+    /// <summary>Staged (<c>dt screenshot --retreat kind:s</c>): <paramref name="e"/> let go of at <paramref name="tick"/>, going
+    /// with the train at <paramref name="speed"/> (it's not in <see cref="Enemies"/> any more).</summary>
+    public void Retreated(Enemy e, uint tick, double speed)
+    {
+        var copy = Enemy.Blank(e.Kind, e.Id, e.Extra);
+        copy.Restore(SpinePhase.BreakOff, 0, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        _retreating[e.Id] = new Retreat(copy, tick, speed);
     }
 
     // A scattered hound running off: how hard it pulls up along the line (m/s²) and how fast it goes out across it (m/s).
@@ -2996,15 +3094,20 @@ public sealed partial class GreyboxScene
         }
     }
 
-    /// <summary>An open house in the world: its frame's origin on its floor, its axes, its parts, and its light.</summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id);
+    /// <summary>
+    /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
+    /// stand over that floor (an open barn's or shed's eaves, note 462).
+    /// </summary>
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f);
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
     /// <summary>
     /// Inside the open houses (the director, 8 Oct: "some lighting inside, dim to keep it scary"): each part an enclosed space
     /// (Room), so the moon and the sky stay out, and its one light, a candle guttering or a lamp turned down
-    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. Only the houses near the eye.
+    /// (TownKit.HouseLight), the only light in there but a crewmate's lamp. An open barn, outbuilding or goods shed (note
+    /// 417) is a Room too, up to its eaves (queue #198, note 462), with no light of its own: bring a lamp; and so is a yard's
+    /// walk-in shed or strongroom, along its roofed lengths (queue #201, note 465). Only the houses near the eye.
     /// </summary>
     void HouseInteriors(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Double3 eye)
     {
@@ -3018,6 +3121,25 @@ public sealed partial class GreyboxScene
                 for (int i = 0; i < stop.Buildings.Count; i++)
                 {
                     var b = stop.Buildings[i];
+                    // An open barn or shed (note 462), or a yard's walk-in shed or its strongroom (note 465): its walls from the
+                    // frame (0.15 m under the ground at its middle, as WorldArt stands it) to its eaves, no light of its own. A
+                    // yard shed is a room along each roofed length (a gantry's cut through it is the open air, the sky over the
+                    // castings). Not one a Holdout's in: that's the Holdout's shell.
+                    bool yard = b.Kind is Sim.Stops.BuildingKind.Shed or Sim.Stops.BuildingKind.Hero;
+                    if ((yard || Sim.Run.StopWalls.OpenShed(b)) && Sim.Run.StopWalls.Shelled(stop, i) && stop.Holdouts.All(h => h.Building != i))
+                    {
+                        double frame = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15).Y;
+                        Double3 On(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = frame };
+                        var origin = On(0, 0);
+                        IReadOnlyList<Sim.Stops.FootprintPart> lengths = yard
+                            ? [.. Sim.Run.StopWalls.Roofed(stop, i).Select(r => new Sim.Stops.FootprintPart((r.Lo + r.Hi) / 2, 0, r.Hi - r.Lo, b.Width))]
+                            : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                        if (lengths.Count == 0)
+                            continue;
+                        houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind)));
+                        continue;
+                    }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
                         continue;
                     // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
@@ -3036,10 +3158,11 @@ public sealed partial class GreyboxScene
             _openHouses = cached = (route, line, houses);
         }
         const double Near = 40;
-        const float WallHeight = 3.0f;
         foreach (var h in cached.Houses)
         {
-            if ((h.Origin - eye).Length > Near)
+            float wallHeight = h.Height;
+            // (Near its walls, not its middle: a long yard shed is walked into at an end.)
+            if ((h.Origin - eye).Length > Near + h.Parts.Max(p => Math.Abs(p.X) + p.Length / 2))
                 continue;
             var right = ToF(h.X);
             var back = ToF(h.Y);
@@ -3048,8 +3171,8 @@ public sealed partial class GreyboxScene
                 back = -back;
             foreach (var part in h.Parts)
             {
-                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (WallHeight / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, WallHeight / 2, (float)part.Width / 2)));
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (wallHeight / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, wallHeight / 2, (float)part.Width / 2)));
             }
             // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
             if (h.Light is not { } light)

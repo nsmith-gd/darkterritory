@@ -139,6 +139,27 @@ public sealed partial class CreatureArt
     /// <summary>How long a scattered Cinder Hound is seen running off before it's lost in the dark (s; note 451).</summary>
     public const double HoundRunOffSeconds = 4.0;
 
+    /// <summary>
+    /// How the ones the sim lets go of in sight are seen going (GreyboxScene.Retreating, note 458): off the train or the
+    /// ground they stood on, out from the line at <c>Out</c> m/s, facing away, for <c>Seconds</c>; then lost in the dark.
+    /// Null: one that isn't drawn going this way (killed ones fall, the Choir disperses, the Track Doll flickers, the Car
+    /// Hugger rides its car away, a hound on the line runs off; the rest aren't seen go, or have no body to see).
+    /// </summary>
+    public static (double Out, double Seconds)? Retreat(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Climber => (5.0, 3.0),        // outnumbered, held off, or given up on a fast train: down off it and away
+        EnemyKind.Whistler => (8.0, 2.0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
+        EnemyKind.Ribbit => (4.0, 3.0),         // the pack's eaten: off in hops
+        EnemyKind.Gaunt => (1.5, 6.0),          // its loot taken or talked down: on walking, out past its 30 m
+        EnemyKind.Switchman => (4.0, 3.0),      // the points thrown back, or the train gone by: off from the lever
+        EnemyKind.TippyToesie => (5.0, 2.5),
+        EnemyKind.SootChildren => (3.0, 3.0),
+        EnemyKind.Passenger => (3.0, 3.0),      // unmasked, off the back of the train
+        EnemyKind.Follower => (4.0, 3.0),
+        EnemyKind.CinderHound => (6.0, 3.0),    // one aboard (its car cut, or its kill made): over the side and away
+        _ => null,
+    };
+
     // "Giant toad-rabbits" (GDD §21): the model's a big dog's size, drawn this much bigger (its head at a crewmate's waist).
     const float RibbitScale = 1.4f;
 

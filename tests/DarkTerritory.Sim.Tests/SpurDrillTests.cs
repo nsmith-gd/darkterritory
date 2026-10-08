@@ -12,7 +12,7 @@ public class SpurDrillTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
-    static readonly FacilityTuning F = DataFile.Load<FacilityTuning>(Path.Combine(DataFile.FindContentRoot(), FacilityTuning.File));
+    static readonly FacilityTuning F = FacilityTests.F;
 
     /// <summary>A night whose facility has a winch (a crew can load there), and that facility's index.</summary>
     static (Route.Route Route, int Facility) WinchStop()

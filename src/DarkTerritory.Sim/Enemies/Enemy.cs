@@ -191,6 +191,43 @@ public abstract class Enemy
     public double Extra { get; set; }
     public double Extra2 { get; set; }
 
+    /// <summary>
+    /// A new one of <paramref name="kind"/> with <paramref name="id"/>, to be <see cref="Restore"/>d: the snapshot's, and the
+    /// scene's copies of what it's still drawing after the sim's done with it (note 458). <paramref name="extra"/> is its
+    /// <see cref="Extra"/>, which a Cinder Hound is built from (its pack).
+    /// </summary>
+    public static Enemy Blank(EnemyKind kind, int id, double extra = 0) => kind switch
+    {
+        EnemyKind.Sleepers => new Sleepers(id),
+        EnemyKind.CinderHound => new CinderHound(id, (int)extra),
+        EnemyKind.Switchman => new Switchman(id),
+        EnemyKind.SootChildren => new SootChildren(id),
+        EnemyKind.Dragger => new Dragger(id),
+        EnemyKind.Stoker => new Stoker(id),
+        EnemyKind.CarFire => new CarFire(id),
+        EnemyKind.Climber => new Climber(id),
+        EnemyKind.Gaunt => new Gaunt(id),
+        EnemyKind.Passenger => new Passenger(id),
+        EnemyKind.Follower => new Follower(id),
+        EnemyKind.Drift => new Drift(id),
+        EnemyKind.TrackDoll => new TrackDoll(id),
+        EnemyKind.CarHugger => new CarHugger(id),
+        EnemyKind.Whistler => new Whistler(id),
+        EnemyKind.TippyToesie => new TippyToesie(id),
+        EnemyKind.FireFlies => new FireFlies(id),
+        EnemyKind.Ribbit => new Ribbit(id, 0),
+        EnemyKind.Grumbler => new Grumbler(id),
+        EnemyKind.Moose => new Moose(id),
+        EnemyKind.Gannet => new Gannet(id),
+        EnemyKind.Mourners => new Mourner(id),
+        EnemyKind.TowerJaw => new TowerJaw(id),
+        EnemyKind.FreightBeetle => new FreightBeetle(id),
+        EnemyKind.Brakeman => new Brakeman(id),
+        EnemyKind.Hotbox => new Hotbox(id),
+        EnemyKind.Knotter => new Knotter(id),
+        _ => new ChoirGhost(id),
+    };
+
     public Double3 WorldPosition(TrainOnLine train)
     {
         if (Attached >= 0)

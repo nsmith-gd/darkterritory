@@ -214,6 +214,14 @@ public sealed class PowderRun(GunTuning guns)
                 Step = "onto the engine";
                 return ReliefDriver.OntoTheEngine(self, train);
             }
+            // Note 447: along the roofs to it, the gaps jumped, by the run's own walk. The legs' walk turns round short of the
+            // last car (it's the rear's), and a guard gunner back up with a charge went to and fro between cars 8 and 9 for
+            // minutes, its gun on car 10 dry.
+            if (self.Surface == Surface.Roof && self.Parent > 0)
+            {
+                Step = "along";
+                return StopHand.AlongRoofs(self, train, train.Dynamics.Consist.IndexOf(gunCar) < train.Dynamics.Consist.IndexOf(self.Parent) ? -1 : 1, jumpGaps: true);
+            }
             if (self.Surface == Surface.Roof)
                 head(train.Dynamics.Consist.IndexOf(gunCar) < train.Dynamics.Consist.IndexOf(self.Parent) ? -1 : 1);
             Step = "along";
@@ -249,6 +257,11 @@ public sealed class PowderRun(GunTuning guns)
         {
             Step = "off the engine";
             return off;
+        }
+        if (self.Surface == Surface.Roof && self.Parent > 0)
+        {
+            Step = "along";
+            return StopHand.AlongRoofs(self, train, train.Dynamics.Consist.IndexOf(lockerCar) < train.Dynamics.Consist.IndexOf(self.Parent) ? -1 : 1, jumpGaps: true);
         }
         if (self.Surface == Surface.Roof)
             head(train.Dynamics.Consist.IndexOf(lockerCar) < train.Dynamics.Consist.IndexOf(self.Parent) ? -1 : 1);

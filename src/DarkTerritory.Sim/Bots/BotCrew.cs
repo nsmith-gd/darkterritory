@@ -110,7 +110,10 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
         intent = Heed.Coupling(intent, session.Predicted, session.World);
-        intent = Heed.Rescue(intent, session.Predicted, session.World, me);
+        // Note 463: not the driver at the controls of a moving train. Gone back along the hood for a walker grabbed on the
+        // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
+        if (!(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
+            intent = Heed.Rescue(intent, session.Predicted, session.World, me);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);
