@@ -3125,9 +3125,10 @@ public sealed class GreyboxScene
 
     /// <summary>
     /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
-    /// stand over that floor (an open barn's or shed's eaves, note 462).
+    /// stand over that floor (an open barn's or shed's eaves, note 462). Dark: a barn or shed the Gaunt roosts in, its lanterns
+    /// out (note 488).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false);
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -3169,8 +3170,11 @@ public sealed class GreyboxScene
                             : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
                         if (lengths.Count == 0)
                             continue;
+                        // The Gaunt's roost has no lantern lit, as its house would have no candle (TownKit.HouseLight): a dark
+                        // barn among lit ones is the tell (note 488).
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
-                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true));
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true,
+                            Dark: Sim.Run.StopWalls.Nest(stop, i) is not null));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -3212,8 +3216,8 @@ public sealed class GreyboxScene
                 mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
-                // A long yard shed has one each shedLanternSpacing along it.
-                if (h.Shed && lit.ShedLantern > 0)
+                // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
+                if (h.Shed && !h.Dark && lit.ShedLantern > 0)
                 {
                     int lanterns = Math.Max(1, (int)Math.Round(part.Length / Math.Max(1, lit.ShedLanternSpacing)));
                     for (int k = 0; k < lanterns; k++)
