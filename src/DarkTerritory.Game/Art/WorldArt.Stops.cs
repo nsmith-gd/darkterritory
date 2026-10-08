@@ -19,7 +19,7 @@ public sealed partial class WorldArt
     /// <summary>How far past a stop's zone its levelled ground eases back into the hills.</summary>
     const double FlatEase = 60;
     /// <summary>The clearance mask's cell (m): trees stay out of any cell a building, road or track comes near.</summary>
-    const double ClearCell = 6;
+    const double ClearCell = Sim.Run.LinesideProps.ClearCell;
 
     /// <summary>How levelled the ground is at <paramref name="s"/>: 1 across a stop's zone, easing out past its ends.</summary>
     public static float Flat(Route? route, double s)
@@ -51,61 +51,8 @@ public sealed partial class WorldArt
         return _clear.Contains(((long)Math.Floor(along / ClearCell), (long)Math.Floor(offset / ClearCell)));
     }
 
-    /// <summary>
-    /// The cells of every stop's ground: round each building, along each road and track, and the yard's whole throat
-    /// and the facility's own ground beyond its outermost track (where its modules and works stand, Site).
-    /// </summary>
-    static HashSet<(long, long)> Clearance(Route route)
-    {
-        var cells = new HashSet<(long, long)>();
-        void Disc(double s, double d, double r)
-        {
-            for (long i = (long)Math.Floor((s - r) / ClearCell); i <= (long)Math.Floor((s + r) / ClearCell); i++)
-                for (long j = (long)Math.Floor((d - r) / ClearCell); j <= (long)Math.Floor((d + r) / ClearCell); j++)
-                {
-                    double cs = (i + 0.5) * ClearCell, cd = (j + 0.5) * ClearCell;
-                    if (double.Hypot(cs - s, cd - d) <= r + ClearCell * 0.71)
-                        cells.Add((i, j));
-                }
-        }
-        void Line(double start, IReadOnlyList<Pt> points, double r)
-        {
-            for (int i = 0; i + 1 < points.Count; i++)
-            {
-                var a = points[i];
-                var b = points[i + 1];
-                int n = Math.Max(1, (int)Math.Ceiling(Pt.Distance(a, b) / 3));
-                for (int k = 0; k <= n; k++)
-                {
-                    var p = a + (b - a) * ((double)k / n);
-                    Disc(start + p.S, p.D, r);
-                }
-            }
-        }
-        foreach (var f in route.Features)
-        {
-            if (f.Stop is not { } stop)
-                continue;
-            foreach (var b in stop.Buildings)
-                Disc(f.Start + b.S, b.D, double.Hypot(b.Length, b.Width) / 2 + 4);
-            foreach (var road in stop.Roads)
-                Line(f.Start, road.Points, 5);
-            foreach (var track in stop.Tracks)
-                Line(f.Start, track.Path, 8);
-            if (stop.Tracks.Count > 0)
-            {
-                double s0 = stop.Tracks.Min(t => t.Toe) - 10, s1 = stop.Tracks.Max(t => t.FaceEnd.S) + 15;
-                var yard = stop.Tracks.Where(t => !t.Across).ToList();
-                double far = (yard.Count > 0 ? yard.Max(t => t.Offset) : 0) + 45;
-                for (double s = s0; s <= s1; s += ClearCell)
-                    for (double d = 0; d <= far; d += ClearCell)
-                        Disc(f.Start + s, stop.YardSide * d, 0);
-            }
-            if (stop.Halt is { } h)
-                Line(f.Start, [h - new Pt(stop.HaltLength / 2, 0), h + new Pt(stop.HaltLength / 2, 0)], 6);
-        }
-        return cells;
-    }
+    /// <summary>The cells of every stop's ground (the sim's, note 371: what its lineside keeps off too).</summary>
+    static HashSet<(long, long)> Clearance(Route route) => Sim.Run.LinesideProps.StopGround(route);
 
     /// <summary>
     /// Every stop building whose centre is in [<paramref name="from"/>, <paramref name="to"/>), each road stretch that

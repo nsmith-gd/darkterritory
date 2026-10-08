@@ -1559,10 +1559,50 @@
   "url": "/_blob/d81a1f71ec48a2440275eeee1f7f6012",
   "sha": "f45475e4f841a9cb"
  },
+ "previews/crew-powder--fill--iron.mp4": {
+  "id": "d536c74d904edec1102df88055aa43c3",
+  "url": "/_blob/d536c74d904edec1102df88055aa43c3",
+  "sha": "2c9e0720de21718e"
+ },
+ "previews/crew-powder--fill--wood.mp4": {
+  "id": "19428ef35c62c77afd05a01f8f17b8d3",
+  "url": "/_blob/19428ef35c62c77afd05a01f8f17b8d3",
+  "sha": "9a6ae4e97c2bdf75"
+ },
+ "previews/crew-powder--filled--bar.mp4": {
+  "id": "eec444ffa9c89105517e5f68e6a04136",
+  "url": "/_blob/eec444ffa9c89105517e5f68e6a04136",
+  "sha": "9efc76c325eb8d32"
+ },
+ "previews/crew-powder--filled--pin.mp4": {
+  "id": "ad50fd5986cb13e39b9d988c69a5b0a8",
+  "url": "/_blob/ad50fd5986cb13e39b9d988c69a5b0a8",
+  "sha": "e274393ebee5bbe3"
+ },
+ "previews/crew-powder--take--chest.mp4": {
+  "id": "e73846d38e65fbe57d6107122e0323da",
+  "url": "/_blob/e73846d38e65fbe57d6107122e0323da",
+  "sha": "29a899f4b9785c00"
+ },
+ "previews/crew-powder--take--heft.mp4": {
+  "id": "2753dec7a80a8e935d22e8331c3d688c",
+  "url": "/_blob/2753dec7a80a8e935d22e8331c3d688c",
+  "sha": "2cb9f003b9a42323"
+ },
  "previews/crew-repair--board-place--plank.mp4": {
   "id": "f7584ae01f915b1803541a9d2df108fe",
   "url": "/_blob/f7584ae01f915b1803541a9d2df108fe",
   "sha": "6ce78f9a6a090921"
+ },
+ "previews/crew-repair--dent--cladding.mp4": {
+  "id": "2a505882264c50ec598bafe7c1d207c2",
+  "url": "/_blob/2a505882264c50ec598bafe7c1d207c2",
+  "sha": "86f829c2263b4a2c"
+ },
+ "previews/crew-repair--dent--plate.mp4": {
+  "id": "66b15dc4f304bb4f9487497c6d7f7899",
+  "url": "/_blob/66b15dc4f304bb4f9487497c6d7f7899",
+  "sha": "71944e16fbdc0ffd"
  },
  "previews/crew-repair--done--flush.mp4": {
   "id": "faf53a6c53ebcc45f73a96f2f1e7ec2d",
@@ -1583,6 +1623,16 @@
   "id": "5104d9825186e74ab772e6095915384b",
   "url": "/_blob/5104d9825186e74ab772e6095915384b",
   "sha": "0fa6780e5a5e2ca2"
+ },
+ "previews/crew-repair--lamp--mend.mp4": {
+  "id": "8e427265043ecae7a089ca37f20864ed",
+  "url": "/_blob/8e427265043ecae7a089ca37f20864ed",
+  "sha": "93591a35f11f5516"
+ },
+ "previews/crew-repair--lamp--tinker.mp4": {
+  "id": "9f9c29c1d35cc65c7a1223ef1c570ed4",
+  "url": "/_blob/9f9c29c1d35cc65c7a1223ef1c570ed4",
+  "sha": "a7466c9cb0dcb157"
  },
  "previews/crew-repair--ratchet--spanner.mp4": {
   "id": "ff2535c1b2aef258379f9214991daafc",
@@ -1633,6 +1683,26 @@
   "id": "c3fc107e06bce129050125647f77dc74",
   "url": "/_blob/c3fc107e06bce129050125647f77dc74",
   "sha": "7fe61408197dbe75"
+ },
+ "previews/crew-upkeep--tighten--rusted.mp4": {
+  "id": "dee4af66db8cd519f733865571008b6e",
+  "url": "/_blob/dee4af66db8cd519f733865571008b6e",
+  "sha": "09509cf9fa751e7a"
+ },
+ "previews/crew-upkeep--tighten--spanner.mp4": {
+  "id": "9f15b1755d7dd750b68f9e45aafdca20",
+  "url": "/_blob/9f15b1755d7dd750b68f9e45aafdca20",
+  "sha": "baee426fff463eb2"
+ },
+ "previews/crew-upkeep--tightened--home.mp4": {
+  "id": "472a26da336a6c1e5facf8ba73bf52da",
+  "url": "/_blob/472a26da336a6c1e5facf8ba73bf52da",
+  "sha": "efc16956d1c9ada6"
+ },
+ "previews/crew-upkeep--tightened--seat.mp4": {
+  "id": "44195f8f8c1b1403060db07424cc0a6c",
+  "url": "/_blob/44195f8f8c1b1403060db07424cc0a6c",
+  "sha": "6ae29537eac4d95a"
  },
  "previews/crew-upkeep--trim--wick.mp4": {
   "id": "7fea80ad66567a73e1fa0e65dfb096ed",
@@ -1818,6 +1888,106 @@
   "id": "0934e4e45604ea2f7c97eb37f52de11e",
   "url": "/_blob/0934e4e45604ea2f7c97eb37f52de11e",
   "sha": "02baace9add9818b"
+ },
+ "previews/cs-gannet-strike--death--crash.mp4": {
+  "id": "23e2babc0bf0a031979518f2cc1d5b03",
+  "url": "/_blob/23e2babc0bf0a031979518f2cc1d5b03",
+  "sha": "06435bd82fb526c6"
+ },
+ "previews/cs-gannet-strike--death--slump.mp4": {
+  "id": "361ddb98e42696bbb5b01f098bcc79f1",
+  "url": "/_blob/361ddb98e42696bbb5b01f098bcc79f1",
+  "sha": "24b30ca6264cd3a9"
+ },
+ "previews/cs-gannet-strike--driven--flurry.mp4": {
+  "id": "21739e2ae7f1fa96108404b3dbcfe9ad",
+  "url": "/_blob/21739e2ae7f1fa96108404b3dbcfe9ad",
+  "sha": "b787c103e1c0a2c0"
+ },
+ "previews/cs-gannet-strike--driven--lurch.mp4": {
+  "id": "6e03349a097b23b1426b6ad1f62c0aab",
+  "url": "/_blob/6e03349a097b23b1426b6ad1f62c0aab",
+  "sha": "f768c1b8ed813265"
+ },
+ "previews/cs-gannet-strike--hit--croak.mp4": {
+  "id": "14ebe2c04c65e1a83baab2aaef71d6a1",
+  "url": "/_blob/14ebe2c04c65e1a83baab2aaef71d6a1",
+  "sha": "9d43aa0a21aeeb55"
+ },
+ "previews/cs-gannet-strike--hit--squawk.mp4": {
+  "id": "e806716fa0797c7c134ab56da69c78dc",
+  "url": "/_blob/e806716fa0797c7c134ab56da69c78dc",
+  "sha": "e978c258e48d51d1"
+ },
+ "previews/cs-gannet-strike--land--drop.mp4": {
+  "id": "d946dffd72d1cdbdda4c822dc3230dc8",
+  "url": "/_blob/d946dffd72d1cdbdda4c822dc3230dc8",
+  "sha": "0d9239d064a57ee9"
+ },
+ "previews/cs-gannet-strike--land--pin.mp4": {
+  "id": "a0ae8dd8257fc8f886000fc24e088fec",
+  "url": "/_blob/a0ae8dd8257fc8f886000fc24e088fec",
+  "sha": "7c4b7a83ba710302"
+ },
+ "previews/cs-gannet-strike--peck--beak.mp4": {
+  "id": "a0323aa7e418485ff73cac7e463bc010",
+  "url": "/_blob/a0323aa7e418485ff73cac7e463bc010",
+  "sha": "397b477cbc58c717"
+ },
+ "previews/cs-gannet-strike--peck--strike.mp4": {
+  "id": "20bc7ae99e1e7068e4792fc294d58575",
+  "url": "/_blob/20bc7ae99e1e7068e4792fc294d58575",
+  "sha": "862682f9dc8bab19"
+ },
+ "previews/cs-gannet-strike--stab--gore.mp4": {
+  "id": "0246bfe1aea4563a64f0988680a570d9",
+  "url": "/_blob/0246bfe1aea4563a64f0988680a570d9",
+  "sha": "8c548fe73434d00b"
+ },
+ "previews/cs-gannet-strike--stab--pierce.mp4": {
+  "id": "b55958bf6d312efcd395b79d8231c42c",
+  "url": "/_blob/b55958bf6d312efcd395b79d8231c42c",
+  "sha": "d2b8a876228a7d1b"
+ },
+ "previews/cs-gannet-strike--tear--splinter.mp4": {
+  "id": "ac8d5005daa4a1899f4236cc6d6c77f0",
+  "url": "/_blob/ac8d5005daa4a1899f4236cc6d6c77f0",
+  "sha": "5aac28911865a525"
+ },
+ "previews/cs-gannet-strike--tear--wrench.mp4": {
+  "id": "68708f6b9afc263cee4ec02c0d048cd6",
+  "url": "/_blob/68708f6b9afc263cee4ec02c0d048cd6",
+  "sha": "62fcc61b17140aaf"
+ },
+ "previews/cs-gannet-strike--thrash--flail.mp4": {
+  "id": "558ec13eea8fc59b059e887dba01d17f",
+  "url": "/_blob/558ec13eea8fc59b059e887dba01d17f",
+  "sha": "d8b167fd532fcfc8"
+ },
+ "previews/cs-gannet-strike--thrash--heave.mp4": {
+  "id": "43022b4f548748441506cf280ba00eb0",
+  "url": "/_blob/43022b4f548748441506cf280ba00eb0",
+  "sha": "1f9baa1f72ddc2a5"
+ },
+ "previews/cs-gannet-strike--thunk--modal.mp4": {
+  "id": "7f486e2b4fa050a53362ca2f78ae821c",
+  "url": "/_blob/7f486e2b4fa050a53362ca2f78ae821c",
+  "sha": "39225c3232deb919"
+ },
+ "previews/cs-gannet-strike--thunk--plank.mp4": {
+  "id": "7a832e17aba2ff39dffc3c41e039effe",
+  "url": "/_blob/7a832e17aba2ff39dffc3c41e039effe",
+  "sha": "f4e73d0d93bb2a41"
+ },
+ "previews/cs-gannet-strike--windup--rattle.mp4": {
+  "id": "245e42c0eaf1d29c5cef6b035faa5583",
+  "url": "/_blob/245e42c0eaf1d29c5cef6b035faa5583",
+  "sha": "87be9e786da0da08"
+ },
+ "previews/cs-gannet-strike--windup--trill.mp4": {
+  "id": "d5c03a1ae5ab7c57cb64b4d9633c70d7",
+  "url": "/_blob/d5c03a1ae5ab7c57cb64b4d9633c70d7",
+  "sha": "42f0bb11b627907d"
  },
  "previews/cs-gaunt--blow--branch.mp4": {
   "id": "ea795b6dbef03dd2197a8fe933bc1c6b",
@@ -2209,6 +2379,26 @@
   "url": "/_blob/3d8db06c8bc340f8a66698de46abdae8",
   "sha": "c86ac8740c73a472"
  },
+ "previews/place-breach--pick--lever.mp4": {
+  "id": "24a64c63361d1781fce3635d55a51ccc",
+  "url": "/_blob/24a64c63361d1781fce3635d55a51ccc",
+  "sha": "63dfd6a8400fdd4d"
+ },
+ "previews/place-breach--pick--wards.mp4": {
+  "id": "5097d1d985a072513c9e3414bdc8539b",
+  "url": "/_blob/5097d1d985a072513c9e3414bdc8539b",
+  "sha": "46123d3b8079a037"
+ },
+ "previews/place-breach--pick-give--click.mp4": {
+  "id": "f0f82521dfda1358e346cc228dedea59",
+  "url": "/_blob/f0f82521dfda1358e346cc228dedea59",
+  "sha": "9e224441a8eafa7b"
+ },
+ "previews/place-breach--pick-give--spring.mp4": {
+  "id": "7224f8aabbc8b320c114d9ce27c74018",
+  "url": "/_blob/7224f8aabbc8b320c114d9ce27c74018",
+  "sha": "f1bcd26a9136e729"
+ },
  "previews/place-breach--pry--bar.mp4": {
   "id": "336d9d5baa671fe06866bb8c8d8c5f5b",
   "url": "/_blob/336d9d5baa671fe06866bb8c8d8c5f5b",
@@ -2328,6 +2518,26 @@
   "id": "a139aa7c6bd18af84897996d436a3938",
   "url": "/_blob/a139aa7c6bd18af84897996d436a3938",
   "sha": "86eaaa04de3fbef9"
+ },
+ "previews/place-mine-lift--tip--chute.mp4": {
+  "id": "77ed68cd2ec16957e3fce7ad597c7fa0",
+  "url": "/_blob/77ed68cd2ec16957e3fce7ad597c7fa0",
+  "sha": "3a64b51f9cfc2ba2"
+ },
+ "previews/place-mine-lift--tip--rubble.mp4": {
+  "id": "069013ed0ec3d17a9e694b069735ad25",
+  "url": "/_blob/069013ed0ec3d17a9e694b069735ad25",
+  "sha": "68bcb3f1759af191"
+ },
+ "previews/place-mine-lift--winding--engine.mp4": {
+  "id": "80705668ab25e3820c3a38b8dba63a02",
+  "url": "/_blob/80705668ab25e3820c3a38b8dba63a02",
+  "sha": "631737ba44fb0608"
+ },
+ "previews/place-mine-lift--winding--headframe.mp4": {
+  "id": "2422f3d4f8f2a2cf9b11566db171e865",
+  "url": "/_blob/2422f3d4f8f2a2cf9b11566db171e865",
+  "sha": "6c684c26d5081afa"
  },
  "previews/place-slaughterhouse--hook-chain--rail.mp4": {
   "id": "e2db2a19e32cbfb35846a316a7ff2366",
@@ -2453,6 +2663,21 @@
   "id": "e7ce2e2f4be130933f5b0586e347126e",
   "url": "/_blob/e7ce2e2f4be130933f5b0586e347126e",
   "sha": "6faa9b9a3a7b65dd"
+ },
+ "previews/state-coupling-loose--knock--casting.mp4": {
+  "id": "e3fc724e9f6bf7f36bca12ecc15fed25",
+  "url": "/_blob/e3fc724e9f6bf7f36bca12ecc15fed25",
+  "sha": "9c81e13ffec60774"
+ },
+ "previews/state-coupling-loose--knock--clank.mp4": {
+  "id": "9ee821bc3fa984dc419808e1f2485b55",
+  "url": "/_blob/9ee821bc3fa984dc419808e1f2485b55",
+  "sha": "7b02ce3668e73f7b"
+ },
+ "previews/state-coupling-loose--knock--knuckle.mp4": {
+  "id": "6daa61e107beb90b2ca78434df03567a",
+  "url": "/_blob/6daa61e107beb90b2ca78434df03567a",
+  "sha": "852699d918c00920"
  },
  "previews/state-derail--climb--flange.mp4": {
   "id": "37ddf2f2ef38318d8ea1e74a87383851",
@@ -2633,6 +2858,66 @@
   "id": "b6a7380181f16999d3ebd9c12aa9fd02",
   "url": "/_blob/b6a7380181f16999d3ebd9c12aa9fd02",
   "sha": "98228f68889bd1c0"
+ },
+ "previews/tell-gannet-bank--scream--scream.mp4": {
+  "id": "9583729b93b2cfc1035e1ad3ef433fa5",
+  "url": "/_blob/9583729b93b2cfc1035e1ad3ef433fa5",
+  "sha": "7c3c4f5e55aa443c"
+ },
+ "previews/tell-gannet-bank--scream--wail.mp4": {
+  "id": "e541bf44612a03a3463af6c69f2d2667",
+  "url": "/_blob/e541bf44612a03a3463af6c69f2d2667",
+  "sha": "014957ad802bfc9b"
+ },
+ "previews/tell-gannet-bank--wingbeats--beat.mp4": {
+  "id": "1cc3a0c6e60463561e8c236622449a68",
+  "url": "/_blob/1cc3a0c6e60463561e8c236622449a68",
+  "sha": "62150111cc28d7a4"
+ },
+ "previews/tell-gannet-bank--wingbeats--canvas.mp4": {
+  "id": "298f05c58420e6724f5c939ffb11da18",
+  "url": "/_blob/298f05c58420e6724f5c939ffb11da18",
+  "sha": "f93d9a06c5d1287f"
+ },
+ "previews/tell-gannet-calls--call--rasp.mp4": {
+  "id": "17dca2a54d03d00e8897c1c4e4c435a2",
+  "url": "/_blob/17dca2a54d03d00e8897c1c4e4c435a2",
+  "sha": "d0fce467cfaf8e7d"
+ },
+ "previews/tell-gannet-calls--call--roar.mp4": {
+  "id": "6630e2ce55b60191eff24a3fad47a47f",
+  "url": "/_blob/6630e2ce55b60191eff24a3fad47a47f",
+  "sha": "46962a5f4462ec13"
+ },
+ "previews/tell-gannet-calls--wings--canvas.mp4": {
+  "id": "7cc04815280ecb8dfbe9b7a3802994bd",
+  "url": "/_blob/7cc04815280ecb8dfbe9b7a3802994bd",
+  "sha": "9a62e42c5add22c6"
+ },
+ "previews/tell-gannet-calls--wings--stroke.mp4": {
+  "id": "f2f340fdbd94a8b27ab49524ecfdede8",
+  "url": "/_blob/f2f340fdbd94a8b27ab49524ecfdede8",
+  "sha": "4e6d72e03306e347"
+ },
+ "previews/tell-gannet-fold--crack--sail.mp4": {
+  "id": "8cca2b869dad9422e491b3af7df16a90",
+  "url": "/_blob/8cca2b869dad9422e491b3af7df16a90",
+  "sha": "78756a2ff5ec2287"
+ },
+ "previews/tell-gannet-fold--crack--whip.mp4": {
+  "id": "254b79d8a0f37c568131eb7c244432f3",
+  "url": "/_blob/254b79d8a0f37c568131eb7c244432f3",
+  "sha": "d2cac6a1236ad3fa"
+ },
+ "previews/tell-gannet-fold--whistle--dive.mp4": {
+  "id": "3452ea8d98d25def76ffe405bb2d29af",
+  "url": "/_blob/3452ea8d98d25def76ffe405bb2d29af",
+  "sha": "0bdd716c4cac4094"
+ },
+ "previews/tell-gannet-fold--whistle--rush.mp4": {
+  "id": "25b5a7bc8ed02a0b9611c3b50171a720",
+  "url": "/_blob/25b5a7bc8ed02a0b9611c3b50171a720",
+  "sha": "e72bf2282568f5aa"
  },
  "previews/tell-grumbler--gnaw--incisors.mp4": {
   "id": "16c78f317af637eff2e444a2569517b0",
