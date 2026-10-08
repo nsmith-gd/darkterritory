@@ -2282,6 +2282,13 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 **The land and the water**
 - Lots of the landscape generation's textures are see-through or missing. The water looks bad: still, with no life or movement to it. *Fixed in PR #441 (queue #160, ARCHITECTURE §8 note 424): the water stays put under the camera and moves, rippling and swelling in the night's wind, its rivers running, the moon's road in it and a lap at its waterline; lakes are drawn to their own shores and held in by a rim where the land is lower; the shore's shingle keeps to its waterline. Found: the water's texture is pinned to the camera, so it slides along with the train, and nothing in it moves; a lake drawn as a disc floats over its rim where the land is lower than its water (on frontier:3, by up to 6.5 m); the shore's ground changes by the land mesh's quad in hard patches; the sea is one flat sheet. Next (queue #169, B1, note 433): `dt holes`, a headless search for the rest, the sky painted where it shows through the land and untextured surfaces flagged, down every tier's nights.*
 
+**Cinder Hounds aboard**
+- They grabbed the director through the car: in the car, with them on the roof above. That shouldn't happen. And they overlap each other on top of the car; they should pick their own spots. *Done (queue #207, ARCHITECTURE §8 note 471): a hound on the roof bites only who's out on the train with it, never anyone inside a car or the cab; each hound coming aboard takes its own spot, 1.6 m or more from the next.*
+- They shouldn't just stand there and howl: patrol between cars with their doors open, or along the roofs, jumping between them when they can make the jump; and an animation for it. *In progress: the patrol (queue #208, note 472, D1); its clips (queue #213, note 477, E1: patrol, leap, drop, climb, sniff).*
+
+**The jump**
+- The base jump is too weak. *In progress (queue #209, note 473).*
+
 **Derailment**
 - Turning into a yard, derailment is way too easy. Don't allow derailments when turning into and leaving a yard. *Done (queue #206, ARCHITECTURE §8 note 470): no bend on a yard's track (its turnout off the main line included) derails the train or warns of it, in or out, at any speed; the main line's bends as before.*
 
