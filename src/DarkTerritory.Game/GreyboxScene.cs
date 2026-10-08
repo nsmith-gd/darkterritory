@@ -1820,6 +1820,7 @@ public sealed class GreyboxScene
             if (Route is not null)
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
+            Look.Art.World.TownBounds = Town?.Plan.Bounds;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth);
             return;
         }
@@ -2274,11 +2275,12 @@ public sealed class GreyboxScene
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             var town = start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                Look.Art.World.Streets(mesh, line, eye, town, from, to);
                 foreach (var p in town.Plan.People)
                 {
                     var feet = town.Feet(p);

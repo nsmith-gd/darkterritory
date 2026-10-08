@@ -4625,11 +4625,30 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
             - `AShutHousesWallsKeepYouOutAndNobodyTalksThroughAWall`;
             - the first pass's tests over the bigger towns: nobody repeats a line, nobody is mute, everyone stands clear;
             - `TownTalkTests.EveryWordInATownIsInTheFont`, now covering the houses and the law too.
+        - **Third pass: the houses to the director's references (7 Oct, photographs of Cape Breton, Peggy's Cove, Lunenburg, Shelburne and Blue Rocks: "lots of variations so it doesn't feel like the same 10 assets recycled across towns").**
+            - **A design per house, drawn in the Sim** (`Sim/Towns/HouseDesign.cs`): gable-front or eave-front; 1, 1½, 2 or 2½ storeys; a gable, saltbox, gambrel or hip roof and its pitch; gable dormers, a shed dormer, a Lunenburg bump or the Island's centre gable; a lower side wing; a hood over the step or an enclosed porch; cedar shingle (silver, stained or painted) or clapboard; paint, trim, door, shutter, roof and accent colours; sash; chimneys; Victorian trim. What stands of it (the wing, the enclosed porch) is in `TownHouse.Parts` and walled by `Town`, so it's solid where it's drawn.
+            - **A character per town** (content/world/houses.json `characters`, weighted by the fortress's identity, `byTrade`):
+                - a fishing cove of shingled gable-fronts;
+                - an old town of painted houses with bumps and brackets;
+                - a loyalist waterfront row;
+                - a farm town of capes with ells;
+                - a company town of one double house in many paints (a coal row: identical on purpose);
+                - a town of all sorts.
+
+              Each character weights the odds and has its own palette, so one town isn't the next.
+            - **The palettes are content**: houses.json's paints, stains, trims, doors, roofs, accents (sRGB hex, weighted). The Sim keeps indices; `Town.Looks` carries the colours to the art.
+            - **Textures** (`tools/art/texgen/mat_maritime.py`, procedural so they rebuild without the scans): `shingle_cedar` (courses of silver cedar, butt shadows, lichen) and `clapboard` (lapped boards in near-white paint, faint wear). The kit tints both to the house's colour.
+            - **The kit** (`Art/MaritimeKit.cs`) builds any design: the walls and roof in either orientation, gable ends fanned from the roof's profile, windows floor by floor and face by face (clear of the door, the wing and, inside an open house, the partition and furniture), shutters with their Z brace, the dormers, bump and centre gable, the wing with its roof and sometimes its own door, the hood or enclosed porch, chimneys or a stovepipe, brackets and window heads. Lived houses are lit; boarded, empty and burnt ones faded, boarded, dark, or charred to the sills with the chimney standing.
+            - **Headless:** `dt art houses --character cove|lunenburg|shelburne|farm|company|mixed [--kind lived|boarded|empty|burnt] [--count n]` renders a lineup to out/shots/art.
+            - **Verified:** `TownTests.HousesVaryWithinATownAndTownsDifferInCharacter`:
+                - across 80 towns every character turns up;
+                - in each town at least 80% of the standing houses round the square (the first 40: a big town's streets go on past them, note 335) differ in form, siding, paint, wing and porch (a company town shares one form);
+                - nothing stands out of its lot or within 3 m of the line.
+
+              Lineups and town streets looked at.
         - **Not yet:**
-            - the houses to the director's references;
             - upstairs;
             - empty lots as cellar holes;
-            - coal towns' company houses (maritime-landscape research §6);
             - residents with faces of their own.
 
 301. **Wrenches are the repair tool, Sea of Thieves style (queue #39, D1.3 for D1 at the director's call, the number C1's; GDD App. F.3, the director, 7 Oct 2026: "When it comes to damages on the train, people running into things, anything like that, the wrench doesn't seem to be repairing things in the Sea of Thieves style ... I want to see that as soon as possible").** The first slice, behind `train.json` `repair.wrench` (on):
@@ -5078,6 +5097,39 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
 344. **Hold prompts in one form (F1, UI/UX 3; queue #81; GDD §32 "the action and its key ... and a hold's progress"; note 285).** Two forms had grown up. The search, the generator and the rigging said the action and its key ("SEARCH THE CUPBOARD : HOLD [E]") and their progress only once under way; the repairs (note 301), the boiler, the fouled gun, the breach and the hot box (note 331) said "(0%)" before anyone had touched them.
     - **One form** (`Hud.Hold`): the action and its key, and the percentage only once there's progress. A mend kept half done with Use let go (note 301, "a few presses") still says how far it got, and a battered car still says how whole its shell is.
     - **Verified:** `HudTests.AFouledGunAndABreachedCarSayHowToPutThemRight` (nothing done: no percentage; a quarter done: 25%; the battered car's 50% unchanged).
+335. **Walled towns: up to 3000 people, the fortress round the town, streets to walk (queue #74, B2; the director, 7 Oct 2026: "lets make it so towns can go up to 3000 and that fortresses aren't just some straight line around the railroad, they should surround towns, towns should be explorable in a sense. this is our big worldbuilding work that makes it feel interesting and exciting to go around").** Before this, the departure fortress (T124, note 274) was a corridor along the yard: two walls 14.8 m out, towers every 120 m, note 107's houses between the line and the walls, the town's square stepping one wall back (note 281). A town of 350 filled the yard's street; nothing bigger fitted.
+    - **How many** (tuning/towns.json): `population` 20–3000, drawn as min + (max − min)·u^`populationPower` (2, by multiplying: no `Math.Pow` in the Sim). About one town in three is 350 or fewer, half under ~770, one in ten over 2400. Households of 2–6 as before. The lost families' houses are at most `lostShare` (0.6) of the households; past that a big town's lost leave nothing standing. Out of doors at night, one in 22 but never more than `outdoorsMax` (16), and open houses one per 70 but never more than 6: every household at home also takes one of the custom's lines, and at 8 the street runs out of words (TownTests: nobody mute, nobody repeats). A town of thousands is shut in at night; its lit windows say so.
+    - **Ten more households' stories** (world/towns.json `households`, twenty now), so a big town's six aren't the next big town's six: the dory that went out into the fog and the foghorn answered; the house where nobody goes out without the rope; the toys given to the gate; the miner who came up two hours late; the singing house gone quiet; the mother who counts her family every hour; the brakeman on a cut telephone line; the stones on the sill; the bride's place laid; the lighthouse still turning. Each tells its own loss and, sideways, how another town lives with something (don't whistle, don't go alone, don't leave a toy lying, never sing back, count them before they count you), never the whole rule. They reuse the ten object kinds the house already draws and places.
+    - **The ground plan** (`TownGenerator.Houses`, the `houses.lots` stream; towns.json `walled`). The line's own street first (note 107's lots, every 15 m, 10.9 m out). A town that needs more lots than that is walled:
+        - **lanes** across every 90–130 m (8 m wide), the ways from the line to the streets: never through the square (one that would be moves to just past it), and the line's own row leaves them clear;
+        - **streets** beside the line, a pair at a time (one each side), their middles 34.5 m out and every 30 m past that, 6 m wide, up to 5 a side, as many as the households need;
+        - **a row of houses either side of each street**, fronts 3.5 m back from it on lots of 13–17 m frontage (a house no wider than its lot less 2 m, its wing in what's left): the line-side row faces out, the far row back toward the line, so both front the street;
+        - the lots sorted by distance from the square's heart: the lived-in houses round it, the open ones nearest, the lost at the town's edges.
+    - **The wall** (`TownPlan.Bounds`, `TownBounds`): from `rear` (−8 m, behind the yard's start, the line's way out the back shut) to the gate, out past the last row's backs by `margin` (7 m) on both sides. `Run.Fortresses.Round` stands it in the train's walls: the sides a 10 m bay at a time, a tower at each corner and every 120 m, the front wall from the gatehouse to each corner, the rear across the line. A walled town's fort builds none of the corridor's walls, towers or houses, and its square has no walls of its own: it opens between its buildings onto the first street. A town whose houses fit the line's street keeps the corridor and its stepped-back square, unchanged: under about 165 people, one town in four (`dt town sweep`, 200 towns: 153 walled, the smallest 164 people, the biggest unwalled 169, five streets a side at most, up to 1181 houses).
+    - **The safe zone** (`World.InFort`, note 273): inside the yard, a walled town's fort reaches its wall (its widest side plus 5 m), past the 80 m every other fort keeps, so nothing comes in over the streets and nobody out at the far one is left behind.
+    - **The ground** (linegen tiers.json fortress `padM`, 70 → 200, `FortressTemplate.PadM`): level either side of the yard across the widest town (five streets reach ~177 m) and its wall, blended over 30 m past that. Lakes and shore keep their distance from pads, so on some lines the water near the gate moves back. **Overlaps:** B1's and B4's level design (the pad, the lakes and shore by the gate; B4's #239 trestle); every line's terrain within 230 m of the yard is level now, and no test pinned the old.
+    - **The art:**
+        - `WorldArt.TownWall`: the wall's pieces down each side, across the front from the gatehouse and across the rear, the towers with their lamps.
+        - `Streets`: each street's beaten surface in 20 m pieces, lamp posts every 45 m lit within 120 m of you, the lanes in mud.
+        - `Houses` by distance, so a town of hundreds of houses draws: a street's block (60 m of a row) is one mesh of its houses' far forms (`MaritimeKit.Street`) beyond 120 m, each house its far piece out to 75 m, its full design within. Those meshes are kept only while drawn (`HousePiece`: at most 600, the least recently drawn let go, a town's all let go when the town changes), not for the Look's life as kit pieces are. The square's walls aren't drawn in a walled town (as the Sim).
+        - `Staging`: `dt screenshot --route r --town over|lane|outside` (over the gate looking back over the roofs; down the first street; outside the gate as the train leaves).
+    - **Headless:** `dt town` reports a walled town's reach either side, its streets and lanes, and its houses' character; `dt town sweep` how many towns are walled, the smallest walled and the biggest not.
+    - **Measured** (local:5, 2958 people, the biggest town on the test routes; the container's software Vulkan): the street 803K triangles and 605 draws, the square 841K and 621, over the roofs 736K and 557, outside the gate 414K and 398 (budget 1.5M and 1500). The scene build is ~31 ms against ~26 ms for frontier:7's 97 people (CPU, this container).
+    - **Verified:**
+        - `WalledTownTests` (Sim):
+            - `ABigTownHasStreetsInsideAWallRoundItAndASmallOneIsTheYard` (3000: four streets or more, lanes, every household housed; 40: no bounds);
+            - `EveryHouseStandsInsideTheWallOffTheStreetsAndClearOfTheNext` (frontier:7 at 3000, local:3 at 1200, deadLines:3 at 600: every part of every house inside the wall, off the line, out of every street, lane and the square, and no two houses' parts overlapping);
+            - `YouWalkFromTheLineDownALaneToTheOutermostStreetAndTheWallStopsYou` (running from beside the line down the middle lane, past the outermost street, stopped short of the wall);
+            - `TheWholeTownIsTheFortAndItsWallIsSolid` (every street in the fort; the wall down both sides and across the back in the train's walls; no corridor wall left in the yard).
+        - `TownTests` over towns to 3000: everybody inside a walled town's wall; houses within it and apart in their rows; the house-variety test round the square.
+        - The views above looked at: the square opening onto the first street, the street's painted houses, the town from over the gate and from outside it.
+    - **Not yet:**
+        - fish sheds, fences, granite, gardens and lobster traps between the houses;
+        - cross streets other than the lanes, and streets that bend with the land;
+        - more lines for the street (`anyone`, the jobs, the threads), so a big town can open more houses and put more people out;
+        - the roofs and steeple over the wall from outside;
+        - the terrain past the line's start (seen from over the town, never from the ground: the rear wall hides it);
+        - the harness and bots don't go into the streets.
 
 346. **A lamp guttering, the second upkeep job while the train runs (queue #83, D1; GDD App. F.3, the director, 7 Oct 2026: "on the train, still relatively boring from point A to point B"; [orchestrator.md](design/orchestrator.md) §5.1 U3).**
     - **What it is.** Every `everyMetres` (3 km ± half) of the train's running, a lit car with a room has its lamp start to gutter: `Vehicle.Gutter`, the seconds it's been at it. None in the first 3 km, none in the yard or a fort, never more guttering than there are crewmates alive. All in `upkeep.json` `lamp`; host only (`Gutters`), the vehicle record carries it (protocol 36).

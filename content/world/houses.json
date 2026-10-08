@@ -1,0 +1,104 @@
+// The towns' houses, how they look (the director, 7 Oct 2026, with photographs of a Cape Breton studio in grey cedar
+// shingle with blue barn shutters and a yellow door, Peggy's Cove's painted houses on the granite over its fish sheds,
+// a Lunenburg house in periwinkle clapboard with coral trim and a bump, Shelburne's waterfront row in red, blue, ochre
+// and weathered shingle, Blue Rocks' shingled fish shacks: "Village houses should feel like these, they should have lots
+// of variations so it doesn't feel like the same 10 assets recycled across towns over and over again"; ARCHITECTURE §8
+// note 281). Read by Sim/Towns/HouseDesign (which draws every house's design from these, alike on every machine) and
+// by the art (the colours). The numbers here are looks, not rules: odds and palettes.
+//
+// Each town draws one character, which weights everything below for its houses, so one town isn't the next.
+// Colours are sRGB hex, as a paint chart would have them; "weight" is how often one is picked against the rest.
+{
+  // A clapboard house's paint, or (where "stain" is true) a shingle house's.
+  "paints": [
+    { "id": "white", "rgb": "#D8D6CE", "weight": 4 },
+    { "id": "barnRed", "rgb": "#9E2E24", "weight": 3 },
+    { "id": "maroon", "rgb": "#6A2230", "weight": 1 },
+    { "id": "ochre", "rgb": "#C79A42", "weight": 2 },
+    { "id": "butter", "rgb": "#E6D884", "weight": 2 },
+    { "id": "teal", "rgb": "#2F8E8C", "weight": 2 },
+    { "id": "periwinkle", "rgb": "#8A9CC4", "weight": 2 },
+    { "id": "slate", "rgb": "#4A6788", "weight": 2 },
+    { "id": "sage", "rgb": "#7E957A", "weight": 2 },
+    { "id": "bottle", "rgb": "#2E4E3C", "weight": 1 },
+    { "id": "pink", "rgb": "#C99590", "weight": 1 },
+    { "id": "dove", "rgb": "#9B9A94", "weight": 2 },
+    { "id": "mustard", "rgb": "#B88A2E", "weight": 1 },
+    { "id": "sky", "rgb": "#9CC3D5", "weight": 1 }
+  ],
+  // Cedar shingle's colour: left to weather silver, or stained. Shingles are sometimes painted too (then a paint).
+  "stains": [
+    { "id": "silver", "rgb": "#B4B0A6", "weight": 4 },
+    { "id": "weathered", "rgb": "#8E877C", "weight": 3 },
+    { "id": "brown", "rgb": "#8A6E54", "weight": 1 },
+    { "id": "dark", "rgb": "#5C5752", "weight": 1 }
+  ],
+  // Trim: corner boards, casings, fascia. Mostly white.
+  "trims": [
+    { "id": "white", "rgb": "#ECEAE2", "weight": 10 },
+    { "id": "red", "rgb": "#9E2E24", "weight": 1 },
+    { "id": "black", "rgb": "#26262A", "weight": 1 },
+    { "id": "green", "rgb": "#2E4E3C", "weight": 1 },
+    { "id": "cream", "rgb": "#E3D9B8", "weight": 2 }
+  ],
+  // Doors and shutters: where the colour goes.
+  "doors": [
+    { "id": "red", "rgb": "#A82A22", "weight": 3 },
+    { "id": "yellow", "rgb": "#E6BE2E", "weight": 2 },
+    { "id": "purple", "rgb": "#6A2E66", "weight": 1 },
+    { "id": "navy", "rgb": "#1F3A6A", "weight": 2 },
+    { "id": "green", "rgb": "#2E5A3A", "weight": 2 },
+    { "id": "black", "rgb": "#1C1C1E", "weight": 2 },
+    { "id": "teal", "rgb": "#2F7E7C", "weight": 1 },
+    { "id": "white", "rgb": "#ECEAE2", "weight": 1 },
+    { "id": "oiled", "rgb": "#6E4A2E", "weight": 1 }
+  ],
+  // Roofs: asphalt and old cedar.
+  "roofs": [
+    { "id": "charcoal", "rgb": "#3C3C40", "weight": 4 },
+    { "id": "grey", "rgb": "#5A5C5E", "weight": 2 },
+    { "id": "brown", "rgb": "#4E4138", "weight": 2 },
+    { "id": "oldRed", "rgb": "#6E3A30", "weight": 1 },
+    { "id": "cedar", "rgb": "#6A6258", "weight": 2 }
+  ],
+  // Victorian trim's second colour (the Lunenburg house's coral brackets).
+  "accents": [
+    { "id": "coral", "rgb": "#D0705E", "weight": 2 },
+    { "id": "red", "rgb": "#9E2E24", "weight": 2 },
+    { "id": "green", "rgb": "#3E6A4A", "weight": 1 },
+    { "id": "gold", "rgb": "#C9A04A", "weight": 1 },
+    { "id": "navy", "rgb": "#1F3A6A", "weight": 1 }
+  ],
+
+  // The characters. Odds are 0..1 per house; "storeys" weights 1, 1.5, 2 and 2.5; "roofs" weights a gable, a saltbox, a
+  // gambrel and a hip; "paints" is the town's own palette (ids above), from which most of its houses are painted, the
+  // rest from anywhere; "uniform" is a company town's: one design for every house, its paint and its wear their own.
+  "characters": [
+    { "id": "cove", "name": "a fishing cove",
+      "shingle": 0.65, "gableFront": 0.5, "dormers": 0.25, "ell": 0.35, "porch": 0.3, "shutters": 0.25, "fancy": 0.03,
+      "storeys": [3, 4, 3, 0], "roofs": [8, 1, 1, 0], "paints": ["white", "teal", "butter", "dove", "barnRed", "sky"], "own": 0.75 },
+    { "id": "lunenburg", "name": "an old town of painted houses",
+      "shingle": 0.12, "gableFront": 0.3, "dormers": 0.5, "ell": 0.3, "porch": 0.25, "shutters": 0.3, "fancy": 0.4, "bump": 0.3,
+      "storeys": [0, 3, 5, 2], "roofs": [6, 1, 1, 1], "paints": ["periwinkle", "barnRed", "butter", "teal", "ochre", "white", "pink"], "own": 0.8 },
+    { "id": "shelburne", "name": "a loyalist town on the water",
+      "shingle": 0.35, "gableFront": 0.45, "dormers": 0.3, "ell": 0.4, "porch": 0.15, "shutters": 0.5, "fancy": 0.08,
+      "storeys": [0, 2, 6, 2], "roofs": [6, 2, 1, 1], "paints": ["maroon", "slate", "barnRed", "ochre", "white", "dove"], "own": 0.8 },
+    { "id": "farm", "name": "a farm town",
+      "shingle": 0.25, "gableFront": 0.25, "dormers": 0.3, "ell": 0.6, "porch": 0.4, "shutters": 0.2, "fancy": 0.06, "centreGable": 0.3,
+      "storeys": [1, 6, 4, 0], "roofs": [6, 2, 3, 0], "paints": ["white", "barnRed", "sage", "butter", "dove"], "own": 0.7 },
+    { "id": "company", "name": "a company town",
+      "shingle": 0.1, "gableFront": 0.5, "dormers": 0.0, "ell": 0.0, "porch": 0.6, "shutters": 0.0, "fancy": 0.0,
+      "storeys": [0, 3, 7, 0], "roofs": [1, 0, 0, 0], "paints": ["dove", "mustard", "barnRed", "sage", "white"], "own": 0.9, "uniform": true },
+    { "id": "mixed", "name": "a town of all sorts",
+      "shingle": 0.35, "gableFront": 0.35, "dormers": 0.35, "ell": 0.4, "porch": 0.3, "shutters": 0.3, "fancy": 0.12, "bump": 0.1, "centreGable": 0.1,
+      "storeys": [2, 4, 4, 1], "roofs": [7, 2, 2, 1], "paints": [], "own": 0 }
+  ],
+  // Which characters each trade's towns are drawn from, as often as each is listed (the fortress's identity, linegen
+  // tiers.json "identities"). The coast runs past them all, so any of them may be a fishing cove too.
+  "byTrade": {
+    "coal": ["company", "company", "mixed", "farm", "cove"],
+    "farm": ["farm", "farm", "mixed", "shelburne", "cove"],
+    "foundry": ["mixed", "company", "lunenburg", "shelburne", "cove", "lunenburg"],
+    "": ["cove", "lunenburg", "shelburne", "farm", "mixed"]
+  }
+}

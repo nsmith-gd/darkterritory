@@ -7,20 +7,40 @@
   // Off, a fortress is the walls and houses of note 107 and nothing to talk to.
   "enabled": true,
 
-  // The director, 7 Oct: "towns should land somewhere between 20 to 350 people". How many live here now, how many to a
-  // house, and how many more lived here before (the empty, boarded and burnt houses further down the yard: every town has
-  // lost people). People out of doors at night beyond those at their work: one in "outdoors".
-  "population": [20, 350],
+  // The director, 7 Oct: "towns should land somewhere between 20 to 350 people", and later the same day "towns can go
+  // up to 3000". How many live here now, drawn as min + (max - min) * u^populationPower (2: more small towns than big,
+  // half of them under ~770, one in three a hamlet or village of 350 or fewer), how many to a house, and how many more
+  // lived here before (the empty, boarded and burnt houses: every town has lost people). The lost families' houses are
+  // at most lostShare of the households (past that, a big town's lost are empty lots). People out of doors at night
+  // beyond those at their work: one in "outdoors", never more than outdoorsMax (a town of thousands isn't a crowd).
+  "population": [20, 3000],
+  "populationPower": 2,
   "household": [2, 6],
   "former": [1.3, 3.5],
   "outdoors": 22,
+  "outdoorsMax": 16,
+  "lostShare": 0.6,
   // Houses with their door open and a household inside to talk to (fully modelled downstairs): one per "per" people,
-  // between min and max, the lived-in houses nearest the square.
-  "explorable": { "per": 70, "min": 2, "max": 5 },
+  // between min and max, the lived-in houses nearest the square. Each household's at home takes one of the custom's
+  // lines too, so no more than the town's other talkers can spare (at 8 the street runs out: TownTests); a big town
+  // draws its six from world/towns.json's twenty households, so the next big town isn't the same six.
+  "explorable": { "per": 70, "min": 2, "max": 6 },
   // The yard's street (note 107's: a house every 15 m, 10.9 m out, fronts to the line, between the line and the wall):
   // each house's width along the street and depth (m), from this far inside the gate, and of the houses nobody lives in,
   // the share burnt and the share standing open.
-  "houses": { "every": 15, "out": 10.9, "width": [6.5, 8.5], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12 },
+  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12 },
+
+  // A walled town (the director, 7 Oct: "fortresses aren't just some straight line around the railroad, they should
+  // surround towns, towns should be explorable"; queue #74, ARCHITECTURE §8 note 335). A town with more houses than the
+  // line's street holds has streets beside the line, as many a side as it needs up to maxStreets: the first's middle
+  // "first" m out (past the line's own row's backs), one every "every" m, each "width" wide with a row of houses either
+  // side, their fronts "setback" back from it on lots of "lot" frontage; lanes across every "laneEvery" m, "laneWidth"
+  // wide, the way from the line to the streets; the rows from "from" m up from the yard's start to "toGate" m inside the
+  // gate. The wall stands "margin" past the last row's backs, down both sides, across the front from the gatehouse and
+  // across the back "rear" m along from the yard's start (behind it). Linegen levels the ground for it (tiers.json
+  // fortress padM). A town whose houses fit the line's street keeps the yard's walls (note 274).
+  "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8,
+    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5 },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
