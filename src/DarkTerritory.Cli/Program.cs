@@ -59,6 +59,9 @@ return args switch
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    // dt art footprints [--write]: what each kit piece the lineside deals stands on, measured off its mesh (note 389);
+    // --write puts it in content/linegen/footprints.json, which the sim stands the walls from.
+    ["art", "footprints", ..] => ArtFootprints(content, args),
     ["art", "show", var piece, ..] => Print(ArtShow(train, content, piece, args)),
     ["art", "clip", var creature, var clip, ..] => Print(ArtClip(content, creature, clip, args)),
     ["art", "reel", ..] => Print(ArtReel(content, args)),
@@ -1788,6 +1791,23 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
     return rows.Any(r => r.over) ? 1 : 0;
 }
 
+// What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
+static int ArtFootprints(string content, string[] args)
+{
+    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null);
+    var text = DarkTerritory.Game.Art.LinesideFootprints.Json(all);
+    string path = Path.Combine(content, DarkTerritory.Sim.LineGen.LineGenConfig.Directory, "footprints.json");
+    if (args.Contains("--write"))
+    {
+        File.WriteAllText(path, text);
+        Print(new { wrote = path, pieces = all.Count, boxes = all.Values.Sum(v => v.Sum(b => b.Length)) });
+        return 0;
+    }
+    bool same = File.Exists(path) && File.ReadAllText(path) == text;
+    Print(new { path, same, pieces = all.ToDictionary(kv => kv.Key, kv => kv.Value) });
+    return same ? 0 : 1;
+}
+
 // A kit piece on a turntable (pipeline plan: "an in-engine turntable viewer with era-mode toggle"): four quarters,
 // lit by a lantern beside the camera and the moon, in thin fog. --ps2 for the era comparison, --greybox for flat.
 static object ArtShow(TrainTuning t, string content, string name, string[] args)
@@ -2313,9 +2333,11 @@ static object HudShot(string content, string[] args)
     // --spectating (GDD App. D.10): a hosted night with a joiner who's died, seen as the joiner sees it: through the
     // host's eyes in the cab, whom they watch, with their HUD.
     // --vote (GDD v1.4 App. D.11): the night has its director, so the dead watcher is offered a ballot (--ballot implies it).
+    // --joining (D.10, note 408): the watcher a crewmate who joined mid-run and waits in the queue, lobbied, never having died.
     // --lost (note 253): a joiner whose link has just gone, seen as it sees it: lost, and on its first try at getting back.
     // --lost --refused (note 254): back too late to a full crew, turned away: CREW FULL (2/2). --crew-full: the host at its cap.
-    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"))
+    using var spectated = args.Contains("--spectating") ? Spectating(content, Str(args, "--route", "frontier:7"), cars, args.Contains("--vote") || args.Contains("--ballot"),
+            args.Contains("--joining") ? DeathCause.Waiting : DeathCause.Mauled)
         : args.Contains("--lost") ? LostLink(content, Str(args, "--route", "frontier:7"), cars, refused: args.Contains("--refused"))
         : args.Contains("--crew-full") ? CrewFull(content, Str(args, "--route", "frontier:7"), cars) : null;
     IPlaySession session;
@@ -2602,6 +2624,16 @@ static object FilmStill(string content, string[] args)
     var hostWorld = session.Host!.World;
     hostWorld.Train.Dynamics.Velocity = Opt(args, "--speed", 20);
     hostWorld.Train.RefreshFrames();
+    // --extras: one of the crew already dead, lying on car 2's roof, and three crates in car 2, for the film's extras (App.
+    // E.3; note 373). The guard van's stores (World.Stock) go into the wreck anyway.
+    if (args.Contains("--extras") && hostWorld.Train.Frames.Count > 2)
+    {
+        var htrain = hostWorld.Train;
+        hostWorld.Bodies.SpawnRagdoll(htrain, 99, PlayerMotor.SpawnOnRoof(htrain, 2, 1.5, session.PlayerTuning));
+        double floor = htrain.Frames[2].Shape.Interior?.Min.Y ?? 1;
+        foreach (double z in new[] { -3.0, 0, 3 })
+            hostWorld.Bodies.SpawnCrate(htrain, 2, new Double3(0, floor, z));
+    }
     hostWorld.Derail("took the 45 km/h bend at 72 km/h, 27 km/h too fast");
     // The cut starts after this player's own first person, which is as long as the film says (App. E.2 step 1).
     double Want() => session.SequenceTuning.FirstPersonSeconds + session.SequenceTuning.ReplaySeconds + filmAt;
@@ -2620,6 +2652,12 @@ static object FilmStill(string content, string[] args)
     double recorded = at.Shot.At(at.Into);
     var frames = DerailSequence.FilmFrames(film, recorded, session.InterpolatedFrames(1));
     var camera = DerailSequence.FilmCamera(at.Shot, at.Into, film);
+    // --at-extra: off to the side of the film's first stowed body (note 373), at that moment, looking at it.
+    if (args.Contains("--at-extra") && film.At(recorded).A.Dead is { Count: > 0 } deadNow)
+    {
+        var mid = deadNow[0].Aggregate(Double3.Zero, (a, j) => a + j) * (1.0 / deadNow[0].Length);
+        camera = Camera.LookAt(mid + new Double3(5, 3.5, 5), mid, 55);
+    }
     int width = (int)Opt(args, "--width", 640), height = (int)Opt(args, "--height", 360), scale = (int)Opt(args, "--scale", 2);
     string output = Str(args, "--out", "out/shots/film.png");
     using var gpu = new GpuContext("dt screenshot --film");
@@ -2740,7 +2778,7 @@ static SpectatedNight CrewFull(string content, string route, int cars)
     return new SpectatedNight(joiner, host);
 }
 
-static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false)
+static SpectatedNight Spectating(string content, string route, int cars, bool enemies = false, DeathCause how = DeathCause.Mauled)
 {
     var host = NetPlaySession.HostGame(content, new SessionSetup(Route: route, Cars: cars, Enemies: enemies), port: 0);
     var watcher = NetPlaySession.Join(content, new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, host.Port), () => host.Step(default));
@@ -2754,7 +2792,7 @@ static SpectatedNight Spectating(string content, string route, int cars, bool en
         }
     }
     Step(SimConstants.TickRate);
-    host.Host!.SetPlayerState((byte)watcher.PlayerId, watcher.Player with { Health = 0, Death = DeathCause.Mauled });
+    host.Host!.SetPlayerState((byte)watcher.PlayerId, watcher.Player with { Health = 0, Death = how });
     Step(SimConstants.TickRate);
     return new SpectatedNight(host, watcher);
 }

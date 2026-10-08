@@ -9,9 +9,11 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
-/// LinesideProps props are solid (ARCHITECTURE §8 note 371; GDD App. F.1 "the world is solid", note 279's "Not yet"). A generated
-/// line's trees, boulders and telegraph poles are dealt by the sim from the night's seed, the same on every machine, kept off
-/// everything that's the line's own, and stood as walls: a crewmate walks round a trunk, what's loose is put out of one.
+/// The lineside is solid (ARCHITECTURE §8 notes 371 and 389; GDD App. F.1 "the world is solid", note 279's "Not yet"). A
+/// generated line's trees, boulders and telegraph poles, and the rest of what stands beside it (the road's homesteads, poles
+/// and cars, the shore's sheds and rocks, the biomes' buildings and walls), are dealt by the sim from the night's seed, the
+/// same on every machine, kept off everything that's the line's own, and stood as walls: a crewmate walks round a trunk and
+/// is stopped by a house, what's loose is put out of one.
 /// </summary>
 [Collection(nameof(LineGenTests))]
 public class LinesidePropsTests
@@ -43,6 +45,17 @@ public class LinesidePropsTests
         return p.Y < w.Top && p.Y > w.Bottom && Math.Abs(l.X) < w.HalfLength + pad && Math.Abs(l.Z) < w.HalfWidth + pad;
     });
 
+    /// <summary>The woods' own, dealt by the slot (note 371): a tree of the biome's flora, a boulder, a telegraph pole.</summary>
+    static bool OfTheWoods(LinesideProp p) => p.Kind == LinesideKind.Pole || (p.Kind == LinesideKind.Rock && p.Species == "rock")
+        || (p.Kind == LinesideKind.Tree && p.Species is not ("fieldSpruce" or "apple"));
+
+    /// <summary>The shore's own, which stand at and in its water (note 389): its sheds, wharves and lighthouses, its ledges and boulders.</summary>
+    static bool OfTheShore(LinesideProp p) => p.Species is "fishShed" or "wharf" or "lighthouse" or "ledge" or "weed" or "boulder" or "redBoulder";
+
+    /// <summary>How many walls the lineside stands outside the forts (the telegraph poles run on through them).</summary>
+    static int WallsOutsideForts(LinesideProps side, IEnumerable<LinesideProp> props, IReadOnlyList<Fort> forts) =>
+        props.Where(p => p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral)).Sum(p => side.WallsOf(p).Count());
+
     [Fact]
     public void TheSameNightStandsTheSameWoodsOnEveryMachineAndAnotherNightOthers()
     {
@@ -61,12 +74,21 @@ public class LinesidePropsTests
         var other = Build("frontier:8").Props(0, 30000).Take(200).ToList();
         Assert.NotEqual(a.Take(200), other);
 
-        // Asking for a stretch, or only what's within reach, deals the same as the whole: the art's cells and the sim's walls agree.
-        var side = Build("frontier:7");
-        static IEnumerable<LinesideProp> Sorted(IEnumerable<LinesideProp> ps) => ps.OrderBy(p => p.Kind).ThenBy(p => p.Along).ThenBy(p => p.Lateral);
-        var cells = Enumerable.Range(0, 300).SelectMany(i => side.Props(i * 100, (i + 1) * 100)).ToList();
-        Assert.Equal(Sorted(a), Sorted(cells));
-        Assert.Equal(Sorted(a.Where(p => Math.Abs(p.Lateral) <= 40)), Sorted(side.Props(0, 30000, 40)));
+        // Asking for a stretch, or only what's within reach, deals the same as the whole: the art's cells and the sim's walls
+        // agree. Within reach is all that stands there; nothing's dealt that the whole doesn't have.
+        static IEnumerable<LinesideProp> Sorted(IEnumerable<LinesideProp> ps) => ps.OrderBy(p => p.Kind).ThenBy(p => p.Along).ThenBy(p => p.Lateral).ThenBy(p => p.Species, StringComparer.Ordinal);
+        foreach (var spec in new[] { "frontier:7", "local:1" })
+        {
+            var side = Build(spec);
+            var whole = side.Props(0, 30000).ToList();
+            var cells = Enumerable.Range(0, 300).SelectMany(i => side.Props(i * 100, (i + 1) * 100)).ToList();
+            Assert.Equal(Sorted(whole), Sorted(cells));
+            var near = side.Props(0, 30000, 40).ToList();
+            Assert.Equal(Sorted(whole.Where(p => Math.Abs(p.Lateral) <= 40)), Sorted(near.Where(p => Math.Abs(p.Lateral) <= 40)));
+            var all = whole.ToHashSet();
+            Assert.All(near, p => Assert.Contains(p, all));
+            Assert.Contains(near, p => p.Kind == LinesideKind.Piece);
+        }
     }
 
     [Theory]
@@ -80,7 +102,7 @@ public class LinesidePropsTests
         var terrain = ((PlanConditions)train.Line.Conditions!).Terrain;
         var plan = route.Plan!;
         int trees = 0;
-        foreach (var p in side.Props(0, train.Line.Length))
+        foreach (var p in side.Props(0, train.Line.Length).Where(OfTheWoods))
         {
             var foot = Foot(train, p);
             if (p.Kind == LinesideKind.Pole)
@@ -103,11 +125,28 @@ public class LinesidePropsTests
                 Assert.False(p.Along > b.Toe && p.Along < b.End && Math.Sign(p.Lateral) == b.Side && Math.Abs(p.Lateral) < 16, $"{spec}: a {p.Kind} on branch {b.Index}'s ground at {p.Along:0}");
         }
         Assert.True(trees > (spec.StartsWith("local") ? 500 : 2000), $"{spec}: only {trees} trees");
+        // The rest (note 389): a building, a stone wall, an old field's spruce, an orchard's tree, an erratic or an outcrop,
+        // a road's pole or a fence post stands on dry ground off every stop's, every branch's and the road itself; the
+        // shore's own stand at its water's edge and in it, off a stop's buildings and tracks. A road's car is on its verge.
+        foreach (var p in side.Props(0, train.Line.Length).Where(p => !OfTheWoods(p)))
+        {
+            var foot = Foot(train, p);
+            if (p.Species is not ("wharf" or "ledge" or "weed" or "boulder" or "redBoulder"))
+            {
+                Assert.False(side.OnStop(p.Along, p.Lateral), $"{spec}: a {p.Species} on a stop's buildings or tracks at {p.Along:0}, {p.Lateral:0}");
+                Assert.False(side.InClearing(p.Along, p.Lateral) && p.Species is not ("fishShed" or "lighthouse"), $"{spec}: a {p.Species} on a stop's ground at {p.Along:0}, {p.Lateral:0}");
+            }
+            if (OfTheShore(p) || p.Species is "car" or "woodpile" or "stoneWall")
+                continue;
+            Assert.Null(terrain.WaterAt(foot.X, foot.Z));
+            foreach (var road in plan.Roads.Where(r => p.Along >= r.S0 && p.Along <= r.S1))
+                Assert.True(Math.Abs(p.Lateral - TerrainField.RoadLateral(road, plan.Crossings, p.Along, plan.Rules.Terrain.Roads.RampM)) >= plan.Rules.Terrain.Roads.HalfWidthM,
+                    $"{spec}: a {p.Species} on a road at {p.Along:0}");
+        }
         // Inside the forts, nothing wild: the sim stands the poles there and nothing else.
         var all = side.Props(0, train.Line.Length).ToList();
         Assert.Contains(all, p => p.Kind != LinesideKind.Pole && LinesideProps.InsideAFort(forts, p.Along, p.Lateral));
-        Assert.Equal(all.Count(p => p.Height - p.Sink > 0.05 && (p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral))),
-            side.Walls(forts, double.MaxValue).Count());
+        Assert.Equal(WallsOutsideForts(side, all, forts), side.Walls(forts, double.MaxValue).Count());
     }
 
     [Fact]
@@ -160,8 +199,78 @@ public class LinesidePropsTests
             var all = s.Props(0, t.Line.Length, Tuning.Run.Walls.LinesideReachM).ToList();
             var walls = s.Walls(forts, Tuning.Run.Walls.LinesideReachM).ToList();
             Assert.All(walls, w => Assert.True(w.Top > w.Bottom && w.Top > w.Bottom + 3, $"{spec}: a wall from {w.Bottom:0.0} to {w.Top:0.0} at {w.Centre}"));
-            Assert.Equal(all.Count(p => p.Height - p.Sink > 0.05 && (p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral))), walls.Count);
+            Assert.Equal(WallsOutsideForts(s, all, forts), walls.Count);
         }
+    }
+
+    [Fact]
+    public void AHomesteadStopsACrewmateWalkingAtIt()
+    {
+        // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
+        // the road; walked at from the line's side, a crewmate stops at its wall.
+        var (_, train, side, forts) = Night("local:1");
+        var props = side.Props(1500, train.Line.Length - 1500, Tuning.Run.Walls.LinesideReachM).ToList();
+        Double3 From(LinesideProp p, double back)
+        {
+            var t = train.Line.Sample(p.Along);
+            return Foot(train, p) - Double3.Cross(t.Tangent, Double3.Up).Normalized * Math.Sign(p.Lateral) * back;
+        }
+        var house = props.First(p => p.Species == "saltbox" && Math.Abs(p.Lateral) < 36 && !LinesideProps.InsideAFort(forts, p.Along, p.Lateral)
+            && Enumerable.Range(0, 7).All(k => !InAnyWall(train.Walls!, From(p, 8 + k) + Double3.Up, P.Radius + 0.2)));
+        var walls = side.WallsOf(house).ToList();
+        Assert.Single(walls);
+        var foot = Foot(train, house);
+        Assert.True(InAnyWall(train.Walls!, foot + Double3.Up, 0), "no wall where the house stands");
+        var from = From(house, 12);
+        var s = PlayerMotor.SpawnOnGround(from, train.Line, house.Along, P);
+        var d = foot - from;
+        s.Yaw = Math.Atan2(-d.X, -d.Z);
+        double closest = double.MaxValue;
+        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+        {
+            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+            Assert.False(InAnyWall(train.Walls!, s.Position, P.Radius - 0.02), $"inside a wall at {s.Position}, tick {i}");
+            closest = Math.Min(closest, double.Hypot(s.Position.X - foot.X, s.Position.Z - foot.Z));
+        }
+        var w = walls[0];
+        Assert.True(closest >= Math.Min(w.HalfLength, w.HalfWidth) + P.Radius - 0.05, $"walked to {closest:0.0} m of a house {w.HalfLength:0.0} by {w.HalfWidth:0.0}");
+        Assert.True(closest < double.Hypot(w.HalfLength, w.HalfWidth) + P.Radius + 1, $"never reached the house ({closest:0.0} m)");
+    }
+
+    [Fact]
+    public void EachPieceStandsOnItsFootprint()
+    {
+        // Every kind of piece is dealt somewhere across the tiers, and stands as its footprint has it: a house, a car, a shed
+        // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
+        // burying ground and a wharf walked through.
+        var seen = new HashSet<string>();
+        foreach (var spec in new[] { "local:1", "deadLines:3", "deepTerritory:2" })
+        {
+            var (route, train, side, _) = Night(spec);
+            foreach (var p in side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece))
+            {
+                seen.Add(p.Species);
+                var walls = side.WallsOf(p).ToList();
+                int boxes = route.Plan!.Rules.Footprints[p.Species][p.Variant].Length;
+                Assert.Equal(boxes, walls.Count);
+                switch (p.Species)
+                {
+                    case "church": Assert.Equal(2, walls.Count); break;
+                    case "tank": Assert.Equal(2, walls.Count); break;
+                    case "wharf" or "buryingGround": Assert.Empty(walls); break;
+                    case "headframe":
+                        Assert.Equal(5, walls.Count);
+                        // Its foot, under the frame between the legs, is open ground.
+                        var foot = Foot(train, p) + Double3.Up;
+                        Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(foot).X) < w.HalfLength && Math.Abs(w.ToLocal(foot).Z) < w.HalfWidth);
+                        break;
+                }
+                foreach (var w in walls)
+                    Assert.True(w.Top > p.Ground - p.Sink && w.Bottom < p.Ground, $"{spec}: a {p.Species}'s wall from {w.Bottom:0.0} to {w.Top:0.0} over ground {p.Ground:0.0}");
+            }
+        }
+        var every = Routes.Generate(Content, "local:1", 6).Plan!.Rules.Footprints.Keys.Where(k => k != "rock");
+        Assert.All(every, name => Assert.Contains(name, seen));
     }
 
     [Fact]

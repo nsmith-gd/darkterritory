@@ -34,6 +34,10 @@ namespace DarkTerritory.Sim.Train;
 /// hold that pose this long (recorded s) before they go over to the brace.</param>
 /// <param name="ShotFill">A player's shot frames them this tall (a share of the frame's height; E.4 O6 asks 25-60%), by its
 /// field of view, between <paramref name="FovMin"/> and <paramref name="FovMax"/> degrees.</param>
+/// <param name="ExtraDolls">E.3's body budget for the extras (note 373): the stowed dead in the film, at most this many, those
+/// nearest the crew; <paramref name="ExtraItems"/> loose things aboard (crates, loot, extinguishers) likewise.</param>
+/// <param name="Buoyancy">E.3 "Water: bodies get buoyancy and drag" (note 373): a body under the water's surface is pushed up at
+/// this many times gravity and slowed at <paramref name="WaterDrag"/> a second, so it comes up and floats. Cars sink.</param>
 public sealed record FilmTuning(
     double Seconds = 6, int Substeps = 4, double Fling = 1.3, double KickMin = 2, double KickMax = 4, double Spin = 4, double EjectCap = 30,
     double MinKickSpeed = 6, double Bystander = 25, double BaseSlow = 0.25, double PeakSlow = 0.1,
@@ -42,7 +46,8 @@ public sealed record FilmTuning(
     double SimRadius = 300, double SeatKick = 6, double SeatClear = 0.25, double ImpactSpeed = 6, double ThudSpeed = 2, double ThudGap = 0.25,
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
-    double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4)
+    double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4,
+    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -89,15 +94,32 @@ public enum FilmTask : byte { None, Driving, Firing, Gunning, Carrying }
 public sealed record FilmLink(int A, int B, double Length);
 
 /// <param name="Along">Where on the line it came off: every machine looks the ground up from here, so it finds the same heights.</param>
+/// <param name="Extras">What else aboard goes into the wreck (App. E.3 "Extras"; note 373): the stowed dead, crates, loot,
+/// extinguishers. None, none.</param>
 public sealed record FilmStart(ulong Seed, IReadOnlyList<FilmCar> Cars, IReadOnlyList<FilmLink> Links,
-    IReadOnlyList<FilmPlayer> Players, string Cause, double Speed, double Along = 0);
+    IReadOnlyList<FilmPlayer> Players, string Cause, double Speed, double Along = 0, IReadOnlyList<FilmExtra>? Extras = null);
+
+/// <summary>
+/// Something else aboard at the derail tick that goes into the wreck with its car (App. E.3: "bodies of the already-dead
+/// stowed in cars, crates, loot and extinguishers aboard all join the wreck. They never get their own shot"; E.7: "it's the
+/// second time their owner has died tonight"; note 373): a body, its 11 joints (<see cref="Bodies.Skeleton"/>'s order) and
+/// whose it was; or a thing, its middle (one joint) and what's in it. In the world, at the car's velocity there.
+/// </summary>
+/// <param name="Inside">The car it's in (its vehicle; −1 out of one, on a roof): that car's a room to it, the rest solids.</param>
+/// <param name="Rides">Past E.3's body budget ("the loose items furthest from any player freeze in place"): not simulated, it
+/// stays where it was in its car and goes wherever the car goes (<see cref="WreckFilm.Riding"/>).</param>
+public sealed record FilmExtra(BodyKind Kind, IReadOnlyList<Double3> Joints, Double3 Velocity, int Inside, int Owner = -1, CargoKind Cargo = CargoKind.None,
+    bool Rides = false);
 
 /// <summary>
 /// One recorded instant: every car's pose, every ragdoll's 11 joints, the cars' hits and the bodies' landings that made a
 /// sound, and what anyone was carrying (note 370).
 /// </summary>
+/// <param name="Items">The extras' things (note 373), each as a load is (its <see cref="FilmLoad.Doll"/> its place in
+/// <see cref="FilmStart.Extras"/>); <paramref name="Dead"/>, the extras' bodies' 11 joints, in their order there.</param>
 public sealed record FilmFrame(IReadOnlyList<(Double3 Origin, Double3 Right, Double3 Up, Double3 Back)> Cars, IReadOnlyList<Double3[]> Ragdolls,
-    IReadOnlyList<WreckImpact> Impacts, IReadOnlyList<FilmLanding> Landings, IReadOnlyList<FilmLoad>? Loads = null);
+    IReadOnlyList<WreckImpact> Impacts, IReadOnlyList<FilmLanding> Landings, IReadOnlyList<FilmLoad>? Loads = null,
+    IReadOnlyList<FilmLoad>? Items = null, IReadOnlyList<Double3[]>? Dead = null);
 
 /// <summary>
 /// What someone was carrying, in one recorded instant (note 370): whose it was (their doll), where its middle is, and how
@@ -284,10 +306,12 @@ public sealed class WreckFilm
     /// Shoots and edits the film: the same on every machine with the same start and ground. <paramref name="recorded"/> is
     /// the recording already made from this start (the host's, from the derail tick), or null to make it.
     /// </summary>
-    public static WreckFilm Shoot(WreckTuning wt, FilmStart start, Func<double, double, double> ground, FilmRecording? recorded = null)
+    /// <param name="water">The water's surface over a point, if there's water there (note 373: bodies float); null, none anywhere.</param>
+    public static WreckFilm Shoot(WreckTuning wt, FilmStart start, Func<double, double, double> ground, FilmRecording? recorded = null,
+        Func<double, double, double?>? water = null)
     {
         var t = wt.Film;
-        var (frames, deaths) = recorded ?? Record(wt, start, ground);
+        var (frames, deaths) = recorded ?? Record(wt, start, ground, water);
         // E.5's peak, scored as before (the order: the biggest flight last), but its moment is the hit that kills them (App.
         // E.2 step 1, the director's decision of 5 Oct 2026): the shot, the bookmark and the opera's hit go where they die.
         var peaks = start.Players.Select((p, i) => (p.Id, (deaths[p.Id].At, Peak(frames, start.Cars, i, ground).Score))).ToDictionary(x => x.Id, x => x.Item2);
@@ -312,7 +336,7 @@ public sealed class WreckFilm
     /// them dies in it. Deterministic (DMath, seeded): the host reads the deaths from it on the derail tick, and every
     /// client that shoots the film from the same start records the same frames.
     /// </summary>
-    public static FilmRecording Record(WreckTuning wt, FilmStart start, Func<double, double, double> ground)
+    public static FilmRecording Record(WreckTuning wt, FilmStart start, Func<double, double, double> ground, Func<double, double, double?>? water = null)
     {
         var t = wt.Film;
         var cars = start.Cars.Select(c => new WreckBody
@@ -343,8 +367,21 @@ public sealed class WreckFilm
         for (int k = 0; k < dolls.Count; k++)
             if (start.Players[k] is { Carried: { } kind, Seated: false, Task: FilmTask.Carrying })
                 loads.Add(Load.Of(k, dolls[k], kind, new Pcg32(start.Seed, 0x10AD + (ulong)k)));
+        // The extras (App. E.3; note 373): the stowed dead limp from the start, and the loose things aboard, each on its own
+        // seeded stream, so nothing of the crew's film changes for them but what they hit.
+        var dead = new List<Doll>();
+        var items = new List<Load>();
+        var extras = start.Extras ?? [];
+        for (int e = 0; e < extras.Count; e++)
+            if (extras[e].Rides)
+                continue;
+            else if (extras[e] is { Kind: BodyKind.Ragdoll } body && body.Joints.Count == Bodies.Skeleton.Length)
+                dead.Add(Corpse(body, t));
+            else if (extras[e].Joints.Count > 0)
+                items.Add(Load.Loose(e, extras[e], new Pcg32(start.Seed, 0xE87A + (ulong)e), Dt / t.Substeps));
+        var everyone = dead.Count == 0 ? dolls : [.. dolls, .. dead];
         var stage = new Stage(cars, start.Cars, ground);
-        var frames = new List<FilmFrame> { Frame(cars, dolls, [], [], loads) };
+        var frames = new List<FilmFrame> { Frame(cars, dolls, [], [], loads, items, dead) };
         var deaths = new Dictionary<int, FilmDeath>();
         var gravity = new Double3(0, -wt.Gravity, 0);
         double still = 0;
@@ -383,9 +420,22 @@ public sealed class WreckFilm
                     // muscles pull equal and opposite), so a hit taken on braced hands and feet counts too.
                     d.Whole += (Middle(ps) - middle) * (1 / h) - gravity * h;
                 }
-                Pile(dolls);
+                foreach (var d in dead)
+                    if (!d.Body.Asleep)
+                        d.Body.Step(h, gravity, (p, r) => stage.Touch(p, r, d));
+                Pile(everyone);
                 foreach (var load in loads)
                     load.Step(h, gravity, stage);
+                foreach (var item in items)
+                    item.Step(h, gravity, stage);
+                // Into the water (note 373): up, and slowed, so it comes up and floats; the cars sink.
+                if (water is not null)
+                {
+                    foreach (var d in everyone)
+                        Float(d.Body, water, wt.Gravity, t, h);
+                    foreach (var item in items)
+                        Float(item.Ball.Body, water, wt.Gravity, t, h);
+                }
             }
             double now = i * Dt;
             var landings = new List<FilmLanding>();
@@ -426,17 +476,22 @@ public sealed class WreckFilm
                 }
             }
             // Out through a doorway (its middle out of its car's box): outside from now on.
-            foreach (var d in dolls)
+            foreach (var d in everyone)
                 if (d.Inside >= 0 && cars.FindIndex(c => c.Vehicle == d.Inside) is >= 0 and var home && Out(cars[home], d.Body.Particles[2].Position))
                     d.Inside = -1;
             // Out of the sim's radius (E.3): frozen where it got to.
-            foreach (var d in dolls)
+            foreach (var d in everyone)
                 if ((d.Body.Centre - engine).Length > t.SimRadius)
                     d.Body.Sleep();
+            foreach (var item in items)
+                if ((item.Ball.Body.Centre - engine).Length > t.SimRadius)
+                    item.Ball.Body.Sleep();
             foreach (var load in loads)
                 load.Turn(Dt);
-            frames.Add(Frame(cars, dolls, impacts, landings, loads));
-            bool resting = wreck.Settled && dolls.All(d => d.Body.Asleep || d.Body.Particles.All(p => (p.Position - p.Previous).Length < 0.05 * h));
+            foreach (var item in items)
+                item.Turn(Dt);
+            frames.Add(Frame(cars, dolls, impacts, landings, loads, items, dead));
+            bool resting = wreck.Settled && everyone.All(d => d.Body.Asleep || d.Body.Particles.All(p => (p.Position - p.Previous).Length < 0.05 * h));
             still = resting ? still + Dt : 0;
             if (still >= 0.5)
                 break;
@@ -868,9 +923,92 @@ public sealed class WreckFilm
             }
     }
 
-    static FilmFrame Frame(List<WreckBody> cars, List<Doll> dolls, List<WreckImpact> impacts, List<FilmLanding> landings, List<Load> loads) =>
+    static FilmFrame Frame(List<WreckBody> cars, List<Doll> dolls, List<WreckImpact> impacts, List<FilmLanding> landings, List<Load> loads,
+        List<Load> items, List<Doll> dead) =>
         new([.. cars.Select(c => (c.Origin, c.Right, c.Up, c.Back))], [.. dolls.Select(d => d.Body.Particles.Select(p => p.Position).ToArray())], impacts, landings,
-            loads.Count == 0 ? null : [.. loads.Select(l => l.Recorded)]);
+            loads.Count == 0 ? null : [.. loads.Select(l => l.Recorded)],
+            items.Count == 0 ? null : [.. items.Select(l => l.Recorded)],
+            dead.Count == 0 ? null : [.. dead.Select(d => d.Body.Particles.Select(p => p.Position).ToArray())]);
+
+    /// <summary>
+    /// One of the stowed dead (App. E.3 extras, E.7; note 373): its ragdoll as it lay, limp from the start (no muscles, no
+    /// deaths, no shot), going with its car.
+    /// </summary>
+    static Doll Corpse(FilmExtra x, FilmTuning t)
+    {
+        var particles = Bodies.Skeleton.Select((j, i) => new Particle(x.Joints[i], 1, j.Radius)).ToArray();
+        var bones = Bodies.Bones.Select(b => new DistanceConstraint(b.A, b.B, (Bodies.Skeleton[b.A].At - Bodies.Skeleton[b.B].At).Length, b.Stiffness)).ToArray();
+        var body = new PbdBody(particles, bones) { Friction = 0.3, Bounce = 0.2, Iterations = 6 };
+        for (int i = 0; i < particles.Length; i++)
+            particles[i].SetVelocity(x.Velocity, Dt / t.Substeps);
+        return new Doll(body, x.Inside, 0) { Alive = false, Muscles = bones.Length };
+    }
+
+    /// <summary>
+    /// E.3 "Water: bodies get buoyancy and drag" (note 373): each joint under the surface over its body's middle is pushed up
+    /// at <see cref="FilmTuning.Buoyancy"/> times gravity and slowed at <see cref="FilmTuning.WaterDrag"/>, so a body that goes
+    /// in comes up and floats at the surface.
+    /// </summary>
+    static void Float(PbdBody body, Func<double, double, double?> water, double gravity, FilmTuning t, double h)
+    {
+        if (body.Asleep)
+            return;
+        var centre = body.Centre;
+        if (water(centre.X, centre.Z) is not { } surface || centre.Y - 1 > surface)
+            return;
+        var ps = body.Particles;
+        double slow = Math.Max(0, 1 - t.WaterDrag * h);
+        for (int i = 0; i < ps.Length; i++)
+        {
+            if (ps[i].Position.Y >= surface)
+                continue;
+            var v = (ps[i].Position - ps[i].Previous) * (1 / h);
+            v = (v + Double3.Up * (t.Buoyancy * gravity * h)) * slow;
+            ps[i].Previous = ps[i].Position - v * h;
+        }
+    }
+
+    /// <summary>
+    /// E.3's body budget for the extras (note 373): the stowed dead nearest the crew, up to <see cref="FilmTuning.ExtraDolls"/>,
+    /// and the loose things nearest them, up to <see cref="FilmTuning.ExtraItems"/>, are simulated; the rest freeze in place
+    /// in their cars (<see cref="FilmExtra.Rides"/>). Nearest by distance, then as given (deterministic); all of them, in the
+    /// order given.
+    /// </summary>
+    public static List<FilmExtra> Budget(IEnumerable<FilmExtra> all, IReadOnlyList<Double3> crew, FilmTuning t)
+    {
+        double Near(FilmExtra x)
+        {
+            var at = x.Joints.Count == 0 ? Double3.Zero : x.Joints.Count > 2 ? x.Joints[2] : x.Joints[0];
+            return crew.Count == 0 ? 0 : crew.Min(c => (c - at).Length);
+        }
+        var list = all.Select((x, i) => (x, i, d: Near(x))).ToList();
+        var kept = list.Where(e => e.x.Kind == BodyKind.Ragdoll).OrderBy(e => e.d).ThenBy(e => e.i).Take(t.ExtraDolls)
+            .Concat(list.Where(e => e.x.Kind != BodyKind.Ragdoll).OrderBy(e => e.d).ThenBy(e => e.i).Take(t.ExtraItems))
+            .Select(e => e.i).ToHashSet();
+        return [.. list.Select(e => kept.Contains(e.i) ? e.x : e.x with { Rides = true })];
+    }
+
+    /// <summary>
+    /// Where an extra past the budget is (<see cref="FilmExtra.Rides"/>; note 373), at a recorded instant: its joints where
+    /// they were in its car at the start, carried with the car's pose in <paramref name="frame"/>. As they were if its car isn't
+    /// in the film.
+    /// </summary>
+    public static Double3[] Riding(FilmStart start, FilmFrame frame, FilmExtra x)
+    {
+        int car = -1;
+        for (int c = 0; c < start.Cars.Count && car < 0; c++)
+            if (start.Cars[c].Vehicle == x.Inside)
+                car = c;
+        if (car < 0 || car >= frame.Cars.Count)
+            return [.. x.Joints];
+        var from = start.Cars[car];
+        var (origin, right, up, back) = frame.Cars[car];
+        return [.. x.Joints.Select(j =>
+        {
+            var d = j - from.Origin;
+            return origin + right * Double3.Dot(d, from.Right) + up * Double3.Dot(d, from.Up) + back * Double3.Dot(d, from.Back);
+        })];
+    }
 
     /// <summary>
     /// Where a load sits in a body's arms (note 370), from its 11 joints (<see cref="Bodies.Skeleton"/>'s order): between
@@ -902,6 +1040,27 @@ public sealed class WreckFilm
         public bool Held = true;
         Double3 _last;
         Pcg32 _rng;
+
+        /// <summary>
+        /// One of the extras' things (note 373): loose from the start at its car's velocity, tumbling on its own seeded spin,
+        /// recorded as a load is (its <see cref="FilmLoad.Doll"/> its place in the extras).
+        /// </summary>
+        public static Load Loose(int index, FilmExtra x, Pcg32 rng, double h)
+        {
+            double radius = x.Kind switch { BodyKind.Crate or BodyKind.Heavy or BodyKind.Cargo => 0.3, _ => 0.15 };
+            var pbd = new PbdBody([new Particle(x.Joints[0], 1, radius)]) { Friction = 0.45, Bounce = 0.15, Iterations = 4 };
+            pbd.Particles[0].SetVelocity(x.Velocity, h);
+            var axis = new Double3(rng.Range(-1, 1), rng.Range(-1, 1), rng.Range(-1, 1));
+            return new Load
+            {
+                DollIndex = index,
+                Ball = new Doll(pbd, x.Inside, 0) { Alive = false },
+                Held = false,
+                Axis = axis.Length > 1e-6 ? axis.Normalized : Double3.Up,
+                Rate = rng.Range(2, 6),
+                _rng = rng,
+            };
+        }
 
         public static Load Of(int index, Doll holder, BodyKind kind, Pcg32 rng)
         {
