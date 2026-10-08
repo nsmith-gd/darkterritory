@@ -1455,6 +1455,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 ? Camera.LookAt(At(x - ox * 2.5 - ax * 1.5, y - oy * 2.5 - ay * 1.5, 1.7), At(x - ox * deep * 0.5 + ax * 10, y - oy * deep * 0.5 + ay * 10, 2.6), 75)
                 : Camera.LookAt(At(x + ox * 7 + oy * 2.5, y + oy * 7 - ox * 2.5, 1.7), At(x - ox * deep * 0.6, y - oy * deep * 0.6, 2.2), 70);
     }
+    // --cottage n: the night's nth open village house (note 326), from just in at its door, looking across the room at a
+    // crewman's eye (note 475: what its candle or lamp, and the room's fill, let you see; --lantern for a hand lamp).
+    if (Opt(args, "--cottage", -1) is var cottageAt and >= 0 && generated is not null)
+    {
+        var houses = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
+            .Where(x => x.Building.Open && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)).ToList();
+        if (houses.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no open houses" });
+        var (f, b, _) = houses[(int)cottageAt % houses.Count];
+        var (_, inside) = DarkTerritory.Sim.Run.StopWalls.Doorways(b).First();
+        // From the doorway's inside, toward the far side of the house through its middle.
+        Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y), up);
+        camera = Camera.LookAt(At(inside.X, inside.Y, 1.75), At(-inside.X * 0.8, -inside.Y * 0.8, 1.0), 80);
+    }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
     {

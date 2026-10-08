@@ -80,7 +80,7 @@ public sealed class GreyboxScene
         if ((at - eye).Length >= 60)
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
-        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * 1.8f * flicker, 7f);
+        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
         if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
             mesh.PointLights.Add(light);
         else
@@ -892,10 +892,30 @@ public sealed class GreyboxScene
                 continue;
             }
             var (push, roll) = Fallen(blow, (float)age);
+            var was = body;
+            // The Car Hugger clubbed to death (note 458): its grip on the car's end gone, it's left where it was as the train
+            // runs on, down onto the track. (Its own clip is the latch's; dead, it's rolled and crumbles as anything does.)
+            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frames.Count)
+            {
+                var dropped = Enemy.Blank(EnemyKind.CarHugger, id);
+                // Clear of the car's end it hung on (a train stood at a stop doesn't pull away from it): out past it 1.5 m.
+                var end = frames[was.Attached];
+                double off = Math.Sign(was.Local.Z) * 1.5;
+                dropped.Restore(SpinePhase.BreakOff, 0, 0, Enemy.Loose, end.ToWorld(was.Local) + end.Back * off, was.LineDistance, 0, 0, 0, 0);
+                _dying[id] = (was = dropped, tick, blow);
+            }
+            if (was.Kind == EnemyKind.CarHugger && was.Attached == Enemy.Loose)
+            {
+                double hint = was.LineDistance;
+                double ground = Sim.Player.PlayerMotor.GroundAt(was.Local, line, ref hint);
+                var falling = Enemy.Blank(EnemyKind.CarHugger, id);
+                falling.Restore(SpinePhase.BreakOff, age, 0, Enemy.Loose, was.Local with { Y = Math.Max(ground, was.Local.Y - 0.5 * 9.81 * age * age) }, was.LineDistance, 0, 0, 0, 0);
+                was = falling;
+            }
             // The Gannet has its own fall (gannet.py death: crashing across the roof, the wings crumpling): not rolled
             // over, and shot out of the air over a car, it falls to that roof first (note 340).
-            var fallen = body;
-            if (body is Sim.Enemies.Gannet g)
+            var fallen = was;
+            if (was is Sim.Enemies.Gannet g)
                 (roll, fallen) = (0, Falling(g, frames, age));
             DrawEnemy(mesh, line, frames, fallen, eye, from, to, Look?.Art.Creatures, flinch: (push, Quaternion.Identity), hitAge: age, dying: true, roll: roll);
             if (fx is not null && BodyAt(fallen, line, frames) is var at && (at - eye).Length < DrawDistance)
@@ -916,7 +936,7 @@ public sealed class GreyboxScene
             return;
         if (Hits is not null)
             foreach (var h in Hits)
-                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && Falls(body.Kind))
+                if (h.Killed && !_dying.ContainsKey(h.EnemyId) && _seen.TryGetValue(h.EnemyId, out var body) && (Falls(body.Kind) || body.Kind == EnemyKind.CarHugger))
                 {
                     _dying[h.EnemyId] = (body, h.Tick, new Vector3((float)h.From.X, 0, (float)h.From.Z));
                     _newBeats.Add(("killed", body));
@@ -931,10 +951,11 @@ public sealed class GreyboxScene
         // The Car Hugger whose car's been cut from the train, or that ate through it and dropped away with it (A.3: "it goes
         // with its car into the dark"): the sim's done with it that tick, the car's still there, rolling away.
         foreach (var (id, was) in _seen)
-            if (was.Kind == EnemyKind.CarHugger && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
+            if (was.Kind is EnemyKind.CarHugger or EnemyKind.CarFire && was.Attached >= 0 && was.Attached < frameCount && Adrift(was.Attached)
                 && !_dying.ContainsKey(id) && !_riding.ContainsKey(id) && Enemies?.Any(e => e.Id == id && !e.Gone) != true)
             {
-                _riding[id] = (was, (uint)Tick);
+                // A fire too (note 458): the car's cut loose burning, and burns on as it rolls away (the sim's done with it).
+                _riding[id] = (Copy(was), (uint)Tick);
                 _newBeats.Add(("cut-loose", was));
             }
         // A Cinder Hound running the line gone and not killed (note 451): scattered by a ball landing near it (note 328), driven
@@ -1064,6 +1085,15 @@ public sealed class GreyboxScene
                 _riding.Remove(id);
                 continue;
             }
+            // A fire, kept burning on its car as it rolls away: its flames here, and its car's smoke (Fires: _burns).
+            if (body is Sim.Enemies.CarFire burning)
+            {
+                var fire = new Sim.Enemies.CarFire(id);
+                fire.Restore(burning.Phase, burning.PhaseSeconds + age, burning.Health, car, burning.Local, 0, 0, 0, burning.Extra, burning.Extra2);
+                fire.RestoreHeat(burning.Heat);
+                DrawEnemy(mesh, line, frames, fire, eye, from, to, Look?.Art.Creatures);
+                continue;
+            }
             var hugger = new Sim.Enemies.CarHugger(id);
             hugger.Restore(SpinePhase.Commit, body.PhaseSeconds + age, body.Health, car, body.Local, 0, 0, 0, body.Extra, body.Extra2);
             var bite = Look is { } look
@@ -1157,6 +1187,17 @@ public sealed class GreyboxScene
     {
         double run = Math.Min(age, speed / AwaySlowing);
         return (speed * run - 0.5 * AwaySlowing * run * run, outSpeed * age);
+    }
+
+    /// <summary>A copy of <paramref name="e"/> as it is now (the sim moves its own, and a snapshot's is replaced): its phase,
+    /// place and state, and a fire's heat.</summary>
+    static Enemy Copy(Enemy e)
+    {
+        var copy = Enemy.Blank(e.Kind, e.Id, e.Extra);
+        copy.Restore(e.Phase, e.PhaseSeconds, e.Health, e.Attached, e.Local, e.LineDistance, e.Lateral, e.Height, e.Extra, e.Extra2);
+        if (e is Sim.Enemies.CarFire fire && copy is Sim.Enemies.CarFire into)
+            into.RestoreHeat([.. fire.Heat]);
+        return copy;
     }
 
     /// <summary>Staged (<c>dt screenshot --retreat kind:s</c>): <paramref name="e"/> let go of at <paramref name="tick"/>, going
@@ -2367,6 +2408,13 @@ public sealed class GreyboxScene
                 double peak = _burns.TryGetValue(e.Attached, out var was) ? Math.Max(was.Peak, e.Extra) : e.Extra;
                 _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish);
             }
+        // A car cut loose burning (note 458): its fire's gone from the sim, and it burns on as it rolls away (Riding).
+        foreach (var (_, (body, _)) in _riding)
+            if (body.Kind == EnemyKind.CarFire && body.Attached >= 0 && body.Attached < cars && Adrift(body.Attached))
+            {
+                double peak = _burns.TryGetValue(body.Attached, out var was) ? Math.Max(was.Peak, body.Extra) : body.Extra;
+                _burns[body.Attached] = (peak, Time, body.Extra, body.Phase == SpinePhase.Punish);
+            }
         // Clocks run backwards across a reload or a fresh run: forget what was.
         foreach (var car in _burns.Keys.Where(k => _burns[k].Last > Time + 1).ToList())
             _burns.Remove(car);
@@ -3018,7 +3066,11 @@ public sealed class GreyboxScene
     /// An open house in the world: its frame's origin on its floor, its axes, its parts, its light, and how high its walls
     /// stand over that floor (an open barn's or shed's eaves, note 462).
     /// </summary>
-    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f);
+    sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false);
+
+    /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
+    InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
+    static readonly InteriorTuning DefaultInteriors = new();
 
     (Sim.Route.Route Route, RailLine Line, List<OpenHouse> Houses)? _openHouses;
 
@@ -3057,7 +3109,7 @@ public sealed class GreyboxScene
                         if (lengths.Count == 0)
                             continue;
                         houses.Add(new OpenHouse(origin, (On(1, 0) - origin).Normalized, (On(0, 1) - origin).Normalized, lengths, null, false,
-                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind)));
+                            (int)(f.Start * 7 + i), yard ? Art.WorldArt.YardShedHeight(b) : Art.WorldArt.OpenShedHeight(b.Kind), Shed: true));
                         continue;
                     }
                     if (!b.Open || !Sim.Run.StopWalls.Walled(stop, i))
@@ -3089,10 +3141,32 @@ public sealed class GreyboxScene
             // The shader's frame has up = back x right.
             if (Vector3.Cross(back, right).Y < 0)
                 back = -back;
+            var lit = Interiors;
             foreach (var part in h.Parts)
             {
-                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (wallHeight / 2);
-                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, wallHeight / 2, (float)part.Width / 2)));
+                // From under its floor (the shader fades a room out over its last 15 cm: a box that began at the boards
+                // left them outside, moonlit blue; note 475) to its eaves.
+                const float Under = 0.3f;
+                var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
+                mesh.Rooms.Add(new Room(V(centre, eye), right, Vector3.UnitY, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
+                // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
+                // A long yard shed has one each shedLanternSpacing along it.
+                if (h.Shed && lit.ShedLantern > 0)
+                {
+                    int lanterns = Math.Max(1, (int)Math.Round(part.Length / Math.Max(1, lit.ShedLanternSpacing)));
+                    for (int k = 0; k < lanterns; k++)
+                    {
+                        double along = part.X + part.Length * ((k + 0.5) / lanterns - 0.5);
+                        var hung = h.Origin + h.X * along + h.Y * part.Y + Double3.Up * Math.Min(wallHeight - 0.5, lit.ShedLanternHeight);
+                        if ((hung - eye).Length > Near)
+                            continue;
+                        double s = Time * 2.3 + h.Id * 1.3 + along;
+                        float sway = (float)(0.93 + 0.05 * Math.Sin(s) + 0.02 * Math.Sin(s * 3.7));
+                        mesh.PointLights.Add(new PointLight(V(hung, eye), Palette.LampAmber * lit.ShedLantern * sway, lit.ShedLanternRange));
+                        mesh.Billboard(V(hung, eye), 0.3f * sway, 0, new Vector4(Palette.LampAmber * 0.45f * sway, 1), -1, FxBlend.Additive);
+                    }
+                }
             }
             // The Gaunt's house has no light: its dark is the tell (TownKit.HouseLight).
             if (h.Light is not { } light)
@@ -3100,7 +3174,7 @@ public sealed class GreyboxScene
             // Dim and warm, a candle's guttering more than a lamp's.
             double t = Time * (h.Lamp ? 3 : 9) + h.Id * 1.7;
             float gutter = (float)(0.8 + 0.12 * Math.Sin(t) + 0.08 * Math.Sin(t * 2.9 + 0.7) * Math.Sin(t * 0.37));
-            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? 0.8f : 0.9f) * gutter, h.Lamp ? 6.5f : 5.5f));
+            mesh.PointLights.Add(new PointLight(V(light, eye), Palette.LampAmber * (h.Lamp ? lit.Lamp : lit.Candle) * gutter, h.Lamp ? lit.LampRange : lit.CandleRange));
             // The flame's own small halo, so the light reads as coming from it.
             mesh.Billboard(V(light, eye), (h.Lamp ? 0.35f : 0.22f) * gutter, 0, new Vector4(Palette.LampAmber * 0.45f * gutter, 1), -1, FxBlend.Additive);
         }

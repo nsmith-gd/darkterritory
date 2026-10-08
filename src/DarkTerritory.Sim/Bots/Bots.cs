@@ -42,7 +42,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public StopHand? Job => _legs.Job;
     bool _holding;
     // Off the gun, it gets about like anyone else on the roofs, goes in to get warm like them, and works stops like them.
-    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
+    readonly RoofWalkerBot _legs = new(seed, cold, job) { Feeds = false, Gunner = true }; // its own powder run is the gunner's (note 374), not a walker's (note 377)
     /// <summary>Its own player id (its legs need it for what's in its hands).</summary>
     public int Me { get => _legs.Me; set => _legs.Me = value; }
     /// <summary>The crew's calls (note 377: who brings the powder), passed to its legs.</summary>
@@ -495,6 +495,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
 
     /// <summary>Whether it brings the guns their powder (note 377): a walker does; a gunner's legs don't (its own run is the gunner's).</summary>
     public bool Feeds { get; set; } = true;
+    /// <summary>A gunner's legs (<see cref="GunnerBot"/>): a gun saved onto the car ahead of a held car (T103) is still its post.</summary>
+    public bool Gunner { get; init; }
 
     /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
     public bool Relieving { get; private set; }
@@ -1288,7 +1290,11 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
             // The Car Hugger on a car with no platform to club it from: off that car and the one ahead of it, toward the engine,
             // clear of its mouth. It may take the car.
             int mine = train.Dynamics.Consist.IndexOf(parent);
-            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0 && mine >= held - 1))
+            // A gunner's gun saved onto the car ahead (T103) is its post again (note 447): it may go back along that car to it.
+            // At 1.2 m a jump off the held car lands it past the gun's seat, and this sent it on up the train, back over the gap
+            // for the gun and up again, all night (note 473).
+            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
+                    && (mine >= held || mine == held - 1 && !(Gunner && train.Vehicles[parent].HasGun))))
                 _direction = -1;
             // A hot axle box (note 331) or a loose coupling (note 356): to its car, down its end ladder into the gap behind it,
             // and grease it or tighten it.
