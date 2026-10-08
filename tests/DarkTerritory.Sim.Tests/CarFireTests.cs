@@ -123,8 +123,8 @@ public class CarFireTests
         {
             bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
             // Where they stood: out past the wall, at the doorway's forward edge.
-            n.Crew[i] = new PlayerState { Parent = car, Position = new Double3(room.Min.X - 0.2, Tuning.Train.Geometry.Interior!.FloorHeight, at.Z - 0.6 + 0.3 * (i - 2)),
-                Yaw = Math.PI, Surface = Surface.Deck, Health = P.Health };
+            n.Crew[i] = new PlayerState { Parent = car, Position = new Double3(i == 2 ? -1.41 : -1.82 + 0.02 * i, Tuning.Train.Geometry.Interior!.FloorHeight, i == 2 ? -0.6 : -2.0 - 0.05 * i),
+                Yaw = 3.13, Surface = Surface.Deck, Health = P.Health };
         }
         for (int s = 0; s < 60 && !fire.Gone; s++)
         {
