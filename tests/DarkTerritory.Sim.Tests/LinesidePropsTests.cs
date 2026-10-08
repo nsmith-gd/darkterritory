@@ -29,6 +29,7 @@ public class LinesidePropsTests
         var side = LinesideProps.Of(route, train.Line)!;
         train.Walls = StopWalls.Of(route, train.Line, forts, Tuning.Run.Walls);
         train.Walls.Add(side.Walls(forts, Tuning.Run.Walls.LinesideReachM));
+        train.Walls.Add(side.BranchWalls(Tuning.Run.Walls.LinesideReachM));
         return (route, train, side, forts);
     }
 
@@ -285,5 +286,86 @@ public class LinesidePropsTests
         // A hand-laid line's lineside is the art's alone.
         var legacy = Route.RouteGenerator.Generate(Tuning.Route, Route.RouteTier.Frontier, 1);
         Assert.Null(LinesideProps.Of(legacy, legacy.Build()));
+    }
+
+    static Double3 Foot(RailLine local, BranchTree tree)
+    {
+        var t = local.Sample(tree.Along);
+        return (t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * tree.Lateral) with { Y = tree.Ground };
+    }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:3")]
+    [InlineData("deepTerritory:2")]
+    public void TheBranchesPinesAreDealtAsTheMainLinesWoodsAre(string spec)
+    {
+        // Note 432 (the last of the lineside the art dealt alone, after notes 371 and 389): the alternates' and dead lines'
+        // pines are the sim's, dealt by the cell from the night's seed, the same on every machine and asked in any pieces;
+        // none in water, on the main line's own land (its woods are its own), or within 9 m of any track.
+        var (route, train, side, _) = Night(spec);
+        var again = LinesideProps.Of(Routes.Generate(Content, spec, 6), train.Line)!;
+        var terrain = ((PlanConditions)train.Line.Conditions!).Terrain;
+        int dealt = 0, main = route.Plan!.Alignment.ToList().FindIndex(a => a.Role == EdgeRole.Main);
+        foreach (var a in route.Plan.Alignment.Where(a => a.Role is EdgeRole.Alternate or EdgeRole.DeadLine))
+        {
+            var local = train.Line.Branches[a.Branch].Local;
+            var whole = side.BranchTrees(a.Branch, 0, local.Length).ToList();
+            Assert.Equal(whole, again.BranchTrees(a.Branch, 0, local.Length));
+            // Asked in pieces that cut across its cells.
+            var pieces = new List<BranchTree>();
+            for (double from = 0; from < local.Length; from += 137)
+                pieces.AddRange(side.BranchTrees(a.Branch, from, Math.Min(from + 137, local.Length)));
+            Assert.Equal(whole.OrderBy(t => t.Along).ThenBy(t => t.Lateral), pieces.OrderBy(t => t.Along).ThenBy(t => t.Lateral));
+            foreach (var tree in whole)
+            {
+                var foot = Foot(local, tree);
+                Assert.Null(terrain.WaterAt(foot.X, foot.Z));
+                Assert.DoesNotContain(terrain.Nearby(foot.X, foot.Z, 12), n => Math.Abs(n.Lateral) < 9);
+                Assert.DoesNotContain(terrain.Nearby(foot.X, foot.Z, 300), n => n.Edge == main && Math.Abs(n.Lateral) < LinesideProps.MainLandM);
+                Assert.InRange(tree.Ground - terrain.Height(foot.X, foot.Z), -0.2, -0.1);
+            }
+            dealt += whole.Count;
+        }
+        Assert.True(dealt > 50, $"{spec}: only {dealt} pines beside its branches");
+    }
+
+    [Fact]
+    public void ACrewmateWalksRoundABranchsPineNotThroughIt()
+    {
+        var (route, train, side, _) = Night("frontier:7");
+        double reach = Tuning.Run.Walls.LinesideReachM;
+        // Every pine in reach of its own track stands as a wall (and the world stands them at the run's start).
+        var trees = route.Plan!.Alignment.Where(a => a.Role is EdgeRole.Alternate or EdgeRole.DeadLine)
+            .SelectMany(a => side.BranchTrees(a.Branch, 0, train.Line.Branches[a.Branch].Local.Length)).ToList();
+        var near = trees.Where(t => Math.Abs(t.Lateral) - t.Radius <= reach).ToList();
+        Assert.NotEmpty(near);
+        Assert.Equal(near.Count, side.BranchWalls(reach).Count());
+        var night = new Night(4, speed: 0, route);
+        night.World.EnableRun(Tuning.Run, route, 600, authority: true);
+        Assert.All(near, t => Assert.True(InAnyWall(night.Train.Walls!, Foot(train.Line.Branches[t.Branch].Local, t) + Double3.Up, 0), $"no wall at the pine {t.Along:0} along branch {t.Branch}"));
+        // Walked at from 4 m nearer its track, a crewmate stops at its trunk.
+        Double3 From(BranchTree t)
+        {
+            var local = train.Line.Branches[t.Branch].Local;
+            var s = local.Sample(t.Along);
+            return Foot(local, t) - Double3.Cross(s.Tangent, Double3.Up).Normalized * Math.Sign(t.Lateral) * 4;
+        }
+        var tree = near.First(t => t.Radius >= 0.15 && near.All(q => q.Equals(t) || (Foot(train.Line.Branches[q.Branch].Local, q) - Foot(train.Line.Branches[t.Branch].Local, t)).Length > 6)
+            && !InAnyWall(train.Walls!, From(t) + Double3.Up, P.Radius + 0.3));
+        var trunk = Foot(train.Line.Branches[tree.Branch].Local, tree);
+        var from = From(tree);
+        var st = PlayerMotor.SpawnOnGround(from, train.Line, 0, P);
+        var d = trunk - from;
+        st.Yaw = Math.Atan2(-d.X, -d.Z);
+        double closest = double.MaxValue;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        {
+            PlayerMotor.Step(ref st, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+            Assert.False(InAnyWall(train.Walls!, st.Position, P.Radius - 0.02), $"inside a wall at {st.Position}, tick {i}");
+            closest = Math.Min(closest, double.Hypot(st.Position.X - trunk.X, st.Position.Z - trunk.Z));
+        }
+        Assert.True(closest >= tree.Radius + P.Radius - 0.05, $"walked to {closest:0.00} m of a pine {tree.Radius:0.00} m round");
+        Assert.True(closest < tree.Radius + P.Radius + 0.5, $"never reached the pine ({closest:0.0} m)");
     }
 }
