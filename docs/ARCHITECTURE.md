@@ -4887,8 +4887,21 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - carries it back by a way round the houses to a cargo car's steps, where the crate hand's own way takes it up and in. A shut door makes it put the find down on the landing, open up, and take it up again.
 
       The driver doesn't call the loading done while any hand alive is out (`CrewCalls.Scavenging`), within its give-ups as before. A hand called back (the dawn, a give-up) comes home by a planned way, not straight at the train through the houses. Nobody goes with less than `villageDawnSpare` (15 min) of the night left. A bot crew without loot (the stop-crew tests) never goes. `StopCrewTests.WithTheCratesInHalfTheHandsSearchTheVillageAndBringTheFindsAboard` pins it: the crates in, at most half the hands out at once, spots searched, finds stowed, everyone back and the train whole.
+    - **Rooms** (`StopWalls.Partition`, `InnerWall`, `InnerDoorways`). The bigger houses are cut into rooms, so a house is somewhere to go through, not one glance from the door (GDD App. F.3's "explorable interiors"). From the house alone, with no dice, so every machine has the same walls and the stop is laid as before:
+        - an L's wing is walled off along its seam with the main part, with a doorway (`DoorWidth`) in the middle of the wall;
+        - a plain house (a rectangle or a square) `RoomsFrom` (9 m) or longer has a back room, `BackRoom` (0.38) of its length, across the end away from its door. With the door in a side, the back room's end is the house's variant's. Its doorway is a fifth of the house's width off the middle, toward a side. A cross's arms and a pair's cottages stay as they were;
+        - such a house is laid from its outline like an L (`Composite` is true for it): the floor's cells are cut at the inner wall, and the outside's runs end where it meets them, so each room has its own walls and corners. The inner wall's two faces are runs too (`WallRun.Inner`), either side of the doorway. What's kept stands against them as against any wall, and the heavy clutter as well. No door goes in them, and the walls stand from them as the inner wall itself, between the outside walls' inner faces;
+        - the clutter keeps a metre clear either side of the inner doorway, and the light's corners are the outside's, so the back room is often the dark one;
+        - the art puts a lintel over the inner doorway, and across a plain house the wall goes on up into the gable under the ridge;
+        - the Gaunt's roost in such a house is in the middle of its biggest room, as it already was for an L.
+      `OpenHouseTests.TheBiggerHousesHaveABackRoomThroughADoorway` (frontier:7, deadLines:2, local:3, deepTerritory:2) pins it, with the walk-in flood fill:
+        - only a long plain house or an L has rooms;
+        - the inner doorway is walkable from both sides, and the wall is solid away from it;
+        - some floor in every room is got to;
+        - no two pieces of furniture stand in each other.
+      `YouWalkInAtTheDoorAndTheFindsAreInside` still has every find got to. Seen by lantern in `dt screenshot --route frontier:7 --at 10190 --lantern --fov 80`: `--cam 10208.4,72.6,1.6 --target 10212.0,75.0,1.3` is Maddox's house 1, from its door to the back room's doorway, and `--cam 10211.1,74.2,1.6 --target 10213.5,76.5,1.0` is in its doorway.
     - **Not yet:**
-        - Rooms and a stair: one room, ground floor.
+        - A stair: ground floor only.
         - Doors that shut.
         - B2's walk-in town houses (#194) are a fortress's, built separately; when they land, the two can share a kit.
     - **Verified:** `OpenHouseTests.YouWalkInAtTheDoorAndTheFindsAreInside` (frontier:7, deadLines:2):
