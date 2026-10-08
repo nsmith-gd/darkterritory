@@ -7394,7 +7394,7 @@
     "diffuse": "models/ribbit_0.png",
     "spec": "models/ribbit_0_s.png",
     "normal": "models/ribbit_0_n.png",
-    "size": 1024,
+    "size": 2048,
     "tileMetres": null,
     "tiling": false,
     "family": "creature",
@@ -7402,7 +7402,7 @@
     "sources": [
       {
         "generator": "tools/models/recipes/ribbit.py",
-        "what": "the Ribbits, modelled over tools/blender/ribbit.py",
+        "what": "the Ribbits, modelled in tools/blender/ribbit.py, their colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"
