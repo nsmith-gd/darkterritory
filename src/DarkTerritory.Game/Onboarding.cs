@@ -36,12 +36,14 @@ public static class Onboarding
     public static IReadOnlyList<string> Card(Settings keys)
     {
         string K(Control c) => $"[{Controls.KeyLabel(keys.KeyFor(c))}]";
+        // HOLD KEYS on TOGGLE (note 383): those are a press, not a hold.
+        string Hold(Control c) => keys.ToggleHolds && HoldLatch.Latches(c) ? "" : "HOLD ";
         return
         [
             $"MOVE : {K(Control.Forward)}{K(Control.Left)}{K(Control.Back)}{K(Control.Right)}   RUN : {K(Control.Run)}   JUMP : {K(Control.Jump)}",
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
-            $"TALK : HOLD {K(Control.Talk)}   RADIO : HOLD {K(Control.Radio)}",
-            $"CREW : HOLD {K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
+            $"TALK : {Hold(Control.Talk)}{K(Control.Talk)}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
+            $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
             "MENU : [ESC]",
         ];
     }

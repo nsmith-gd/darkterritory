@@ -27,13 +27,15 @@ public sealed partial class GameAudio
     readonly Pcg32Ish _outsideRng = new(20261003);
     readonly Dictionary<int, double> _sleepersSeen = new();
     readonly Dictionary<int, double> _smashAt = new();
+    // The Holdouts whose lock was last being worked open with the wrench (Free clears Quiet the tick it gives).
+    readonly HashSet<int> _pickedQuiet = new();
     readonly Dictionary<int, double> _craneMoved = new();
     readonly Dictionary<(int, int), CastingState> _castings = new();
     double _earHint = double.NaN, _outsideClock = double.NaN, _engineFrontWas = double.NaN, _engineSpeedWas, _nextFar, _tenderAtPour, _rammedAgain;
     bool _outsidePrimed, _radioWas;
     // Where the grain spout's mouth was while it poured: it's cut off there when the train moves off and it's nowhere.
     // HoldLevel owners for a site's set pieces, clear of the vehicles' ids.
-    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000;
+    const int HerdOwner = 10_000, HoseOwner = 11_000, HeapOwner = 12_000, GustOwner = 13_000, LiftOwner = 14_000;
     // The line's gust where the ear was last tick (PlayerMotor.Gust), for the gust cue as one rises.
     double _gustWas;
     Double3 _spoutAt;
@@ -58,6 +60,7 @@ public sealed partial class GameAudio
     {
         _sleepersSeen.Clear();
         _smashAt.Clear();
+        _pickedQuiet.Clear();
         _startledUntil.Clear();
         _livestockAccel = double.NaN;
         _craneMoved.Clear();
@@ -635,6 +638,15 @@ public sealed partial class GameAudio
         // they're being driven.
         if (site.Has(ModuleKind.Ramp) && site.Stirred && (site.Pen - ear).Length < 150)
             HoldLevel("world-livestock.cattle", HerdOwner + site.Index, (site.Pen + site.RampTop) * 0.5 + Double3.Up, outside, site.Herding ? 1 : 0.6);
+        // The steam lift at the mine head (note 368; queue #122, note 385): the winding engine while the engine's steam winds
+        // the skip (someone on the lever and the vent open), and each skip tipped down the chute, its ore off the shaft's.
+        if (site.Has(ModuleKind.Lift) && (site.Headframe - ear).Length < 300)
+        {
+            if (site.Winding)
+                HoldLevel("place-mine-lift.winding", LiftOwner + site.Index, site.Headframe + Double3.Up * 3, outside, 1);
+            if (Moved("place-mine-lift.ore", site.Index, site.Ore) < -1e-6 && primed)
+                Cue("place-mine-lift.tip", site.LiftChute, outside);
+        }
         // The chemical works' hose (note 185): its leak hissing at the stand while the pressure's over or the hose is torn.
         if (site.Has(ModuleKind.Hose) && site.Leaking && (site.HoseStand - ear).Length < 150)
             HoldLevel("place-chemical.leak", HoseOwner + site.Index, site.HoseStand + Double3.Up * 1.5, outside, 1);
@@ -684,15 +696,23 @@ public sealed partial class GameAudio
         {
             bool shelter = h.Layout.Kind == HoldoutKind.Shelter;
             bool breaking = h.State == HoldoutState.Breaching && Moved("place-breach.progress", h.Index, h.Progress) > 0;
+            // A lock opened with the wrench is quiet (D.7, Holdout.Quiet; note 301's slice 2): worked open, never smashed.
+            if (h.Quiet)
+                _pickedQuiet.Add(h.Index);
+            else if (h.State == HoldoutState.Breaching)
+                _pickedQuiet.Remove(h.Index);
+            bool quiet = _pickedQuiet.Contains(h.Index) && !shelter;
             if (breaking && shelter)
                 HoldLevel("place-breach.pry", h.Index, h.Door, outside, 1);
-            if (breaking && !shelter && _time >= _smashAt.GetValueOrDefault(h.Index))
+            if (breaking && quiet)
+                HoldLevel("place-breach.pick", h.Index, h.Door, outside, 1);
+            if (breaking && !shelter && !quiet && _time >= _smashAt.GetValueOrDefault(h.Index))
             {
                 Cue("place-breach.smash", h.Door, outside, (float)(0.8 + 0.2 * OutsideOdds()));
                 _smashAt[h.Index] = _time + 0.45 + 0.25 * OutsideOdds();
             }
             if (Flipped("place-breach.freed", h.Index, h.State == HoldoutState.Freed, primed) > 0)
-                Cue(shelter ? "place-breach.pry-give" : "place-breach.smash", h.Door, outside);
+                Cue(shelter ? "place-breach.pry-give" : quiet ? "place-breach.pick-give" : "place-breach.smash", h.Door, outside);
 
             if (Moved("voice-callout.calls", h.Index, h.Calls) <= 0 || !primed)
                 continue;
