@@ -312,7 +312,8 @@ public sealed class GreyboxScene
                     // GDD §18's set pieces (note 185): the elevator's spout, the slaughterhouse's pen and ramp, the works' hose.
                     if (site is not null && (site.Has(Sim.Run.ModuleKind.Spout) || site.Has(Sim.Run.ModuleKind.Ramp) || site.Has(Sim.Run.ModuleKind.Hose)
                         || site.Has(Sim.Run.ModuleKind.Lift))
-                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120)
+                        && (site.Track.Sample(site.Mid).Position - eye).Length < DrawDistance + 120
+                        && Look?.Art.SetPieces(mesh, site, frames, eye, Time) != true)
                         SetPieces(mesh, site, frames, eye, Time);
                     // The wreck yard's heaps (note 187): the last train's cars on their sides, groaning when they're going to go;
                     // drawn as the train's own cars, wrecked, where the art pass has them (note 394).

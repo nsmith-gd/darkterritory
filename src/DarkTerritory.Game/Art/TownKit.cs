@@ -299,6 +299,61 @@ public static class TownKit
         k.Quad(M(0, ridge + 0.05f, z0), M(0, ridge + 0.05f, z1), M(w / 2 + over, eaves - over * 0.9f, z1), M(w / 2 + over, eaves - over * 0.9f, z0), twoSided: true);
     }
 
+    /// <summary>
+    /// An open house's windows, boarded over (GDD §30's dead settlements; the Wiki's "white trim still shows round windows
+    /// boarded over with raw planks"): along each run of its outside wall with no door, one or two, as fit a window's width and a
+    /// pier either side, each a white trim frame with a black pane behind three raw planks nailed across it, ragged, and the
+    /// planks' backs on the inside face. Art only: the wall's as solid behind them as anywhere (StopWalls).
+    /// </summary>
+    /// <param name="box">A box in the house's frame: middle, half sizes, bottom and top over the floor.</param>
+    static void BoardedWindows(Kit k, Sim.Stops.StopBuilding b, Action<double, double, double, double, float, float> box)
+    {
+        const float Sill = 0.95f, High = 1.1f, Half = 0.44f, TrimW = 0.07f;
+        double t = Sim.Run.StopWalls.WallThickness;
+        var o = Sim.Run.StopWalls.Outline(b);
+        int n = 0;
+        for (int i = 0; i < o.Runs.Count; i++)
+        {
+            var r = o.Runs[i];
+            if (r.Inner || o.Doors.Contains(i))
+                continue;
+            // One or two, as fit, a pier of about 1 m either side and between, spread evenly along the run.
+            int count = Math.Min(2, (int)((r.Length - 1.0) / (2 * Half + 1.6)));
+            for (int w = 0; w < count; w++)
+            {
+                double along = r.A + r.Length * (w + 1) / (count + 1);
+                int seed = b.Variant * 31 + n++ * 7;
+                // Outside: the frame proud of the wall's face, the pane black behind, the planks across it. Inside: the planks' backs.
+                foreach (int face in new[] { 1, -1 })
+                {
+                    double at = face > 0 ? r.At + r.Out * 0.02 : r.At - r.Out * (t + 0.02);
+                    void Across(double a0, double a1, float y0, float y1, double depth) =>
+                        box(r.AlongX ? (a0 + a1) / 2 : at + r.Out * face * depth, r.AlongX ? at + r.Out * face * depth : (a0 + a1) / 2,
+                            r.AlongX ? (a1 - a0) / 2 : 0.02, r.AlongX ? 0.02 : (a1 - a0) / 2, y0, y1);
+                    if (face > 0)
+                    {
+                        k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
+                        Across(along - Half, along + Half, Sill, Sill + High, -0.01);
+                        k.Use("clapboard", new Vector3(0.62f, 0.6f, 0.55f), 0.9f, 0.05f, tile: 3);
+                        Across(along - Half - TrimW, along - Half, Sill - TrimW, Sill + High + TrimW, 0.01);
+                        Across(along + Half, along + Half + TrimW, Sill - TrimW, Sill + High + TrimW, 0.01);
+                        Across(along - Half - TrimW, along + Half + TrimW, Sill + High, Sill + High + TrimW, 0.01);
+                        Across(along - Half - TrimW - 0.04, along + Half + TrimW + 0.04, Sill - TrimW - 0.03f, Sill, 0.02);
+                    }
+                    // Three planks, each a little longer one side than the other and off level, as they were nailed up in a hurry.
+                    k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f) * (face > 0 ? 1 : 0.7f), 0.85f, 0.03f, tile: 1);
+                    for (int p = 0; p < 3; p++)
+                    {
+                        int h = (seed + p * 13) % 7;
+                        float y = Sill + 0.18f + p * 0.36f + (h - 3) * 0.012f;
+                        double left = along - Half - 0.06 - (h % 3) * 0.04, right = along + Half + 0.06 + ((h + 1) % 3) * 0.04;
+                        Across(left, right, y - 0.08f, y + 0.08f, 0.04);
+                    }
+                }
+            }
+        }
+    }
+
     /// <param name="clutter">What a ransack left about it (StopWalls.ClutterOf).</param>
     /// <param name="nest">Where the Gaunt nests in it, if it does (StopWalls.Nest).</param>
     public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept,
@@ -361,6 +416,8 @@ public static class TownKit
         }
         else
             Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
+
+        BoardedWindows(k, b, Box);
 
         // A gabled roof over each part, its ridge along the part's longer side (a plain house's along its axis).
         if (outline is null)

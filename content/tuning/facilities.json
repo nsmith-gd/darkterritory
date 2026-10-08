@@ -263,7 +263,12 @@
     // villageDawnSpare (s) of the night left. Not in the spec: half, so the yard's still minded.
     "villageShare": 0.5,
     "villageReach": 150,
-    "villageDawnSpare": 900
+    "villageDawnSpare": 900,
+    // Note 403 (GDD App. F.3's "work the yard together"; since queue #89 every siding has loot beside it): the crates by the
+    // site's own stack in, a crate hand fetches the nearest crate lying loose elsewhere in the yard, either side of the
+    // train, within yardReach (m) of where it stands, on foot round the sheds and the train, before anyone goes to the village. The same
+    // dawn spare. Not in the spec: a crate's carried at 2.8 m/s, so 120 m is a minute and a half there and back.
+    "yardReach": 120
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute).
   "kinds": {
