@@ -5899,3 +5899,13 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - Measured on the 87 re-encoded takes, decoded with their gain: RMS within ±0.17 dB of before.
         - Every other take encodes byte-identical, so the rebuild touched only the takes that clipped.
     - **Pinned:** `AudioTests.NoInstalledTakeClipsOnceItsDecoded`. Every installed take is decoded as the engine does, and none comes within 0.2 % of 16-bit full scale. It failed on main (78 takes at the audit); it passes now.
+425. **The foundry's furnace heard (AU1, queue #161; C1's casting shed, note 420: "a furnace nobody tends"; GDD §18, §30 "oversized, partially abandoned, barely operable").** The casting shed's cupola glows through its door and its broken panes, with its 40 m stack over it, and nothing was heard of it. The foundry's only sound was its crane and its castings (note 322's place-crane).
+    - **How:** `GameAudio.PlaceWorks` already held the slaughterhouse's inside and the chemical works' leak at the nearest works (`Places.Works`: a laid-out stop's yard sheds, or 25 m off the line's side mid-zone). The foundry now joins them.
+        - Within 90 m of the works, `place-foundry.furnace` is held 6 m up, where the cupola rises through the roof, and heard through the walls of a car or a house the ear is shut in, like the leak.
+        - About once every 40 s, `place-foundry.slump` plays 9 m up: the charge settling in the shaft.
+    - **The sounds** (`tools/audio/recipes/foundry.py`): two candidates on the Audio Checklist's new `place-foundry` line, both installed.
+        - The furnace, `cupola`: a 10 s loop of the stack's draught roaring through the coke bed. It's pink noise weighted at 180-900 Hz, where it carries over the train, with the stack's broad low column under it, gusting every few seconds. Over it, the coke's fine crackle and odd pop, the shell and the charging stage ticking as they take the heat (the packs' metal clicks, pitched down and choked), and a thin hiss at the glowing door.
+        - The slump, `charge`: the packs' heavy metal hit pitched far down for the charge settling through the shell, a low hollow and a brown-noise rumble under it, the draught catching with a whoomph, sparks crackling up the stack, and coke and slag knocking down after it.
+        - There's no furnace in the packs, so the roar is synthesised; the iron's ticks are the packs' own.
+    - **Not yet:** the casting shed has no room of its own in the audio. Inside it, the furnace sounds as it does from the yard, only nearer.
+    - **Pinned:** `WorldSoundTests.TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt`, on a client night with a foundry: the furnace held where the cupola stands while the ear's at the works, and gone 400 m off.
