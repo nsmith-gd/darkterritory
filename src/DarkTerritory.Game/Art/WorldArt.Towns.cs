@@ -276,7 +276,7 @@ public sealed partial class WorldArt
             var at = town.World(h.S, h.D);
             if ((at - eye).Length > reach)
                 continue;
-            var m = Place(line, eye, at, h.S, 0, -h.Side);
+            var m = HouseAt(line, eye, town, h);
             foreach (var top in MaritimeKit.ChimneyTops(h))
                 yield return Vector3.Transform(top, m);
         }
@@ -351,7 +351,7 @@ public sealed partial class WorldArt
         var plan = town.Plan;
         var at = town.World(h.S, h.D);
         double far = (at - eye).Length;
-        var m = Place(line, eye, at, h.S, 0, -h.Side);
+        var m = HouseAt(line, eye, town, h);
         if (far > near && h.Layout is null)
         {
             var distant = HousePiece($"maritime-far-{h.Id}-{lit}", () => MaritimeKit.Far(_look, h, town.Looks, lit));
@@ -580,6 +580,12 @@ public sealed partial class WorldArt
     }
 
     static Double3 Right(TrackSample t) => Double3.Cross(t.Tangent, Double3.Up).Normalized;
+
+    /// <summary>
+    /// Where a house's mesh is drawn (relative to <paramref name="eye"/>): at its middle, square to its lot, its front to
+    /// its street. Its body is turned inside the mesh (<see cref="MaritimeKit.Turned"/>, note 490), its yard isn't.
+    /// </summary>
+    public static Matrix4x4 HouseAt(RailLine line, Double3 eye, Town town, TownHouse h) => Place(line, eye, town.World(h.S, h.D), h.S, 0, -h.Side);
 
     /// <summary>
     /// Ten-metre wall pieces along the line from <paramref name="s0"/> to <paramref name="s1"/>, <paramref name="d"/> out,

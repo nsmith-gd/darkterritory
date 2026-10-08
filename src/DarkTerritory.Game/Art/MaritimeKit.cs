@@ -167,9 +167,12 @@ public static class MaritimeKit
         var coat = CoatOf(looks, h.Design, h.Kind);
         var b = Shape(h);
         Yard(k, h, coat);
+        // Its body as it stands, turned off true about its middle; its yard square to its lot (note 490).
+        k.Push(Turned(h));
         if (h.Kind == HouseKind.Burnt)
         {
             Burnt(k, h, b);
+            k.Pop();
             return k.Build($"maritime-burnt-{h.Id}");
         }
         float doorX = X(h, h.Design.DoorU);
@@ -195,8 +198,19 @@ public static class MaritimeKit
             Fancy(k, h, b, coat);
         if (h.Layout is { } l)
             Inside(k, h, l, thing, panes);
+        k.Pop();
         return k.Build($"maritime-{h.Kind}-{h.Id}-{h.S:0}-{h.D:0}");
     }
+
+    /// <summary>
+    /// A house's body turned off true about its middle (<see cref="TownHouse.Turn"/>, note 490), in the kit's frame (X its
+    /// side times along the line, Z in from its middle): the Sim's turn in the rail frame is this rotation here.
+    /// </summary>
+    public static Matrix4x4 Turned(TownHouse h) => Matrix4x4.CreateRotationY((float)-h.Turn);
+
+    /// <summary>A point of a house's body (u, v in its own frame) in the kit's frame, turned as it stands (note 490).</summary>
+    public static Vector3 BodyPoint(TownHouse h, double u, double v, float up = 0) =>
+        Vector3.Transform(new Vector3(X(h, u), up, Z(h, v)), Turned(h));
 
     /// <summary>
     /// A house as it's seen from down the street (queue #74's big towns, note 335): its block and roof in its colours,
@@ -215,6 +229,13 @@ public static class MaritimeKit
     static void FarInto(Kit k, TownHouse h, Block b, Coat c, bool lit)
     {
         FarYard(k, h);
+        k.Push(Turned(h));
+        FarBody(k, h, b, c, lit);
+        k.Pop();
+    }
+
+    static void FarBody(Kit k, TownHouse h, Block b, Coat c, bool lit)
+    {
         if (h.Kind == HouseKind.Burnt)
         {
             k.Use("wood_grey", Palette.SootBlack, 0.95f, 0, tile: 1);
@@ -300,8 +321,8 @@ public static class MaritimeKit
     }
 
     /// <summary>The lamp by a lived-in house's door (the kit's frame): on the wall beside it, a little over the door's head.</summary>
-    public static Vector3 Porch(TownHouse h, float doorHeight) =>
-        new(X(h, h.Design.DoorU) + (float)HouseLayout.DoorWidth / 2 + 0.4f, doorHeight + 0.1f, (float)(-h.Depth / 2 + h.DoorV) - 0.16f);
+    public static Vector3 Porch(TownHouse h, float doorHeight) => Vector3.Transform(
+        new Vector3(X(h, h.Design.DoorU) + (float)HouseLayout.DoorWidth / 2 + 0.4f, doorHeight + 0.1f, (float)(-h.Depth / 2 + h.DoorV) - 0.16f), Turned(h));
 
     /// <summary>The foundation, the walls, the gable ends, the corner boards and fascia, and the roof.</summary>
     static void Shell(Kit k, TownHouse h, Block b, Coat c, float doorX)
@@ -896,7 +917,9 @@ public static class MaritimeKit
     /// Where a house's chimneys (or its stovepipe) let out, in its own kit frame: where a lived-in house's wood smoke rises
     /// from (<see cref="Effects.Chimney"/>). As <see cref="Chimneys"/> builds them.
     /// </summary>
-    public static IEnumerable<Vector3> ChimneyTops(TownHouse h)
+    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) => Tops(h).Select(p => Vector3.Transform(p, Turned(h)));
+
+    static IEnumerable<Vector3> Tops(TownHouse h)
     {
         var b = Shape(h);
         float sr = b.Profile.MaxBy(p => p.Y).X, a0 = b.A0 + 0.55f, a1 = b.A1 - 0.55f;

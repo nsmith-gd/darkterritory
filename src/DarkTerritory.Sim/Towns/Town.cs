@@ -215,10 +215,11 @@ public sealed class Town
         return World(b.S, b.D - side * (b.Depth / 2 + 0.05), 1.2);
     }
 
-    /// <summary>A shut house's front door, at a door's height: where its design puts it (an enclosed porch's, out in front).</summary>
+    /// <summary>A shut house's front door, at a door's height: where its design puts it (an enclosed porch's, out in front),
+    /// with its body as it's turned (note 490).</summary>
     public Double3 Door(TownHouse h)
     {
-        var (s, d) = h.Rail(h.Design.DoorU, h.DoorV - 0.05);
+        var (s, d) = h.Body(h.Design.DoorU, h.DoorV - 0.05);
         return World(s, d, 1.2);
     }
 
@@ -373,12 +374,17 @@ public sealed class Town
     /// </summary>
     IEnumerable<Wall> HouseWalls(TownHouse h)
     {
-        // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign), and its yard's
-        // fences, sheds, woodpiles and the rest (note 335).
-        foreach (var (u0, u1, v0, v1, height) in h.Solids())
+        // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign), turned as its body
+        // is (note 490); and its yard's fences, sheds, woodpiles and the rest (note 335), square to its lot.
+        foreach (var (u0, u1, v0, v1, height) in h.Parts())
         {
-            var (s, d) = h.Rail((u0 + u1) / 2, (v0 + v1) / 2);
-            yield return Box(s, d, (u1 - u0) / 2, (v1 - v0) / 2, height);
+            var (s, d) = h.Body((u0 + u1) / 2, (v0 + v1) / 2);
+            yield return Box(s, d, (u1 - u0) / 2, (v1 - v0) / 2, height, turn: h.Turn);
+        }
+        foreach (var y in h.Yard.Where(y => y.Solid))
+        {
+            var (s, d) = h.Rail((y.U0 + y.U1) / 2, (y.V0 + y.V1) / 2);
+            yield return Box(s, d, Math.Abs(y.U1 - y.U0) / 2, Math.Abs(y.V1 - y.V0) / 2, y.Height);
         }
         if (h.Layout is not { } l)
             yield break;
@@ -402,12 +408,14 @@ public sealed class Town
                 yield return Part(x.U - x.HalfU, x.U + x.HalfU, x.V - x.HalfV, x.V + x.HalfV, Math.Max(0.5, x.Height));
     }
 
-    /// <summary>A box in the rail frame, square to the line: half its length along it and across it, its height.</summary>
-    Wall Box(double s, double d, double halfS, double halfD, double height, double up = 0)
+    /// <summary>A box in the rail frame, square to the line (or <paramref name="turn"/> off it, radians: a turned house's
+    /// body, note 490): half its length along it and across it, its height.</summary>
+    Wall Box(double s, double d, double halfS, double halfD, double height, double up = 0, double turn = 0)
     {
         var t = _line.Sample(s);
         var at = t.Position + Right(t) * d;
-        var axis = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var axis = turn == 0 ? along : (along * DMath.Cos(turn) + Right(t) * DMath.Sin(turn)).Normalized;
         return new Wall(at with { Y = 0 }, axis, halfS, halfD, at.Y + up - 0.5, at.Y + up + height);
     }
 }

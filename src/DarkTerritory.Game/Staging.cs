@@ -115,7 +115,7 @@ public static class Staging
         }
         // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
         // its wall of names, and down the first street to the day painted on the back wall.
-        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden")
+        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden" or "greenover")
         {
             double gs = (green.S0 + green.S1) / 2, near = side * green.Near, far = side * green.Far, gd = (near + far) / 2;
             var statue = plan.Fixtures.FirstOrDefault(f => f.Kind == "statue");
@@ -128,6 +128,8 @@ public static class Staging
                 "memorial" when names is not null => Ballast.Render.Camera.LookAt(town.World(names.S - 3, names.D - side * 5, 1.7), town.World(names.S, names.D, 1.2), 65),
                 "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
                 "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
+                // From high over the square, across the green to the row facing it over its far street (note 490: turned to it).
+                "greenover" => Ballast.Render.Camera.LookAt(town.World(gs, near - side * 18, 34), town.World(gs, far + side * 14, 0), 70),
                 _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
             };
         }

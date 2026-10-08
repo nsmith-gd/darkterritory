@@ -289,6 +289,8 @@ public static partial class TownGenerator
         var looks = rngFor("houses");
         // The yards on a stream of their own, so the houses are as they were (note 335).
         var yrng = rngFor("houses.yards");
+        // How far each stands off true (note 490), on a stream of its own.
+        var trng = rngFor("houses.turn");
         // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
         // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
         var drng = rngFor("houses.design");
@@ -334,6 +336,19 @@ public static partial class TownGenerator
                 model ??= design;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout);
             var (edge, back, fenced) = RowYards(row, Math.Sign(d0), s, frontage / 2);
+            // Nothing ruled straight (note 490): a shut house on a street a few degrees off true, the row across the green's
+            // far street turned to it; no further than its lot has room for, its yard square to the lot.
+            double turnDraw = trng.NextDouble(), turnBy = trng.Range(wt.Turn[0], wt.Turn[1]) * (trng.Chance(0.5) ? 1 : -1);
+            if (layout is null && row > 0)
+            {
+                double deg = turnDraw < wt.TurnChance ? turnBy : 0;
+                if (homes.Green is { } g && row == 4 && Math.Sign(d0) == side && s > g.S0 - CrescentPast && s < g.S1 + CrescentPast)
+                {
+                    double x = Math.Clamp((s - (g.S0 + g.S1) / 2) / ((g.S1 - g.S0) / 2 + CrescentPast), -1, 1);
+                    deg = -sd * x * wt.Crescent;
+                }
+                house = house with { Turn = Fitted(house, deg * Math.PI / 180, frontage, edge * Math.Sign(d0), back * Math.Sign(d0)) };
+            }
             // A lot beside a lane is fenced along it (note 353): a lane runs between board fences, not across open yards.
             var (below, above) = lanes.Count > 0 ? Lanes(row, Math.Sign(d0), s, frontage) : (double.MinValue, double.MaxValue);
             int laneSides = (s - frontage / 2 - below < LaneFence ? 1 : 0) | (above - (s + frontage / 2) < LaneFence ? 2 : 0);
@@ -379,6 +394,27 @@ public static partial class TownGenerator
             }
         }
         return homes;
+    }
+
+    /// <summary>How far past the green's ends the row facing it still turns to it (m; note 490).</summary>
+    const double CrescentPast = 8;
+
+    /// <summary>
+    /// A turn for a house (radians), halved until its body keeps a little inside its lot's sides, a step back from its
+    /// street's edge and short of its back line (as far as it did standing square): or none (note 490).
+    /// </summary>
+    static double Fitted(TownHouse h, double turn, double frontage, double? edgeD, double backD)
+    {
+        var square = h.Extent(0);
+        double vEdge = edgeD is { } e ? h.Side * (e - h.FrontD) : double.MinValue, vBack = h.Side * (backD - h.FrontD);
+        for (int i = 0; i < 4 && turn != 0; i++, turn /= 2)
+        {
+            var (u0, u1, v0, v1) = h.Extent(turn);
+            if (u0 >= Math.Min(square.U0, -frontage / 2 + 0.4) && u1 <= Math.Max(square.U1, frontage / 2 - 0.4)
+                && v0 >= Math.Min(square.V0, vEdge + 1.2) && v1 <= Math.Max(square.V1, vBack - 1.0))
+                return turn;
+        }
+        return 0;
     }
 
     /// <summary>Whether a yard thing stands in the square (along it, on its side, short of its far wall).</summary>
@@ -428,8 +464,8 @@ public static partial class TownGenerator
         double vBack = h.Side * (backD - h.FrontD);
         if (fenced && rng.Chance(odds.Boards))
             things.Add(new(YardKind.Boards, -half, half, vBack - 0.03, vBack + 0.03, 1.7));
-        // Behind the house (its wing too) and a step clear of it, to just short of the back line.
-        double v0 = h.Parts().Select(p => p.V1).Append(h.Depth).Max() + 0.5, v1 = vBack - 0.15, room = v1 - v0;
+        // Behind the house (its wing too, as it's turned: note 490) and a step clear of it, to just short of the back line.
+        double v0 = h.Extent().V1 + 0.5, v1 = vBack - 0.15, room = v1 - v0;
         if (room < 0.7 || h.Kind == HouseKind.Burnt)
             return things;
         int n = rng.RangeInclusive(odds.Count[0], odds.Count[1]) - (lived ? 0 : 1);
