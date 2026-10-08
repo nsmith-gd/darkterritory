@@ -121,6 +121,16 @@ public class CabSightTests
         Assert.True(2 * Math.Atan(TrainKit.DriverGaugeRadius / distance) * 180 / Math.PI > 6, "the speed dial reads from the driver's place");
         // Over the window: the line's view isn't cut by them.
         Assert.True(g.Y - TrainKit.DriverGaugeRadius > TrainKit.FrontWindow(Engine, 1).Y1);
+        // And under the ceiling as it comes down over the front (the director, 8 Oct: "the map and gauges are still
+        // covered"): every dial whole below it, the map's top too, and none of them over another.
+        for (int i = 0; i < 4; i++)
+        {
+            var c = TrainKit.DriverGauge(Engine, i);
+            Assert.True(c.Y + TrainKit.DriverGaugeRadius + 0.02f < TrainKit.CeilingAt(Engine, c.Z), $"gauge {i} is up in the ceiling");
+            Assert.True(c.Y - TrainKit.DriverGaugeRadius > TrainKit.FrontWindow(Engine, 1).Y1, $"gauge {i} is down over the window");
+            Assert.True(c.X - TrainKit.DriverGaugeRadius > map.Corner.X + map.Width, $"gauge {i} is over the map");
+        }
+        Assert.True(map.Corner.Y + map.Height < TrainKit.CeilingAt(Engine, map.Corner.Z), "the map is up in the ceiling");
     }
 
     [Fact]
