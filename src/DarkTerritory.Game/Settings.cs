@@ -47,6 +47,16 @@ public sealed record Settings
     public bool PublicLobby { get; init; } = true;
     /// <summary>What the host calls the lobby in the browser; empty, "&lt;name&gt;'S RUN".</summary>
     public string LobbyName { get; init; } = "";
+    /// <summary>
+    /// A private run's password (note 450; the director, 8 Oct 2026: "Private matches should be password gated"), the host
+    /// screen's PASSWORD, remembered so a crew's usual one needn't be typed each night.
+    /// </summary>
+    public string LobbyPassword { get; init; } = "";
+    /// <summary>
+    /// Who you're playing for (note 450): HERE FOR LAUGHS, FEELING COMPETITIVE or EITHER. One setting on the host and join
+    /// screens alike: a host's run is listed with it, and the join list puts runs of it first.
+    /// </summary>
+    public RunMood Mood { get; init; }
     /// <summary>A multiplier on mouse look.</summary>
     public double MouseSpeed { get; init; } = 1;
     /// <summary>Note 297: the mouse pushed forward looks down, as a flight stick does.</summary>
@@ -223,11 +233,12 @@ public sealed record Settings
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
         && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
+        && LobbyPassword == other.LobbyPassword && Mood == other.Mood
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking))));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

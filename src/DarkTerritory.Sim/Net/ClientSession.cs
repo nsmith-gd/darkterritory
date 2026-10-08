@@ -188,9 +188,11 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
+    /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
+    public byte[]? PasswordKey { get; init; }
     /// <summary>Who the host said this client is, kept past a drop (so the last snapshot's players still exclude it).</summary>
     byte? _was;
     /// <summary>This player as predicted locally: what the local camera shows.</summary>
