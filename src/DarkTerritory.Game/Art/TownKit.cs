@@ -217,6 +217,55 @@ public static class TownKit
     /// frame: its axis (x) to −Z, across it (y) to +X.
     /// </summary>
     /// <summary>
+    /// The one dim light in an open house (the director, 8 Oct: "some lighting inside, dim to keep it scary"), in its own
+    /// frame: a candle stub left guttering on the floor in a corner, clear of what's kept there, or (one house in three) an
+    /// oil lamp turned right down, hung from the middle of the ceiling. Its flame's height over the floor. The scene lights
+    /// it; the art stands it there.
+    /// </summary>
+    public static (double X, double Y, float Height, bool Lamp) HouseLight(Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept)
+    {
+        var o = Sim.Run.StopWalls.Outline(b);
+        if (b.Variant % 3 == 0)
+        {
+            var (x0, y0, x1, y1) = o.Cells.MaxBy(c => (c.X1 - c.X0) * (c.Y1 - c.Y0));
+            return ((x0 + x1) / 2, (y0 + y1) / 2, 2.25f, true);
+        }
+        // Every inside corner by a wall with no door, in the outline's order turned by the house's variant; the first clear of
+        // the furniture and the finds.
+        double t = Sim.Run.StopWalls.WallThickness, inset = t + 0.2;
+        var taken = kept.SelectMany(c =>
+        {
+            var (kx, ky, _, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+            var (fx, fy) = Sim.Run.StopWalls.InsideLocal(b, c.Kind, c.Index);
+            return new[] { (kx, ky), (fx, fy) };
+        }).ToList();
+        var corners = new List<(double, double)>();
+        for (int k = 0; k < o.Runs.Count; k++)
+        {
+            if (o.Doors.Contains(k))
+                continue;
+            var r = o.Runs[k];
+            var (nx, ny) = (-r.Normal.X, -r.Normal.Y);
+            foreach (var (end, dir) in new[] { (0.0, 1.0), (1.0, -1.0) })
+            {
+                var (px, py) = r.Point(end);
+                var (ax, ay) = r.AlongX ? (dir, 0.0) : (0.0, dir);
+                double x = px + ax * inset + nx * inset, y = py + ay * inset + ny * inset;
+                if (Sim.Run.StopWalls.InParts(b, x, y))
+                    corners.Add((x, y));
+            }
+        }
+        for (int i = 0; i < corners.Count; i++)
+        {
+            var (x, y) = corners[(i + b.Variant) % corners.Count];
+            if (taken.All(p => Math.Abs(p.Item1 - x) + Math.Abs(p.Item2 - y) > 1.4))
+                return (x, y, 0.16f, false);
+        }
+        var c0 = o.Cells[0];
+        return ((c0.X0 + c0.X1) / 2, (c0.Y0 + c0.Y1) / 2, 2.25f, true);
+    }
+
+    /// <summary>
     /// A gabled roof on walls <paramref name="eaves"/> high, in the kit's frame: centred at (<paramref name="cx"/>,
     /// <paramref name="cz"/>), <paramref name="span"/> across the ridge and <paramref name="length"/> along it, the ridge along
     /// Z (or X); the gable ends in plaster, both faces, so they read from inside too, then the slate.
@@ -292,6 +341,37 @@ public static class TownKit
         else
             foreach (var part in b.Parts)
                 Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
+
+        // Its light (HouseLight): a candle stub on a saucer, the wax run down it, its flame; or a tin lamp on a chain, its
+        // glass barely lit.
+        {
+            var (lx, ly, height, lamp) = HouseLight(b, kept);
+            var at = K(lx, ly, Floor);
+            if (lamp)
+            {
+                k.Use("rust_heavy", Palette.SootBlack, 0.7f, 0.4f);
+                k.Rod(at + new Vector3(0, H, 0), at + new Vector3(0, height + 0.16f, 0), 0.006f);
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                k.Lathe(at + new Vector3(0, height - 0.12f, 0), [new(0.07f, 0), new(0.08f, 0.03f), new(0.06f, 0.06f)], 8, smooth: false);
+                k.Lathe(at + new Vector3(0, height + 0.06f, 0), [new(0.06f, 0), new(0.04f, 0.05f), new(0.015f, 0.1f)], 8, smooth: false);
+                k.Use("lamp_lens", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
+                k.Emissive = 1;
+                k.Cylinder(at + new Vector3(0, height - 0.06f, 0), at + new Vector3(0, height + 0.06f, 0), 0.045f, 8, caps: false);
+                k.Emissive = 0;
+            }
+            else
+            {
+                k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
+                k.Cylinder(at, at + new Vector3(0, 0.012f, 0), 0.06f, 8);
+                k.Use("plaster_ruin", new Vector3(0.62f, 0.58f, 0.48f), 0.6f, 0, tile: 0.2f);
+                k.Cylinder(at + new Vector3(0, 0.012f, 0), at + new Vector3(0, height - 0.05f, 0), 0.022f, 7);
+                k.Cylinder(at + new Vector3(0.012f, 0.012f, 0.008f), at + new Vector3(0.012f, 0.05f, 0.008f), 0.016f, 5);
+                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Emissive = 1;
+                k.Cylinder(at + new Vector3(0, height - 0.05f, 0), at + new Vector3(0, height, 0), 0.008f, 5, radiusB: 0.001f);
+                k.Emissive = 0;
+            }
+        }
 
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
