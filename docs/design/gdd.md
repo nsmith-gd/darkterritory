@@ -1,11 +1,32 @@
 # DARK TERRITORY
-## Game Design Document — v1.4, October 2026
+## Game Design Document — v1.5, October 2026
 
 **Two to eight players crew an armoured freight train through a corrupted wilderness. Load what you can. Deliver what survives.**
 
 *Dark territory is a real railroad term: track with no functioning signal system, where trains move on verbal authority alone. When communication fails, people die.*
 
 Interactive version, with the roster explorer and director tools: [claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx](https://claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx). It opens only for people it has been shared with.
+
+**v1.5 changes — the director's play-tests of 5–7 October.**
+- **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
+- **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. The Switchman sends you down a dead line, and only running off its end derails you (§21, §22, A.8).
+- **A derailment commits.** However slow it comes off, the first car is thrown and every car after goes over, one after another (App. E, F.3).
+- **One night length for every tier:** 24 km and dawn at 51 minutes. A deeper tier is denser, not longer (§11).
+- **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
+- **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep job, the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches (B.3, F.3).
+- **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
+- **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
+- **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
+- **The wrench repairs, Sea of Thieves style.** Everyone carries one; in hand, Use at a break mends it: the burst boiler, a breach, a battered car. Stranding is to follow the wrench, not the kit: every wrench lost, then a rupture (the director, 8 Oct; §12, §23, §23.2).
+- **Fire is a grid** of cells on a car's floor, walls and roof; the extinguisher puts out the cell you aim at, and burnt cells char (C.5).
+- **Stoker v3:** drawn by a hot firebox, it boards at the coal bunker and can be caught there; in the firebox it's territorial, and venting starves it out (§21, A.5). **The Track Doll** escalates only when ignored (A.2).
+- **The fortress is safe** until the gate, and the forts all night (§9). **Fortress towns:** each a Maritime town with its own custom, people who talk, and houses to walk into (§3.1).
+- **Village houses to search:** they stand open, and a held search of each cupboard, cabinet, cellar or loose board turns up the finds (F.3).
+- **The HUD is your hands and the dark:** only the crosshair and the hotbar always; prompts say the action and its key and never foretell (§32).
+- **The film:** each player is alive until the hit that kills them, and skips their own film whenever they want (E.2, E.5, E.12).
+- **Solo is tested** (F.1); open question 12 (crew 2) is swept (Part Eleven).
+- Touches §3.1, §9, §11, §12, §21, §22, §23, §32, Part Eleven, A.2, A.5, A.8, B.1, B.3, C.5, E.2, E.5, E.12 and App. F, where the play-tests are logged.
 
 **v1.4 changes — the boiler, stranding and the derailment cinematic.**
 - **Boiler rupture no longer kills.** It catches up with the build (T109): the engine seizes, the train slows hard and coasts, and the engineering kit held at the firebox for 25s mends it. The train restarts from cold (§23).
@@ -621,7 +642,7 @@ Nobody dies. The cost is the clock, a stopped train with everything that means (
 
 ### 23.2 Stranded, unable to repair
 
-*Note 301: with the wrench the repair tool and every crewmate carrying one, a lost kit strands nobody, and there's no kit to lose. Whether a night can still be stranded is the director's call. The rule as it stood:*
+*With the wrench as the repair tool (ARCHITECTURE §8 note 301), the director, 8 Oct 2026: "If every crew member drops their wrench off the train then leaves them behind and then the train breaks down they could be stranded."* **A ruptured boiler with no wrench left to mend it ends the night:** every crewmate's wrench and the cab's rack wrench gone, dropped off the train and left behind, in a car cut loose or taken, or on a body carried off. Queue #39's second slice (D1.3) moved this section's rules from the kit to the wrench; what follows is the kit's rule as it was, and still is with `repair.wrench` off.
 
 **A ruptured boiler with the engineering kit lost ends the night.** Nothing else mends a boiler. With spares (§12), it takes losing **every** kit the crew has. A kit found at a stop counts once someone has picked it up.
 
@@ -2141,7 +2162,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the plain village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Bots that search, more rooms and the L, cross and paired houses are next.*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Every house stands open, the L, cross and paired ones too. Bots that search are next.*
+  - *The director, 8 Oct, on the first interiors:* "These interiors are looking good but a few things: they need some lighting inside, dim to keep it scary, I like that they look worn down; sometimes a monster should be nesting in there; they need procedurally generated furniture scattered about, like the place has been ransacked many times before; loot needs to be discoverable in there, that's the whole point of this. They need a bit of a brighter more unique look to them so that they stand out from the background as interactable objects. Do this with good texture work, not VFX." *(B4, under queue #65. In: a dim candle or lamp in each house, the night kept out; each kind of find its own model in bright printed stock. Next: ransacked furniture, and the Gaunt's nest in its house.)*
 
 **Encounters**
 - Off the train it isn't dangerous enough. Exploring a village, nothing much happened. Raise the threat when people leave the train, or at least the perceived threat; more encounters is probably a good idea overall too. The goal: when you leave, there's a presence of threat at all times. *Done (note 327): off the train the crew are watched: now and then eyes at the lamp's edge toward where something that lives at the stop is, and its sound; and the night's pressure builds faster while anyone's afoot, so encounters come sooner (`enemies.json` `director.afoot`).*
@@ -2301,4 +2323,4 @@ Further decisions (the director, 6 Oct 2026):
 
 ---
 
-*Dark Territory · GDD v1.4 · October 2026*
+*Dark Territory · GDD v1.5 · October 2026*

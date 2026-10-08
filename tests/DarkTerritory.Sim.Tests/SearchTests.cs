@@ -156,16 +156,15 @@ public class SearchTests
         }
     }
 
-    /// <summary>Whether a world point stands within a building's footprint.</summary>
+    /// <summary>Whether a world point stands within a building's footprint (its parts: an L's notch is outside it).</summary>
     static bool Inside(World world, Run.Run run, HidingSpot h, StopBuilding b, Double3 p)
     {
         var f = run.Stops[h.Stop];
-        var centre = Run.Run.StopWorld(world.Train.Line, f, b.Centre);
-        var ahead = Run.Run.StopWorld(world.Train.Line, f, b.Centre + new Pt(Math.Cos(b.Yaw), Math.Sin(b.Yaw)));
-        var axis = ((ahead - centre) with { Y = 0 }).Normalized;
-        var d = (p - centre) with { Y = 0 };
-        double along = d.X * axis.X + d.Z * axis.Z, across = d.X * -axis.Z + d.Z * axis.X;
-        return Math.Abs(along) < b.Length / 2 && Math.Abs(across) < b.Width / 2;
+        var o = Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 0, 0));
+        var ex = (Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 1, 0)) - o) with { Y = 0 };
+        var ey = (Run.Run.StopWorld(world.Train.Line, f, StopWalls.InHouse(b, 0, 1)) - o) with { Y = 0 };
+        var d = (p - o) with { Y = 0 };
+        return StopWalls.InParts(b, Double3.Dot(d, ex), Double3.Dot(d, ey));
     }
 
     [Fact]
