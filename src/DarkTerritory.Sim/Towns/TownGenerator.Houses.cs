@@ -61,7 +61,8 @@ public static partial class TownGenerator
     /// <summary>How far in from the square's ends the green across the street from it starts (m).</summary>
     const double GreenIn = 4;
 
-    static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor)
+    static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor,
+        TownFolk? folk = null)
     {
         var t = content.Tuning;
         var st = t.Houses;
@@ -218,7 +219,8 @@ public static partial class TownGenerator
         HouseDesign? model = null;
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
-        var families = new Deck<string>([.. content.Surnames], rngFor("houses.families"));
+        // The families by the town's mix of peoples (note 453), or any of the province's.
+        var families = folk is not null ? new Deck<string>(folk.Families(rngFor("houses.families")), null) : new Deck<string>([.. content.Surnames], rngFor("houses.families"));
         var srng = rngFor("houses.spots");
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";
         for (int i = 0; i < sizes.Count + lostHouses; i++)

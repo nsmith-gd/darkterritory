@@ -1,0 +1,120 @@
+// The townsfolk's personality matrix (GDD §3.1; ARCHITECTURE §8 note 453; docs/design/townsfolk.md). The words (the
+// temperaments' lines, the heritages' names, the bynames) are content/world/townsfolk.json; this file is the numbers,
+// read by Sim/Towns/TownFolk. Nothing here is in the systems spec: every number is a first reading, made so a sweep
+// (`dt town sweep`) shows each custom with its own lean and every temperament in it.
+//
+// Six traits, each from -1 to 1 (the order is fixed in code, never this file's):
+//   keeping  lapsed (keeps the custom out of habit, half believes it)  ..  zealous (keeps it harder than it needs keeping)
+//   telling  close (won't speak of what happened)                       ..  open (says more of the rule than they should)
+//   nerve    frayed                                                     ..  steady
+//   grief    sealed (won't speak of the lost)                           ..  raw (talks to them still)
+//   welcome  wary of anyone from away                                   ..  warm to the crew
+//   hope     resigned                                                   ..  making the world tolerable
+//
+// Somebody's trait is the sum of their town's custom's lean, the town's own mood, their household's, their job's or their
+// part in the house, a lost one in the house, and their own draw; clamped to [-1, 1].
+{
+  // How far apart people are: their own draw (about this standard deviation), a household's shared mood (families
+  // resemble), and the town's mood (two towns of one custom aren't alike).
+  "spread": 0.42,
+  "householdSpread": 0.22,
+  "townSpread": 0.18,
+
+  // The customs' leans (towns.json "cultures" by id): what each grief made of its people. A custom not named here leans nowhere.
+  "cultures": {
+    "hush":      { "keeping": 0.4, "telling": -0.35, "nerve": -0.2, "grief": 0.2, "hope": -0.2 },
+    "pairs":     { "keeping": 0.3, "nerve": -0.2, "grief": 0.2, "welcome": 0.35 },
+    "count":     { "keeping": 0.4, "telling": 0.1, "nerve": -0.1, "welcome": -0.5 },
+    "shutters":  { "keeping": 0.3, "grief": 0.25, "welcome": -0.1, "hope": -0.3 },
+    "talkers":   { "keeping": 0.2, "telling": 0.5, "nerve": -0.3, "welcome": 0.2 },
+    "eyes":      { "keeping": 0.4, "telling": -0.1, "nerve": 0.3, "welcome": -0.3 },
+    "offerings": { "keeping": 0.3, "grief": 0.3, "welcome": 0.1, "hope": 0.15 },
+    "rulebook":  { "keeping": 0.5, "telling": 0.2, "nerve": 0.1, "hope": -0.1 },
+    "banked":    { "keeping": 0.3, "nerve": 0.1, "welcome": 0.1, "hope": -0.2 },
+    "crown":     { "keeping": 0.3, "telling": -0.1, "nerve": -0.25 },
+    "backs":     { "keeping": 0.4, "nerve": -0.2, "welcome": 0.2 },
+    "fours":     { "keeping": 0.3, "telling": -0.3, "nerve": 0.2, "grief": 0.2, "welcome": -0.1 },
+    "lastCar":   { "keeping": 0.2, "telling": 0.2, "nerve": 0.1, "hope": -0.1 },
+    "backGun":   { "keeping": 0.2, "nerve": 0.3, "welcome": -0.2, "hope": 0.1 }
+  },
+
+  // A job's lean (towns.json "roles"; "hand" works at the town's trade, "street" is out at night with a lantern).
+  "roles": {
+    "gatekeeper":  { "keeping": 0.3, "nerve": 0.3, "welcome": -0.2 },
+    "guard":       { "nerve": 0.3, "welcome": -0.3 },
+    "clerk":       { "keeping": 0.2, "telling": 0.2, "grief": -0.2 },
+    "keeper":      { "keeping": 0.6, "telling": 0.2 },
+    "storekeeper": { "welcome": 0.3, "hope": 0.1 },
+    "fitter":      { "keeping": -0.2, "telling": 0.1, "nerve": 0.2 },
+    "lampman":     { "nerve": 0.1, "hope": 0.4 },
+    "porter":      { "telling": 0.2, "welcome": 0.2 },
+    "driver":      { "keeping": -0.3, "telling": 0.3, "nerve": 0.2, "grief": 0.2 },
+    "widow":       { "grief": 0.6, "welcome": 0.1, "hope": -0.3 },
+    "cook":        { "welcome": 0.4, "hope": 0.2 },
+    "hand":        { "keeping": -0.1 },
+    "street":      { "hope": 0.1 }
+  },
+
+  // A part in a household behind an open door (towns.json "households"): the old keep it hardest, a child blurts.
+  "parts": {
+    "elder":  { "keeping": 0.3, "telling": 0.1, "grief": 0.2, "hope": -0.2 },
+    "parent": { "nerve": -0.1 },
+    "child":  { "keeping": -0.2, "telling": 0.4, "grief": -0.3, "hope": 0.3 },
+    "lodger": { "keeping": -0.3, "telling": 0.1, "welcome": 0.2 }
+  },
+
+  // A household that lost somebody (its "absent").
+  "absent": { "grief": 0.4, "hope": -0.2 },
+
+  // The temperaments: who somebody is, from their traits. Each is a direction in the matrix; somebody is the one their
+  // traits lie furthest along (the dot product over the profile's length), or "plain" when none reaches temperamentFloor.
+  "temperamentFloor": 0.5,
+  "temperaments": {
+    "faithful":  { "keeping": 1, "nerve": -0.4 },
+    "doubter":   { "keeping": -1, "telling": 0.7 },
+    "mourner":   { "grief": 1, "hope": -0.6 },
+    "hollow":    { "grief": -0.7, "hope": -0.8, "welcome": -0.3 },
+    "watcher":   { "welcome": -1, "nerve": 0.6 },
+    "comforter": { "welcome": 0.8, "hope": 0.8 },
+    "talker":    { "telling": 1, "welcome": 0.4 },
+    "frayed":    { "nerve": -1 },
+    "mender":    { "hope": 1, "keeping": 0.3 },
+    "restless":  { "hope": 0.7, "keeping": -0.4, "nerve": 0.3 }
+  },
+
+  // What telling does to what they say (GDD §3.1: hints, never the rule whole). Below "close", somebody won't speak of
+  // the custom (the keeper of its hall always does) and says a line fewer than the fewest (towns.json linesPerPerson);
+  // above "open", the most.
+  "telling": { "close": -0.45, "open": 0.45 },
+
+  // Names (world/townsfolk.json "heritages").
+  "names": {
+    // A town's people come mostly from one heritage and partly from a second; the rest spread over the others. The
+    // dominant heritage is the fort's own name's (Fort Boudreau is Acadian) this often, else drawn by the trade's leans
+    // (a pit town's Highland Scots and Irish, a farm's Acadians and Loyalists, a foundry's Lunenburg Germans).
+    "dominant": [0.45, 0.7],
+    "second": [0.15, 0.3],
+    "fortName": 0.7,
+    "byTrade": {
+      "coal":    { "gaelic": 2, "irish": 1.5 },
+      "farm":    { "acadian": 2, "loyalist": 1.5 },
+      "foundry": { "lunenburg": 2, "loyalist": 1.5 }
+    },
+    // Somebody whose given name is from another of the town's heritages than their surname (Jean-Guy MacNeil).
+    "mixedGiven": 0.12,
+    // A child born inside the walls is given an after-name (world/townsfolk.json "after"): the custom's own this often
+    // when it has some, else by the household's mood (zealous: a virtue; hopeful: a daylight name; a lost one in the
+    // house: theirs), the strongest lean past "lean", or a plain short name.
+    "afterCulture": 0.3,
+    "afterLean": 0.15,
+    // Bynames, the Cape Breton way ("Holy Annie Gillis", "Hector the Gate MacNeil", "Angus Dan Rory MacNeil"): this share
+    // of people have one; those whose temperament lies past "strong" (its score) this share. A strong one's byname is
+    // their temperament's; else their job's this often, else a Gaelic patronymic this often (of grandfather too, half
+    // the time), else their temperament's.
+    "byname": 0.2,
+    "bynameStrong": 0.55,
+    "strong": 0.8,
+    "roleByname": 0.45,
+    "patronymic": 0.6
+  }
+}
