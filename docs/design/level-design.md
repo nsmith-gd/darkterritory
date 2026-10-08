@@ -414,7 +414,7 @@ The stop's checks verify all five again on the finished layout. A stop where non
 
 ## H.2 Where the outside creatures live
 - **Ribbits' warrens (B.6 "yards and villages"):** on open ground in the yard and in the village, clear of buildings and track, 40 m from the train and 20 m from the main line. There are more at deeper tiers (1 at local, up to 4 in deep territory).
-- **The Gaunt's roost (B.6 "asleep in villages and yards"):** the building furthest from the train on foot, a village house before a yard shed. You go to it; it follows you home.
+- **The Gaunt's roost (B.6 "asleep in villages and yards"):** the building furthest from the train on foot, a village house before a yard shed. You go to it; it follows you home. Its roost is the one building with no light: a house with no candle, a barn or yard shed with its lantern out (note 488).
 - **Followers' ground (B.6 "facility grounds"):** up to three circles round the yard's loading, spread out, starting with the loading nearest the consist.
 - **A Soot Child's call (B.6 "near facilities and dead settlements"):** in the open beyond the stop's built edge, where the consist, or the cars waiting on the main line, can see it.
 - **The Grumbler's perch (B.8 "facility cranes"):** every yard gantry.

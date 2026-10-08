@@ -1,6 +1,7 @@
 # Ballast 5x7: the HUD's pixel font. One glyph per "char" line: seven rows of five, '#' ink and '.' paper.
 # Capitals, digits and punctuation; lower case draws as capitals (stencilled rail signage), and anything
 # missing draws as '?'. Edit a glyph here and it changes everywhere; it's compiled into Ballast.Render.
+# "char lock" is BitmapFont.Lock, a padlock on a private-use code point (a private game on the join list).
 char space
 .....
 .....
@@ -529,3 +530,11 @@ char °
 .....
 .....
 .....
+char lock
+.###.
+#...#
+#...#
+#####
+##.##
+##.##
+#####
