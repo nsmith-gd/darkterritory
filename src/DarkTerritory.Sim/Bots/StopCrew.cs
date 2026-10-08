@@ -81,6 +81,8 @@ public sealed partial class CrewCalls
     /// <summary>Whether this member is among the first <paramref name="n"/> alive with that part (by member number).</summary>
     public bool AmongFirst(int member, StopJob job, int n) =>
         _crew.Where(c => c.Value.Alive && c.Value.Job == job).Select(c => c.Key).Take(n).Contains(member);
+    /// <summary>Whether anyone alive is on <paramref name="job"/>.</summary>
+    public bool AnyOn(StopJob job) => _crew.Values.Any(c => c.Alive && c.Job == job);
     // Note 261: the stop worked by the crew that's there. Spec D.2's "Crew" column counts people at a module, whoever they
     // are: the shunter's free once the train's in, the driver can get down (facilities.json crew.driverWorks), and people
     // playing are hands as much as bots are (crew.peopleAreHands).
@@ -2281,6 +2283,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (!p.AtTheEnd(train))
         {
             _car = -1;
+            EndLampRun();
             return heavy ? Press() : Done(self, world, p);
         }
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
@@ -2305,6 +2308,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // A find from the village in our arms (note 326): back round the houses to a car first.
         if (mine is { Kind: Physics.BodyKind.Loot } && FindHome(self, world, p) is { } home)
             return home;
+        // The wreck yard's dark heaps (note 492): one hand brings a lamp out to them, and on to the next as each is found.
+        if (!heavy && _setDown is null && WreckLamp(self, world, p, mine) is { } lit)
+            return lit;
         // Nothing more to carry: the village's houses, if there's time and a share of hands for it (note 326); else the doors
         // shut behind us (an open car is a cold one), and aboard.
         // The site's crates in: the rest of the yard's, on foot (note 403); then the village.
@@ -2316,6 +2322,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
             calls.CarryingTo(member, -1);
+            // The lamp we set down out at the wreck (note 492): up again first, and aboard with it.
+            if (LampAboard(self, world, p) is { } lamp)
+                return lamp;
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
         if (!heavy && _setDown is null || _car < 0)
