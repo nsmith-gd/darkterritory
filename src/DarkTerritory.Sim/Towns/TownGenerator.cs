@@ -300,7 +300,9 @@ public static partial class TownGenerator
         foreach (var spot in spots)
         {
             string role = spot.Role.Length > 0 ? spot.Role : spot.House >= 0 ? "home" : rrng.Pick(Folk);
-            string? family = spot.House >= 0 ? homes.Houses[spot.House].Family : null;
+            // Nicki's guests have come from their own houses (note 487); Nicki is just Nicki.
+            bool partying = spot.Part is "host" or "guest";
+            string? family = spot.House >= 0 && !partying ? homes.Houses[spot.House].Family : null;
             if (folk is null)
             {
                 people.Add((role, NewName(family), spot, null));
@@ -310,6 +312,11 @@ public static partial class TownGenerator
             // matrix (their role's a passer-by's).
             string? absent = spot.House >= 0 && homes.Vars(spot.House) is { } hv && hv.TryGetValue("{absent}", out var lost) ? lost : null;
             var mind = folk.Person(people.Count, spot.Street ? "street" : role, spot.Part, spot.House, family, absent, names);
+            if (spot.Part == "host" && homes.Party is { } host)
+            {
+                mind = mind with { Given = host.Name, Surname = "", Byname = "", Heritage = "" };
+                names.Add(mind.Name);
+            }
             people.Add((role, mind.Name, spot, mind));
         }
         string[] everyone = [.. people.Select(p => p.Name)];
@@ -368,10 +375,19 @@ public static partial class TownGenerator
             if (spot.House >= 0)
             {
                 // Their household's story, in their own part, then the custom.
-                foreach (var line in homes.Story(spot.House, spot.Part))
-                    lines.Add(line);
+                // Nicki: the wine first, then two of hers, and nothing else (note 487).
+                if (spot.Part == "host")
+                {
+                    lines.AddRange(homes.Story(spot.House, "offer").Take(1));
+                    lines.AddRange(homes.Story(spot.House, "host"));
+                    want = lines.Count;
+                }
+                else
+                    foreach (var line in homes.Story(spot.House, spot.Part))
+                        lines.Add(line);
                 first = lines.Count;
-                if (!close && cultureLines.Next() is { } town)
+                // At the party, nobody's talking about the custom tonight.
+                if (!close && spot.Part != "guest" && spot.Part != "host" && cultureLines.Next() is { } town)
                     lines.Add(town);
             }
             else
@@ -387,7 +403,7 @@ public static partial class TownGenerator
             }
             // How they carry it (their temperament's line, note 474): the second thing they say, after a household's story
             // or the gate's law.
-            if (mind is not null && TemperDeck(mind.Temperament)?.Next() is { } temper)
+            if (mind is not null && spot.Part != "host" && TemperDeck(mind.Temperament)?.Next() is { } temper)
                 lines.Insert(Math.Min(lines.Count, first), temper);
             if (lines.Count < want && lrng.Chance(t.ScrapShare) && scraps.Next() is { } scrap)
                 lines.Add(scrap);

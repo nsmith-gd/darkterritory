@@ -369,6 +369,16 @@ public sealed partial class WorldArt
         if (far < 40)
             foreach (var (p, colour, range) in MaritimeKit.Lights(h))
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(p, m), colour, range));
+        // Nicki's party (note 487): the only house up and lit late, every lamp burning in warm colours, and a bright spill
+        // out of the door you can see from down the street.
+        if (h.Party)
+        {
+            float w = (float)(h.Width / 2), d = (float)h.Depth;
+            mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(dx, 1.6f, dz - 2.2f), m), Palette.LampAmber * 2.2f, 12));
+            foreach (var (u, v, colour, range) in new[] { (-0.5f, 0.35f, new Vector3(1.0f, 0.4f, 0.55f) * 2.2f, 6.5f), (0.4f, 0.55f, Palette.LampAmber * 2.2f, 7f),
+                (0.1f, 0.8f, new Vector3(0.45f, 0.75f, 1.0f) * 1.6f, 5.5f), (-0.2f, 0.6f, new Vector3(0.95f, 0.75f, 0.35f) * 1.6f, 5f) })
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(h.Side * u * w, 2.0f, dz + v * d), m), colour, range));
+        }
     }
 
     /// <summary>

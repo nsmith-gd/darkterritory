@@ -7641,3 +7641,28 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
         - some nights he's out past a stop, clear of the track, the same every time.
       Also `CreatureArtTests` (every phase draws) and the HUD's death lines.
     - **Not yet:** a modelled figure; his own sounds (a brush, his humming: the audio checklist's); any creature sitting by him (the director's "nice to him").
+
+487. **Nicki's party (P1, queue #224; the director, 8 Oct 2026: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world"; GDD §3.2).**
+    - **Where** (`TownGenerator.Houses`, on its own stream `houses.party` so every other house is as it was). On `nicki` (0.3) of towns, one of the open houses is Nicki's: `TownHouse.Party`. Its household is the party's words (world/townsfolk.json `party`), not a story off the deck.
+    - **Who** (`PartyAt`):
+        - Nicki at the door's place, pose `wave`, named just Nicki (her personality's given name, no surname).
+        - `nickiGuests` (2–4) guests at the rest of the places. They have the town's names but not the house's surname: they've come from their own houses.
+        - One guest sits at the table if there's a seat; the rest dance.
+    - **What they say.**
+        - Nicki: one `offer` line first (the wine), then two of `host`, nothing else.
+        - Her guests: two of `guests`, and their temperament's line.
+        - Nobody at the party says the custom's lines.
+    - **Their rounds:** none. A party house keeps its places (`TownRounds` skips it), so the dancers dance and Nicki waits at the door.
+    - **The look.**
+        - `TownsfolkKit.Clip` gains `dance` and `wave` (the crew's clips), and everyone dancing or waving has their mask down.
+        - The household's thing is `wine` (`HouseLayout.Place` on the table; `MaritimeKit.Small` draws a bottle and four odd glasses of red).
+        - The house is lit (`WorldArt.Towns.House`): a bright spill from the door that reads down the street, and four warm, rose and blue lamps inside.
+    - **Looked at:** `dt screenshot --route frontier:6 --town party` (from her door) and `--town partyside` (across the room).
+    - **Verified:** `TownFolkTests.SomeTownsHaveNickisPartyInOneHouseAndOnlyOne`:
+        - at most one party a town, on some towns;
+        - Nicki at the door waving, her wine first, her own lines after;
+        - 2–4 guests, dancing, at most one seated;
+        - the wine on the table;
+        - nobody at the party saying the custom.
+      The town tests stay green (Nicki is just Nicki; her guests' surnames are their own).
+    - **Not yet:** the party heard (music kept low, laughing, glasses: the audio checklist's); a drink that does something; her coloured lamps read only faintly under the house's own fill light.

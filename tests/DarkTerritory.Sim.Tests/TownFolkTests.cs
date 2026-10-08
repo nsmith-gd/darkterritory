@@ -88,6 +88,12 @@ public class TownFolkTests
             {
                 var m = p.Personality!;
                 people++;
+                // Nicki is just Nicki (note 487).
+                if (p.House >= 0 && plan.Houses[p.House].Party && m.Surname.Length == 0)
+                {
+                    Assert.Equal(Folk.Writing.Party!.Name, p.Name);
+                    continue;
+                }
                 Assert.Contains(m.Surname, heritages[m.Heritage].Surnames);
                 if (m.Generation == "after")
                     Assert.Contains(m.Given, afterNames);
@@ -99,8 +105,8 @@ public class TownFolkTests
                 if (m.Strength >= Folk.Tuning.Names.Strong)
                     Assert.Contains(m.Byname, Folk.Writing.Temperaments[m.Temperament].Bynames.Select(f => f.Replace("{first}", m.Given)));
             }
-            // A household shares its surname, and so its people.
-            foreach (var house in plan.People.Where(p => p.House >= 0).GroupBy(p => p.House))
+            // A household shares its surname, and so its people (Nicki's guests have come from their own houses).
+            foreach (var house in plan.People.Where(p => p.House >= 0 && !plan.Houses[p.House].Party).GroupBy(p => p.House))
                 Assert.Single(house.Select(p => (p.Personality!.Surname, p.Personality.Heritage)).Distinct());
         }
         // Bynames are for some, not all (tuning "names").
@@ -142,5 +148,40 @@ public class TownFolkTests
             }
         }
         Assert.True(close > 0 && open > 0, $"{close} close, {open} open");
+    }
+
+    [Fact]
+    public void SomeTownsHaveNickisPartyInOneHouseAndOnlyOne()
+    {
+        var party = Folk.Writing.Party!;
+        int towns = 0, parties = 0;
+        for (int seed = 1; seed <= 60; seed++)
+        {
+            var plan = TownGenerator.Generate(Towns, Site(seed));
+            if (!plan.Houses.Any(h => h.Layout is not null))
+                continue;
+            towns++;
+            var houses = plan.Houses.Where(h => h.Party).ToList();
+            Assert.True(houses.Count <= 1, $"seed {seed}: {houses.Count} parties");
+            if (houses is not [var house])
+                continue;
+            parties++;
+            Assert.NotNull(house.Layout);
+            var there = plan.People.Where(p => p.House == house.Id).ToList();
+            // Nicki at the door, waving you in, the wine first; her guests dancing (one sat at the table).
+            var nicki = Assert.Single(there, p => p.Name == party.Name);
+            Assert.Equal("wave", nicki.Pose);
+            Assert.Contains(nicki.Lines[0], party.Offer);
+            Assert.All(nicki.Lines.Skip(1), l => Assert.Contains(l, party.Host));
+            var guests = there.Where(p => p != nicki).ToList();
+            Assert.InRange(guests.Count, Math.Min(Towns.Tuning.NickiGuests[0], house.Layout!.Spots.Count - 1), Towns.Tuning.NickiGuests[1]);
+            Assert.All(guests, g => Assert.Contains(g.Pose, (string[])["dance", "seated"]));
+            Assert.True(guests.Count(g => g.Pose == "seated") <= 1);
+            Assert.Contains(plan.Fixtures, f => f.House == house.Id && f.Kind == "wine");
+            // Nobody at the party talks about the custom tonight.
+            var custom = Towns.Writing.Cultures.Single(c => c.Id == plan.Culture).Lines.Where(l => !l.Contains('{')).ToHashSet();
+            Assert.All(there, p => Assert.DoesNotContain(p.Lines, custom.Contains));
+        }
+        Assert.InRange(parties, 1, towns * Math.Min(1, Towns.Tuning.Nicki * 2.5));
     }
 }

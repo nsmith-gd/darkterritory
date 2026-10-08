@@ -29,6 +29,9 @@ public sealed record TownTuning
     public double ScrapShare { get; init; }
     /// <summary>The share of walled towns with one of Dave's murals on a wall (note 570).</summary>
     public double DaveMural { get; init; }
+    /// <summary>The share of towns with Nicki's party in an open house, and how many guests she has (note 487).</summary>
+    public double Nicki { get; init; }
+    public int[] NickiGuests { get; init; } = [2, 4];
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     public required int[] LooseNotes { get; init; }

@@ -48,8 +48,13 @@ public static partial class TownGenerator
         }
 
         /// <summary>What a household member is called on their card: their part in the house.</summary>
+        /// <summary>Nicki's party's words, while there's one (note 487).</summary>
+        public FolkParty? Party;
+
         public string Title(int house, string part) => part switch
         {
+            "host" => Party?.Title ?? "",
+            "guest" => Party?.GuestTitle ?? "",
             "elder" => "the {family}s' eldest",
             "child" => "the {family}s' youngest",
             "lodger" => "lodging with the {family}s",
@@ -299,6 +304,11 @@ public static partial class TownGenerator
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
         // The families by the town's mix of peoples (note 474), or any of the province's.
+        // Nicki's party (note 487): some towns, one of the open houses, on its own stream so the rest are as they were.
+        var prng = rngFor("houses.party");
+        int partyAt = folk?.Writing.Party is { } party && prng.Chance(t.Nicki) && open > 0 ? prng.RangeInclusive(0, open - 1) : -1;
+        if (partyAt >= 0)
+            homes.Party = folk!.Writing.Party;
         var families = folk is not null ? new Deck<string>(folk.Families(rngFor("houses.families")), null) : new Deck<string>([.. content.Surnames], rngFor("houses.families"));
         var srng = rngFor("houses.spots");
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";
@@ -332,7 +342,7 @@ public static partial class TownGenerator
                 : HouseDesigner.Draw(content.Looks, character, gable, width, depth, room, layout is not null, layout?.DoorU, ref drng);
             if (character.Uniform)
                 model ??= design;
-            var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout);
+            var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout) { Party = i == partyAt && layout is not null };
             var (edge, back, fenced) = RowYards(row, Math.Sign(d0), s, frontage / 2);
             // A lot beside a lane is fenced along it (note 353): a lane runs between board fences, not across open yards.
             var (below, above) = lanes.Count > 0 ? Lanes(row, Math.Sign(d0), s, frontage) : (double.MinValue, double.MaxValue);
@@ -343,6 +353,11 @@ public static partial class TownGenerator
             yard.RemoveAll(y => InSquare(house, y, square));
             house = house with { Yard = yard };
             homes.Houses.Add(house);
+            if (house.Party && layout is not null)
+            {
+                PartyAt(i, house, layout);
+                continue;
+            }
             if (layout is null || stories.Next() is not { } household)
                 continue;
 
@@ -379,6 +394,34 @@ public static partial class TownGenerator
             }
         }
         return homes;
+
+        // Nicki at the door with a glass for whoever comes in, waving them in; her guests about the rooms, dancing (one sat
+        // at the table with the wine). Its "household" is the party's words: what she says first, the rest, the guests'.
+        void PartyAt(int i, TownHouse house, HouseLayout layout)
+        {
+            var party = homes.Party!;
+            var household = new TownHousehold
+            {
+                Id = "party",
+                Lines = new Dictionary<string, string[]> { ["offer"] = party.Offer, ["host"] = party.Host, ["guest"] = party.Guests },
+                Object = party.Wine,
+            };
+            homes.Open(i, household, new Dictionary<string, string> { ["{family}"] = house.Family }, srng);
+            int guests = Math.Min(layout.Spots.Count - 1, prng.RangeInclusive(t.NickiGuests[0], t.NickiGuests[1]));
+            var door = layout.Spots.FirstOrDefault(x => x.Name == "door") ?? layout.Spots[0];
+            var order = new List<HouseSpot> { door };
+            order.AddRange(layout.Spots.Where(x => x != door).Take(guests));
+            for (int k = 0; k < order.Count; k++)
+            {
+                var spot = order[k];
+                var (ps, pd) = house.Rail(spot.U, spot.V);
+                var (fs, fd) = house.Facing(spot.FaceU, spot.FaceV);
+                // One sat at the table with the wine; everyone else up dancing.
+                bool sat = spot.Pose == "seated" && order.Take(k).All(x => x.Pose != "seated");
+                string pose = k == 0 ? "wave" : sat ? "seated" : "dance";
+                homes.Residents.Add(new Spot("", ps, pd, fs, fd, 0, House: i, Pose: pose, Part: k == 0 ? "host" : "guest"));
+            }
+        }
     }
 
     /// <summary>Whether a yard thing stands in the square (along it, on its side, short of its far wall).</summary>

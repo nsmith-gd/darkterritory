@@ -259,7 +259,13 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **His murals.** About two walled towns in five have one of his murals on a street's end wall, in place of one of their own: his valley or his sea, in the same hand as the canvases, signed with the red D (tuning/towns.json `daveMural`). Nobody in the town will say who painted it.
 - **The Wiki** keeps him a mystery: a name, a few sightings, the D, and a warning.
 
-**Nicki's party** and **Jacob, the fisherman** come next.
+**Nicki's party** (note 487; the director: "an NPC you can find some times in one of the houses. Her name is Nicki and she's the only house late at night that is partying. She offers you wine and says kind things about people needing to enjoy life more even if its the end of the world").
+- **Where.** In about three towns in ten, one of the open houses is the only house up and lit late: every lamp burning, warm and bright, a party on (tuning/towns.json `nicki`).
+- **Who's there.** Nicki (just Nicki) is at the door, waving you in. Two to four guests from the town's other houses are dancing, and one sits at the table with the wine. Everyone's mask is down.
+- **What she says.** The first thing is always the wine ("Here, there's wine. Real wine, from before. I was saving it for nobody, so it's yours."). Then two of hers, kind and a little defiant: the end of the world is no reason to stop living in it. Her guests say what a night at Nicki's is. Nobody at the party talks about the custom tonight.
+- **The wine** is on the table: a bottle from a vineyard that isn't there any more, and a row of odd glasses poured and waiting, one marked YOURS.
+
+**Jacob, the fisherman** (note 488) comes next.
 
 ## 4. The player's place in it
 

@@ -157,8 +157,10 @@ public static partial class Staging
             }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
-        var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
-        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair")
+        // (party: Nicki's house, note 487, from her door; partyside, from the street.)
+        var home = (where is "party" or "partyside" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
+            ?? plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair" or "party" or "partyside")
         {
             var l = home.Layout;
             int k = l?.Kitchen ?? 1;
@@ -170,6 +172,8 @@ public static partial class Staging
                 "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
                 "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                "party" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, -0.9, 1.65), At(k * w / 4, home.Depth * 0.55, 1.1), 80),
+                "partyside" => Ballast.Render.Camera.LookAt(At(-k * (w / 2 - 0.5), home.Depth - 0.6, 1.7), At(k * 0.5, 0.8, 1.0), 85),
                 // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind
                 // their shoulder, in the parlour's chair from the partition.
                 "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 1.25), At(k * w / 4, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 0.65), 70),
