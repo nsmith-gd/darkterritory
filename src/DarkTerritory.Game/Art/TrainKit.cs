@@ -1534,6 +1534,57 @@ public static class TrainKit
         return new Ballast.Double3(reg.X - 0.12, reg.Y + (pulled ? 0.22 : 0.4), reg.Z + 0.4);
     }
 
+    /// <summary>The whistle's valve lever (note 445): its pivot on the whistle's top (car frame, beside the bell).</summary>
+    public static Vector3 WhistleLeverPivot(CarShape shape) => new(0.35f, (float)shape.Cab!.Value.Max.Y + 0.48f, WhistleZ(shape));
+
+    /// <summary>The lever's length, pivot to tip, and its angle up off level at rest and pulled down (radians).</summary>
+    public const float WhistleLeverLength = 0.42f, WhistleLeverRest = 0.18f, WhistleLeverPulled = -0.5f;
+
+    /// <summary>
+    /// The whistle's valve lever (note 445): a flat iron bar forward off its pivot on the whistle's top, its last third
+    /// painted signal red like the cord's handle and the brake's grip (T101), so it reads at a glance from the roofs
+    /// whether it's down. Its origin at the pivot, the bar along −Z.
+    /// </summary>
+    public static MeshAsset WhistleLever(Look? look)
+    {
+        var k = new Kit(look, 64);
+        k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.6f, tile: 0.3f);
+        k.Cylinder(new Vector3(-0.05f, 0, 0), new Vector3(0.05f, 0, 0), 0.022f, 6);
+        k.Box(new Vector3(-0.014f, -0.018f, -WhistleLeverLength * 0.66f), new Vector3(0.014f, 0.018f, 0.03f));
+        k.Use("paint_oxide", Palette.SignalRed, 0.5f, 0.2f, tile: 0.2f);
+        k.Box(new Vector3(-0.017f, -0.021f, -WhistleLeverLength), new Vector3(0.017f, 0.021f, -WhistleLeverLength * 0.66f));
+        return k.Build("whistle-lever");
+    }
+
+    /// <summary>
+    /// The crank the pull rod runs to (note 445), on the cab roof over the whistle cord's handle in the cab (car frame, the
+    /// roof's top): the cord comes up through the roof to it.
+    /// </summary>
+    public static Vector3 WhistleCrank(CarShape shape, Box cab)
+    {
+        var cord = WhistleCordHandle(shape, pulled: false);
+        return new Vector3(0.35f, (float)cab.Max.Y, (float)Math.Max(cord.Z, cab.Min.Z + 0.6));
+    }
+
+    /// <summary>The crank's stand (note 445): a bracket on the roof, the crank's arm up out of it to the rod. Origin on the roof.</summary>
+    public static MeshAsset PullCrank(Look? look)
+    {
+        var k = new Kit(look, 65);
+        k.Use("iron_plate", Palette.IronGrey, 0.7f, 0.5f, tile: 0.3f);
+        k.Box(new Vector3(-0.06f, 0, -0.05f), new Vector3(0.06f, 0.05f, 0.05f));
+        k.Box(new Vector3(-0.015f, 0.05f, -0.015f), new Vector3(0.015f, 0.14f, 0.015f));
+        return k.Build("pull-crank");
+    }
+
+    /// <summary>The pull rod (note 445): a thin iron rod a metre up +Y from its origin, stretched to its length where it's drawn.</summary>
+    public static MeshAsset PullRod(Look? look)
+    {
+        var k = new Kit(look, 66);
+        k.Use("iron_plate", Palette.IronGrey, 0.6f, 0.6f, tile: 0.3f);
+        k.Cylinder(Vector3.Zero, Vector3.UnitY, 0.011f, 6, smooth: true);
+        return k.Build("pull-rod");
+    }
+
     /// <summary>
     /// The whistle cord: a waxed cord <paramref name="length"/> down from the cab roof to a T-handle painted signal red (note
     /// 267: "I don't see a switch for a whistle"), so it reads at a glance as the brake's grip does; its origin at the handle.
