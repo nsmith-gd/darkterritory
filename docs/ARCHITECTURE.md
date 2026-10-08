@@ -2991,7 +2991,7 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
       - Run-rounds and trailing points, so picked-up cars could go behind the engine (I.4).
       - Bots fetching a hand lamp from the guard van for the dark heaps.
-      - A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.
+      - ~~A resumed night (spec E's autosave) doesn't keep picked-up cars: the checkpoint rebuilds the train from its own cars, and the yard's stand where they stood.~~ Done in note 481.
       - Art-pass models for the heaps (greybox boxes drawn from the sim's state; the art pass's wreck-yard scenery is separate), and audio for the groan (the tell is visual and on the HUD for now).
       - frontier:11's and deadLines:2's switchyards, drilled, lose a hand to the cold before their first stop's done: as they did before this package.
     - Protocol 18 (standing rakes from the start; the heap record; death cause `Wreckage`). Tests: `FacilityTests` (the standing cars, their ids and limit, a client standing the same, nobody counting them lost; coupled up they're ahead of the engine and paid; the wreck dark until a lamp's on it; pulling pieces makes a heap groan, then shift on whoever's by; a client mirroring the heaps; the residents); `StopCrewTests` (a bot crew fetches the switchyard's standing cars a siding at a time, and salvages what the headlamp finds at the wreck yard). `StopCrewTests`' crate-only and winch-only stops give a switchyard or wreck yard just those modules (a route's own, T44).
@@ -6957,7 +6957,97 @@ Terrain sculpting tools, a node-graph material editor, a general-purpose visual 
     - **Not yet:**
         - The sweep runs the main line only, not the alternates and dead lines, nor a stop's ground close up.
         - The fog cards still cut where they meet the land and water (soft particles stay off).
+494. **The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit it in the last ~5s", "gang up or leave it alone").** A lone crewmate's blow on a Grumbler closes again (enemies.json `grumbler`: 6 health, back at 1.5 a second), and since #224 it's seen: the stuff of it drawn back into the body, a wet pulse. It made no sound, so whoever wasn't looking at it, or reads the captions, didn't learn the rule.
+    - **How** (`GameAudio.GrumblerSounds`, off the mirrored record's `Health`, replicated, so every machine hears it): while its health climbs (and 0.35 s after it last rose, a snapshot's gap and more, as E1's knit is seen), `cs-grumbler.heal` is held at its middle, 0.45 m over its feet. Its level is E1's knit's: 0.35 + 1.3 × how far down it is from full (`grumbler.health`), at most 1. A gang's blows, which it doesn't heal, are never heard healing. It's layered over whatever else it's doing (scuttling, gnawing, after its hitter).
+        - **Caption:** wet flesh knitting.
+    - **The sound** (`tools/audio/recipes/grumbler_heal.py`): `heal`, `knit`, a new loop on the Audio Checklist's `cs-grumbler` line, installed. It's beasts.py's Grumbler (a man gone wrong, flesh, not chitin, and his own voice).
+        - Wet sucks every half second or so as what the blow knocked out of it is drawn back in (a seal pulling inward as its colour opens late), each then giving and closing round it (wet tissue squishing, small bubbles).
+        - Tissue ticking as it knits, a low wet throb about every 0.6 s under it, and his muttering, low, shut-mouthed and pleased with himself.
+        - 2.4 s exact cycle.
+    - **Pinned:** `CreatureSoundTests.AGrumblerIsHeardHealingALoneBlowLouderTheFurtherDownItIs`, off the mirrored record:
+        - a lone blow (6 to 2), the hit and no healing yet;
+        - climbing back at 1.5 a second, one heal held all the way, louder from 2 than from 5.5;
+        - back at full, it stops;
+        - ganged down and staying down, never heard healing.
+489. **The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips, note 477; AU1's note 478 heard the patrol by its motion).** Note 478 heard a hound aboard by where its record went. Its leap over a gap played when the record's car changed, half-way through E1's arc, with the landing a fixed moment after. Its climb back out at a door played as a leap. A hound stopped to sniff (every 8-15 s on patrol) made no sound at all. And the leap it played was the boarding's, a landing on the rear platform's boards, whichever roof it came off.
+    - **How** (`GameAudio.HoundAboard` and `HoundMove`, off the hound's replicated mode and when it began, `ModeSeconds`; alike on every machine):
+        - **On a change of mode** each move's sounds are set for when they come in it, counted from when the mode began, so a record that arrives a snapshot late still lands them on time. Joined more than 0.25 s past one, it's missed rather than played late. Each plays where the hound is when it comes (its latest record).
+        - **The leap:** `cs-hounds.spring` (new) as it drives off and four paws on the next car's tin as it lands, fore pair then hind (`cs-hounds.paw.roof`). Both are the sim's own times: it's carried across between `leapFrom` and `leapTo` of `leapSeconds` (enemies.json `cinderHounds.patrol`), and E1's clip drives off and lands with it.
+        - **The drop in at a door:** `cs-hounds.spring` off the roof's edge, then four paws landing on the boards (`cs-hounds.paw.wood`). These are at E1's clip's frames (`cinder_hound.py` drop, 30 fps: off the edge at 13, on the sill at 28). The spring is placed up at the roof over the door (`DROP_UP`, 2.9 m), where the clip has the hound, since the record has it on the floor from the start.
+        - **The climb out:** `cs-hounds.climb` (new), the whole climb in one sound timed to E1's clip, from the trot to the sill to its weight onto the roof. It's placed half-way up the car's side.
+        - **Sniffing:** `cs-hounds.sniff` (new) held at its nose while the mode is `Sniff`, and gone when it moves on.
+        - **Paws** are stepped only while it walks or stands (Patrol, Still). A change of car other than by a leap is the record catching up, not a step.
+        - **The snarl** (the pack fight's, now and then) waits while it's in the middle of a move or sniffing, which have their own breath.
+        - **Captions:** sniffing; claws scrabbling up the side.
+    - **The sounds** (`tools/audio/recipes/hound_moves.py`): three new cues on the Audio Checklist's `cs-hounds` line, installed. Each is built from beasts.py's hound (its breath through the same dog's tract, its claws, the kept paws on the tin and the boards, the embers and ash in its hide), so it's the same animal.
+        - `spring`, `tin`: a gathering forepaw, both hind feet driving off the tin a hair apart, the sheet popping back low, a huff, its body through the air with sparks off it. No landing: that's its paws, where it lands.
+        - `sniff`, `nose`: quick hard sniffs in runs of four to six, a wet snort between, a low rumble in its chest, the embers crackling. 3 s exact cycle (`sniffSeconds`).
+        - `climb`, `scrabble`: the trot to the sill on the boards, the spring out and up (frame 10), its forelegs hooking over the roof's edge (19), its hind legs scrabbling at the side (22-28), the heave (33), and its weight onto the tin (37).
+        - The kept `leap` stays the boarding's (onto the rear platform from the ballast).
+    - **Pinned:** `CreatureSoundTests.AHoundAboardIsHeardOnItsFeetOnTheRoofOverAGapAndOnTheBoardsInside`, off records carrying the mode as `Lateral` (mode × 4 + facing) and its start as `LineDistance`:
+        - walking the roof, its paws on the tin;
+        - over the gap, one spring at a quarter of the leap and four paws on the tin at two thirds, and no `leap`;
+        - down at a door, one spring and four paws on the boards, none on the tin;
+        - out again, one climb and no paws, spring or snarl;
+        - stopped, the sniffing held and no snarl; moving on, it stops.
+497. **The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are theirs"; App. D.7).** Since #200 a lock jumps on its hasp at each blow of the crew's smash clip (a blow every 0.8 s, frame 9 of 24), and a barricade's board flexes out at each heave of the pry clip (every 1.33 s) and comes off at each fifth of the breach. Both are on the scene's clock, the crew's clips' own. The sound didn't follow either:
+    - **The smash:** each of its takes was three seconds of blows, and it was played again every 0.45-0.7 s at random while the lock was worked. That's a din of six or more sequences over one another, never on the lock's jumps.
+    - **The pry:** a held loop with heaves of its own.
+    - **The boards** coming off made no sound.
+    - **How** (`GameAudio.BreachBeats`, off the replicated `Holdout.Progress` and state, as C1's drawing is):
+        - **The clock:** the app hands GameAudio the scene's clock (`GameAudio.SceneClock`, `GreyboxScene.Time`'s `now`), so the sound counts the clips' beats as the drawing does (`WorldArt.SmashCycle`, `SmashBlow`, `PryCycle`, shared with `WorldArt.Holdouts`). Headless, with no scene, it counts on its own clock.
+        - **The smash:** `place-breach.smash` is one blow now, played at the lock on each blow of the clip as the lock jumps. When it gives, `place-breach.smash-give`, the last blow tearing the hasp out (it was the three-second smash again).
+        - **The pry:** `place-breach.pry` is one heave now, played as each heave of the clip begins: the haul back, the board flexing out at the full heave, easing back. Each board coming off (`WorldArt.BoardsOff`, a fifth of the breach each) is `place-breach.board`; the fifth goes with the barricade giving way (`pry-give`, as before).
+        - **Being worked:** a breach is worked while its progress moved in the last 0.25 s (a snapshot's gap and more; it was only the tick it moved). A lock worked open with the wrench stays the quiet `pick` (note 385).
+        - **Captions:** a sledge on iron; wood creaking, nails squealing; a board torn away.
+    - **The sounds** (`tools/audio/recipes/world_places.py`), on the Audio Checklist's `place-breach` line, installed. Neither old take had a verdict.
+        - `smash`, `blow` (5 takes): one sledge blow on the padlock and hasp, steel on steel, the plank door booming, the lock rattling on its staple (the old sequence's own blow).
+        - `smash-give`, `tear` (2): the last blow, the staple torn out of the splintering plank, the lock and hasp clattering down.
+        - `pry`, `heave` (4): the bar seated with an iron knock, the board bending as it's hauled back, its nails squealing, a crack of splitting wood at the full heave (at the clip's frame 14), the board easing back. Timed to the clip's haul, hold and ease.
+        - `board`, `torn` (3): the last nails shrieking out of the jamb, the wood splitting, the board wrenched free and clattering down on the step.
+    - **Pinned:** `WorldSoundTests.ABreachIsHeardOnTheCrewsBeatsEachBlowEachHeaveAndEachBoardOff`, off the mirrored record with the scene's clock given:
+        - a lock's 3 s, three or four blows, each within a tick of the clip's blow, and one last blow as it gives;
+        - a barricade's 6 s, four or five heaves, each within a tick of the clip's haul, four boards off and the barricade giving way once, and no smash.
+    - `ALockWorkedOpenWithTheWrenchIsQuietAndOneSmashedIsSmashed` now hears a smashed lock give with its last blow.
 
+481. **A resumed night keeps the train as it left (A1, queue #218; spec E "Autosave per POI, on successful departure", "Crash: Session lost. Campaign rolls back to last POI autosave"; note 187's "not yet").**
+    - **What was wrong:** the autosave (`NetPlaySession.Capture`, taken as the engine leaves a stop's zone) kept each car's load, shell, ammunition and cargo, the coal, the clock and the spent Holdouts. A resumed night then built the train from the campaign's own cars, engine first, at the save's front, and put those values back on them. So whatever had happened to the train's *shape* before the save was undone:
+      - a car cut loose, or rolled away by the Passenger or finished by the Car Hugger, was back in the train;
+      - a switchyard's cars picked up (note 187) were standing on their siding again, and the train was short of them;
+      - what the Car Hugger had eaten of a car's shell was whole again (A.3: "gone, not dented").
+    - **The save keeps the rakes** (`RunCheckpoint.Rakes`, a `RakeSave` each): every rake's vehicles front to back, the track its front is on and how far along, its handbrake and front coupler lock. The engine's is the train going on, the picked-up cars ahead of it; any other is cars cut off it where they were left, or a yard's still standing. `CarState` keeps `Eaten` too.
+    - **Resuming** (`NetPlaySession.Restore`): `TrainOnLine.Resume` puts the rakes back as they were, every one at rest, and nothing slides on the first frame (each rake's previous distance is where it is). It shares `Restore`'s rebuild, the one a client's snapshot uses, so the engine's rake object stays the train's. A joiner's world builds its own cars and then takes the host's rakes like any snapshot.
+    - **An older save,** with no rakes, resumes as it did: the train from its own cars. So does one whose rakes aren't this train's: `Resume` checks every vehicle is in exactly one rake, the engine in one, on a track the line has, and changes nothing otherwise. The save carries its line (linegen plan §17.4), so a yard's standing cars take the same ids on resume.
+    - **Readings:** every rake comes back at rest, the engine's too, as it always did (the night restarts stopped where it was saved). A cut rake left rolling at the save is stopped where it was.
+    - **Not yet:** what was stowed in the cars by hand (crates, loot, bodies, the kit) isn't in the save, which builds the night's items afresh; nor are the crew's places.
+    - Protocol unchanged (the save is the host's file; clients take the rakes from snapshots as ever). Tests: `ResumeTests` (the rakes back as they left: picked-up cars ahead of the engine and not standing, a cut car where it was left with its handbrake on, at rest, and the train running on; a save that isn't this train's changes nothing: a car missing, a car twice, a car past the train, a track the line hasn't, no rakes). `CampaignSessionTests.AResumedNightKeepsTheTrainAsItLeft` (at the coaling tower on frontier:10, a yard's derelicts put ahead of the engine, the last car cut off and a bite out of car one; the autosave on leaving keeps all three, the resumed host has them, its own client agrees, and an older save without rakes resumes the old way). `CampaignSessionTests.ThreeSlotsOfText` round-trips the rakes and the eaten shell through a save slot.
+499. **The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the faster giggle and the crew's brake handle stand in)"; GDD App. F.1).** For `warnSeconds` (30) before each of her stages she's restless (`TrackDoll.Restless`, the half in her replicated escalation): left alone too long, about to get worse. Her giggle came twice as often and that was all. Restless at stage 2, she rattled the brake handle with the crew's own lever sound.
+    - **How** (`GameAudio.DollSounds`, off the mirrored record):
+        - **Restless,** at any stage, in a car or at the controls: `cs-track-doll.restless` at her, first 1-2 s after she becomes so, then every 4-8 s while she is. It comes between the quickened giggles (`GameAudio.Tells`, unchanged).
+        - **Her rattle:** at stage 2, restless, on the beat she'll take the brake, `cs-track-doll.rattle` at the brake handle. It falls back to the crew's `brake-handle` only if hers isn't installed.
+        - **Captions:** small heels drumming, humming; the brake handle rattling.
+    - **The sounds** (`tools/audio/recipes/doll_restless.py`): two new cues on the Audio Checklist's `cs-track-doll` line, installed. Each is the same doll as her giggle and her pleased "heh": a child's throat played an octave up into a hollow porcelain head's 3-6 kHz, glaze ticks, a door creak two octaves up for her joints.
+        - `restless`, `heels` (4 takes, different moods):
+            - her porcelain heels drumming against a crate or a bench the way a child kicks, impatient, one take quickening and stopping dead;
+            - a tuneless hum through her teeth, a few porcelain "mm"s that wander and don't resolve;
+            - her head turning on its joint with a porcelain tick;
+            - in a wooden car's room.
+        - `rattle`, `brass` (3 takes): the brake valve's brass handle shaken in its detent, not turned. Quick light squeaks of brass on brass (the crew's handle's stick-slip, shorter and higher), the detent clicking out and back in, five to eight in half a second, her fingertips ticking on the brass. In the cab.
+    - **Pinned:** `CreatureSoundTests.RestlessTheTrackDollIsHeardOfHerOwnAndRattlesTheBrakeWithHerOwnHand`:
+        - haunting a car, not restless, never her restlessness;
+        - restless, 20 s, three to five times;
+        - at the controls at stage 2, restless: let back, her rattle, nudged up again, and never the crew's brake handle.
+    - `RestlessAtTheRegulatorTheTrackDollRattlesTheBrakeHandleItHasntTakenYet` still pins the fallback.
+501. **The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit).** `crew-coupling.knuckle-release` plays where a car is cut loose (`GameAudio.Crew`). Its recipe describes "the heavy cast-steel knuckle swinging open on its pin (a heavy iron clank, pitched well down, choked)", but the iron hit was pitched down 8 semitones and choked under a mining hit's sub, with the lock's rattle at -16 dB. The installed takes were a low thud: they centred at 127-136 Hz, with little over 1 kHz after the first 0.1 s, and the cut's own moment was lost under the wheels.
+    - **The sound** (`tools/audio/recipes/crew_train.py`, `knuckle-release`, `clank`, 3 takes): rebuilt as a clank, installed in place, its hook unchanged.
+        - a short squeal of steel on its pin as it swings;
+        - the clank as it fetches up against its stop: the packs' heavy plate and metal hits pitched only 2-3.5 semitones down, barely choked, so the iron rings;
+        - the knuckle's own cast ring, a bar's inharmonic modes at a few hundred hertz, choked after a few hundredths of a second ("cast iron clanks, it doesn't sing");
+        - its lock rattling loose and the lifted pin clinking on its chain;
+        - the slack's low knock through the frame, a beat after and quieter than before.
+    - **Measured:** the takes now centre at 590-830 Hz.
+    - **Neither the cue nor its hook changed**, so `CrewAudioTests` (the cut heard) stand. `AudioTests` pass over the installed takes.
+    - The old `knuckle` candidate had no verdict.
 490. **Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the towers (queue #227, B2; the World Building board's open lines; the director, 8 Oct: "Towns dont feel like they have a natural layout to them ... These towns need layouts, parks, signs of governance, signs of culture"; GDD §3 "watchtowers, artillery").**
     - **Off true** (`TownHouse.Turn`, `Body`, `BodyFacing`, `Extent`; towns.json `walled.turn`, `turnChance`, `crescent`):
         - three in four of the shut houses on a walled town's streets stand 1–4° off true, either way;
