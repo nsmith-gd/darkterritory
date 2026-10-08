@@ -403,13 +403,13 @@ hit.key(8, pose(SETTLED, {"thorax": (-2, 0, -3)}), "LINEAR")
 hit.key(12, SETTLED, "CONSTANT")
 
 # Death (1.6 s): it heaves up on one side and goes over onto its back, the legs curling in over its belly and twitching.
-CURLED = pose(*[leg(s, n, swing=8 if n == "hind" else -8, lift=50, knee=70, foot=40) for s in "rl" for n in LEGS])
+CURLED = pose(*[leg(s, n, swing=8 if n == "hind" else -8, lift=50, knee=52 if n == "hind" else 70, foot=40) for s in "rl" for n in LEGS])
 death = Clip("death", loop=False)
 death.key(0, SETTLED, "CONSTANT")
 death.key(6, pose(SETTLED, {"root@loc": (0.0, 0, 0.35), "root": (0, 50, 0)}, leg("r", "mid", lift=30), leg("r", "hind", lift=30)), "LINEAR")
 death.key(14, pose(CURLED, {"root@loc": (0.0, 0, 1.33), "root": (0, 175, 0)}), "LINEAR")
 death.key(18, pose(CURLED, {"root@loc": (0.0, 0, 1.37), "root": (0, 180, 0)}, leg("r", "mid", lift=40, knee=40)), "BEZIER")
-death.key(24, pose(CURLED, {"root@loc": (0.0, 0, 1.36), "root": (0, 180, 0)}, leg("l", "hind", lift=60, knee=80)), "CONSTANT")
+death.key(24, pose(CURLED, {"root@loc": (0.0, 0, 1.36), "root": (0, 180, 0)}, leg("l", "hind", lift=56, knee=60)), "CONSTANT")
 death.key(48, pose(CURLED, {"root@loc": (0.0, 0, 1.36), "root": (0, 180, 0)}), "BEZIER")
 
 # One soft skin under the shell (rig.fuse, settled); the plates, the shovel and the legs are rigid parts over it. Toward
