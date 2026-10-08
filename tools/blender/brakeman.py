@@ -690,7 +690,7 @@ flee.close(16)
 CROUCH = over(STOOP, pelvis__loc=(0, 0, -0.28), pelvis=(-34, 0, 0), thigh_r=(86, 0, -6), calf_r=(-110, 0, 0), foot_r=(24, 0, -6),
               thigh_l=(86, 0, 6), calf_l=(-110, 0, 0), foot_l=(24, 0, 6), upperarm_r=(14, 46, 0), upperarm_l=(14, -46, 0))
 TUCK = over(CROUCH, pelvis__loc=(0, 1.0, 0.5), pelvis=(-20, 0, 0), thigh_r=(90, 0, -6), calf_r=(-100, 0, 0), thigh_l=(70, 0, 6),
-            calf_l=(-90, 0, 0), upperarm_r=(60, 50, 0), lowerarm_r=(0, 0, 20), upperarm_l=(60, -50, 0), lowerarm_l=(0, 0, -20))
+            calf_l=(-90, 0, 0), upperarm_r=(74, 44, 0), lowerarm_r=(0, 0, 8), upperarm_l=(60, -50, 0), lowerarm_l=(0, 0, -20))
 jump = Clip("jump", loop=False)
 jump.key(0, STOOP, "BEZIER")
 jump.key(5, hang_chain(ground(CROUCH), (10, 0, 0)), "LINEAR")

@@ -169,7 +169,7 @@ public static partial class Staging
         double truck = l - t.BogieInset;
         return view switch
         {
-            "brakeman" => Camera.LookAt(frame.ToWorld(new Double3(1.1, roof + 1.55, wheel.Z - 3.0)), frame.ToWorld(new Double3(-0.1, roof + 0.55, wheel.Z)), 55),
+            "brakeman" => Camera.LookAt(frame.ToWorld(new Double3(-1.7, roof + 1.45, wheel.Z - 2.2)), frame.ToWorld(new Double3(0.05, roof + 0.6, wheel.Z)), 52),
             "brakemancorner" => Camera.LookAt(frame.ToWorld(new Double3(1.4, roof + 1.7, -1.0 + 4.6)), frame.ToWorld(new Double3(-0.1, roof + 0.9, -1.0)), 55),
             "knotter" => Camera.LookAt(frame.ToWorld(new Double3(1.3, roof + 1.5, l + gap + 0.2)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight, l + gap * 0.5)), 52),
             "knotterslip" => Camera.LookAt(frame.ToWorld(new Double3(w + 2.2, 2.3, l + gap * 0.5 + 1.9)), frame.ToWorld(new Double3(g.PlateX, g.CouplerHeight + 0.2, l + gap * 0.4)), 58),
